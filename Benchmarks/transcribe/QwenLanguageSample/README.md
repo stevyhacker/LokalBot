@@ -52,3 +52,24 @@ shasum -a 256 $QLS_OUT/llama-models/*.gguf   # compare with QwenLlamaASR.accurac
 ```
 
 `run_replay.sh` runs `Scripts/test/unit-tests.sh QwenLanguageSampleReplayTests/testReplayBenchmarkTracks` with the manifest and the model folder passed to the test host (`TEST_RUNNER_` variables). It needs `Vendor/llama-cpp` (`Scripts/build/fetch-llama.sh`) and the Silero VAD model the app already keeps under `~/Library/Application Support/FluidAudio/Models`.
+
+## Running the model elsewhere
+
+When the model must not run on the Mac, `remote/` decodes on another machine and replays both paths here. [results/2026-11-18-0.6b](results/2026-11-18-0.6b/REPORT.md) used it for 0.6B on the Windows PC.
+- `remote/pc_decode.py` uses only the Python standard library. It starts the tier's llama-server with the app's flags and sends each window as `QwenLlamaASR.makeRequest` does.
+- `remote/vote.swift` casts each window's vote with Apple's text recognizer, as `TranscriptLanguageVote` does.
+- `remote/plan.py` takes the windows from an earlier replay's VAD spans and plans the decodes. It then rebuilds `before` and `after` records in the replay's format, so `score.py --runs` and `simulate.py --runs` read them unchanged.
+
+Time here is each path's window decodes added up from one remote run, not paired live runs.
+
+```sh
+swiftc -O remote/vote.swift -o $QLS_OUT/vote
+.venv/bin/python remote/plan.py auto --tier 0.6b      # $QLS_OUT/job-0.6b-auto.json
+# copy the tracks, pc_decode.py and the job to the machine, then there:
+#   python pc_decode.py job-0.6b-auto.json            # QLS_REMOTE: its folder, default C:\qls
+# copy decodes-0.6b.jsonl back to $QLS_OUT, then:
+.venv/bin/python remote/plan.py pins --tier 0.6b      # job-0.6b-pins.json; decode it there too
+.venv/bin/python remote/plan.py records --tier 0.6b   # $QLS_OUT/runs-0.6b.jsonl
+.venv/bin/python score.py --runs $QLS_OUT/runs-0.6b.jsonl --timing $QLS_OUT/runs-0.6b.jsonl --results results/<date>-0.6b
+.venv/bin/python simulate.py --runs $QLS_OUT/runs-0.6b.jsonl --shares 0.8 0.85 0.9 --sizes 4 8 12 16 --resample 2000 --results results/<date>-0.6b
+```

@@ -84,8 +84,9 @@ def main():
     parser.add_argument('--resample', type=int, default=0, help='random samples per track (0: skip)')
     parser.add_argument('--sizes', nargs='+', type=int, help='sample sizes (default: all recorded)')
     parser.add_argument('--results', help='also write simulation.json here')
+    parser.add_argument('--runs', help='runs file (default QLS_OUT/runs.jsonl)')
     args = parser.parse_args()
-    records = [r for (_, _, mode), r in sorted(runs().items()) if mode == 'before']
+    records = [r for (_, _, mode), r in sorted(runs(args.runs).items()) if mode == 'before']
     sizes = args.sizes or sorted({int(k) for r in records for k in r['samples']})
     summary = []
     for layout in ['word', 'plain']:
@@ -115,7 +116,7 @@ def main():
     if args.resample:
         print(f'\nrandom span per group, {args.resample} samples per track:')
         result['resampled'] = resample(records, sizes, args.shares, args.resample)
-    for folder in [OUT] + ([Path(args.results)] if args.results else []):
+    for folder in ([] if args.runs else [OUT]) + ([Path(args.results)] if args.results else []):
         folder.mkdir(parents=True, exist_ok=True)
         (folder / 'simulation.json').write_text(json.dumps(result, indent=1))
 

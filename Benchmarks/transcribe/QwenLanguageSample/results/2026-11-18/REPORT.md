@@ -134,7 +134,7 @@ At 12 and 90%, almost all of the remaining risk is the 79.8% track (23%). Tracks
 
 ## What was not run
 
-- **Qwen3-ASR 0.6B.** The compact tier uses the same code, with 15 s windows, but was not benchmarked.
+- **Qwen3-ASR 0.6B on the Mac.** The compact tier was benchmarked afterwards on the Windows PC, with the same result: identical decisions and transcripts, 1.78× faster recognition on AMI ([report](../2026-11-18-0.6b/REPORT.md)).
 - **The speaker-region pass** on tracks that settle on Croatian. It is the same after both paths. Its cost comes on top of the times above. So does the voice-activity sweep, also the same for both: 0.3–1 s per WAV track and 6–10 s per AAC meeting track.
 - **References for the owner's meetings.** They were compared on decisions and output only, which were identical.
 - **A quiet machine.** Other sessions shared the CPU and GPU, so absolute real-time factors depend on their load and on the tracks. Compare them only within a pair, not with the 20.5× and 40.0× that QwenLlamaCpp measured on FLEURS.
