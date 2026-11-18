@@ -1,3 +1,4 @@
+import AppKit
 import XCTest
 @testable import LokalBot
 
@@ -10,7 +11,12 @@ private final class ScriptedCotypingEngine: CotypingCompleting {
     var result: Result<String, Error> = .success("")
     var suppression: CotypingSuppressionReason?
     private(set) var requests: [CotypingRequest] = []
+    private(set) var warmRequests = 0
     var beforeReturning: (() -> Void)?
+
+    func warmAfterPause() async {
+        warmRequests += 1
+    }
 
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
         requests.append(request)
@@ -785,6 +791,68 @@ final class CotypingCoordinatorTests: XCTestCase {
         coordinator.clearSuggestion()
         XCTAssertTrue(second?.isCancelled ?? false)
         XCTAssertNil(coordinator.caretRefreshTask)
+    }
+
+    // MARK: - After a pause
+
+    /// The first suggestion after half an hour without typing took 1.9 s
+    /// against 62 ms (2026-10-06): the model had gone cold. Any key readies
+    /// it, as clicks and unlocking do, before the suggestion is asked for.
+    func testAKeyAfterAPauseReadiesTheModel() async {
+        let coordinator = makeCoordinator()
+        coordinator.isRunning = true
+        defer { coordinator.stop() }
+        coordinator.handleKey(CotypingInputEvent(kind: .navigation, characters: ""))
+        await waitForWarmRequests(1)
+        XCTAssertEqual(engine.warmRequests, 1)
+    }
+
+    /// Typing asks at most once per interval; the engine itself skips a
+    /// model that ran recently.
+    func testActivityAsksToReadyTheModelAtMostOncePerInterval() async {
+        let coordinator = makeCoordinator()
+        coordinator.isRunning = true
+        let start = ContinuousClock.now
+        coordinator.warmModelAfterPause(now: start)
+        coordinator.warmModelAfterPause(now: start + .seconds(1))
+        coordinator.warmModelAfterPause(now: start + CotypingCoordinator.modelWarmRequestInterval + .seconds(1))
+        await waitForWarmRequests(2)
+        XCTAssertEqual(engine.warmRequests, 2)
+    }
+
+    func testTheScreenWakingReadiesTheModel() async {
+        let coordinator = makeCoordinator()
+        coordinator.isRunning = true
+        coordinator.observeReturnToTheMac()
+        defer { coordinator.stopObservingReturnToTheMac() }
+        NSWorkspace.shared.notificationCenter.post(name: NSWorkspace.screensDidWakeNotification, object: nil)
+        await waitForWarmRequests(1)
+        XCTAssertEqual(engine.warmRequests, 1)
+    }
+
+    /// Autocomplete is paused during a meeting recording and while stopped,
+    /// so the model is left alone then.
+    func testTheModelIsLeftAloneWhileStoppedOrRecording() async {
+        let stopped = makeCoordinator()
+        stopped.warmModelAfterPause()
+        let recording = CotypingCoordinator(
+            engine: engine,
+            settingsProvider: { [settings] in settings },
+            learningStore: CotypingLearningStore(storageRoot: tempDir, initialSnapshot: .init()),
+            isMeetingRecordingActive: { true },
+            selfBundleID: "me.dotenv.LokalBot.tests",
+            stats: stats)
+        recording.isRunning = true
+        recording.warmModelAfterPause()
+        try? await Task.sleep(for: .milliseconds(100))
+        XCTAssertEqual(engine.warmRequests, 0)
+    }
+
+    private func waitForWarmRequests(_ count: Int) async {
+        let deadline = ContinuousClock.now + .seconds(2)
+        while engine.warmRequests < count, ContinuousClock.now < deadline {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
     }
 
     // MARK: - Escape

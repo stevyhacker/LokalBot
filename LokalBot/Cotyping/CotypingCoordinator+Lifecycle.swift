@@ -107,6 +107,7 @@ extension CotypingCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshFocusSoon() }
         }
+        observeReturnToTheMac()
         isRunning = true
         state = .idle
     }
@@ -137,6 +138,7 @@ extension CotypingCoordinator {
             NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver)
             self.workspaceObserver = nil
         }
+        stopObservingReturnToTheMac()
         focusTracker.stop()
         inputMonitor.stop()
         isRunning = false
@@ -169,7 +171,10 @@ extension CotypingCoordinator {
         wired = true
         focusTracker.onChange = { [weak self] focus in self?.handleFocusChange(focus) }
         inputMonitor.onKey = { [weak self] event in self?.handleKey(event) }
-        inputMonitor.onPointerDown = { [weak self] in self?.refreshFocusSoon() }
+        inputMonitor.onPointerDown = { [weak self] in
+            self?.warmModelAfterPause()
+            self?.refreshFocusSoon()
+        }
         inputMonitor.onAcceptKey = { [weak self] scope in self?.acceptFromTap(scope) ?? false }
         inputMonitor.onDismissKey = { [weak self] in self?.dismissFromTap() ?? false }
         inputMonitor.acceptGate = { [weak self] in
