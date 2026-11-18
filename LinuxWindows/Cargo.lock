@@ -4664,10 +4664,12 @@ dependencies = [
  "clap",
  "directories",
  "lokalbot-core",
+ "memchr",
  "rusqlite",
  "serde",
  "serde_json",
  "tempfile",
+ "unicode-normalization",
  "ureq 3.5.2",
  "uuid",
 ]
