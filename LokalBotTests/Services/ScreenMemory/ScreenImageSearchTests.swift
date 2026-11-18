@@ -211,7 +211,7 @@ final class ScreenImageSearchTests: XCTestCase {
             titled: .init(meaning: .init(z: 3.1, cosine: 0.7, modality: .image), ts: now, app: "Safari", text: nil),
         ]
         let ranked = ScreenSearch.ranked(query: "payment declined error", keyword: keyword, coverage: coverage,
-                                         meanings: meanings, limit: 10) { [store] in store?.screenshot(id: $0) }
+                                         meanings: meanings, limit: 10) { [store] in store?.screenshots(ids: $0) ?? [:] }
 
         XCTAssertEqual(ranked.map(\.snapshotID), [titled, worded],
                        "the picture match stands out; one word of three no longer qualifies")

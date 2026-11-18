@@ -365,7 +365,7 @@ final class EmbeddingIndex {
         _ meetings: [Meeting],
         progress: ((_ done: Int, _ total: Int) -> Void)? = nil
     ) async {
-        let pending = meetings.filter { pendingIndexState(for: $0) != nil }
+        let pending = await meetingsNeedingVectors(meetings)
         guard !pending.isEmpty else { return }
         progress?(0, pending.count)
         for (offset, meeting) in pending.enumerated() {
@@ -468,22 +468,98 @@ final class EmbeddingIndex {
     ) -> (folder: URL, mtime: TimeInterval, notes: String?, hasNotesVectors: Bool)? {
         guard !isDeleted(meeting.id) else { return nil }
         let folder = meeting.folderURL(in: storage)
+        guard Self.isFolder(folder) else { return nil }
+        let mtime = Self.sourceMtime(in: folder)
+        let notes = MeetingNotes.load(from: folder)
+        let hasNotesVectors = hasNotesChunks(meeting.id)
+        guard Self.needsVectors(mtime: mtime, indexedMtime: indexedMtime(meeting.id),
+                                hasNotes: notes != nil, hasNotesVectors: hasNotesVectors) else { return nil }
+        return (folder, mtime, notes, hasNotesVectors)
+    }
+
+    /// The meetings `index(_:)` has work for. Looking at every meeting's
+    /// files and rows (at launch, the whole library) runs off the main actor
+    /// on its own read-only connection; only the meetings it finds are checked
+    /// again here, so one deleted or changed meanwhile is still judged by
+    /// `pendingIndexState`.
+    private func meetingsNeedingVectors(_ meetings: [Meeting]) async -> [Meeting] {
+        guard database != nil, !meetings.isEmpty else { return [] }
+        let sources = meetings.map { MeetingSource(id: $0.id, folder: $0.folderURL(in: storage)) }
+        let url = databaseURL
+        let worker = Task.detached(priority: .utility) { () -> Set<UUID>? in
+            guard !Task.isCancelled, let database = SQLiteDatabase(url: url, readOnly: true) else { return nil }
+            return Self.meetingIDsNeedingVectors(sources, in: database)
+        }
+        let candidates = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
+        guard !Task.isCancelled else { return [] }
+        // Without the second connection, every meeting is checked here as before.
+        return meetings.filter {
+            (candidates?.contains($0.id) ?? true) && pendingIndexState(for: $0) != nil
+        }
+    }
+
+    struct MeetingSource: Sendable {
+        let id: UUID
+        let folder: URL
+    }
+
+    /// `pendingIndexState`'s answer for many meetings at once: three queries
+    /// for the whole library instead of four per meeting.
+    nonisolated static func meetingIDsNeedingVectors(
+        _ sources: [MeetingSource], in database: SQLiteDatabase
+    ) -> Set<UUID> {
+        let deleted = Set(database.query("SELECT meeting_id FROM deleted_meetings") { statement in
+            sqlite3_column_text(statement, 0).map { String(cString: $0) }
+        })
+        let indexedRows: [(String, TimeInterval)] = database.query(
+            "SELECT meeting_id, source_mtime FROM embedded_meetings WHERE model_id = ?1",
+            bind: [indexVersion]
+        ) { statement in
+            sqlite3_column_text(statement, 0).map { (String(cString: $0), sqlite3_column_double(statement, 1)) }
+        }
+        let indexed = Dictionary(indexedRows, uniquingKeysWith: { first, _ in first })
+        let withNotesVectors = Set(database.query(
+            "SELECT DISTINCT meeting_id FROM embeddings WHERE substr(text, 1, ?1) = ?2",
+            bind: [notesChunkMarker.count, notesChunkMarker]
+        ) { statement in
+            sqlite3_column_text(statement, 0).map { String(cString: $0) }
+        })
+        var needed = Set<UUID>()
+        for source in sources {
+            guard !Task.isCancelled else { break }
+            let id = source.id.uuidString
+            guard !deleted.contains(id), isFolder(source.folder) else { continue }
+            if needsVectors(mtime: sourceMtime(in: source.folder), indexedMtime: indexed[id],
+                            hasNotes: MeetingNotes.load(from: source.folder) != nil,
+                            hasNotesVectors: withNotesVectors.contains(id)) {
+                needed.insert(source.id)
+            }
+        }
+        return needed
+    }
+
+    nonisolated private static func isFolder(_ url: URL) -> Bool {
         var isDirectory: ObjCBool = false
-        guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory),
-              isDirectory.boolValue else { return nil }
-        let mtime = ["transcript.json", "summary.md", MeetingNotes.fileName].compactMap {
+        return FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory)
+            && isDirectory.boolValue
+    }
+
+    /// The newest of the files a meeting's vectors are made from.
+    nonisolated private static func sourceMtime(in folder: URL) -> TimeInterval {
+        ["transcript.json", "summary.md", MeetingNotes.fileName].compactMap {
             (try? FileManager.default.attributesOfItem(
                 atPath: folder.appendingPathComponent($0).path))?[.modificationDate] as? Date
         }.map(\.timeIntervalSince1970).max() ?? 0
-        let notes = MeetingNotes.load(from: folder)
-        // Notes joined the semantic corpus after libraries were embedded, and
-        // clearing notes deletes the file without raising the newest mtime.
-        // Either way, notes present on only one side force a fresh embedding.
-        let hasNotesVectors = hasNotesChunks(meeting.id)
-        let notesChanged = (notes != nil) != hasNotesVectors
-        guard mtime > 0 || hasNotesVectors,
-              (indexedMtime(meeting.id) ?? -1 < mtime) || notesChanged else { return nil }
-        return (folder, mtime, notes, hasNotesVectors)
+    }
+
+    /// Notes joined the semantic corpus after libraries were embedded, and
+    /// clearing notes deletes the file without raising the newest mtime.
+    /// Either way, notes present on only one side force a fresh embedding.
+    nonisolated private static func needsVectors(
+        mtime: TimeInterval, indexedMtime: TimeInterval?, hasNotes: Bool, hasNotesVectors: Bool
+    ) -> Bool {
+        let notesChanged = hasNotes != hasNotesVectors
+        return (mtime > 0 || hasNotesVectors) && ((indexedMtime ?? -1) < mtime || notesChanged)
     }
 
     func index(_ meeting: Meeting) async throws {

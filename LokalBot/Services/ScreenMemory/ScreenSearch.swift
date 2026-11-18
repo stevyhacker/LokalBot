@@ -31,15 +31,15 @@ enum ScreenSearch {
     /// Keyword hits and meaning matches as one ranked list. A capture found
     /// only by meaning gets its text's best passage as the snippet, or its
     /// window title when it has no text (a picture-only match), and is marked
-    /// `isSemantic`.
-    @MainActor
+    /// `isSemantic`. `screenshots` is asked once, for the captures found by
+    /// meaning alone (Ask asks a read-only store off the main actor).
     static func ranked(
         query: String,
         keyword: [ActivityStore.OCRHit],
         coverage: [Int64: Double],
         meanings: [Int64: EmbeddingIndex.ScreenMeaningMatch],
         limit: Int,
-        screenshot: (Int64) -> ActivityStore.Screenshot?
+        screenshots: ([Int64]) -> [Int64: ActivityStore.Screenshot]
     ) -> [ActivityStore.OCRHit] {
         let terms = ScreenSearchRanking.terms(query)
         var keywordByID: [Int64: ActivityStore.OCRHit] = [:]
@@ -49,12 +49,15 @@ enum ScreenSearch {
             keyword: keyword.map { (snapshotID: $0.snapshotID, coverage: coverage[$0.snapshotID] ?? 0) },
             lookup: ScreenSearchRanking.isLookup(terms),
             limit: limit)
+        let shots = screenshots(ranked.compactMap { item in
+            keywordByID[item.snapshotID] == nil && meanings[item.snapshotID] != nil ? item.snapshotID : nil
+        })
         return ranked.compactMap { item in
             if var hit = keywordByID[item.snapshotID] {
                 hit.isSemantic = item.isSemantic
                 return hit
             }
-            guard let match = meanings[item.snapshotID], let shot = screenshot(item.snapshotID) else { return nil }
+            guard let match = meanings[item.snapshotID], let shot = shots[item.snapshotID] else { return nil }
             let title = shot.windowTitle.isEmpty ? shot.app : shot.windowTitle
             var hit = ActivityStore.OCRHit(
                 snapshotID: shot.id, ts: shot.ts, app: shot.app, windowTitle: shot.windowTitle,

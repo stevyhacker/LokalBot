@@ -361,10 +361,18 @@ extension RecallSearch {
             let meanings = await app.embeddingIndex.screenMeanings(query, filter: filter, priority: .interactive)
             guard !Task.isCancelled else { return Result() }
             if !meanings.isEmpty {
-                let ranked = ScreenSearch.ranked(
-                    query: query, keyword: result.screens.flatMap(\.matches), coverage: result.screenCoverage,
-                    meanings: meanings, limit: 2_000, screenshot: { app.activityStore.screenshot(id: $0) })
-                result.setScreens(screenGroups(ranked, limit: displayLimit + 1))
+                // Up to 2,000 captures' records and passages: read and ranked
+                // off the main actor, which keystrokes and drawing need.
+                let keyword = result.screens.flatMap(\.matches)
+                let coverage = result.screenCoverage
+                let groups = await ActivityStore.readInBackground(at: url) { store in
+                    let ranked = ScreenSearch.ranked(
+                        query: query, keyword: keyword, coverage: coverage, meanings: meanings,
+                        limit: 2_000, screenshots: { store.screenshots(ids: $0) })
+                    return screenGroups(ranked, limit: displayLimit + 1)
+                }
+                guard !Task.isCancelled else { return Result() }
+                result.setScreens(groups)
             }
         }
         return result
