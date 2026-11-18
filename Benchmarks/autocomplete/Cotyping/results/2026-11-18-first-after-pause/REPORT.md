@@ -32,7 +32,7 @@ request repeated at once.
 | 20 s | 61 | 51 | 47 | 46–50 |
 | 60 s | 59 | 48 | 50 | 48–50 |
 | 300 s | 130, 95 | 50, 53 | 49 | 47–49 |
-| 1800 s | not run (1,907 on 2026-10-06, older llama.cpp) | not run | not run | 62 on 2026-10-06 |
+| 1800 s | unmeasured (1,907 on 2026-10-06, older llama.cpp) | unmeasured | unmeasured | 62 on 2026-10-06 |
 
 In the app, whichever comes first warms the model: a click, a key in any app,
 the screen waking or an unlock shortly before typing ("just before"), or the
@@ -71,7 +71,19 @@ also took 132 ms. It is kept as `keepalive3600-disturbed.txt`.
   compressed. On a quiet Mac the file stayed 99–100% in memory after 300 s. In
   a discarded run, other work used about 28 GB of compressed memory, and half
   the file was out of memory after 60 s. This is the likely cost of the 1.9 s
-  measured after 30 minutes, which the 1800 s run would check.
+  measured after 30 minutes.
+
+## Not measured
+
+- **The 30-minute pause.** It was not run, because the run heats the laptop.
+  The fix has not been shown to remove the 1.9 s measured on 2026-10-06. A touch
+  that starts at the first key only has the app's wait before the suggestion,
+  about 45 ms. If paging makes the touch itself take most of the 1.9 s, only a
+  click, a wake or an unlock some time before typing would hide it. Measuring
+  it needs a Mac other than this laptop.
+- **Removing the touch's token, undone.** No real-model run checked that the
+  new position assertion in `testTouchKeepsTheCachedPromptAndTheSuggestion`
+  fails without the `seq_rm`.
 
 `llama_decode` only queues the GPU work. A first version of the touch did not
 wait for it, so it returned in 2 ms, and the first suggestion waited for the

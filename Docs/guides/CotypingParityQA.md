@@ -157,7 +157,8 @@ more before painting. Nothing else waits on the keystroke:
   waking or unlocking the screen, runs one throwaway token through a model that
   has sat unused for 30 s. After a five-minute pause the first suggestion took
   130 and 95 ms of model time before, and 50 and 53 ms after, against 48 ms
-  while typing
+  while typing. A 30-minute pause, 1.9 s before (2026-10-06), is unmeasured
+  since
   ([results](../../Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md)).
 
 Model time per suggestion, measured with

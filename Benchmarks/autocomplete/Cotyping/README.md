@@ -167,7 +167,7 @@ The warm-up modes (`TEST_RUNNER_LOKALBOT_COTYPING_IDLE_WARMUP`) are `none`;
 and `every<N>`, a `touch` every N seconds of the pause, as while the person
 keeps using the Mac. `TEST_RUNNER_GGML_METAL_RESIDENCY_KEEP_ALIVE_S` changes
 llama.cpp's residency keep-alive (180 s by default) for comparison.
-Results from 2026-11-18 are in
+Results from 2026-11-18, which leave the 30-minute pause unmeasured, are in
 [`results/2026-11-18-first-after-pause`](results/2026-11-18-first-after-pause/REPORT.md).
 
 ## Hosted model comparison
