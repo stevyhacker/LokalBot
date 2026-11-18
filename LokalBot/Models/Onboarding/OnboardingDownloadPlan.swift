@@ -166,8 +166,10 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
         switch role {
         case .transcribe:
             name = settings.transcriptionModelDisplayName
-            // Fun-ASR-Nano reads a folder the person already has.
-            downloads = !settings.transcriptionModel.isRemote && settings.transcriptionModel != .funASRNano
+            // Fun-ASR-Nano reads a folder the person already has, and system models live in macOS.
+            downloads = !settings.transcriptionModel.isRemote
+                && settings.transcriptionModel != .funASRNano
+                && !settings.transcriptionModel.isBuiltInSystem
             bytes = downloads ? ModelSettingsPresentation.estimatedTranscriptionBytes(
                 settings.transcriptionModel, granite: settings.graniteSpeechModel) : nil
         case .think:

@@ -375,6 +375,11 @@ The app may make these outbound connections:
   Pyannote models, which download on first use like the speaker models.
   Turning on Files downloads EmbeddingGemma 2's image and audio projector
   (555 MB), pinned and checked like the other models.
+  When **Apple Speech** is selected on macOS 26+, macOS may install the chosen
+  language's speech asset from Apple via `AssetInventory` if it is not already
+  present; transcription and word timing still run locally on this Mac through
+  `SpeechAnalyzer` without sending audio off-device or downloading the Qwen3
+  forced aligner.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
