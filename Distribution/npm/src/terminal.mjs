@@ -43,6 +43,10 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   if (totals.subagents > 0) extras.push(`${plural(totals.subagents, 'subagent')} launched`);
   if (totals.testRuns > 0) extras.push(`${plural(totals.testRuns, 'test run')}`);
   if (totals.scheduledRuns > 0) extras.push(`${plural(totals.scheduledRuns, 'scheduled run')}`);
+  if ((totals.cacheHitRate ?? 0) >= 0.1) extras.push(`${percent(totals.cacheHitRate)} prompt cache hit`);
+  if ((totals.avgPromptWords ?? 0) > 0 && (totals.toolsPerRequest ?? 0) > 0) {
+    extras.push(`avg ${plural(totals.avgPromptWords, 'word')}/prompt → ${totals.toolsPerRequest} tool calls`);
+  }
   if (extras.length > 0) out.push(`  Also: ${extras.join(', ')}`);
   out.push('');
   const coverage = coverageNote(stats);
