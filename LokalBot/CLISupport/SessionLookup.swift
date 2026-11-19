@@ -65,12 +65,22 @@ enum SessionLookup {
 
     /// The on-disk folder for a meeting.
     static func folderURL(for meeting: Meeting) -> URL {
-        storageRootURL.appendingPathComponent(meeting.relativePath, isDirectory: true)
+        folderURL(for: meeting, root: storageRootURL)
+    }
+
+    /// A caller reading many meetings resolves `root` once, since resolving
+    /// it reads the environment.
+    static func folderURL(for meeting: Meeting, root: URL) -> URL {
+        root.appendingPathComponent(meeting.relativePath, isDirectory: true)
     }
 
     /// Convenience accessors for the standard artifacts the pipeline writes.
     static func summaryMarkdown(for meeting: Meeting) -> String? {
-        contents(at: folderURL(for: meeting).appendingPathComponent("summary.md"))
+        summaryMarkdown(for: meeting, root: storageRootURL)
+    }
+
+    static func summaryMarkdown(for meeting: Meeting, root: URL) -> String? {
+        contents(at: folderURL(for: meeting, root: root).appendingPathComponent("summary.md"))
     }
 
     static func transcriptMarkdown(for meeting: Meeting) -> String? {
@@ -94,9 +104,17 @@ enum SessionLookup {
     }
 
     static func transcript(for meeting: Meeting) -> Transcript? {
-        let url = folderURL(for: meeting).appendingPathComponent("transcript.json")
-        guard let data = try? Data(contentsOf: url) else { return nil }
-        return try? JSONDecoder().decode(Transcript.self, from: data)
+        transcriptData(for: meeting, root: storageRootURL).flatMap(transcript(from:))
+    }
+
+    /// The raw `transcript.json`, for callers that can tell from its bytes
+    /// that they need no decode.
+    static func transcriptData(for meeting: Meeting, root: URL) -> Data? {
+        try? Data(contentsOf: folderURL(for: meeting, root: root).appendingPathComponent("transcript.json"))
+    }
+
+    static func transcript(from data: Data) -> Transcript? {
+        try? JSONDecoder().decode(Transcript.self, from: data)
     }
 
     private static func contents(at url: URL) -> String? {
