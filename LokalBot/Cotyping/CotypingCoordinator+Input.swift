@@ -6,6 +6,7 @@ extension CotypingCoordinator {
 
     func handleKey(_ event: CotypingInputEvent) {
         guard isRunning else { return }
+        warmModelAfterPause()
         discardRevokedMemoryContext()
         noteKey(event, live: focusTracker.focus.field)
         if event.isEscape, let shown = session, overlay.isVisible, inputMonitor.isAcceptActive {

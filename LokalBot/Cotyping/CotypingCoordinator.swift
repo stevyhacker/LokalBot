@@ -81,6 +81,10 @@ final class CotypingCoordinator: ObservableObject {
     /// (possibly backed-off) poll.
     var focusRefreshTask: Task<Void, Never>?
     var workspaceObserver: NSObjectProtocol?
+    /// Wake and unlock observers that ready the model for the person's return.
+    var returnObservers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
+    /// When activity last asked the engine to ready its model.
+    var lastModelWarmRequest: ContinuousClock.Instant?
     var hostPublishPollGeneration: UInt64 = 0
     var hostPublishPollTask: Task<Void, Never>?
     var wired = false
