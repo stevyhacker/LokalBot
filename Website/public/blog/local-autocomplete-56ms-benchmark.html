@@ -20,7 +20,7 @@
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B" />
   <meta property="article:published_time" content="2026-11-17" />
-  <meta property="article:modified_time" content="2026-11-17" />
+  <meta property="article:modified_time" content="2026-11-19" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="56 ms Local System-Wide Autocomplete: Benchmarking Gemma 4 E2B vs. LFM2.5 1.2B — LokalBot Blog" />
   <meta name="twitter:description" content="Headless keystroke-by-keystroke engine benchmark of LokalBot's local autocomplete: 56 ms median with Gemma 4 E2B vs. 26 ms with LFM2.5 1.2B, accuracy across 788 word positions, and five flaws we fixed in our own harness." />
@@ -29,7 +29,7 @@
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark#post","headline":"56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B","description":"Headless keystroke-by-keystroke engine benchmark of LokalBot's local autocomplete: 56 ms median with Gemma 4 E2B vs. 26 ms with LFM2.5 1.2B, accuracy across 788 word positions, and five flaws we fixed in our own harness.","datePublished":"2026-11-17","dateModified":"2026-11-17","url":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark","mainEntityOfPage":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark","image":"https://www.lokalbot.com/assets/blog/og/local-autocomplete-56ms-benchmark.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B","item":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark"}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"BlogPosting","@id":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark#post","headline":"56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B","description":"Headless keystroke-by-keystroke engine benchmark of LokalBot's local autocomplete: 56 ms median with Gemma 4 E2B vs. 26 ms with LFM2.5 1.2B, accuracy across 788 word positions, and five flaws we fixed in our own harness.","datePublished":"2026-11-17","dateModified":"2026-11-19","url":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark","mainEntityOfPage":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark","image":"https://www.lokalbot.com/assets/blog/og/local-autocomplete-56ms-benchmark.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"isPartOf":{"@id":"https://www.lokalbot.com/blog#blog"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Blog","item":"https://www.lokalbot.com/blog"},{"@type":"ListItem","position":3,"name":"56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B","item":"https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark"}]}]}</script>
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -47,7 +47,7 @@
       <p class="eyebrow">Benchmark</p>
       <h1>56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B</h1>
       <p class="guide-hero__lead">System-wide inline autocomplete only feels invisible when it stays under ~100 ms per keystroke and knows when to stay silent. Here are the measured numbers behind LokalBot's Balanced and Lightweight presets.</p>
-      <p class="guide-byline"><time datetime="2026-11-17">November 17, 2026</time> · 5 min read</p>
+      <p class="guide-byline"><time datetime="2026-11-17">November 17, 2026</time> · Updated <time datetime="2026-11-19">November 19, 2026</time> · 5 min read</p>
     </header>
 
     <article class="guide-article blog-article">
@@ -82,8 +82,25 @@
           <li><strong>Silence is a feature.</strong> Both models withheld suggestions on the exact same 3 open-ended prompts (<code>notes-list</code>, <code>comma-clause</code>, <code>sentence-start</code>) and stayed quiet mid-word (<code>rec|eive</code>), producing zero unsafe suggestions across all 140 passes.</li>
         </ul>
 
+        <h2>First suggestion after a pause (November 18, 2026)</h2>
+        <p>Steady-state speed only tells half the story: after three minutes without a decode, llama.cpp releases Metal weight residency (180 s default keep-alive), and the GPU clocks down within seconds. On an M4 Max (Gemma 4 E2B Q6_K), warming the runtime with a single throwaway token on wake, unlock, click, or the first keystroke (then removing that token so the cached prompt stays intact) brings the first suggestion back to steady-state latency:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">First suggestion latency after idle pauses on Apple M4 Max (Gemma 4 E2B Q6_K)</caption>
+            <thead>
+              <tr><th scope="col">Idle pause</th><th scope="col">Before</th><th scope="col">Warm-up at key</th><th scope="col">Warm-up just before</th><th scope="col">Warm reference</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">20 s</th><td>61 ms</td><td>51 ms</td><td><strong>47 ms</strong></td><td>46–50 ms</td></tr>
+              <tr><th scope="row">60 s</th><td>59 ms</td><td><strong>48 ms</strong></td><td>50 ms</td><td>48–50 ms</td></tr>
+              <tr><th scope="row">300 s (5 min)</th><td>95–130 ms</td><td>50–53 ms</td><td><strong>49 ms</strong></td><td>47–49 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Four warm-up touches over a five-minute pause added 18 mJ of CPU energy (468 vs. 450 mJ) and never reload a model freed under memory pressure. A 30-minute pause under memory pressure—where OS file paging dominates—has not been re-measured yet. Full methodology and raw logs live in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md</a>.</p>
+
         <h2>Choosing between them in LokalBot</h2>
-        <p>Both presets ship built into LokalBot: <strong>Balanced local</strong> uses Gemma 4 E2B Base, and <strong>Lightweight local</strong> switches to LFM2.5 1.2B Instruct for faster typing and a smaller disk footprint. Full category breakdowns and commands to rerun the harness are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</a>.</p>
+        <p>Both presets ship built into LokalBot: <strong>Balanced local</strong> uses Gemma 4 E2B Base, and <strong>Lightweight local</strong> switches to LFM2.5 1.2B Instruct for faster typing and a smaller disk footprint. For a feature-by-feature comparison with Cotypist and Cotabby, see <a href="/blog/autocomplete-that-knows-your-meetings">Autocomplete that knows your meetings</a>. Full category breakdowns and commands to rerun the engine harness are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</a>.</p>
     </article>
 
     <section class="guide-related" aria-labelledby="more-title">

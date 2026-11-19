@@ -119,6 +119,7 @@ POSTS = [
     {
         "slug": "local-autocomplete-56ms-benchmark",
         "published": "2026-11-17",
+        "updated": "2026-11-19",
         "title": "56 ms Local System-Wide Autocomplete: Benchmarking Gemma 4 E2B vs. LFM2.5 1.2B",
         "description": "Headless keystroke-by-keystroke engine benchmark of LokalBot's local autocomplete: 56 ms median with Gemma 4 E2B vs. 26 ms with LFM2.5 1.2B, accuracy across 788 word positions, and five flaws we fixed in our own harness.",
         "eyebrow": "Benchmark",
@@ -157,8 +158,25 @@ POSTS = [
           <li><strong>Silence is a feature.</strong> Both models withheld suggestions on the exact same 3 open-ended prompts (<code>notes-list</code>, <code>comma-clause</code>, <code>sentence-start</code>) and stayed quiet mid-word (<code>rec|eive</code>), producing zero unsafe suggestions across all 140 passes.</li>
         </ul>
 
+        <h2>First suggestion after a pause (November 18, 2026)</h2>
+        <p>Steady-state speed only tells half the story: after three minutes without a decode, llama.cpp releases Metal weight residency (180 s default keep-alive), and the GPU clocks down within seconds. On an M4 Max (Gemma 4 E2B Q6_K), warming the runtime with a single throwaway token on wake, unlock, click, or the first keystroke (then removing that token so the cached prompt stays intact) brings the first suggestion back to steady-state latency:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">First suggestion latency after idle pauses on Apple M4 Max (Gemma 4 E2B Q6_K)</caption>
+            <thead>
+              <tr><th scope="col">Idle pause</th><th scope="col">Before</th><th scope="col">Warm-up at key</th><th scope="col">Warm-up just before</th><th scope="col">Warm reference</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">20 s</th><td>61 ms</td><td>51 ms</td><td><strong>47 ms</strong></td><td>46–50 ms</td></tr>
+              <tr><th scope="row">60 s</th><td>59 ms</td><td><strong>48 ms</strong></td><td>50 ms</td><td>48–50 ms</td></tr>
+              <tr><th scope="row">300 s (5 min)</th><td>95–130 ms</td><td>50–53 ms</td><td><strong>49 ms</strong></td><td>47–49 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Four warm-up touches over a five-minute pause added 18 mJ of CPU energy (468 vs. 450 mJ) and never reload a model freed under memory pressure. A 30-minute pause under memory pressure—where OS file paging dominates—has not been re-measured yet. Full methodology and raw logs live in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md</a>.</p>
+
         <h2>Choosing between them in LokalBot</h2>
-        <p>Both presets ship built into LokalBot: <strong>Balanced local</strong> uses Gemma 4 E2B Base, and <strong>Lightweight local</strong> switches to LFM2.5 1.2B Instruct for faster typing and a smaller disk footprint. Full category breakdowns and commands to rerun the harness are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</a>.</p>
+        <p>Both presets ship built into LokalBot: <strong>Balanced local</strong> uses Gemma 4 E2B Base, and <strong>Lightweight local</strong> switches to LFM2.5 1.2B Instruct for faster typing and a smaller disk footprint. For a feature-by-feature comparison with Cotypist and Cotabby, see <a href="/blog/autocomplete-that-knows-your-meetings">Autocomplete that knows your meetings</a>. Full category breakdowns and commands to rerun the engine harness are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</a>.</p>
         """,
     },
     {
@@ -324,6 +342,7 @@ o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask Lo
     {
         "slug": "autocomplete-that-knows-your-meetings",
         "published": "2026-10-13",
+        "updated": "2026-11-19",
         "title": "Autocomplete That Knows Your Meetings, on Gemma 4 E2B",
         "description": "LokalBot's autocomplete runs Gemma 4 E2B base at about 50 ms a suggestion on an M4 Max and can bring in facts from your own meeting notes. How it compares with Cotypist and Cotabby.",
         "eyebrow": "Autocomplete",
@@ -337,7 +356,8 @@ o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask Lo
         </figure>
 
         <h2>Fast enough to stay out of the way</h2>
-        <p>Getting autocomplete to be useful without being intrusive or laggy took a lot of experiments with different models and quantizations. The best balance of suggestion quality and latency on a regular MacBook turned out to be the Gemma 4 E2B base model at 6-bit (Q6_K), running in-process through llama.cpp. On an M4 Max a suggestion takes about 50 ms.</p>
+        <p>Getting autocomplete to be useful without being intrusive or laggy took a lot of experiments with different models and quantizations. The best balance of suggestion quality and latency on a regular MacBook turned out to be the Gemma 4 E2B base model at 6-bit (Q6_K), running in-process through llama.cpp. On an M4 Max a suggestion takes a median of 56 ms while typing (see the <a href="/blog/local-autocomplete-56ms-benchmark">full engine benchmark</a>).</p>
+        <p><strong>Update, November 19, 2026 — first suggestion after a pause:</strong> Cotypist highlights staying fast when you resume typing after a break. Previously, once llama.cpp's 180-second Metal residency keep-alive lapsed, LokalBot's first suggestion after a 5-minute pause took 95–130 ms. LokalBot now warms the loaded runtime with a single throwaway token on screen wake, unlock, click, or the first keystroke—removing that token afterward so the cached prompt stays intact—cutting a 5-minute pause down to <strong>49–53 ms</strong> against a <strong>47–49 ms</strong> warm reference (<a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md" target="_blank" rel="noopener">benchmark report</a>; 30-minute pauses under heavy memory pressure remain unmeasured).</p>
 
         <h2>Context from your own work</h2>
         <ul>
@@ -347,7 +367,7 @@ o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask Lo
         <p>Autocomplete lives in the same app as meetings, dictation, and screen recall, which share one memory budget for their models.</p>
 
         <h2>How it compares</h2>
-        <p>Cotypist and Cotabby are the closest alternatives. As described on their sites on October 13, 2026:</p>
+        <p>Cotypist and Cotabby are the closest local-first alternatives. As described on their sites (checked October 13, 2026; LokalBot column updated November 19, 2026):</p>
         <div class="guide-table-wrap">
           <table class="guide-table">
             <caption class="visually-hidden">Cotypist, Cotabby, and LokalBot autocomplete compared</caption>
@@ -356,10 +376,12 @@ o.bind(<span class="c-str">"SUPER + ALT + A"</span>, <span class="c-str">"Ask Lo
             </thead>
             <tbody>
               <tr><th scope="row">License and price</th><td>Proprietary; free for 100 words a day, paid for unlimited</td><td>AGPL-3.0, free (beta)</td><td>GPLv3, free, no limits</td></tr>
-              <tr><th scope="row">Model</th><td>Local (Gemma 4 E4B recommended)</td><td>Local GGUF through llama.cpp, or Apple Intelligence</td><td>Gemma 4 E2B base Q6_K, in-process llama.cpp</td></tr>
+              <tr><th scope="row">Platforms</th><td>macOS</td><td>macOS</td><td>macOS (Swift), Windows &amp; Linux (Rust + GPUI)</td></tr>
+              <tr><th scope="row">Model</th><td>Local (Gemma 4 E4B recommended)</td><td>Local GGUF through llama.cpp, or Apple Intelligence</td><td>Gemma 4 E2B base Q6_K (Balanced) or LFM2.5 1.2B (Lightweight), in-process llama.cpp</td></tr>
+              <tr><th scope="row">First suggestion after a 5-min pause</th><td>Advertised fast resume</td><td>Not published</td><td>49–53 ms on M4 Max (warm-up on wake, click, or key)</td></tr>
               <tr><th scope="row">Knows what was said in your meetings</th><td>No</td><td>No</td><td>Yes, opt-in</td></tr>
               <tr><th scope="row">Text above the field</th><td>Not documented on its site</td><td>OCR of the window</td><td>Accessibility text, never from private windows</td></tr>
-              <tr><th scope="row">Also in the app</th><td>Autocomplete only</td><td>Emoji, macros, autocorrect</td><td>Meetings, dictation, screen recall</td></tr>
+              <tr><th scope="row">Also in the app</th><td>Autocomplete only</td><td>Emoji, macros, autocorrect</td><td>Meetings, dictation, screen recall, read-only MCP</td></tr>
             </tbody>
           </table>
         </div>
