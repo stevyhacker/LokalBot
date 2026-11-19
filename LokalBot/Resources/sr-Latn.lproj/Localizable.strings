@@ -2599,3 +2599,9 @@
 "Priorities for today" = "Prioriteti za danas";
 "Priorities from %@" = "Prioriteti: %@";
 "Priorities from a previous workday" = "Prioriteti od prethodnog radnog dana";
+"Import past meetings" = "Uvezi prethodne sastanke";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Uvezi beleške iz aplikacija Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper ili Zoom.";
+"Claude Code (MCP command)" = "Claude Code (MCP komanda)";
+"Claude Code (Plugin)" = "Claude Code (dodatak)";
+"Codex (Plugin)" = "Codex (dodatak)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON konfiguracija (Cursor, Claude Desktop, …)";
