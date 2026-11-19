@@ -420,6 +420,17 @@ class CompleteCoverageTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.verify()
 
+    def test_reports_from_an_earlier_attempt_of_the_same_run_pass(self):
+        # A failed-jobs-only rerun keeps the passing runner's reports.
+        with patch.dict(os.environ, GITHUB_RUN_ATTEMPT='3'):
+            self.verify()
+            path = self.root / 'smoke.json'
+            original = json.loads(path.read_text())
+            for variant in [dict(original, attempt='4'), dict(original, attempt='0'), dict(original, run='41')]:
+                path.write_text(json.dumps(variant))
+                with self.subTest(variant=variant), self.assertRaises(ValueError):
+                    self.verify()
+
     def test_missing_or_wrong_sized_capture_fails(self):
         path = next((self.root / 'captures').glob('*.png'))
         original = path.read_bytes()
@@ -443,12 +454,13 @@ class CompleteCoverageTests(unittest.TestCase):
 
 
 class ParallelGateTests(unittest.TestCase):
-    def test_all_seven_consumers_depend_only_on_build(self):
+    def test_both_runners_depend_only_on_build(self):
         workflow = (ROOT / '.github/workflows/ui-tests.yml').read_text()
-        for job in ['build-smoke', 'reduced-motion', 'shards']:
+        for job in ['build-smoke', 'shards']:
             block = workflow.split(f'  {job}:\n', 1)[1].split('    steps:', 1)[0]
             self.assertIn('    needs: build\n', block)
-        self.assertIn('needs: [changes, build, build-smoke, reduced-motion, shards]', workflow)
+        self.assertIn('needs: [changes, build, build-smoke, shards]', workflow)
+        self.assertNotIn('  reduced-motion:\n', workflow)
         build_block = workflow.split('  build:\n', 1)[1].split('    steps:', 1)[0]
         self.assertIn("    needs: changes\n", build_block)
         self.assertIn("if: needs.changes.outputs.relevant == 'true'", build_block)
@@ -457,23 +469,23 @@ class ParallelGateTests(unittest.TestCase):
         self.assertIn('XCUITest (macOS)', workflow)
 
     def test_missing_failed_skipped_or_cancelled_jobs_block_full_gate(self):
-        shards.gate('success', 'success', 'success', 'success')
-        for index in range(4):
+        shards.gate('success', 'success', 'success')
+        for index in range(3):
             for bad in ['', 'failure', 'skipped', 'cancelled']:
-                values = ['success'] * 4
+                values = ['success'] * 3
                 values[index] = bad
                 with self.subTest(index=index, bad=bad), self.assertRaises(ValueError):
                     shards.gate(*values)
 
     def test_filtered_run_requires_selected_job_and_skips_matrix(self):
         with patch.object(shards, 'inventory', return_value=['Suite/testOne', 'Suite/testTwo']):
-            shards.gate('success', 'success', 'skipped', 'skipped', 'Suite/testOne')
+            shards.gate('success', 'success', 'skipped', 'Suite/testOne')
             self.assertEqual(shards.selected_tests('Suite'), ['Suite/testOne', 'Suite/testTwo'])
             self.assertEqual(shards.selected_tests('LokalBotUITests/Suite/testOne'), ['Suite/testOne'])
-            shards.gate('success', 'success', 'skipped', 'skipped', 'LokalBotUITests/Suite/testOne')
-            for values in [('success', 'failure', 'skipped', 'skipped', 'Suite/testOne'),
-                           ('success', 'success', 'skipped', 'skipped', 'Suite/typo'),
-                           ('success', 'success', 'success', 'success', 'Suite/testOne')]:
+            shards.gate('success', 'success', 'skipped', 'LokalBotUITests/Suite/testOne')
+            for values in [('success', 'failure', 'skipped', 'Suite/testOne'),
+                           ('success', 'success', 'skipped', 'Suite/typo'),
+                           ('success', 'success', 'success', 'Suite/testOne')]:
                 with self.assertRaises(ValueError):
                     shards.gate(*values)
 
@@ -486,15 +498,44 @@ class ParallelGateTests(unittest.TestCase):
                 plan = shards.plan()
         self.assertEqual(plan['background'], ['BackgroundFlowUITests/testA'])
         self.assertNotIn('BackgroundFlowUITests/testA', plan['functional-1'] + plan['functional-2'])
+        # The model stub's Bun is fetched only on the runner that has the background phase.
         workflow = (ROOT / '.github/workflows/ui-tests.yml').read_text()
-        self.assertIn('background', workflow.split('phase: [', 1)[1].split(']', 1)[0])
+        self.assertIn('background', shards.GROUPS['runner-2'])
+        self.assertIn('fetch-bun.sh', workflow.split('\n  shards:\n', 1)[1].split('\n  complete:\n', 1)[0])
 
-    def test_workflow_matrix_runs_every_planned_shard_once(self):
+    def test_two_runners_run_every_planned_phase_once(self):
+        self.assertEqual(sorted(shards.grouped_phases()), sorted(shards.plan()))
+        self.assertEqual(len(shards.grouped_phases()), len(set(shards.grouped_phases())))
         workflow = (ROOT / '.github/workflows/ui-tests.yml').read_text()
-        matrix = workflow.split('phase: [', 1)[1].split(']', 1)[0].split(', ')
-        self.assertEqual(sorted(matrix), sorted(shards.matrix_jobs()))
-        self.assertIn('visual', matrix)
-        self.assertFalse([phase for phase in matrix if phase.startswith('visual-')])
+        first = workflow.split('\n  build-smoke:\n', 1)[1].split('\n  shards:\n', 1)[0]
+        second = workflow.split('\n  shards:\n', 1)[1].split('\n  complete:\n', 1)[0]
+        self.assertIn('python3 Scripts/ci/ui-shards.py run runner-1\n', first)
+        self.assertIn('python3 Scripts/ci/ui-shards.py run runner-2\n', second)
+        self.assertNotIn('matrix:', second)
+        self.assertEqual(sorted(shards.GROUPS), ['runner-1', 'runner-2'])
+
+    def test_a_group_runs_every_phase_after_a_failure_and_restores_each_phase(self):
+        with tempfile.TemporaryDirectory() as temp:
+            original = Path.cwd()
+            os.chdir(temp)
+            try:
+                run = Path('.build/dd/Build/Products/Fixture.xctestrun')
+                run.parent.mkdir(parents=True)
+                run.write_bytes(b'original')
+                calls, motion = [], []
+                def phase(name, selected):
+                    calls.append((name, run.read_bytes()))
+                    run.write_bytes(b'changed by ' + name.encode())
+                    return 1 if name == 'smoke' else 0
+                with patch.dict(os.environ, CI='true'), \
+                        patch.object(shards, 'run_phase', side_effect=phase), \
+                        patch.object(shards, 'reduce_motion', side_effect=motion.append):
+                    self.assertEqual(shards.execute('runner-1'), 1)
+            finally:
+                os.chdir(original)
+        self.assertEqual([name for name, _ in calls], shards.GROUPS['runner-1'])
+        self.assertTrue(all(data == b'original' for _, data in calls))
+        self.assertEqual(motion, [True, False])
 
     def test_visual_runs_every_size_and_reports_the_first_failure(self):
         calls = []
@@ -796,20 +837,21 @@ class TimingTests(unittest.TestCase):
 
 
 class TestArtifactTests(unittest.TestCase):
-    def test_identity_ignores_only_runner_location_and_job(self):
+    def test_identity_ignores_only_runner_location_job_and_attempt(self):
+        # A failed-jobs-only rerun consumes products from an earlier attempt of the same run.
         identity = dict(root='/producer', job='build', commit='sha', xcode='26.3', lock='hash',
                         architecture='arm64', signing='NO', run='42', attempt='1')
         with patch.object(products.stamp, 'identity', return_value=dict(identity)):
             actual = products.identity()
-        self.assertEqual(set(actual), set(identity) - {'root', 'job'})
+        self.assertEqual(set(actual), set(identity) - {'root', 'job', 'attempt'})
 
     def test_ui_products_may_run_on_an_older_toolchain_but_unit_products_may_not(self):
-        built = dict(commit='sha', run='42', attempt='1', xcode='Xcode 26.4.1', sdk='26.4',
+        built = dict(commit='sha', run='42', xcode='Xcode 26.4.1', sdk='26.4',
                      architecture='arm64', signing='NO', lock='dependencies')
         tested = dict(built, xcode='Xcode 26.3', sdk='26.2')
         self.assertTrue(products.matches(built, tested, 'ui'))
         self.assertFalse(products.matches(built, tested, 'unit'))
-        for key in ['commit', 'run', 'attempt', 'architecture', 'signing', 'lock']:
+        for key in ['commit', 'run', 'architecture', 'signing', 'lock']:
             with self.subTest(key=key):
                 self.assertFalse(products.matches(built, dict(tested, **{key: 'changed'}), 'ui'))
 
@@ -819,7 +861,7 @@ class TestArtifactTests(unittest.TestCase):
         self.assertIn("runs-on: ${{ inputs.build_runner || 'macos-26' }}", build)
         self.assertIn("xcode-version: ${{ inputs.build_xcode || '26.4.1' }}", build)
         self.assertIn("xcode${{ inputs.build_xcode || '26.4.1' }}", build)
-        for job in ['build-smoke', 'reduced-motion', 'shards']:
+        for job in ['build-smoke', 'shards']:
             block = workflow.split(f'\n  {job}:\n', 1)[1].split('      - name: Verify and restore compiled UI tests', 1)[0]
             with self.subTest(job=job):
                 self.assertIn("runs-on: ${{ inputs.runner || 'macos-15' }}", block)
@@ -837,7 +879,7 @@ class TestArtifactTests(unittest.TestCase):
             binary.chmod(0o755)
             (source / 'Fixture.xctestrun').write_bytes(plistlib.dumps({'path': str(binary)}))
             original = Path.cwd()
-            identity = dict(commit='sha', run='42', attempt='1', xcode='26.3', sdk='26.2',
+            identity = dict(commit='sha', run='42', xcode='26.3', sdk='26.2',
                             architecture='arm64', signing='NO', lock='dependencies')
             try:
                 os.chdir(producer)
