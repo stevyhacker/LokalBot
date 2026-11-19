@@ -57,19 +57,34 @@ enum MeetingOutcomesGenerator {
         _ rhs: MeetingOutcomes.ActionItem
     ) -> Bool {
         guard compatibleOwners(lhs, rhs) else { return false }
+        let leftDue = normalized(lhs.due ?? "")
+        let rightDue = normalized(rhs.due ?? "")
+        guard leftDue.isEmpty || rightDue.isEmpty || leftDue == rightDue else { return false }
         if normalized(lhs.text) == normalized(rhs.text) { return true }
-        guard sharesEvidence(lhs.citations, rhs.citations) else { return false }
-        // Asked again about a row, a small model can hand back the row's
-        // own words as a second task.
-        return duplicateText(lhs.text, rhs.text, threshold: 0.65) || repeatsItsSource(lhs) || repeatsItsSource(rhs)
+        // Context can support several tasks. Only the primary citation
+        // anchors the undertaking used to resolve this task's ownership.
+        guard let anchor = lhs.citations.first, anchor.segmentID == rhs.citations.first?.segmentID else { return false }
+        let leftQuote = normalized(lhs.attribution?.quote ?? "")
+        let rightQuote = normalized(rhs.attribution?.quote ?? "")
+        guard leftQuote.isEmpty || rightQuote.isEmpty || leftQuote == rightQuote else { return false }
+        if duplicateText(lhs.text, rhs.text, threshold: 0.65) { return true }
+        // A repair can repeat the spoken words of an already extracted task.
+        guard !leftQuote.isEmpty, leftQuote == rightQuote else { return false }
+        return echoesTask(lhs, rhs) || echoesTask(rhs, lhs)
+    }
+
+    private static func echoesTask(_ echo: MeetingOutcomes.ActionItem, _ task: MeetingOutcomes.ActionItem) -> Bool {
+        guard repeatsItsSource(echo) else { return false }
+        let match = SpokenUndertaking.alignment(task: task.text, clause: SpokenUndertaking.words([echo.text]))
+        return match.leads && match.matches >= 2
     }
 
     /// The task text is just what its cited speaker said ("I'll ping Mira
     /// to get that resolved"), not a task written from it.
     private static func repeatsItsSource(_ action: MeetingOutcomes.ActionItem) -> Bool {
         let text = normalized(action.text)
-        return text.split(separator: " ").count >= 4
-            && action.citations.contains { normalized($0.excerpt).contains(text) }
+        let source = action.attribution?.quote ?? action.citations.first?.excerpt ?? ""
+        return text.split(separator: " ").count >= 4 && normalized(source).contains(text)
     }
 
     private static func duplicateDecision(
@@ -100,16 +115,29 @@ enum MeetingOutcomesGenerator {
         _ lhs: MeetingOutcomes.ActionItem,
         _ rhs: MeetingOutcomes.ActionItem
     ) -> MeetingOutcomes.ActionItem {
-        let isForUser = lhs.isForUser || rhs.isForUser
-        let text = repeatsItsSource(lhs) != repeatsItsSource(rhs)
-            ? (repeatsItsSource(lhs) ? rhs.text : lhs.text) : preferredText(lhs.text, rhs.text)
+        let primary = preferredAction(lhs, rhs)
         return .init(
-            text: text,
-            owner: isForUser ? "Me" : lhs.owner ?? rhs.owner,
-            due: lhs.due ?? rhs.due,
-            isForUser: isForUser,
+            text: primary.text,
+            owner: primary.owner,
+            due: primary.due,
+            isForUser: primary.isForUser,
             importance: max(lhs.importance, rhs.importance),
-            citations: mergedCitations(lhs.citations, rhs.citations, anchor: lhs.citations.first?.segmentID), attribution: lhs.attribution)
+            citations: mergedCitations(primary.citations, lhs.citations + rhs.citations, anchor: primary.citations.first?.segmentID),
+            attribution: primary.attribution)
+    }
+
+    private static func preferredAction(
+        _ lhs: MeetingOutcomes.ActionItem,
+        _ rhs: MeetingOutcomes.ActionItem
+    ) -> MeetingOutcomes.ActionItem {
+        // Keep the text, owner, deadline, and primary citation together.
+        let leftHasDue = !normalized(lhs.due ?? "").isEmpty
+        let rightHasDue = !normalized(rhs.due ?? "").isEmpty
+        if leftHasDue != rightHasDue { return leftHasDue ? lhs : rhs }
+        let leftEcho = repeatsItsSource(lhs)
+        let rightEcho = repeatsItsSource(rhs)
+        if leftEcho != rightEcho { return leftEcho ? rhs : lhs }
+        return rhs.text.count > lhs.text.count ? rhs : lhs
     }
 
     private static func rebuiltAction(
