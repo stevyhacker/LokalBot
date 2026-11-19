@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://www.lokalbot.com/</loc>
-    <lastmod>2026-11-17</lastmod>
+    <lastmod>2026-11-19</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/guides</loc>
@@ -10,7 +10,19 @@
   </url>
   <url>
     <loc>https://www.lokalbot.com/blog</loc>
-    <lastmod>2026-11-11</lastmod>
+    <lastmod>2026-11-19</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/blog/gbrain-vs-lokalbot-memory-benchmark</loc>
+    <lastmod>2026-11-19</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/blog/local-stt-vs-cloud-apis</loc>
+    <lastmod>2026-11-18</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark</loc>
+    <lastmod>2026-11-17</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark</loc>
@@ -111,6 +123,10 @@
   <url>
     <loc>https://www.lokalbot.com/benchmarks</loc>
     <lastmod>2026-11-10</lastmod>
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/wrapped</loc>
+    <lastmod>2026-11-19</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/privacy</loc>

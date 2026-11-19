@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 16,
+      "speaker": "me",
+      "text": "The new list rows shipped. Remaining gap is the empty states."
+    },
+    {
+      "start": 16,
+      "end": 34,
+      "speaker": "them",
+      "text": "I'll deliver empty-state illustrations for Meetings and Ask by Friday."
+    },
+    {
+      "start": 34,
+      "end": 50,
+      "speaker": "me",
+      "text": "Then we can close the redesign epic next sprint."
+    }
+  ]
+}

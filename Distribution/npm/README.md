@@ -3,14 +3,14 @@
 Your year with Claude Code and Codex, counted from the session logs on your own computer.
 
 ```bash
-npx lokalbot wrapped
+npx lokalbot
 ```
 
 <img src="https://raw.githubusercontent.com/stevyhacker/LokalBot/master/Distribution/npm/docs/agent-wrapped.png" width="480" alt="An Agent Wrapped card for a made-up year. Titled The Switch Hitter, it draws the year as a grid with one column per day and one row per hour, brightest in the evenings, with one busy October day marked in amber. Below: 588 hours of agent work on 247 days, 1,575 requests, 14,415 tool calls, 2B tokens read, 396 commits and 51 merged pull requests, split 67% Claude Code and 33% Codex." />
 
-<sub>A made-up year, from `npx lokalbot wrapped --demo`.</sub>
+<sub>A made-up year, from `npx lokalbot --demo`.</sub>
 
-It prints a card in your terminal. Add `--share` for the picture: a page opens in your browser where you can save or copy it as an image.
+It prints a card in your terminal and opens a local, offline page in your browser where you can switch between **Portrait (4:5)** and **Wide (16:9)** layouts, toggle options, copy or save a 2× PNG, or copy a post caption. Pass `--no-share` for terminal output only. (`npx lokalbot wrapped` also works.)
 
 ## What it reads
 
@@ -28,7 +28,8 @@ Claude Code and Codex each keep a log of every session on your computer. This co
 | Agent hours | Time an agent was working. A run of work ends after ten minutes with no activity, and a pause longer than five minutes inside a run counts as five. Two agents working at once count twice. |
 | Requests | Messages you typed, including slash commands. Text the agent's own software adds to your turn is left out. |
 | Tool calls | Every tool an agent used, including the ones its subagents used. |
-| Tokens read and written | Input tokens, including cached ones, and output tokens. |
+| Tokens read and written | Input tokens, including cached ones, and output tokens. The optional `API value` figure estimates what those tokens would cost at public list API prices (flat-rate subscriptions like Claude Max/Pro or ChatGPT Plus/Pro cost less). |
+| Parallelism | Agent hours divided by wall-clock hours (`agentMs / wallClockMs`), shown when you ran agents in parallel (`1.2×` or higher). |
 | Commits, pull requests, test runs | Read from the shell commands the agents ran, such as `git commit -m` and `gh pr merge`. A command counts when it was run, whether or not it succeeded. |
 | Most at once | The most sessions with work under way at the same moment. A subagent counts as part of the session that started it. |
 | The title | The one trait that stands out most in your year, such as how much of it ran at night. |
@@ -51,10 +52,13 @@ Codex keeps its logs.
 
 ```text
 --year <year>       The year to count. Default: this year (last year in January).
---share             Also make the image: writes a page and opens it in your browser.
---out <file>        Where --share writes the page. Default: your temporary folder.
---no-open           With --share, write the page without opening it.
+--share             Write the shareable image page and open it in your browser (default in a TTY).
+--no-share          Print the terminal card only, without opening the image page.
+--wide              Open the shareable card in 16:9 wide layout (for X / LinkedIn).
+--out <file>        Where the share page is written. Default: your temporary folder.
+--no-open           Write the share page without opening your browser.
 --projects          Name your three busiest projects on the image.
+--no-api-value      Leave the estimated API-rate value off the card.
 --json              Print the figures as JSON instead of the card.
 --claude-dir <dir>  Read Claude Code projects from here instead of ~/.claude/projects.
 --codex-dir <dir>   Read Codex from here instead of ~/.codex.
@@ -66,7 +70,7 @@ Needs Node.js 20 or later. Codex's compressed logs need Node.js 22.15 or later; 
 
 ## Where it comes from
 
-[LokalBot](https://github.com/stevyhacker/LokalBot) is a free, open-source desktop app that keeps a private record of your work on your own computer: notes from your calls with no bot, search across what you saw and heard, and a timeline that shows each day's agent work next to your meetings. Agent Wrapped reads the logs the same way LokalBot's timeline does.
+[LokalBot](https://www.lokalbot.com/) ([GitHub](https://github.com/stevyhacker/LokalBot)) is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux that records your meetings with no bot, runs transcription and summaries locally, and gives Claude Code and Codex read-only MCP memory of what was decided. Agent Wrapped reads coding-agent logs the same way LokalBot's timeline does.
 
 If you liked your card, a star on [the repository](https://github.com/stevyhacker/LokalBot) helps other people find it.
 

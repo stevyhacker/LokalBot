@@ -392,6 +392,65 @@ fn merged_meetings_are_hidden() {
 }
 
 #[test]
+fn a_page_of_meetings_counts_only_what_it_shows() {
+    let phone = Phone::sample();
+    let newest = ids(&parse(phone.client.meetings(None, None, 1).unwrap()), "/id");
+    let meeting = |key: &str, started: &str, extra: Value| {
+        let mut body = json!({
+            "id": key, "title": key, "startedAt": started, "endedAt": started,
+            "timeZoneOffsetMinutes": 0, "durationSeconds": 60, "people": [], "projects": [],
+            "summaryMarkdown": "", "actions": [], "decisions": [], "openQuestions": [],
+            "hasTranscript": false
+        });
+        body.as_object_mut()
+            .unwrap()
+            .extend(extra.as_object().unwrap().clone());
+        json!({
+            "kind": "meeting", "key": key, "version": 1, "seq": 200, "deleted": false,
+            "sortKey": started, "body": body
+        })
+    };
+    let records = json!([
+        // Newer than every sample meeting, but merged away: not on any page.
+        meeting(
+            "merged-newest",
+            "2099-01-02T09:00:00.000Z",
+            json!({ "day": "2099-01-02", "mergedInto": STANDUP })
+        ),
+        // An explicit null is not merged.
+        meeting(
+            "unmerged-null",
+            "2001-01-01T09:00:00.000Z",
+            json!({ "day": "2001-01-01", "mergedInto": null })
+        ),
+        // No day: before every day, as an empty one.
+        meeting("no-day", "2000-01-01T09:00:00.000Z", json!({})),
+    ]);
+    assert_eq!(phone.client.import_records(records.to_string()).unwrap(), 3);
+
+    let first = parse(phone.client.meetings(None, None, 1).unwrap());
+    assert_eq!(ids(&first, "/id"), newest);
+    let all = ids(&parse(phone.client.meetings(None, None, 0).unwrap()), "/id");
+    assert_eq!(all.len(), 8);
+    assert_eq!(all[6..], ["unmerged-null", "no-day"]);
+    let until_2001 = parse(
+        phone
+            .client
+            .meetings(None, Some("2001-01-01".into()), 0)
+            .unwrap(),
+    );
+    assert_eq!(ids(&until_2001, "/id"), ["unmerged-null", "no-day"]);
+    let since_2000 = parse(
+        phone
+            .client
+            .meetings(Some("2000-01-01".into()), None, 0)
+            .unwrap(),
+    );
+    assert!(!ids(&since_2000, "/id").contains(&"no-day".to_owned()));
+    assert_eq!(phone.client.meetings(None, None, 7).unwrap().len(), 7);
+}
+
+#[test]
 fn a_record_keeps_its_highest_version() {
     let phone = Phone::new();
     let envelope = |version: u64, title: &str, deleted: bool| Envelope {

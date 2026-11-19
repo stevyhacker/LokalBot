@@ -4,10 +4,20 @@
 //! matches follow. Rare words weigh more, exact-phrase hits lead and ties
 //! keep recency. Words of up to three ASCII letters or digits match only
 //! whole words; a quoted query matches only its exact phrase.
+//!
+//! Each query still reads every meeting's files, but a quick byte scan
+//! ([`prefilter`]) skips the transcripts, titles, summaries and segments
+//! that cannot contain a query word, so only those that may are decoded and
+//! matched.
+
+#[cfg(test)]
+mod equivalence_tests;
+mod prefilter;
 
 use std::collections::{HashMap, HashSet};
 
 use lokalbot_core::{Meeting, ids::fold};
+use prefilter::{Prefilter, fold_fast};
 use unicode_fold::fold_char;
 
 use crate::session::{SearchHit, Session, short_id};
@@ -140,6 +150,7 @@ pub fn hits(
         search_terms(&phrase)
     };
 
+    let prefilter = Prefilter::new(&terms);
     let mut candidates: Vec<Candidate> = Vec::new();
     let mut coverage: HashMap<usize, HashSet<String>> = HashMap::new();
     let mut consider = |text: &str,
@@ -147,7 +158,10 @@ pub fn hits(
                         kind: u8,
                         position: usize,
                         hit: &dyn Fn(&str) -> Option<SearchHit>| {
-        let haystack = fold(text);
+        if !prefilter.may_match(text) {
+            return;
+        }
+        let haystack = fold_fast(text);
         let matched: Vec<String> = terms
             .iter()
             .filter(|t| word_range(t, &haystack).is_some())
@@ -200,7 +214,9 @@ pub fn hits(
                 })
             });
         }
-        if let Some(transcript) = session.transcript(meeting) {
+        if let Some(transcript) =
+            session.transcript_if(meeting, |json| prefilter.may_match_transcript(json))
+        {
             for (position, segment) in transcript.segments.iter().enumerate() {
                 consider(&segment.text, index, 2, position, &|_| {
                     Some(SearchHit {
@@ -231,9 +247,15 @@ pub fn hits(
             })
             .sum()
     };
+    // Summed in query order. A set's order changes from run to run, and with
+    // it the last bits of the sum, so meetings that match the same words
+    // could swap places between two identical searches.
     let meeting_weights: HashMap<usize, f64> = coverage
         .iter()
-        .map(|(meeting, words)| (*meeting, weight(&mut words.iter())))
+        .map(|(meeting, words)| {
+            let mut matched = terms.iter().filter(|t| words.contains(*t));
+            (*meeting, weight(&mut matched))
+        })
         .collect();
     let complete: HashSet<usize> = if require_all_words {
         coverage

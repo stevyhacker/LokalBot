@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Wrapped 2026: Your Year With Claude Code and Codex — LokalBot</title>
+  <meta name="description" content="Run npx lokalbot to turn your local Claude Code and Codex session logs into a shareable year-in-review card. Zero dependencies, zero uploads, Portrait 4:5 and Wide 16:9 PNG export." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/wrapped" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/wrapped" />
+  <meta property="og:title" content="Agent Wrapped 2026 — Your year with Claude Code and Codex" />
+  <meta property="og:description" content="Counted locally from your session logs. Nothing uploaded. Run npx lokalbot for your terminal card and shareable PNG." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-wrapped.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Agent Wrapped 2026: your year with Claude Code and Codex, counted locally with npx lokalbot." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Agent Wrapped 2026 — Your year with Claude Code and Codex" />
+  <meta name="twitter:description" content="Run npx lokalbot for a local, zero-upload year in review of your Claude Code and Codex sessions." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-wrapped.png" />
+  <meta name="twitter:image:alt" content="Agent Wrapped 2026: your year with Claude Code and Codex, counted locally with npx lokalbot." />
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script src="/app.js" defer></script>
+  <style>
+    .wrapped-page { max-width: 1080px; margin: 0 auto; padding: 120px 24px 80px; }
+    .wrapped-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; align-items: center; }
+    @media (max-width: 860px) { .wrapped-hero { grid-template-columns: 1fr; gap: 32px; } }
+    .wrapped-hero h1 { font-size: clamp(2.2rem, 4.4vw, 3.3rem); line-height: 1.08; margin: 12px 0 18px; letter-spacing: -0.02em; }
+    .wrapped-hero__lead { font-size: 1.12rem; line-height: 1.6; opacity: 0.86; margin: 0 0 24px; }
+    .wrapped-cmd { display: inline-flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; background: var(--glass-bg, rgba(15, 23, 34, 0.72)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 1.05rem; font-weight: 600; margin-bottom: 14px; }
+    .wrapped-cmd__copy { border: 0; border-radius: 8px; padding: 7px 12px; font: 600 0.85rem/1 ui-monospace, "SF Mono", Menlo, monospace; cursor: pointer; background: #23c4ae; color: #04141a; }
+    .wrapped-meta { font-size: 0.92rem; opacity: 0.75; margin: 0 0 22px; }
+    .wrapped-card-frame { margin: 0; }
+    .wrapped-card-frame img { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; border-radius: 14px; border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); }
+    .wrapped-card-frame figcaption { text-align: center; font-size: 0.86rem; opacity: 0.72; margin-top: 10px; }
+    .wrapped-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 64px; }
+    @media (max-width: 820px) { .wrapped-grid { grid-template-columns: 1fr; } }
+    .wrapped-tile { padding: 22px; border-radius: 14px; background: var(--glass-bg, rgba(15, 23, 34, 0.55)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.18)); }
+    .wrapped-tile h2 { font-size: 1.05rem; margin: 0 0 8px; }
+    .wrapped-tile p { margin: 0; font-size: 0.94rem; line-height: 1.55; opacity: 0.84; }
+    .wrapped-bridge { margin-top: 64px; padding: 32px; border-radius: 18px; background: var(--glass-bg, rgba(15, 23, 34, 0.68)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); }
+    .wrapped-bridge h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 8px 0 12px; }
+    .wrapped-bridge p { max-width: 66ch; line-height: 1.6; opacity: 0.88; margin: 0 0 18px; }
+    .wrapped-bridge__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .wrapped-faq { margin-top: 56px; }
+    .wrapped-faq h2 { margin: 0 0 18px; }
+    .wrapped-faq details { padding: 16px 0; border-top: 1px solid var(--glass-border, rgba(148, 163, 184, 0.2)); }
+    .wrapped-faq summary { font-weight: 600; cursor: pointer; }
+    .wrapped-faq details p { margin: 10px 0 0; opacity: 0.85; line-height: 1.6; }
+  </style>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/wrapped#webpage","url":"https://www.lokalbot.com/wrapped","name":"Agent Wrapped 2026: Your Year With Claude Code and Codex — LokalBot","description":"Run npx lokalbot to turn your local Claude Code and Codex session logs into a shareable year-in-review card. Zero dependencies, zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-19","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/wrapped#faq","mainEntity":[{"@type":"Question","name":"Does Agent Wrapped upload my logs or prompts?","acceptedAnswer":{"@type":"Answer","text":"No. The npm package has zero dependencies and makes zero network requests. It reads your local Claude Code and Codex JSONL session logs, counts timestamps, tool calls, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed."}},{"@type":"Question","name":"Why does my Claude Code heatmap start 30 days ago?","acceptedAnswer":{"@type":"Answer","text":"Claude Code deletes detailed session logs after 30 days by default unless you set cleanupPeriodDays in ~/.claude/settings.json. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's stats-cache.json to include earlier days counted this year."}},{"@type":"Question","name":"How is Agent Wrapped connected to LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP."}}]}]}</script>
+</head>
+<body>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#features">Features</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/privacy">Privacy</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
+        <i class="ph ph-github-logo" aria-hidden="true"></i>
+      </a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download</a>
+    </div>
+  </header>
+
+  <main class="wrapped-page">
+    <section class="wrapped-hero">
+      <div>
+        <p class="eyebrow">Free · Open source (GPLv3) · Updated November 19, 2026</p>
+        <h1>Your year with Claude Code and Codex.</h1>
+        <p class="wrapped-hero__lead">Run one command to map every hour your coding agents worked this year, your parallelism, tool calls, commits, and estimated API value—counted strictly from the logs on your own computer.</p>
+        <div class="wrapped-cmd">
+          <code>npx lokalbot</code>
+          <button type="button" class="wrapped-cmd__copy" data-copy-text="npx lokalbot" aria-label="Copy npx lokalbot">Copy</button>
+        </div>
+        <p class="wrapped-meta">Zero dependencies · Zero network requests · Works on macOS, Linux, and Windows (Node.js 20+)</p>
+        <div class="wrapped-bridge__actions">
+          <a class="btn btn--ghost" href="https://github.com/stevyhacker/lokalbot/tree/master/Distribution/npm" target="_blank" rel="noopener">Audit the source on GitHub</a>
+          <a class="btn btn--ghost" href="/claude-code-codex-meeting-notes">Connect Claude Code to meetings</a>
+        </div>
+      </div>
+      <figure class="wrapped-card-frame">
+        <img src="/assets/agent-wrapped-card.png" width="1200" height="1500" alt="Agent Wrapped 2026 demo card titled The Switch Hitter showing a full-year hour-by-day heatmap, 588 agent hours across 247 days, 14,415 tool calls, estimated API value, 396 commits, and a 67% Claude Code / 33% Codex split." />
+        <figcaption>Demo card from <code>npx lokalbot --demo</code>. Export as 2× PNG in Portrait (4:5) or Wide (16:9).</figcaption>
+      </figure>
+    </section>
+
+    <section class="wrapped-grid" aria-label="Highlights">
+      <div class="wrapped-tile">
+        <h2>Zero uploads, zero dependencies</h2>
+        <p>Reads <code>~/.claude/projects</code> and <code>~/.codex/sessions</code> locally. Never keeps prompt text, leaves project names off the image unless you pass <code>--projects</code>, and opens an offline page to save or copy your PNG.</p>
+      </div>
+      <div class="wrapped-tile">
+        <h2>Built for how you actually ship</h2>
+        <p>Shows your hour-by-day work shape, busiest day, parallelism multiplier, prompt cache hit rate, estimated list-API value, and commits and merged pull requests.</p>
+      </div>
+      <div class="wrapped-tile">
+        <h2>Handles Claude's 30-day log cleanup</h2>
+        <p>Claude Code deletes detailed session logs after 30 days by default. Agent Wrapped auto-zooms short windows so your card stays crisp and includes earlier days from <code>stats-cache.json</code>.</p>
+      </div>
+    </section>
+
+    <section class="wrapped-bridge">
+      <p class="eyebrow">From the maker of Agent Wrapped</p>
+      <h2>Give Claude Code and Codex memory of your meetings.</h2>
+      <p>Your coding agents already read your codebase, but they still don't know what your team decided on Zoom twenty minutes ago. <strong>LokalBot</strong> is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux that records calls with no meeting bot, runs transcription and summaries locally on your machine, and exposes decisions and action items to Claude Code and Codex over read-only MCP.</p>
+      <div class="wrapped-bridge__actions">
+        <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download LokalBot</a>
+        <a class="btn btn--ghost" href="/claude-code-codex-plugins">Install Claude Code &amp; Codex plugin</a>
+      </div>
+      <p class="home-install">macOS Homebrew: <span class="home-install__cmd"><code>brew install --cask stevyhacker/tap/lokalbot</code><button type="button" class="home-install__copy" data-copy-text="brew install --cask stevyhacker/tap/lokalbot" aria-label="Copy the Homebrew command"><i class="ph ph-copy" aria-hidden="true"></i></button></span></p>
+    </section>
+
+    <section class="wrapped-faq" aria-labelledby="wrapped-faq-title">
+      <h2 id="wrapped-faq-title">Frequently asked questions</h2>
+      <details>
+        <summary>Does Agent Wrapped upload my logs or prompts?</summary>
+        <p>No. The npm package has zero dependencies and makes zero network requests. It reads your local Claude Code and Codex JSONL session logs, counts timestamps, tool calls, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed.</p>
+      </details>
+      <details>
+        <summary>Why does my Claude Code heatmap start 30 days ago?</summary>
+        <p>Claude Code deletes detailed session logs after 30 days by default unless you add <code>"cleanupPeriodDays": 3650</code> to <code>~/.claude/settings.json</code>. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's <code>stats-cache.json</code> to include earlier days counted this year.</p>
+      </details>
+      <details>
+        <summary>How is Agent Wrapped connected to LokalBot?</summary>
+        <p>Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP.</p>
+      </details>
+    </section>
+  </main>
+
+  <footer class="footer footer--legal">
+    <div class="footer__brand">
+      <a class="brand" href="/"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
+      <p>Your personal context engine.</p>
+    </div>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/">Home</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/privacy">Privacy</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>
