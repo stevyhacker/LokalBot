@@ -206,10 +206,16 @@ pub fn resolve(settings: &Settings, api_key: Option<String>) -> Resolution {
                 model: model.to_string(),
             }
         }
-        // Claude Code is an agent of its own; `claude -p` offers no model
+        // CLI-backed plans run their own coding-agent CLI; they offer no model
         // endpoint for pi to call.
         SummarizerBackend::ClaudePlan => Resolution::Unsupported(
             "Agent Mode can't run on your Claude plan yet. Switch the Think model to a built-in model, Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.".into(),
+        ),
+        SummarizerBackend::AntigravityPlan => Resolution::Unsupported(
+            "Agent Mode can't run on your Antigravity plan yet. Switch the Think model to a built-in model, Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.".into(),
+        ),
+        SummarizerBackend::GeminiPlan => Resolution::Unsupported(
+            "Agent Mode can't run on your Gemini plan yet. Switch the Think model to a built-in model, Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.".into(),
         ),
     }
 }
@@ -345,7 +351,10 @@ fn think_display_name(settings: &Settings) -> String {
             .unwrap_or_else(|| settings.built_in_model_id.clone()),
         SummarizerBackend::Ollama => settings.ollama_model.clone(),
         SummarizerBackend::OpenAICompatible => settings.openai_model.clone(),
-        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => settings
+        SummarizerBackend::ChatGptPlan
+        | SummarizerBackend::ClaudePlan
+        | SummarizerBackend::AntigravityPlan
+        | SummarizerBackend::GeminiPlan => settings
             .think_plan()
             .map(|plan| plan.title().to_string())
             .unwrap_or_default(),
@@ -442,6 +451,25 @@ mod tests {
             ModelContext::from_settings(&plan).destination,
             Destination::Blocked(_)
         ));
+        for (backend, kind, expected) in [
+            (
+                SummarizerBackend::AntigravityPlan,
+                SubscriptionPlan::Antigravity,
+                "Agent Mode can't run on your Antigravity plan",
+            ),
+            (
+                SummarizerBackend::GeminiPlan,
+                SubscriptionPlan::Gemini,
+                "Agent Mode can't run on your Gemini plan",
+            ),
+        ] {
+            let mut plan = settings(|s| s.summarizer_backend = backend);
+            kind.set_approved(&mut plan, true);
+            match resolve(&plan, None) {
+                Resolution::Unsupported(reason) => assert!(reason.starts_with(expected)),
+                other => panic!("{other:?}"),
+            }
+        }
     }
 
     #[test]

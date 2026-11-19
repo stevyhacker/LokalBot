@@ -486,7 +486,9 @@ impl ModelsState {
             }
             SummarizerBackend::BuiltIn
             | SummarizerBackend::ChatGptPlan
-            | SummarizerBackend::ClaudePlan => false,
+            | SummarizerBackend::ClaudePlan
+            | SummarizerBackend::AntigravityPlan
+            | SummarizerBackend::GeminiPlan => false,
         }
     }
 }
@@ -837,11 +839,13 @@ impl SettingsPage {
         let page = cx.entity();
 
         let tab_page = page.clone();
-        const TABS: [SummarizerBackend; 4] = [
+        const TABS: [SummarizerBackend; 6] = [
             SummarizerBackend::OpenAICompatible,
             SummarizerBackend::Ollama,
             SummarizerBackend::ChatGptPlan,
             SummarizerBackend::ClaudePlan,
+            SummarizerBackend::AntigravityPlan,
+            SummarizerBackend::GeminiPlan,
         ];
         let tabs = settings_row::segmented(
             "settings-connection",
@@ -850,6 +854,8 @@ impl SettingsPage {
                 lokalbot_i18n::tr("Ollama"),
                 lokalbot_i18n::tr("ChatGPT plan"),
                 lokalbot_i18n::tr("Claude plan"),
+                lokalbot_i18n::tr("Antigravity plan"),
+                lokalbot_i18n::tr("Gemini plan"),
             ],
             TABS.iter().position(|tab| *tab == connection).unwrap_or(0),
             move |index, _, cx| {
@@ -1407,7 +1413,10 @@ pub(super) fn think_name(settings: &Settings) -> String {
                 settings.openai_model.clone()
             }
         }
-        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => plan_model_name(settings),
+        SummarizerBackend::ChatGptPlan
+        | SummarizerBackend::ClaudePlan
+        | SummarizerBackend::AntigravityPlan
+        | SummarizerBackend::GeminiPlan => plan_model_name(settings),
     }
 }
 

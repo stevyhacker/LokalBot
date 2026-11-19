@@ -151,162 +151,25 @@ enum ClaudePlanError: LocalizedError, Equatable, Sendable {
 
 // MARK: - Process
 
-/// Runs one short-lived child process: writes stdin, collects stdout (or
-/// hands it over line by line) and a bounded stderr tail, and terminates the
-/// child when the calling task is cancelled or the timeout passes.
+/// Runs one short-lived child process: delegates to `PlanCLIProcess` with
+/// Claude Code error mapping.
 enum ClaudeCodeProcess {
-    struct Output: Sendable {
-        var status: Int32
-        var stdout: Data
-        var stderrTail: String
-    }
+    typealias Output = PlanCLIProcess.Output
 
     static func run(executable: URL, arguments: [String], environment: [String: String],
                     workingDirectory: URL? = nil, input: Data = Data(),
                     timeout: Duration = .seconds(900),
                     onLine: (@Sendable (String) -> Void)? = nil) async throws -> Output {
-        guard FileManager.default.isExecutableFile(atPath: executable.path) else {
-            throw ClaudePlanError.notInstalled
-        }
-        let process = Process()
-        process.executableURL = executable
-        process.arguments = arguments
-        process.environment = environment
-        if let workingDirectory { process.currentDirectoryURL = workingDirectory }
-        let stdin = Pipe()
-        let stdout = Pipe()
-        let stderr = Pipe()
-        process.standardInput = stdin
-        process.standardOutput = stdout
-        process.standardError = stderr
-        let collector = OutputCollector(onLine: onLine)
-        let finished = DispatchGroup()
-        finished.enter()
-        stdout.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty {
-                handle.readabilityHandler = nil
-                collector.finishStdout()
-                finished.leave()
-            } else {
-                collector.appendStdout(data)
-            }
-        }
-        stderr.fileHandleForReading.readabilityHandler = { handle in
-            let data = handle.availableData
-            if data.isEmpty { handle.readabilityHandler = nil } else { collector.appendStderr(data) }
-        }
-        finished.enter()
-        process.terminationHandler = { _ in finished.leave() }
-
-        let writer = stdin.fileHandleForWriting
-        // A child that exits early closes its end: the write must fail with
-        // EPIPE instead of raising SIGPIPE, which would end LokalBot.
-        _ = fcntl(writer.fileDescriptor, F_SETNOSIGPIPE, 1)
-        do {
-            try process.run()
-        } catch {
-            stdout.fileHandleForReading.readabilityHandler = nil
-            stderr.fileHandleForReading.readabilityHandler = nil
-            throw ClaudePlanError.failed("Claude Code couldn't start: \(error.localizedDescription)")
-        }
-        DispatchQueue.global(qos: .userInitiated).async {
-            try? writer.write(contentsOf: input)
-            try? writer.close()
-        }
-        let stopper = ProcessStopper(process)
-        let timeoutTask = Task {
-            try? await Task.sleep(for: timeout)
-            if !Task.isCancelled { stopper.stop(reason: "timed out") }
-        }
-        defer { timeoutTask.cancel() }
-        await withTaskCancellationHandler {
-            await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-                finished.notify(queue: .global()) { continuation.resume() }
-            }
-        } onCancel: {
-            stopper.stop(reason: "cancelled")
-        }
-        if Task.isCancelled { throw CancellationError() }
-        if stopper.reason == "timed out" {
-            // Short limits (the 20-second sign-in check) are named in seconds:
-            // whole minutes turned them into "0 minutes".
-            let seconds = timeout.components.seconds
-            let limit = seconds < 60 ? "\(seconds) seconds"
-                : seconds < 120 ? "1 minute" : "\(seconds / 60) minutes"
-            throw ClaudePlanError.failed("Claude Code didn't finish within \(limit).")
-        }
-        return Output(status: process.terminationStatus, stdout: collector.stdout, stderrTail: collector.stderrTail)
-    }
-
-    private final class OutputCollector: @unchecked Sendable {
-        private let lock = NSLock()
-        private let onLine: (@Sendable (String) -> Void)?
-        private var stdoutData = Data()
-        private var pendingLine = Data()
-        private var stderrData = Data()
-
-        init(onLine: (@Sendable (String) -> Void)?) {
-            self.onLine = onLine
-        }
-
-        var stdout: Data { lock.withLock { stdoutData } }
-        var stderrTail: String { lock.withLock { String(decoding: stderrData, as: UTF8.self) } }
-
-        func appendStdout(_ data: Data) {
-            var lines: [String] = []
-            lock.withLock {
-                stdoutData.append(data)
-                guard onLine != nil else { return }
-                pendingLine.append(data)
-                while let newline = pendingLine.firstIndex(of: 0x0A) {
-                    lines.append(String(decoding: pendingLine[pendingLine.startIndex..<newline], as: UTF8.self))
-                    pendingLine.removeSubrange(pendingLine.startIndex...newline)
-                }
-            }
-            lines.forEach { onLine?($0) }
-        }
-
-        func finishStdout() {
-            let last: String? = lock.withLock {
-                guard onLine != nil, !pendingLine.isEmpty else { return nil }
-                defer { pendingLine.removeAll() }
-                return String(decoding: pendingLine, as: UTF8.self)
-            }
-            if let last { onLine?(last) }
-        }
-
-        func appendStderr(_ data: Data) {
-            lock.withLock {
-                stderrData.append(data)
-                if stderrData.count > 16_384 { stderrData = stderrData.suffix(16_384) }
-            }
-        }
-    }
-
-    private final class ProcessStopper: @unchecked Sendable {
-        private let process: Process
-        private let lock = NSLock()
-        private var stopReason: String?
-
-        init(_ process: Process) {
-            self.process = process
-        }
-
-        var reason: String? { lock.withLock { stopReason } }
-
-        func stop(reason: String) {
-            let first: Bool = lock.withLock {
-                guard stopReason == nil else { return false }
-                stopReason = reason
-                return true
-            }
-            guard first, process.isRunning else { return }
-            process.terminate()
-            let process = process
-            DispatchQueue.global().asyncAfter(deadline: .now() + 2) {
-                if process.isRunning { kill(process.processIdentifier, SIGKILL) }
-            }
-        }
+        try await PlanCLIProcess.run(
+            executable: executable,
+            arguments: arguments,
+            environment: environment,
+            workingDirectory: workingDirectory,
+            input: input,
+            timeout: timeout,
+            programName: "Claude Code",
+            notInstalledError: ClaudePlanError.notInstalled,
+            failedError: ClaudePlanError.failed,
+            onLine: onLine)
     }
 }

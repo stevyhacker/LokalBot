@@ -221,7 +221,10 @@ fn destination_blocked(settings: &Settings) -> bool {
             lokalbot_core::access::remote_block_reason(&settings.openai_base_url, approved)
                 .is_some()
         }
-        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => !settings
+        SummarizerBackend::ChatGptPlan
+        | SummarizerBackend::ClaudePlan
+        | SummarizerBackend::AntigravityPlan
+        | SummarizerBackend::GeminiPlan => !settings
             .think_plan()
             .is_some_and(|plan| plan.is_approved(settings)),
     }

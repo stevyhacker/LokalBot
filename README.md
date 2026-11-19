@@ -280,7 +280,7 @@ The default models take about 9.6 GB of disk on a Mac if you use every role, and
 
 ## Local AI, your choice
 
-Start with the built-in models, then change them in **Settings → Models**. LokalBot supports its bundled llama.cpp runtime, Ollama, OpenAI-compatible servers, and Apple Intelligence on supported Macs running macOS 26 or later. Think can also run on your own ChatGPT plan (Sign in with ChatGPT) or Claude plan (through your signed-in Claude Code), without an API key, and Agent Mode can run on the ChatGPT plan. Remote servers and plans require approval before receiving context.
+Start with the built-in models, then change them in **Settings → Models**. LokalBot supports its bundled llama.cpp runtime, Ollama, OpenAI-compatible servers, and Apple Intelligence on supported Macs running macOS 26 or later. Think can also run on your own ChatGPT plan (Sign in with ChatGPT), Claude plan (through your signed-in Claude Code), Antigravity plan (through your signed-in `agy` CLI), or Gemini plan (through your signed-in `gemini` CLI), without an API key, and Agent Mode can run on the ChatGPT plan. Remote servers and plans require approval before receiving context.
 
 Different jobs use different models. These are the Mac defaults on a fresh install, about 9.6 GB of model files if you use every role. They are not a RAM requirement:
 

@@ -114,7 +114,7 @@ extension AppSettings {
                 return Self.serverURL(ollamaBaseURL)?.appendingPathComponent("v1")
             case .openAICompatible:
                 return Self.serverURL(openAIBaseURL)
-            case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan:
+            case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
                 return nil
             }
         case .server:
@@ -144,7 +144,7 @@ extension AppSettings {
                     url: cotypingConfiguredServerURL, model: model,
                     apiKey: includingCredentials ? openAIAPIKey : nil,
                     missingModel: "Set a model for Think's server, or name one for autocomplete, under Settings → Models.")
-            case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan:
+            case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
                 return .unavailable("Think doesn't use a server. Choose another server for autocomplete, or run it on this Mac, under Settings → Models.")
             }
         case .server:

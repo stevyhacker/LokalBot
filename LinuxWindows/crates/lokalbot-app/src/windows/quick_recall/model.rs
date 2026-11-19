@@ -358,7 +358,9 @@ pub fn place(settings: &lokalbot_core::Settings) -> Place {
         SummarizerBackend::OpenAICompatible => Some(settings.openai_base_url.clone()),
         SummarizerBackend::BuiltIn
         | SummarizerBackend::ChatGptPlan
-        | SummarizerBackend::ClaudePlan => None,
+        | SummarizerBackend::ClaudePlan
+        | SummarizerBackend::AntigravityPlan
+        | SummarizerBackend::GeminiPlan => None,
     };
     let Some(url) = url.filter(|url| !access::is_loopback_url(url)) else {
         return Place::OnDevice;

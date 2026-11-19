@@ -11,7 +11,7 @@ enum InferencePresentation: Equatable {
         switch settings.summarizerBackend {
         case .builtIn, .appleIntelligence:
             self = .onDevice
-        case .chatGPTPlan, .claudePlan:
+        case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
             guard let plan = SubscriptionPlan(backend: settings.summarizerBackend) else {
                 self = .blocked(reason: "Choose a Think model under Settings → Models.")
                 return
