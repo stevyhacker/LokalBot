@@ -3,8 +3,8 @@
 Practical runbook for cutting a notarized LokalBot release and publishing a
 Sparkle update. The same tag also ships the Linux and Windows app with its own
 signed update feeds ([Linux and Windows](Docs/releasing/linux-and-windows.md)) and the Android
-app as a signed APK ([Android](Docs/releasing/android.md)); Google Play gets the same version by
-hand. The release tooling lives in
+app as a signed APK and, when `PLAY_PUBLISH=true`, a signed Google Play App Bundle
+([Android](Docs/releasing/android.md)). The release tooling lives in
 `Scripts/release/` and `Scripts/build/`:
 
 | File | Role |
@@ -16,6 +16,8 @@ hand. The release tooling lives in
 | `Scripts/build/clean_local.sh` | wipe local build/derived/DMG artifacts |
 | `Scripts/release/bump-version.py` | set the version in every file one tag ships it from |
 | `Scripts/release/sign-android-release.sh` | align and sign the Android APK, then check its certificate |
+| `Scripts/release/sign-android-bundle.sh` | sign the Android App Bundle (`.aab`) with the Play upload key, then check its certificate |
+| `Scripts/release/publish_google_play.py` | upload the signed `.aab`, R8 mapping and release notes to Google Play |
 | `LinuxWindows/scripts/release-feeds.sh` | sign the Linux/Windows archives and write their update feeds |
 | `LinuxWindows/scripts/linux-repos.sh` | add the `.deb` and `.rpm` to the signed apt and dnf repositories ([Linux package repositories](Docs/releasing/linux-package-repos.md)) |
 | `LinuxWindows/scripts/third-party-licenses.sh` | regenerate the Linux/Windows crate license list ([Third-party licenses](Docs/releasing/linux-and-windows.md#third-party-licenses)) |
@@ -466,6 +468,14 @@ one is listed ([MCP Registry](Docs/releasing/mcp-registry.md)).
 `ANDROID_KEYSTORE_BASE64` and `ANDROID_KEYSTORE_PASSWORD` sign the Android APK.
 A release has no APK until its key is set up, and a missing secret fails the
 job after that ([Android](Docs/releasing/android.md)).
+
+Optional: `PLAY_UPLOAD_KEYSTORE_BASE64`, `PLAY_UPLOAD_KEYSTORE_PASSWORD` (plus
+optional `PLAY_UPLOAD_KEY_ALIAS` and `PLAY_UPLOAD_KEY_PASSWORD`) and either
+`PLAY_SERVICE_ACCOUNT_JSON` or keyless GitHub OIDC
+(`PLAY_WORKLOAD_IDENTITY_PROVIDER` and `PLAY_SERVICE_ACCOUNT_EMAIL`) let
+stable releases upload the signed `.aab` and R8 mapping to Google Play once the
+`PLAY_PUBLISH` repository variable is `true`
+([Google Play](Docs/releasing/android.md#google-play)).
 
 Set the certificate and credential secrets without pasting them into source or
 shell history. `gh secret set NAME` prompts for the value securely:

@@ -9,11 +9,13 @@ arm64-v8a and x86_64, and installs on Android 10 or later.
 `release.yml` calls `companion-android.yml`, the same workflow CI uses, with the
 tag, without secrets or a compiled-output cache, while the macOS job runs. Its
 tag check fails when `versionName` does not name the tag's version. It builds the
-shrunk release APK and runs the unit, screenshot and lint checks. It then signs
-the APK with a throwaway key through `Scripts/release/sign-android-release.sh` and runs
-the end-to-end test on that copy against the stand-in computer, on an emulator.
-The tag keeps this job on GitHub's runners; CI's other runs may use the self-hosted
-Android runner on the Linux machine.
+shrunk release APK (`:app:assembleRelease`) and Android App Bundle
+(`:app:bundleRelease`), and runs the unit, screenshot and lint checks. It signs
+both with a throwaway key through `Scripts/release/sign-android-release.sh` and
+`Scripts/release/sign-android-bundle.sh` and runs the end-to-end test on the APK
+against the stand-in computer, on an emulator. The tag keeps this job on GitHub's
+runners; CI's other runs may use the self-hosted Android runner on the Linux
+machine.
 
 After the macOS job has published the release (so its release gates passed),
 `android-publish` signs the same unsigned APK with `ANDROID_KEYSTORE_BASE64` and
@@ -21,8 +23,9 @@ attaches it. The script refuses a key whose certificate differs from
 `Companion/android/release-certificate.sha256`. Signing is not part of the Gradle
 build, so no build script runs beside the key. Pre-release tags get an APK too.
 
-The build's R8 mapping, which decodes a stack trace from that release, stays with
-the unsigned APK in the run's `release-android` artifact for 90 days.
+The build's R8 mapping (which decodes stack traces from that release) and the
+unsigned App Bundle stay with the unsigned APK in the run's `release-android`
+artifact for 90 days.
 
 If the macOS release succeeded but an Android job failed, fix the cause and use
 **Re-run failed jobs**: the publish job uploads with `--clobber`.
@@ -100,8 +103,75 @@ So Android won't install the APK over a Play install or the other way round:
 switching means uninstalling, which erases the phone's copy and its pairing.
 Play lets the app signing key be upgraded once a year, next from 3 November 2027.
 
-`release.yml` doesn't upload to Play. Play takes an app bundle
-(`./gradlew :app:bundleRelease`), not the APK, signed with the upload key. Build
-it from the release tag and upload it in Play Console; until then, Play users stay
-on the version they have. Play refuses a `versionCode` it has already seen, so a
-fix to an upload needs a new build number, as a bad release does.
+For stable tags, `release.yml` calls `.github/workflows/google-play.yml` once
+the macOS release gates and the `android` job succeed (pre-release tags stay off
+Google Play). While the `PLAY_PUBLISH` repository variable is `true`, that job
+runs on GitHub's hosted runner, signs the unsigned `app-release.aab` from the
+`release-android` artifact with `Scripts/release/sign-android-bundle.sh`
+(refusing any keystore whose certificate differs from
+`Companion/android/play-upload-certificate.sha256`), and uploads the signed
+`.aab`, the R8 `mapping.txt` deobfuscation file, and trimmed `en-US` release
+notes from `Scripts/release/release-notes/<tag>.md` through
+`Scripts/release/publish_google_play.py`. Without `PLAY_PUBLISH=true`, it prints
+a notice and succeeds.
+
+Play refuses a `versionCode` it has already seen, so `publish_google_play.py`
+checks the target track first and exits cleanly when that `versionCode` is
+already published; a fix to a broken upload still needs a new build number, as a
+bad release does.
+
+### One-time Google Play CI setup
+
+1. In Google Cloud, enable the **Google Play Android Developer API** and create
+   a service account (for example `lokalbot-play-release@<project>.iam.gserviceaccount.com`).
+2. In **Google Play Console → Users and permissions**, invite that service
+   account and grant **Release to production, exclude devices, and use Play App
+   Signing** (and **Release apps to testing tracks** if using `internal`/`beta`)
+   scoped to `me.dotenv.lokalbot.companion`.
+3. Upload the Play upload keystore secrets (without pasting them into source or
+   shell history):
+
+```bash
+base64 -i /path/to/play-upload.keystore | \
+  gh secret set PLAY_UPLOAD_KEYSTORE_BASE64 --repo stevyhacker/LokalBot
+gh secret set PLAY_UPLOAD_KEYSTORE_PASSWORD --repo stevyhacker/LokalBot
+# Only needed if the keystore has multiple entries or a separate key password:
+# gh secret set PLAY_UPLOAD_KEY_ALIAS --repo stevyhacker/LokalBot
+# gh secret set PLAY_UPLOAD_KEY_PASSWORD --repo stevyhacker/LokalBot
+```
+
+4. Configure Google Play API authentication using **either** option:
+   - **Service account JSON key (quickest):**
+     ```bash
+     gh secret set PLAY_SERVICE_ACCOUNT_JSON --repo stevyhacker/LokalBot < /path/to/service-account.json
+     ```
+   - **Keyless GitHub OIDC (Workload Identity Federation):** create a Workload
+     Identity Pool + GitHub OIDC provider restricted to
+     `repository == 'stevyhacker/LokalBot'`, grant the pool principal
+     `roles/iam.workloadIdentityUser` on the service account, and set:
+     ```bash
+     gh secret set PLAY_WORKLOAD_IDENTITY_PROVIDER --repo stevyhacker/LokalBot
+     gh secret set PLAY_SERVICE_ACCOUNT_EMAIL --repo stevyhacker/LokalBot
+     ```
+5. Enable automatic publishing on stable tags:
+
+```bash
+gh variable set PLAY_PUBLISH --body true --repo stevyhacker/LokalBot
+# Optional overrides (defaults: track=production, status=completed):
+# gh variable set PLAY_TRACK --body production --repo stevyhacker/LokalBot
+# gh variable set PLAY_RELEASE_STATUS --body completed --repo stevyhacker/LokalBot
+```
+
+### Publishing or validating an existing tag by hand
+
+`google-play.yml` can also be dispatched from `master` for any stable tag (it
+builds a clean unsigned `.aab` from that tag in a secret-free job first, then
+signs and uploads it in the separate `publish` job):
+
+```bash
+# Dry-run validation against Google Play (uploads, validates edit, then deletes it):
+gh workflow run google-play.yml --ref master -f tag=v0.13.3 -f validate_only=true
+
+# Publish to production (or pass -f track=internal / -f status=draft):
+gh workflow run google-play.yml --ref master -f tag=v0.13.3
+```

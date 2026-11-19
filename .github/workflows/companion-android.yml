@@ -28,6 +28,7 @@ on:
       - "LinuxWindows/rust-toolchain.toml"
       - "Scripts/build/build-sync-*"
       - "Scripts/release/sign-android-release.sh"
+      - "Scripts/release/sign-android-bundle.sh"
       - ".github/workflows/companion-android.yml"
   pull_request:
     branches: [master, dev]
@@ -40,6 +41,7 @@ on:
       - "LinuxWindows/rust-toolchain.toml"
       - "Scripts/build/build-sync-*"
       - "Scripts/release/sign-android-release.sh"
+      - "Scripts/release/sign-android-bundle.sh"
       - ".github/workflows/companion-android.yml"
   workflow_dispatch:
     inputs:
@@ -211,22 +213,24 @@ jobs:
       - name: Tests of the end-to-end helpers
         run: python3 -m unittest discover -s Companion/e2e
 
-      # The shrunk release build, because that's what ships and what the debug
-      # build above can't prove works.
+      # The shrunk release build (APK for GitHub Releases + AAB for Google Play),
+      # because that's what ships and what the debug build above can't prove works.
       - name: Build the release app and the stand-in computer
         run: |
-          (cd Companion/android && ./gradlew :app:assembleRelease)
+          (cd Companion/android && ./gradlew :app:assembleRelease :app:bundleRelease)
           (cd LinuxWindows && cargo build -p lokalbot-sync --example companion_host)
 
-      # The same script signs the release with the real key, which this job never
-      # sees, and the end-to-end test below runs on what it writes.
+      # The same scripts sign the release with the real keys, which this job never
+      # sees, and the end-to-end test below runs on the signed APK.
       - name: Sign with a throwaway key
         run: |
           umask 077
           keystore="$RUNNER_TEMP/throwaway.p12"
           unsigned=Companion/android/app/build/outputs/apk/release/app-release-unsigned.apk
+          unsigned_aab=Companion/android/app/build/outputs/bundle/release/app-release.aab
           ANDROID_KEYSTORE_PASSWORD=$(openssl rand -hex 16)
-          export ANDROID_KEYSTORE_PASSWORD
+          PLAY_UPLOAD_KEYSTORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+          export ANDROID_KEYSTORE_PASSWORD PLAY_UPLOAD_KEYSTORE_PASSWORD
           keytool -genkeypair -keystore "$keystore" -storetype PKCS12 -storepass "$ANDROID_KEYSTORE_PASSWORD" \
             -alias throwaway -keyalg RSA -keysize 2048 -validity 1 -dname "CN=LokalBot throwaway"
           Scripts/release/sign-android-release.sh "$unsigned" "$RUNNER_TEMP/app-release-signed.apk" "$keystore"
@@ -235,7 +239,13 @@ jobs:
             exit 1
           fi
           test ! -e "$RUNNER_TEMP/refused.apk"
-          rm -f "$keystore"
+          Scripts/release/sign-android-bundle.sh "$unsigned_aab" "$RUNNER_TEMP/app-release-signed.aab" "$keystore"
+          if Scripts/release/sign-android-bundle.sh "$unsigned_aab" "$RUNNER_TEMP/refused.aab" "$keystore" not-this-certificate; then
+            echo "::error::The bundle signing script accepted a key with the wrong certificate" >&2
+            exit 1
+          fi
+          test ! -e "$RUNNER_TEMP/refused.aab"
+          rm -f "$keystore" "$RUNNER_TEMP/app-release-signed.aab"
 
       - name: Let the emulator use KVM
         if: runner.environment == 'github-hosted'
@@ -299,13 +309,14 @@ jobs:
           retention-days: 7
 
       # The mapping decodes a stack trace from this release's shrunk build.
-      - name: Keep the unsigned release APK and its R8 mapping
+      - name: Keep the unsigned release APK, App Bundle and R8 mapping
         if: inputs.tag != ''
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: release-android
           path: |
             Companion/android/app/build/outputs/apk/release/app-release-unsigned.apk
+            Companion/android/app/build/outputs/bundle/release/app-release.aab
             Companion/android/app/build/outputs/mapping/release/mapping.txt
           retention-days: 90
           if-no-files-found: error
