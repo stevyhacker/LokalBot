@@ -1,0 +1,375 @@
+# Publishes the Android companion app (me.dotenv.lokalbot.companion) to Google
+# Play as a signed Android App Bundle (.aab) with its R8 mapping.txt.
+#
+# Release (release.yml) calls this on every stable tag once the macOS release
+# gates and the Android build/end-to-end test have passed. It reuses the
+# unsigned app-release.aab and mapping.txt from the secret-free Android job,
+# signs the bundle with the Play upload key (verifying its certificate against
+# Companion/android/play-upload-certificate.sha256), and uploads it via the
+# Google Play Android Publisher v3 API.
+#
+# Automatic publishing runs only while the PLAY_PUBLISH repository variable is
+# `true`. Without it, release runs emit a notice and succeed.
+#
+# To publish (or validate) an already-tagged release by hand from master:
+#   gh workflow run google-play.yml --ref master -f tag=v0.13.3
+#   gh workflow run google-play.yml --ref master -f tag=v0.13.3 -f validate_only=true
+#
+# Always GitHub-hosted: upload signing keys and Play API credentials never reach
+# self-hosted runners or run alongside Gradle build scripts.
+
+name: Google Play
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.13.3
+        required: true
+        type: string
+      track:
+        description: Google Play track (defaults to PLAY_TRACK var or production)
+        required: false
+        type: string
+        default: ""
+      status:
+        description: Release status (defaults to PLAY_RELEASE_STATUS var or completed)
+        required: false
+        type: string
+        default: ""
+      validate_only:
+        description: Validate the Play edit without committing it
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      PLAY_UPLOAD_KEYSTORE_BASE64:
+        required: false
+      PLAY_UPLOAD_KEYSTORE_PASSWORD:
+        required: false
+      PLAY_UPLOAD_KEY_ALIAS:
+        required: false
+      PLAY_UPLOAD_KEY_PASSWORD:
+        required: false
+      PLAY_SERVICE_ACCOUNT_JSON:
+        required: false
+      PLAY_WORKLOAD_IDENTITY_PROVIDER:
+        required: false
+      PLAY_SERVICE_ACCOUNT_EMAIL:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Stable release tag to publish, e.g. v0.13.3
+        required: true
+        type: string
+      track:
+        description: Google Play track
+        required: false
+        type: choice
+        options: [production, beta, alpha, internal]
+        default: production
+      status:
+        description: Google Play release status
+        required: false
+        type: choice
+        options: [completed, draft]
+        default: completed
+      validate_only:
+        description: Validate the Play edit without committing it
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/google-play.yml"
+      - "Scripts/release/sign-android-bundle.sh"
+      - "Scripts/release/publish_google_play.py"
+      - "Scripts/tests/test_google_play_release.py"
+      - "Companion/android/play-upload-certificate.sha256"
+
+concurrency:
+  # Play edits for one package cannot safely overlap; PR checks replace older ones.
+  group: google-play-${{ github.event_name == 'pull_request' && github.head_ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  # Pull request verification: unit-tests bundle signing (with a throwaway key)
+  # and the Play Publisher API client with zero secrets.
+  check:
+    name: Check Google Play release tooling
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Verify certificate pin format and run unit tests
+        run: |
+          cert=$(tr -d '[:space:]' < Companion/android/play-upload-certificate.sha256)
+          if [[ ! "$cert" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::Companion/android/play-upload-certificate.sha256 must be a 64-character lowercase SHA-256 hex digest" >&2
+            exit 1
+          fi
+          python3 -m unittest -v Scripts/tests/test_google_play_release.py
+
+  # Secret-free clean bundle build for manual workflow_dispatch runs (including
+  # older tags whose release-android artifact didn't include app-release.aab).
+  # Never runs on workflow_call, which reuses the release-android artifact built
+  # by companion-android.yml in the same workflow run.
+  bundle:
+    name: Build unsigned Android App Bundle
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Refuse non-master dispatch or prerelease tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [[ "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo "::error::Manual Google Play publishes must be dispatched from master, not $GITHUB_REF." >&2
+            exit 1
+          fi
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a stable release tag (pre-releases stay off Google Play)." >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+
+      - name: Check the tag names the app's version
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^ *versionName = "\(.*\)"/\1/p' Companion/android/app/build.gradle.kts)
+          tag="${TAG#v}"
+          if [[ "$tag" != "$version" ]]; then
+            echo "::error::Tag $TAG does not match the Android versionName $version." >&2
+            exit 1
+          fi
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-disabled: true
+
+      - name: Rust toolchain and Android targets
+        working-directory: LinuxWindows
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add aarch64-linux-android x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: command -v cargo-ndk || cargo install cargo-ndk --version "$CARGO_NDK_VERSION" --locked
+        env:
+          CARGO_NDK_VERSION: "4.1.2"
+
+      - name: Build the Rust sync core for Android
+        run: |
+          export ANDROID_NDK_HOME="${ANDROID_NDK_HOME:-$ANDROID_NDK_LATEST_HOME}"
+          Scripts/build/build-sync-android.sh
+
+      - name: Build unsigned release App Bundle
+        working-directory: Companion/android
+        run: ./gradlew :app:bundleRelease
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-android-play-bundle
+          path: |
+            Companion/android/app/build/outputs/bundle/release/app-release.aab
+            Companion/android/app/build/outputs/mapping/release/mapping.txt
+          retention-days: 7
+          if-no-files-found: error
+
+  publish:
+    name: Sign and upload to Google Play
+    needs: bundle
+    if: >-
+      always()
+      && github.event_name != 'pull_request'
+      && (github.event_name == 'workflow_call' || needs.bundle.result == 'success')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      id-token: write # optional keyless GCP Workload Identity Federation auth
+    steps:
+      - name: Check tag, switch and credentials
+        id: gate
+        env:
+          TAG: ${{ inputs.tag }}
+          EVENT_NAME: ${{ github.event_name }}
+          PLAY_PUBLISH: ${{ vars.PLAY_PUBLISH }}
+          PLAY_TRACK_VAR: ${{ vars.PLAY_TRACK }}
+          PLAY_STATUS_VAR: ${{ vars.PLAY_RELEASE_STATUS }}
+          INPUT_TRACK: ${{ inputs.track }}
+          INPUT_STATUS: ${{ inputs.status }}
+          PLAY_UPLOAD_KEYSTORE_BASE64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+          PLAY_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+          PLAY_SERVICE_ACCOUNT_EMAIL: ${{ secrets.PLAY_SERVICE_ACCOUNT_EMAIL }}
+        run: |
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a stable release tag (pre-releases stay off Google Play)." >&2
+            exit 1
+          fi
+          if [[ "$EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo "::error::Manual Google Play publishes must run from master, not $GITHUB_REF." >&2
+            exit 1
+          fi
+          if [[ "$EVENT_NAME" == "workflow_call" && "$PLAY_PUBLISH" != "true" ]]; then
+            echo "::notice::The PLAY_PUBLISH repository variable is not true, so $TAG was not uploaded to Google Play (Docs/releasing/android.md#google-play)."
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          missing=()
+          [[ -n "$PLAY_UPLOAD_KEYSTORE_BASE64" ]] || missing+=(PLAY_UPLOAD_KEYSTORE_BASE64)
+          [[ -n "$PLAY_UPLOAD_KEYSTORE_PASSWORD" ]] || missing+=(PLAY_UPLOAD_KEYSTORE_PASSWORD)
+          auth_mode=""
+          if [[ -n "$PLAY_SERVICE_ACCOUNT_JSON" ]]; then
+            auth_mode="service_account_json"
+          elif [[ -n "$PLAY_WORKLOAD_IDENTITY_PROVIDER" && -n "$PLAY_SERVICE_ACCOUNT_EMAIL" ]]; then
+            auth_mode="github_oidc"
+          else
+            missing+=("PLAY_SERVICE_ACCOUNT_JSON (or PLAY_WORKLOAD_IDENTITY_PROVIDER + PLAY_SERVICE_ACCOUNT_EMAIL)")
+          fi
+          if (( ${#missing[@]} )); then
+            printf '::error::Missing required Google Play secret: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+
+          track="${INPUT_TRACK:-${PLAY_TRACK_VAR:-production}}"
+          status="${INPUT_STATUS:-${PLAY_STATUS_VAR:-completed}}"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+          echo "auth_mode=$auth_mode" >> "$GITHUB_OUTPUT"
+          echo "track=$track" >> "$GITHUB_OUTPUT"
+          echo "status=$status" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.publish == 'true'
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Companion/android/play-upload-certificate.sha256
+            Scripts/release/sign-android-bundle.sh
+            Scripts/release/publish_google_play.py
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.gate.outputs.publish == 'true'
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: tag-source
+          persist-credentials: false
+          sparse-checkout: |
+            Companion/android/app/build.gradle.kts
+            Scripts/release/release-notes
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        if: steps.gate.outputs.publish == 'true'
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: steps.gate.outputs.publish == 'true' && github.event_name == 'workflow_call'
+        with:
+          name: release-android
+          path: ${{ runner.temp }}/android
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        if: steps.gate.outputs.publish == 'true' && github.event_name == 'workflow_dispatch'
+        with:
+          name: release-android-play-bundle
+          path: ${{ runner.temp }}/android
+
+      - name: Sign the App Bundle with the Play upload key
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          PLAY_UPLOAD_KEYSTORE_BASE64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+          PLAY_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+          PLAY_UPLOAD_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
+          PLAY_UPLOAD_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          certificate=Companion/android/play-upload-certificate.sha256
+          expected=$(tr -d '[:space:]' < "$certificate")
+          if [[ ! "$expected" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "::error::$certificate does not contain a valid SHA-256 digest." >&2
+            exit 1
+          fi
+          umask 077
+          keystore="$RUNNER_TEMP/play-upload.keystore"
+          trap 'rm -f "$keystore"' EXIT
+          printf '%s' "$PLAY_UPLOAD_KEYSTORE_BASE64" | base64 --decode > "$keystore"
+          unsigned="$RUNNER_TEMP/android/bundle/release/app-release.aab"
+          signed="$RUNNER_TEMP/LokalBot-${TAG#v}-android.aab"
+          Scripts/release/sign-android-bundle.sh "$unsigned" "$signed" "$keystore" "$expected"
+
+      - name: Upload App Bundle and R8 mapping to Google Play
+        if: steps.gate.outputs.publish == 'true'
+        env:
+          TAG: ${{ inputs.tag }}
+          AUTH_MODE: ${{ steps.gate.outputs.auth_mode }}
+          PLAY_TRACK: ${{ steps.gate.outputs.track }}
+          PLAY_STATUS: ${{ steps.gate.outputs.status }}
+          VALIDATE_ONLY: ${{ inputs.validate_only == true }}
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          PLAY_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+          PLAY_SERVICE_ACCOUNT_EMAIL: ${{ secrets.PLAY_SERVICE_ACCOUNT_EMAIL }}
+        run: |
+          umask 077
+          sa_file=""
+          cleanup() { [[ -n "$sa_file" ]] && rm -f "$sa_file"; }
+          trap cleanup EXIT
+
+          args=(
+            --aab "$RUNNER_TEMP/LokalBot-${TAG#v}-android.aab"
+            --mapping "$RUNNER_TEMP/android/mapping/release/mapping.txt"
+            --gradle "tag-source/Companion/android/app/build.gradle.kts"
+            --track "$PLAY_TRACK"
+            --status "$PLAY_STATUS"
+          )
+          notes="tag-source/Scripts/release/release-notes/${TAG}.md"
+          if [[ -f "$notes" ]]; then
+            args+=(--notes-file "$notes")
+          fi
+          if [[ "$VALIDATE_ONLY" == "true" ]]; then
+            args+=(--validate-only)
+          fi
+
+          if [[ "$AUTH_MODE" == "service_account_json" ]]; then
+            sa_file="$RUNNER_TEMP/play-service-account.json"
+            printf '%s' "$PLAY_SERVICE_ACCOUNT_JSON" > "$sa_file"
+            args+=(--service-account-file "$sa_file")
+          else
+            args+=(
+              --workload-identity-provider "$PLAY_WORKLOAD_IDENTITY_PROVIDER"
+              --service-account-email "$PLAY_SERVICE_ACCOUNT_EMAIL"
+            )
+          fi
+
+          python3 Scripts/release/publish_google_play.py "${args[@]}"
