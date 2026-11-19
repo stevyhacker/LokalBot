@@ -2599,3 +2599,9 @@
 "Priorities for today" = "오늘의 우선순위";
 "Priorities from %@" = "%@의 우선순위";
 "Priorities from a previous workday" = "이전 근무일의 우선순위";
+"Import past meetings" = "이전 회의 가져오기";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola, Otter, Fireflies, Fathom, 음성 메모, MacWhisper 또는 Zoom에서 노트를 가져옵니다.";
+"Claude Code (MCP command)" = "Claude Code (MCP 명령어)";
+"Claude Code (Plugin)" = "Claude Code (플러그인)";
+"Codex (Plugin)" = "Codex (플러그인)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON 설정 (Cursor, Claude Desktop 등)";

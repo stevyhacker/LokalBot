@@ -1225,6 +1225,45 @@ struct SettingsView: View {
                         if let cliMessage {
                             SettingsHelp(cliMessage)
                         }
+                        LabeledContent("Connect an agent") {
+                            Menu("Copy setup snippet…") {
+                                Button("Claude Code (MCP command)") {
+                                    let cmd = "claude mcp add lokalbot -- /Applications/LokalBot.app/Contents/Helpers/lokalbot-cli mcp"
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(cmd, forType: .string)
+                                    cliMessage = "Copied Claude Code MCP command to clipboard."
+                                }
+                                Button("Claude Code (Plugin)") {
+                                    let cmd = "/plugin marketplace add stevyhacker/lokalbot\n/plugin install lokalbot@lokalbot"
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(cmd, forType: .string)
+                                    cliMessage = "Copied Claude Code plugin commands to clipboard."
+                                }
+                                Button("Codex (Plugin)") {
+                                    let cmd = "codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin\ncodex plugin add lokalbot@lokalbot"
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(cmd, forType: .string)
+                                    cliMessage = "Copied Codex plugin commands to clipboard."
+                                }
+                                Button("MCP JSON config (Cursor, Claude Desktop, …)") {
+                                    let snippet = """
+                                    {
+                                      "mcpServers": {
+                                        "lokalbot": {
+                                          "command": "/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli",
+                                          "args": ["mcp"]
+                                        }
+                                      }
+                                    }
+                                    """
+                                    NSPasteboard.general.clearContents()
+                                    NSPasteboard.general.setString(snippet, forType: .string)
+                                    cliMessage = "Copied MCP JSON config to clipboard."
+                                }
+                            }
+                            .fixedSize()
+                            .accessibilityIdentifier("settings.agentCLI.copySetup")
+                        }
                         SettingsHelp("Symlinks the bundled CLI at ~/.local/bin/lokalbot-cli and the skill into ~/.agents/skills and ~/.claude/skills. Library access is read-only; changing settings needs its own switch above.")
                     }
                 }

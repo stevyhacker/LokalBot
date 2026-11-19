@@ -2599,3 +2599,9 @@
 "Priorities for today" = "Priorità per oggi";
 "Priorities from %@" = "Priorità di %@";
 "Priorities from a previous workday" = "Priorità di un giorno lavorativo precedente";
+"Import past meetings" = "Importa riunioni passate";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Importa note da Granola, Otter, Fireflies, Fathom, Memo Vocali, MacWhisper o Zoom.";
+"Claude Code (MCP command)" = "Claude Code (comando MCP)";
+"Claude Code (Plugin)" = "Claude Code (plugin)";
+"Codex (Plugin)" = "Codex (plugin)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "Configurazione JSON MCP (Cursor, Claude Desktop, …)";

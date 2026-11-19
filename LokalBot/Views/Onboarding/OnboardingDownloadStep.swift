@@ -46,8 +46,16 @@ struct OnboardingDownloadStep: View {
             destination: InferencePresentation(settings: app.settings),
             microphoneAllowed: permissions.granted[.microphone] == true,
             showsDownloadSource: showsDownloadSource,
+            selectedPreset: ModelStackPreset.matching(app.settings),
             session: $session,
             downloadSource: $app.settings.modelDownloadSource,
+            selectPreset: { preset in
+                app.settings = preset.patch.applying(to: app.settings)
+                app.modelRoles.readinessDidChange()
+            },
+            importSource: { source in
+                ExternalImportPanel.choose(source, into: app)
+            },
             retry: retry)
             .onAppear { settle(plan.phase) }
             .onChange(of: plan.phase) { _, phase in settle(phase) }
@@ -86,14 +94,20 @@ struct OnboardingDownloadContent: View {
     let destination: InferencePresentation
     let microphoneAllowed: Bool
     let showsDownloadSource: Bool
+    var selectedPreset: ModelStackPreset?
     @Binding var session: OnboardingDownloadSession
     @Binding var downloadSource: ModelDownloadSource
+    var selectPreset: ((ModelStackPreset) -> Void)?
+    var importSource: ((ExternalMeetingSource) -> Void)?
     let retry: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             heading(plan)
+            if plan.phase == .before, destination == .onDevice, let selectPreset, let selectedPreset {
+                presetPicker(selected: selectedPreset, onSelect: selectPreset)
+            }
             OnboardingCard {
                 if plan.phase != .before, !(plan.phase == .finished && !plan.allReady) {
                     hero(plan)
@@ -125,6 +139,25 @@ struct OnboardingDownloadContent: View {
     }
 
     // MARK: Heading
+
+    private func presetPicker(selected: ModelStackPreset,
+                              onSelect: @escaping (ModelStackPreset) -> Void) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Picker("Model size", selection: Binding(get: { selected }, set: onSelect)) {
+                ForEach(ModelStackPreset.allCases) { preset in
+                    Text(LocalizedStringKey(preset.title)).tag(preset)
+                }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .accessibilityLabel("Local model preset")
+            .accessibilityIdentifier("onboarding.modelPreset")
+            Text(LocalizedStringKey(selected.subtitle))
+                .font(.scaled(.callout))
+                .workspaceSupportingForeground()
+                .padding(.horizontal, 2)
+        }
+    }
 
     @ViewBuilder private func heading(_ plan: OnboardingDownloadPlan) -> some View {
         switch plan.phase {
@@ -324,6 +357,28 @@ struct OnboardingDownloadContent: View {
                 .tint(LBTokens.Palette.accentFill)
                 .padding(.horizontal, 14).padding(.vertical, 11)
                 .accessibilityIdentifier("onboarding.openSample")
+                if let importSource {
+                    Divider()
+                    HStack(alignment: .center, spacing: 10) {
+                        Image(systemName: "square.and.arrow.down").foregroundStyle(Brand.teal).frame(width: 16)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Import past meetings").font(.scaled(.body).weight(.semibold))
+                            Text("Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom.")
+                                .font(.scaled(.callout)).workspaceSupportingForeground()
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Menu("Import…") {
+                            ForEach(ExternalMeetingSource.allCases, id: \.self) { source in
+                                Button(source.title) { importSource(source) }
+                            }
+                        }
+                        .fixedSize()
+                        .accessibilityIdentifier("onboarding.importMeetings")
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 11)
+                }
                 if waiting, microphoneAllowed {
                     Divider()
                     HStack(alignment: .firstTextBaseline, spacing: 10) {
