@@ -18,7 +18,7 @@ const RENDERER_SOURCE = fs
   .readFileSync(new URL('./card-renderer.mjs', import.meta.url), 'utf8')
   .replace(/^export /gm, '');
 
-const SERIF = `'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif`;
+const SANS = `-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', system-ui, sans-serif`;
 const MONO = `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace`;
 const INK = {
   ground: '#05080d',
@@ -55,6 +55,7 @@ function cardData({ stats, grid, calendar, earlierDays }) {
 export function renderCard(result, options = {}) {
   return renderCardSvg(cardData(result), {
     layout: options.layout ?? 'portrait',
+    theme: options.theme === 'light' ? 'light' : 'dark',
     showProjects: Boolean(options.showProjects),
     showApiValue: options.showApiValue !== false,
     window: options.window ?? 'auto',
@@ -95,6 +96,7 @@ export function renderPage(result, options = {}) {
   const data = cardData(result);
   const { stats } = data;
   const initialLayout = options.layout === 'wide' ? 'wide' : 'portrait';
+  const initialTheme = options.theme === 'light' ? 'light' : 'dark';
   const initialProjects = Boolean(options.showProjects);
   const initialApiValue = options.showApiValue !== false;
   const initialWindow = options.window ?? defaultWindowMode(stats);
@@ -104,6 +106,7 @@ export function renderPage(result, options = {}) {
 
   const svg = renderCardSvg(data, {
     layout: initialLayout,
+    theme: initialTheme,
     showProjects: initialProjects,
     showApiValue: initialApiValue,
     window: initialWindow,
@@ -129,31 +132,31 @@ export function renderPage(result, options = {}) {
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: ${INK.ground}; color: ${INK.text}; font: 16px/1.55 ${SERIF}; }
+  body { margin: 0; background: ${INK.ground}; color: ${INK.text}; font: 15px/1.55 ${SANS}; }
   main { max-width: 620px; margin: 0 auto; padding: 28px 18px 56px; }
-  main.wide { max-width: 860px; }
+  main.wide { max-width: 880px; }
   .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .seg { display: inline-flex; background: ${INK.surface}; border: 1px solid ${INK.border}; border-radius: 8px; padding: 3px; gap: 2px; }
-  .seg button { font: 600 13px/1 ${MONO}; color: ${INK.dim}; background: transparent; border: 0; border-radius: 6px; padding: 8px 12px; cursor: pointer; }
+  .seg { display: inline-flex; background: ${INK.surface}; border: 1px solid ${INK.border}; border-radius: 10px; padding: 3px; gap: 2px; }
+  .seg button { font: 600 13px/1 ${MONO}; color: ${INK.dim}; background: transparent; border: 0; border-radius: 7px; padding: 8px 12px; cursor: pointer; }
   .seg button[aria-pressed="true"] { color: #04141a; background: ${INK.teal}; }
   .toggles { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; font: 500 13px/1 ${MONO}; color: ${INK.dim}; }
   .toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; user-select: none; }
   .toggles input { accent-color: ${INK.teal}; width: 15px; height: 15px; cursor: pointer; }
   #stage { display: flex; justify-content: center; }
-  #stage svg { display: block; width: 100%; height: auto; border-radius: 10px; border: 1px solid ${INK.border}; }
+  #stage svg { display: block; width: 100%; height: auto; border-radius: 14px; border: 1px solid ${INK.border}; }
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
-  .btn { display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 ${MONO}; color: #04141a; background: ${INK.teal}; border: 0; border-radius: 7px; padding: 12px 16px; cursor: pointer; text-decoration: none; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 ${MONO}; color: #04141a; background: ${INK.teal}; border: 0; border-radius: 9px; padding: 12px 16px; cursor: pointer; text-decoration: none; }
   .btn.quiet { color: ${INK.text}; background: #14202d; border: 1px solid ${INK.border}; }
   .btn:focus-visible, .seg button:focus-visible, .copy-cmd:focus-visible { outline: 2px solid ${INK.tealBright}; outline-offset: 2px; }
   .btn[hidden] { display: none; }
-  #status { color: ${INK.tealBright}; font: italic 15px/1.4 ${SERIF}; margin-left: 4px; }
+  #status { color: ${INK.tealBright}; font: 500 14px/1.4 ${SANS}; margin-left: 4px; }
   .note { color: ${INK.faint}; font-size: 14px; margin: 14px 0 0; }
-  .tip { margin-top: 22px; padding: 14px 16px; background: #12171f; border: 1px solid #352b14; border-left: 3px solid ${INK.amber}; border-radius: 8px; color: ${INK.dim}; font-size: 15px; }
+  .tip { margin-top: 22px; padding: 14px 16px; background: #12171f; border: 1px solid #352b14; border-left: 3px solid ${INK.amber}; border-radius: 10px; color: ${INK.dim}; font-size: 14px; }
   .tip strong { color: ${INK.amber}; font-weight: 600; }
   .tip code { font: 500 13px/1.4 ${MONO}; color: ${INK.text}; background: #0a1017; padding: 2px 6px; border-radius: 4px; }
-  .promo { margin-top: 24px; padding: 20px 22px; background: ${INK.surface}; border: 1px solid ${INK.border}; border-radius: 10px; }
-  .promo-eyebrow { font: 600 12px/1 ${MONO}; letter-spacing: 0.08em; text-transform: uppercase; color: ${INK.teal}; margin: 0 0 8px; }
-  .promo h2 { margin: 0 0 8px; font: 600 22px/1.25 ${SERIF}; color: ${INK.text}; }
+  .promo { margin-top: 24px; padding: 20px 22px; background: ${INK.surface}; border: 1px solid ${INK.border}; border-radius: 12px; }
+  .promo-eyebrow { font: 700 12px/1 ${MONO}; letter-spacing: 0.08em; text-transform: uppercase; color: ${INK.teal}; margin: 0 0 8px; }
+  .promo h2 { margin: 0 0 8px; font: 700 21px/1.25 ${SANS}; letter-spacing: -0.02em; color: ${INK.text}; }
   .promo p { margin: 0 0 14px; color: ${INK.dim}; font-size: 15px; }
   .install-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
   .copy-cmd { display: inline-flex; align-items: center; gap: 10px; font: 500 13px/1.2 ${MONO}; color: ${INK.text}; background: #070d14; border: 1px solid ${INK.border}; border-radius: 7px; padding: 10px 14px; cursor: pointer; }
@@ -161,15 +164,39 @@ export function renderPage(result, options = {}) {
   .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font: 500 13px/1 ${MONO}; }
   a { color: ${INK.tealBright}; text-decoration: none; }
   a:hover { text-decoration: underline; }
+  body.light { background: #eef3f3; color: #0b1219; }
+  body.light .seg { background: #ffffff; border-color: #d5e0e2; }
+  body.light .seg button { color: #3b4b56; }
+  body.light .seg button[aria-pressed="true"] { color: #ffffff; background: #0b7a6e; }
+  body.light .toggles { color: #3b4b56; }
+  body.light .toggles input { accent-color: #0b7a6e; }
+  body.light #stage svg { border-color: #d5e0e2; }
+  body.light .btn { color: #ffffff; background: #0b7a6e; }
+  body.light .btn.quiet { color: #0b1219; background: #ffffff; border-color: #d5e0e2; }
+  body.light #status { color: #075f55; }
+  body.light .note { color: #5f7280; }
+  body.light .tip { background: #fffbf2; border-color: #ecd6a5; border-left-color: #d97706; color: #3b4b56; }
+  body.light .tip strong { color: #9a4a00; }
+  body.light .tip code { color: #0b1219; background: #f3ece0; }
+  body.light .promo { background: #ffffff; border-color: #d5e0e2; }
+  body.light .promo-eyebrow { color: #0b7a6e; }
+  body.light .promo h2 { color: #0b1219; }
+  body.light .promo p { color: #3b4b56; }
+  body.light .copy-cmd { color: #f1f6f9; background: #0e1720; border-color: #0e1720; }
+  body.light a { color: #075f55; }
 </style>
 </head>
-<body>
+<body class="${initialTheme === 'light' ? 'light' : ''}">
 <main class="${initialLayout === 'wide' ? 'wide' : ''}">
   <div class="toolbar">
     <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
       <div class="seg" role="group" aria-label="Card layout">
         <button type="button" data-layout="portrait" aria-pressed="${initialLayout === 'portrait'}">Portrait 4:5</button>
         <button type="button" data-layout="wide" aria-pressed="${initialLayout === 'wide'}">Wide 16:9</button>
+      </div>
+      <div class="seg" role="group" aria-label="Color theme">
+        <button type="button" data-theme="dark" aria-pressed="${initialTheme === 'dark'}">Dark</button>
+        <button type="button" data-theme="light" aria-pressed="${initialTheme === 'light'}">Light</button>
       </div>
       ${zoomAvailable ? `<div class="seg" role="group" aria-label="Time range">
         <button type="button" data-window="active" aria-pressed="${initialWindow === 'active'}">Active window</button>
@@ -235,6 +262,7 @@ ${RENDERER_SOURCE}
 
   const state = {
     layout: ${JSON.stringify(initialLayout)},
+    theme: ${JSON.stringify(initialTheme)},
     window: ${JSON.stringify(initialWindow)},
     showProjects: ${JSON.stringify(initialProjects)},
     showApiValue: ${JSON.stringify(initialApiValue)},
@@ -255,11 +283,15 @@ ${RENDERER_SOURCE}
   const scale = 2;
 
   function update() {
+    document.body.classList.toggle('light', state.theme === 'light');
     main.classList.toggle('wide', state.layout === 'wide');
     stage.classList.toggle('wide', state.layout === 'wide');
     stage.innerHTML = renderCardSvg(data, state);
     for (const btn of document.querySelectorAll('[data-layout]')) {
       btn.setAttribute('aria-pressed', String(btn.dataset.layout === state.layout));
+    }
+    for (const btn of document.querySelectorAll('[data-theme]')) {
+      btn.setAttribute('aria-pressed', String(btn.dataset.theme === state.theme));
     }
     for (const btn of document.querySelectorAll('[data-window]')) {
       btn.setAttribute('aria-pressed', String(btn.dataset.window === state.window));
@@ -271,6 +303,13 @@ ${RENDERER_SOURCE}
   for (const btn of document.querySelectorAll('[data-layout]')) {
     btn.addEventListener('click', () => {
       state.layout = btn.dataset.layout;
+      update();
+      status.textContent = '';
+    });
+  }
+  for (const btn of document.querySelectorAll('[data-theme]')) {
+    btn.addEventListener('click', () => {
+      state.theme = btn.dataset.theme;
       update();
       status.textContent = '';
     });
@@ -323,7 +362,8 @@ ${RENDERER_SOURCE}
     try {
       const link = document.createElement('a');
       link.href = URL.createObjectURL(await png());
-      link.download = state.layout === 'wide' ? baseName + '-wide.png' : defaultFileName;
+      const suffix = (state.layout === 'wide' ? '-wide' : '') + (state.theme === 'light' ? '-light' : '');
+      link.download = suffix ? baseName + suffix + '.png' : defaultFileName;
       link.click();
       setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       status.textContent = 'Image saved.';

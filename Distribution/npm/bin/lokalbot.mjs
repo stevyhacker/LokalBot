@@ -29,6 +29,7 @@ Options
                       On by default in an interactive terminal; pass --no-share to skip.
   --no-share          Print the terminal card only, without opening the image page.
   --wide              Open the shareable card in 16:9 wide layout (for X / LinkedIn).
+  --light             Open the shareable card in light mode.
   --out <file>        Where the share page is written. Default: your temporary folder.
   --no-open           Write the share page without opening your browser.
   --projects          Name your three busiest projects on the image. The terminal
@@ -66,6 +67,7 @@ async function main() {
         share: { type: 'boolean', default: false },
         'no-share': { type: 'boolean', default: false },
         wide: { type: 'boolean', default: false },
+        light: { type: 'boolean', default: false },
         out: { type: 'string' },
         'no-open': { type: 'boolean', default: false },
         projects: { type: 'boolean', default: false },
@@ -138,11 +140,12 @@ async function main() {
   const color = !values['no-color'] && process.stdout.isTTY && !('NO_COLOR' in process.env) && process.env.TERM !== 'dumb';
   process.stdout.write(`${renderTerminal(result, { color })}\n`);
 
-  const shouldShare = values.share || Boolean(values.out) || Boolean(values.wide) || (Boolean(process.stdout.isTTY) && !values['no-share']);
+  const shouldShare = values.share || Boolean(values.out) || Boolean(values.wide) || Boolean(values.light) || (Boolean(process.stdout.isTTY) && !values['no-share']);
   if (shouldShare && !values['no-share']) {
     const file = path.resolve(values.out ?? path.join(os.tmpdir(), `agent-wrapped-${year}.html`));
     fs.writeFileSync(file, renderPage(result, {
       layout: values.wide ? 'wide' : 'portrait',
+      theme: values.light ? 'light' : 'dark',
       showProjects: values.projects,
       showApiValue: !values['no-api-value'],
     }));
