@@ -1,0 +1,203 @@
+# Signs the Windows release binaries (lokalbot.exe, lokalbot-cli.exe) and the
+# Inno Setup installer through SignPath.io (SignPath Foundation OSS certificate).
+#
+# Called by release.yml on stable tags when the SIGNPATH_ENABLED repository
+# variable is `true`. Builds in linux-windows-release.yml stay secret-free;
+# this job runs only on GitHub-hosted runners after release gates pass, signs
+# ONLY LokalBot's own binaries (never upstream vc-runtime DLLs), repacks the
+# Windows archive and installer from the signed binaries, verifies Authenticode
+# signatures and silent install/uninstall, and uploads release-windows-x86_64-signed.
+#
+# See Docs/releasing/windows-signing.md for SignPath setup and secrets.
+
+name: Windows code signing (SignPath)
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.13.2
+        required: true
+        type: string
+      project_slug:
+        description: SignPath project slug
+        required: false
+        type: string
+        default: lokalbot
+      signing_policy_slug:
+        description: SignPath signing policy slug
+        required: false
+        type: string
+        default: release-signing
+    secrets:
+      SIGNPATH_API_TOKEN:
+        required: true
+      SIGNPATH_ORG_ID:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  # Git for Windows cannot check out the macOS fixtures (names with ':'), even
+  # sparsely, so the Windows signing job receives its packaging scripts here.
+  packaging:
+    name: Windows packaging scripts
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: |
+            LinuxWindows/Cargo.toml
+            LinuxWindows/packaging/windows
+            LinuxWindows/packaging/icons
+            LinuxWindows/scripts/package-windows-installer.ps1
+            LinuxWindows/scripts/ci/check-windows-installer.ps1
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-sign-tools
+          path: LinuxWindows
+          retention-days: 1
+          if-no-files-found: error
+
+  sign:
+    name: Sign Windows binaries and installer
+    needs: packaging
+    runs-on: windows-2025
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: windows-sign-tools
+          path: LinuxWindows
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-windows-x86_64
+          path: unsigned-release
+
+      - name: Stage unsigned LokalBot executables
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = $env:TAG -replace '^v', ''
+          $zip = Get-Item "unsigned-release/LokalBot-$version-windows-x86_64.zip"
+          $dist = Join-Path (Resolve-Path 'LinuxWindows').Path 'dist'
+          New-Item -ItemType Directory -Force $dist | Out-Null
+          7z x $zip.FullName "-o$dist" -y | Out-Null
+          $stage = Join-Path $dist "LokalBot-$version-windows-x86_64"
+          $out = Join-Path $env:RUNNER_TEMP 'unsigned-binaries'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          foreach ($exe in 'lokalbot.exe', 'lokalbot-cli.exe') {
+            $src = Join-Path $stage $exe
+            if (-not (Test-Path $src)) { throw "Missing $exe in $($zip.Name)" }
+            Copy-Item $src (Join-Path $out $exe)
+          }
+          "VERSION=$version" >> $env:GITHUB_ENV
+          "STAGE_DIR=$stage" >> $env:GITHUB_ENV
+
+      - name: Upload unsigned executables for SignPath
+        id: upload-binaries
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-unsigned-binaries-${{ inputs.tag }}
+          path: ${{ runner.temp }}/unsigned-binaries
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Sign executables with SignPath
+        id: sign-binaries
+        uses: SignPath/github-action-submit-signing-request@4a84eb4ad763290f059275786f2deed97c2c672b # v3.1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: ${{ inputs.project_slug }}
+          signing-policy-slug: ${{ inputs.signing_policy_slug }}
+          artifact-configuration-slug: windows-binaries
+          github-artifact-id: ${{ steps.upload-binaries.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: "1800"
+          output-artifact-directory: ${{ runner.temp }}/signed-binaries
+
+      - name: Verify signed executables, repack archive, and build installer
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $signedDir = Join-Path $env:RUNNER_TEMP 'signed-binaries'
+          foreach ($exe in 'lokalbot.exe', 'lokalbot-cli.exe') {
+            $signed = Join-Path $signedDir $exe
+            if (-not (Test-Path $signed)) { throw "SignPath output missing $exe" }
+            $sig = Get-AuthenticodeSignature $signed
+            if ($sig.Status -ne 'Valid') {
+              throw "$exe Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+            }
+            Copy-Item $signed (Join-Path $env:STAGE_DIR $exe) -Force
+          }
+          $dist = Split-Path -Parent $env:STAGE_DIR
+          $name = "LokalBot-$($env:VERSION)-windows-x86_64"
+          $zipPath = Join-Path $dist "$name.zip"
+          Remove-Item $zipPath -Force -ErrorAction SilentlyContinue
+          Push-Location $dist
+          try {
+            7z a -tzip "$name.zip" $name | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw "7z exited with $LASTEXITCODE" }
+          } finally {
+            Pop-Location
+          }
+          & LinuxWindows/scripts/package-windows-installer.ps1
+          $setup = Join-Path $dist "$name-setup.exe"
+          if (-not (Test-Path $setup)) { throw "Missing rebuilt installer $setup" }
+          $out = Join-Path $env:RUNNER_TEMP 'unsigned-installer'
+          New-Item -ItemType Directory -Force $out | Out-Null
+          Copy-Item $setup (Join-Path $out (Split-Path -Leaf $setup))
+
+      - name: Upload unsigned installer for SignPath
+        id: upload-installer
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: windows-unsigned-installer-${{ inputs.tag }}
+          path: ${{ runner.temp }}/unsigned-installer
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Sign installer with SignPath
+        id: sign-installer
+        uses: SignPath/github-action-submit-signing-request@4a84eb4ad763290f059275786f2deed97c2c672b # v3.1
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
+          project-slug: ${{ inputs.project_slug }}
+          signing-policy-slug: ${{ inputs.signing_policy_slug }}
+          artifact-configuration-slug: windows-installer
+          github-artifact-id: ${{ steps.upload-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: "1800"
+          output-artifact-directory: ${{ runner.temp }}/signed-installer
+
+      - name: Verify signed installer and run silent install check
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $setupName = "LokalBot-$($env:VERSION)-windows-x86_64-setup.exe"
+          $signedSetup = Join-Path (Join-Path $env:RUNNER_TEMP 'signed-installer') $setupName
+          if (-not (Test-Path $signedSetup)) { throw "SignPath output missing $setupName" }
+          $sig = Get-AuthenticodeSignature $signedSetup
+          if ($sig.Status -ne 'Valid') {
+            throw "$setupName Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+          }
+          $distSetup = Join-Path (Split-Path -Parent $env:STAGE_DIR) $setupName
+          Copy-Item $signedSetup $distSetup -Force
+          & LinuxWindows/scripts/ci/check-windows-installer.ps1 $distSetup
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-windows-x86_64-signed
+          path: |
+            LinuxWindows/dist/*.zip
+            LinuxWindows/dist/*-setup.exe
+          retention-days: 7
+          if-no-files-found: error

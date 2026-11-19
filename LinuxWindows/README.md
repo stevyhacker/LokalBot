@@ -177,9 +177,12 @@ release has none yet, use a CI run's artifacts (`lokalbot-linux-x86_64`, `lokalb
   so when a newer version is out LokalBot asks you to download the new package and install it the same way.
 - **Windows** 10/11 (x64): run `LokalBot-<version>-windows-x86_64-setup.exe`. It installs for your user into
   `%LOCALAPPDATA%\Programs\LokalBot` without administrator rights, adds a Start menu shortcut (which also
-  lets notifications show LokalBot's name) and an Installed apps entry; uninstalling keeps your library. Or
-  extract the portable `LokalBot-<version>-windows-x86_64.zip` anywhere and run `lokalbot.exe`. Neither is
-  code-signed yet, so SmartScreen may ask you to confirm.
+  lets notifications show LokalBot's name), an Installed apps entry, and puts `lokalbot-cli` on your `PATH`;
+  uninstalling keeps your library. IT administrators can pass `/ALLUSERS /VERYSILENT` for machine-wide
+  deployment into `%ProgramFiles%\LokalBot`. Or install with [Scoop](https://github.com/stevyhacker/scoop-bucket):
+  `scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot`,
+  or extract the portable `LokalBot-<version>-windows-x86_64.zip` anywhere and run `lokalbot.exe`. Binaries are
+  not code-signed yet, so SmartScreen may ask you to confirm.
 
 ### Omarchy and other Hyprland desktops
 

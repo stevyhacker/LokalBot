@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SignPath artifact configuration: windows-binaries
+     Signs ONLY LokalBot's own compiled executables (never upstream VC++ runtime DLLs).
+     Upload under Project -> Artifact configurations with slug `windows-binaries`. -->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1"
+                        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                        xsi:schemaLocation="http://signpath.io/artifact-configuration/v1 https://app.signpath.io/Web/artifact-configuration/v1.xsd">
+  <zip-file>
+    <pe-file path="lokalbot.exe">
+      <authenticode-sign/>
+    </pe-file>
+    <pe-file path="lokalbot-cli.exe">
+      <authenticode-sign/>
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

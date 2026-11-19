@@ -142,7 +142,7 @@ fn is_managed(dir: &Path, env: &dyn Fn(&str) -> Option<OsString>) -> bool {
     }
     let under = |root: &Path| !root.as_os_str().is_empty() && dir.starts_with(root);
     if cfg!(windows) {
-        [
+        let in_system_dir = [
             "ProgramFiles",
             "ProgramFiles(x86)",
             "ProgramW6432",
@@ -150,7 +150,8 @@ fn is_managed(dir: &Path, env: &dyn Fn(&str) -> Option<OsString>) -> bool {
         ]
         .iter()
         .filter_map(|name| env(name))
-        .any(|root| under(Path::new(&root)))
+        .any(|root| under(Path::new(&root)));
+        in_system_dir || is_scoop_managed(dir, env)
     } else {
         // AppImage, Snap and Flatpak run from read-only images.
         ["APPIMAGE", "SNAP", "FLATPAK_ID"]
@@ -160,6 +161,27 @@ fn is_managed(dir: &Path, env: &dyn Fn(&str) -> Option<OsString>) -> bool {
                 .iter()
                 .any(|root| under(Path::new(root)))
     }
+}
+
+fn is_scoop_managed(dir: &Path, env: &dyn Fn(&str) -> Option<OsString>) -> bool {
+    if !dir.join("manifest.json").is_file() {
+        return false;
+    }
+    let under_env = ["SCOOP", "SCOOP_GLOBAL"]
+        .iter()
+        .filter_map(|name| env(name))
+        .map(PathBuf::from)
+        .any(|root| !root.as_os_str().is_empty() && dir.starts_with(root.join("apps")));
+    if under_env {
+        return true;
+    }
+    let components: Vec<String> = dir
+        .components()
+        .map(|c| c.as_os_str().to_string_lossy().to_ascii_lowercase())
+        .collect();
+    components
+        .windows(2)
+        .any(|pair| pair[0] == "scoop" && pair[1] == "apps")
 }
 
 fn is_writable(dir: &Path) -> bool {
@@ -1107,6 +1129,14 @@ mod tests {
             let inside = program_files.join("LokalBot");
             fs::create_dir_all(&inside).unwrap();
             assert_eq!(Installation::at(inside, &env).placement, Placement::Managed);
+
+            let scoop_dir = temp.path().join("scoop/apps/lokalbot/0.13.2");
+            fs::create_dir_all(&scoop_dir).unwrap();
+            fs::write(scoop_dir.join("manifest.json"), "{}").unwrap();
+            assert_eq!(
+                Installation::at(scoop_dir, &none).placement,
+                Placement::Managed
+            );
         } else {
             assert_eq!(
                 Installation::at("/usr/bin".into(), &none).placement,
@@ -1138,6 +1168,26 @@ mod tests {
             }
             fs::set_permissions(&locked, fs::Permissions::from_mode(0o755)).unwrap();
         }
+    }
+
+    #[test]
+    fn detects_scoop_managed_installations() {
+        let temp = tempfile::tempdir().unwrap();
+        let none = |_: &str| None;
+        let scoop_dir = temp.path().join("scoop/apps/lokalbot/0.13.2");
+        fs::create_dir_all(&scoop_dir).unwrap();
+        assert!(!is_scoop_managed(&scoop_dir, &none));
+        fs::write(scoop_dir.join("manifest.json"), "{}").unwrap();
+        assert!(is_scoop_managed(&scoop_dir, &none));
+
+        let custom_root = temp.path().join("custom-pkg-root");
+        let custom_app = custom_root.join("apps/lokalbot/current");
+        fs::create_dir_all(&custom_app).unwrap();
+        fs::write(custom_app.join("manifest.json"), "{}").unwrap();
+        assert!(!is_scoop_managed(&custom_app, &none));
+        let with_scoop_env =
+            |name: &str| (name == "SCOOP").then(|| custom_root.clone().into_os_string());
+        assert!(is_scoop_managed(&custom_app, &with_scoop_env));
     }
 
     #[test]

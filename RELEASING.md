@@ -54,7 +54,8 @@ The private Sparkle key is a secret. **Never commit it.**
 These have their own pages under [`Docs/releasing/`](Docs/releasing/):
 
 - [One-time setup](Docs/releasing/one-time-setup.md): the GitHub repository, the Sparkle key pair, the Developer ID certificate and notarization credentials.
-- [Linux and Windows](Docs/releasing/linux-and-windows.md): the port's signed archives and update feeds, third-party licenses, AUR and winget.
+- [Linux and Windows](Docs/releasing/linux-and-windows.md): the port's signed archives and update feeds, third-party licenses, AUR, Scoop and winget.
+- [Windows code signing](Docs/releasing/windows-signing.md): SignPath Foundation Authenticode signing for Windows binaries and the Inno Setup installer.
 - [Linux package repositories](Docs/releasing/linux-package-repos.md): the signed apt and dnf repositories at pkg.lokalbot.com and their key.
 - [Android](Docs/releasing/android.md): the signed APK and Google Play.
 - [Homebrew](Docs/releasing/homebrew.md): syncing the cask after a stable release.

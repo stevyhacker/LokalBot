@@ -31,6 +31,10 @@
 #   WINGET_TOKEN           classic token (public_repo) of the account whose
 #                          microsoft/winget-pkgs fork wingetcreate pushes to
 #                          (winget.yml). Without it nothing goes to winget.
+#   SIGNPATH_API_TOKEN     SignPath.io API token and organization ID for
+#   SIGNPATH_ORG_ID        Authenticode-signing Windows binaries and installer
+#                          (windows-sign.yml). Active only while the
+#                          SIGNPATH_ENABLED repository variable is `true`.
 #   ANDROID_KEYSTORE_BASE64   base64 of the PKCS12 keystore that signs the Android
 #   ANDROID_KEYSTORE_PASSWORD app, and its password. Optional only until
 #                             Companion/android/release-certificate.sha256 is
@@ -608,6 +612,24 @@ jobs:
     permissions:
       contents: read
 
+  # Optional Authenticode signing of Windows binaries and the Inno Setup
+  # installer through SignPath.io (SignPath Foundation OSS certificate). Runs
+  # only on stable tags when the SIGNPATH_ENABLED repository variable is `true`,
+  # after macOS release gates pass, and before linux-windows-publish hashes the
+  # final Windows archive for windows-x86_64.json.
+  windows-sign:
+    name: Sign Windows binaries (SignPath)
+    if: github.event_name == 'push' && !contains(github.ref_name, '-') && vars.SIGNPATH_ENABLED == 'true'
+    needs: [release, linux-windows]
+    uses: ./.github/workflows/windows-sign.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORG_ID: ${{ secrets.SIGNPATH_ORG_ID }}
+    permissions:
+      contents: read
+
   # Runs only after the macOS job published the release (so its release gates
   # passed), signs the Linux and Windows update feeds with the Sparkle key the
   # DMG uses, checks them against SUPublicEDKey, and attaches archives and
@@ -615,8 +637,13 @@ jobs:
   # releases/latest/download/<platform>.json.
   linux-windows-publish:
     name: Sign and attach Linux and Windows updates
-    if: github.event_name == 'push'
-    needs: [release, linux-windows]
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && needs.release.result == 'success'
+      && needs.linux-windows.result == 'success'
+      && (needs.windows-sign.result == 'success' || needs.windows-sign.result == 'skipped')
+    needs: [release, linux-windows, windows-sign]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -626,9 +653,13 @@ jobs:
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: release-*-x86_64
+          name: release-linux-x86_64
           path: LinuxWindows/dist
-          merge-multiple: true
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.windows-sign.result == 'success' && 'release-windows-x86_64-signed' || 'release-windows-x86_64' }}
+          path: LinuxWindows/dist
 
       # Built before the key exists, so no build script runs beside it.
       - name: Build the feed tool
