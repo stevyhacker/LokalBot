@@ -1,6 +1,6 @@
 {
   "name": "lokalbot",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Agent Wrapped: your year with Claude Code and Codex, counted from the session logs on your own computer. Nothing is uploaded.",
   "keywords": [
     "claude-code",
