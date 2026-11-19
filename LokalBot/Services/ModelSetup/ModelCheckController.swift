@@ -41,6 +41,12 @@ struct ModelCheckIdentity: Equatable {
             case .claudePlan:
                 parts = [settings.summarizerBackend.rawValue, settings.claudePlanModel,
                          InferencePresentation(settings: settings).label]
+            case .antigravityPlan:
+                parts = [settings.summarizerBackend.rawValue, settings.antigravityPlanModel,
+                         InferencePresentation(settings: settings).label]
+            case .geminiPlan:
+                parts = [settings.summarizerBackend.rawValue, settings.geminiPlanModel,
+                         InferencePresentation(settings: settings).label]
             }
         case .autocomplete:
             parts = [entryIdentity(settings.cotypingBuiltInModelID), String(settings.cotypingInProcessRuntime),

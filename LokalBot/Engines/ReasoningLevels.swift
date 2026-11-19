@@ -186,6 +186,10 @@ extension ReasoningSupport {
             return ChatGPTPlanEngine(model: settings.chatGPTPlanModel).reasoningSupport
         case .claudePlan:
             return ClaudePlanEngine(model: settings.claudePlanModel).traits.support
+        case .antigravityPlan:
+            return AntigravityPlanEngine(model: settings.antigravityPlanModel).traits.support
+        case .geminiPlan:
+            return .unavailable
         }
     }
 
@@ -208,7 +212,7 @@ extension ReasoningSupport {
             return await openRouter.reasoningSupport(
                 model: settings.openAIModel, baseURL: url,
                 approvedOrigins: settings.approvedRemoteInferenceOrigins) ?? known(for: settings)
-        case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan:
+        case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
             return known(for: settings)
         }
     }
@@ -274,6 +278,8 @@ extension ReasoningSupport {
         case .openAICompatible: "openAICompatible|\(settings.openAIBaseURL)|\(settings.openAIModel)|\(origins)"
         case .chatGPTPlan: "chatGPTPlan|\(settings.chatGPTPlanModel)"
         case .claudePlan: "claudePlan|\(settings.claudePlanModel)"
+        case .antigravityPlan: "antigravityPlan|\(settings.antigravityPlanModel)"
+        case .geminiPlan: "geminiPlan|\(settings.geminiPlanModel)"
         }
     }
 }

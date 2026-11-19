@@ -109,7 +109,7 @@ struct AutocompleteServerSetup: View {
         switch app.settings.summarizerBackend {
         case .ollama: app.settings.ollamaModel.trimmingCharacters(in: .whitespacesAndNewlines)
         case .openAICompatible: app.settings.openAIModel.trimmingCharacters(in: .whitespacesAndNewlines)
-        case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan: ""
+        case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: ""
         }
     }
 

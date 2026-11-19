@@ -163,7 +163,9 @@ impl PiLauncher {
             SummarizerBackend::BuiltIn
             | SummarizerBackend::Ollama
             | SummarizerBackend::ChatGptPlan
-            | SummarizerBackend::ClaudePlan => None,
+            | SummarizerBackend::ClaudePlan
+            | SummarizerBackend::AntigravityPlan
+            | SummarizerBackend::GeminiPlan => None,
         };
         match endpoint::resolve(&request.settings, api_key) {
             Resolution::Unsupported(reason) => Err(LaunchError::Configuration(reason)),

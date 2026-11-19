@@ -1,7 +1,8 @@
 import Foundation
 
-/// Think backends that run on the user's own ChatGPT or Claude plan instead
-/// of an API key. Requests count toward that plan's usage limits.
+/// Think backends that run on the user's own ChatGPT, Claude, Antigravity,
+/// or Gemini plan instead of an API key. Requests count toward that plan's
+/// usage limits.
 ///
 /// Each plan has its own approval entry in
 /// `AppSettings.approvedRemoteInferenceOrigins`. The entries are not URL
@@ -11,6 +12,8 @@ import Foundation
 enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
     case chatGPT
     case claude
+    case antigravity
+    case gemini
 
     var id: String { rawValue }
 
@@ -18,6 +21,8 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch backend {
         case .chatGPTPlan: self = .chatGPT
         case .claudePlan: self = .claude
+        case .antigravityPlan: self = .antigravity
+        case .geminiPlan: self = .gemini
         case .builtIn, .appleIntelligence, .ollama, .openAICompatible: return nil
         }
     }
@@ -26,6 +31,8 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .chatGPT: .chatGPTPlan
         case .claude: .claudePlan
+        case .antigravity: .antigravityPlan
+        case .gemini: .geminiPlan
         }
     }
 
@@ -33,6 +40,8 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .chatGPT: "ChatGPT plan"
         case .claude: "Claude plan"
+        case .antigravity: "Antigravity plan"
+        case .gemini: "Gemini plan"
         }
     }
 
@@ -40,15 +49,20 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .chatGPT: "OpenAI"
         case .claude: "Anthropic"
+        case .antigravity: "Google"
+        case .gemini: "Google"
         }
     }
 
-    /// Where Think content goes. Claude requests travel through the user's
-    /// own Claude Code installation, which sends them to Anthropic.
+    /// Where Think content goes. Claude, Antigravity, and Gemini requests
+    /// travel through the user's own CLI installation, which sends them to
+    /// that provider.
     var destinationHost: String {
         switch self {
         case .chatGPT: "api.openai.com"
         case .claude: "api.anthropic.com"
+        case .antigravity: "antigravity.google"
+        case .gemini: "cloudcode-pa.googleapis.com"
         }
     }
 
@@ -57,6 +71,8 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .chatGPT: "chatgpt-plan://api.openai.com"
         case .claude: "claude-plan://api.anthropic.com"
+        case .antigravity: "antigravity-plan://antigravity.google"
+        case .gemini: "gemini-plan://cloudcode-pa.googleapis.com"
         }
     }
 
@@ -65,6 +81,8 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .chatGPT: URL(string: "https://chatgpt.com/settings/usage")!
         case .claude: URL(string: "https://claude.ai/settings/usage")!
+        case .antigravity: URL(string: "https://antigravity.google/docs/plans")!
+        case .gemini: URL(string: "https://one.google.com/ai")!
         }
     }
 
@@ -80,6 +98,8 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         switch self {
         case .chatGPT: settings.chatGPTPlanModel
         case .claude: settings.claudePlanModel
+        case .antigravity: settings.antigravityPlanModel
+        case .gemini: settings.geminiPlanModel
         }
     }
 

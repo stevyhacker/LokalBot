@@ -52,7 +52,7 @@ LokalBot/
 │                 #   ModelSetup, Notes, People, Permissions, PersonalModel, Projects, Recording,
 │                 #   ScreenMemory, Search, SelectionActions, Speakers, Storage, Timeline, Transcription
 ├── Engines/      # TranscriptionEngine, TextEngine, ModelCatalog, ModelDownloadManager,
-│                 #   LlamaServer, InferenceBroker, Subscription/ (ChatGPT and Claude plans)
+│                 #   LlamaServer, InferenceBroker, Subscription/ (ChatGPT, Claude, Antigravity, and Gemini plans)
 ├── Cotyping/     # Autocomplete: coordinator, AX focus tracking, input monitor, ghost text, Llama/
 ├── Dictation/    # system-wide voice typing
 ├── Agent/        # Agent Mode: pi RPC session, Bun runtime installer, approval flow

@@ -33,11 +33,16 @@ struct AppSettings: Codable, Equatable {
         case chatGPTPlan = "ChatGPT plan"
         /// The user's Claude plan through their own Claude Code installation.
         case claudePlan = "Claude plan"
+        /// The user's Antigravity plan through their own Antigravity CLI (`agy`).
+        case antigravityPlan = "Antigravity plan"
+        /// The user's Gemini plan through their own Gemini CLI (`gemini`).
+        case geminiPlan = "Gemini plan"
         var id: String { rawValue }
         var displayName: String {
             switch self {
             case .builtIn: "Built-in (on-device)"
-            case .appleIntelligence, .ollama, .openAICompatible, .chatGPTPlan, .claudePlan: rawValue
+            case .appleIntelligence, .ollama, .openAICompatible,
+                    .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: rawValue
             }
         }
     }
@@ -567,6 +572,12 @@ struct AppSettings: Codable, Equatable {
     /// Model for the Claude plan: an alias Claude Code accepts ("sonnet") or a
     /// full model id. Empty uses Claude Code's own default.
     var claudePlanModel: String = ""
+    /// Model slug for the Antigravity plan (`agy models`). Empty uses
+    /// Antigravity CLI's own default.
+    var antigravityPlanModel: String = ""
+    /// Model slug for the Gemini plan (`gemini models`). Empty uses Gemini
+    /// CLI's own default (Auto).
+    var geminiPlanModel: String = ""
     /// The one-time "You're using your ChatGPT plan" notice was dismissed.
     var chatGPTPlanNoticeAcknowledged: Bool = false
     /// Processing budget for meeting-notes generation. Applies to every Think
@@ -590,7 +601,7 @@ struct AppSettings: Codable, Equatable {
         let base: String
         switch summarizerBackend {
         case .builtIn, .appleIntelligence: return false
-        case .chatGPTPlan, .claudePlan:
+        case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
             return SubscriptionPlan(backend: summarizerBackend)?.isApproved(in: self) == true
         case .ollama: base = ollamaBaseURL
         case .openAICompatible: base = openAIBaseURL
@@ -607,7 +618,7 @@ struct AppSettings: Codable, Equatable {
         let base: String
         switch summarizerBackend {
         case .builtIn, .appleIntelligence: return true
-        case .chatGPTPlan, .claudePlan:
+        case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
             return SubscriptionPlan(backend: summarizerBackend)?.isApproved(in: self) == true
         case .ollama: base = ollamaBaseURL
         case .openAICompatible: base = openAIBaseURL
@@ -639,6 +650,12 @@ struct AppSettings: Codable, Equatable {
         case .claudePlan:
             let model = claudePlanModel.trimmingCharacters(in: .whitespacesAndNewlines)
             return model.isEmpty ? summarizerBackend.displayName : "\(model) · Claude plan"
+        case .antigravityPlan:
+            let model = antigravityPlanModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            return model.isEmpty ? summarizerBackend.displayName : "\(model) · Antigravity plan"
+        case .geminiPlan:
+            let model = geminiPlanModel.trimmingCharacters(in: .whitespacesAndNewlines)
+            return model.isEmpty ? summarizerBackend.displayName : "\(model) · Gemini plan"
         }
     }
     var openAIAPIKey: String {
@@ -1112,6 +1129,8 @@ struct AppSettings: Codable, Equatable {
         case approvedRemoteInferenceOrigins
         case chatGPTPlanModel
         case claudePlanModel
+        case antigravityPlanModel
+        case geminiPlanModel
         case chatGPTPlanNoticeAcknowledged
         case generationBudgetPreset
         case thinkReasoningLevel
@@ -1350,6 +1369,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(approvedRemoteInferenceOrigins, forKey: .approvedRemoteInferenceOrigins)
         try c.encode(chatGPTPlanModel, forKey: .chatGPTPlanModel)
         try c.encode(claudePlanModel, forKey: .claudePlanModel)
+        try c.encode(antigravityPlanModel, forKey: .antigravityPlanModel)
+        try c.encode(geminiPlanModel, forKey: .geminiPlanModel)
         try c.encode(chatGPTPlanNoticeAcknowledged, forKey: .chatGPTPlanNoticeAcknowledged)
         try c.encode(generationBudgetPreset, forKey: .generationBudgetPreset)
         try c.encode(thinkReasoningLevel, forKey: .thinkReasoningLevel)
@@ -1591,6 +1612,8 @@ struct AppSettings: Codable, Equatable {
             InferenceEndpointPolicy.isAllowed(MetaModelAPI.baseURL, approvedOrigins: approvedRemoteInferenceOrigins))
         chatGPTPlanModel = decode(.chatGPTPlanModel, defaults.chatGPTPlanModel)
         claudePlanModel = decode(.claudePlanModel, defaults.claudePlanModel)
+        antigravityPlanModel = decode(.antigravityPlanModel, defaults.antigravityPlanModel)
+        geminiPlanModel = decode(.geminiPlanModel, defaults.geminiPlanModel)
         chatGPTPlanNoticeAcknowledged = decode(
             .chatGPTPlanNoticeAcknowledged, defaults.chatGPTPlanNoticeAcknowledged)
         generationBudgetPreset = decode(

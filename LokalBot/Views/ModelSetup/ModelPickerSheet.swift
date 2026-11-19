@@ -18,11 +18,17 @@ struct ModelPickerSheet: View {
     @State private var ollamaModel: String
     @State private var chatGPTPlanModel: String
     @State private var claudePlanModel: String
+    @State private var antigravityPlanModel: String
+    @State private var geminiPlanModel: String
     /// Plan approvals apply with Use model, so Cancel changes nothing.
     @State private var chatGPTConsent: Bool
     @State private var claudeConsent: Bool
+    @State private var antigravityConsent: Bool
+    @State private var geminiConsent: Bool
     @State private var chatGPTReady = false
     @State private var claudeReady = false
+    @State private var antigravityReady = false
+    @State private var geminiReady = false
     @State private var funASRNanoDirectory: String
     @State private var folderError: String?
     @State private var granite: GraniteSpeechModelConfiguration
@@ -60,8 +66,12 @@ struct ModelPickerSheet: View {
         _ollamaModel = State(initialValue: settings.ollamaModel)
         _chatGPTPlanModel = State(initialValue: settings.chatGPTPlanModel)
         _claudePlanModel = State(initialValue: settings.claudePlanModel)
+        _antigravityPlanModel = State(initialValue: settings.antigravityPlanModel)
+        _geminiPlanModel = State(initialValue: settings.geminiPlanModel)
         _chatGPTConsent = State(initialValue: SubscriptionPlan.chatGPT.isApproved(in: settings))
         _claudeConsent = State(initialValue: SubscriptionPlan.claude.isApproved(in: settings))
+        _antigravityConsent = State(initialValue: SubscriptionPlan.antigravity.isApproved(in: settings))
+        _geminiConsent = State(initialValue: SubscriptionPlan.gemini.isApproved(in: settings))
         _funASRNanoDirectory = State(initialValue: settings.funASRNanoModelDirectory)
         _granite = State(initialValue: settings.graniteSpeechModel)
         _remoteTranscriptionURL = State(initialValue: settings.remoteTranscriptionBaseURL)
@@ -143,7 +153,11 @@ struct ModelPickerSheet: View {
                 chatGPTPlanModel: backend == .chatGPTPlan
                     ? chatGPTPlanModel.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
                 claudePlanModel: backend == .claudePlan
-                    ? claudePlanModel.trimmingCharacters(in: .whitespacesAndNewlines) : nil)
+                    ? claudePlanModel.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                antigravityPlanModel: backend == .antigravityPlan
+                    ? antigravityPlanModel.trimmingCharacters(in: .whitespacesAndNewlines) : nil,
+                geminiPlanModel: backend == .geminiPlan
+                    ? geminiPlanModel.trimmingCharacters(in: .whitespacesAndNewlines) : nil)
         case .autocomplete: cotypingDraft.patch(onDeviceModelID: selectedID)
         case .dictation: ModelSelectionPatch(dictationModelID: selectedID)
         }
@@ -222,8 +236,10 @@ struct ModelPickerSheet: View {
             switch plan {
             case .chatGPT:
                 return chatGPTReady && !chatGPTPlanModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            // An empty model uses Claude Code's own default.
+            // An empty model uses the CLI's own default.
             case .claude: return claudeReady
+            case .antigravity: return antigravityReady
+            case .gemini: return geminiReady
             }
         }
         if role == .assistant, backend != .builtIn {
@@ -233,7 +249,7 @@ struct ModelPickerSheet: View {
             case .openAICompatible: return !remoteModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             case .ollama: return !ollamaModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             case .appleIntelligence: return FoundationModelAvailability.current().isAvailable
-            case .builtIn, .chatGPTPlan, .claudePlan: return false
+            case .builtIn, .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: return false
             }
         }
         if editsAutocompleteServer {
@@ -761,7 +777,7 @@ struct ModelPickerSheet: View {
     /// Where Think runs. Each choice is one backend; its setup appears beside
     /// the list.
     private enum ThinkProvider: String, CaseIterable, Identifiable {
-        case onDevice, appleIntelligence, chatGPTPlan, claudePlan, ollama, server
+        case onDevice, appleIntelligence, chatGPTPlan, claudePlan, antigravityPlan, geminiPlan, ollama, server
 
         var id: String { rawValue }
 
@@ -771,6 +787,8 @@ struct ModelPickerSheet: View {
             case .appleIntelligence: self = .appleIntelligence
             case .chatGPTPlan: self = .chatGPTPlan
             case .claudePlan: self = .claudePlan
+            case .antigravityPlan: self = .antigravityPlan
+            case .geminiPlan: self = .geminiPlan
             case .ollama: self = .ollama
             case .openAICompatible: self = .server
             }
@@ -782,6 +800,8 @@ struct ModelPickerSheet: View {
             case .appleIntelligence: .appleIntelligence
             case .chatGPTPlan: .chatGPTPlan
             case .claudePlan: .claudePlan
+            case .antigravityPlan: .antigravityPlan
+            case .geminiPlan: .geminiPlan
             case .ollama: .ollama
             case .server: .openAICompatible
             }
@@ -793,6 +813,8 @@ struct ModelPickerSheet: View {
             case .appleIntelligence: "Built into macOS"
             case .chatGPTPlan: "ChatGPT plan"
             case .claudePlan: "Claude plan"
+            case .antigravityPlan: "Antigravity plan"
+            case .geminiPlan: "Gemini plan"
             case .ollama: "Ollama"
             case .server: "Another service or server"
             }
@@ -803,7 +825,7 @@ struct ModelPickerSheet: View {
             switch self {
             case .onDevice: "Downloads once, then runs here."
             case .appleIntelligence: "Apple Intelligence. Nothing to download."
-            case .chatGPTPlan, .claudePlan: "Sign in with a plan you already pay for."
+            case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: "Sign in with a plan you already pay for."
             case .ollama: "A server you run, on this Mac or your network."
             case .server: "An address and key you enter."
             }
@@ -815,6 +837,8 @@ struct ModelPickerSheet: View {
             case .appleIntelligence: "apple.intelligence"
             case .chatGPTPlan: "bubble.left.and.bubble.right"
             case .claudePlan: "terminal"
+            case .antigravityPlan: "sparkles"
+            case .geminiPlan: "terminal"
             case .ollama: "server.rack"
             case .server: "network"
             }
@@ -826,7 +850,7 @@ struct ModelPickerSheet: View {
     private func staysOnThisMac(_ provider: ThinkProvider) -> Bool {
         switch provider {
         case .onDevice, .appleIntelligence: return true
-        case .chatGPTPlan, .claudePlan: return false
+        case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: return false
         case .ollama, .server:
             // "Another service" is one only once it is the one in use: its
             // address starts out as a placeholder on this Mac.
@@ -957,7 +981,30 @@ struct ModelPickerSheet: View {
     }
 
     private func consent(for plan: SubscriptionPlan) -> Binding<Bool> {
-        plan == .chatGPT ? $chatGPTConsent : $claudeConsent
+        switch plan {
+        case .chatGPT: $chatGPTConsent
+        case .claude: $claudeConsent
+        case .antigravity: $antigravityConsent
+        case .gemini: $geminiConsent
+        }
+    }
+
+    private func modelBinding(for plan: SubscriptionPlan) -> Binding<String> {
+        switch plan {
+        case .chatGPT: $chatGPTPlanModel
+        case .claude: $claudePlanModel
+        case .antigravity: $antigravityPlanModel
+        case .gemini: $geminiPlanModel
+        }
+    }
+
+    private func readyBinding(for plan: SubscriptionPlan) -> Binding<Bool> {
+        switch plan {
+        case .chatGPT: $chatGPTReady
+        case .claude: $claudeReady
+        case .antigravity: $antigravityReady
+        case .gemini: $geminiReady
+        }
     }
 
     /// The selected plan is approved in the sheet but not yet in settings.
@@ -976,9 +1023,9 @@ struct ModelPickerSheet: View {
         return VStack(alignment: .leading, spacing: 16) {
             SubscriptionPlanSetupView(
                 app: app, plan: plan,
-                model: plan == .chatGPT ? $chatGPTPlanModel : $claudePlanModel,
+                model: modelBinding(for: plan),
                 consent: consent(for: plan),
-                ready: plan == .chatGPT ? $chatGPTReady : $claudeReady,
+                ready: readyBinding(for: plan),
                 chatGPTAccount: chatGPTAccount)
                 .id(plan)
             Group {

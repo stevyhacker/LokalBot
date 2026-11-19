@@ -52,7 +52,7 @@ struct DreamInferenceProvenance: Codable, Equatable, Sendable {
             rawURL = settings.ollamaBaseURL
         case .openAICompatible:
             rawURL = settings.openAIBaseURL
-        case .chatGPTPlan, .claudePlan:
+        case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
             // The plan's approval entry names the provider, never an account.
             self.init(location: .remote,
                       origin: SubscriptionPlan(backend: settings.summarizerBackend)?.consentKey)

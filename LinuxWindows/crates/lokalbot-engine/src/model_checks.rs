@@ -80,7 +80,10 @@ pub(crate) fn identity(role: ModelRole, settings: &Settings, api_key: &str) -> V
                     .unwrap_or_default(),
                     hex::encode(Sha256::digest(api_key.as_bytes())),
                 ],
-                SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => {
+                SummarizerBackend::ChatGptPlan
+                | SummarizerBackend::ClaudePlan
+                | SummarizerBackend::AntigravityPlan
+                | SummarizerBackend::GeminiPlan => {
                     let plan = settings.think_plan();
                     vec![
                         backend,

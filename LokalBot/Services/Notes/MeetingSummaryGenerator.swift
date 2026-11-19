@@ -88,6 +88,12 @@ enum MeetingSummaryGenerator {
         case .claudePlan:
             // Claude Code's default window on subscription plans.
             return 200_000
+        case .antigravityPlan:
+            // Antigravity serves Gemini (1M), Claude (200K), and GPT-OSS (128K).
+            return config.antigravityPlanModel.lowercased().hasPrefix("gpt-oss") ? 128_000 : 200_000
+        case .geminiPlan:
+            // Gemini CLI models advertise a 1M-token context window.
+            return 1_000_000
         case .builtIn, .appleIntelligence, .ollama, .openAICompatible:
             break
         }

@@ -100,6 +100,12 @@ pub struct Settings {
     /// Model for the Claude plan: an alias Claude Code accepts ("sonnet") or a
     /// full model id. Empty uses Claude Code's own default.
     pub claude_plan_model: String,
+    /// Model for the Antigravity plan: a slug `agy models` accepts. Empty uses
+    /// Antigravity CLI's own default.
+    pub antigravity_plan_model: String,
+    /// Model for the Gemini plan: a model id `gemini` accepts. Empty uses
+    /// Gemini CLI's own default (`auto`).
+    pub gemini_plan_model: String,
     /// The one-time "You're using your ChatGPT plan" notice was dismissed.
     #[serde(rename = "chatGPTPlanNoticeAcknowledged")]
     pub chatgpt_plan_notice_acknowledged: bool,
@@ -360,6 +366,8 @@ impl Default for Settings {
             open_router_data_policy: OpenRouterDataPolicy::PrivateOnly,
             chatgpt_plan_model: String::new(),
             claude_plan_model: String::new(),
+            antigravity_plan_model: String::new(),
+            gemini_plan_model: String::new(),
             chatgpt_plan_notice_acknowledged: false,
             think_reasoning_level: ReasoningLevel::Automatic,
             agent_reasoning_level: None,
@@ -599,7 +607,10 @@ impl Settings {
             SummarizerBackend::OpenAICompatible => {
                 crate::access::is_loopback_url(&self.openai_base_url)
             }
-            SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => false,
+            SummarizerBackend::ChatGptPlan
+            | SummarizerBackend::ClaudePlan
+            | SummarizerBackend::AntigravityPlan
+            | SummarizerBackend::GeminiPlan => false,
         }
     }
 
@@ -805,15 +816,23 @@ pub enum SummarizerBackend {
     /// The user's Claude plan through their own Claude Code installation.
     #[serde(rename = "Claude plan")]
     ClaudePlan,
+    /// The user's Antigravity plan through their own Antigravity CLI (`agy`).
+    #[serde(rename = "Antigravity plan")]
+    AntigravityPlan,
+    /// The user's Gemini plan through their own Gemini CLI (`gemini`).
+    #[serde(rename = "Gemini plan")]
+    GeminiPlan,
 }
 
 impl SummarizerBackend {
-    pub const ALL: [SummarizerBackend; 5] = [
+    pub const ALL: [SummarizerBackend; 7] = [
         Self::BuiltIn,
         Self::Ollama,
         Self::OpenAICompatible,
         Self::ChatGptPlan,
         Self::ClaudePlan,
+        Self::AntigravityPlan,
+        Self::GeminiPlan,
     ];
 
     pub fn label(self) -> &'static str {
@@ -823,13 +842,15 @@ impl SummarizerBackend {
             Self::OpenAICompatible => "OpenAI-compatible server",
             Self::ChatGptPlan => "ChatGPT plan",
             Self::ClaudePlan => "Claude plan",
+            Self::AntigravityPlan => "Antigravity plan",
+            Self::GeminiPlan => "Gemini plan",
         }
     }
 }
 
-/// Think backends that run on the user's own ChatGPT or Claude plan instead
-/// of an API key (`SubscriptionPlan.swift`). Requests count toward that
-/// plan's usage limits.
+/// Think backends that run on the user's own ChatGPT, Claude, Antigravity, or
+/// Gemini plan instead of an API key (`SubscriptionPlan.swift`). Requests count
+/// toward that plan's usage limits.
 ///
 /// Each plan has its own entry in `approved_remote_inference_origins`. The
 /// entries are not URL origins, so approving an API server
@@ -839,15 +860,20 @@ impl SummarizerBackend {
 pub enum SubscriptionPlan {
     ChatGpt,
     Claude,
+    Antigravity,
+    Gemini,
 }
 
 impl SubscriptionPlan {
-    pub const ALL: [SubscriptionPlan; 2] = [Self::ChatGpt, Self::Claude];
+    pub const ALL: [SubscriptionPlan; 4] =
+        [Self::ChatGpt, Self::Claude, Self::Antigravity, Self::Gemini];
 
     pub fn for_backend(backend: SummarizerBackend) -> Option<Self> {
         match backend {
             SummarizerBackend::ChatGptPlan => Some(Self::ChatGpt),
             SummarizerBackend::ClaudePlan => Some(Self::Claude),
+            SummarizerBackend::AntigravityPlan => Some(Self::Antigravity),
+            SummarizerBackend::GeminiPlan => Some(Self::Gemini),
             SummarizerBackend::BuiltIn
             | SummarizerBackend::Ollama
             | SummarizerBackend::OpenAICompatible => None,
@@ -858,14 +884,19 @@ impl SubscriptionPlan {
         match self {
             Self::ChatGpt => SummarizerBackend::ChatGptPlan,
             Self::Claude => SummarizerBackend::ClaudePlan,
+            Self::Antigravity => SummarizerBackend::AntigravityPlan,
+            Self::Gemini => SummarizerBackend::GeminiPlan,
         }
     }
 
-    /// "ChatGPT plan", "Claude plan" (shared interface keys).
+    /// "ChatGPT plan", "Claude plan", "Antigravity plan", "Gemini plan"
+    /// (shared interface keys).
     pub fn title(self) -> &'static str {
         match self {
             Self::ChatGpt => "ChatGPT plan",
             Self::Claude => "Claude plan",
+            Self::Antigravity => "Antigravity plan",
+            Self::Gemini => "Gemini plan",
         }
     }
 
@@ -873,15 +904,18 @@ impl SubscriptionPlan {
         match self {
             Self::ChatGpt => "OpenAI",
             Self::Claude => "Anthropic",
+            Self::Antigravity | Self::Gemini => "Google",
         }
     }
 
-    /// Where Think content goes. Claude requests travel through the user's
-    /// own Claude Code installation, which sends them to Anthropic.
+    /// Where Think content goes. CLI-backed plans travel through the user's
+    /// own signed-in CLI installation to its provider.
     pub fn destination_host(self) -> &'static str {
         match self {
             Self::ChatGpt => "api.openai.com",
             Self::Claude => "api.anthropic.com",
+            Self::Antigravity => "antigravity.google",
+            Self::Gemini => "cloudcode-pa.googleapis.com",
         }
     }
 
@@ -890,6 +924,8 @@ impl SubscriptionPlan {
         match self {
             Self::ChatGpt => "chatgpt-plan://api.openai.com",
             Self::Claude => "claude-plan://api.anthropic.com",
+            Self::Antigravity => "antigravity-plan://antigravity.google",
+            Self::Gemini => "gemini-plan://cloudcode-pa.googleapis.com",
         }
     }
 
@@ -898,6 +934,8 @@ impl SubscriptionPlan {
         match self {
             Self::ChatGpt => "https://chatgpt.com/settings/usage",
             Self::Claude => "https://claude.ai/settings/usage",
+            Self::Antigravity => "https://antigravity.google/docs/plans",
+            Self::Gemini => "https://one.google.com/ai",
         }
     }
 
@@ -930,6 +968,8 @@ impl SubscriptionPlan {
         match self {
             Self::ChatGpt => settings.chatgpt_plan_model.trim(),
             Self::Claude => settings.claude_plan_model.trim(),
+            Self::Antigravity => settings.antigravity_plan_model.trim(),
+            Self::Gemini => settings.gemini_plan_model.trim(),
         }
     }
 
@@ -1365,6 +1405,34 @@ mod tests {
             Settings::load(&path).open_router_data_policy,
             OpenRouterDataPolicy::PrivateOnly
         );
+
+        std::fs::write(
+            &path,
+            r#"{"summarizerBackend":"Antigravity plan","antigravityPlanModel":"gemini-4-neon","geminiPlanModel":"gemini-2.5-pro","approvedRemoteInferenceOrigins":["antigravity-plan://antigravity.google"]}"#,
+        )
+        .unwrap();
+        let agy = Settings::load(&path);
+        assert_eq!(agy.summarizer_backend, SummarizerBackend::AntigravityPlan);
+        assert_eq!(agy.antigravity_plan_model, "gemini-4-neon");
+        assert_eq!(agy.gemini_plan_model, "gemini-2.5-pro");
+        assert_eq!(agy.think_plan(), Some(SubscriptionPlan::Antigravity));
+        assert!(!agy.think_is_local());
+        assert!(SubscriptionPlan::Antigravity.is_approved(&agy));
+        assert!(!SubscriptionPlan::Gemini.is_approved(&agy));
+        assert_eq!(SubscriptionPlan::Antigravity.model(&agy), "gemini-4-neon");
+        assert_eq!(SubscriptionPlan::Gemini.model(&agy), "gemini-2.5-pro");
+        agy.save(&path).unwrap();
+        let saved: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        assert_eq!(saved["summarizerBackend"], "Antigravity plan");
+        assert_eq!(saved["antigravityPlanModel"], "gemini-4-neon");
+        assert_eq!(saved["geminiPlanModel"], "gemini-2.5-pro");
+
+        std::fs::write(&path, r#"{"summarizerBackend":"Gemini plan"}"#).unwrap();
+        let gemini = Settings::load(&path);
+        assert_eq!(gemini.summarizer_backend, SummarizerBackend::GeminiPlan);
+        assert_eq!(gemini.think_plan(), Some(SubscriptionPlan::Gemini));
+        assert!(!gemini.think_is_local());
     }
 
     #[test]
@@ -1410,7 +1478,24 @@ mod tests {
                 SubscriptionPlan::for_consent_key(plan.consent_key()),
                 Some(plan)
             );
+            assert!(
+                crate::access::remote_block_reason(
+                    &format!("https://{}", plan.destination_host()),
+                    &[plan.consent_key().to_string()]
+                )
+                .is_some(),
+                "plan approval must not cover HTTPS API requests to {}",
+                plan.destination_host()
+            );
         }
+        assert_eq!(
+            SubscriptionPlan::approval_display_name("antigravity-plan://antigravity.google"),
+            "Antigravity plan · antigravity.google"
+        );
+        assert_eq!(
+            SubscriptionPlan::approval_display_name("gemini-plan://cloudcode-pa.googleapis.com"),
+            "Gemini plan · cloudcode-pa.googleapis.com"
+        );
     }
 
     #[test]
