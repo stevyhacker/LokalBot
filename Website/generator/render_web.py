@@ -55,6 +55,7 @@ ORGANIZATION = {
 STATIC_PAGES = {
     "": "2026-11-19",
     "wrapped": "2026-11-19",
+    "migrate": "2026-11-19",
     "privacy": "2026-11-11",
     "terms": "2026-11-10",
     "support": "2026-11-02",

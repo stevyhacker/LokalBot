@@ -833,8 +833,8 @@ GUIDES = [
         "slug": "meeting-transcripts-obsidian-markdown",
         "kind": "question",
         "published": "2026-10-14",
-        "updated": "2026-11-02",
-        "updated_label": "November 2, 2026",
+        "updated": "2026-11-19",
+        "updated_label": "November 19, 2026",
         "title": "How to Get Meeting Transcripts into Obsidian as Markdown",
         "description": "Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script.",
         "eyebrow": "Obsidian and Markdown",
@@ -871,6 +871,10 @@ lokalbot-cli list <span class="c-op">\\</span>
     done</pre>
         <p>It uses <code>jq</code>, which ships with macOS 15 and later. On Linux, install jq with your package manager. On Windows, run the script in Git Bash with jq installed. Each meeting is written once its summary is ready, as a note named like <code>2026-10-14 ab12cd.md</code>. Existing notes are never overwritten, so edits you make in Obsidian are safe; delete a note to have it written again, for example after you regenerate a summary. Run the script after meetings, or from a scheduled job if you want it hands-off.</p>
 
+        <h2>Option 5: use the LokalBot Obsidian plugin</h2>
+        <p>If you want to browse recent meetings, search transcripts, pull open action items into Daily Notes, or ask LokalBot's local model without leaving Obsidian, install the open-source <a href="https://github.com/stevyhacker/obsidian-lokalbot" target="_blank" rel="noopener">LokalBot plugin for Obsidian</a> (macOS, Windows, and Linux). It reads your local library strictly through the read-only <code>lokalbot-cli</code> with zero network requests.</p>
+        <p>Migrating existing exports from Granola, Otter.ai, Fireflies, Fathom, or Zoom into Obsidian Markdown first? Use our 100% offline browser converter at <a href="/migrate">lokalbot.com/migrate</a>—nothing leaves your computer.</p>
+
         <h2>Things to know</h2>
         <ul>
           <li><strong>Exports are ordinary files.</strong> LokalBot doesn't encrypt them, and if you sync the vault with Obsidian Sync, iCloud, or Git, that service's terms now cover your transcripts too.</li>
@@ -879,7 +883,7 @@ lokalbot-cli list <span class="c-op">\\</span>
         </ul>
         """,
         "faq": [
-            ("Is there an Obsidian plugin for LokalBot?", "No, and you don't need one. LokalBot writes a note for each meeting straight into a folder in your vault, so nothing needs installing in Obsidian."),
+            ("Is there an Obsidian plugin for LokalBot?", "Yes—an open-source LokalBot plugin for Obsidian (github.com/stevyhacker/obsidian-lokalbot) lets you search meetings, sync notes, insert open action items into Daily Notes, and ask LokalBot's local model inside Obsidian. You still don't need a plugin if you only want automatic Markdown note export straight into your vault folder."),
             ("Do the exported transcripts include speaker names?", "Yes. Each transcript line starts with a timestamp and the speaker's name, or a default label such as Me when you haven't named that speaker."),
             ("Can I use Logseq instead?", "Yes, with Logseq OG, which keeps a graph as Markdown files. Meeting notes and the daily note both come in a Logseq format, with page properties and TODO and DONE actions; choose your graph's pages folder for meeting notes. Logseq's newer database version imports Markdown instead of reading a folder, so it won't pick up new notes on its own."),
         ],
