@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agent Wrapped 2026: Your Year With Claude Code and Codex — LokalBot</title>
-  <meta name="description" content="Run npx lokalbot to turn your local Claude Code and Codex session logs into a shareable year-in-review card. Zero dependencies, zero uploads, Portrait 4:5 and Wide 16:9 PNG export." />
+  <title>Agent Wrapped 2026: Your Year With Coding Agents — LokalBot</title>
+  <meta name="description" content="Run npx lokalbot to turn your local Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI session logs into a shareable year-in-review card. Zero dependencies, zero uploads." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -12,17 +12,17 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/wrapped" />
-  <meta property="og:title" content="Agent Wrapped 2026 — Your year with Claude Code and Codex" />
-  <meta property="og:description" content="Counted locally from your session logs. Nothing uploaded. Run npx lokalbot for your terminal card and shareable PNG." />
+  <meta property="og:title" content="Agent Wrapped 2026 — Your year with coding agents" />
+  <meta property="og:description" content="Reads Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI logs locally. Zero dependencies, zero uploads. Run npx lokalbot." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-wrapped.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Agent Wrapped 2026: your year with Claude Code and Codex, counted locally with npx lokalbot." />
+  <meta property="og:image:alt" content="Agent Wrapped 2026: your year with coding agents, counted locally with npx lokalbot." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Agent Wrapped 2026 — Your year with Claude Code and Codex" />
-  <meta name="twitter:description" content="Run npx lokalbot for a local, zero-upload year in review of your Claude Code and Codex sessions." />
+  <meta name="twitter:title" content="Agent Wrapped 2026 — Your year with coding agents" />
+  <meta name="twitter:description" content="Run npx lokalbot for a local, zero-upload year in review across Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-wrapped.png" />
-  <meta name="twitter:image:alt" content="Agent Wrapped 2026: your year with Claude Code and Codex, counted locally with npx lokalbot." />
+  <meta name="twitter:image:alt" content="Agent Wrapped 2026: your year with coding agents, counted locally with npx lokalbot." />
   <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
@@ -49,13 +49,15 @@
     .wrapped-bridge h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 8px 0 12px; }
     .wrapped-bridge p { max-width: 66ch; line-height: 1.6; opacity: 0.88; margin: 0 0 18px; }
     .wrapped-bridge__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .wrapped-agents { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+    .wrapped-agent-pill { padding: 5px 11px; border-radius: 999px; font: 600 0.82rem/1.2 ui-monospace, "SF Mono", Menlo, monospace; background: var(--glass-bg, rgba(15, 23, 34, 0.55)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); }
     .wrapped-faq { margin-top: 56px; }
     .wrapped-faq h2 { margin: 0 0 18px; }
     .wrapped-faq details { padding: 16px 0; border-top: 1px solid var(--glass-border, rgba(148, 163, 184, 0.2)); }
     .wrapped-faq summary { font-weight: 600; cursor: pointer; }
     .wrapped-faq details p { margin: 10px 0 0; opacity: 0.85; line-height: 1.6; }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/wrapped#webpage","url":"https://www.lokalbot.com/wrapped","name":"Agent Wrapped 2026: Your Year With Claude Code and Codex — LokalBot","description":"Run npx lokalbot to turn your local Claude Code and Codex session logs into a shareable year-in-review card. Zero dependencies, zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-19","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/wrapped#faq","mainEntity":[{"@type":"Question","name":"Does Agent Wrapped upload my logs or prompts?","acceptedAnswer":{"@type":"Answer","text":"No. The npm package has zero dependencies and makes zero network requests. It reads your local Claude Code and Codex JSONL session logs, counts timestamps, tool calls, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed."}},{"@type":"Question","name":"Why does my Claude Code heatmap start 30 days ago?","acceptedAnswer":{"@type":"Answer","text":"Claude Code deletes detailed session logs after 30 days by default unless you set cleanupPeriodDays in ~/.claude/settings.json. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's stats-cache.json to include earlier days counted this year."}},{"@type":"Question","name":"How is Agent Wrapped connected to LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/wrapped#webpage","url":"https://www.lokalbot.com/wrapped","name":"Agent Wrapped 2026: Your Year With Coding Agents — LokalBot","description":"Run npx lokalbot to turn your local Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI session logs into a shareable year-in-review card. Zero dependencies, zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-19","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/wrapped#faq","mainEntity":[{"@type":"Question","name":"Which coding agents does Agent Wrapped read?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped automatically reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also point individual --*-dir flags at custom log directories."}},{"@type":"Question","name":"Does Agent Wrapped upload my logs or prompts?","acceptedAnswer":{"@type":"Answer","text":"No. The npm package has zero dependencies and makes zero network requests. It reads your local session logs, counts timestamps, tool calls, models, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed."}},{"@type":"Question","name":"Why does my Claude Code heatmap start 30 days ago?","acceptedAnswer":{"@type":"Answer","text":"Claude Code deletes detailed session logs after 30 days by default unless you set cleanupPeriodDays in ~/.claude/settings.json. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's stats-cache.json to include earlier days counted this year."}},{"@type":"Question","name":"How is Agent Wrapped connected to LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP."}}]}]}</script>
 </head>
 <body>
   <div class="bg-field" aria-hidden="true"></div>
@@ -82,32 +84,42 @@
     <section class="wrapped-hero">
       <div>
         <p class="eyebrow">Free · Open source (GPLv3) · Updated November 19, 2026</p>
-        <h1>Your year with Claude Code and Codex.</h1>
-        <p class="wrapped-hero__lead">Run one command to map every hour your coding agents worked this year, your parallelism, tool calls, commits, and estimated API value—counted strictly from the logs on your own computer.</p>
+        <h1>Your year with coding agents.</h1>
+        <p class="wrapped-hero__lead">Run one command to map your GitHub-style contribution graph, top 5 models by token count, agent split, parallelism, tool calls, commits, and estimated API value—counted strictly from the logs on your own computer.</p>
+        <div class="wrapped-agents" aria-label="Supported coding agents">
+          <span class="wrapped-agent-pill">Claude Code</span>
+          <span class="wrapped-agent-pill">Codex</span>
+          <span class="wrapped-agent-pill">Cursor</span>
+          <span class="wrapped-agent-pill">Pi</span>
+          <span class="wrapped-agent-pill">OMP</span>
+          <span class="wrapped-agent-pill">OpenCode</span>
+          <span class="wrapped-agent-pill">Antigravity</span>
+          <span class="wrapped-agent-pill">Gemini CLI</span>
+        </div>
         <div class="wrapped-cmd">
           <code>npx lokalbot</code>
           <button type="button" class="wrapped-cmd__copy" data-copy-text="npx lokalbot" aria-label="Copy npx lokalbot">Copy</button>
         </div>
-        <p class="wrapped-meta">Zero dependencies · Zero network requests · Works on macOS, Linux, and Windows (Node.js 20+)</p>
+        <p class="wrapped-meta">Zero dependencies · Zero network requests · Dark &amp; Light · Portrait 4:5 &amp; Wide 16:9 PNG · macOS, Linux, Windows</p>
         <div class="wrapped-bridge__actions">
           <a class="btn btn--ghost" href="https://github.com/stevyhacker/lokalbot/tree/master/Distribution/npm" target="_blank" rel="noopener">Audit the source on GitHub</a>
           <a class="btn btn--ghost" href="/claude-code-codex-meeting-notes">Connect Claude Code to meetings</a>
         </div>
       </div>
       <figure class="wrapped-card-frame">
-        <img src="/assets/agent-wrapped-card.png" width="1200" height="1500" alt="Agent Wrapped 2026 demo card titled The Switch Hitter showing a full-year hour-by-day heatmap, 588 agent hours across 247 days, 14,415 tool calls, estimated API value, 396 commits, and a 67% Claude Code / 33% Codex split." />
-        <figcaption>Demo card from <code>npx lokalbot --demo</code>. Export as 2× PNG in Portrait (4:5) or Wide (16:9).</figcaption>
+        <img src="/assets/agent-wrapped-card.png" width="1200" height="1500" alt="Agent Wrapped 2026 demo card titled The Switch Hitter showing a GitHub-style contribution graph, 4 KPI tiles, Top 5 Models with token totals, and a multi-agent split bar." />
+        <figcaption>Demo card from <code>npx lokalbot --demo</code>. Export as 2× PNG in Dark or Light mode, Portrait (4:5) or Wide (16:9).</figcaption>
       </figure>
     </section>
 
     <section class="wrapped-grid" aria-label="Highlights">
       <div class="wrapped-tile">
         <h2>Zero uploads, zero dependencies</h2>
-        <p>Reads <code>~/.claude/projects</code> and <code>~/.codex/sessions</code> locally. Never keeps prompt text, leaves project names off the image unless you pass <code>--projects</code>, and opens an offline page to save or copy your PNG.</p>
+        <p>Reads local session logs from Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI using built-in Node APIs only. Never keeps prompt text, leaves project names off the image unless you pass <code>--projects</code>, and opens an offline page to save or copy your PNG.</p>
       </div>
       <div class="wrapped-tile">
         <h2>Built for how you actually ship</h2>
-        <p>Shows your hour-by-day work shape, busiest day, parallelism multiplier, prompt cache hit rate, estimated list-API value, and commits and merged pull requests.</p>
+        <p>Shows a GitHub-style contribution graph, Top 5 Models with token totals (merging provider prefixes across agents), multi-agent split bar, parallelism multiplier, estimated list-API value, and commits and merged pull requests.</p>
       </div>
       <div class="wrapped-tile">
         <h2>Handles Claude's 30-day log cleanup</h2>
@@ -129,8 +141,12 @@
     <section class="wrapped-faq" aria-labelledby="wrapped-faq-title">
       <h2 id="wrapped-faq-title">Frequently asked questions</h2>
       <details>
+        <summary>Which coding agents does Agent Wrapped read?</summary>
+        <p>Agent Wrapped automatically reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also pass individual <code>--*-dir</code> flags to point at custom log directories.</p>
+      </details>
+      <details>
         <summary>Does Agent Wrapped upload my logs or prompts?</summary>
-        <p>No. The npm package has zero dependencies and makes zero network requests. It reads your local Claude Code and Codex JSONL session logs, counts timestamps, tool calls, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed.</p>
+        <p>No. The npm package has zero dependencies and makes zero network requests. It reads your local session logs, counts timestamps, tool calls, models, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed.</p>
       </details>
       <details>
         <summary>Why does my Claude Code heatmap start 30 days ago?</summary>
