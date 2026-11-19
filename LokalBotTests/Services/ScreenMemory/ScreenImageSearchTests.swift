@@ -174,7 +174,8 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertEqual(best.value.meaning.modality, .image)
         XCTAssertGreaterThanOrEqual(best.value.meaning.z, ScreenSearchRanking.zGate)
         XCTAssertEqual(all.count, 30)
-        XCTAssertNotNil(all[ids[0]]?.text)
+        // Text is read afterwards, only for the captures a search shows.
+        XCTAssertEqual(EmbeddingIndex.screenTexts([ids[0], ids[0], 999_999], in: reader), [ids[0]: "capture 0 text"])
 
         let xcode = EmbeddingIndex.screenMeanings(database: reader, queryVector: query,
                                                   filter: ScreenSearchFilter(interval: nil, app: "xcode"))
@@ -208,16 +209,45 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertEqual(ScreenSearch.coverage(query: "the", hits: keyword, matchedAll: false) { _ in nil }[worded], 0.5)
 
         let meanings: [Int64: EmbeddingIndex.ScreenMeaningMatch] = [
-            titled: .init(meaning: .init(z: 3.1, cosine: 0.7, modality: .image), ts: now, app: "Safari", text: nil),
+            titled: .init(meaning: .init(z: 3.1, cosine: 0.7, modality: .image), ts: now, app: "Safari"),
         ]
         let ranked = ScreenSearch.ranked(query: "payment declined error", keyword: keyword, coverage: coverage,
-                                         meanings: meanings, limit: 10) { [store] in store?.screenshot(id: $0) }
+                                         meanings: meanings, limit: 10,
+                                         screenshots: { [store] in store?.screenshots(ids: $0) ?? [:] },
+                                         texts: { _ in [:] })
 
         XCTAssertEqual(ranked.map(\.snapshotID), [titled, worded],
                        "the picture match stands out; one word of three no longer qualifies")
         XCTAssertTrue(ranked[0].isSemantic)
         XCTAssertEqual(ranked[0].snippet, "Checkout — Stripe", "a picture match without text shows its window")
         XCTAssertFalse(ranked[1].isSemantic)
+    }
+
+    /// Scoring leaves every capture's text unread; ranking reads it once, for
+    /// the captures found by meaning alone, and shows their best passage.
+    func testATextMatchFoundByMeaningShowsItsPassageReadAfterRanking() throws {
+        let worded = try insert(path: "/shots/c.heic.enc", minutesAgo: 3, windowTitle: "Invoices", ocr: "refund queue")
+        let meant = try insert(path: "/shots/d.heic.enc", minutesAgo: 2, windowTitle: "Billing")
+        let now = Date()
+        let keyword = [ActivityStore.OCRHit(snapshotID: worded, ts: now, app: "Safari", snippet: "«refund» queue")]
+        let meanings: [Int64: EmbeddingIndex.ScreenMeaningMatch] = [
+            meant: .init(meaning: .init(z: 3.4, cosine: 0.8, modality: .text), ts: now, app: "Safari"),
+        ]
+        let passage = "Customer asked for a refund of the March invoice"
+        var asked: [[Int64]] = []
+        let ranked = ScreenSearch.ranked(
+            query: "refund", keyword: keyword, coverage: [worded: 1], meanings: meanings, limit: 10,
+            screenshots: { [store] in store?.screenshots(ids: $0) ?? [:] },
+            texts: { ids in
+                asked.append(ids)
+                return [meant: passage]
+            })
+
+        XCTAssertEqual(asked, [[meant]], "text is read once, only for captures found by meaning alone")
+        let hit = try XCTUnwrap(ranked.first { $0.snapshotID == meant })
+        XCTAssertTrue(hit.isSemantic)
+        XCTAssertEqual(hit.snippet, RecallPassage.excerpt(passage, query: "refund"))
+        XCTAssertEqual(ranked.first { $0.snapshotID == worded }?.snippet, "«refund» queue")
     }
 
     // MARK: - Helpers

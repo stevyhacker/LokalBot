@@ -1,7 +1,7 @@
 // A made-up year, for screenshots and for trying the cards without logs.
 // The same seed always produces the same year.
 
-import { createCollector } from './collector.mjs';
+import { addModelTokens, createCollector } from './collector.mjs';
 import { computeStats, yearWindow } from './stats.mjs';
 
 const MINUTE = 60 * 1000;
@@ -64,7 +64,13 @@ function addSession(collector, { agent, id, start, minutes, project, random }) {
   session.tokens.input = steps * (60000 + Math.floor(random() * 90000));
   session.tokens.cached = Math.floor(session.tokens.input * 0.9);
   session.tokens.output = steps * (500 + Math.floor(random() * 900));
-  session.models.set(agent === 'codex' ? 'gpt-6-astra' : 'claude-fable-5', session.prompts);
+  const model = agent === 'codex' ? 'gpt-6-astra' : 'claude-fable-5';
+  session.models.set(model, session.prompts);
+  addModelTokens(session, model, {
+    input: session.tokens.input,
+    cached: session.tokens.cached,
+    output: session.tokens.output,
+  });
   for (const [tool, share] of [['Bash', 0.4], ['Read', 0.3], ['Edit', 0.2], ['Grep', 0.1]]) {
     session.tools.set(tool, Math.floor(session.toolCalls * share));
   }

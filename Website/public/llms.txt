@@ -24,6 +24,7 @@ Key facts:
 ## Product
 
 - [LokalBot home](https://www.lokalbot.com/): features, demo, and FAQ
+- [Agent Wrapped](https://www.lokalbot.com/wrapped): local, zero-upload year in review for Claude Code and Codex (`npx lokalbot`)
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
 - [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, and Linux requirements, memory, disk, permissions, and what each platform supports
 - [Benchmarks](https://www.lokalbot.com/benchmarks): measured speech, speaker diarization, search, summary, autocomplete, and OCR results with methods and known gaps

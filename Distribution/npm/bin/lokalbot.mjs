@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `npx lokalbot wrapped`: your year with Claude Code and Codex, counted from
+// `npx lokalbot`: your year with Claude Code and Codex, counted from
 // the session logs on this computer. Nothing is sent anywhere.
 
 import { spawn } from 'node:child_process';
@@ -15,20 +15,25 @@ import { renderTerminal } from '../src/terminal.mjs';
 import { defaultYear, wrapped } from '../src/wrapped.mjs';
 
 const REPOSITORY = 'https://github.com/stevyhacker/LokalBot';
+const WEBSITE = 'https://www.lokalbot.com';
 
-const HELP = `lokalbot wrapped: your year with Claude Code and Codex
+const HELP = `lokalbot: Agent Wrapped — your year with Claude Code and Codex
 
 Usage
+  npx lokalbot [options]
   npx lokalbot wrapped [options]
 
 Options
   --year <year>       The year to count. Default: this year (last year in January).
-  --share             Also make the image: writes a page and opens it in your browser,
-                      where you can save or copy the picture.
-  --out <file>        Where --share writes the page. Default: your temporary folder.
-  --no-open           With --share, write the page without opening it.
+  --share             Write the shareable image page and open it in your browser.
+                      On by default in an interactive terminal; pass --no-share to skip.
+  --no-share          Print the terminal card only, without opening the image page.
+  --wide              Open the shareable card in 16:9 wide layout (for X / LinkedIn).
+  --out <file>        Where the share page is written. Default: your temporary folder.
+  --no-open           Write the share page without opening your browser.
   --projects          Name your three busiest projects on the image. The terminal
                       always shows them; the image leaves them out unless you ask.
+  --no-api-value      Leave the estimated API-rate value off the card.
   --json              Print the figures as JSON instead of the card.
   --claude-dir <dir>  Read Claude Code projects from here instead of ~/.claude/projects.
   --codex-dir <dir>   Read Codex from here instead of ~/.codex.
@@ -42,8 +47,8 @@ What it reads
   command reads those files, counts, and prints. It makes no network requests,
   and it never keeps what you or the agents wrote, only how much and when.
 
-LokalBot is a desktop app that shows each day's agent work on a timeline,
-next to your meetings: ${REPOSITORY}
+LokalBot gives Claude Code and Codex local memory of your meetings (no bot,
+free, GPLv3): ${WEBSITE} · ${REPOSITORY}
 `;
 
 main().catch((error) => {
@@ -59,9 +64,12 @@ async function main() {
       options: {
         year: { type: 'string' },
         share: { type: 'boolean', default: false },
+        'no-share': { type: 'boolean', default: false },
+        wide: { type: 'boolean', default: false },
         out: { type: 'string' },
         'no-open': { type: 'boolean', default: false },
         projects: { type: 'boolean', default: false },
+        'no-api-value': { type: 'boolean', default: false },
         json: { type: 'boolean', default: false },
         'claude-dir': { type: 'string' },
         'codex-dir': { type: 'string' },
@@ -82,14 +90,14 @@ async function main() {
     return;
   }
   const command = positionals[0];
-  if (values.help || command === undefined || command === 'help') {
+  if (values.help || command === 'help') {
     process.stdout.write(HELP);
     return;
   }
-  if (command !== 'wrapped') {
+  if (command !== undefined && command !== 'wrapped') {
     process.stderr.write(
-      `lokalbot: "${command}" is not a command here. This package has one: wrapped.\n`
-      + `For LokalBot's own CLI, install the app: ${REPOSITORY}\n`);
+      `lokalbot: "${command}" is not a command here. This package runs Agent Wrapped (npx lokalbot).\n`
+      + `For LokalBot's desktop CLI and MCP server, install the app: ${REPOSITORY}\n`);
     process.exitCode = 2;
     return;
   }
@@ -130,15 +138,20 @@ async function main() {
   const color = !values['no-color'] && process.stdout.isTTY && !('NO_COLOR' in process.env) && process.env.TERM !== 'dumb';
   process.stdout.write(`${renderTerminal(result, { color })}\n`);
 
-  if (values.share) {
+  const shouldShare = values.share || Boolean(values.out) || Boolean(values.wide) || (Boolean(process.stdout.isTTY) && !values['no-share']);
+  if (shouldShare && !values['no-share']) {
     const file = path.resolve(values.out ?? path.join(os.tmpdir(), `agent-wrapped-${year}.html`));
-    fs.writeFileSync(file, renderPage(result, { showProjects: values.projects }));
+    fs.writeFileSync(file, renderPage(result, {
+      layout: values.wide ? 'wide' : 'portrait',
+      showProjects: values.projects,
+      showApiValue: !values['no-api-value'],
+    }));
     process.stdout.write(`\n  Your image is on this page: ${pathToFileURL(file).href}\n`);
     if (!values['no-open']) open(file);
   } else {
-    process.stdout.write('  Make the image to share: npx lokalbot wrapped --share\n');
+    process.stdout.write('  Make the image to share: npx lokalbot --share\n');
   }
-  process.stdout.write(`  From LokalBot, which shows each day's agent work next to your meetings: ${REPOSITORY}\n\n`);
+  process.stdout.write(`  Give Claude Code & Codex local memory of your meetings: ${WEBSITE} (${REPOSITORY})\n\n`);
 }
 
 /** One line on stderr that says how far the reading has got. */

@@ -84,20 +84,27 @@ impl ClientStore {
         limit: u32,
     ) -> Result<Vec<String>> {
         let states = self.action_states()?;
-        let meetings = self
-            .bodies(MEETING, "json_extract(body, '$.startedAt') DESC, key")?
+        // In SQL, so a day or a page reads only its own rows: `is_merged`, and
+        // a day that is missing or not a string counting as "".
+        const DAY: &str = "CASE json_type(body, '$.day') WHEN 'text' THEN json_extract(body, '$.day') ELSE '' END";
+        let condition = format!(
+            "json_extract(body, '$.mergedInto') IS NULL \
+             AND (?3 IS NULL OR {DAY} >= ?3) AND (?4 IS NULL OR {DAY} <= ?4)"
+        );
+        Ok(self
+            .bodies_matching(
+                MEETING,
+                &condition,
+                &[&from_day, &to_day],
+                "json_extract(body, '$.startedAt') DESC, key",
+                limit,
+            )?
             .into_iter()
-            .filter(|(_, body)| !is_merged(body))
-            .filter(|(_, body)| {
-                let day = str_field(body, "day").unwrap_or_default();
-                from_day.is_none_or(|from| day >= from) && to_day.is_none_or(|to| day <= to)
-            })
             .map(|(key, mut body)| {
                 apply_states(&key, &mut body, &states);
                 body.to_string()
             })
-            .collect();
-        Ok(take(meetings, limit))
+            .collect())
     }
 
     pub fn meeting(&self, id: &str) -> Result<Option<String>> {

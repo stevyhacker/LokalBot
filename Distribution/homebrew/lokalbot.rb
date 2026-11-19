@@ -1,6 +1,6 @@
 cask "lokalbot" do
-  version "0.12.2"
-  sha256 "e811958385a017c22763ff56f2a58caaf4ec137b398cb2ab8ee7504023517938"
+  version "0.13.2"
+  sha256 "c90596119a0242d488e357dd4485e560fded1449bbef86d1a870c6dbf8a65020"
 
   url "https://github.com/stevyhacker/lokalbot/releases/download/v#{version}/LokalBot-#{version}-macos-arm64.dmg"
   name "LokalBot"

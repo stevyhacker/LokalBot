@@ -14,7 +14,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { addActions, addFile, bump, emptyActions, mergeActions, toolLabel } from './collector.mjs';
+import { addActions, addFile, addModelTokens, bump, emptyActions, mergeActions, toolLabel } from './collector.mjs';
 import { forEachLine } from './lines.mjs';
 import { actionsInCommand, classifyPrompt } from './text.mjs';
 
@@ -183,9 +183,16 @@ function readTranscript({ file, id, subagent = false }, collector) {
 
   if (!session) return;
   for (const used of usage.values()) {
-    session.tokens.input += used.input + used.cacheWrite + used.cacheRead;
+    const input = used.input + used.cacheWrite + used.cacheRead;
+    session.tokens.input += input;
     session.tokens.cached += used.cacheRead;
     session.tokens.output += used.output;
+    addModelTokens(session, used.model, {
+      input,
+      cached: used.cacheRead,
+      cacheWrite: used.cacheWrite,
+      output: used.output,
+    });
   }
   addActions(session, tally);
 }
@@ -220,7 +227,8 @@ function countReply(session, message, { side, workingDirectory, usage, tally, co
   if (model && !side && (!id || !usage.has(id))) bump(session.models, model);
   if (message.usage && typeof message.usage === 'object') {
     const key = id ?? `record-${usage.size}`;
-    const seen = usage.get(key) ?? { input: 0, cacheWrite: 0, cacheRead: 0, output: 0 };
+    const seen = usage.get(key) ?? { model: null, input: 0, cacheWrite: 0, cacheRead: 0, output: 0 };
+    if (model && !seen.model) seen.model = model;
     seen.input = Math.max(seen.input, count(message.usage.input_tokens));
     seen.cacheWrite = Math.max(seen.cacheWrite, count(message.usage.cache_creation_input_tokens));
     seen.cacheRead = Math.max(seen.cacheRead, count(message.usage.cache_read_input_tokens));

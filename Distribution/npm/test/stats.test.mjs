@@ -215,3 +215,22 @@ test('a year has every day once, including the days that change the clocks', () 
     process.env.TZ = before;
   }
 });
+
+test('parallel multiplier, cache hit rate, API value, and brevity personas are computed', () => {
+  const data = collector();
+  for (let index = 0; index < 60; index += 1) {
+    const s = work(data, 'claude-code', `s${index}`, at(9, 1 + (index % 10), 10, 0), 15, {
+      prompts: 1,
+      promptWords: 7,
+      toolCalls: 15,
+      tokens: { input: 1_000_000, cached: 900_000, output: 10_000 },
+    });
+    s.models.set('claude-sonnet-4-6', 1);
+  }
+  const { stats } = computeStats(data, { year: YEAR });
+  assert.ok(stats.totals.parallelMultiplier > 2);
+  assert.equal(stats.totals.cacheHitRate, 0.9);
+  assert.equal(stats.totals.avgPromptWords, 7);
+  assert.equal(stats.totals.toolsPerRequest, 15);
+  assert.ok(stats.totals.estimatedApiUsd > 30);
+});
