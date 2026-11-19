@@ -241,6 +241,12 @@ enum AttributedTrackTranscriber {
             return .regions(language: language)
         }
         let transcript = try await engine.transcribeForWordAttribution(audio: url, language: language, prompt: prompt)
+        if transcript.needsSpeakerRegions {
+            let regionLanguage = language ?? transcript.trackLanguage
+            lokalbotLog("word attribution skipped: the track's language is unsupported, using speaker regions "
+                + "language=\(regionLanguage ?? "auto")")
+            return .regions(language: regionLanguage)
+        }
         guard !transcript.segments.isEmpty else { return .attributed(transcript.transcript) }
         let segments = transcript.segments
         let engineTimed = segments.map(engineWords(of:))
