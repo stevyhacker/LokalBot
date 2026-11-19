@@ -23,6 +23,145 @@ BLOG_INDEX = {
 
 POSTS = [
     {
+        "slug": "gbrain-vs-lokalbot-memory-benchmark",
+        "published": "2026-11-19",
+        "title": "39 ms and 50 MB vs. 255 ms and 1 GB: Benchmarking Local Meeting Retrieval on 1,576 QMSum Questions",
+        "description": "Comparing LokalBot's SQLite FTS5 + EmbeddingGemma 2 retrieval against GBrain on 232 public QMSum meetings and 1,576 questions: recall, latency, context size, memory, and where each system wins.",
+        "eyebrow": "Benchmark",
+        "h1": "39 ms and 50 MB vs. 255 ms and 1 GB: benchmarking local meeting retrieval on QMSum",
+        "lead": "Does a heavier local memory server beat plain SQLite FTS5 plus a 310 MB embedding model? We tested LokalBot's retrieval against GBrain on 232 public meetings and 1,576 questions.",
+        "read_time": "6 min read",
+        "body": """
+        <h2>Why we ran this</h2>
+        <p>Every few weeks a new local memory layer promises better recall for coding agents and personal assistants. LokalBot's own retrieval is intentionally plain: SQLite FTS5 BM25 plus EmbeddingGemma 2 (310 MB, 768 dimensions) joined with reciprocal rank fusion. We tested whether replacing it with <a href="https://github.com/garrytan/gbrain" target="_blank" rel="noopener">GBrain</a> (v0.60.734.0 on PGLite over stdio MCP) improved meeting recall enough to justify the extra runtime.</p>
+
+        <h2>The setup</h2>
+        <p>We used the public <a href="https://github.com/Yale-LILY/QMSum" target="_blank" rel="noopener">QMSum</a> corpus (232 meetings, 129,177 turns, 2.1 million words across AMI product design, ICSI research, and parliamentary committees) and all 1,576 specific questions with human-marked answer spans. No personal data was used. Both systems ingested the exact same meetings and shared one local <code>llama-server:embeddinggemma-2</code> instance on an Apple M4 Max (48 GB). Confidence intervals come from 2,000 paired bootstrap resamples over questions.</p>
+
+        <h2>Results</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">Retrieval comparison on 1,576 QMSum questions (Apple M4 Max)</caption>
+            <thead>
+              <tr><th scope="col">Metric</th><th scope="col">LokalBot keyword</th><th scope="col">GBrain keyword</th><th scope="col">LokalBot hybrid</th><th scope="col">GBrain hybrid</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Meeting R@1</th><td>0.193</td><td><strong>0.253</strong></td><td><strong>0.280</strong></td><td>0.239</td></tr>
+              <tr><th scope="row">Meeting R@4</th><td>0.335</td><td>0.412</td><td><strong>0.475</strong></td><td>0.367</td></tr>
+              <tr><th scope="row">Meeting R@10</th><td>0.456</td><td>0.468</td><td><strong>0.595</strong></td><td>0.370</td></tr>
+              <tr><th scope="row">MRR</th><td>0.274</td><td>0.325</td><td><strong>0.379</strong></td><td>0.295</td></tr>
+              <tr><th scope="row">Gold turn in evidence</th><td>0.260</td><td><strong>0.402</strong></td><td>0.367</td><td>0.340</td></tr>
+              <tr><th scope="row">Median evidence handed to LLM</th><td>718 chars</td><td>97,444 chars</td><td><strong>1,248 chars</strong></td><td>96,761 chars</td></tr>
+              <tr><th scope="row">Query latency (p50 / p95)</th><td>3 / 8 ms</td><td>159 / 212 ms</td><td><strong>39 / 52 ms</strong></td><td>255 / 342 ms</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>What stood out</h2>
+        <ul>
+          <li><strong>Hybrid retrieval favored LokalBot cleanly.</strong> With the same embedder, LokalBot led GBrain by +4.1 points on R@1 (95% CI +1.9 to +6.2) and +10.9 points on R@4 (+8.2 to +13.3), at <strong>6.5× lower median latency</strong> (39 ms vs. 255 ms) and roughly <strong>50 MB vs. 1 GB</strong> resident memory (excluding the shared 0.5 GB embedding server).</li>
+          <li><strong>Context budget matters on local models.</strong> GBrain's default <code>query</code> hands back a median ~97,000 characters (full transcripts) per question. LokalBot hands back 1,248 characters (top 4 meetings, up to 6 moments of 400 characters each), which fits comfortably inside a local 4B model or a coding agent's MCP tool budget.</li>
+          <li><strong>GBrain's keyword-only search beat LokalBot's keyword-only search.</strong> On lexical queries alone, GBrain hit R@1 0.253 vs. 0.193 and got the gold turn into evidence on 40.2% vs. 26.0% of questions. That points directly at an improvement we can take into LokalBot's FTS5 query formulation without adopting a heavier database.</li>
+          <li><strong>Restated contradictions are still unsolved in both.</strong> Explicit edits and deletions worked cleanly in both systems (40/40 and 39/40), but when a later meeting silently reversed an earlier decision, neither ranked the newer meeting above the older one reliably (7/20 in LokalBot, 8/20 in GBrain).</li>
+        </ul>
+
+        <h2>Data and reproduction</h2>
+        <p>The corpus builder, harness, scorer, and full report are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/memory/GBrain/2026-11-17/REPORT.md" target="_blank" rel="noopener">Benchmarks/memory/GBrain/2026-11-17/REPORT.md</a>. A keyword-only repeat on a 4-core Intel Xeon produced identical accuracy numbers. See the <a href="/benchmarks">benchmarks page</a> for the rest of LokalBot's local stack.</p>
+        """,
+    },
+    {
+        "slug": "local-stt-vs-cloud-apis",
+        "published": "2026-11-18",
+        "title": "Local Speech-to-Text vs. Cloud APIs on Real Meetings: Qwen3-ASR 1.7B, Parakeet, Gemini, and OpenAI",
+        "description": "We benchmarked LokalBot's local Qwen3-ASR 1.7B and Parakeet TDT 0.6B v3 against Gemini 3.5/3.8, GPT-4o Transcribe, GPT Transcribe, and Qwen-Audio cloud APIs on AMI meetings and two-track calls.",
+        "eyebrow": "Benchmark",
+        "h1": "Local speech-to-text vs. cloud APIs on real meetings",
+        "lead": "No closed cloud speech-to-text API measurably beat LokalBot's local Qwen3-ASR 1.7B on real two-track meetings—and several cloud APIs failed in ways that are hard to catch in clean benchmarks.",
+        "read_time": "6 min read",
+        "body": """
+        <h2>Why test against cloud APIs</h2>
+        <p>People often assume running transcription on a laptop means trading away accuracy for privacy. We tested LokalBot's default local models—<strong>Qwen3-ASR 1.7B (8-bit)</strong> and <strong>Parakeet TDT 0.6B v3</strong> on an Apple M4 Max—head-to-head against direct API calls to OpenAI (<code>gpt-transcribe</code>, <code>gpt-4o-transcribe</code>, <code>gpt-4o-mini-transcribe</code>), Google (<code>gemini-3.5-transcribe</code>, <code>gemini-3.8-flash</code>), and Alibaba Model Studio (<code>qwen-audio-3.1-asr-flash</code>, <code>qwen3-asr-flash</code>).</p>
+
+        <h2>Public AMI meetings (human reference)</h2>
+        <p>Sixteen 90–120 second windows from four AMI Mix-Headset test meetings (27.4 minutes, 4,160 reference words), containing heavy overlapped speech on a single mixed channel:</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">AMI Mix-Headset WER comparison across cloud APIs and local models</caption>
+            <thead>
+              <tr><th scope="col">System</th><th scope="col">WER</th><th scope="col">95% CI</th><th scope="col">Low-overlap WER</th><th scope="col">List price / hr</th><th scope="col">Speed</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Gemini 3.8 Flash (prompted)</th><td><strong>16.7%</strong></td><td>14.0–19.0%</td><td>6.2%</td><td>$0.21</td><td>18×</td></tr>
+              <tr><th scope="row">Qwen3-ASR 1.7B (local)</th><td>17.6%</td><td>14.6–20.5%</td><td>7.1%</td><td>$0</td><td>44×</td></tr>
+              <tr><th scope="row">Qwen3-ASR Flash (API)</th><td>18.1%</td><td>14.6–20.8%</td><td>6.3%</td><td>$0.13</td><td>25×</td></tr>
+              <tr><th scope="row">Qwen-Audio 3.1 ASR Flash</th><td>18.5%</td><td>14.6–21.8%</td><td>5.6%</td><td>$0.02</td><td>10×</td></tr>
+              <tr><th scope="row">Parakeet TDT 0.6B v3 (local)</th><td>19.2%</td><td>15.8–22.3%</td><td>8.1%</td><td>$0</td><td>129×</td></tr>
+              <tr><th scope="row">GPT-4o mini Transcribe</th><td>21.8%</td><td>17.5–25.7%</td><td>7.8%</td><td>$0.18</td><td>34×</td></tr>
+              <tr><th scope="row">GPT Transcribe</th><td>22.2%</td><td>17.6–27.5%</td><td>6.9%</td><td>$0.27</td><td>30×</td></tr>
+              <tr><th scope="row">GPT-4o Transcribe</th><td>23.0%</td><td>18.4–27.0%</td><td>6.2%</td><td>$0.36</td><td>25×</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>Two-track real meetings: where cloud APIs broke</h2>
+        <p>On 99 two-track chunks (69.9 minutes) from real meetings scored by cross-family ROVER consensus disagreement (measuring agreement, not human ground truth), <strong>local Qwen3-ASR 1.7B placed first at 4.2% disagreement</strong> (0.4 s median latency, 0 dropped spans), tied within confidence intervals with Gemini 3.5 Transcribe (4.5%, 6.3 s latency) and Qwen-Audio 3.1 ASR Flash (4.6%, 2.9 s latency).</p>
+        <p>Two failure modes jumped out immediately:</p>
+        <ul>
+          <li><strong>Gemini 3.8 Flash invented speech on quiet clips.</strong> Despite leading AMI WER by 0.9 points, on real meeting chunks it hallucinated 115 words across 15 spans—including turning a 1.2-second clip that every other system heard as one word or silence into a fluent 30-word sentence.</li>
+          <li><strong>GPT-4o Transcribe silently dropped microphone speech.</strong> It logged 278 dropped words in runs of four or more and 42% disagreement on one meeting's microphone track (vs. 7–14% for the other systems). Only ~20% of those dropped words appeared on the system track, ruling out echo suppression.</li>
+          <li><strong>Span length matters inside our own app.</strong> The test also caught a bug in LokalBot's older production path: cutting audio at speaker turns before transcription hurt AMI WER (26.5% vs. 17.7%). Assigning speakers <em>after</em> transcribing longer spans closed that gap.</li>
+        </ul>
+
+        <h2>Data and reproduction</h2>
+        <p>Full tables, ROVER methodology, and caveats are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md" target="_blank" rel="noopener">Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md</a> and the follow-up <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/transcribe/QwenSpanLength/results/2026-09-30/REPORT.md" target="_blank" rel="noopener">span-length report</a>. Try the same local models offline in <a href="/">LokalBot</a>.</p>
+        """,
+    },
+    {
+        "slug": "local-autocomplete-56ms-benchmark",
+        "published": "2026-11-17",
+        "title": "56 ms Local System-Wide Autocomplete: Benchmarking Gemma 4 E2B vs. LFM2.5 1.2B",
+        "description": "Headless keystroke-by-keystroke engine benchmark of LokalBot's local autocomplete: 56 ms median with Gemma 4 E2B vs. 26 ms with LFM2.5 1.2B, accuracy across 788 word positions, and five flaws we fixed in our own harness.",
+        "eyebrow": "Benchmark",
+        "h1": "56 ms local system-wide autocomplete: Gemma 4 E2B vs. LFM2.5 1.2B",
+        "lead": "System-wide inline autocomplete only feels invisible when it stays under ~100 ms per keystroke and knows when to stay silent. Here are the measured numbers behind LokalBot's Balanced and Lightweight presets.",
+        "read_time": "5 min read",
+        "body": """
+        <h2>Measuring autocomplete without fooling ourselves</h2>
+        <p>Our original 28-scenario autocomplete check had five flaws: it treated an intentional confidence-gate silence as a safety failure, accepted only one exact word tail for partial-word completions, mixed 10–40 s cold startup into steady-state latency, stole keyboard focus by launching the full app, and never measured next-word accuracy.</p>
+        <p>We replaced it with a headless engine runner (<code>--cotyping-bench</code>) that exercises the exact production <code>LlamaCotypingRuntime</code> with hybrid decoding, certified prefix search, and prefix healing across 28 safety/behaviour checks (5 deterministic passes) plus 96 phrases replayed at all 788 word boundaries and 8 phrases typed one character at a time.</p>
+
+        <h2>Gemma 4 E2B Base vs. LFM2.5 1.2B Instruct (Apple M4 Max)</h2>
+        <div class="guide-table-wrap">
+          <table class="guide-table">
+            <caption class="visually-hidden">Autocomplete engine benchmark comparing Gemma 4 E2B Base Q6_K and LFM2.5 1.2B Instruct Q4_K_M</caption>
+            <thead>
+              <tr><th scope="col">Metric</th><th scope="col">Gemma 4 E2B Base (Balanced)</th><th scope="col">LFM2.5 1.2B Instruct (Lightweight)</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Unsafe results (28 checks × 5 passes)</th><td><strong>0</strong></td><td><strong>0</strong></td></tr>
+              <tr><th scope="row">Word completions</th><td>12 / 13</td><td>12 / 13</td></tr>
+              <tr><th scope="row">Next-word accuracy (788 positions)</th><td><strong>23.1%</strong></td><td>20.7%</td></tr>
+              <tr><th scope="row">English accuracy (624 positions)</th><td>25.3%</td><td>24.2%</td></tr>
+              <tr><th scope="row">Non-English accuracy (164 positions)</th><td><strong>14.6%</strong></td><td>7.3%</td></tr>
+              <tr><th scope="row">Right when shown (precision)</th><td><strong>50.1%</strong></td><td>43.0%</td></tr>
+              <tr><th scope="row">Per keystroke while typing (median / p95)</th><td>56 / 102 ms</td><td><strong>26 / 76 ms</strong></td></tr>
+              <tr><th scope="row">Model load time</th><td>0.65 s</td><td><strong>0.16 s</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2>What the numbers actually say</h2>
+        <ul>
+          <li><strong>In English, the two models are effectively tied</strong> (+1.1 points, 95% bootstrap interval −1.4 to +3.5), while LFM2.5 is 2–3× faster per keystroke (26 ms median) and weighs only 0.73 GB.</li>
+          <li><strong>Gemma 4 E2B earns the Balanced default on precision and non-English text.</strong> When it chooses to show a suggestion, it is right 50.1% of the time vs. 43.0% for LFM2.5, and its non-English lead (+7.3 points) comes largely from languages like Serbian where LFM2.5 stayed silent.</li>
+          <li><strong>Silence is a feature.</strong> Both models withheld suggestions on the exact same 3 open-ended prompts (<code>notes-list</code>, <code>comma-clause</code>, <code>sentence-start</code>) and stayed quiet mid-word (<code>rec|eive</code>), producing zero unsafe suggestions across all 140 passes.</li>
+        </ul>
+
+        <h2>Choosing between them in LokalBot</h2>
+        <p>Both presets ship built into LokalBot: <strong>Balanced local</strong> uses Gemma 4 E2B Base, and <strong>Lightweight local</strong> switches to LFM2.5 1.2B Instruct for faster typing and a smaller disk footprint. Full category breakdowns and commands to rerun the harness are in <a href="https://github.com/stevyhacker/lokalbot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md" target="_blank" rel="noopener">Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md</a>.</p>
+        """,
+    },
+    {
         "slug": "recall-vs-restraint-memory-benchmark",
         "published": "2026-10-23",
         "updated": "2026-11-02",
