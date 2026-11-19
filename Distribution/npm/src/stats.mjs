@@ -76,7 +76,10 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     totals.pushes += session.pushes;
     totals.testRuns += session.testRuns;
     for (const [name, count] of session.tools) tools.set(name, (tools.get(name) ?? 0) + count);
-    for (const [model, count] of session.models) agent.models.set(model, (agent.models.get(model) ?? 0) + count);
+    for (const [rawModel, count] of session.models) {
+      const model = normalizeModelName(rawModel);
+      if (model) agent.models.set(model, (agent.models.get(model) ?? 0) + count);
+    }
     for (const [rawModel, bucket] of session.modelTokens) {
       const name = normalizeModelName(rawModel);
       if (!name) continue;
@@ -207,6 +210,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
       bytesRead: collector.bytesRead,
       unreadableFiles: collector.unreadableFiles,
       compressedSkipped: collector.compressedSkipped,
+      sqliteSkipped: collector.sqliteSkipped ?? 0,
     },
   };
   stats.persona = persona(stats);
@@ -217,12 +221,19 @@ function newAgent(id) {
   return { id, sessions: 0, requests: 0, toolCalls: 0, agentMs: 0, estimatedApiUsd: 0, tokens: { input: 0, cached: 0, output: 0 }, models: new Map() };
 }
 
-function normalizeModelName(raw) {
+export function normalizeModelName(raw) {
   if (typeof raw !== 'string') return '';
-  const trimmed = raw.trim();
-  if (!trimmed || trimmed === '<synthetic>') return '';
+  let name = raw.trim();
+  if (!name || name === '<synthetic>' || name.toLowerCase() === 'default') return '';
+  // Strip provider/router prefixes such as `anthropic/`, `openai-codex/`, `openrouter/moonshotai/`.
+  if (name.includes('/')) name = name.split('/').at(-1);
+  // Strip AWS Bedrock region/vendor prefixes such as `us.anthropic.` or `global.anthropic.`.
+  name = name.replace(/^(?:us|eu|ap|global)\.[a-z0-9-]+\./i, '');
+  // Strip Bedrock `-v1:0` and OpenRouter `:free` / `:nitro` routing tags.
+  name = name.replace(/-v\d+(?::\d+)?$/i, '').replace(/:[a-z0-9-]+$/i, '');
   // Collapse dated snapshot suffixes like `-20250929` so one model doesn't split across rows.
-  return trimmed.replace(/-20\d{6}$/, '');
+  name = name.replace(/-20\d{6}$/, '');
+  return name.trim();
 }
 
 /**
@@ -432,8 +443,15 @@ export function persona(stats) {
   }
   const percent = (value) => `${Math.round(value * 100)}%`;
   const second = agents[1];
+  const firstShare = agents[0] && totals.agentMs > 0 ? agents[0].agentMs / totals.agentMs : 0;
   const split = second && totals.agentMs > 0 ? second.agentMs / totals.agentMs : 0;
+  const activeAgents = agents.filter((agent) => totals.agentMs > 0 && agent.agentMs / totals.agentMs >= 0.03);
   const perDay = totals.activeDays > 0 ? totals.commits / totals.activeDays : 0;
+  const switchLine = !second
+    ? ''
+    : activeAgents.length >= 3
+      ? `You split the year across ${activeAgents.length} agents, led by ${agents[0].name} (${percent(firstShare)}) and ${second.name} (${percent(split)}).`
+      : `You split the year between ${agents[0].name} and ${second.name}, ${percent(firstShare)} to ${percent(split)}.`;
   const candidates = [
     {
       id: 'night-shift', title: 'The Night Shift', score: share.night / 0.3,
@@ -457,9 +475,7 @@ export function persona(stats) {
     },
     {
       id: 'switch-hitter', title: 'The Switch Hitter', score: split / 0.3,
-      line: second
-        ? `You split the year between ${agents[0].name} and ${second.name}, ${percent(1 - split)} to ${percent(split)}.`
-        : '',
+      line: switchLine,
     },
     {
       id: 'release-train', title: 'The Release Train', score: Math.max(perDay / 6, totals.pullRequestsMerged / 150),

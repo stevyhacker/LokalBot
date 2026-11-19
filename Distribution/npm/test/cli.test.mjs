@@ -84,7 +84,7 @@ test('a computer with no sessions says where it looked', (t) => {
   const { code, out, err } = run(['wrapped', '--year', String(YEAR), '--claude-dir', path.join(folder, 'a'), '--codex-dir', path.join(folder, 'b')]);
   assert.equal(code, 1);
   assert.equal(out, '');
-  assert.match(err, new RegExp(`No Claude Code or Codex sessions from ${YEAR} were found`));
+  assert.match(err, new RegExp(`No coding-agent sessions from ${YEAR} were found`));
   assert.ok(err.includes(path.join(folder, 'a')) && err.includes(path.join(folder, 'b')));
 });
 

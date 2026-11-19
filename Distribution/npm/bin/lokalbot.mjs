@@ -17,38 +17,44 @@ import { defaultYear, wrapped } from '../src/wrapped.mjs';
 const REPOSITORY = 'https://github.com/stevyhacker/LokalBot';
 const WEBSITE = 'https://www.lokalbot.com';
 
-const HELP = `lokalbot: Agent Wrapped — your year with Claude Code and Codex
+const HELP = `lokalbot: Agent Wrapped — your year with coding agents, counted locally
 
 Usage
   npx lokalbot [options]
   npx lokalbot wrapped [options]
 
 Options
-  --year <year>       The year to count. Default: this year (last year in January).
-  --share             Write the shareable image page and open it in your browser.
-                      On by default in an interactive terminal; pass --no-share to skip.
-  --no-share          Print the terminal card only, without opening the image page.
-  --wide              Open the shareable card in 16:9 wide layout (for X / LinkedIn).
-  --light             Open the shareable card in light mode.
-  --out <file>        Where the share page is written. Default: your temporary folder.
-  --no-open           Write the share page without opening your browser.
-  --projects          Name your three busiest projects on the image. The terminal
-                      always shows them; the image leaves them out unless you ask.
-  --no-api-value      Leave the estimated API-rate value off the card.
-  --json              Print the figures as JSON instead of the card.
-  --claude-dir <dir>  Read Claude Code projects from here instead of ~/.claude/projects.
-  --codex-dir <dir>   Read Codex from here instead of ~/.codex.
-  --demo              Show a made-up year, without reading any logs.
-  --no-color          Plain text.
-  -h, --help          This text.
-  -v, --version       The version.
+  --year <year>            The year to count. Default: this year (last year in January).
+  --share                  Write the shareable image page and open it in your browser.
+                           On by default in an interactive terminal; pass --no-share to skip.
+  --no-share               Print the terminal card only, without opening the image page.
+  --wide                   Open the shareable card in 16:9 wide layout (for X / LinkedIn).
+  --light                  Open the shareable card in light mode.
+  --out <file>             Where the share page is written. Default: your temporary folder.
+  --no-open                Write the share page without opening your browser.
+  --projects               Name your three busiest projects on the image. The terminal
+                           always shows them; the image leaves them out unless you ask.
+  --no-api-value           Leave the estimated API-rate value off the card.
+  --json                   Print the figures as JSON instead of the card.
+  --claude-dir <dir>       Read Claude Code projects from here instead of ~/.claude/projects.
+  --codex-dir <dir>        Read Codex from here instead of ~/.codex.
+  --cursor-dir <dir>       Read Cursor from here instead of ~/.cursor and Cursor globalStorage.
+  --pi-dir <dir>           Read Pi sessions from here instead of ~/.pi/agent/sessions.
+  --omp-dir <dir>          Read OMP sessions from here instead of ~/.omp/agent/sessions.
+  --opencode-dir <dir>     Read OpenCode from here instead of ~/.local/share/opencode.
+  --antigravity-dir <dir>  Read Antigravity transcripts from here instead of ~/.gemini/antigravity/brain.
+  --gemini-dir <dir>       Read Gemini CLI sessions from here instead of ~/.gemini/tmp.
+  --demo                   Show a made-up year, without reading any logs.
+  --no-color               Plain text.
+  -h, --help               This text.
+  -v, --version            The version.
 
 What it reads
-  Claude Code and Codex keep a log of every session on this computer. This
-  command reads those files, counts, and prints. It makes no network requests,
+  Reads local session logs from Claude Code, Codex, Cursor, Pi, OMP, OpenCode,
+  Antigravity, and Gemini CLI on this computer. It makes no network requests,
   and it never keeps what you or the agents wrote, only how much and when.
 
-LokalBot gives Claude Code and Codex local memory of your meetings (no bot,
+LokalBot gives your coding agents local memory of your meetings (no bot,
 free, GPLv3): ${WEBSITE} · ${REPOSITORY}
 `;
 
@@ -75,6 +81,12 @@ async function main() {
         json: { type: 'boolean', default: false },
         'claude-dir': { type: 'string' },
         'codex-dir': { type: 'string' },
+        'cursor-dir': { type: 'string' },
+        'pi-dir': { type: 'string' },
+        'omp-dir': { type: 'string' },
+        'opencode-dir': { type: 'string' },
+        'antigravity-dir': { type: 'string' },
+        'gemini-dir': { type: 'string' },
         demo: { type: 'boolean', default: false },
         'no-color': { type: 'boolean', default: false },
         help: { type: 'boolean', short: 'h', default: false },
@@ -111,13 +123,31 @@ async function main() {
     return;
   }
 
+  const customDirs = [
+    values['claude-dir'],
+    values['codex-dir'],
+    values['cursor-dir'],
+    values['pi-dir'],
+    values['omp-dir'],
+    values['opencode-dir'],
+    values['antigravity-dir'],
+    values['gemini-dir'],
+  ].some(Boolean);
+  const omit = customDirs ? null : undefined;
+
   const progress = progressLine(process.stderr.isTTY && !values.json);
   const result = values.demo
     ? demoYear(year)
     : await wrapped({
       year,
-      claudeDirs: values['claude-dir'] ? [values['claude-dir']] : undefined,
-      codexDir: values['codex-dir'],
+      claudeDirs: values['claude-dir'] ? [values['claude-dir']] : omit,
+      codexDir: values['codex-dir'] ?? omit,
+      cursorDir: values['cursor-dir'] ?? omit,
+      piDir: values['pi-dir'] ?? omit,
+      ompDir: values['omp-dir'] ?? omit,
+      opencodeDir: values['opencode-dir'] ?? omit,
+      antigravityDirs: values['antigravity-dir'] ? [values['antigravity-dir']] : omit,
+      geminiDir: values['gemini-dir'] ?? omit,
       onProgress: progress.update,
     });
   progress.clear();
@@ -128,11 +158,11 @@ async function main() {
     return;
   }
   if (stats.totals.sessions === 0 && stats.totals.tokens.total === 0) {
-    const looked = [...(stats.sources.claude ?? []), stats.sources.codex].filter(Boolean);
+    const looked = collectLookedPaths(stats.sources);
     process.stderr.write(
-      `No Claude Code or Codex sessions from ${year} were found on this computer.\n`
+      `No coding-agent sessions from ${year} were found on this computer.\n`
       + `Looked in:\n${looked.map((folder) => `  ${folder}`).join('\n')}\n`
-      + 'Pass --year for another year, or --claude-dir and --codex-dir if your logs live elsewhere.\n');
+      + 'Pass --year for another year, or --claude-dir / --codex-dir / --cursor-dir / --pi-dir / --omp-dir / --opencode-dir / --antigravity-dir / --gemini-dir.\n');
     process.exitCode = 1;
     return;
   }
@@ -189,6 +219,22 @@ function open(file) {
   } catch {
     // The path is printed above; opening it is a convenience.
   }
+}
+
+function collectLookedPaths(sources) {
+  const paths = [];
+  const push = (value) => {
+    if (typeof value === 'string' && value.length > 0) paths.push(value);
+    else if (Array.isArray(value)) value.forEach(push);
+    else if (value && typeof value === 'object') {
+      push(value.projectsDir);
+      push(value.stateDb);
+    }
+  };
+  for (const key of ['claude', 'codex', 'cursor', 'pi', 'omp', 'opencode', 'antigravity', 'gemini']) {
+    push(sources?.[key]);
+  }
+  return paths;
 }
 
 function version() {

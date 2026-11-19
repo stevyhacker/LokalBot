@@ -7,6 +7,12 @@ import path from 'node:path';
 export const AGENTS = {
   'claude-code': 'Claude Code',
   codex: 'Codex',
+  cursor: 'Cursor',
+  pi: 'Pi',
+  omp: 'OMP',
+  opencode: 'OpenCode',
+  antigravity: 'Antigravity',
+  'gemini-cli': 'Gemini CLI',
 };
 
 /** `start` and `end` are epoch milliseconds; `end` is exclusive. */
@@ -25,6 +31,8 @@ export function createCollector({ start, end }) {
     unreadableFiles: 0,
     /** Compressed logs this Node.js cannot decompress. */
     compressedSkipped: 0,
+    /** SQLite databases this Node.js cannot open (needs Node.js 22.5+). */
+    sqliteSkipped: 0,
     inWindow(at) {
       return at >= start && at < end;
     },
@@ -125,9 +133,11 @@ export function addFile(collector, file, workingDirectory) {
   collector.files.add(style.join(workingDirectory, file));
 }
 
-/** `mcp__github__create_issue` is tallied as `github (MCP)`. */
+/** `mcp__github__create_issue` (and Antigravity/Cursor MCP tool names) are tallied as `<server> (MCP)`. */
 export function toolLabel(name) {
   if (typeof name !== 'string' || name.length === 0) return 'unknown';
-  const mcp = /^mcp__(.+?)__/.exec(name);
+  const mcp = /^mcp__(.+?)__/.exec(name)
+    ?? /^mcp_([a-z0-9][a-z0-9-]*?)_/.exec(name)
+    ?? /^mcp-([a-z0-9][a-z0-9]*?)-/.exec(name);
   return mcp ? `${mcp[1]} (MCP)` : name;
 }
