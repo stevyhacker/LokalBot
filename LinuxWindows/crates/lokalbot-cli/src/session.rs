@@ -70,6 +70,23 @@ impl Session {
     pub fn transcript(&self, meeting: &Meeting) -> Option<Transcript> {
         self.library.transcript(meeting).ok().flatten()
     }
+
+    /// [`Self::transcript`], decoded only when `wanted` accepts the file's
+    /// bytes.
+    pub fn transcript_if(
+        &self,
+        meeting: &Meeting,
+        wanted: impl FnOnce(&[u8]) -> bool,
+    ) -> Option<Transcript> {
+        let path = self
+            .folder(meeting)
+            .join(lokalbot_core::library::TRANSCRIPT_FILE);
+        let json = std::fs::read(path).ok()?;
+        if !wanted(&json) {
+            return None;
+        }
+        serde_json::from_slice(&json).ok()
+    }
 }
 
 pub fn short_id(meeting: &Meeting) -> String {

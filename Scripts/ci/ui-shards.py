@@ -33,6 +33,18 @@ SMOKE = [
 SIZES = ['1000x700', '1180x740', '1440x900']
 ROUTES = ['today', 'actions', 'meeting', 'transcript', 'review', 'timeline', 'search', 'ask',
           'settings', 'models', 'dictation', 'autocomplete', 'agent']
+# The complete suite runs on two macOS runners after the build, about 30 and 35
+# minutes each (2026-11-18 timings). Every runner is another job GitHub can fail
+# to place when hosted macOS capacity is short, and a failed-jobs-only rerun
+# repeats one group, not the suite. Each phase still writes its own report, so
+# verify() checks it as before. Reduce Motion runs last so its preference can't
+# reach another phase even if restoring it fails.
+GROUPS = {
+    'runner-1': ['smoke', 'functional-1', 'reduced-motion'],
+    'runner-2': ['functional-2', 'visual', 'background'],
+}
+REDUCED_MOTION_DEFAULTS = [('com.apple.universalaccess', 'reduceMotion'),
+                           ('org.localhost.lokalbot.redesign-ci', 'requiresReducedMotion')]
 
 
 def inventory(root=Path('.')):
@@ -80,7 +92,7 @@ def timings(logs):
     """Mean duration of each functional-shard test over the given shard logs.
 
     The logs are `functional-1.log` and `functional-2.log` from the
-    `ui-results-functional-*` artifacts of passing UI Tests runs. A test the
+    `ui-results-runner-*` artifacts of passing UI Tests runs. A test the
     logs do not hold keeps the timing it had.
     """
     pattern = re.compile(r"Test Case '-\[LokalBotUITests\.(\w+) (\w+)\]' passed \(([\d.]+) seconds\)")
@@ -112,25 +124,33 @@ def selected_tests(selector):
     return selected
 
 
-def gate(build, critical, reduced, shards, selector=''):
-    if build != 'success' or critical != 'success':
-        raise ValueError('Build and selected critical/focused tests must succeed')
+def gate(build, first, second, selector=''):
+    if build != 'success' or first != 'success':
+        raise ValueError('Build and the critical or focused tests must succeed')
     if selector:
         selected_tests(selector)
-        if reduced != 'skipped' or shards != 'skipped':
-            raise ValueError('Focused runs must skip the complete-suite jobs')
-    elif reduced != 'success' or shards != 'success':
-        raise ValueError('Every Reduce Motion, functional and visual shard must succeed')
+        if second != 'skipped':
+            raise ValueError('Focused runs must skip the second runner')
+    elif second != 'success':
+        raise ValueError('Every phase on both runners must succeed')
 
 
-def matrix_jobs():
-    """The phases the workflow runs, one runner each. The visual sizes share one
-    runner: each takes about three minutes, about as long as a runner's setup."""
-    return [phase for phase in plan() if phase not in ('smoke', 'reduced-motion')
-            and not phase.startswith('visual-')] + ['visual']
+def grouped_phases():
+    """Every planned phase the runner groups execute, `visual` standing for its sizes."""
+    return [phase for members in GROUPS.values() for member in members
+            for phase in ([f'visual-{size}' for size in SIZES] if member == 'visual' else [member])]
+
+
+def reduce_motion(enabled):
+    for domain, key in REDUCED_MOTION_DEFAULTS:
+        subprocess.run(['defaults', 'write', domain, key, '-bool', 'true' if enabled else 'false'], check=True)
 
 
 def execute(phase, selected=None):
+    if phase in GROUPS:
+        # A failed phase doesn't stop the rest of its group.
+        codes = [execute(member) for member in GROUPS[phase]]
+        return next((code for code in codes if code), 0)
     if phase == 'visual':
         # Each size keeps its own result, log and report, so verify() and the
         # evidence look exactly as they did with one runner per size. A failed
@@ -139,6 +159,21 @@ def execute(phase, selected=None):
         return next((code for code in codes if code), 0)
     if os.environ.get('CI') != 'true':
         raise ValueError('Shard execution is hosted-only')
+    # Phases that share a runner must not inherit each other's test environment
+    # or accessibility preferences, so both are put back after each phase.
+    runs = {path: path.read_bytes() for path in Path('.build/dd/Build/Products').glob('*.xctestrun')}
+    try:
+        if phase == 'reduced-motion':
+            reduce_motion(True)
+        return run_phase(phase, selected)
+    finally:
+        if phase == 'reduced-motion':
+            reduce_motion(False)
+        for path, data in runs.items():
+            path.write_bytes(data)
+
+
+def run_phase(phase, selected):
     phases = plan()
     tests = selected_tests(selected) if phase == 'single' else phases[phase]
     folder = Path('.build/ui-results')
@@ -197,13 +232,17 @@ def execute(phase, selected=None):
 def verify(root, phases=None):
     phases = phases or plan()
     commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+    attempt = int(os.environ['GITHUB_RUN_ATTEMPT'])
     for phase, required in phases.items():
         paths = list(root.rglob(f'{phase}.json'))
         if len(paths) != 1:
             raise ValueError(f'Missing or duplicate report: {phase}')
         report = json.loads(paths[0].read_text())
-        if (report['commit'], report['run'], report['attempt'], report['exit']) != (
-                commit, os.environ['GITHUB_RUN_ID'], os.environ['GITHUB_RUN_ATTEMPT'], 0):
+        # A failed-jobs-only rerun keeps the reports of the runner that passed in
+        # an earlier attempt of this run. Reports from another run or commit,
+        # or a later attempt than this one, are stale.
+        if ((report['commit'], report['run'], report['exit']) != (commit, os.environ['GITHUB_RUN_ID'], 0)
+                or not 1 <= int(report['attempt']) <= attempt):
             raise ValueError(f'Failed or stale shard: {phase}')
         actual = [test for test, status in report['tests']]
         if collections.Counter(actual) != collections.Counter(required):

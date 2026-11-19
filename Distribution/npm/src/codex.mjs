@@ -12,7 +12,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { addActions, addFile, bump, emptyActions, mergeActions, toolLabel } from './collector.mjs';
+import { addActions, addFile, addModelTokens, bump, emptyActions, mergeActions, toolLabel } from './collector.mjs';
 import { canReadZstd, forEachLineAsync, isZstd } from './lines.mjs';
 import { actionsInCommand, classifyPrompt } from './text.mjs';
 
@@ -140,6 +140,7 @@ async function readRollout(file, meta, parent, collector) {
   let session = null;
   let launched = false;
   let workingDirectory = meta.cwd;
+  let currentModel = null;
   // Codex logs a shell command when it is asked for and again when it has
   // run, and an edit as a patch and again as a file change. Each is counted
   // from the record of what happened when the rollout has one.
@@ -184,6 +185,7 @@ async function readRollout(file, meta, parent, collector) {
     const current = touch(at);
     if (type === 'turn_context') {
       if (typeof payload.cwd === 'string') workingDirectory = payload.cwd;
+      if (typeof payload.model === 'string' && payload.model.length > 0) currentModel = payload.model;
       if (side || meta.helper) return;
       // The model a person chose, not the one a subagent or reviewer was handed.
       if (typeof payload.model === 'string' && payload.model.length > 0) bump(current.models, payload.model);
@@ -200,6 +202,7 @@ async function readRollout(file, meta, parent, collector) {
   session.tokens.input += used.input;
   session.tokens.cached += used.cached;
   session.tokens.output += used.output;
+  addModelTokens(session, currentModel, used);
   addActions(session, done.commands ? done.actions : asked.actions);
   session.edits += done.changes ? done.edits : asked.edits;
 }

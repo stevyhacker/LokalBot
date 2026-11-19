@@ -381,8 +381,6 @@ pub struct ScreenMeaningMatch {
     pub meaning: Meaning,
     pub ts: DateTime<Utc>,
     pub app: String,
-    /// The capture's text, when it has a text vector.
-    pub text: Option<String>,
 }
 
 /// What a screen search may reach.
@@ -630,7 +628,6 @@ impl Library {
             snapshot_id: i64,
             ts: f64,
             app: String,
-            text: Option<String>,
             modality: Modality,
             cosine: f32,
         }
@@ -640,22 +637,24 @@ impl Library {
                 let mut statement = db.prepare(sql)?;
                 let mut cursor = statement.query([model])?;
                 while let Some(row) = cursor.next()? {
-                    let Some(value) = cosine(row.get_ref(4)?.as_blob()?, query_vector) else {
+                    let Some(value) = cosine(row.get_ref(3)?.as_blob()?, query_vector) else {
                         continue;
                     };
                     rows.push(Row {
                         snapshot_id: row.get(0)?,
                         ts: row.get(1)?,
                         app: row.get(2)?,
-                        text: row.get(3)?,
                         modality,
                         cosine: value,
                     });
                 }
                 Ok(())
             };
+            // Text stays unread here: a search shows a few hundred captures at
+            // most (`screen_texts` reads theirs), and reading every capture's
+            // text was about a third of this scan's time at 30,000 captures.
             read(
-                "SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.text, embedded.vec \
+                "SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.vec \
                  FROM screen_embeddings AS embedded \
                  JOIN screenshots AS shot ON shot.id = embedded.snapshot_id \
                  WHERE embedded.model_id = ?1 \
@@ -665,7 +664,7 @@ impl Library {
             )?;
             if table_exists(db, "screen_image_embeddings")? {
                 read(
-                    "SELECT embedded.snapshot_id, shot.ts, shot.app, NULL, embedded.vec \
+                    "SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.vec \
                      FROM screen_image_embeddings AS embedded \
                      JOIN screenshots AS shot ON shot.id = embedded.snapshot_id \
                      WHERE embedded.model_id = ?1 AND shot.path != ''",
@@ -684,12 +683,8 @@ impl Library {
             })
             .collect();
         let meanings = meaning(&scores);
-        let mut texts: HashMap<i64, String> = HashMap::new();
         let mut places: HashMap<i64, (f64, String)> = HashMap::new();
         for row in rows {
-            if let Some(text) = row.text {
-                texts.insert(row.snapshot_id, text);
-            }
             places.insert(row.snapshot_id, (row.ts, row.app));
         }
         let mut matches = HashMap::new();
@@ -705,12 +700,55 @@ impl Library {
                         meaning,
                         ts,
                         app: app.clone(),
-                        text: texts.remove(&id),
                     },
                 );
             }
         }
         Ok(matches)
+    }
+
+    /// The text behind each capture's text vector, for the captures a search shows
+    /// (`screen_meanings` leaves it unread). A capture with only a picture vector,
+    /// or none, has no entry.
+    pub fn screen_texts(&self, ids: &[i64]) -> Result<HashMap<i64, String>> {
+        let wanted: Vec<i64> = ids
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        if wanted.is_empty() {
+            return Ok(HashMap::new());
+        }
+        self.with_db(|db| {
+            if !table_exists(db, "screen_embeddings")? || !table_exists(db, "ocr_metadata")? {
+                return Ok(HashMap::new());
+            }
+            let mut texts = HashMap::new();
+            for chunk in wanted.chunks(400) {
+                let placeholders = (2..=chunk.len() + 1)
+                    .map(|n| format!("?{n}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut statement = db.prepare(&format!(
+                    "SELECT embedded.snapshot_id, embedded.text FROM screen_embeddings AS embedded \
+                     WHERE embedded.model_id = ?1 AND embedded.snapshot_id IN ({placeholders}) \
+                       AND EXISTS (SELECT 1 FROM ocr_metadata AS ocr \
+                                   WHERE ocr.snapshot_id = embedded.snapshot_id)"
+                ))?;
+                let mut values: Vec<rusqlite::types::Value> = vec![MODEL_ID.to_string().into()];
+                values.extend(chunk.iter().map(|id| rusqlite::types::Value::from(*id)));
+                let rows = statement.query_map(rusqlite::params_from_iter(values), |row| {
+                    Ok((row.get::<_, i64>(0)?, row.get::<_, Option<String>>(1)?))
+                })?;
+                for row in rows {
+                    if let (id, Some(text)) = row? {
+                        texts.insert(id, text);
+                    }
+                }
+            }
+            Ok(texts)
+        })
     }
 
     /// Keyword hits under `filter`: all the words, or any of them when that finds
@@ -815,22 +853,38 @@ impl Library {
             .collect();
         let meaning_only: HashMap<i64, Meaning> =
             meanings.iter().map(|(id, m)| (*id, m.meaning)).collect();
-        rank(&meaning_only, &list, is_lookup(&wanted), limit)
+        let ranked = rank(&meaning_only, &list, is_lookup(&wanted), limit);
+        // Records and text for the captures found by meaning alone, read once each.
+        let found_by_meaning: Vec<i64> = ranked
+            .iter()
+            .map(|item| item.snapshot_id)
+            .filter(|id| !by_id.contains_key(id) && meanings.contains_key(id))
+            .collect();
+        let mut moments = self
+            .screen_moments_by_id(&found_by_meaning)
+            .unwrap_or_else(|err| {
+                log::warn!("screen search: reading captures: {err:#}");
+                HashMap::new()
+            });
+        let texts = self.screen_texts(&found_by_meaning).unwrap_or_else(|err| {
+            log::warn!("screen search: reading capture text: {err:#}");
+            HashMap::new()
+        });
+        ranked
             .into_iter()
             .filter_map(|item| {
                 if let Some(hit) = by_id.get(&item.snapshot_id) {
                     return Some((hit.clone(), item.is_semantic()));
                 }
-                let found = meanings.get(&item.snapshot_id)?;
-                let moment: ScreenMoment = self.screen_moment(item.snapshot_id).ok().flatten()?;
+                meanings.get(&item.snapshot_id)?;
+                let moment: ScreenMoment = moments.remove(&item.snapshot_id)?;
                 let title = if moment.window_title.is_empty() {
                     moment.app.clone()
                 } else {
                     moment.window_title.clone()
                 };
-                let snippet = found
-                    .text
-                    .as_deref()
+                let snippet = texts
+                    .get(&item.snapshot_id)
                     .and_then(|text| excerpt(text, query, 320))
                     .unwrap_or(title);
                 Some((
@@ -1082,9 +1136,10 @@ mod tests {
             .screen_meanings(&[0.0, 1.0], model, &filter)
             .unwrap();
         assert_eq!(matches[&id].meaning.modality, Modality::Image);
+        // Text is read afterwards, only for the captures a search shows.
         assert_eq!(
-            matches[&id].text.as_deref(),
-            Some("Quarterly roadmap review")
+            library.screen_texts(&[id, id, 9_999]).unwrap(),
+            HashMap::from([(id, "Quarterly roadmap review".to_string())])
         );
 
         // The date and app filters limit the result, not the scale.
@@ -1190,7 +1245,6 @@ mod tests {
                 },
                 ts: crate::time::from_epoch(1_000.0),
                 app: "Figma".into(),
-                text: None,
             },
         )]);
         let ranked =
@@ -1200,5 +1254,42 @@ mod tests {
             "a picture-only match shows its title"
         );
         assert!(ranked[0].1);
+    }
+
+    #[test]
+    fn a_text_match_found_by_meaning_shows_its_passage_read_after_ranking() {
+        let dir = tempfile::tempdir().unwrap();
+        let (library, id) = library_with_capture(dir.path());
+        let pending = library.screen_documents_without_vectors(10).unwrap();
+        library
+            .store_screen_vectors(&[(pending[0].clone(), vec![1.0, 0.0])])
+            .unwrap();
+        let found = HashMap::from([(
+            id,
+            ScreenMeaningMatch {
+                meaning: Meaning {
+                    z: 3.0,
+                    cosine: 0.9,
+                    modality: Modality::Text,
+                },
+                ts: crate::time::from_epoch(1_000.0),
+                app: "Figma".into(),
+            },
+        )]);
+        let ranked = library.ranked_screen_hits("roadmap", Vec::new(), &HashMap::new(), &found, 12);
+        assert_eq!(ranked.len(), 1);
+        assert!(ranked[0].1);
+        assert_eq!(
+            Some(ranked[0].0.snippet.clone()),
+            excerpt("Quarterly roadmap review", "roadmap", 320)
+        );
+
+        // A capture deleted after scoring is left out, not shown blank.
+        library.delete_screen_moments(&[id]).unwrap();
+        assert!(
+            library
+                .ranked_screen_hits("roadmap", Vec::new(), &HashMap::new(), &found, 12)
+                .is_empty()
+        );
     }
 }

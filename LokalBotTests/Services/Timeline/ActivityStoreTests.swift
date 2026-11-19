@@ -171,6 +171,35 @@ final class ActivityStoreTests: XCTestCase {
             [safariID])
     }
 
+    /// Ask reads the records of up to 2,000 ranked captures in one go; each
+    /// must match the single-capture lookup, and gone captures are left out.
+    func testBatchedScreenshotLookupMatchesSingleLookups() throws {
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
+        defer { try? FileManager.default.removeItem(at: url) }
+        let store = ActivityStore(databaseURL: url)
+        var ids: [Int64] = []
+        // More than one 400-id chunk.
+        for index in 0..<405 {
+            let id = try store.insertScreenshot(
+                ts: Date(timeIntervalSince1970: 1_700_000_000 + Double(index)), path: "/tmp/\(index).heic.enc",
+                app: "App \(index % 3)", windowTitle: "Window \(index)", trigger: "interval", ocr: "words \(index)")
+            ids.append(id)
+        }
+        try store.saveMoment(snapshotID: ids[402], note: "kept")
+        let missing = (ids.max() ?? 0) + 1_000
+
+        let found = store.screenshots(ids: ids + [ids[0], 0, missing])
+
+        XCTAssertEqual(found.count, ids.count)
+        XCTAssertNil(found[missing])
+        for id in ids {
+            XCTAssertEqual(found[id], store.screenshot(id: id))
+        }
+        XCTAssertTrue(found[ids[402]]?.isBookmarked == true)
+        XCTAssertTrue(store.screenshots(ids: []).isEmpty)
+    }
+
     func testSavedMomentsPersistNotesAndBookmarkState() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")

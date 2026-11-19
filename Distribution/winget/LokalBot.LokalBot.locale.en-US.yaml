@@ -1,0 +1,32 @@
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.1.6.0.schema.json
+
+PackageIdentifier: LokalBot.LokalBot
+PackageVersion: 0.13.2
+PackageLocale: en-US
+Publisher: LokalBot project
+PublisherUrl: https://www.lokalbot.com/
+PublisherSupportUrl: https://www.lokalbot.com/support
+PrivacyUrl: https://www.lokalbot.com/privacy
+PackageName: LokalBot
+PackageUrl: https://www.lokalbot.com/
+License: GPL-3.0-only
+LicenseUrl: https://github.com/stevyhacker/LokalBot/blob/master/LICENSE
+ShortDescription: Local-first AI meeting notes, dictation, autocomplete, and work memory with MCP access for coding agents.
+Description: >-
+  LokalBot is a free, open-source (GPLv3) desktop app that records meetings without a bot,
+  transcribes and summarizes them locally on your computer, and makes your meetings and opt-in
+  workday memory searchable by you and by approved MCP clients such as Claude Code and Codex.
+  No account, analytics, or telemetry.
+Moniker: lokalbot
+Tags:
+- ai
+- dictation
+- local-ai
+- mcp
+- meeting-notes
+- open-source
+- privacy
+- transcription
+ReleaseNotesUrl: https://github.com/stevyhacker/LokalBot/releases/tag/v0.13.2
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0
