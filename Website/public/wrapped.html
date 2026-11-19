@@ -32,30 +32,100 @@
     .wrapped-page { max-width: 1080px; margin: 0 auto; padding: 120px 24px 80px; }
     .wrapped-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; align-items: center; }
     @media (max-width: 860px) { .wrapped-hero { grid-template-columns: 1fr; gap: 32px; } }
-    .wrapped-hero h1 { font-size: clamp(2.2rem, 4.4vw, 3.3rem); line-height: 1.08; margin: 12px 0 18px; letter-spacing: -0.02em; }
-    .wrapped-hero__lead { font-size: 1.12rem; line-height: 1.6; opacity: 0.86; margin: 0 0 24px; }
-    .wrapped-cmd { display: inline-flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 12px; background: var(--glass-bg, rgba(15, 23, 34, 0.72)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 1.05rem; font-weight: 600; margin-bottom: 14px; }
-    .wrapped-cmd__copy { border: 0; border-radius: 8px; padding: 7px 12px; font: 600 0.85rem/1 ui-monospace, "SF Mono", Menlo, monospace; cursor: pointer; background: #23c4ae; color: #04141a; }
-    .wrapped-meta { font-size: 0.92rem; opacity: 0.75; margin: 0 0 22px; }
+    .wrapped-hero h1 { font-size: clamp(2.2rem, 4.4vw, 3.3rem); line-height: 1.06; margin: 12px 0 18px; letter-spacing: -0.03em; color: var(--text); }
+    .wrapped-hero__lead { font-size: 1.1rem; line-height: 1.62; color: var(--text-dim); margin: 0 0 22px; }
+    .wrapped-agents { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+    .wrapped-agent-pill {
+      padding: 6px 12px;
+      border-radius: var(--pill);
+      font: 600 0.82rem/1.2 var(--mono);
+      color: var(--text-dim);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .wrapped-cmd {
+      display: inline-flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 14px 12px 18px;
+      border-radius: var(--radius-sm);
+      background: #0e141c;
+      color: #ecf3f7;
+      border: 1px solid var(--line-strong);
+      box-shadow: 0 14px 32px -16px rgba(14, 20, 28, 0.32);
+      font-family: var(--mono);
+      font-size: 1.05rem;
+      font-weight: 600;
+      margin-bottom: 14px;
+    }
+    .wrapped-cmd code { color: #ecf3f7; font-family: inherit; }
+    .wrapped-cmd__prompt { color: var(--teal); user-select: none; margin-right: 6px; }
+    .wrapped-cmd__copy {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 13px;
+      font: 700 0.84rem/1 var(--mono);
+      cursor: pointer;
+      background: var(--teal);
+      color: var(--teal-ink);
+    }
+    .wrapped-cmd__copy:hover { filter: brightness(1.06); }
+    .wrapped-meta { font-size: 0.9rem; color: var(--text-faint); margin: 0 0 22px; }
     .wrapped-card-frame { margin: 0; }
-    .wrapped-card-frame img { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; border-radius: 14px; border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); }
-    .wrapped-card-frame figcaption { text-align: center; font-size: 0.86rem; opacity: 0.72; margin-top: 10px; }
+    .wrapped-card-frame img {
+      display: block;
+      width: 100%;
+      max-width: 440px;
+      height: auto;
+      margin: 0 auto;
+      border-radius: 16px;
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-shadow);
+    }
+    .wrapped-card-frame figcaption { text-align: center; font-size: 0.86rem; color: var(--text-faint); margin-top: 12px; }
+    .wrapped-card-frame code,
+    .wrapped-tile code,
+    .wrapped-faq code { font-family: var(--mono); font-size: 0.88em; color: var(--text); }
     .wrapped-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 64px; }
     @media (max-width: 820px) { .wrapped-grid { grid-template-columns: 1fr; } }
-    .wrapped-tile { padding: 22px; border-radius: 14px; background: var(--glass-bg, rgba(15, 23, 34, 0.55)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.18)); }
-    .wrapped-tile h2 { font-size: 1.05rem; margin: 0 0 8px; }
-    .wrapped-tile p { margin: 0; font-size: 0.94rem; line-height: 1.55; opacity: 0.84; }
-    .wrapped-bridge { margin-top: 64px; padding: 32px; border-radius: 18px; background: var(--glass-bg, rgba(15, 23, 34, 0.68)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); }
-    .wrapped-bridge h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 8px 0 12px; }
-    .wrapped-bridge p { max-width: 66ch; line-height: 1.6; opacity: 0.88; margin: 0 0 18px; }
+    .wrapped-tile {
+      padding: 24px;
+      border-radius: var(--radius);
+      background: var(--glass-gloss), var(--glass-tint);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .wrapped-tile h2 { font-size: 1.08rem; margin: 0 0 10px; color: var(--text); }
+    .wrapped-tile p { margin: 0; font-size: 0.94rem; line-height: 1.6; color: var(--text-dim); }
+    .wrapped-bridge {
+      margin-top: 56px;
+      padding: clamp(24px, 4vw, 36px);
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint-strong);
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .wrapped-bridge h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 8px 0 12px; color: var(--text); }
+    .wrapped-bridge p { max-width: 66ch; line-height: 1.62; color: var(--text-dim); margin: 0 0 18px; }
+    .wrapped-bridge p strong { color: var(--text); }
     .wrapped-bridge__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
-    .wrapped-agents { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
-    .wrapped-agent-pill { padding: 5px 11px; border-radius: 999px; font: 600 0.82rem/1.2 ui-monospace, "SF Mono", Menlo, monospace; background: var(--glass-bg, rgba(15, 23, 34, 0.55)); border: 1px solid var(--glass-border, rgba(148, 163, 184, 0.22)); }
     .wrapped-faq { margin-top: 56px; }
-    .wrapped-faq h2 { margin: 0 0 18px; }
-    .wrapped-faq details { padding: 16px 0; border-top: 1px solid var(--glass-border, rgba(148, 163, 184, 0.2)); }
-    .wrapped-faq summary { font-weight: 600; cursor: pointer; }
-    .wrapped-faq details p { margin: 10px 0 0; opacity: 0.85; line-height: 1.6; }
+    .wrapped-faq h2 { margin: 0 0 18px; color: var(--text); }
+    .wrapped-faq details { padding: 16px 0; border-top: 1px solid var(--line); }
+    .wrapped-faq summary { font-weight: 600; cursor: pointer; color: var(--text); }
+    .wrapped-faq details p { margin: 10px 0 0; color: var(--text-dim); line-height: 1.62; }
+    @media (prefers-reduced-transparency: reduce) {
+      .wrapped-tile, .wrapped-bridge, .wrapped-agent-pill {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+    @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      .wrapped-tile, .wrapped-bridge { background: var(--surface); }
+      .wrapped-agent-pill { background: var(--surface-2); }
+    }
   </style>
   <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/wrapped#webpage","url":"https://www.lokalbot.com/wrapped","name":"Agent Wrapped 2026: Your Year With Coding Agents — LokalBot","description":"Run npx lokalbot to turn your local Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI session logs into a shareable year-in-review card. Zero dependencies, zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-19","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/wrapped#faq","mainEntity":[{"@type":"Question","name":"Which coding agents does Agent Wrapped read?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped automatically reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also point individual --*-dir flags at custom log directories."}},{"@type":"Question","name":"Does Agent Wrapped upload my logs or prompts?","acceptedAnswer":{"@type":"Answer","text":"No. The npm package has zero dependencies and makes zero network requests. It reads your local session logs, counts timestamps, tool calls, models, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed."}},{"@type":"Question","name":"Why does my Claude Code heatmap start 30 days ago?","acceptedAnswer":{"@type":"Answer","text":"Claude Code deletes detailed session logs after 30 days by default unless you set cleanupPeriodDays in ~/.claude/settings.json. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's stats-cache.json to include earlier days counted this year."}},{"@type":"Question","name":"How is Agent Wrapped connected to LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP."}}]}]}</script>
 </head>
@@ -97,7 +167,7 @@
           <span class="wrapped-agent-pill">Gemini CLI</span>
         </div>
         <div class="wrapped-cmd">
-          <code>npx lokalbot</code>
+          <code><span class="wrapped-cmd__prompt">$</span>npx lokalbot</code>
           <button type="button" class="wrapped-cmd__copy" data-copy-text="npx lokalbot" aria-label="Copy npx lokalbot">Copy</button>
         </div>
         <p class="wrapped-meta">Zero dependencies · Zero network requests · Dark &amp; Light · Portrait 4:5 &amp; Wide 16:9 PNG · macOS, Linux, Windows</p>
