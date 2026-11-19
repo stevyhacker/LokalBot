@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transfer exact-candidate test products between jobs of one workflow attempt."""
+"""Transfer exact-candidate test products between jobs of one workflow run."""
 import hashlib
 import importlib.util
 import json
@@ -16,8 +16,11 @@ spec.loader.exec_module(stamp)
 
 
 def identity():
+    # Not the attempt: a failed-jobs-only rerun keeps the build job that passed,
+    # so its consumers use products from an earlier attempt of the same run,
+    # built from the same commit, toolchain and dependency lock.
     value = stamp.identity()
-    for key in ('root', 'job'):
+    for key in ('root', 'job', 'attempt'):
         value.pop(key)
     return value
 

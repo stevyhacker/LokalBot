@@ -108,6 +108,92 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertGreaterThan(observed1, 0)
     }
 
+    func testVaultReplayKeepsTheStagingCheckAndContractPatchSeparate() async throws {
+        let staging = "I will verify both the allowance and the bridge fee quote on the staging deployment tomorrow."
+        let patch = "Confirmed, I will deliver the contract patch by Friday."
+        let transcript = Transcript(segments: [
+            .init(start: 49, end: 54, speaker: "them", text: staging),
+            .init(start: 90, end: 95, speaker: "me", text: "The staging environment is up."),
+            .init(start: 125, end: 130, speaker: "them", text: patch),
+        ], engine: "fixture", speakerAliases: ["them": "Bojan"])
+        let script = Script([.text(try response(actions: [
+            ["text": "Deliver the contract patch by Friday.", "source": "s3", "context": ["s1"],
+             "owner": "source", "basis": "commitment", "quote": patch, "due": "Friday", "importance": 4],
+            ["text": "Verify both the allowance and the bridge fee quote on the staging deployment tomorrow.",
+             "source": "s1", "context": [], "owner": "source", "basis": "commitment", "quote": staging,
+             "due": "tomorrow", "importance": 4],
+        ]))])
+
+        let result = try await generate(script, transcript: transcript)
+        let tasks = result.outcomes.actionItems
+        XCTAssertEqual(tasks.map(\.owner), ["Bojan", "Bojan"])
+        XCTAssertEqual(tasks.map(\.due), ["tomorrow", "Friday"])
+        XCTAssertEqual(tasks.compactMap { $0.citations.first?.start }, [49, 125])
+        XCTAssertTrue(result.body.contains("staging deployment tomorrow"))
+        XCTAssertTrue(result.body.contains("Deliver the contract patch by Friday"))
+    }
+
+    func testVaultDeadlineStaysOnTheRequestWhenAnotherTaskCitesTheExchange() async throws {
+        let request = "Alex, please send risk the cap table by 16:00 today."
+        let reply = "Yes, and I will add a regression case for a fee quote increasing between preview and execution."
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "them", text: request),
+            .init(start: 6, end: 12, speaker: "me", text: reply),
+        ], engine: "fixture", speakerAliases: ["me": "Alex"])
+        let script = Script([.text(try response(actions: [
+            ["text": "Send the cap table to risk", "source": "s1", "context": [], "owner": "p1",
+             "basis": "request", "quote": request, "due": "today 16:00", "importance": 5],
+            ["text": "Add a regression case for a fee quote increase", "source": "s2", "context": ["s1"],
+             "owner": "source", "basis": "commitment", "quote": reply, "due": "today 16:00", "importance": 4],
+        ]))])
+
+        let result = try await generate(script, transcript: transcript)
+        XCTAssertEqual(result.outcomes.userActionItems.count, 2)
+        let requestAction = try XCTUnwrap(result.outcomes.actionItems.first { $0.text.contains("cap table") })
+        let regression = try XCTUnwrap(result.outcomes.actionItems.first { $0.text.contains("regression case") })
+        XCTAssertEqual(requestAction.due, "today 16:00")
+        XCTAssertNil(regression.due)
+    }
+
+    func testEachUndertakingInTheSameSentenceHasItsOwnDeadline() throws {
+        var transcript = transcript
+        transcript.segments[0].text = "I will send the redacted trace by Friday, and I will write the handoff notes."
+        let evidence = MeetingNotesEvidence(transcript: transcript)
+        var send = action(owner: "source")
+        send["text"] = "Send the redacted trace"
+        var write = send
+        write["text"] = "Write the handoff notes"
+
+        let result = evidence.validate(try response(actions: [send, write]), units: evidence.units,
+            template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
+        XCTAssertEqual(result.outcomes.userActionItems.map(\.due), ["Friday", nil])
+    }
+
+    func testDeadlineStaysOnAnAcceptedRequestAndAnAdjacentTranscriptFragment() throws {
+        let transcript = Transcript(segments: [
+            .init(start: 0, end: 5, speaker: "them", text: "Could you send the draft by Friday?"),
+            .init(start: 5, end: 8, speaker: "me", text: "Yes, I can do that."),
+            .init(start: 9, end: 13, speaker: "me", text: "On Tuesday I will verify the staging restore"),
+            .init(start: 13, end: 16, speaker: "me", text: "by 16:00."),
+        ], engine: "fixture")
+        let evidence = MeetingNotesEvidence(transcript: transcript)
+        var send = action("s2", owner: "source")
+        send["context"] = ["s1"]
+        send["text"] = "Send the draft"
+        var verify = action("s3", owner: "source")
+        verify["context"] = ["s4"]
+        verify["text"] = "Verify the staging restore"
+        verify["due"] = "Tuesday"
+
+        let result = evidence.validate(try response(actions: [send, verify]), units: evidence.units,
+            template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
+        XCTAssertEqual(result.outcomes.userActionItems.map(\.due), ["Friday", "Tuesday"])
+        verify["due"] = "16:00"
+        let split = evidence.validate(try response(actions: [verify]), units: evidence.units,
+            template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
+        XCTAssertEqual(split.outcomes.userActionItems.first?.due, "16:00")
+    }
+
     /// The built-in Qwen3.5 4B copied cited source IDs into `due`, and the
     /// notes rendered "due s268" (2026-10-01).
     func testSourceIDInDueIsNotADueDate() async throws {

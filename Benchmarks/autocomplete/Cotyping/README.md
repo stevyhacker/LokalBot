@@ -136,6 +136,40 @@ latency are reported, not gated.
 uv run --no-project python -S -m unittest discover -s Benchmarks/autocomplete/Cotyping -p 'test_engine_benchmark.py'
 ```
 
+## First suggestion after a pause
+
+`CotypingTypingLatencyBenchmarkTests/testFirstSuggestionAfterIdle` times the
+first suggestion after a pause in typing against the same request repeated at
+once, through the production runtime (`LlamaCotypingRuntime.forAutocomplete()`).
+For each pause it types a short burst, waits, then times one keystroke
+("…design team has time", which suggests " to review the numbers.") and the
+same keystroke again. It also reports how much of the model file is still in
+memory, the system's wired memory and the CPU energy the process used during
+the pause. A run lasts as long as its pauses add up to, for each warm-up mode.
+
+```sh
+cp -c "$HOME/Library/Application Support/me.dotenv.LokalBot/models/gemma-4-E2B.i1-Q6_K.gguf" /absolute/scratch/gemma-copy.gguf
+TEST_RUNNER_LOKALBOT_COTYPING_LATENCY_MODEL=/absolute/scratch/gemma-copy.gguf \
+TEST_RUNNER_LOKALBOT_COTYPING_IDLE_GAPS=0,60,300 \
+TEST_RUNNER_LOKALBOT_COTYPING_IDLE_WARMUP=none,ahead \
+TEST_RUNNER_LOKALBOT_COTYPING_IDLE_OUT=/absolute/scratch/idle.txt \
+xcodebuild test-without-building -xctestrun <Release build>.xctestrun \
+  -destination 'platform=macOS,arch=arm64' \
+  -only-testing:LokalBotTests/CotypingTypingLatencyBenchmarkTests/testFirstSuggestionAfterIdle
+```
+
+Use a copy of the model, as above: the system caches pages per file, so a
+running LokalBot that maps the same file and is being typed into keeps it warm.
+Build Release with `ENABLE_TESTABILITY=YES`, as for the other latency tests.
+The warm-up modes (`TEST_RUNNER_LOKALBOT_COTYPING_IDLE_WARMUP`) are `none`;
+`ahead`, a `touch` finished before the key, as after a click or an unlock;
+`key`, a `touch` started at the key with the suggestion asked for 45 ms later;
+and `every<N>`, a `touch` every N seconds of the pause, as while the person
+keeps using the Mac. `TEST_RUNNER_GGML_METAL_RESIDENCY_KEEP_ALIVE_S` changes
+llama.cpp's residency keep-alive (180 s by default) for comparison.
+Results from 2026-11-18, which leave the 30-minute pause unmeasured, are in
+[`results/2026-11-18-first-after-pause`](results/2026-11-18-first-after-pause/REPORT.md).
+
 ## Hosted model comparison
 
 `remote_comparison.py` asks whether a hosted model would beat the local one by

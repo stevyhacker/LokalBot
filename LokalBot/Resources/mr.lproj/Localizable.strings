@@ -2599,3 +2599,9 @@
 "Priorities for today" = "आजचे प्राधान्यक्रम";
 "Priorities from %@" = "%@ चे प्राधान्यक्रम";
 "Priorities from a previous workday" = "मागील एका कामाच्या दिवसाचे प्राधान्यक्रम";
+"Import past meetings" = "मागील मीटिंग्ज इम्पोर्ट करा";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper किंवा Zoom मधून नोट्स आणा.";
+"Claude Code (MCP command)" = "Claude Code (MCP कमांड)";
+"Claude Code (Plugin)" = "Claude Code (प्लगइन)";
+"Codex (Plugin)" = "Codex (प्लगइन)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON कॉन्फिग (Cursor, Claude Desktop, …)";

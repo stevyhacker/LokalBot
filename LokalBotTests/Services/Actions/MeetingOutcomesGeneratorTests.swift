@@ -75,6 +75,54 @@ final class MeetingOutcomesGeneratorTests: XCTestCase {
         }
     }
 
+    func testSeparateUndertakingsInOneTurnKeepTheirOwnEvidence() {
+        let upload = "Upload the redacted trace by noon tomorrow"
+        let handoff = "Write the two-paragraph handoff after the on-call rotation"
+        let citation = OutcomeSourceCitation(segmentID: "s1", start: 5, end: 6,
+                                             speaker: "me", excerpt: "I'll \(upload.lowercased()). I'll \(handoff.lowercased()).")
+        let actions: [MeetingOutcomes.ActionItem] = [
+            .init(text: upload, owner: "Me", due: "noon tomorrow", citations: [citation],
+                  attribution: .init(resolution: .user, speakerID: "me", basis: .commitment, quote: upload)),
+            .init(text: handoff, owner: "Me", citations: [citation],
+                  attribution: .init(resolution: .user, speakerID: "me", basis: .commitment, quote: handoff)),
+        ]
+
+        let merged = MeetingOutcomesGenerator.merge([MeetingOutcomes(actionItems: actions)])
+        XCTAssertEqual(merged.actionItems, actions)
+    }
+
+    func testDuplicateActionKeepsTheSourceOfItsDeadline() {
+        let initial = OutcomeSourceCitation(segmentID: "s1", start: 5, end: 6,
+                                             speaker: "me", excerpt: "I will publish the release notes.")
+        let followup = OutcomeSourceCitation(segmentID: "s2", start: 8, end: 9,
+                                              speaker: "me", excerpt: "I will publish the release notes by Friday.")
+        let actions: [MeetingOutcomes.ActionItem] = [
+            .init(text: "Publish the release notes", owner: "Me", citations: [initial]),
+            .init(text: "Publish the release notes", owner: "Me", due: "Friday", citations: [followup]),
+        ]
+
+        for input in [actions, Array(actions.reversed())] {
+            let merged = MeetingOutcomesGenerator.merge([MeetingOutcomes(actionItems: input)])
+            XCTAssertEqual(merged.actionItems.count, 1)
+            XCTAssertEqual(merged.actionItems.first?.owner, "Me")
+            XCTAssertEqual(merged.actionItems.first?.due, "Friday")
+            XCTAssertEqual(merged.actionItems.first?.citations, [followup, initial])
+        }
+    }
+
+    func testSameTaskWordingWithDifferentDeadlinesStaysSeparate() {
+        let first = OutcomeSourceCitation(segmentID: "s1", start: 5, end: 6,
+                                          speaker: "me", excerpt: "I'll rotate the credential on Thursday.")
+        let second = OutcomeSourceCitation(segmentID: "s2", start: 8, end: 9,
+                                           speaker: "me", excerpt: "I'll rotate the credential again on Friday.")
+        let actions: [MeetingOutcomes.ActionItem] = [
+            .init(text: "Rotate the credential", owner: "Me", due: "Thursday", citations: [first]),
+            .init(text: "Rotate the credential", owner: "Me", due: "Friday", citations: [second]),
+        ]
+
+        XCTAssertEqual(MeetingOutcomesGenerator.merge([MeetingOutcomes(actionItems: actions)]).actionItems, actions)
+    }
+
     func testAcceptanceIsNotRepeatedAsADecisionWhenItsParaphraseDiffers() {
         let citation = OutcomeSourceCitation(segmentID: "s2", start: 5, end: 6,
                                              speaker: "me", excerpt: "Yeah, I can do that.")

@@ -5,7 +5,7 @@ This directory contains the Homebrew cask for [LokalBot](https://www.lokalbot.co
 
 - Cask token: `lokalbot`
 - The cask packaged here is a snapshot of the live tap's, last copied from it on
-  2026-11-10 (0.12.2). The live tap is authoritative for installation and follows
+  2026-11-19 (0.13.2). The live tap is authoritative for installation and follows
   stable releases automatically (see below), so this copy can be a release behind.
 - Requirements enforced by the cask: Apple Silicon (M1+), macOS 15.0+
 - Style verified against `Homebrew/homebrew-cask` `CONTRIBUTING.md`, the

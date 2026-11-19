@@ -2599,3 +2599,9 @@
 "Priorities for today" = "Ưu tiên hôm nay";
 "Priorities from %@" = "Ưu tiên từ %@";
 "Priorities from a previous workday" = "Ưu tiên từ một ngày làm việc trước";
+"Import past meetings" = "Nhập các cuộc họp trước";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Mang ghi chú từ Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper hoặc Zoom vào đây.";
+"Claude Code (MCP command)" = "Claude Code (lệnh MCP)";
+"Claude Code (Plugin)" = "Claude Code (Plugin)";
+"Codex (Plugin)" = "Codex (Plugin)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "Cấu hình MCP JSON (Cursor, Claude Desktop, …)";

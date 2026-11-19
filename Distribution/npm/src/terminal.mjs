@@ -15,7 +15,7 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   const paint = painter(color);
   const out = [''];
   const agents = stats.agents.map((agent) => agent.name);
-  out.push(`  ${paint.bold(`Agent Wrapped ${stats.year}`)}   ${paint.dim(agents.length > 0 ? agents.join(' and ') : 'no sessions found')}`);
+  out.push(`  ${paint.bold(`Agent Wrapped ${stats.year}`)}   ${paint.dim(formatAgentList(agents))}`);
   out.push('');
   out.push(`  ${paint.bold(paint.teal(stats.persona.title))}`);
   out.push(`  ${stats.persona.line}`);
@@ -43,6 +43,10 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   if (totals.subagents > 0) extras.push(`${plural(totals.subagents, 'subagent')} launched`);
   if (totals.testRuns > 0) extras.push(`${plural(totals.testRuns, 'test run')}`);
   if (totals.scheduledRuns > 0) extras.push(`${plural(totals.scheduledRuns, 'scheduled run')}`);
+  if ((totals.cacheHitRate ?? 0) >= 0.1) extras.push(`${percent(totals.cacheHitRate)} prompt cache hit`);
+  if ((totals.avgPromptWords ?? 0) > 0 && (totals.toolsPerRequest ?? 0) > 0) {
+    extras.push(`avg ${plural(totals.avgPromptWords, 'word')}/prompt → ${totals.toolsPerRequest} tool calls`);
+  }
   if (extras.length > 0) out.push(`  Also: ${extras.join(', ')}`);
   out.push('');
   const coverage = coverageNote(stats);
@@ -50,6 +54,10 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   const skipped = stats.sources?.compressedSkipped ?? 0;
   if (skipped > 0) {
     out.push(paint.dim(`  ${plural(skipped, 'compressed Codex log')} left out: reading them needs Node.js 22.15 or later.`), '');
+  }
+  const sqliteSkipped = stats.sources?.sqliteSkipped ?? 0;
+  if (sqliteSkipped > 0) {
+    out.push(paint.dim(`  ${plural(sqliteSkipped, 'SQLite session store')} left out: reading OpenCode/Cursor databases needs Node.js 22.5 or later.`), '');
   }
 
   if (stats.agents.length > 0) {
@@ -63,6 +71,9 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
       out.push(`  ${agent.name.padEnd(nameWidth)}  ${bar}  ${details.join(paint.dim('  '))}`);
     }
     out.push('');
+  }
+  if (stats.topModels?.length > 0) {
+    out.push(`  Top models: ${stats.topModels.slice(0, 5).map((model) => `${model.name} ${compact(model.total)}`).join(', ')}`);
   }
   if (stats.projects.length > 0) {
     out.push(`  Most hours: ${stats.projects.slice(0, 3).map((project) => `${project.name} ${hours(project.agentMs)} h`).join(', ')}`);
@@ -148,6 +159,14 @@ function yearGrid(grid, calendar, busiest, earlierDays, paint) {
     rows.push(`       ${paint.dim(marks.join(''))}`);
   }
   return rows;
+}
+
+function formatAgentList(names) {
+  if (names.length === 0) return 'no sessions found';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  if (names.length <= 4) return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
 }
 
 function painter(color) {

@@ -26,6 +26,8 @@ uuid.workspace = true
 rusqlite.workspace = true
 ureq.workspace = true
 directories.workspace = true
+memchr.workspace = true
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

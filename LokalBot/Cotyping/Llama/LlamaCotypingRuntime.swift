@@ -114,6 +114,9 @@ actor LlamaCotypingRuntime {
     private(set) var lastReplayDiagnostics = CotypingReplayDiagnostics()
     /// When a suggestion was last generated, for the memory-pressure policy.
     private var lastUsedUptime: TimeInterval?
+    /// When the model last ran on the GPU for any reason: a suggestion, a
+    /// prompt read or a `touch`. Counts time asleep, unlike `lastUsedUptime`.
+    private var lastDecodeInstant: ContinuousClock.Instant?
     /// True only for pure-attention models, whose per-position KV cells can be
     /// partially evicted (`seq_rm` at a non-zero p0). Recurrent/hybrid (SSM/Mamba)
     /// models cannot rewind their rolling state to a prefix, so they full-reprefill.
@@ -164,6 +167,12 @@ actor LlamaCotypingRuntime {
     var isLoaded: Bool { model != nil && ctx != nil }
 
     var canReusePromptPrefix: Bool { supportsPartialReuse }
+
+    /// Positions held in the context's memory for the one sequence, for tests.
+    var memoryPositionCount: Int32 {
+        guard let ctx else { return 0 }
+        return llama_memory_seq_pos_max(llama_get_memory(ctx), 0) + 1
+    }
 
     nonisolated func abortInFlightDecode() {
         decodeAbortState.requestAbort()
@@ -433,6 +442,46 @@ actor LlamaCotypingRuntime {
         cachedTokens = []
     }
 
+    /// Runs one throwaway token through the loaded model, so the next
+    /// suggestion after a pause does not pay for bringing the GPU and the
+    /// weights back. Never loads a model, and does not count as use for the
+    /// memory-pressure policy or the residency ledger.
+    ///
+    /// Waits for the GPU, so the time it takes is the cold cost it removes.
+    /// The token goes at the next free position, as llama.cpp requires, and is
+    /// removed afterwards, so a cached prompt stays cached. A recurrent state
+    /// cannot drop one token; those models read the whole prompt on every
+    /// suggestion anyway, so their memory is cleared instead.
+    /// - Parameter minimumIdle: skip when the model ran more recently.
+    /// - Returns: whether a token was decoded.
+    @discardableResult
+    func touch(ifIdleFor minimumIdle: Duration = .zero) -> Bool {
+        guard let ctx, let vocab else { return false }
+        if let lastDecodeInstant, lastDecodeInstant.duration(to: .now) < minimumIdle { return false }
+        decodeAbortState.beginDecode()
+        defer { decodeAbortState.endDecode() }
+        let memory = llama_get_memory(ctx)
+        var position = llama_memory_seq_pos_max(memory, 0) + 1
+        if position >= Int32(llama_n_ctx(ctx)) {
+            llama_memory_clear(memory, true)
+            cachedTokens = []
+            position = 0
+        }
+        let decoded = decode([llama_vocab_bos(vocab)], startPos: position, logitsLastOnly: true)
+        // `llama_decode` only queues the GPU work, and nothing reads these
+        // logits. Without waiting, the next suggestion would wait for the
+        // touch's GPU work instead of finding it done.
+        llama_synchronize(ctx)
+        lastDecodeTokenCount = 0
+        lastLogitsPosition = nil
+        lastLogitsToken = nil
+        if !llama_memory_seq_rm(memory, 0, position, -1) {
+            llama_memory_clear(memory, true)
+            cachedTokens = []
+        }
+        return decoded
+    }
+
     /// Replay/test reset; model weights remain resident.
     func clearReplayCache() {
         if let ctx { llama_memory_clear(llama_get_memory(ctx), true) }
@@ -478,6 +527,7 @@ actor LlamaCotypingRuntime {
         _ tokens: [Int32], startPos: Int32, logitsLastOnly: Bool, requestLogits: Bool = true
     ) -> Bool {
         guard let ctx, !tokens.isEmpty else { return true }
+        lastDecodeInstant = .now
         lastReplayDiagnostics.decodedTokens += tokens.count
         lastReplayDiagnostics.decodeCalls += 1
         lastLogitsPosition = nil

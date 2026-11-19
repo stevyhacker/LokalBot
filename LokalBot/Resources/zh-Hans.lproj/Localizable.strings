@@ -2598,3 +2598,9 @@
 "Priorities for today" = "今天的优先事项";
 "Priorities from %@" = "%@的优先事项";
 "Priorities from a previous workday" = "之前某个工作日的优先事项";
+"Import past meetings" = "导入历史会议";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "从 Granola、Otter、Fireflies、Fathom、语音备忘录、MacWhisper 或 Zoom 导入笔记。";
+"Claude Code (MCP command)" = "Claude Code（MCP 命令）";
+"Claude Code (Plugin)" = "Claude Code（插件）";
+"Codex (Plugin)" = "Codex（插件）";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON 配置（Cursor、Claude Desktop 等）";

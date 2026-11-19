@@ -51,10 +51,31 @@ test('the image leaves project names out unless asked', () => {
   assert.ok(quiet.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1500"'));
   assert.ok(quiet.trimEnd().endsWith('</svg>'));
   assert.equal(quiet.includes('harbor-app'), false);
-  assert.ok(quiet.includes('npx lokalbot wrapped'));
+  assert.ok(quiet.includes('npx lokalbot'));
+  assert.ok(quiet.includes('lokalbot.com'));
   assert.ok(quiet.includes('Nothing was uploaded.'));
   assert.equal((quiet.match(/<text /g) ?? []).length, (quiet.match(/<\/text>/g) ?? []).length);
   assert.ok(renderCard(result, { showProjects: true }).includes('Most hours went to harbor-app, tide-api and northwind-site.'));
+
+  const wide = renderCard(result, { layout: 'wide' });
+  assert.ok(wide.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"'));
+  assert.ok(wide.includes('npx lokalbot'));
+  assert.ok(wide.includes('>Mon</text>'));
+  assert.ok(wide.includes('>Less</text>'));
+  assert.ok(wide.includes('>More</text>'));
+  assert.equal((wide.match(/<text /g) ?? []).length, (wide.match(/<\/text>/g) ?? []).length);
+
+  const wideLight = renderCard(result, { layout: 'wide', theme: 'light' });
+  assert.ok(wideLight.includes('fill="#f4f7f7"'));
+  assert.ok(wideLight.includes('fill="#0b1219"'));
+  assert.ok(wideLight.includes('TOP MODELS'));
+  assert.ok(wideLight.includes('claude-fable-5'));
+  assert.equal((wideLight.match(/<text /g) ?? []).length, (wideLight.match(/<\/text>/g) ?? []).length);
+
+  const portraitLight = renderCard(result, { layout: 'portrait', theme: 'light' });
+  assert.ok(portraitLight.includes('fill="#f4f7f7"'));
+  assert.ok(portraitLight.includes('TOP MODELS'));
+  assert.equal((portraitLight.match(/<text /g) ?? []).length, (portraitLight.match(/<\/text>/g) ?? []).length);
 });
 
 test('names that look like markup are written as text', () => {
@@ -101,10 +122,40 @@ test('the page is one file that loads nothing', () => {
   assert.ok(page.includes('<svg xmlns='));
   assert.ok(page.includes('>Save image</button>'));
   assert.ok(page.includes('>Copy image</button>'));
+  assert.ok(page.includes('>Post on X</a>'));
+  assert.ok(page.includes('>Copy caption</button>'));
+  assert.ok(page.includes('Wide 16:9'));
+  assert.ok(page.includes('Give Claude Code &amp; Codex memory of your meetings.'));
   assert.ok(page.includes('agent-wrapped-2026.png'));
   // No script, style sheet, image or font is fetched from anywhere.
   assert.equal(/<(script|img|link|iframe)[^>]+(src|href)=/.test(page), false);
   assert.equal(/url\(|@import|fetch\(|XMLHttpRequest/.test(page), false);
+});
+
+test('short logged windows auto-zoom so 30-day Claude logs look full', () => {
+  const result = demoYear(2026);
+  // Keep only 20 days of activity to mirror Claude Code's 30-day default retention.
+  const startDay = 290;
+  for (let day = 0; day < result.calendar.days; day += 1) {
+    if (day < startDay || day > startDay + 19) {
+      result.stats.byDay[day] = 0;
+      for (let hour = 0; hour < 24; hour += 1) result.grid[day * 24 + hour] = 0;
+    }
+  }
+  result.stats.coverage = {
+    loggedFrom: '2026-10-18',
+    claudeLoggedFrom: '2026-10-18',
+    earlier: { days: 120, sessions: 310, toolCalls: 24000, from: '2026-01-12' },
+    daysWithAnAgent: 140,
+  };
+  const zoomed = renderCard(result);
+  assert.match(zoomed, /Zoomed to .* plus 120 earlier days counted by Claude Code/);
+  const fullYear = renderCard(result, { window: 'year' });
+  assert.match(fullYear, /The marks under the year are 120 earlier days/);
+  const page = renderPage(result);
+  assert.ok(page.includes('Active window'));
+  assert.ok(page.includes('Full year'));
+  assert.ok(page.includes('cleanupPeriodDays'));
 });
 
 test('a year with one agent has no split to draw', () => {

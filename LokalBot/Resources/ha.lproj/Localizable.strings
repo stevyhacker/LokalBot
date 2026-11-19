@@ -2599,3 +2599,9 @@
 "Priorities for today" = "Abubuwan fifiko na yau";
 "Priorities from %@" = "Abubuwan fifiko daga %@";
 "Priorities from a previous workday" = "Abubuwan fifiko daga wata ranar aiki ta baya";
+"Import past meetings" = "Shigo da tsofaffin tarurruka";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Kawo bayanan taro daga Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, ko Zoom.";
+"Claude Code (MCP command)" = "Claude Code (umarnin MCP)";
+"Claude Code (Plugin)" = "Claude Code (Plugin)";
+"Codex (Plugin)" = "Codex (Plugin)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "Tsarin MCP JSON (Cursor, Claude Desktop, …)";

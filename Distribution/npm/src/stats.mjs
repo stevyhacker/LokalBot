@@ -6,6 +6,7 @@
 // five. Two agents working at once count twice.
 
 import { AGENTS } from './collector.mjs';
+import { sessionApiUsd } from './pricing.mjs';
 import { projectName } from './text.mjs';
 
 const MINUTE = 60 * 1000;
@@ -44,12 +45,14 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
   const runs = [];
   const projects = new Map();
   const tools = new Map();
+  const modelTotals = new Map();
   const agents = new Map(Object.keys(AGENTS).map((id) => [id, newAgent(id)]));
   const totals = {
     sessions: 0, requests: 0, requestWords: 0, slashCommands: 0, scheduledRuns: 0, replies: 0,
     toolCalls: 0, subagents: 0, edits: 0, filesChanged: collector.files.size,
     agentMs: 0, wallClockMs: 0, activeDays: 0,
     tokens: { input: 0, cached: 0, output: 0, total: 0 },
+    estimatedApiUsd: 0, cacheHitRate: 0, parallelMultiplier: 1, avgPromptWords: 0, toolsPerRequest: 0,
     commits: 0, pullRequestsOpened: 0, pullRequestsMerged: 0, releases: 0, pushes: 0, testRuns: 0,
   };
 
@@ -60,6 +63,9 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
       agent.tokens[key] += session.tokens[key];
       totals.tokens[key] += session.tokens[key];
     }
+    const apiUsd = sessionApiUsd(session);
+    agent.estimatedApiUsd += apiUsd;
+    totals.estimatedApiUsd += apiUsd;
     agent.toolCalls += session.toolCalls;
     totals.toolCalls += session.toolCalls;
     totals.edits += session.edits;
@@ -70,7 +76,21 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     totals.pushes += session.pushes;
     totals.testRuns += session.testRuns;
     for (const [name, count] of session.tools) tools.set(name, (tools.get(name) ?? 0) + count);
-    for (const [model, count] of session.models) agent.models.set(model, (agent.models.get(model) ?? 0) + count);
+    for (const [rawModel, count] of session.models) {
+      const model = normalizeModelName(rawModel);
+      if (model) agent.models.set(model, (agent.models.get(model) ?? 0) + count);
+    }
+    for (const [rawModel, bucket] of session.modelTokens) {
+      const name = normalizeModelName(rawModel);
+      if (!name) continue;
+      const total = (bucket.input ?? 0) + (bucket.output ?? 0);
+      if (total <= 0) continue;
+      const agg = modelTotals.get(name) ?? { name, input: 0, output: 0, total: 0 };
+      agg.input += bucket.input ?? 0;
+      agg.output += bucket.output ?? 0;
+      agg.total += total;
+      modelTotals.set(name, agg);
+    }
     if (session.hidden) continue;
 
     totals.subagents += Math.max(session.subagentFiles, session.subagentCalls);
@@ -109,6 +129,11 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     if (dayTouched[day]) totals.activeDays += 1;
   }
   totals.wallClockMs = unionMs(runs);
+  totals.estimatedApiUsd = Math.round(totals.estimatedApiUsd * 100) / 100;
+  totals.cacheHitRate = totals.tokens.input > 0 ? Math.round((totals.tokens.cached / totals.tokens.input) * 1000) / 1000 : 0;
+  totals.parallelMultiplier = totals.wallClockMs > 0 ? Math.round((totals.agentMs / totals.wallClockMs) * 100) / 100 : 1;
+  totals.avgPromptWords = totals.requests > 0 ? Math.round(totals.requestWords / totals.requests) : 0;
+  totals.toolsPerRequest = totals.requests > 0 ? Math.round((totals.toolCalls / totals.requests) * 10) / 10 : 0;
 
   const earlierDays = new Float64Array(calendar.days);
   const earlier = { days: 0, sessions: 0, toolCalls: 0, from: null };
@@ -141,6 +166,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
       toolCalls: agent.toolCalls,
       agentMs: agent.agentMs,
       tokens: { ...agent.tokens, total: agent.tokens.input + agent.tokens.output },
+      estimatedApiUsd: Math.round(agent.estimatedApiUsd * 100) / 100,
       topModel: top(agent.models, 1)[0]?.name ?? null,
     }))
     .sort((a, b) => b.agentMs - a.agentMs || b.sessions - a.sessions);
@@ -149,6 +175,10 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     .filter(([, ms]) => ms >= 10 * MINUTE)
     .map(([name, ms]) => ({ name, agentMs: Math.round(ms) }))
     .sort((a, b) => b.agentMs - a.agentMs);
+
+  const topModels = [...modelTotals.values()]
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+    .slice(0, 5);
 
   const stats = {
     schema: 1,
@@ -172,6 +202,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     byMonth: byMonth.map(Math.round),
     byDay: byDay.map(Math.round),
     topTools: top(tools, 5),
+    topModels,
     projects: projectList.slice(0, 5),
     projectCount: projectList.length,
     sources: {
@@ -179,6 +210,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
       bytesRead: collector.bytesRead,
       unreadableFiles: collector.unreadableFiles,
       compressedSkipped: collector.compressedSkipped,
+      sqliteSkipped: collector.sqliteSkipped ?? 0,
     },
   };
   stats.persona = persona(stats);
@@ -186,7 +218,22 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
 }
 
 function newAgent(id) {
-  return { id, sessions: 0, requests: 0, toolCalls: 0, agentMs: 0, tokens: { input: 0, cached: 0, output: 0 }, models: new Map() };
+  return { id, sessions: 0, requests: 0, toolCalls: 0, agentMs: 0, estimatedApiUsd: 0, tokens: { input: 0, cached: 0, output: 0 }, models: new Map() };
+}
+
+export function normalizeModelName(raw) {
+  if (typeof raw !== 'string') return '';
+  let name = raw.trim();
+  if (!name || name === '<synthetic>' || name.toLowerCase() === 'default') return '';
+  // Strip provider/router prefixes such as `anthropic/`, `openai-codex/`, `openrouter/moonshotai/`.
+  if (name.includes('/')) name = name.split('/').at(-1);
+  // Strip AWS Bedrock region/vendor prefixes such as `us.anthropic.` or `global.anthropic.`.
+  name = name.replace(/^(?:us|eu|ap|global)\.[a-z0-9-]+\./i, '');
+  // Strip Bedrock `-v1:0` and OpenRouter `:free` / `:nitro` routing tags.
+  name = name.replace(/-v\d+(?::\d+)?$/i, '').replace(/:[a-z0-9-]+$/i, '');
+  // Collapse dated snapshot suffixes like `-20250929` so one model doesn't split across rows.
+  name = name.replace(/-20\d{6}$/, '');
+  return name.trim();
 }
 
 /**
@@ -396,8 +443,15 @@ export function persona(stats) {
   }
   const percent = (value) => `${Math.round(value * 100)}%`;
   const second = agents[1];
+  const firstShare = agents[0] && totals.agentMs > 0 ? agents[0].agentMs / totals.agentMs : 0;
   const split = second && totals.agentMs > 0 ? second.agentMs / totals.agentMs : 0;
+  const activeAgents = agents.filter((agent) => totals.agentMs > 0 && agent.agentMs / totals.agentMs >= 0.03);
   const perDay = totals.activeDays > 0 ? totals.commits / totals.activeDays : 0;
+  const switchLine = !second
+    ? ''
+    : activeAgents.length >= 3
+      ? `You split the year across ${activeAgents.length} agents, led by ${agents[0].name} (${percent(firstShare)}) and ${second.name} (${percent(split)}).`
+      : `You split the year between ${agents[0].name} and ${second.name}, ${percent(firstShare)} to ${percent(split)}.`;
   const candidates = [
     {
       id: 'night-shift', title: 'The Night Shift', score: share.night / 0.3,
@@ -421,9 +475,7 @@ export function persona(stats) {
     },
     {
       id: 'switch-hitter', title: 'The Switch Hitter', score: split / 0.3,
-      line: second
-        ? `You split the year between ${agents[0].name} and ${second.name}, ${percent(1 - split)} to ${percent(split)}.`
-        : '',
+      line: switchLine,
     },
     {
       id: 'release-train', title: 'The Release Train', score: Math.max(perDay / 6, totals.pullRequestsMerged / 150),
@@ -432,6 +484,22 @@ export function persona(stats) {
     {
       id: 'daily-driver', title: 'The Daily Driver', score: stats.streak.days / 45,
       line: `${stats.streak.days} days in a row with an agent at work.`,
+    },
+    {
+      id: 'one-liner', title: 'The One-Liner',
+      score: totals.requests >= 50 && totals.avgPromptWords > 0 && totals.avgPromptWords <= 12 && totals.toolsPerRequest >= 8
+        ? (12 / totals.avgPromptWords) * (totals.toolsPerRequest / 12)
+        : 0,
+      line: `Average prompt: ${totals.avgPromptWords} words. Average reply: ${totals.toolsPerRequest} tool calls.`,
+    },
+    {
+      id: 'orchestrator', title: 'The Orchestrator',
+      score: totals.requests >= 25
+        ? Math.max(totals.subagents / 150, totals.toolsPerRequest / 28)
+        : 0,
+      line: totals.subagents >= 20
+        ? `${totals.subagents.toLocaleString('en-US')} subagents launched, averaging ${totals.toolsPerRequest} tool calls per request.`
+        : `You averaged ${totals.toolsPerRequest} tool calls for every request.`,
     },
   ];
   const winner = candidates.filter((candidate) => candidate.score >= 1).sort((a, b) => b.score - a.score)[0];

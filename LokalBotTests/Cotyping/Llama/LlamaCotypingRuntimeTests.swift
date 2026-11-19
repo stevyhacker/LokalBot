@@ -210,6 +210,52 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
         XCTAssertFalse(out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
+    /// Readying the model after a pause must never load one: a model freed
+    /// under memory pressure stays freed until a suggestion is asked for.
+    func testTouchNeverLoadsAModel() async {
+        let runtime = LlamaCotypingRuntime()
+        let touched = await runtime.touch()
+        XCTAssertFalse(touched)
+        let loaded = await runtime.isLoaded
+        XCTAssertFalse(loaded)
+    }
+
+    /// The throwaway token goes after the cached prompt and comes out again,
+    /// so the next keystroke reads only what was typed and suggests the same.
+    func testTouchKeepsTheCachedPromptAndTheSuggestion() async throws {
+        let path = try bundledModelPath()
+        let runtime = LlamaCotypingRuntime()
+        try await runtime.loadIfNeeded(modelPath: path)
+        let base = await runtime.tokenize("Hi Sarah, thanks for sending this over. I wanted to follow", addBOS: true)
+        let extended = base + (await runtime.tokenize(" up tomorrow", addBOS: false))
+        func suggest(_ prompt: [Int32]) async throws -> String {
+            try await runtime.generate(promptTokens: prompt, maxTokens: 6, samplerSpecs: standardSpecs) { _ in true }
+        }
+
+        _ = try await suggest(base)
+        let expected = try await suggest(extended)
+        let expectedPrefill = await runtime.lastPrefillTokenCount
+
+        _ = try await suggest(base)
+        let positionsBefore = await runtime.memoryPositionCount
+        for _ in 0..<3 {
+            let touched = await runtime.touch()
+            XCTAssertTrue(touched)
+        }
+        let positionsAfter = await runtime.memoryPositionCount
+        let afterTouch = try await suggest(extended)
+        let prefillAfterTouch = await runtime.lastPrefillTokenCount
+
+        XCTAssertEqual(afterTouch, expected)
+        let reusesPrompts = await runtime.canReusePromptPrefix
+        if reusesPrompts {
+            XCTAssertEqual(positionsAfter, positionsBefore, "each touch takes its token out again")
+            XCTAssertEqual(prefillAfterTouch, expectedPrefill, "the touch must leave the cached prompt in place")
+        }
+        let touchedAgain = await runtime.touch(ifIdleFor: .seconds(60))
+        XCTAssertFalse(touchedAgain, "a model that just ran needs no touch")
+    }
+
     func testOnTokenReturningFalseStopsDecode() async throws {
         let path = try bundledModelPath()
         let runtime = LlamaCotypingRuntime()

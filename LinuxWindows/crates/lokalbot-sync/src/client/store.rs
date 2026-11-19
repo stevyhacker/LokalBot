@@ -451,6 +451,36 @@ impl ClientStore {
             .collect())
     }
 
+    /// Live bodies of one kind that meet `condition`, in `ORDER BY` order, at
+    /// most `limit` of them (`0`: all). SQLite filters and stops, so only the
+    /// returned rows are parsed. `condition` binds `values` as `?3` onwards.
+    pub fn bodies_matching(
+        &self,
+        kind: &str,
+        condition: &str,
+        values: &[&dyn rusqlite::ToSql],
+        order_by: &str,
+        limit: u32,
+    ) -> Result<Vec<(String, Value)>> {
+        let mut statement = self.db.prepare(&format!(
+            "SELECT key, body FROM records WHERE kind = ?1 AND deleted = 0 AND ({condition}) \
+             ORDER BY {order_by} LIMIT ?2"
+        ))?;
+        // SQLite reads a negative LIMIT as none.
+        let limit = if limit == 0 { -1 } else { i64::from(limit) };
+        let mut bound: Vec<&dyn rusqlite::ToSql> = vec![&kind, &limit];
+        bound.extend_from_slice(values);
+        let rows = statement
+            .query_map(bound.as_slice(), |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })?
+            .collect::<rusqlite::Result<Vec<_>>>()?;
+        Ok(rows
+            .into_iter()
+            .filter_map(|(key, body)| serde_json::from_str(&body).ok().map(|body| (key, body)))
+            .collect())
+    }
+
     /// Writes a body in place (sample library edits only; no new version).
     pub fn replace_body(&self, kind: &str, key: &str, body: &Value) -> Result<()> {
         self.db.execute(

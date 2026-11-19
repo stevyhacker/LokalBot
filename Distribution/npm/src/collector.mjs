@@ -7,6 +7,12 @@ import path from 'node:path';
 export const AGENTS = {
   'claude-code': 'Claude Code',
   codex: 'Codex',
+  cursor: 'Cursor',
+  pi: 'Pi',
+  omp: 'OMP',
+  opencode: 'OpenCode',
+  antigravity: 'Antigravity',
+  'gemini-cli': 'Gemini CLI',
 };
 
 /** `start` and `end` are epoch milliseconds; `end` is exclusive. */
@@ -25,6 +31,8 @@ export function createCollector({ start, end }) {
     unreadableFiles: 0,
     /** Compressed logs this Node.js cannot decompress. */
     compressedSkipped: 0,
+    /** SQLite databases this Node.js cannot open (needs Node.js 22.5+). */
+    sqliteSkipped: 0,
     inWindow(at) {
       return at >= start && at < end;
     },
@@ -58,6 +66,7 @@ function newSession(agent, id) {
     subagentCalls: 0,
     tools: new Map(),
     models: new Map(),
+    modelTokens: new Map(),
     folders: new Map(),
     tokens: { input: 0, cached: 0, output: 0 },
     commits: new Set(),
@@ -72,6 +81,17 @@ function newSession(agent, id) {
 
 export function bump(map, key, by = 1) {
   map.set(key, (map.get(key) ?? 0) + by);
+}
+
+export function addModelTokens(session, model, { input = 0, cached = 0, cacheWrite = 0, output = 0 }) {
+  if (input === 0 && output === 0) return;
+  const key = typeof model === 'string' && model.length > 0 ? model : '';
+  const bucket = session.modelTokens.get(key) ?? { input: 0, cached: 0, cacheWrite: 0, output: 0 };
+  bucket.input += input;
+  bucket.cached += cached;
+  bucket.cacheWrite += cacheWrite;
+  bucket.output += output;
+  session.modelTokens.set(key, bucket);
 }
 
 export function emptyActions() {
@@ -113,9 +133,11 @@ export function addFile(collector, file, workingDirectory) {
   collector.files.add(style.join(workingDirectory, file));
 }
 
-/** `mcp__github__create_issue` is tallied as `github (MCP)`. */
+/** `mcp__github__create_issue` (and Antigravity/Cursor MCP tool names) are tallied as `<server> (MCP)`. */
 export function toolLabel(name) {
   if (typeof name !== 'string' || name.length === 0) return 'unknown';
-  const mcp = /^mcp__(.+?)__/.exec(name);
+  const mcp = /^mcp__(.+?)__/.exec(name)
+    ?? /^mcp_([a-z0-9][a-z0-9-]*?)_/.exec(name)
+    ?? /^mcp-([a-z0-9][a-z0-9]*?)-/.exec(name);
   return mcp ? `${mcp[1]} (MCP)` : name;
 }

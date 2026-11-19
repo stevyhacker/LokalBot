@@ -18,14 +18,21 @@ function run(args, env = {}) {
   return { code: result.status, out: result.stdout, err: result.stderr };
 }
 
-test('help explains the one command and what it reads', () => {
-  for (const args of [[], ['--help'], ['help']]) {
+test('help explains the command and what it reads', () => {
+  for (const args of [['--help'], ['help']]) {
     const { code, out } = run(args);
     assert.equal(code, 0);
+    assert.match(out, /npx lokalbot \[options\]/);
     assert.match(out, /npx lokalbot wrapped \[options\]/);
     assert.match(out, /makes no network requests/);
   }
   assert.match(run(['--version']).out, /^\d+\.\d+\.\d+\n$/);
+});
+
+test('running with no subcommand runs Agent Wrapped directly', () => {
+  const card = run(['--demo', '--year', '2026']);
+  assert.equal(card.code, 0);
+  assert.match(card.out, /Agent Wrapped 2026/);
 });
 
 test('a command this package does not have points to the app', () => {
@@ -41,7 +48,7 @@ test('the made-up year prints as a card and as JSON', () => {
   const card = run(['wrapped', '--demo', '--year', '2026']);
   assert.equal(card.code, 0);
   assert.match(card.out, /Agent Wrapped 2026/);
-  assert.match(card.out, /npx lokalbot wrapped --share/);
+  assert.match(card.out, /npx lokalbot --share/);
   assert.equal(card.out.includes('\u001b'), false);
 
   const json = run(['wrapped', '--demo', '--year', '2026', '--json']);
@@ -77,7 +84,7 @@ test('a computer with no sessions says where it looked', (t) => {
   const { code, out, err } = run(['wrapped', '--year', String(YEAR), '--claude-dir', path.join(folder, 'a'), '--codex-dir', path.join(folder, 'b')]);
   assert.equal(code, 1);
   assert.equal(out, '');
-  assert.match(err, new RegExp(`No Claude Code or Codex sessions from ${YEAR} were found`));
+  assert.match(err, new RegExp(`No coding-agent sessions from ${YEAR} were found`));
   assert.ok(err.includes(path.join(folder, 'a')) && err.includes(path.join(folder, 'b')));
 });
 
@@ -92,4 +99,8 @@ test('--share writes the page and --no-open leaves the browser alone', (t) => {
 
   run(['wrapped', '--demo', '--year', '2026', '--share', '--no-open', '--projects', '--out', file]);
   assert.ok(fs.readFileSync(file, 'utf8').includes('harbor-app'));
+
+  run(['--demo', '--year', '2026', '--wide', '--no-open', '--out', file]);
+  const widePage = fs.readFileSync(file, 'utf8');
+  assert.ok(widePage.includes('width="1600" height="900"'));
 });

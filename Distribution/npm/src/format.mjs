@@ -47,21 +47,45 @@ export function percent(share) {
   return `${Math.round(share * 100)}%`;
 }
 
+/** `1642.4` as `$1,642`; whole dollars for card readability. */
+export function currency(usd) {
+  return `$${number(usd)}`;
+}
+
+/** `1.64` as `1.6×`. */
+export function multiplier(value) {
+  const rounded = Math.round(value * 10) / 10;
+  return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}×`;
+}
+
 /** `1` → `1 day`, `3` → `3 days`. */
 export function plural(count, one, many = `${one}s`) {
   return `${number(count)} ${count === 1 ? one : many}`;
 }
 
 /** The facts both cards state, as `[figure, words]` pieces per line. */
-export function factLines(stats) {
+export function factLines(stats, { showApiValue = true } = {}) {
   const { totals } = stats;
   const worked = hours(totals.agentMs);
+  const first = [
+    [worked, true],
+    [worked === '1' ? ' hour of agent work on ' : ' hours of agent work on '],
+    [number(totals.activeDays), true],
+    [totals.activeDays === 1 ? ' day' : ' days'],
+  ];
+  if ((totals.parallelMultiplier ?? 1) >= 1.2) {
+    first.push([' · '], [multiplier(totals.parallelMultiplier), true], [' parallel']);
+  }
   const lines = [
-    [[worked, true], [worked === '1' ? ' hour of agent work on ' : ' hours of agent work on '], [number(totals.activeDays), true], [totals.activeDays === 1 ? ' day' : ' days']],
+    first,
     [[number(totals.requests), true], [totals.requests === 1 ? ' request from you, ' : ' requests from you, '], [number(totals.toolCalls), true], [' tool calls from them']],
   ];
   if (totals.tokens.total > 0) {
-    lines.push([[compact(totals.tokens.input), true], [' tokens read, '], [compact(totals.tokens.output), true], [' written']]);
+    const tokenLine = [[compact(totals.tokens.input), true], [' tokens read, '], [compact(totals.tokens.output), true], [' written']];
+    if (showApiValue && (totals.estimatedApiUsd ?? 0) >= 10) {
+      tokenLine.push([' (~'], [currency(totals.estimatedApiUsd), true], [' API value)']);
+    }
+    lines.push(tokenLine);
   }
   if (totals.commits > 0 && totals.pullRequestsMerged > 0) {
     lines.push([[number(totals.commits), true], [totals.commits === 1 ? ' commit and ' : ' commits and '], [number(totals.pullRequestsMerged), true], [totals.pullRequestsMerged === 1 ? ' merged pull request' : ' merged pull requests']]);
@@ -71,4 +95,15 @@ export function factLines(stats) {
     lines.push([[number(totals.sessions), true], [totals.sessions === 1 ? ' session, the longest run ' : ' sessions, the longest run '], [duration(stats.longestRun.ms), true]]);
   }
   return lines;
+}
+
+/** A crisp, non-promotional post caption for X, Bluesky, Slack or LinkedIn. */
+export function shareCaption(stats, { showApiValue = true } = {}) {
+  const { totals } = stats;
+  const bits = [`${hours(totals.agentMs)} agent hours on ${plural(totals.activeDays, 'day')}`];
+  if ((totals.parallelMultiplier ?? 1) >= 1.2) bits[0] += ` (${multiplier(totals.parallelMultiplier)} parallel)`;
+  if (totals.toolCalls > 0) bits.push(`${number(totals.toolCalls)} tool calls`);
+  if (showApiValue && (totals.estimatedApiUsd ?? 0) >= 10) bits.push(`~${currency(totals.estimatedApiUsd)} API value`);
+  if (totals.commits > 0) bits.push(plural(totals.commits, 'commit'));
+  return `My ${stats.year} Agent Wrapped: ${stats.persona.title}\n${bits.join(' · ')}\n\nRun yours locally (zero uploads): npx lokalbot`;
 }
