@@ -25,6 +25,7 @@ const CARD_THEMES = {
     ramp: ['#0e3c44', '#14696a', '#1da290', '#38e3ca'],
     cellPeak: '#fbbf24',
     barTrack: '#13202e',
+    agentColors: ['#23c4ae', '#60a5fa', '#c084fc', '#fbbf24', '#476176'],
   },
   light: {
     ground: '#f4f7f7',
@@ -45,6 +46,7 @@ const CARD_THEMES = {
     ramp: ['#ace8de', '#5ac8b7', '#169888', '#08685e'],
     cellPeak: '#d97706',
     barTrack: '#e6eeee',
+    agentColors: ['#0b7a6e', '#2563eb', '#7c3aed', '#d97706', '#8ba2b2'],
   },
 };
 
@@ -623,6 +625,100 @@ function truncateText(text, maxChars) {
   return `${text.slice(0, maxChars - 1)}…`;
 }
 
+function headerAgentLine(agents) {
+  if (!Array.isArray(agents) || agents.length === 0) return '';
+  if (agents.length <= 4) return agents.map((agent) => agent.name).join(' · ');
+  return `${agents.slice(0, 4).map((agent) => agent.name).join(' · ')} · +${agents.length - 4}`;
+}
+
+/** Multi-segment pill bar for 2+ agents, with inline colored-dot legend for 3+. */
+function drawAgentSplitBar(timed, totalMs, pal, { x, y, width, maxNamed = 4, fontSize = 16 } = {}) {
+  if (timed.length < 2 || totalMs <= 0) return [];
+  const parts = [];
+
+  if (timed.length === 2) {
+    const share = timed[0].agentMs / totalMs;
+    const split = Math.round(width * share);
+    parts.push(`<rect x="${x}" y="${y}" width="${Math.max(6, split - 4)}" height="12" rx="6" fill="${pal.teal}"/>`);
+    parts.push(`<rect x="${x + split + 4}" y="${y}" width="${Math.max(6, width - split - 4)}" height="12" rx="6" fill="${pal.slate}"/>`);
+    parts.push(svgText(x, y + 36, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: fontSize, fill: pal.text, weight: 600 }));
+    parts.push(svgText(x + width, y + 36, `${timed[1].name} ${cardPercent(timed[1].agentMs / totalMs)}`, { family: 'mono', size: fontSize, fill: pal.dim, anchor: 'end', weight: 600 }));
+    return parts;
+  }
+
+  const palette = pal.agentColors ?? [pal.teal, pal.amber, pal.slate];
+  const named = [];
+  let otherMs = 0;
+  for (const agent of timed) {
+    const share = agent.agentMs / totalMs;
+    if (named.length < maxNamed && share >= 0.01) {
+      named.push({ name: agent.name, share, color: palette[named.length % (palette.length - 1)] });
+    } else {
+      otherMs += agent.agentMs;
+    }
+  }
+  const segments = [...named];
+  if (otherMs > 0) {
+    const otherShare = otherMs / totalMs;
+    if (otherShare >= 0.005 || segments.length < 2) {
+      segments.push({ name: 'Other', share: otherShare, color: pal.slate });
+    }
+  }
+  if (segments.length < 2) return [];
+
+  const sumShare = segments.reduce((sum, seg) => sum + seg.share, 0) || 1;
+  const rawPcts = segments.map((seg) => (seg.share / sumShare) * 100);
+  const pcts = rawPcts.map((value) => Math.floor(value));
+  let remainder = 100 - pcts.reduce((sum, p) => sum + p, 0);
+  const order = rawPcts
+    .map((value, idx) => ({ idx, frac: value - pcts[idx] }))
+    .sort((a, b) => b.frac - a.frac);
+  for (let i = 0; i < remainder && i < order.length; i += 1) {
+    pcts[order[i].idx] += 1;
+  }
+
+  const gap = 5;
+  const minW = 10;
+  const availW = Math.max(segments.length * minW, width - gap * (segments.length - 1));
+  const widths = segments.map((seg) => Math.max(minW, Math.round((seg.share / sumShare) * availW)));
+  const diff = availW - widths.reduce((sum, w) => sum + w, 0);
+  if (diff !== 0) {
+    const widest = widths.indexOf(Math.max(...widths));
+    widths[widest] = Math.max(minW, widths[widest] + diff);
+  }
+
+  let cursor = x;
+  segments.forEach((seg, idx) => {
+    parts.push(`<rect x="${cursor}" y="${y}" width="${widths[idx]}" height="12" rx="6" fill="${seg.color}"/>`);
+    cursor += widths[idx] + gap;
+  });
+
+  // Inline dot legend fitted to `width`.
+  const labels = segments.map((seg, idx) => `${seg.name} ${pcts[idx]}%`);
+  let size = fontSize;
+  let itemGap = 18;
+  const dotBlock = 15; // 9px dot + 6px space
+  const measure = (s, g) => labels.reduce((sum, lbl) => sum + dotBlock + lbl.length * s * CARD_MONO_EM, 0) + g * (labels.length - 1);
+  if (measure(size, itemGap) > width) itemGap = 12;
+  while (size > 11 && measure(size, itemGap) > width) size -= 1;
+
+  let lx = x;
+  const ly = y + 36;
+  segments.forEach((seg, idx) => {
+    const label = labels[idx];
+    parts.push(`<circle cx="${svgRound(lx + 4.5)}" cy="${ly - 5}" r="4.5" fill="${seg.color}"/>`);
+    parts.push(svgText(svgRound(lx + dotBlock), ly, label, {
+      family: 'mono',
+      size,
+      fill: idx === 0 ? pal.text : pal.dim,
+      weight: idx === 0 ? 700 : 600,
+    }));
+    lx += dotBlock + label.length * size * CARD_MONO_EM + itemGap;
+  });
+
+  return parts;
+}
+
 function renderPortraitCard(data, { showProjects = false, showApiValue = true, window: windowOption = 'auto', theme = 'dark' } = {}) {
   const pal = CARD_THEMES[theme] ?? CARD_THEMES.dark;
   const { stats } = data;
@@ -637,8 +733,16 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
 
   // Header
   parts.push(...drawBadge(MARGIN, 60, `AGENT WRAPPED ${stats.year}`, pal, { size: 15, padX: 16, height: 36 }));
-  const agents = stats.agents.map((agent) => agent.name).join(' · ');
-  if (agents) parts.push(svgText(WIDTH - MARGIN, 84, agents, { family: 'mono', size: 18, fill: pal.faint, anchor: 'end', weight: 600 }));
+  const agents = headerAgentLine(stats.agents);
+  if (agents) {
+    parts.push(svgText(WIDTH - MARGIN, 84, agents, {
+      family: 'mono',
+      size: svgFit(agents, 18, inner - 290, CARD_MONO_EM),
+      fill: pal.faint,
+      anchor: 'end',
+      weight: 600,
+    }));
+  }
 
   // Persona
   const titleSize = svgFit(stats.persona.title, 96, inner, 0.54);
@@ -717,14 +821,14 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
   // Agent split bar
   const timed = stats.agents.filter((agent) => agent.agentMs > 0);
   if (timed.length > 1 && stats.totals.agentMs > 0) {
-    const share = timed[0].agentMs / stats.totals.agentMs;
-    const split = Math.round(inner * share);
     const barY = Math.min(nextY + middleH + 38, 1252);
-    parts.push(`<rect x="${MARGIN}" y="${barY}" width="${Math.max(6, split - 4)}" height="12" rx="6" fill="${pal.teal}"/>`);
-    parts.push(`<rect x="${MARGIN + split + 4}" y="${barY}" width="${Math.max(6, inner - split - 4)}" height="12" rx="6" fill="${pal.slate}"/>`);
-    parts.push(svgText(MARGIN, barY + 38, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: 18, fill: pal.text, weight: 600 }));
-    const rest = timed.slice(1).map((agent) => `${agent.name} ${cardPercent(agent.agentMs / stats.totals.agentMs)}`).join(', ');
-    parts.push(svgText(WIDTH - MARGIN, barY + 38, rest, { family: 'mono', size: 18, fill: pal.dim, anchor: 'end', weight: 600 }));
+    parts.push(...drawAgentSplitBar(timed, stats.totals.agentMs, pal, {
+      x: MARGIN,
+      y: barY,
+      width: inner,
+      maxNamed: 4,
+      fontSize: 18,
+    }));
   }
 
   if (showProjects && stats.projects.length > 0) {
@@ -758,12 +862,20 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
 
   // Header
   parts.push(...drawBadge(MARGIN, 30, `AGENT WRAPPED ${stats.year}`, pal, { size: 14, padX: 15, height: 32 }));
-  const agents = stats.agents.map((agent) => agent.name).join(' · ');
-  if (agents) parts.push(svgText(WIDTH - MARGIN, 52, agents, { family: 'mono', size: 17, fill: pal.faint, anchor: 'end', weight: 600 }));
+  const agents = headerAgentLine(stats.agents);
+  if (agents) {
+    parts.push(svgText(WIDTH - MARGIN, 52, agents, {
+      family: 'mono',
+      size: svgFit(agents, 17, inner - 270, CARD_MONO_EM),
+      fill: pal.faint,
+      anchor: 'end',
+      weight: 600,
+    }));
+  }
   parts.push(`<line x1="${MARGIN}" y1="78" x2="${WIDTH - MARGIN}" y2="78" stroke="${pal.border}" stroke-width="1"/>`);
 
   // Top Hero Row: Persona (left) + Agent split bar (right)
-  const titleMaxW = 920;
+  const titleMaxW = 900;
   const titleSize = svgFit(stats.persona.title, 62, titleMaxW, 0.54);
   parts.push(svgText(MARGIN - 2, 150, stats.persona.title, {
     family: 'sans',
@@ -784,16 +896,16 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
 
   const timed = stats.agents.filter((agent) => agent.agentMs > 0);
   if (timed.length > 1 && stats.totals.agentMs > 0) {
-    const barW = 440;
+    const barW = timed.length >= 3 ? 500 : 440;
     const barX = WIDTH - MARGIN - barW;
     const barY = 136;
-    const share = timed[0].agentMs / stats.totals.agentMs;
-    const split = Math.round(barW * share);
-    parts.push(`<rect x="${barX}" y="${barY}" width="${Math.max(6, split - 4)}" height="12" rx="6" fill="${pal.teal}"/>`);
-    parts.push(`<rect x="${barX + split + 4}" y="${barY}" width="${Math.max(6, barW - split - 4)}" height="12" rx="6" fill="${pal.slate}"/>`);
-    parts.push(svgText(barX, barY + 36, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: 16, fill: pal.text, weight: 600 }));
-    const rest = timed.slice(1).map((agent) => `${agent.name} ${cardPercent(agent.agentMs / stats.totals.agentMs)}`).join(', ');
-    parts.push(svgText(barX + barW, barY + 36, rest, { family: 'mono', size: 16, fill: pal.dim, anchor: 'end', weight: 600 }));
+    parts.push(...drawAgentSplitBar(timed, stats.totals.agentMs, pal, {
+      x: barX,
+      y: barY,
+      width: barW,
+      maxNamed: 3,
+      fontSize: timed.length >= 3 ? 14 : 16,
+    }));
   }
 
   // 4-Column KPI Tile Row (full-width band)

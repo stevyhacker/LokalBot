@@ -15,7 +15,7 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   const paint = painter(color);
   const out = [''];
   const agents = stats.agents.map((agent) => agent.name);
-  out.push(`  ${paint.bold(`Agent Wrapped ${stats.year}`)}   ${paint.dim(agents.length > 0 ? agents.join(' and ') : 'no sessions found')}`);
+  out.push(`  ${paint.bold(`Agent Wrapped ${stats.year}`)}   ${paint.dim(formatAgentList(agents))}`);
   out.push('');
   out.push(`  ${paint.bold(paint.teal(stats.persona.title))}`);
   out.push(`  ${stats.persona.line}`);
@@ -54,6 +54,10 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   const skipped = stats.sources?.compressedSkipped ?? 0;
   if (skipped > 0) {
     out.push(paint.dim(`  ${plural(skipped, 'compressed Codex log')} left out: reading them needs Node.js 22.15 or later.`), '');
+  }
+  const sqliteSkipped = stats.sources?.sqliteSkipped ?? 0;
+  if (sqliteSkipped > 0) {
+    out.push(paint.dim(`  ${plural(sqliteSkipped, 'SQLite session store')} left out: reading OpenCode/Cursor databases needs Node.js 22.5 or later.`), '');
   }
 
   if (stats.agents.length > 0) {
@@ -155,6 +159,14 @@ function yearGrid(grid, calendar, busiest, earlierDays, paint) {
     rows.push(`       ${paint.dim(marks.join(''))}`);
   }
   return rows;
+}
+
+function formatAgentList(names) {
+  if (names.length === 0) return 'no sessions found';
+  if (names.length === 1) return names[0];
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  if (names.length <= 4) return `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+  return `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`;
 }
 
 function painter(color) {
