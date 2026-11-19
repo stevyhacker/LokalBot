@@ -40,6 +40,23 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(page.row(.autocomplete)?.job, "Suggests the next words as you type")
     }
 
+    func testAppleSpeechRowReadsAsBuiltInToThisMacWithNoDownloadSize() throws {
+        let ready = presentation(
+            { $0.transcriptionModel = .appleSpeech },
+            statuses: [.transcribe: .ready])
+        let row = try XCTUnwrap(ready.row(.transcribe))
+        XCTAssertEqual(row.name, "Apple Speech")
+        XCTAssertEqual(row.place, .thisMac)
+        XCTAssertNil(row.bytes)
+        XCTAssertEqual(text(row.placeText), "On this Mac")
+        XCTAssertEqual(row.chip, .ready)
+
+        let unavailable = presentation(
+            { $0.transcriptionModel = .appleSpeech },
+            statuses: [.transcribe: .unavailable])
+        XCTAssertEqual(unavailable.row(.transcribe)?.chip, .notSetUp)
+    }
+
     /// The sizes are the ones the download is announced with.
     func testRowSizesMatchTheDownloadPlan() {
         let settings = AppSettings()

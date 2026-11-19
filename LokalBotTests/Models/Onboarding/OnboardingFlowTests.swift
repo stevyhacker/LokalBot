@@ -335,6 +335,21 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertTrue(plan([.transcribe: .ready, .think: .ready], settings: settings).allReady)
     }
 
+    func testAppleSpeechHasNothingToDownloadInPlan() {
+        var settings = AppSettings()
+        settings.transcriptionModel = .appleSpeech
+        let waiting = plan([.transcribe: .unavailable], settings: settings)
+        let transcribe = waiting.models.first { $0.role == .transcribe }
+        XCTAssertEqual(transcribe?.name, "Apple Speech")
+        XCTAssertEqual(transcribe?.downloads, false)
+        XCTAssertNil(transcribe?.bytes)
+        XCTAssertEqual(transcribe?.state, .needsSetup)
+
+        let ready = plan([.transcribe: .ready, .think: .ready], settings: settings)
+        XCTAssertTrue(ready.allReady)
+        XCTAssertEqual(ready.models.first { $0.role == .transcribe }?.state, .ready)
+    }
+
     func testSampleMeetingChosenInSetupWaitsForItsModels() throws {
         let app = AppState()
         try XCTSkipIf(app.modelRoles.snapshot.meetingReady, "this library already has its models")

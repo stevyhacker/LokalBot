@@ -39,7 +39,7 @@ struct ModelsView: View {
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 28).padding(.vertical, 14)
 
-            ModelSetupFeedback(controller: app.modelSetup)
+            ModelSetupFeedback(controller: app.modelSetup, roles: app.modelRoles)
                 .frame(maxWidth: Self.contentWidth)
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 28)
@@ -155,15 +155,30 @@ struct ModelsView: View {
 
 struct ModelSetupFeedback: View {
     @ObservedObject var controller: ModelSetupController
+    @ObservedObject var roles: ModelRoles
 
     var body: some View {
         if let pending = controller.pending {
+            let preparation = pending.patch.transcriptionToPrepare.flatMap {
+                roles.transcriptionPreparations[$0.id]
+            }
             HStack(spacing: 10) {
-                ProgressView().controlSize(.small)
+                if let fraction = preparation?.progress, fraction > 0, fraction < 1 {
+                    ProgressView(value: fraction)
+                        .progressViewStyle(.circular)
+                        .controlSize(.small)
+                } else {
+                    ProgressView().controlSize(.small)
+                }
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Preparing \(pending.title)…").font(.scaled(.body).weight(.medium))
-                    Text("Your current models stay active until preparation finishes.")
-                        .font(.scaled(.callout)).settingsSecondary()
+                    if let preparation {
+                        Text(verbatim: preparationDetail(for: preparation))
+                            .font(.scaled(.callout)).settingsSecondary()
+                    } else {
+                        Text("Your current models stay active until preparation finishes.")
+                            .font(.scaled(.callout)).settingsSecondary()
+                    }
                 }
                 Spacer()
                 Button("Cancel Switch") { controller.cancelSwitch() }
@@ -197,6 +212,13 @@ struct ModelSetupFeedback: View {
             }
             .padding(.vertical, 14)
         }
+    }
+
+    private func preparationDetail(for preparation: ModelRoles.TranscriptionPreparation) -> String {
+        if let fraction = preparation.progress, fraction > 0, fraction < 1 {
+            return "\(preparation.label) \(Int(fraction * 100))%"
+        }
+        return preparation.label
     }
 }
 

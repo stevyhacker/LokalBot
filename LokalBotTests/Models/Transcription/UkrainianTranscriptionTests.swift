@@ -56,7 +56,9 @@ final class UkrainianTranscriptionTests: XCTestCase {
     }
 
     func testUkrainianAvailabilityMatchesEveryBackend() throws {
-        let available: Set<TranscriptionModelChoice> = [.whisperLarge, .parakeetUltra, .parakeetV3, .remoteServer]
+        let available: Set<TranscriptionModelChoice> = [
+            .whisperLarge, .parakeetUltra, .parakeetV3, .appleSpeech, .remoteServer,
+        ]
         for choice in TranscriptionModelChoice.allCases {
             XCTAssertEqual(choice.isLanguageSelectable(.uk), available.contains(choice), choice.rawValue)
             if available.contains(choice) {

@@ -289,7 +289,9 @@ struct TimelineContentView: View {
         // the text size; after a drag the split remembers the width.
         return GeometryReader { proxy in
             HSplitView {
-                Group {
+                // Keep the pane's size independent of the page's intrinsic
+                // width so selecting a session cannot re-divide the split.
+                GeometryReader { _ in
                     if selection == .digest {
                         if hasDay {
                             TimelineDigestPage(

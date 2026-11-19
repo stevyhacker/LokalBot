@@ -131,6 +131,8 @@ struct ModelSelectionPatch: Equatable {
                 == ModelCatalog.entry(id: id, custom: latest.customBuiltInModels) else { return false }
         }
         let target = applying(to: original)
+        if transcription == .appleSpeech,
+           original.transcriptionLanguage != latest.transcriptionLanguage { return false }
         if transcription == .graniteSpeech,
            original.graniteSpeechModel != latest.graniteSpeechModel { return false }
         if transcriptionToPrepare == .funASRNano,
@@ -310,7 +312,7 @@ enum ModelSettingsPresentation {
         case .graniteSpeech5:
             safeCombinedBytes(GraniteSpeechModelConfiguration.speech5.model.sizeBytes,
                               GraniteSpeechModelConfiguration.speech5.projector.sizeBytes)
-        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .remoteServer: nil
+        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .appleSpeech, .remoteServer: nil
         }
     }
 

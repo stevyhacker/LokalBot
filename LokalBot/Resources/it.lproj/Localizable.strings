@@ -2605,3 +2605,7 @@
 "Claude Code (Plugin)" = "Claude Code (plugin)";
 "Codex (Plugin)" = "Codex (plugin)";
 "MCP JSON config (Cursor, Claude Desktop, …)" = "Configurazione JSON MCP (Cursor, Claude Desktop, …)";
+
+"System language" = "Lingua di sistema";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "Apple Speech usa la lingua preferita di macOS, se supportata. Per le registrazioni in un’altra lingua, seleziona quella lingua.";
+"macOS may download a language asset when you use Apple Speech." = "macOS può scaricare un pacchetto lingua quando usi Apple Speech.";

@@ -602,7 +602,7 @@ struct SettingsView: View {
                             .accessibilityIdentifier("settings.transcriptionOptions.edit")
                     } label: {
                         SettingsLabel("Language and vocabulary",
-                                      help: app.settings.transcriptionLanguage.displayName)
+                                      help: app.settings.transcriptionModel.languageDisplayName(for: app.settings.transcriptionLanguage))
                     }
                     Toggle(isOn: $app.settings.turnByTurnLiveTextEnabled) {
                         SettingsLabel("Turn-by-turn live text",

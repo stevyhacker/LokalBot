@@ -104,12 +104,14 @@ final class ModelRoles: ObservableObject {
         let granite: GraniteSpeechModelConfiguration?
         let funASRNanoDirectory: String?
         let remote: RemoteTranscriptionConfiguration?
+        let appleSpeechLanguage: TranscriptionLanguage?
 
         init(_ choice: TranscriptionModelChoice, _ settings: AppSettings) {
             id = choice.id
             granite = choice == .graniteSpeech ? settings.graniteSpeechModel : nil
             funASRNanoDirectory = choice == .funASRNano ? settings.funASRNanoModelDirectory : nil
             remote = choice == .remoteServer ? settings.remoteTranscription : nil
+            appleSpeechLanguage = choice == .appleSpeech ? settings.transcriptionLanguage : nil
         }
     }
 
@@ -257,9 +259,7 @@ final class ModelRoles: ObservableObject {
         let generation = diskGeneration, configuration = settings(), root = storage.rootURL
         diskState = .init()
         diskTask = Task { @MainActor [weak self] in
-            let loaded = await Task.detached(priority: .utility) {
-                ModelReadinessSnapshot.DiskState.load(settings: configuration, root: root)
-            }.value
+            let loaded = await ModelReadinessSnapshot.DiskState.load(settings: configuration, root: root)
             guard let self, !Task.isCancelled, generation == self.diskGeneration else { return }
             self.diskState = loaded
             self.revision &+= 1
@@ -301,7 +301,9 @@ final class ModelRoles: ObservableObject {
             && preparationTask?.id == TranscriptionModelChoice.graniteSpeech.id
         let invalidatedFunASR = funASRDirectoryChanged
             && preparationTask?.id == TranscriptionModelChoice.funASRNano.id
-        if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation || invalidatedFunASR {
+        let invalidatedAppleSpeech = old.transcriptionLanguage != new.transcriptionLanguage
+            && preparationTask?.id == TranscriptionModelChoice.appleSpeech.id
+        if changedAwayFromActiveSelection || invalidatedActiveGranitePreparation || invalidatedFunASR || invalidatedAppleSpeech {
             cancelPreparation()
         }
         refreshDiskState()
@@ -398,7 +400,9 @@ final class ModelRoles: ObservableObject {
     /// model and its settings intact until the replacement is available.
     func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
         let key = TranscriptionConfiguration(choice, configuration)
-        if choice != .funASRNano, downloadedTranscriptionModels(configuration).contains(choice.id), preparationErrors[key] == nil {
+        if choice != .funASRNano && choice != .appleSpeech,
+           downloadedTranscriptionModels(configuration).contains(choice.id),
+           preparationErrors[key] == nil {
             return
         }
         if let preparationTask, preparationTask.configuration != key {
@@ -418,7 +422,9 @@ final class ModelRoles: ObservableObject {
         if let error = preparationErrors[key] {
             throw ModelDownloadManager.PreparationError.failed(error)
         }
-        guard downloadedTranscriptionModels(configuration).contains(choice.id) else {
+        // Apple Speech preparation already verified the selected locale using
+        // AssetInventory. The disk snapshot is refreshed after activation.
+        guard choice == .appleSpeech || downloadedTranscriptionModels(configuration).contains(choice.id) else {
             throw ModelDownloadManager.PreparationError.failed(
                 "The transcription model is not available yet. Retry its download.")
         }

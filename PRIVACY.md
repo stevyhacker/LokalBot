@@ -375,6 +375,10 @@ The app may make these outbound connections:
   Pyannote models, which download on first use like the speaker models.
   Turning on Files downloads EmbeddingGemma 2's image and audio projector
   (555 MB), pinned and checked like the other models.
+  On macOS 26+, preparing **Apple Speech** or changing its language in Settings
+  may install a missing language asset from Apple via `AssetInventory`.
+  `SpeechAnalyzer` transcribes and times words on this Mac. LokalBot sends no
+  audio or vocabulary to Apple and uses the timestamps provided by macOS.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.

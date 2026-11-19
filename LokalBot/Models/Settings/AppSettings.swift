@@ -273,6 +273,7 @@ struct AppSettings: Codable, Equatable {
             return engine
         }
         if choice == .funASRNano { return FunASRNanoEngine(directory: funASRNanoModelDirectory) }
+        if choice == .appleSpeech { return AppleSpeechEngine.configured(language: transcriptionLanguage.code) }
         return choice.engine
     }
 

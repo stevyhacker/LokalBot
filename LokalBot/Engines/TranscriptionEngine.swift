@@ -55,6 +55,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case senseVoice = "sense-voice"
     case gigaamRussian = "gigaam-russian"
     case cohere = "cohere-transcribe"
+    case appleSpeech = "apple-speech"
     case remoteServer = "remote-server"
     var id: String { rawValue }
     static let recommended: Self = .qwenASR17B
@@ -67,6 +68,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
 
     /// Runs on a server the user configures; nothing is downloaded.
     var isRemote: Bool { self == .remoteServer }
+
+    /// Built into macOS rather than downloaded into Application Support.
+    var isBuiltInSystem: Bool { self == .appleSpeech }
 
     var displayName: String {
         switch self {
@@ -82,6 +86,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .funASRNano: "Fun-ASR-Nano-2512"
         case .senseVoice: "SenseVoice (Chinese/Japanese/Korean)"
         case .gigaamRussian: "GigaAM (Russian)"
+        case .appleSpeech: "Apple Speech"
         case .remoteServer: "Transcription server"
         }
     }
@@ -110,7 +115,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     /// Engines whose `transcribe(audio:language:prompt:)` uses the prompt.
     var acceptsVocabularyPrompt: Bool {
         switch self {
-        case .whisperLarge, .qwenASR17B, .qwenASR06B, .graniteSpeech5, .remoteServer: true
+        case .whisperLarge, .qwenASR17B, .qwenASR06B, .graniteSpeech5, .appleSpeech, .remoteServer: true
         default: false
         }
     }
@@ -136,6 +141,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .funASRNano: "Chinese · English · Japanese · local ONNX model folder"
         case .senseVoice: "Chinese · Japanese · Korean · Cantonese · English (ONNX, downloaded on first use)"
         case .gigaamRussian: "Russian — high accuracy (ONNX, downloaded on first use)"
+        case .appleSpeech: "Built into macOS 26+ · on-device SpeechAnalyzer, word timestamps, and vocabulary hints"
         case .remoteServer: "OpenAI-style speech-to-text on a server you choose: OpenAI, Groq, OpenRouter, or whisper.cpp on another device. Sends audio to that server."
         }
     }
@@ -154,6 +160,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .funASRNano: FunASRNanoEngine(directory: "")
         case .senseVoice: OnnxTranscriptionEngine.senseVoice
         case .gigaamRussian: OnnxTranscriptionEngine.gigaamRussian
+        case .appleSpeech: AppleSpeechEngine.shared
         // Needs the server settings: `AppSettings.transcriptionEngine(for:)`.
         case .remoteServer: RemoteTranscriptionEngine(
             configuration: .init(baseURL: "", model: "", approvedOrigins: []), apiKey: { "" })
@@ -197,6 +204,7 @@ struct WordTimedTranscript {
 
     var segments: [Segment]
     var engine: String
+    var allowsForcedAlignment: Bool
     /// The language the engine settled on for the whole track while set to
     /// auto-detect, if it did. When the words cannot be attributed and the
     /// track falls back to speaker regions, those decode in this language:
@@ -207,10 +215,11 @@ struct WordTimedTranscript {
     /// `segments`, which may be incomplete.
     var needsSpeakerRegions = false
 
-    init(segments: [Segment], engine: String, trackLanguage: String? = nil) {
+    init(segments: [Segment], engine: String, trackLanguage: String? = nil, allowsForcedAlignment: Bool = true) {
         self.segments = segments
         self.engine = engine
         self.trackLanguage = trackLanguage
+        self.allowsForcedAlignment = allowsForcedAlignment
     }
 
     /// Text without word times, for the forced aligner.

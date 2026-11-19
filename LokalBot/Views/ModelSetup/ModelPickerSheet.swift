@@ -172,7 +172,9 @@ struct ModelPickerSheet: View {
 
     private var needsDownload: Bool {
         if role == .transcription {
-            if transcription == .funASRNano || transcription == .remoteServer { return false }
+            if transcription == .funASRNano || transcription == .remoteServer || transcription.isBuiltInSystem {
+                return false
+            }
             return !TranscriptionModelStore.isDownloaded(transcription, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory)
         }
         return patch.localModelIDs(in: app.settings).contains { id in
@@ -189,8 +191,18 @@ struct ModelPickerSheet: View {
         ModelSettingsPresentation.downloadBlocker(for: entry, downloaded: isDownloaded(entry))
     }
 
+    private var needsAppleSpeechPreparation: Bool {
+        role == .transcription && transcription == .appleSpeech
+            && !roles.downloadedTranscriptionModelIDs.contains(transcription.id)
+    }
+
     private var selectedBlocker: String? {
         if clearsFunASRSelection || editsAutocompleteServer { return nil }
+        if role == .transcription, transcription == .appleSpeech {
+            return AppleSpeechAvailability.current().reason ?? (
+                transcription.isLanguageSelectable(app.settings.transcriptionLanguage)
+                    ? nil : transcription.languageSelectionMessage(for: app.settings.transcriptionLanguage))
+        }
         if role == .transcription, transcription == .funASRNano {
             do { _ = try FunASRNanoModel.load(directory: funASRNanoDirectory) } catch { return error.localizedDescription }
             return nil
@@ -350,7 +362,7 @@ struct ModelPickerSheet: View {
                 }
                 .primaryActionButton()
                 .keyboardShortcut(.defaultAction)
-                .disabled(!canApply || (patch.matches(app.settings) && !needsDownload && !approvesSelectedPlan
+                .disabled(!canApply || (patch.matches(app.settings) && !needsDownload && !needsAppleSpeechPreparation && !approvesSelectedPlan
                                         && !changesRemoteTranscriptionAccess && !changesAutocompleteAccess))
                 .accessibilityIdentifier("models.picker.apply")
             }
@@ -394,14 +406,19 @@ struct ModelPickerSheet: View {
                         .tag("")
                 }
                 if role == .transcription {
+                    let appleAvailable = AppleSpeechAvailability.current().isAvailable
                     ForEach(transcriptionChoices) { choice in
                         let status = roles.transcriptionStatus(for: choice)
                         ModelChoiceRow(
                             title: choice == .graniteSpeech ? granite.displayName : choice.displayName,
                             detail: transcriptionSize(choice),
                             inUse: choice == app.settings.transcriptionModel,
-                            available: TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
-                            progress: status.progress)
+                            available: choice == .appleSpeech ? appleAvailable : TranscriptionModelStore.isDownloaded(
+                                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
+                            progress: status.progress,
+                            blocked: choice == .appleSpeech && !appleAvailable,
+                            builtInSystem: choice.isBuiltInSystem,
+                            unavailableText: "Unavailable")
                         .tag(choice.id)
                     }
                 } else {
@@ -474,6 +491,7 @@ struct ModelPickerSheet: View {
     }
 
     private func transcriptionSize(_ choice: TranscriptionModelChoice) -> String {
+        if choice == .appleSpeech { return app.settings.appLanguage.localized("Built into macOS") }
         if choice == .funASRNano { return app.settings.appLanguage.localized("Local model folder") }
         guard let bytes = ModelSettingsPresentation.estimatedTranscriptionBytes(choice, granite: granite) else {
             return "Download size varies"
@@ -488,6 +506,15 @@ struct ModelPickerSheet: View {
                 .font(.scaled(.body)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if role == .transcription, transcription == .funASRNano { funASRFolderPicker }
+            if role == .transcription, transcription == .appleSpeech, let blocker = selectedBlocker {
+                Label(blocker, systemImage: "exclamationmark.triangle")
+                    .font(.scaled(.callout)).foregroundStyle(.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if needsAppleSpeechPreparation, selectedBlocker == nil {
+                Text("macOS may download a language asset when you use Apple Speech.")
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
+            }
             if let entry = selectedEntry, role != .transcription {
                 let fit = ModelFit.evaluate(modelSizeGB: entry.sizeGB, capability: HardwareCapabilityProbe.current())
                 if let advisory = fit.advisory {
@@ -1021,11 +1048,13 @@ private struct ModelChoiceRow: View {
     let available: Bool
     let progress: Double?
     var blocked = false
+    var builtInSystem = false
+    var unavailableText = "Needs re-adding"
 
     private var status: String {
         if inUse { return "In use" }
-        if available { return "Downloaded" }
-        return blocked ? "Needs re-adding" : "Available"
+        if available { return builtInSystem ? "Available" : "Downloaded" }
+        return blocked ? unavailableText : "Available"
     }
 
     var body: some View {

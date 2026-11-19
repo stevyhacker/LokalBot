@@ -52,9 +52,14 @@ struct ModelDownloadsView: View {
 
     private var transcriptionChoices: [TranscriptionModelChoice] {
         TranscriptionModelChoice.allCases.filter { choice in
-            // A transcription server has no files on this Mac to manage.
-            !choice.isRemote && (roles.downloadedTranscriptionModelIDs.contains(choice.id)
-             || roles.transcriptionPreparations[choice.id] != nil || roles.transcriptionErrors[choice.id] != nil)
+            // A transcription server or built-in macOS speech engine has no files on disk to manage.
+            !choice.isRemote
+                && (!choice.isBuiltInSystem
+                    || roles.transcriptionPreparations[choice.id] != nil
+                    || roles.transcriptionErrors[choice.id] != nil)
+                && (roles.downloadedTranscriptionModelIDs.contains(choice.id)
+                    || roles.transcriptionPreparations[choice.id] != nil
+                    || roles.transcriptionErrors[choice.id] != nil)
                 && matches(choice.displayName)
                 && (!unusedOnly || choice != app.settings.transcriptionModel)
         }
@@ -199,7 +204,7 @@ struct ModelDownloadsView: View {
                 Button("Cancel") { roles.cancelTranscriptionPreparation(choice) }
             } else if status.errorMessage != nil {
                 Button("Retry") { roles.prepareTranscriptionModel(choice) }
-            } else {
+            } else if !choice.isBuiltInSystem {
                 Button("Remove…") { removal = .transcription(choice) }.disabled(setup.pending != nil)
             }
         }

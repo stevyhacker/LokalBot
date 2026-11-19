@@ -311,8 +311,10 @@ struct ModelStackOverviewView: View {
             .reduce(into: Set<String>()) { files, entry in
                 if ModelCatalog.localURL(for: entry, storage: app.storage) != nil { files.insert(entry.fileName) }
             }
-        let speechModels = roles.downloadedTranscriptionModelIDs
-            .filter { TranscriptionModelChoice(rawValue: $0)?.isRemote == false }
+        let speechModels = roles.downloadedTranscriptionModelIDs.filter {
+            guard let choice = TranscriptionModelChoice(rawValue: $0) else { return false }
+            return !choice.isRemote && !choice.isBuiltInSystem
+        }
         return files.count + speechModels.count
     }
 
