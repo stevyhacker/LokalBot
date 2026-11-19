@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000005-1",
+      "schemaVersion": 2,
+      "text": "Empty-state illustrations for Meetings and Ask",
+      "citations": [
+        {
+          "meetingID": "00000005-0000-4000-8000-000000000005",
+          "segmentID": "segment-0001-0000016000-0000034000",
+          "start": 16,
+          "end": 34,
+          "speaker": "them",
+          "excerpt": "I'll deliver empty-state illustrations for Meetings and Ask by Friday."
+        }
+      ],
+      "owner": "Them",
+      "isForUser": false
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}

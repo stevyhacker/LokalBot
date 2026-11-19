@@ -58,6 +58,7 @@ function newSession(agent, id) {
     subagentCalls: 0,
     tools: new Map(),
     models: new Map(),
+    modelTokens: new Map(),
     folders: new Map(),
     tokens: { input: 0, cached: 0, output: 0 },
     commits: new Set(),
@@ -72,6 +73,17 @@ function newSession(agent, id) {
 
 export function bump(map, key, by = 1) {
   map.set(key, (map.get(key) ?? 0) + by);
+}
+
+export function addModelTokens(session, model, { input = 0, cached = 0, cacheWrite = 0, output = 0 }) {
+  if (input === 0 && output === 0) return;
+  const key = typeof model === 'string' && model.length > 0 ? model : '';
+  const bucket = session.modelTokens.get(key) ?? { input: 0, cached: 0, cacheWrite: 0, output: 0 };
+  bucket.input += input;
+  bucket.cached += cached;
+  bucket.cacheWrite += cacheWrite;
+  bucket.output += output;
+  session.modelTokens.set(key, bucket);
 }
 
 export function emptyActions() {

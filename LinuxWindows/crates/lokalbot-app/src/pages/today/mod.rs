@@ -67,9 +67,48 @@ struct TodayModel {
     recaps: HashMap<Uuid, String>,
 }
 
+/// Needs attention as last counted. Counting reads every meeting's outcomes,
+/// so it is kept until the library changes (`AppData::revision`, which every
+/// action edit, phone edit and engine write bumps) or the day turns, which
+/// moves what is overdue.
+#[derive(Clone)]
+struct OpenActions {
+    revision: u64,
+    day: NaiveDate,
+    attention: Vec<ActionThread>,
+    summary: AttentionSummary,
+}
+
+impl OpenActions {
+    /// Still the count for the library at `revision` on `day`.
+    fn holds_for(&self, revision: u64, day: NaiveDate) -> bool {
+        self.revision == revision && self.day == day
+    }
+
+    /// Counts them; nil when the library couldn't be read, so the next
+    /// reload tries again rather than keeping an empty list.
+    fn count(library: &lokalbot_core::Library, revision: u64, day: NaiveDate) -> Option<Self> {
+        // Every open action of the user's, in attention order, so the panel
+        // can say how many there are and how many are overdue.
+        let open = library
+            .needs_attention(None, usize::MAX)
+            .map_err(|err| log::warn!("needs attention: {err:#}"))
+            .ok()?;
+        let summary = AttentionSummary::new(&open, model::ATTENTION_LIMIT, day);
+        let attention = open.into_iter().take(summary.shown).collect();
+        Some(Self {
+            revision,
+            day,
+            attention,
+            summary,
+        })
+    }
+}
+
 pub struct TodayPage {
     data: Entity<AppData>,
     model: Option<TodayModel>,
+    open_actions: Option<OpenActions>,
     load_generation: u64,
     loaded_revision: Option<u64>,
     /// The page's size, for the column decision.
@@ -104,7 +143,8 @@ impl TodayPage {
             data.read(cx).library.paths().root(),
         );
         // Today re-anchors after midnight, moves the now line and picks up
-        // new activity.
+        // new activity. Open actions are counted again only when the library
+        // or the day changed (`OpenActions`).
         let refresh = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -118,6 +158,7 @@ impl TodayPage {
         let mut this = Self {
             data,
             model: None,
+            open_actions: None,
             load_generation: 0,
             loaded_revision: None,
             bounds: Rc::new(Cell::new(None)),
@@ -149,6 +190,11 @@ impl TodayPage {
         let library = data.library.clone();
         let suggest_done = action_row::suggests_completion(&data.settings);
         let day = Local::now().date_naive();
+        let revision = data.revision;
+        let counted = self
+            .open_actions
+            .clone()
+            .filter(|open| open.holds_for(revision, day));
         // Finished recordings of today, for their recap lines.
         let finished: Vec<Meeting> = data
             .meetings
@@ -163,7 +209,7 @@ impl TodayPage {
         self.load_generation += 1;
         let generation = self.load_generation;
         cx.spawn(async move |this, cx| {
-            let model = cx
+            let (model, open_actions) = cx
                 .background_spawn(async move {
                     let activity = library.day_activity(day).unwrap_or_else(|err| {
                         log::warn!("day activity for {day}: {err:#}");
@@ -173,18 +219,12 @@ impl TodayPage {
                         log::warn!("digest for {day}: {err:#}");
                         None
                     });
-                    // Every open action of the user's, in attention order, so
-                    // the panel can say how many there are and how many are
-                    // overdue.
-                    let open = library
-                        .needs_attention(None, usize::MAX)
-                        .unwrap_or_else(|err| {
-                            log::warn!("needs attention: {err:#}");
-                            Vec::new()
-                        });
-                    let summary = AttentionSummary::new(&open, model::ATTENTION_LIMIT, day);
-                    let attention: Vec<ActionThread> =
-                        open.into_iter().take(summary.shown).collect();
+                    let open_actions =
+                        counted.or_else(|| OpenActions::count(&library, revision, day));
+                    let (attention, summary) = open_actions
+                        .as_ref()
+                        .map(|open| (open.attention.clone(), open.summary))
+                        .unwrap_or_default();
                     // Suggestions only, and only from text kept with consent.
                     let hints = if suggest_done {
                         library.action_completion_hints(&attention, Utc::now())
@@ -199,7 +239,7 @@ impl TodayPage {
                             Some((meeting.id, model::recap_line(&summary)?))
                         })
                         .collect();
-                    TodayModel {
+                    let model = TodayModel {
                         day,
                         activity,
                         digest,
@@ -208,12 +248,14 @@ impl TodayPage {
                         hints,
                         brief,
                         recaps,
-                    }
+                    };
+                    (model, open_actions)
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
                 if this.load_generation == generation {
                     this.model = Some(model);
+                    this.open_actions = open_actions;
                     cx.notify();
                 }
             });
@@ -607,6 +649,23 @@ impl Render for TodayPage {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn open_actions_are_counted_again_only_after_a_change_or_midnight() {
+        let day = NaiveDate::from_ymd_opt(2026, 11, 18).unwrap();
+        let counted = OpenActions {
+            revision: 7,
+            day,
+            attention: Vec::new(),
+            summary: AttentionSummary::default(),
+        };
+        // The 30-second refresh: same library, same day.
+        assert!(counted.holds_for(7, day));
+        // An action edit, a phone edit or a finished summary.
+        assert!(!counted.holds_for(8, day));
+        // Midnight moves what is overdue.
+        assert!(!counted.holds_for(7, day.succ_opt().unwrap()));
+    }
 
     #[test]
     fn status_words_follow_the_mac_wording() {

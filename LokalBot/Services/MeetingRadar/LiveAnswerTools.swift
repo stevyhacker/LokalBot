@@ -87,7 +87,10 @@ struct LiveAnswerToolOutput: Sendable {
 /// timeout and their output is capped.
 enum LiveAnswerTools {
     static let outputCharacters = 4_000
-    static let commandTimeout: Duration = .seconds(8)
+    /// Short, because an answer during a call can't wait for a slow command.
+    /// Unit tests get more room: on a loaded CI runner, starting git alone
+    /// took longer than 8 s (Build run 44300644348, 2026-11-18).
+    static let commandTimeout: Duration = UITestRuntime.isUnitTesting ? .seconds(60) : .seconds(8)
 
     // MARK: - Definitions
 

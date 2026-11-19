@@ -588,6 +588,89 @@ final class IndexPersistenceTests: XCTestCase {
         XCTAssertEqual(index.search("harborlight").map(\.meetingID), [meeting.id])
     }
 
+    /// Launch looks at every meeting off the main actor in one sweep; it must
+    /// pick exactly the meetings the per-meeting check embeds.
+    func testLaunchSweepFindsTheMeetingsThePerMeetingCheckWould() async throws {
+        let storage = StorageManager(rootURL: root.appendingPathComponent("sweep-library", isDirectory: true))
+        try FileManager.default.createDirectory(at: storage.rootURL, withIntermediateDirectories: true)
+        let databaseURL = storage.rootURL.appendingPathComponent("lokalbotv3.sqlite")
+        var embeddedTexts: [String] = []
+        let index = EmbeddingIndex(databaseURL: databaseURL, storage: storage, embedder: { texts, _, _ in
+            embeddedTexts += texts
+            return texts.map { _ in [1, 0] }
+        })
+        let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
+        let indexedAt: TimeInterval = 1_700_000_200
+        let older = Date(timeIntervalSince1970: indexedAt - 50)
+
+        func meeting(_ name: String, folder: Bool = true, transcriptAt: TimeInterval = indexedAt,
+                     notes: Bool = false, indexed: Bool = true, notesVectors: Bool = false,
+                     deleted: Bool = false) throws -> Meeting {
+            let meeting = Meeting(
+                id: UUID(), title: name, appName: "Tests",
+                startedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                endedAt: Date(timeIntervalSince1970: 1_700_000_100),
+                relativePath: "meetings/\(name)", hasSystemTrack: false)
+            let id = meeting.id.uuidString
+            if folder {
+                let url = meeting.folderURL(in: storage)
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+                try writeTranscript(text: "\(name) transcript words",
+                                    to: url.appendingPathComponent("transcript.json"),
+                                    modificationDate: Date(timeIntervalSince1970: transcriptAt))
+                if notes {
+                    try MeetingNotes.writeChecked("\(name) notes", to: url)
+                    try FileManager.default.setAttributes(
+                        [.modificationDate: older],
+                        ofItemAtPath: url.appendingPathComponent(MeetingNotes.fileName).path)
+                }
+            }
+            if indexed {
+                XCTAssertTrue(database.run(
+                    "INSERT INTO embedded_meetings (meeting_id, source_mtime, model_id) VALUES (?1, ?2, ?3)",
+                    bind: [id, indexedAt, EmbeddingIndex.indexVersion]))
+            }
+            if notesVectors {
+                XCTAssertTrue(database.run(
+                    "INSERT INTO embeddings (meeting_id, start, text, vec) VALUES (?1, 0, ?2, ?3)",
+                    bind: [id, EmbeddingIndex.notesChunkMarker + "\(name) notes", Data(count: 8)]))
+            }
+            if deleted {
+                XCTAssertTrue(database.run(
+                    "INSERT INTO deleted_meetings (meeting_id, deleted_at) VALUES (?1, ?2)",
+                    bind: [id, indexedAt]))
+            }
+            return meeting
+        }
+
+        let fresh = try meeting("fresh")
+        let freshWithNotes = try meeting("freshnotes", notes: true, notesVectors: true)
+        let changed = try meeting("changed", transcriptAt: indexedAt + 100)
+        let neverIndexed = try meeting("neverindexed", indexed: false)
+        let notesAdded = try meeting("notesadded", notes: true)
+        let notesCleared = try meeting("notescleared", notesVectors: true)
+        let deleted = try meeting("deleted", transcriptAt: indexedAt + 100, deleted: true)
+        let missing = try meeting("missing", folder: false, indexed: false)
+        let meetings = [fresh, freshWithNotes, changed, neverIndexed, notesAdded, notesCleared, deleted, missing]
+        let expected: Set<UUID> = [changed.id, neverIndexed.id, notesAdded.id, notesCleared.id]
+
+        var sources: [EmbeddingIndex.MeetingSource] = []
+        for meeting in meetings {
+            sources.append(EmbeddingIndex.MeetingSource(id: meeting.id, folder: meeting.folderURL(in: storage)))
+        }
+        let readOnly = try XCTUnwrap(SQLiteDatabase(url: databaseURL, readOnly: true))
+        XCTAssertEqual(EmbeddingIndex.meetingIDsNeedingVectors(sources, in: readOnly), expected)
+
+        var totals: [Int] = []
+        await index.reindexAll(meetings) { _, total in totals.append(total) }
+        XCTAssertEqual(totals.first, expected.count)
+        var embeddedNames = Set<String>()
+        for meeting in meetings where embeddedTexts.contains(where: { $0.contains("\(meeting.title) transcript") }) {
+            embeddedNames.insert(meeting.title)
+        }
+        XCTAssertEqual(embeddedNames, ["changed", "neverindexed", "notesadded", "notescleared"])
+    }
+
     private func writeTranscript(text: String, to url: URL,
                                  modificationDate: Date) throws {
         let transcript = Transcript(

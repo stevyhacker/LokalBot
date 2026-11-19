@@ -4,7 +4,7 @@ members = ["crates/*"]
 default-members = ["crates/lokalbot-app", "crates/lokalbot-cli"]
 
 [workspace.package]
-version = "0.13.1"
+version = "0.13.2"
 edition = "2024"
 license = "GPL-3.0-only"
 publish = false
@@ -45,6 +45,7 @@ ureq = { version = "3", default-features = false, features = ["rustls", "json"] 
 sha2 = "0.10"
 hex = "0.4"
 regex = "1"
+memchr = "2"
 unicode-normalization = "0.1"
 tempfile = "3"
 

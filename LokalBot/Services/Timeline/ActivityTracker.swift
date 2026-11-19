@@ -501,16 +501,45 @@ final class ActivityStore {
     func screenshotChecked(id: Int64) throws -> Screenshot? {
         guard id > 0 else { return nil }
         return try requiredDatabase().queryChecked("""
-                SELECT shot.id, shot.ts, shot.path, shot.app, shot.window_title,
-                       shot.capture_trigger, shot.perceptual_hash,
-                       shot.similarity_group, shot.source_url, shot.document_name,
-                       shot.meeting_id, shot.privacy_redactions,
-                       bookmark.snapshot_id IS NOT NULL
-                FROM screenshots AS shot
-                LEFT JOIN screen_bookmarks AS bookmark ON bookmark.snapshot_id = shot.id
+                \(Self.screenshotSelect)
                 WHERE shot.id = ?1 LIMIT 1
                 """, bind: [id], row: Self.screenshot(from:)).first
     }
+
+    /// `screenshot(id:)` for many captures, one query per 400 ids. A capture
+    /// that is gone (retention, a delete) has no entry.
+    func screenshots(ids: [Int64]) -> [Int64: Screenshot] {
+        let wanted = Array(Set(ids.filter { $0 > 0 }))
+        guard !wanted.isEmpty else { return [:] }
+        var found: [Int64: Screenshot] = [:]
+        do {
+            let database = try requiredDatabase()
+            for start in stride(from: 0, to: wanted.count, by: 400) {
+                let chunk = Array(wanted[start..<min(start + 400, wanted.count)])
+                let placeholders = (1...chunk.count).map { "?\($0)" }.joined(separator: ", ")
+                let bindings: [Any] = chunk
+                let rows = try database.queryChecked("""
+                    \(Self.screenshotSelect)
+                    WHERE shot.id IN (\(placeholders))
+                    """, bind: bindings, row: Self.screenshot(from:))
+                for shot in rows { found[shot.id] = shot }
+            }
+        } catch {
+            lokalbotLog("screenshot lookup failed for \(wanted.count) ids: \(error.localizedDescription)")
+        }
+        return found
+    }
+
+    /// The columns `screenshot(from:)` reads.
+    private static let screenshotSelect = """
+        SELECT shot.id, shot.ts, shot.path, shot.app, shot.window_title,
+               shot.capture_trigger, shot.perceptual_hash,
+               shot.similarity_group, shot.source_url, shot.document_name,
+               shot.meeting_id, shot.privacy_redactions,
+               bookmark.snapshot_id IS NOT NULL
+        FROM screenshots AS shot
+        LEFT JOIN screen_bookmarks AS bookmark ON bookmark.snapshot_id = shot.id
+        """
 
     /// FTS search over screen text (and window titles). `matchAll: false`
     /// relaxes a natural-language query to OR'd content keywords — same
