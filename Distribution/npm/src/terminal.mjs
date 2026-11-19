@@ -68,6 +68,9 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
     }
     out.push('');
   }
+  if (stats.topModels?.length > 0) {
+    out.push(`  Top models: ${stats.topModels.slice(0, 5).map((model) => `${model.name} ${compact(model.total)}`).join(', ')}`);
+  }
   if (stats.projects.length > 0) {
     out.push(`  Most hours: ${stats.projects.slice(0, 3).map((project) => `${project.name} ${hours(project.agentMs)} h`).join(', ')}`);
   }

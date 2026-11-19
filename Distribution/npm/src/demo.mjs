@@ -64,7 +64,10 @@ function addSession(collector, { agent, id, start, minutes, project, random }) {
   session.tokens.input = steps * (60000 + Math.floor(random() * 90000));
   session.tokens.cached = Math.floor(session.tokens.input * 0.9);
   session.tokens.output = steps * (500 + Math.floor(random() * 900));
-  const model = agent === 'codex' ? 'gpt-6-astra' : 'claude-fable-5';
+  const modelRoll = random();
+  const model = agent === 'codex'
+    ? (modelRoll < 0.78 ? 'gpt-6-astra' : 'gpt-5.4-mini')
+    : (modelRoll < 0.68 ? 'claude-fable-5' : (modelRoll < 0.90 ? 'claude-sonnet-5' : 'claude-haiku-5'));
   session.models.set(model, session.prompts);
   addModelTokens(session, model, {
     input: session.tokens.input,

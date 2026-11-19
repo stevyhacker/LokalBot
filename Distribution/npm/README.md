@@ -10,7 +10,7 @@ npx lokalbot
 
 <sub>A made-up year, from `npx lokalbot --demo`.</sub>
 
-It prints a card in your terminal and opens a local, offline page in your browser where you can switch between **Portrait (4:5)** and **Wide (16:9)** layouts, toggle options, copy or save a 2× PNG, or copy a post caption. Pass `--no-share` for terminal output only. (`npx lokalbot wrapped` also works.)
+It prints a card in your terminal and opens a local, offline page in your browser where you can switch between **Portrait (4:5)** and **Wide (16:9)** layouts, toggle **Dark / Light** mode and options, copy or save a 2× PNG, or copy a post caption. Pass `--no-share` for terminal output only. (`npx lokalbot wrapped` also works.)
 
 ## What it reads
 
@@ -55,6 +55,7 @@ Codex keeps its logs.
 --share             Write the shareable image page and open it in your browser (default in a TTY).
 --no-share          Print the terminal card only, without opening the image page.
 --wide              Open the shareable card in 16:9 wide layout (for X / LinkedIn).
+--light             Open the shareable card in light mode.
 --out <file>        Where the share page is written. Default: your temporary folder.
 --no-open           Write the share page without opening your browser.
 --projects          Name your three busiest projects on the image.

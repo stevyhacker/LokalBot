@@ -60,7 +60,22 @@ test('the image leaves project names out unless asked', () => {
   const wide = renderCard(result, { layout: 'wide' });
   assert.ok(wide.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"'));
   assert.ok(wide.includes('npx lokalbot'));
+  assert.ok(wide.includes('>Mon</text>'));
+  assert.ok(wide.includes('>Less</text>'));
+  assert.ok(wide.includes('>More</text>'));
   assert.equal((wide.match(/<text /g) ?? []).length, (wide.match(/<\/text>/g) ?? []).length);
+
+  const wideLight = renderCard(result, { layout: 'wide', theme: 'light' });
+  assert.ok(wideLight.includes('fill="#f4f7f7"'));
+  assert.ok(wideLight.includes('fill="#0b1219"'));
+  assert.ok(wideLight.includes('TOP MODELS'));
+  assert.ok(wideLight.includes('claude-fable-5'));
+  assert.equal((wideLight.match(/<text /g) ?? []).length, (wideLight.match(/<\/text>/g) ?? []).length);
+
+  const portraitLight = renderCard(result, { layout: 'portrait', theme: 'light' });
+  assert.ok(portraitLight.includes('fill="#f4f7f7"'));
+  assert.ok(portraitLight.includes('TOP MODELS'));
+  assert.equal((portraitLight.match(/<text /g) ?? []).length, (portraitLight.match(/<\/text>/g) ?? []).length);
 });
 
 test('names that look like markup are written as text', () => {

@@ -5,21 +5,52 @@
 const CARD_HOUR = 60 * 60 * 1000;
 const CARD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
-const CARD_INK = {
-  ground: '#080d14',
-  well: '#0c141d',
-  border: '#172330',
-  text: '#ecf3f7',
-  dim: '#a2b4c2',
-  faint: '#8ba2b0',
-  teal: '#23c4ae',
-  amber: '#fbbf24',
-  slate: '#4f6b80',
+const CARD_THEMES = {
+  dark: {
+    ground: '#070c12',
+    surface: '#0c141e',
+    surfaceHi: '#0e1d24',
+    well: '#0b131d',
+    border: '#182534',
+    borderHi: '#1f4a4f',
+    text: '#ecf3f7',
+    dim: '#9fb3c2',
+    faint: '#72889a',
+    teal: '#23c4ae',
+    tealBright: '#5eead4',
+    amber: '#fbbf24',
+    slate: '#476176',
+    cellEmpty: '#131f2c',
+    cellEarlier: '#2e4559',
+    ramp: ['#0e3c44', '#14696a', '#1da290', '#38e3ca'],
+    cellPeak: '#fbbf24',
+    barTrack: '#13202e',
+  },
+  light: {
+    ground: '#f4f7f7',
+    surface: '#ffffff',
+    surfaceHi: '#e7f6f3',
+    well: '#ffffff',
+    border: '#d5e0e2',
+    borderHi: '#7ccbc0',
+    text: '#0b1219',
+    dim: '#3b4b56',
+    faint: '#5f7280',
+    teal: '#0b7a6e',
+    tealBright: '#075f55',
+    amber: '#c76805',
+    slate: '#8ba2b2',
+    cellEmpty: '#e7efef',
+    cellEarlier: '#c2d2db',
+    ramp: ['#ace8de', '#5ac8b7', '#169888', '#08685e'],
+    cellPeak: '#d97706',
+    barTrack: '#e6eeee',
+  },
 };
 
-const CARD_SERIF = `'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', Georgia, serif`;
+const CARD_SANS = `-apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Inter', 'Segoe UI', system-ui, sans-serif`;
 const CARD_MONO = `ui-monospace, 'SF Mono', SFMono-Regular, Menlo, 'Cascadia Mono', Consolas, 'DejaVu Sans Mono', monospace`;
-const CARD_SERIF_EM = 0.5;
+const CARD_SANS_EM = 0.52;
 const CARD_MONO_EM = 0.602;
 
 export function cardDimensions(layout) {
@@ -51,9 +82,11 @@ export function canZoomWindow(stats) {
 
 export function renderCardSvg(data, options = {}) {
   const layout = options.layout === 'wide' ? 'wide' : 'portrait';
+  const theme = options.theme === 'light' ? 'light' : 'dark';
+  const resolved = { ...options, theme };
   return layout === 'wide'
-    ? renderWideCard(data, options)
-    : renderPortraitCard(data, options);
+    ? renderWideCard(data, resolved)
+    : renderPortraitCard(data, resolved);
 }
 
 function resolveRange(data, windowOption) {
@@ -68,10 +101,10 @@ function resolveRange(data, windowOption) {
   if (first === -1 || span > 90) {
     return { start: 0, end: totalDays - 1, zoomed: false };
   }
-  let start = Math.max(0, first - 1);
-  let end = Math.min(totalDays - 1, last + 1);
-  // Keep at least 14 columns so very short windows stay balanced.
-  while (end - start + 1 < Math.min(14, totalDays)) {
+  let start = Math.max(0, first - 3);
+  let end = Math.min(totalDays - 1, last + 3);
+  // Keep at least 6 weeks so zoomed GitHub grids stay visually balanced.
+  while (end - start + 1 < Math.min(42, totalDays)) {
     if (start > 0) start -= 1;
     else if (end < totalDays - 1) end += 1;
     else break;
@@ -79,54 +112,606 @@ function resolveRange(data, windowOption) {
   return { start, end, zoomed: start > 0 || end < totalDays - 1 };
 }
 
-function renderPortraitCard(data, { showProjects = false, showApiValue = true, window: windowOption = 'auto' } = {}) {
+function buildKpiTiles(stats, { showApiValue = true } = {}) {
+  const { totals } = stats;
+  const tiles = [];
+
+  const hrs = cardHours(totals.agentMs);
+  const daysText = cardPlural(totals.activeDays, 'day');
+  const parallelText = (totals.parallelMultiplier ?? 1) >= 1.2
+    ? `${daysText} · ${cardMultiplier(totals.parallelMultiplier)} parallel`
+    : `${daysText} active`;
+  tiles.push({
+    label: 'AGENT WORK',
+    value: `${hrs} h`,
+    sub: parallelText,
+    highlight: true,
+  });
+
+  if (showApiValue && (totals.estimatedApiUsd ?? 0) >= 10) {
+    const tokenSub = totals.tokens.total > 0
+      ? `${cardCompact(totals.tokens.input)} read · ${cardCompact(totals.tokens.output)} written`
+      : 'At public list rates';
+    tiles.push({
+      label: 'EST. API VALUE',
+      value: `~${cardCurrency(totals.estimatedApiUsd)}`,
+      sub: tokenSub,
+    });
+  } else if (totals.tokens.total > 0) {
+    tiles.push({
+      label: 'TOKENS READ',
+      value: cardCompact(totals.tokens.input),
+      sub: `${cardCompact(totals.tokens.output)} written`,
+    });
+  } else {
+    tiles.push({
+      label: 'SESSIONS',
+      value: cardNumber(totals.sessions),
+      sub: stats.longestRun ? `Longest ${cardDuration(stats.longestRun.ms)}` : 'Logged locally',
+    });
+  }
+
+  const toolDisplay = totals.toolCalls >= 100000 ? cardCompact(totals.toolCalls) : cardNumber(totals.toolCalls);
+  tiles.push({
+    label: 'TOOL CALLS',
+    value: toolDisplay,
+    sub: `${cardNumber(totals.requests)} ${totals.requests === 1 ? 'request' : 'requests'}`,
+  });
+
+  if (totals.commits > 0 && totals.pullRequestsMerged > 0) {
+    tiles.push({
+      label: 'COMMITS',
+      value: cardNumber(totals.commits),
+      sub: `${cardNumber(totals.pullRequestsMerged)} merged ${totals.pullRequestsMerged === 1 ? 'PR' : 'PRs'}`,
+    });
+  } else if (totals.commits > 0) {
+    tiles.push({
+      label: 'COMMITS',
+      value: cardNumber(totals.commits),
+      sub: `${cardNumber(totals.filesChanged)} ${totals.filesChanged === 1 ? 'file' : 'files'} changed`,
+    });
+  } else {
+    tiles.push({
+      label: 'SESSIONS',
+      value: cardNumber(totals.sessions),
+      sub: stats.longestRun ? `Longest run ${cardDuration(stats.longestRun.ms)}` : 'On this computer',
+    });
+  }
+
+  return tiles;
+}
+
+function drawKpiTile(x, y, w, h, tile, pal, { valueSize = 44, labelSize = 13, subSize = 16 } = {}) {
+  const parts = [];
+  const fill = tile.highlight ? pal.surfaceHi : pal.surface;
+  const stroke = tile.highlight ? pal.borderHi : pal.border;
+  const valFill = tile.highlight ? pal.tealBright : pal.text;
+  const padX = 24;
+  const maxW = w - padX * 2;
+
+  parts.push(`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="14" fill="${fill}" stroke="${stroke}" stroke-width="1.5"/>`);
+  parts.push(svgText(x + padX, y + 32, tile.label, {
+    family: 'mono',
+    size: labelSize,
+    fill: tile.highlight ? pal.teal : pal.faint,
+    weight: 700,
+    spacing: 1.2,
+  }));
+
+  const fittedVal = svgFit(tile.value, valueSize, maxW, 0.58);
+  parts.push(svgText(x + padX, y + Math.round(h * 0.62), tile.value, {
+    family: 'sans',
+    size: fittedVal,
+    fill: valFill,
+    weight: 800,
+    spacing: -1.1,
+  }));
+
+  const fittedSub = svgFit(tile.sub, subSize, maxW, CARD_SANS_EM);
+  parts.push(svgText(x + padX, y + h - 20, tile.sub, {
+    family: 'sans',
+    size: fittedSub,
+    fill: pal.dim,
+    weight: 500,
+  }));
+
+  return parts;
+}
+
+function drawBadge(x, y, text, pal, { size = 15, padX = 16, height = 34 } = {}) {
+  const spacing = 1.1;
+  const estW = Math.round(text.length * (size * CARD_MONO_EM + spacing) + padX * 2);
+  const radius = Math.round(height / 2);
+  return [
+    `<rect x="${x}" y="${y}" width="${estW}" height="${height}" rx="${radius}" ry="${radius}" fill="${pal.surfaceHi}" stroke="${pal.borderHi}" stroke-width="1.2"/>`,
+    svgText(x + Math.round(estW / 2), y + Math.round(height * 0.66), text, {
+      family: 'mono',
+      size,
+      fill: pal.tealBright,
+      weight: 700,
+      spacing,
+      anchor: 'middle',
+    }),
+  ];
+}
+
+function dailyActivity(data) {
+  const byDay = data.stats?.byDay;
+  if (Array.isArray(byDay) && byDay.length === data.days) return byDay;
+  const totals = new Float64Array(data.days);
+  const { grid } = data;
+  for (let day = 0; day < data.days; day += 1) {
+    let sum = 0;
+    for (let hour = 0; hour < 24; hour += 1) sum += grid[day * 24 + hour] ?? 0;
+    totals[day] = sum;
+  }
+  return totals;
+}
+
+/** GitHub-profile-style 7-row weekly calendar heatmap with rounded squares and legend. */
+function drawContributionGraph(data, range, pal, { x, y, width, height, compact = false } = {}) {
+  const { stats, months, earlierDays } = data;
+  const busiest = stats.busiestDay;
+  const byDay = dailyActivity(data);
+  const parts = [];
+
+  // Container card
+  parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${pal.well}" stroke="${pal.border}" stroke-width="1.4"/>`);
+
+  const padX = compact ? 22 : 28;
+  const padTop = compact ? 26 : 30;
+  const labelW = compact ? 38 : 44;
+  const gridX = x + padX + labelW;
+  const maxGridW = width - padX * 2 - labelW;
+
+  const jan1Dow = new Date(Date.UTC(data.year, 0, 1)).getUTCDay(); // 0=Sun..6=Sat
+  const startWeek = Math.floor((jan1Dow + range.start) / 7);
+  const endWeek = Math.floor((jan1Dow + range.end) / 7);
+  const weeks = Math.max(1, endWeek - startWeek + 1);
+
+  // Compute crisp rounded-square sizing (capped so zoomed ranges don't turn giant)
+  const rawStep = maxGridW / weeks;
+  const maxStepByH = (height - padTop - (compact ? 74 : 84)) / 7;
+  const maxStep = Math.min(compact ? 24 : 28, maxStepByH);
+  const step = Math.min(rawStep, maxStep);
+  const gap = Math.max(2.5, Math.min(4.8, step * 0.20));
+  const cell = Math.max(6, step - gap);
+  const radius = Math.max(2, Math.min(4.5, cell * 0.22));
+  const actualGridW = weeks * step - gap;
+  const offsetX = gridX + (weeks < 30 ? Math.round((maxGridW - actualGridW) / 2) : 0);
+  const gridY = y + padTop + 22;
+
+  // Robust 88th-percentile intensity scale so normal heavy days shine cleanly
+  const nonZero = [];
+  for (let day = range.start; day <= range.end; day += 1) {
+    if (byDay[day] > 0) nonZero.push(byDay[day]);
+  }
+  nonZero.sort((a, b) => a - b);
+  const p88 = nonZero.length > 0 ? nonZero[Math.min(nonZero.length - 1, Math.floor(nonZero.length * 0.88))] : 4 * CARD_HOUR;
+  const scaleRef = Math.max(1.5 * CARD_HOUR, p88);
+
+  const levelFor = (ms) => {
+    const ratio = ms / scaleRef;
+    if (ratio <= 0.22) return 0;
+    if (ratio <= 0.50) return 1;
+    if (ratio <= 0.82) return 2;
+    return 3;
+  };
+
+  // Month labels cleanly across the top (GitHub style)
+  let lastMonth = -1;
+  let lastMonthX = -1000;
+  for (let day = range.start; day <= range.end; day += 1) {
+    const m = months[day];
+    if (m === lastMonth) continue;
+    lastMonth = m;
+    const wk = Math.floor((jan1Dow + day) / 7) - startWeek;
+    const mx = svgRound(offsetX + wk * step);
+    if (mx - lastMonthX < (compact ? 42 : 52)) continue;
+    lastMonthX = mx;
+    parts.push(svgText(mx, gridY - 12, CARD_MONTHS[m], {
+      family: 'mono',
+      size: compact ? 13 : 14,
+      fill: pal.faint,
+      weight: 500,
+    }));
+  }
+
+  // Weekday labels on the left (Mon / Wed / Fri)
+  for (const [dow, name] of [[1, 'Mon'], [3, 'Wed'], [5, 'Fri']]) {
+    const ly = svgRound(gridY + dow * step + cell * 0.76);
+    parts.push(svgText(offsetX - 12, ly, name, {
+      family: 'mono',
+      size: compact ? 12 : 13,
+      fill: pal.faint,
+      anchor: 'end',
+      weight: 500,
+    }));
+  }
+
+  // Draw cells (rounded squares, exact GitHub look)
+  const cellR = svgRound(radius);
+  const cellS = svgRound(cell);
+  for (let day = range.start; day <= range.end; day += 1) {
+    const wk = Math.floor((jan1Dow + day) / 7) - startWeek;
+    const dow = (jan1Dow + day) % 7;
+    const cx = svgRound(offsetX + wk * step);
+    const cy = svgRound(gridY + dow * step);
+    const ms = byDay[day] ?? 0;
+    const isPeak = busiest && busiest.day === day && ms > 0;
+    let fill = pal.cellEmpty;
+    if (isPeak) {
+      fill = pal.cellPeak;
+    } else if (ms > 0) {
+      fill = pal.ramp[levelFor(ms)];
+    } else if (!range.zoomed && earlierDays && earlierDays[day] > 0) {
+      fill = pal.cellEarlier;
+    }
+    parts.push(`<rect x="${cx}" y="${cy}" width="${cellS}" height="${cellS}" rx="${cellR}" fill="${fill}"/>`);
+  }
+
+  // Subtle amber marker triangle above the peak week column
+  if (busiest && busiest.day >= range.start && busiest.day <= range.end) {
+    const peakWk = Math.floor((jan1Dow + busiest.day) / 7) - startWeek;
+    const centre = svgRound(offsetX + peakWk * step + cell / 2);
+    const ty = gridY - 26;
+    parts.push(`<path d="M${centre - 5} ${ty}h10l-5 7z" fill="${pal.amber}"/>`);
+  }
+
+  // Bottom bar inside well: Peak callout (left) + Less [][][][][] More legend (right)
+  const footerY = y + height - (compact ? 20 : 22);
+  const legSize = compact ? 12 : 14;
+  const legGap = 4;
+  const legSwatches = [pal.cellEmpty, ...pal.ramp];
+  const legSwatchesW = legSwatches.length * legSize + (legSwatches.length - 1) * legGap;
+  const moreLabelX = x + width - padX;
+  const swatchesEndX = moreLabelX - (compact ? 42 : 46);
+  const swatchesStartX = swatchesEndX - legSwatchesW;
+
+  parts.push(svgText(swatchesStartX - 10, footerY, 'Less', {
+    family: 'mono',
+    size: compact ? 12 : 13,
+    fill: pal.faint,
+    anchor: 'end',
+    weight: 500,
+  }));
+  legSwatches.forEach((fill, idx) => {
+    const sx = swatchesStartX + idx * (legSize + legGap);
+    parts.push(`<rect x="${sx}" y="${footerY - legSize + 2}" width="${legSize}" height="${legSize}" rx="3" fill="${fill}"/>`);
+  });
+  parts.push(svgText(moreLabelX, footerY, 'More', {
+    family: 'mono',
+    size: compact ? 12 : 13,
+    fill: pal.faint,
+    anchor: 'end',
+    weight: 500,
+  }));
+
+  if (busiest) {
+    const peakMaxW = Math.max(200, swatchesStartX - 58 - (x + padX));
+    const peakText = compact
+      ? `Peak · ${cardDayLabel(busiest.date)} — ${cardHours(busiest.agentMs)}h (${cardPlural(busiest.sessions, 'session')})`
+      : `Peak · ${cardDayLabel(busiest.date)} — ${cardHours(busiest.agentMs)} agent hours across ${cardPlural(busiest.sessions, 'session')}`;
+    parts.push(`<circle cx="${x + padX + 6}" cy="${footerY - 5}" r="5" fill="${pal.cellPeak}"/>`);
+    parts.push(svgText(x + padX + 20, footerY, peakText, {
+      family: 'mono',
+      size: svgFit(peakText, compact ? 14 : 16, peakMaxW, CARD_MONO_EM),
+      fill: pal.amber,
+      weight: 600,
+    }));
+  }
+
+  return parts;
+}
+
+/** Compact 24-hour rhythm bar chart (used on Portrait 4:5 below the GitHub calendar). */
+function drawDailyRhythm(data, pal, { x, y, width, height }) {
+  const { grid } = data;
+  const byHour = new Float64Array(24);
+  for (let day = 0; day < data.days; day += 1) {
+    for (let hour = 0; hour < 24; hour += 1) {
+      byHour[hour] += grid[day * 24 + hour] ?? 0;
+    }
+  }
+  let peakHour = 0;
+  let maxMs = 0;
+  for (let h = 0; h < 24; h += 1) {
+    if (byHour[h] > maxMs) {
+      maxMs = byHour[h];
+      peakHour = h;
+    }
+  }
+
+  const parts = [];
+  parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.4"/>`);
+
+  const padX = 24;
+  parts.push(svgText(x + padX, y + 32, 'DAILY RHYTHM', {
+    family: 'mono',
+    size: 13,
+    fill: pal.faint,
+    weight: 700,
+    spacing: 1.2,
+  }));
+  if (maxMs > 0) {
+    const peakLabel = `Most active around ${formatHourLabel(peakHour)}–${formatHourLabel((peakHour + 2) % 24)}`;
+    parts.push(svgText(x + width - padX, y + 32, peakLabel, {
+      family: 'mono',
+      size: 14,
+      fill: pal.dim,
+      anchor: 'end',
+      weight: 600,
+    }));
+  }
+
+  const barAreaX = x + padX;
+  const barAreaW = width - padX * 2;
+  const barTop = y + 52;
+  const barMaxH = height - 92;
+  const slot = barAreaW / 24;
+  const barW = svgRound(Math.max(8, slot - 8));
+
+  for (let h = 0; h < 24; h += 1) {
+    const ratio = maxMs > 0 ? byHour[h] / maxMs : 0;
+    const bx = svgRound(barAreaX + h * slot + (slot - barW) / 2);
+    // Subtle full-height track
+    parts.push(`<rect x="${bx}" y="${barTop}" width="${barW}" height="${barMaxH}" rx="4" fill="${pal.barTrack}"/>`);
+    if (ratio > 0) {
+      const bh = svgRound(Math.max(5, ratio * barMaxH));
+      const by = svgRound(barTop + barMaxH - bh);
+      const fill = ratio >= 0.85 ? pal.ramp[3] : (ratio >= 0.55 ? pal.ramp[2] : (ratio >= 0.25 ? pal.ramp[1] : pal.ramp[0]));
+      parts.push(`<rect x="${bx}" y="${by}" width="${barW}" height="${bh}" rx="4" fill="${fill}"/>`);
+    }
+  }
+
+  for (const [h, lbl] of [[0, '12a'], [6, '6a'], [12, '12p'], [18, '6p'], [23, '11p']]) {
+    const lx = svgRound(barAreaX + h * slot + slot / 2);
+    parts.push(svgText(lx, y + height - 16, lbl, {
+      family: 'mono',
+      size: 13,
+      fill: pal.faint,
+      anchor: 'middle',
+      weight: 500,
+    }));
+  }
+  return parts;
+}
+
+function formatHourLabel(hour) {
+  const h = ((hour % 24) + 24) % 24;
+  if (h === 0) return '12a';
+  if (h < 12) return `${h}a`;
+  if (h === 12) return '12p';
+  return `${h - 12}p`;
+}
+
+/** Ranked Top 5 Models card with proportional token bars (Portrait 4:5). */
+function drawTopModelsPortrait(models, pal, { x, y, width, height }) {
+  const list = models.slice(0, 5);
+  const maxTokens = Math.max(1, list[0]?.total ?? 1);
+  const parts = [];
+  const padX = 24;
+
+  parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.4"/>`);
+  parts.push(svgText(x + padX, y + 32, 'TOP MODELS', {
+    family: 'mono',
+    size: 13,
+    fill: pal.faint,
+    weight: 700,
+    spacing: 1.2,
+  }));
+  parts.push(svgText(x + width - padX, y + 32, 'TOKENS', {
+    family: 'mono',
+    size: 13,
+    fill: pal.faint,
+    anchor: 'end',
+    weight: 700,
+    spacing: 1.2,
+  }));
+
+  const startY = y + 66;
+  const rowStep = list.length <= 4 ? 40 : 35;
+  const nameX = x + padX + 34;
+  const nameMaxW = 360;
+  const barX = x + padX + 412;
+  const valueW = 108;
+  const barW = Math.max(120, width - padX * 2 - 412 - valueW);
+
+  list.forEach((model, idx) => {
+    const ry = startY + idx * rowStep;
+    const isTop = idx === 0;
+    const share = model.total / maxTokens;
+    const fillW = svgRound(Math.max(8, share * barW));
+    const barFill = isTop ? pal.teal : (idx === 1 ? pal.ramp[2] : pal.slate);
+
+    parts.push(svgText(x + padX, ry, `${idx + 1}`, {
+      family: 'mono',
+      size: 15,
+      fill: isTop ? pal.teal : pal.faint,
+      weight: 700,
+    }));
+    const label = truncateText(model.name, 28);
+    parts.push(svgText(nameX, ry, label, {
+      family: 'mono',
+      size: svgFit(label, 17, nameMaxW, CARD_MONO_EM),
+      fill: isTop ? pal.text : pal.dim,
+      weight: isTop ? 700 : 600,
+    }));
+    parts.push(`<rect x="${barX}" y="${ry - 10}" width="${barW}" height="10" rx="5" fill="${pal.barTrack}"/>`);
+    parts.push(`<rect x="${barX}" y="${ry - 10}" width="${fillW}" height="10" rx="5" fill="${barFill}"/>`);
+    parts.push(svgText(x + width - padX, ry, cardCompact(model.total), {
+      family: 'mono',
+      size: 17,
+      fill: isTop ? pal.tealBright : pal.text,
+      anchor: 'end',
+      weight: 700,
+    }));
+  });
+
+  return parts;
+}
+
+/** Compact horizontal Top 5 Models strip (Wide 16:9). */
+function drawTopModelsWide(models, pal, { x, y, width, height }) {
+  const list = models.slice(0, 5);
+  const maxTokens = Math.max(1, list[0]?.total ?? 1);
+  const parts = [];
+  const padX = 22;
+
+  parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.4"/>`);
+  parts.push(svgText(x + padX, y + 26, 'TOP MODELS', {
+    family: 'mono',
+    size: 12,
+    fill: pal.faint,
+    weight: 700,
+    spacing: 1.2,
+  }));
+  parts.push(svgText(x + width - padX, y + 26, 'TOTAL TOKENS', {
+    family: 'mono',
+    size: 12,
+    fill: pal.faint,
+    anchor: 'end',
+    weight: 700,
+    spacing: 1.2,
+  }));
+
+  const gap = 14;
+  const innerW = width - padX * 2;
+  const cols = list.length;
+  const colW = Math.floor((innerW - gap * (cols - 1)) / cols);
+  const slotY = y + 38;
+  const slotH = height - 50;
+
+  list.forEach((model, idx) => {
+    const cx = x + padX + idx * (colW + gap);
+    const isTop = idx === 0;
+    const share = model.total / maxTokens;
+    const slotFill = isTop ? pal.surfaceHi : pal.ground;
+    const slotStroke = isTop ? pal.borderHi : pal.border;
+    const barFill = isTop ? pal.teal : (idx === 1 ? pal.ramp[2] : pal.slate);
+
+    parts.push(`<rect x="${cx}" y="${slotY}" width="${colW}" height="${slotH}" rx="10" fill="${slotFill}" stroke="${slotStroke}" stroke-width="1.1"/>`);
+
+    const label = truncateText(model.name, cols >= 5 ? 21 : 28);
+    const labelText = `#${idx + 1} ${label}`;
+    parts.push(svgText(cx + 14, slotY + 25, labelText, {
+      family: 'mono',
+      size: svgFit(labelText, 14, colW - 28, CARD_MONO_EM),
+      fill: isTop ? pal.tealBright : pal.dim,
+      weight: isTop ? 700 : 600,
+    }));
+
+    parts.push(svgText(cx + 14, slotY + 53, cardCompact(model.total), {
+      family: 'sans',
+      size: 23,
+      fill: pal.text,
+      weight: 800,
+      spacing: -0.5,
+    }));
+
+    const barMaxW = colW - 28;
+    const barW = svgRound(Math.max(8, share * barMaxW));
+    parts.push(`<rect x="${cx + 14}" y="${slotY + slotH - 12}" width="${barMaxW}" height="5" rx="2.5" fill="${pal.barTrack}"/>`);
+    parts.push(`<rect x="${cx + 14}" y="${slotY + slotH - 12}" width="${barW}" height="5" rx="2.5" fill="${barFill}"/>`);
+  });
+
+  return parts;
+}
+
+function truncateText(text, maxChars) {
+  if (text.length <= maxChars) return text;
+  return `${text.slice(0, maxChars - 1)}…`;
+}
+
+function renderPortraitCard(data, { showProjects = false, showApiValue = true, window: windowOption = 'auto', theme = 'dark' } = {}) {
+  const pal = CARD_THEMES[theme] ?? CARD_THEMES.dark;
   const { stats } = data;
   const WIDTH = 1200;
   const HEIGHT = 1500;
-  const MARGIN = 80;
+  const MARGIN = 72;
   const inner = WIDTH - 2 * MARGIN;
   const range = resolveRange(data, windowOption);
   const parts = [];
 
-  parts.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="${CARD_INK.ground}"/>`);
+  parts.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="${pal.ground}"/>`);
 
   // Header
-  parts.push(svgText(MARGIN, 112, `Agent Wrapped ${stats.year}`, { family: 'mono', size: 26, fill: CARD_INK.text, weight: 600 }));
-  const agents = stats.agents.map((agent) => agent.name).join(' and ');
-  if (agents) parts.push(svgText(WIDTH - MARGIN, 112, agents, { family: 'mono', size: 22, fill: CARD_INK.faint, anchor: 'end' }));
+  parts.push(...drawBadge(MARGIN, 60, `AGENT WRAPPED ${stats.year}`, pal, { size: 15, padX: 16, height: 36 }));
+  const agents = stats.agents.map((agent) => agent.name).join(' · ');
+  if (agents) parts.push(svgText(WIDTH - MARGIN, 84, agents, { family: 'mono', size: 18, fill: pal.faint, anchor: 'end', weight: 600 }));
 
   // Persona
-  const titleSize = svgFit(stats.persona.title, 128, inner, CARD_SERIF_EM);
-  parts.push(svgText(MARGIN - 4, 278, stats.persona.title, { family: 'serif', size: titleSize, fill: CARD_INK.text, spacing: -1.5 }));
-  const lineSize = svgFit(stats.persona.line, 36, inner, CARD_SERIF_EM * 0.94);
-  parts.push(svgText(MARGIN, 340, stats.persona.line, { family: 'serif', size: lineSize, fill: CARD_INK.dim, italic: true }));
+  const titleSize = svgFit(stats.persona.title, 96, inner, 0.54);
+  parts.push(svgText(MARGIN - 2, 204, stats.persona.title, {
+    family: 'sans',
+    size: titleSize,
+    fill: pal.text,
+    weight: 800,
+    spacing: -2.2,
+  }));
+  const lineSize = svgFit(stats.persona.line, 25, inner, CARD_SANS_EM);
+  parts.push(svgText(MARGIN, 252, stats.persona.line, { family: 'sans', size: lineSize, fill: pal.dim, weight: 500 }));
 
-  // Heatmap
-  const chart = { x: 172, y: 416, width: WIDTH - MARGIN - 172, row: 15 };
-  parts.push(...drawHeatmap(data, range, chart));
+  // 2x2 KPI Grid
+  const tiles = buildKpiTiles(stats, { showApiValue });
+  const gap = 20;
+  const tileW = Math.floor((inner - gap) / 2);
+  const tileH = 144;
+  const gridY = 290;
+  tiles.forEach((tile, idx) => {
+    const col = idx % 2;
+    const row = Math.floor(idx / 2);
+    parts.push(...drawKpiTile(MARGIN + col * (tileW + gap), gridY + row * (tileH + gap), tileW, tileH, tile, pal, {
+      valueSize: 50,
+      labelSize: 14,
+      subSize: 17,
+    }));
+  });
 
-  if (stats.busiestDay) {
-    const caption = `${cardDayLabel(stats.busiestDay.date)} was the busiest day: ${cardHours(stats.busiestDay.agentMs)} agent hours across ${cardPlural(stats.busiestDay.sessions, 'session')}.`;
-    parts.push(svgText(MARGIN, 868, caption, { family: 'serif', size: svgFit(caption, 30, inner, CARD_SERIF_EM), fill: CARD_INK.amber }));
-  }
+  // GitHub-style Contribution Graph
+  const graphY = 610;
+  const graphH = 252;
+  parts.push(...drawContributionGraph(data, range, pal, {
+    x: MARGIN,
+    y: graphY,
+    width: inner,
+    height: graphH,
+    compact: true,
+  }));
 
+  // Coverage / zoom footnote (kept directly under calendar when relevant)
   const earlier = stats.coverage?.earlier;
+  let nextY = graphY + graphH + 20;
   if (range.zoomed) {
     const spanLabel = `${cardDayLabel(dayDate(data.year, range.start))} – ${cardDayLabel(dayDate(data.year, range.end))}`;
     const note = earlier
       ? `Zoomed to ${spanLabel} logs · plus ${cardPlural(earlier.days, 'earlier day')} counted by Claude Code.`
       : `Zoomed to active window (${spanLabel}).`;
-    parts.push(svgText(MARGIN, 908, note, { family: 'serif', size: svgFit(note, 22, inner, CARD_SERIF_EM * 0.94), fill: CARD_INK.faint, italic: true }));
+    parts.push(svgText(MARGIN, nextY + 12, note, { family: 'sans', size: svgFit(note, 17, inner, CARD_SANS_EM), fill: pal.faint }));
+    nextY += 34;
   } else if (earlier) {
     const note = `The marks under the year are ${cardPlural(earlier.days, 'earlier day')}: Claude Code deleted the logs and kept a count.`;
-    parts.push(svgText(MARGIN, 908, note, { family: 'serif', size: svgFit(note, 22, inner, CARD_SERIF_EM * 0.94), fill: CARD_INK.faint, italic: true }));
+    parts.push(svgText(MARGIN, nextY + 12, note, { family: 'sans', size: svgFit(note, 17, inner, CARD_SANS_EM), fill: pal.faint }));
+    nextY += 34;
   }
 
-  // Fact lines
-  let baseline = 968;
-  for (const line of cardFactLines(stats, { showApiValue })) {
-    parts.push(svgFactLine(MARGIN, baseline, line, inner, 40));
-    baseline += 68;
+  // Top 5 Models card (or compact Daily Rhythm when no model token data is present)
+  const topModels = stats.topModels ?? [];
+  const middleH = topModels.length > 0 ? 232 : 186;
+  if (topModels.length > 0) {
+    parts.push(...drawTopModelsPortrait(topModels, pal, {
+      x: MARGIN,
+      y: nextY + 4,
+      width: inner,
+      height: middleH,
+    }));
+  } else {
+    parts.push(...drawDailyRhythm(data, pal, {
+      x: MARGIN,
+      y: nextY + 4,
+      width: inner,
+      height: middleH,
+    }));
   }
 
   // Agent split bar
@@ -134,262 +719,140 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
   if (timed.length > 1 && stats.totals.agentMs > 0) {
     const share = timed[0].agentMs / stats.totals.agentMs;
     const split = Math.round(inner * share);
-    parts.push(`<rect x="${MARGIN}" y="1262" width="${Math.max(4, split - 3)}" height="12" rx="2" fill="${CARD_INK.teal}"/>`);
-    parts.push(`<rect x="${MARGIN + split + 3}" y="1262" width="${Math.max(4, inner - split - 3)}" height="12" rx="2" fill="${CARD_INK.slate}"/>`);
-    parts.push(svgText(MARGIN, 1310, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: 22, fill: CARD_INK.dim }));
+    const barY = Math.min(nextY + middleH + 38, 1252);
+    parts.push(`<rect x="${MARGIN}" y="${barY}" width="${Math.max(6, split - 4)}" height="12" rx="6" fill="${pal.teal}"/>`);
+    parts.push(`<rect x="${MARGIN + split + 4}" y="${barY}" width="${Math.max(6, inner - split - 4)}" height="12" rx="6" fill="${pal.slate}"/>`);
+    parts.push(svgText(MARGIN, barY + 38, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: 18, fill: pal.text, weight: 600 }));
     const rest = timed.slice(1).map((agent) => `${agent.name} ${cardPercent(agent.agentMs / stats.totals.agentMs)}`).join(', ');
-    parts.push(svgText(WIDTH - MARGIN, 1310, rest, { family: 'mono', size: 22, fill: CARD_INK.dim, anchor: 'end' }));
+    parts.push(svgText(WIDTH - MARGIN, barY + 38, rest, { family: 'mono', size: 18, fill: pal.dim, anchor: 'end', weight: 600 }));
   }
 
   if (showProjects && stats.projects.length > 0) {
     const names = stats.projects.slice(0, 3).map((project) => project.name);
     const listed = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
     const sentence = `Most hours went to ${listed}.`;
-    parts.push(svgText(MARGIN, 1362, sentence, { family: 'serif', size: svgFit(sentence, 28, inner, CARD_SERIF_EM), fill: CARD_INK.dim }));
+    parts.push(svgText(MARGIN, 1348, sentence, { family: 'sans', size: svgFit(sentence, 21, inner, CARD_SANS_EM), fill: pal.dim, weight: 500 }));
   }
 
   // Footer
-  parts.push(`<line x1="${MARGIN}" y1="1386" x2="${WIDTH - MARGIN}" y2="1386" stroke="${CARD_INK.border}" stroke-width="1"/>`);
-  parts.push(svgText(MARGIN, 1428, 'npx lokalbot', { family: 'mono', size: 26, fill: CARD_INK.text, weight: 600 }));
-  parts.push(svgText(WIDTH - MARGIN, 1428, 'lokalbot.com', { family: 'mono', size: 24, fill: CARD_INK.teal, anchor: 'end', weight: 600 }));
-  parts.push(svgText(MARGIN, 1464, 'Counted from the session logs on this computer. Nothing was uploaded.', { family: 'serif', size: 21, fill: CARD_INK.faint, italic: true }));
+  parts.push(`<line x1="${MARGIN}" y1="1384" x2="${WIDTH - MARGIN}" y2="1384" stroke="${pal.border}" stroke-width="1"/>`);
+  parts.push(`<rect x="${MARGIN}" y="1408" width="194" height="44" rx="10" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.2"/>`);
+  parts.push(svgText(MARGIN + 20, 1437, 'npx lokalbot', { family: 'mono', size: 21, fill: pal.text, weight: 700 }));
+  parts.push(svgText(WIDTH - MARGIN, 1437, 'lokalbot.com', { family: 'mono', size: 22, fill: pal.tealBright, anchor: 'end', weight: 700 }));
+  parts.push(svgText(MARGIN, 1478, 'Counted locally from session logs. Nothing was uploaded.', { family: 'sans', size: 17, fill: pal.faint }));
 
   return wrapSvg(WIDTH, HEIGHT, stats, showApiValue, parts);
 }
 
-function renderWideCard(data, { showProjects = false, showApiValue = true, window: windowOption = 'auto' } = {}) {
+function renderWideCard(data, { showProjects = false, showApiValue = true, window: windowOption = 'auto', theme = 'dark' } = {}) {
+  const pal = CARD_THEMES[theme] ?? CARD_THEMES.dark;
   const { stats } = data;
   const WIDTH = 1600;
   const HEIGHT = 900;
   const MARGIN = 64;
-  const LEFT_W = 628;
-  const RIGHT_X = 752;
-  const CHART_X = RIGHT_X + 76;
-  const CHART_W = WIDTH - MARGIN - CHART_X;
+  const inner = WIDTH - 2 * MARGIN;
   const range = resolveRange(data, windowOption);
   const parts = [];
 
-  parts.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="${CARD_INK.ground}"/>`);
+  parts.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="${pal.ground}"/>`);
 
   // Header
-  parts.push(svgText(MARGIN, 70, `Agent Wrapped ${stats.year}`, { family: 'mono', size: 22, fill: CARD_INK.text, weight: 600 }));
-  const agents = stats.agents.map((agent) => agent.name).join(' and ');
-  if (agents) parts.push(svgText(WIDTH - MARGIN, 70, agents, { family: 'mono', size: 20, fill: CARD_INK.faint, anchor: 'end' }));
-  parts.push(`<line x1="${MARGIN}" y1="92" x2="${WIDTH - MARGIN}" y2="92" stroke="${CARD_INK.border}" stroke-width="1"/>`);
+  parts.push(...drawBadge(MARGIN, 30, `AGENT WRAPPED ${stats.year}`, pal, { size: 14, padX: 15, height: 32 }));
+  const agents = stats.agents.map((agent) => agent.name).join(' · ');
+  if (agents) parts.push(svgText(WIDTH - MARGIN, 52, agents, { family: 'mono', size: 17, fill: pal.faint, anchor: 'end', weight: 600 }));
+  parts.push(`<line x1="${MARGIN}" y1="78" x2="${WIDTH - MARGIN}" y2="78" stroke="${pal.border}" stroke-width="1"/>`);
 
-  // Left column: Persona
-  const titleLines = wrapWords(stats.persona.title, 18, 2);
-  const longestTitle = titleLines.reduce((best, line) => (line.length > best.length ? line : best), '');
-  const titleSize = svgFit(longestTitle, titleLines.length > 1 ? 74 : 86, LEFT_W, CARD_SERIF_EM);
-  let cursorY = 186;
-  for (let idx = 0; idx < titleLines.length; idx += 1) {
-    parts.push(svgText(MARGIN - 2, cursorY, titleLines[idx], { family: 'serif', size: titleSize, fill: CARD_INK.text, spacing: -1.2 }));
-    if (idx < titleLines.length - 1) cursorY += Math.round(titleSize * 1.04);
-  }
+  // Top Hero Row: Persona (left) + Agent split bar (right)
+  const titleMaxW = 920;
+  const titleSize = svgFit(stats.persona.title, 62, titleMaxW, 0.54);
+  parts.push(svgText(MARGIN - 2, 150, stats.persona.title, {
+    family: 'sans',
+    size: titleSize,
+    fill: pal.text,
+    weight: 800,
+    spacing: -2.0,
+  }));
+  const subText = showProjects && stats.projects.length > 0
+    ? `${stats.persona.line}  Most hours: ${stats.projects.slice(0, 3).map((p) => p.name).join(', ')}.`
+    : stats.persona.line;
+  parts.push(svgText(MARGIN, 186, subText, {
+    family: 'sans',
+    size: svgFit(subText, 20, titleMaxW, CARD_SANS_EM),
+    fill: pal.dim,
+    weight: 500,
+  }));
 
-  cursorY += 46;
-  const subLines = wrapWords(stats.persona.line, 44, 2);
-  for (const line of subLines) {
-    parts.push(svgText(MARGIN, cursorY, line, { family: 'serif', size: svgFit(line, 25, LEFT_W, CARD_SERIF_EM * 0.94), fill: CARD_INK.dim, italic: true }));
-    cursorY += 34;
-  }
-
-  // Left column: Facts
-  let factY = Math.max(cursorY + 34, 344);
-  for (const line of cardFactLines(stats, { showApiValue })) {
-    parts.push(svgFactLine(MARGIN, factY, line, LEFT_W, 29));
-    factY += 54;
-  }
-
-  // Left column: Agent split
   const timed = stats.agents.filter((agent) => agent.agentMs > 0);
   if (timed.length > 1 && stats.totals.agentMs > 0) {
-    const barY = Math.min(Math.max(factY + 18, 636), 690);
+    const barW = 440;
+    const barX = WIDTH - MARGIN - barW;
+    const barY = 136;
     const share = timed[0].agentMs / stats.totals.agentMs;
-    const split = Math.round(LEFT_W * share);
-    parts.push(`<rect x="${MARGIN}" y="${barY}" width="${Math.max(4, split - 3)}" height="11" rx="2" fill="${CARD_INK.teal}"/>`);
-    parts.push(`<rect x="${MARGIN + split + 3}" y="${barY}" width="${Math.max(4, LEFT_W - split - 3)}" height="11" rx="2" fill="${CARD_INK.slate}"/>`);
-    parts.push(svgText(MARGIN, barY + 40, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: 19, fill: CARD_INK.dim }));
+    const split = Math.round(barW * share);
+    parts.push(`<rect x="${barX}" y="${barY}" width="${Math.max(6, split - 4)}" height="12" rx="6" fill="${pal.teal}"/>`);
+    parts.push(`<rect x="${barX + split + 4}" y="${barY}" width="${Math.max(6, barW - split - 4)}" height="12" rx="6" fill="${pal.slate}"/>`);
+    parts.push(svgText(barX, barY + 36, `${timed[0].name} ${cardPercent(share)}`, { family: 'mono', size: 16, fill: pal.text, weight: 600 }));
     const rest = timed.slice(1).map((agent) => `${agent.name} ${cardPercent(agent.agentMs / stats.totals.agentMs)}`).join(', ');
-    parts.push(svgText(MARGIN + LEFT_W, barY + 40, rest, { family: 'mono', size: 19, fill: CARD_INK.dim, anchor: 'end' }));
-    factY = barY + 58;
+    parts.push(svgText(barX + barW, barY + 36, rest, { family: 'mono', size: 16, fill: pal.dim, anchor: 'end', weight: 600 }));
   }
 
-  if (showProjects && stats.projects.length > 0) {
-    const names = stats.projects.slice(0, 3).map((project) => project.name);
-    const listed = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
-    const sentence = `Most hours: ${listed}.`;
-    parts.push(svgText(MARGIN, Math.min(factY + 26, 766), sentence, { family: 'serif', size: svgFit(sentence, 22, LEFT_W, CARD_SERIF_EM), fill: CARD_INK.dim }));
-  }
+  // 4-Column KPI Tile Row (full-width band)
+  const tiles = buildKpiTiles(stats, { showApiValue });
+  const gap = 20;
+  const tileW = Math.floor((inner - gap * (tiles.length - 1)) / tiles.length);
+  const tileH = 122;
+  const gridY = 212;
+  tiles.forEach((tile, idx) => {
+    parts.push(...drawKpiTile(MARGIN + idx * (tileW + gap), gridY, tileW, tileH, tile, pal, {
+      valueSize: 42,
+      labelSize: 13,
+      subSize: 15,
+    }));
+  });
 
-  // Right column: Heatmap
-  const chart = { x: CHART_X, y: 146, width: CHART_W, row: 21 };
-  parts.push(...drawHeatmap(data, range, chart));
+  // Hero Full-Width GitHub Contribution Graph + Top 5 Models strip
+  const topModels = stats.topModels ?? [];
+  const graphY = 352;
+  const graphH = topModels.length > 0 ? 276 : 408;
+  parts.push(...drawContributionGraph(data, range, pal, {
+    x: MARGIN,
+    y: graphY,
+    width: inner,
+    height: graphH,
+    compact: topModels.length > 0,
+  }));
 
-  const captionY = chart.y + 24 * chart.row + 74;
-  if (stats.busiestDay) {
-    const caption = `${cardDayLabel(stats.busiestDay.date)}: ${cardHours(stats.busiestDay.agentMs)} agent hours across ${cardPlural(stats.busiestDay.sessions, 'session')}.`;
-    parts.push(svgText(CHART_X, captionY, caption, { family: 'serif', size: svgFit(caption, 24, CHART_W, CARD_SERIF_EM), fill: CARD_INK.amber }));
-  }
-
-  const earlier = stats.coverage?.earlier;
-  if (range.zoomed) {
-    const spanLabel = `${cardDayLabel(dayDate(data.year, range.start))} – ${cardDayLabel(dayDate(data.year, range.end))}`;
-    const note = earlier
-      ? `Zoomed to ${spanLabel} · plus ${cardPlural(earlier.days, 'earlier day')} from Claude summary.`
-      : `Zoomed to active window (${spanLabel}).`;
-    parts.push(svgText(CHART_X, captionY + 34, note, { family: 'serif', size: svgFit(note, 19, CHART_W, CARD_SERIF_EM * 0.94), fill: CARD_INK.faint, italic: true }));
-  } else if (earlier) {
-    const note = `Bottom ticks: ${cardPlural(earlier.days, 'earlier day')} from Claude summary.`;
-    parts.push(svgText(CHART_X, captionY + 34, note, { family: 'serif', size: svgFit(note, 19, CHART_W, CARD_SERIF_EM * 0.94), fill: CARD_INK.faint, italic: true }));
+  if (topModels.length > 0) {
+    parts.push(...drawTopModelsWide(topModels, pal, {
+      x: MARGIN,
+      y: 644,
+      width: inner,
+      height: 132,
+    }));
   }
 
   // Footer
-  parts.push(`<line x1="${MARGIN}" y1="802" x2="${WIDTH - MARGIN}" y2="802" stroke="${CARD_INK.border}" stroke-width="1"/>`);
-  parts.push(svgText(MARGIN, 846, 'npx lokalbot', { family: 'mono', size: 24, fill: CARD_INK.text, weight: 600 }));
-  parts.push(svgText(MARGIN + 206, 846, 'Counted locally from session logs. Nothing was uploaded.', { family: 'serif', size: 21, fill: CARD_INK.faint, italic: true }));
-  parts.push(svgText(WIDTH - MARGIN, 846, 'lokalbot.com', { family: 'mono', size: 24, fill: CARD_INK.teal, anchor: 'end', weight: 600 }));
+  parts.push(`<line x1="${MARGIN}" y1="798" x2="${WIDTH - MARGIN}" y2="798" stroke="${pal.border}" stroke-width="1"/>`);
+  parts.push(`<rect x="${MARGIN}" y="820" width="184" height="44" rx="10" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.2"/>`);
+  parts.push(svgText(MARGIN + 19, 848, 'npx lokalbot', { family: 'mono', size: 20, fill: pal.text, weight: 700 }));
+  parts.push(svgText(MARGIN + 208, 848, 'Counted locally from session logs. Nothing was uploaded.', { family: 'sans', size: 18, fill: pal.faint, weight: 500 }));
+  parts.push(svgText(WIDTH - MARGIN, 848, 'lokalbot.com', { family: 'mono', size: 21, fill: pal.tealBright, anchor: 'end', weight: 700 }));
 
   return wrapSvg(WIDTH, HEIGHT, stats, showApiValue, parts);
 }
 
-function drawHeatmap(data, range, { x, y, width, row }) {
-  const { stats, grid, months, earlierDays } = data;
-  const busiest = stats.busiestDay;
-  const parts = [];
-  const count = Math.max(1, range.end - range.start + 1);
-  const column = width / count;
-  const height = row * 24;
-  parts.push(`<rect x="${x - 6}" y="${y - 6}" width="${width + 12}" height="${height + 12}" rx="6" fill="${CARD_INK.well}"/>`);
-
-  // Earlier-days summary strip under full-year view.
-  if (!range.zoomed && earlierDays) {
-    let most = 0;
-    for (let day = range.start; day <= range.end; day += 1) {
-      if (earlierDays[day] > most) most = earlierDays[day];
-    }
-    if (most > 0) {
-      const marks = ['', '', ''];
-      for (let day = range.start; day <= range.end; day += 1) {
-        if (earlierDays[day] <= 0) continue;
-        const level = Math.min(2, Math.floor(Math.sqrt(earlierDays[day] / most) * 3));
-        const offset = day - range.start;
-        marks[level] += `M${svgRound(x + offset * column)} ${y + height + 10}h${svgRound(column + 0.35)}v7h-${svgRound(column + 0.35)}z`;
-      }
-      ['#2c4152', CARD_INK.slate, '#7f9db3'].forEach((fill, level) => {
-        if (marks[level]) parts.push(`<path d="${marks[level]}" fill="${fill}"/>`);
-      });
-    }
-  }
-
-  // Hour labels
-  const hourLabels = [[0, '12 am'], [6, '6 am'], [12, '12 pm'], [18, '6 pm']];
-  for (const [hour, label] of hourLabels) {
-    parts.push(svgText(x - 18, y + hour * row + Math.round(row * 0.78), label, { family: 'mono', size: 17, fill: CARD_INK.faint, anchor: 'end' }));
-  }
-
-  // X-axis labels: months in full-year mode, evenly spaced dates in zoomed mode.
-  if (range.zoomed) {
-    const ticks = Math.min(6, count);
-    const step = ticks > 1 ? (count - 1) / (ticks - 1) : 1;
-    let lastX = -1000;
-    for (let idx = 0; idx < ticks; idx += 1) {
-      const offset = Math.round(idx * step);
-      const day = range.start + offset;
-      const px = svgRound(x + offset * column);
-      if (px - lastX < 84) continue;
-      lastX = px;
-      const anchor = idx === ticks - 1 && px > x + width - 64 ? 'end' : undefined;
-      const labelX = anchor === 'end' ? x + width : px;
-      parts.push(svgText(labelX, y + height + 36, cardDayLabel(dayDate(data.year, day)), { family: 'mono', size: 17, fill: CARD_INK.faint, anchor }));
-    }
-  } else {
-    let month = -1;
-    for (let day = range.start; day <= range.end; day += 1) {
-      if (months[day] === month) continue;
-      month = months[day];
-      parts.push(svgText(svgRound(x + (day - range.start) * column), y + height + 36, CARD_MONTHS[month], { family: 'mono', size: 17, fill: CARD_INK.faint }));
-    }
-  }
-
-  // Cells grouped by colour into paths.
-  const gap = column > 6 ? 1.5 : -0.35;
-  const cellW = svgRound(Math.max(1.5, column - gap));
-  const paths = new Map();
-  for (let day = range.start; day <= range.end; day += 1) {
-    const left = svgRound(x + (day - range.start) * column);
-    for (let hour = 0; hour < 24; hour += 1) {
-      const ms = grid[day * 24 + hour];
-      if (!ms || ms <= 0) continue;
-      const fill = busiest && busiest.day === day ? amberColor(ms) : tealColor(ms);
-      paths.set(fill, `${paths.get(fill) ?? ''}M${left} ${y + hour * row}h${cellW}v${row - 1}h-${cellW}z`);
-    }
-  }
-  for (const [fill, d] of paths) parts.push(`<path d="${d}" fill="${fill}"/>`);
-
-  if (busiest && busiest.day >= range.start && busiest.day <= range.end) {
-    const centre = svgRound(x + (busiest.day - range.start + 0.5) * column);
-    parts.push(`<path d="M${centre - 7} ${y - 22}h14l-7 11z" fill="${CARD_INK.amber}"/>`);
-  }
-  return parts;
-}
-
-function tealColor(ms) {
-  const level = Math.min(1, ms / CARD_HOUR);
-  const step = Math.max(1, Math.ceil(Math.sqrt(level) * 6));
-  const ramp = ['#113a43', '#145058', '#18706c', '#1d9486', '#23c4ae', '#6ef2dc'];
-  if (ms > 1.5 * CARD_HOUR) return '#c9fff5';
-  return ramp[step - 1];
-}
-
-function amberColor(ms) {
-  const level = Math.min(1, ms / CARD_HOUR);
-  const ramp = ['#6b4a12', '#a8771a', '#e0a41f', '#fbbf24'];
-  return ramp[Math.max(1, Math.ceil(Math.sqrt(level) * 4)) - 1];
-}
-
-function svgFactLine(x, y, pieces, maxWidth, maxSize) {
-  let size = maxSize;
-  const width = () => pieces.reduce((sum, [value, figure]) => sum + value.length * size * (figure ? 0.9 * CARD_MONO_EM : CARD_SERIF_EM), 0);
-  while (size > 20 && width() > maxWidth) size -= 1;
-  const spans = pieces.map(([value, figure]) => (figure
-    ? `<tspan class="mono" font-size="${Math.round(size * 0.9)}" font-weight="600" fill="${CARD_INK.text}">${svgEscape(value)}</tspan>`
-    : `<tspan fill="${CARD_INK.dim}">${svgEscape(value)}</tspan>`));
-  return `<text x="${x}" y="${y}" class="serif" font-size="${size}" xml:space="preserve">${spans.join('')}</text>`;
-}
-
 function svgText(x, y, value, { family, size, fill, weight, anchor, italic, spacing } = {}) {
   const attributes = [`x="${x}"`, `y="${y}"`, `class="${family}"`, `font-size="${size}"`, `fill="${fill}"`];
+  if (spacing !== undefined) attributes.push(`letter-spacing="${spacing}"`);
   if (weight) attributes.push(`font-weight="${weight}"`);
   if (anchor) attributes.push(`text-anchor="${anchor}"`);
   if (italic) attributes.push('font-style="italic"');
-  if (spacing) attributes.push(`letter-spacing="${spacing}"`);
   return `<text ${attributes.join(' ')}>${svgEscape(value)}</text>`;
 }
 
 function svgFit(value, size, maxWidth, em) {
   const natural = value.length * size * em;
-  return natural <= maxWidth ? size : Math.max(16, Math.floor(maxWidth / Math.max(1, value.length * em)));
-}
-
-function wrapWords(text, maxChars, maxLines) {
-  if (text.length <= maxChars || maxLines <= 1) return [text];
-  const words = text.split(/\s+/);
-  const lines = [];
-  let current = '';
-  for (const word of words) {
-    const candidate = current ? `${current} ${word}` : word;
-    if (candidate.length <= maxChars || !current) {
-      current = candidate;
-    } else if (lines.length + 1 < maxLines) {
-      lines.push(current);
-      current = word;
-    } else {
-      current = candidate;
-    }
-  }
-  if (current) lines.push(current);
-  return lines;
+  return natural <= maxWidth ? size : Math.max(13, Math.floor(maxWidth / Math.max(1, value.length * em)));
 }
 
 function svgRound(value) {
@@ -409,7 +872,7 @@ function wrapSvg(width, height, stats, showApiValue, parts) {
   const alt = `Agent Wrapped ${stats.year}. ${stats.persona.title}: ${stats.persona.line} ${facts}.`;
   return [
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="${svgEscape(alt)}">`,
-    `<style>.serif{font-family:${CARD_SERIF}}.mono{font-family:${CARD_MONO}}</style>`,
+    `<style>.sans{font-family:${CARD_SANS}}.mono{font-family:${CARD_MONO}}</style>`,
     ...parts,
     '</svg>',
   ].join('\n');

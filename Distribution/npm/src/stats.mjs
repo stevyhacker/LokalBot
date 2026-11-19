@@ -45,6 +45,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
   const runs = [];
   const projects = new Map();
   const tools = new Map();
+  const modelTotals = new Map();
   const agents = new Map(Object.keys(AGENTS).map((id) => [id, newAgent(id)]));
   const totals = {
     sessions: 0, requests: 0, requestWords: 0, slashCommands: 0, scheduledRuns: 0, replies: 0,
@@ -76,6 +77,17 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     totals.testRuns += session.testRuns;
     for (const [name, count] of session.tools) tools.set(name, (tools.get(name) ?? 0) + count);
     for (const [model, count] of session.models) agent.models.set(model, (agent.models.get(model) ?? 0) + count);
+    for (const [rawModel, bucket] of session.modelTokens) {
+      const name = normalizeModelName(rawModel);
+      if (!name) continue;
+      const total = (bucket.input ?? 0) + (bucket.output ?? 0);
+      if (total <= 0) continue;
+      const agg = modelTotals.get(name) ?? { name, input: 0, output: 0, total: 0 };
+      agg.input += bucket.input ?? 0;
+      agg.output += bucket.output ?? 0;
+      agg.total += total;
+      modelTotals.set(name, agg);
+    }
     if (session.hidden) continue;
 
     totals.subagents += Math.max(session.subagentFiles, session.subagentCalls);
@@ -161,6 +173,10 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     .map(([name, ms]) => ({ name, agentMs: Math.round(ms) }))
     .sort((a, b) => b.agentMs - a.agentMs);
 
+  const topModels = [...modelTotals.values()]
+    .sort((a, b) => b.total - a.total || a.name.localeCompare(b.name))
+    .slice(0, 5);
+
   const stats = {
     schema: 1,
     year,
@@ -183,6 +199,7 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     byMonth: byMonth.map(Math.round),
     byDay: byDay.map(Math.round),
     topTools: top(tools, 5),
+    topModels,
     projects: projectList.slice(0, 5),
     projectCount: projectList.length,
     sources: {
@@ -198,6 +215,14 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
 
 function newAgent(id) {
   return { id, sessions: 0, requests: 0, toolCalls: 0, agentMs: 0, estimatedApiUsd: 0, tokens: { input: 0, cached: 0, output: 0 }, models: new Map() };
+}
+
+function normalizeModelName(raw) {
+  if (typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed || trimmed === '<synthetic>') return '';
+  // Collapse dated snapshot suffixes like `-20250929` so one model doesn't split across rows.
+  return trimmed.replace(/-20\d{6}$/, '');
 }
 
 /**
