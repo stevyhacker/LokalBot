@@ -4672,6 +4672,7 @@ dependencies = [
  "unicode-normalization",
  "ureq 3.5.2",
  "uuid",
+ "winresource",
 ]
 
 [[package]]
