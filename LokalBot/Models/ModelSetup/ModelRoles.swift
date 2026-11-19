@@ -259,9 +259,7 @@ final class ModelRoles: ObservableObject {
         let generation = diskGeneration, configuration = settings(), root = storage.rootURL
         diskState = .init()
         diskTask = Task { @MainActor [weak self] in
-            let loaded = await Task.detached(priority: .utility) {
-                ModelReadinessSnapshot.DiskState.load(settings: configuration, root: root)
-            }.value
+            let loaded = await ModelReadinessSnapshot.DiskState.load(settings: configuration, root: root)
             guard let self, !Task.isCancelled, generation == self.diskGeneration else { return }
             self.diskState = loaded
             self.revision &+= 1
@@ -424,7 +422,9 @@ final class ModelRoles: ObservableObject {
         if let error = preparationErrors[key] {
             throw ModelDownloadManager.PreparationError.failed(error)
         }
-        guard downloadedTranscriptionModels(configuration).contains(choice.id) else {
+        // Apple Speech preparation already verified the selected locale using
+        // AssetInventory. The disk snapshot is refreshed after activation.
+        guard choice == .appleSpeech || downloadedTranscriptionModels(configuration).contains(choice.id) else {
             throw ModelDownloadManager.PreparationError.failed(
                 "The transcription model is not available yet. Retry its download.")
         }

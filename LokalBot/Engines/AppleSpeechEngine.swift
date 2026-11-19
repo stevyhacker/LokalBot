@@ -8,6 +8,7 @@ import Speech
 
 enum AppleSpeechError: LocalizedError, Equatable, Sendable {
     case unavailable(String)
+    case assetNotInstalled(String)
     case assetDownloadRefusedInUnitTests(String)
     case assetInstallationFailed(String)
 
@@ -15,6 +16,8 @@ enum AppleSpeechError: LocalizedError, Equatable, Sendable {
         switch self {
         case .unavailable(let reason):
             return reason
+        case .assetNotInstalled(let locale):
+            return "Apple Speech (\(locale)) needs a language asset. Prepare Apple Speech in Settings → Models."
         case .assetDownloadRefusedInUnitTests(let locale):
             return "Unit tests never download Apple Speech (\(locale))."
         case .assetInstallationFailed(let message):
@@ -67,6 +70,7 @@ actor AppleSpeechEngine: TranscriptionEngine {
             _ resolution: AppleSpeechLocaleResolver.Resolution,
             _ progress: (@Sendable (Double?, String) -> Void)?
         ) async throws -> Void
+        var isAssetInstalled: @Sendable (AppleSpeechLocaleResolver.Resolution) async -> Bool = { _ in true }
         var analyze: @Sendable (
             _ audio: URL,
             _ resolution: AppleSpeechLocaleResolver.Resolution,
@@ -103,6 +107,14 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     #endif
                     throw AppleSpeechError.unavailable(AppleSpeechAvailability.unsupportedMessage)
                 },
+                isAssetInstalled: { resolution in
+                    #if canImport(Speech)
+                    if #available(macOS 26.0, *) {
+                        return await AssetInventory.status(forModules: [module(for: resolution)]) == .installed
+                    }
+                    #endif
+                    return false
+                },
                 analyze: { audio, resolution, contextualStrings in
                     #if canImport(Speech)
                     if #available(macOS 26.0, *) {
@@ -132,6 +144,13 @@ actor AppleSpeechEngine: TranscriptionEngine {
         self.backend = backend
     }
 
+    func isAssetInstalled(language: String?) async -> Bool {
+        guard backend.availabilityError() == nil, let resolution = try? await backend.resolve(language) else {
+            return false
+        }
+        return await backend.isAssetInstalled(resolution)
+    }
+
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
         try await prepare(language: nil, progress: progress)
     }
@@ -148,6 +167,9 @@ actor AppleSpeechEngine: TranscriptionEngine {
         try Task.checkCancellation()
         try await backend.ensureAsset(resolution) { fraction, status in
             Self.report(.init(fractionCompleted: fraction, status: status), to: progress)
+        }
+        guard await backend.isAssetInstalled(resolution) else {
+            throw AppleSpeechError.assetNotInstalled(resolution.localeIdentifier)
         }
         try Task.checkCancellation()
         Self.report(.init(fractionCompleted: 1.0, status: "Ready"), to: progress)
@@ -174,7 +196,9 @@ actor AppleSpeechEngine: TranscriptionEngine {
 
         let resolution = try await backend.resolve(language)
         try Task.checkCancellation()
-        try await backend.ensureAsset(resolution, nil)
+        guard await backend.isAssetInstalled(resolution) else {
+            throw AppleSpeechError.assetNotInstalled(resolution.localeIdentifier)
+        }
         try Task.checkCancellation()
 
         let contextualStrings = AppleSpeechVocabulary.contextualStrings(from: prompt)
@@ -191,7 +215,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
         return WordTimedTranscript(
             segments: segments,
             engine: Self.engineLabel(for: resolution),
-            trackLanguage: resolution.languageCode)
+            trackLanguage: resolution.languageCode,
+            allowsForcedAlignment: false)
     }
 
     nonisolated static func engineLabel(for resolution: AppleSpeechLocaleResolver.Resolution) -> String {
@@ -214,13 +239,14 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     }
                     continue
                 }
-                guard let range = run.audioTimeRange else { continue }
-                let start = range.start.seconds
+                // Keep the full result span when some recognized words have no usable time.
+                guard let range = run.audioTimeRange, range.start.seconds.isFinite else { return [] }
+                let start = max(0, range.start.seconds)
                 let end = range.end.seconds
-                guard start.isFinite, end.isFinite, end > start else { continue }
+                guard end.isFinite, end > start else { return [] }
                 words.append(AlignedWordTiming(
                     text: token,
-                    start: max(0, start),
+                    start: start,
                     end: end))
             }
         }
@@ -242,8 +268,9 @@ actor AppleSpeechEngine: TranscriptionEngine {
                 let core = word.text.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
                 return !core.isEmpty && word.start.isFinite && word.end.isFinite && word.end > word.start
             }
-            guard !validWords.isEmpty else {
-                guard utterance.start.isFinite, utterance.end.isFinite, utterance.end > utterance.start else {
+            guard !validWords.isEmpty, validWords.count == utterance.words.count,
+                  let allStarts = AttributedTrackTranscriber.wordStarts(validWords.map(\.text), in: normalized) else {
+                guard utterance.start.isFinite, utterance.end.isFinite, utterance.end > max(0, utterance.start) else {
                     continue
                 }
                 result.append(WordTimedTranscript.Segment(
@@ -257,10 +284,6 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     words: nil))
                 continue
             }
-
-            let allStarts = AttributedTrackTranscriber.wordStarts(
-                validWords.map(\.text),
-                in: normalized)
 
             var chunkStartIndex = 0
             while chunkStartIndex < validWords.count {
@@ -276,12 +299,9 @@ actor AppleSpeechEngine: TranscriptionEngine {
                 }
 
                 let chunkWords = Array(validWords[chunkStartIndex..<chunkEndIndex])
-                let text = chunkText(
-                    original: normalized,
-                    allStarts: allStarts,
-                    chunkRange: chunkStartIndex..<chunkEndIndex,
-                    totalWords: validWords.count,
-                    chunkWords: chunkWords)
+                let textStart = chunkStartIndex == 0 ? normalized.startIndex : allStarts[chunkStartIndex]
+                let textEnd = chunkEndIndex < validWords.count ? allStarts[chunkEndIndex] : normalized.endIndex
+                let text = Transcript.normalizedText(String(normalized[textStart..<textEnd]))
                 if !text.isEmpty, let first = chunkWords.first, let last = chunkWords.last {
                     let start = max(0, first.start)
                     let end = max(start, last.end)
@@ -303,27 +323,6 @@ actor AppleSpeechEngine: TranscriptionEngine {
         return result
     }
 
-    private nonisolated static func chunkText(
-        original: String,
-        allStarts: [String.Index]?,
-        chunkRange: Range<Int>,
-        totalWords: Int,
-        chunkWords: [AlignedWordTiming]
-    ) -> String {
-        if let allStarts, allStarts.count == totalWords {
-            let startIdx = chunkRange.lowerBound == 0 ? original.startIndex : allStarts[chunkRange.lowerBound]
-            let endIdx = chunkRange.upperBound < totalWords ? allStarts[chunkRange.upperBound] : original.endIndex
-            if startIdx <= endIdx {
-                let sliced = Transcript.normalizedText(String(original[startIdx..<endIdx]))
-                if !sliced.isEmpty,
-                   AttributedTrackTranscriber.wordStarts(chunkWords.map(\.text), in: sliced) != nil {
-                    return sliced
-                }
-            }
-        }
-        return Transcript.normalizedText(chunkWords.map(\.text).joined(separator: " "))
-    }
-
     nonisolated static func configured(language: String?) -> any TranscriptionEngine {
         ConfiguredAppleSpeechEngine(language: language)
     }
@@ -338,11 +337,8 @@ actor AppleSpeechEngine: TranscriptionEngine {
 
     #if canImport(Speech)
     @available(macOS 26.0, *)
-    private static func ensureLiveAsset(
-        resolution: AppleSpeechLocaleResolver.Resolution,
-        progress: (@Sendable (Double?, String) -> Void)?
-    ) async throws {
-        let module: any SpeechModule = switch resolution.module {
+    private nonisolated static func module(for resolution: AppleSpeechLocaleResolver.Resolution) -> any SpeechModule {
+        switch resolution.module {
         case .speechTranscriber:
             SpeechTranscriber(
                 locale: resolution.locale,
@@ -352,7 +348,14 @@ actor AppleSpeechEngine: TranscriptionEngine {
         case .dictationTranscriber:
             DictationTranscriber(locale: resolution.locale, preset: .timeIndexedLongDictation)
         }
+    }
 
+    @available(macOS 26.0, *)
+    private static func ensureLiveAsset(
+        resolution: AppleSpeechLocaleResolver.Resolution,
+        progress: (@Sendable (Double?, String) -> Void)?
+    ) async throws {
+        let module = module(for: resolution)
         let currentStatus = await AssetInventory.status(forModules: [module])
         if currentStatus == .installed {
             progress?(1.0, "Ready")

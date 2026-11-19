@@ -11,14 +11,17 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
         var storedBytes: Int64 = 0
         var availableBytes: Int64?
 
-        static func load(settings: AppSettings, root: URL) -> Self {
+        static func load(settings: AppSettings, root: URL) async -> Self {
             let storage = StorageManager(rootURL: root)
             let models = root.appendingPathComponent("models", isDirectory: true)
+            let appleSpeechAssetInstalled = settings.transcriptionModel == .appleSpeech
+                ? await AppleSpeechAvailability.refreshAssetReadiness(for: settings.transcriptionLanguage) : false
             return Self(
                 downloadedTranscriptionIDs: TranscriptionModelStore.downloadedChoices(
                     graniteConfiguration: settings.graniteSpeechModel,
                     funASRNanoDirectory: settings.funASRNanoModelDirectory,
-                    remoteTranscriptionReady: settings.remoteTranscription.isReady),
+                    remoteTranscriptionReady: settings.remoteTranscription.isReady,
+                    appleSpeechAssetInstalled: appleSpeechAssetInstalled),
                 thinkReady: ModelCatalog.entry(id: settings.builtInModelID, custom: settings.customBuiltInModels)
                     .flatMap { ModelCatalog.localURL(for: $0, storage: storage) } != nil,
                 autocompleteReady: ModelReadinessSnapshot.autocompleteReady(settings, storage: storage),
@@ -92,7 +95,9 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
             settings.transcriptionModel,
             graniteConfiguration: settings.graniteSpeechModel,
             funASRNanoDirectory: settings.funASRNanoModelDirectory,
-            remoteTranscriptionReady: settings.remoteTranscription.isReady)
+            remoteTranscriptionReady: settings.remoteTranscription.isReady,
+            appleSpeechAssetInstalled: settings.transcriptionModel == .appleSpeech
+                && AppleSpeechAvailability.hasPreparedAsset(for: settings.transcriptionLanguage))
     }
 
     /// True when the Think role can run without triggering a model download.

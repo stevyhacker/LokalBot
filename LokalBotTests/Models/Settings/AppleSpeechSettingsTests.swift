@@ -30,6 +30,8 @@ final class AppleSpeechSettingsTests: XCTestCase {
         XCTAssertFalse(choice.isRemote)
         XCTAssertNil(choice.sizeLabel)
         XCTAssertTrue(choice.isLanguageSelectable(.auto))
+        XCTAssertEqual(choice.languageDisplayName(for: .auto), "System language")
+        XCTAssertEqual(TranscriptionModelChoice.whisperLarge.languageDisplayName(for: .auto), "Auto-detect")
         XCTAssertTrue(choice.isLanguageSelectable(.uk))
         XCTAssertTrue(choice.isLanguageSelectable(.language(.tr)))
         XCTAssertFalse(choice.isLanguageSelectable(.language(.sr)))
@@ -79,11 +81,10 @@ final class AppleSpeechSettingsTests: XCTestCase {
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(
             .appleSpeech,
             environment: environment,
-            appleSpeechAvailable: true))
+            appleSpeechAssetInstalled: true))
         XCTAssertFalse(TranscriptionModelStore.isDownloaded(
             .appleSpeech,
-            environment: environment,
-            appleSpeechAvailable: false))
+            environment: environment))
         XCTAssertNoThrow(try TranscriptionModelStore.delete(.appleSpeech, environment: environment))
     }
 }

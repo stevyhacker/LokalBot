@@ -131,6 +131,8 @@ struct ModelSelectionPatch: Equatable {
                 == ModelCatalog.entry(id: id, custom: latest.customBuiltInModels) else { return false }
         }
         let target = applying(to: original)
+        if transcription == .appleSpeech,
+           original.transcriptionLanguage != latest.transcriptionLanguage { return false }
         if transcription == .graniteSpeech,
            original.graniteSpeechModel != latest.graniteSpeechModel { return false }
         if transcriptionToPrepare == .funASRNano,

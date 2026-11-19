@@ -46,11 +46,18 @@ extension TranscriptionModelChoice {
 
     func languageSelectionMessage(for language: TranscriptionLanguage) -> String? {
         if self == .appleSpeech {
+            if language == .auto {
+                return "Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language."
+            }
             guard language == .language(.sr) else { return nil }
             return "Apple Speech does not support Serbian. Choose Whisper or Qwen3-ASR, or select another language."
         }
         guard language == .uk || ukrainianSupport == .unsupported else { return nil }
         return ukrainianSupport.explanation
+    }
+
+    func languageDisplayName(for language: TranscriptionLanguage) -> String {
+        self == .appleSpeech && language == .auto ? "System language" : language.displayName
     }
 
     /// Validate before loading weights, reading audio, or falling back to auto

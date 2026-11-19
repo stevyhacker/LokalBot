@@ -72,7 +72,7 @@ struct TranscriptionModelStore {
         graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
         funASRNanoDirectory: String = "",
         remoteTranscriptionReady: Bool = false,
-        appleSpeechAvailable: Bool = AppleSpeechAvailability.isSystemSupported
+        appleSpeechAssetInstalled: Bool = false
     ) -> Set<String> {
         Set(TranscriptionModelChoice.allCases.filter {
             isDownloaded(
@@ -81,7 +81,7 @@ struct TranscriptionModelStore {
                 graniteConfiguration: graniteConfiguration,
                 funASRNanoDirectory: funASRNanoDirectory,
                 remoteTranscriptionReady: remoteTranscriptionReady,
-                appleSpeechAvailable: appleSpeechAvailable)
+                appleSpeechAssetInstalled: appleSpeechAssetInstalled)
         }.map(\.id))
     }
 
@@ -92,7 +92,7 @@ struct TranscriptionModelStore {
                              graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
                              funASRNanoDirectory: String = "",
                              remoteTranscriptionReady: Bool = false,
-                             appleSpeechAvailable: Bool = AppleSpeechAvailability.isSystemSupported) -> Bool {
+                             appleSpeechAssetInstalled: Bool = false) -> Bool {
         switch choice {
         case .parakeetUltra:
             return AsrModels.modelsExist(
@@ -136,7 +136,7 @@ struct TranscriptionModelStore {
         case .gigaamRussian:
             return onnxModelExists(model: .gigaamRussian, environment: environment)
         case .appleSpeech:
-            return appleSpeechAvailable
+            return appleSpeechAssetInstalled
         case .remoteServer:
             return remoteTranscriptionReady
         }

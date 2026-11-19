@@ -191,10 +191,17 @@ struct ModelPickerSheet: View {
         ModelSettingsPresentation.downloadBlocker(for: entry, downloaded: isDownloaded(entry))
     }
 
+    private var needsAppleSpeechPreparation: Bool {
+        role == .transcription && transcription == .appleSpeech
+            && !roles.downloadedTranscriptionModelIDs.contains(transcription.id)
+    }
+
     private var selectedBlocker: String? {
         if clearsFunASRSelection || editsAutocompleteServer { return nil }
         if role == .transcription, transcription == .appleSpeech {
-            return AppleSpeechAvailability.current().reason
+            return AppleSpeechAvailability.current().reason ?? (
+                transcription.isLanguageSelectable(app.settings.transcriptionLanguage)
+                    ? nil : transcription.languageSelectionMessage(for: app.settings.transcriptionLanguage))
         }
         if role == .transcription, transcription == .funASRNano {
             do { _ = try FunASRNanoModel.load(directory: funASRNanoDirectory) } catch { return error.localizedDescription }
@@ -355,7 +362,7 @@ struct ModelPickerSheet: View {
                 }
                 .primaryActionButton()
                 .keyboardShortcut(.defaultAction)
-                .disabled(!canApply || (patch.matches(app.settings) && !needsDownload && !approvesSelectedPlan
+                .disabled(!canApply || (patch.matches(app.settings) && !needsDownload && !needsAppleSpeechPreparation && !approvesSelectedPlan
                                         && !changesRemoteTranscriptionAccess && !changesAutocompleteAccess))
                 .accessibilityIdentifier("models.picker.apply")
             }
@@ -406,7 +413,8 @@ struct ModelPickerSheet: View {
                             title: choice == .graniteSpeech ? granite.displayName : choice.displayName,
                             detail: transcriptionSize(choice),
                             inUse: choice == app.settings.transcriptionModel,
-                            available: TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
+                            available: choice == .appleSpeech ? appleAvailable : TranscriptionModelStore.isDownloaded(
+                                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
                             progress: status.progress,
                             blocked: choice == .appleSpeech && !appleAvailable,
                             builtInSystem: choice.isBuiltInSystem,
@@ -502,6 +510,10 @@ struct ModelPickerSheet: View {
                 Label(blocker, systemImage: "exclamationmark.triangle")
                     .font(.scaled(.callout)).foregroundStyle(.orange)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if needsAppleSpeechPreparation, selectedBlocker == nil {
+                Text("macOS may download a language asset when you use Apple Speech.")
+                    .font(.scaled(.callout)).foregroundStyle(.secondary)
             }
             if let entry = selectedEntry, role != .transcription {
                 let fit = ModelFit.evaluate(modelSizeGB: entry.sizeGB, capability: HardwareCapabilityProbe.current())

@@ -73,6 +73,14 @@ final class AppleSpeechWordAttributionTests: XCTestCase {
             ])
             XCTAssertEqual(built.count, 1)
             XCTAssertNotNil(AttributedTrackTranscriber.engineWords(of: try XCTUnwrap(built.first)))
+
+            append(" We decided to wait.", start: nil, end: nil)
+            let partial = AppleSpeechEngine.buildTimedSegments(from: [
+                .init(start: 0, end: 2, text: String(attributed.characters),
+                      words: AppleSpeechEngine.extractWordTimings(from: attributed)),
+            ])
+            XCTAssertEqual(partial.map(\.segment.text), ["Hello, world! We decided to wait."])
+            XCTAssertEqual(partial.map(\.segment.timingPrecision), [.span])
         }
         #endif
 
@@ -114,6 +122,7 @@ final class AppleSpeechWordAttributionTests: XCTestCase {
                             AlignedWordTiming(text: "I", start: 2.5, end: 2.7),
                             AlignedWordTiming(text: "agree.", start: 2.7, end: 3.1),
                         ]),
+                    .init(start: 3.2, end: 3.8, text: "That works."),
                 ]
             }))
 
@@ -136,11 +145,11 @@ final class AppleSpeechWordAttributionTests: XCTestCase {
             language: "en",
             prompt: nil,
             prepareAligner: {
-                XCTFail("QwenWordAligner must not be downloaded when AppleSpeechEngine provides word timings")
+                XCTFail("Apple Speech must never download the forced aligner")
             })
 
-        XCTAssertEqual(transcript.segments.map(\.text), ["Hello Maya.", "Yes I agree."])
-        XCTAssertEqual(transcript.segments.map(\.speaker), ["them 1", "them 2"])
-        XCTAssertEqual(transcript.segments.map(\.timingPrecision), [.token, .token])
+        XCTAssertEqual(transcript.segments.map(\.text), ["Hello Maya.", "Yes I agree.", "That works."])
+        XCTAssertEqual(transcript.segments.map(\.speaker), ["them 1", "them 2", "them 2"])
+        XCTAssertEqual(transcript.segments.map(\.timingPrecision), [.token, .token, .span])
     }
 }

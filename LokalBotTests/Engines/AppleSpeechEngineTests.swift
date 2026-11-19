@@ -105,6 +105,27 @@ final class AppleSpeechEngineTests: XCTestCase {
         XCTAssertEqual(updates.last?.status, "Ready")
     }
 
+    func testMissingAssetBlocksTranscriptionWithoutDownloadingOrReadingAudio() async throws {
+        let english = AppleSpeechLocaleResolver.Resolution(
+            localeIdentifier: "en_US", languageCode: "en", module: .speechTranscriber)
+        let engine = AppleSpeechEngine(backend: .init(
+            availabilityError: { nil },
+            resolve: { _ in english },
+            ensureAsset: { _, _ in XCTFail("Transcription must not install assets") },
+            isAssetInstalled: { _ in false },
+            analyze: { _, _, _ in
+                XCTFail("Transcription must not read audio when the asset is missing")
+                return []
+            }))
+
+        do {
+            _ = try await engine.transcribe(audio: URL(fileURLWithPath: "/tmp/unused.wav"), language: "en")
+            XCTFail("Expected missing asset error")
+        } catch {
+            XCTAssertEqual(error as? AppleSpeechError, .assetNotInstalled("en_US"))
+        }
+    }
+
     func testTranscribeFiltersEmptyAndInvalidSegmentsAndPropagatesCancellation() async throws {
         let resolution = AppleSpeechLocaleResolver.Resolution(
             localeIdentifier: "tr_TR",

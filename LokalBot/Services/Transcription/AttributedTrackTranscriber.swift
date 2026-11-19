@@ -252,7 +252,7 @@ enum AttributedTrackTranscriber {
         let engineTimed = segments.map(engineWords(of:))
         let untimed = engineTimed.filter { $0 == nil }.count
         var alignLanguage: String?
-        if untimed > 0 {
+        if untimed > 0, transcript.allowsForcedAlignment {
             if engineTimesWords {
                 lokalbotLog("word attribution: the engine timed \(segments.count - untimed) of \(segments.count) "
                     + "segment(s); aligning the rest")

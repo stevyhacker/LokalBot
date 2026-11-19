@@ -204,6 +204,7 @@ struct WordTimedTranscript {
 
     var segments: [Segment]
     var engine: String
+    var allowsForcedAlignment: Bool
     /// The language the engine settled on for the whole track while set to
     /// auto-detect, if it did. When the words cannot be attributed and the
     /// track falls back to speaker regions, those decode in this language:
@@ -214,10 +215,11 @@ struct WordTimedTranscript {
     /// `segments`, which may be incomplete.
     var needsSpeakerRegions = false
 
-    init(segments: [Segment], engine: String, trackLanguage: String? = nil) {
+    init(segments: [Segment], engine: String, trackLanguage: String? = nil, allowsForcedAlignment: Bool = true) {
         self.segments = segments
         self.engine = engine
         self.trackLanguage = trackLanguage
+        self.allowsForcedAlignment = allowsForcedAlignment
     }
 
     /// Text without word times, for the forced aligner.

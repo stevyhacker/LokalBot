@@ -1,4 +1,5 @@
 import Foundation
+import Synchronization
 
 #if canImport(Speech)
 import Speech
@@ -25,6 +26,24 @@ enum AppleSpeechAvailability {
 
     static let unsupportedMessage = "Requires macOS 26 or later"
     static let unavailableOnDeviceMessage = "Apple Speech isn't available on this Mac."
+
+    // Automation uses a synchronous readiness gate. ModelRoles refreshes this
+    // from macOS when the selected configuration changes or preparation ends.
+    private static let installedLanguages = Mutex<Set<TranscriptionLanguage>>([])
+
+    static func hasPreparedAsset(for language: TranscriptionLanguage) -> Bool {
+        installedLanguages.withLock { $0.contains(language) }
+    }
+
+    static func refreshAssetReadiness(for language: TranscriptionLanguage) async -> Bool {
+        let installed = await AppleSpeechEngine.shared.isAssetInstalled(language: language.code)
+        if !Task.isCancelled {
+            installedLanguages.withLock {
+                if installed { $0.insert(language) } else { $0.remove(language) }
+            }
+        }
+        return installed
+    }
 
     /// True when running on macOS 26+ and `SpeechTranscriber` reports on-device availability.
     nonisolated static var isSystemSupported: Bool {
