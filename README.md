@@ -222,7 +222,7 @@ The same window (**⌃⇧ Space**, or **Ctrl+Shift+Space** on Windows and Linux,
 
 ### Your notes, agents & devices
 
-**Keep your notes in Obsidian or Logseq.** Turn on **Meeting note export** to keep a Markdown note for every meeting in a folder you choose, such as an Obsidian vault or a Logseq graph. See [Can I take my notes elsewhere?](#faq) and [Meeting transcripts in Obsidian](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown).
+**Keep your notes in Obsidian or Logseq.** Turn on **Meeting note export** to keep a Markdown note for every meeting in a folder you choose, such as an Obsidian vault or a Logseq graph, or use the open-source [LokalBot plugin for Obsidian](https://github.com/stevyhacker/obsidian-lokalbot) to search meetings, insert open action items into Daily Notes, and ask LokalBot locally inside Obsidian. Coming from Granola, Otter, Fireflies, Fathom, or Zoom? Try the zero-upload [Meeting Export to Obsidian converter](https://www.lokalbot.com/migrate) or import directly inside LokalBot. See [Can I take my notes elsewhere?](#faq) and [Meeting transcripts in Obsidian](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown).
 
 **Hand your work to coding agents.** Claude Code, Codex, and any MCP client can read what you allow; see [For developers & agents](#for-developers--agents).
 
