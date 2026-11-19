@@ -2605,3 +2605,7 @@
 "Claude Code (Plugin)" = "Claude Code (Plugin)";
 "Codex (Plugin)" = "Codex (Plugin)";
 "MCP JSON config (Cursor, Claude Desktop, …)" = "Tsarin MCP JSON (Cursor, Claude Desktop, …)";
+
+"System language" = "Harshen tsarin";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "Apple Speech yana amfani da harshen da ka fi so a macOS idan yana samun tallafi. Zaɓi harshen da aka yi rikodi da shi idan ya bambanta.";
+"macOS may download a language asset when you use Apple Speech." = "macOS na iya sauke fakitin harshe idan ka yi amfani da Apple Speech.";
