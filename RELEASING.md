@@ -198,16 +198,19 @@ only); **UI Tests (macOS 26)** builds and runs the same suite with 26.4.1,
 weekly and on demand (`gh workflow run ui-tests-macos26.yml --ref BRANCH`), and is
 not a merge or release gate until its known macOS 26 failures are fixed. Update
 explicit versions and runners together after hosted validation. The Build gate compiles the production app and its unit-test
-target. The UI workflow builds its separate host once, then runs the critical
-group, Reduce Motion, and the independent functional, background and visual
-shards in parallel, covering all 78 captures. A shared inventory and aggregate result verification prevent missing
+target. The UI workflow builds its separate host once, then runs its phases on two
+macOS runners in parallel: the critical group, functional-1 and Reduce Motion on
+one, and functional-2, the visual matrix and the background flows on the other,
+covering all 78 captures. A shared inventory and aggregate result verification prevent missing
 or duplicate tests. Filtered manual UI
 dispatches remain focused checks and do not constitute the full release gate.
-Test products are shared only within the same workflow attempt and exact SHA,
+Test products are shared only within the same workflow run and exact SHA,
 with clean build inputs, matching toolchain and digest verification; missing or
-stale products fail instead of rebuilding silently. Use **Re-run all jobs** when
-retrying a shared-products workflow: a failed-jobs-only retry cannot consume
-artifacts from the preceding attempt. UI Tests runs on pull requests that are
+stale products fail instead of rebuilding silently. When a Build or UI Tests job
+fails or never gets a runner ("The job was not acquired by Runner"), use **Re-run
+failed jobs**: the jobs that passed keep their results, and the re-run ones
+reuse the build from the earlier attempt of the same run. **Re-run all jobs**
+rebuilds everything. UI Tests runs on pull requests that are
 ready for review, weekly on `master`, and for a release candidate that its
 merged pull request's run doesn't cover, when `Scripts/release/prepare-release.sh`
 dispatches it with the candidate's SHA; it no longer runs on every `master`
@@ -267,7 +270,7 @@ the previous `master` tip and has the candidate's exact tree, and that run
 built and passed the full suite (`UI build (macOS)` and `XCUITest (macOS)`).
 GitHub tested that head merged into an older `master`, which is the head's own
 tree. An exact-SHA run, when there is one, always decides. If a UI Tests job
-fails to get a runner, use **Re-run all jobs** on that dispatch. It retrieves prepared apps only from successful `release.yml` manual
+fails to get a runner, use **Re-run failed jobs** on that dispatch. Release retrieves prepared apps only from successful `release.yml` manual
 runs on that exact trusted master SHA and verifies source/tree, version/build,
 Xcode, architecture, lockfile, run identity and archive digest before reuse.
 A missing/expired preparation uses the existing cold archive flow; a mismatched

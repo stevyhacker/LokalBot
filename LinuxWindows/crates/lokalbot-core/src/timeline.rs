@@ -1046,6 +1046,47 @@ impl Library {
         })
     }
 
+    /// `screen_moment` for many ids, one query per 400 of them. An id with no
+    /// capture (retention, a delete) has no entry.
+    pub fn screen_moments_by_id(&self, ids: &[i64]) -> Result<HashMap<i64, ScreenMoment>> {
+        let wanted: Vec<i64> = ids
+            .iter()
+            .copied()
+            .collect::<HashSet<_>>()
+            .into_iter()
+            .collect();
+        if wanted.is_empty() {
+            return Ok(HashMap::new());
+        }
+        self.with_db(|db| {
+            if !table_exists(db, "screenshots")? {
+                return Ok(HashMap::new());
+            }
+            let columns = screen_columns(db)?;
+            let mut found = HashMap::new();
+            for chunk in wanted.chunks(400) {
+                let placeholders = (1..=chunk.len())
+                    .map(|n| format!("?{n}"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                let mut statement = db.prepare(&format!(
+                    "SELECT {columns} FROM screenshots AS shot \
+                     LEFT JOIN screen_bookmarks AS bookmark ON bookmark.snapshot_id = shot.id \
+                     WHERE shot.id IN ({placeholders})"
+                ))?;
+                let rows = statement.query_map(
+                    rusqlite::params_from_iter(chunk.iter()),
+                    screen_moment_from_row,
+                )?;
+                for moment in rows {
+                    let moment = moment?;
+                    found.insert(moment.id, moment);
+                }
+            }
+            Ok(found)
+        })
+    }
+
     /// One screen moment by id.
     pub fn screen_moment(&self, id: i64) -> Result<Option<ScreenMoment>> {
         self.with_db(|db| {
