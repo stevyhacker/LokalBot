@@ -6,7 +6,7 @@
                         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
                         xsi:schemaLocation="http://signpath.io/artifact-configuration/v1 https://app.signpath.io/Web/artifact-configuration/v1.xsd">
   <zip-file>
-    <pe-file path="LokalBot-*-windows-x86_64-setup.exe">
+    <pe-file path="LokalBot-*-windows-x86_64-setup.exe" product-name="LokalBot">
       <authenticode-sign/>
     </pe-file>
   </zip-file>

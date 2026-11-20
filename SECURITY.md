@@ -27,10 +27,7 @@ assessment, and coordinated release notes for a confirmed fix.
   Accessibility features require capabilities that do not work in the App
   Sandbox. On Windows and Linux it runs with your user's permissions, like other
   desktop apps there.
-- The Windows build is not code-signed yet. Download it only from this
-  repository's GitHub Releases and compare its SHA-256 with the one the release
-  page shows next to the file. Automatic updates check each archive's size,
-  SHA-256 and release signature before installing it.
+- Windows release signing is transitioning onto Authenticode signing via [SignPath.io](https://signpath.io) with a certificate by the [SignPath Foundation](https://signpath.org) (`lokalbot.exe`, `lokalbot-cli.exe`, and `LokalBot-<version>-windows-x86_64-setup.exe` built in GitHub Actions; production signing requests are manually approved by `@stevyhacker`). Until a release is signed with the production certificate, download Windows binaries only from this repository's GitHub Releases and compare SHA-256 checksums on the release page. Automatic updates verify each archive's size, SHA-256, and Ed25519 release signature before installing it.
 - Remote inference is optional. Approving a non-loopback endpoint permits it to
   receive the context needed for the requested feature.
 - Agent Mode commands execute only after the configured approval policy allows

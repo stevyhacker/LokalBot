@@ -2,11 +2,15 @@
 # Inno Setup installer through SignPath.io (SignPath Foundation OSS certificate).
 #
 # Called by release.yml on stable tags when the SIGNPATH_ENABLED repository
-# variable is `true`. Builds in linux-windows-release.yml stay secret-free;
-# this job runs only on GitHub-hosted runners after release gates pass, signs
-# ONLY LokalBot's own binaries (never upstream vc-runtime DLLs), repacks the
-# Windows archive and installer from the signed binaries, verifies Authenticode
-# signatures and silent install/uninstall, and uploads release-windows-x86_64-signed.
+# variable is `true`, or run manually via workflow_dispatch (defaulting to
+# SignPath's `test-signing` policy) to validate end-to-end signing without
+# cutting a release tag.
+#
+# Builds stay secret-free in a separate job; this signing job runs only on
+# GitHub-hosted runners, signs ONLY LokalBot's own binaries (never upstream
+# vc-runtime DLLs), repacks the Windows archive and installer from the signed
+# binaries, verifies Authenticode signatures and silent install/uninstall, and
+# uploads release-windows-x86_64-signed.
 #
 # See Docs/releasing/windows-signing.md for SignPath setup and secrets.
 
@@ -34,13 +38,29 @@ on:
         required: true
       SIGNPATH_ORG_ID:
         required: true
+  workflow_dispatch:
+    inputs:
+      project_slug:
+        description: SignPath project slug
+        required: false
+        type: string
+        default: lokalbot
+      signing_policy_slug:
+        description: SignPath signing policy slug (use test-signing for self-signed test runs)
+        required: false
+        type: choice
+        default: test-signing
+        options:
+          - test-signing
+          - release-signing
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
   # Git for Windows cannot check out the macOS fixtures (names with ':'), even
-  # sparsely, so the Windows signing job receives its packaging scripts here.
+  # sparsely, so the Windows jobs receive their scripts/sources from Ubuntu.
   packaging:
     name: Windows packaging scripts
     runs-on: ubuntu-24.04
@@ -55,16 +75,69 @@ jobs:
             LinuxWindows/scripts/package-windows-installer.ps1
             LinuxWindows/scripts/ci/check-windows-installer.ps1
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: windows-sign-tools
           path: LinuxWindows
           retention-days: 1
           if-no-files-found: error
 
+  # Secret-free source archive used only by manual workflow_dispatch test runs.
+  source-test:
+    name: Windows sources (test signing)
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Archive the Rust workspace
+        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting LICENSE LICENSES THIRD_PARTY_NOTICES.md
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-windows-source-test
+          path: ${{ runner.temp }}/lokalbot-src.tar.gz
+          retention-days: 1
+          if-no-files-found: error
+
+  # Secret-free Windows build used only by manual workflow_dispatch test runs so
+  # SignPath's GitHub Trusted Build System verifies a genuine GitHub Actions build.
+  build-windows-test:
+    name: Build Windows archive (test signing)
+    if: github.event_name == 'workflow_dispatch'
+    needs: source-test
+    runs-on: windows-2025
+    timeout-minutes: 90
+    steps:
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-windows-source-test
+          path: ${{ runner.temp }}
+
+      - name: Extract sources
+        shell: pwsh
+        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+
+      - name: Build and package
+        working-directory: LinuxWindows
+        shell: bash
+        run: scripts/package.sh
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-windows-x86_64
+          path: LinuxWindows/dist/*.zip
+          retention-days: 1
+          if-no-files-found: error
+
   sign:
     name: Sign Windows binaries and installer
-    needs: packaging
+    needs: [packaging, build-windows-test]
+    if: >-
+      always()
+      && needs.packaging.result == 'success'
+      && (needs.build-windows-test.result == 'success' || needs.build-windows-test.result == 'skipped')
     runs-on: windows-2025
     timeout-minutes: 60
     defaults:
@@ -86,7 +159,11 @@ jobs:
           TAG: ${{ inputs.tag }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $version = $env:TAG -replace '^v', ''
+          $version = if ($env:TAG) {
+            $env:TAG -replace '^v', ''
+          } else {
+            (Select-String -Path 'LinuxWindows/Cargo.toml' -Pattern '^version = "(.*)"' | Select-Object -First 1).Matches[0].Groups[1].Value
+          }
           $zip = Get-Item "unsigned-release/LokalBot-$version-windows-x86_64.zip"
           $dist = Join-Path (Resolve-Path 'LinuxWindows').Path 'dist'
           New-Item -ItemType Directory -Force $dist | Out-Null
@@ -104,16 +181,16 @@ jobs:
 
       - name: Upload unsigned executables for SignPath
         id: upload-binaries
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-unsigned-binaries-${{ inputs.tag }}
+          name: windows-unsigned-binaries-${{ inputs.tag || github.run_id }}
           path: ${{ runner.temp }}/unsigned-binaries
           retention-days: 1
           if-no-files-found: error
 
       - name: Sign executables with SignPath
         id: sign-binaries
-        uses: SignPath/github-action-submit-signing-request@4a84eb4ad763290f059275786f2deed97c2c672b # v3.1
+        uses: SignPath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b # v3.2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
@@ -126,15 +203,31 @@ jobs:
           output-artifact-directory: ${{ runner.temp }}/signed-binaries
 
       - name: Verify signed executables, repack archive, and build installer
+        env:
+          SIGNING_POLICY_SLUG: ${{ inputs.signing_policy_slug }}
         run: |
           $ErrorActionPreference = 'Stop'
+          $allowTestCert = $env:SIGNING_POLICY_SLUG -eq 'test-signing'
           $signedDir = Join-Path $env:RUNNER_TEMP 'signed-binaries'
           foreach ($exe in 'lokalbot.exe', 'lokalbot-cli.exe') {
             $signed = Join-Path $signedDir $exe
             if (-not (Test-Path $signed)) { throw "SignPath output missing $exe" }
             $sig = Get-AuthenticodeSignature $signed
-            if ($sig.Status -ne 'Valid') {
-              throw "$exe Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+            if ($allowTestCert) {
+              if (-not $sig.SignerCertificate) {
+                throw "$exe has no Authenticode signer certificate (status: $($sig.Status))"
+              }
+              if ($sig.Status -notin @('Valid', 'UnknownError')) {
+                throw "$exe Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+              }
+              Write-Host "$exe signed with test cert: $($sig.SignerCertificate.Subject) (status: $($sig.Status))"
+            } else {
+              if ($sig.Status -ne 'Valid') {
+                throw "$exe Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+              }
+              if (-not $sig.TimeStamperCertificate) {
+                throw "$exe is missing an RFC 3161 timestamp"
+              }
             }
             Copy-Item $signed (Join-Path $env:STAGE_DIR $exe) -Force
           }
@@ -158,16 +251,16 @@ jobs:
 
       - name: Upload unsigned installer for SignPath
         id: upload-installer
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: windows-unsigned-installer-${{ inputs.tag }}
+          name: windows-unsigned-installer-${{ inputs.tag || github.run_id }}
           path: ${{ runner.temp }}/unsigned-installer
           retention-days: 1
           if-no-files-found: error
 
       - name: Sign installer with SignPath
         id: sign-installer
-        uses: SignPath/github-action-submit-signing-request@4a84eb4ad763290f059275786f2deed97c2c672b # v3.1
+        uses: SignPath/github-action-submit-signing-request@a2c5b60d9c75f073142b653c354b632eedce097b # v3.2
         with:
           api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
           organization-id: ${{ secrets.SIGNPATH_ORG_ID }}
@@ -180,20 +273,36 @@ jobs:
           output-artifact-directory: ${{ runner.temp }}/signed-installer
 
       - name: Verify signed installer and run silent install check
+        env:
+          SIGNING_POLICY_SLUG: ${{ inputs.signing_policy_slug }}
         run: |
           $ErrorActionPreference = 'Stop'
+          $allowTestCert = $env:SIGNING_POLICY_SLUG -eq 'test-signing'
           $setupName = "LokalBot-$($env:VERSION)-windows-x86_64-setup.exe"
           $signedSetup = Join-Path (Join-Path $env:RUNNER_TEMP 'signed-installer') $setupName
           if (-not (Test-Path $signedSetup)) { throw "SignPath output missing $setupName" }
           $sig = Get-AuthenticodeSignature $signedSetup
-          if ($sig.Status -ne 'Valid') {
-            throw "$setupName Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+          if ($allowTestCert) {
+            if (-not $sig.SignerCertificate) {
+              throw "$setupName has no Authenticode signer certificate (status: $($sig.Status))"
+            }
+            if ($sig.Status -notin @('Valid', 'UnknownError')) {
+              throw "$setupName Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+            }
+            Write-Host "$setupName signed with test cert: $($sig.SignerCertificate.Subject) (status: $($sig.Status))"
+          } else {
+            if ($sig.Status -ne 'Valid') {
+              throw "$setupName Authenticode signature status is $($sig.Status): $($sig.StatusMessage)"
+            }
+            if (-not $sig.TimeStamperCertificate) {
+              throw "$setupName is missing an RFC 3161 timestamp"
+            }
           }
           $distSetup = Join-Path (Split-Path -Parent $env:STAGE_DIR) $setupName
           Copy-Item $signedSetup $distSetup -Force
           & LinuxWindows/scripts/ci/check-windows-installer.ps1 $distSetup
 
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-windows-x86_64-signed
           path: |
