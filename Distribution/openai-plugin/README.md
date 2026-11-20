@@ -30,6 +30,11 @@ Reading needs an explicit opt-in in LokalBot. On a Mac: Settings → External Ag
 
 LokalBot doesn't upload your library. The commands run on your computer, but ChatGPT and Codex process what they return under OpenAI's terms. The skills retrieve only what a question needs and never change your meetings or files.
 
+## Resources
+
+- [LokalBot website](https://www.lokalbot.com/) · [Claude Code & Codex plugins guide](https://www.lokalbot.com/claude-code-codex-plugins)
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) · [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)
+
 ## For maintainers
 
 - Build the directory ZIP with `bash Scripts/release/build-openai-plugin.sh`. It runs `Scripts/tests/test_openai_plugin.py` first and writes `dist/lokalbot-openai-plugin-<version>.zip` with `plugin.json`, `skills/` and `assets/` at its root. Upload it at <https://platform.openai.com/plugins> → **Upload new or existing plugin**; skill or metadata changes always need a new ZIP.

@@ -45,7 +45,7 @@ brew install --cask stevyhacker/tap/lokalbot
 
 [English](README.md) · **简体中文**
 
-[开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [官网](https://www.lokalbot.com/)
+[开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [基准测试](https://www.lokalbot.com/benchmarks) · [硬件计算器](https://www.lokalbot.com/hardware) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [中文主页](https://www.lokalbot.com/zh)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" /><img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot 的使用过程：六个循环场景，演示数据为虚构内容，界面为英文。录制一场 Google Chrome 通话，实时转写逐行出现，随后生成纪要，点击待办的引用会跳到转写里的原话。输入 demo pres，同时找到在屏幕上看过的 Keynote 文稿、Mail 回复和两场会议。在 TextEdit 中，自动补全接着写完团队套餐的价格，按 Tab 接受。按住 Option-Space 说话，光标处写出一段简短的团队通知。向 Ask 提问，回答带编号引用，点击引用打开来源会议。在终端里，Claude Code 调用 LokalBot，列出设计评审的决定和还欠的事项。" /></picture>
 

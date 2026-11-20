@@ -75,6 +75,11 @@ LokalBot does not upload your library. The plugin's commands run `lokalbot-cli` 
 
 The commands run `lokalbot-cli` from your PATH, and so does the MCP server if you connect it. **Settings → External Agents → Agent CLI** in LokalBot (Settings → Advanced on Windows and Linux) installs it: at `~/.local/bin/lokalbot-cli` on macOS and Linux, and at `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows, whose folder you add to PATH yourself ([how](https://github.com/stevyhacker/LokalBot/blob/master/LinuxWindows/README.md#coding-agents)). On a Mac, the embedded copy also works: `/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli`.
 
+## Resources
+
+- [LokalBot website](https://www.lokalbot.com/) · [Claude Code & Codex plugins guide](https://www.lokalbot.com/claude-code-codex-plugins)
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) · [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)
+
 ## For maintainers
 
 - The plugin is the `Distribution/claude-plugin` folder of [stevyhacker/LokalBot](https://github.com/stevyhacker/LokalBot), so an install copies only these files. `skills/lokalbot-cli/SKILL.md` is a copy of [.agents/skills/lokalbot-cli/SKILL.md](https://github.com/stevyhacker/LokalBot/blob/master/.agents/skills/lokalbot-cli/SKILL.md), which the Mac app bundles; `Scripts/tests/test_claude_plugin.py` fails when they differ, so copy the file after editing the original.

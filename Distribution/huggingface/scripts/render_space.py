@@ -67,6 +67,7 @@ def main() -> None:
     <nav aria-label="Project links">
       <a href="https://www.lokalbot.com/benchmarks">Interactive leaderboard</a>
       <a href="https://www.lokalbot.com/benchmarks.json">JSON dataset</a>
+      <a href="https://www.lokalbot.com/hardware">Hardware &amp; RAM calculator</a>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub repository</a>
       <a href="{escaped_collection_url}">Recommended model collection</a>
     </nav>
