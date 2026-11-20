@@ -21,11 +21,12 @@ repository/
 ├── Website/                   # lokalbot.com: public/ (served), generator/, worker/, HOSTING.md
 ├── Scripts/                   # build/, release/, test/, media/, cotyping/, dev/, ci/, tests/
 ├── Benchmarks/                # transcribe/, think/, autocomplete/, search/, voice/
-├── Docs/                      # development/, releasing/, guides/, designs/, plans/, reports/, archive/
+├── Docs/                      # decisions/ (ADRs), development/, releasing/, guides/, designs/, plans/, reports/, archive/
 ├── Assets/                    # README, social and video media
 ├── Video/                     # video projects (HyperFrames and filming scripts); archive/ for finished ones
 ├── LICENSES/                  # license texts for bundled third-party code
 ├── .agents/skills/lokalbot-cli/SKILL.md   # bundled into the app, symlinked on install
+├── .claude/skills/delete-comment/        # /delete-comment: move comments out of code (Docs/decisions/0001)
 ├── Vendor/                    # fetched runtimes and models (git-ignored; Scripts/build/fetch-*.sh)
 └── Local/                     # personal scratch work (git-ignored)
 ```

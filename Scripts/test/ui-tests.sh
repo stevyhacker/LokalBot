@@ -45,8 +45,40 @@ ROOT="$(dirname "$PROJECT")"
 STAMP="$ROOT/$DERIVED/ui-build.json"
 
 usage() {
-  sed -n '2,/^set -euo pipefail$/p' "$0" \
-    | sed '$d; s/^# \{0,1\}//'
+  cat <<'USAGE'
+LokalBot UI test runner: remote by default, foreground only by opt-in.
+
+Drives the dedicated LokalBot UI Test Host via XCUITest against a
+synthetic meetings library — no microphone/screen-recording permissions,
+no real audio, no network. The host is compiled with LOKALBOT_UI_TEST=1
+and skips every side-effectful subsystem (Core Audio polling,
+accessibility-trusted detector, Sparkle, screenshots).
+
+Local XCUITest sends real mouse and keyboard events. It therefore owns the
+foreground while it runs; it cannot be made invisible in the same login
+session without weakening these into non-UI tests. Prefer --remote, which
+dispatches the existing GitHub Actions job and returns immediately.
+
+Prereq for explicit --foreground runs (macOS TCC): the controlling terminal
+and generated test runner MUST hold:
+  • Privacy & Security → Automation → Xcode  (allowed)
+  • Privacy & Security → Accessibility       (allowed)
+without these, the XCUITest runner fails with
+"Timed out while enabling automation mode." — that error is the missing
+TCC grant, NOT a bug in the suite. The UI-test target is development-signed
+with a stable bundle identity so the grant survives ordinary rebuilds.
+
+Usage:
+  Scripts/test/ui-tests.sh                # dispatch all tests without stealing focus
+  Scripts/test/ui-tests.sh --remote       # explicit form of the default above
+  Scripts/test/ui-tests.sh --remote MainWindowUITests/testSearchFindsTranscriptHitAndDeepLinks
+  Scripts/test/ui-tests.sh --build-only   # compile without launching the app
+  Scripts/test/ui-tests.sh --test-only --only MainWindowUITests/testSearchFindsTranscriptHitAndDeepLinks
+                                    # hosted CI: reuse this job's build
+  Scripts/test/ui-tests.sh --foreground --skip RedesignUITests/testWorkspaceVisualMatrix
+  Scripts/test/ui-tests.sh --foreground   # run all tests in this login session
+  Scripts/test/ui-tests.sh --foreground MainWindowUITests/testSearchFindsTranscriptHitAndDeepLinks
+USAGE
 }
 
 while [ "$#" -gt 0 ]; do

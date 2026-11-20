@@ -5,6 +5,10 @@ boundary, reproducible development workflows, and current release behavior.
 
 - Root documents such as `README.md`, `PRIVACY.md`, `SECURITY.md`,
   `DEVELOPMENT.md` and `RELEASING.md` are the public source of truth.
+- [`decisions/`](decisions/) holds the architecture decision records: why the
+  code is the way it is, by area. Code carries no comments, so this is where a
+  non-obvious decision is written; [`decisions/README.md`](decisions/README.md)
+  is the index.
 - [`development/`](development/) holds one page per topic of the development
   guide; [`DEVELOPMENT.md`](../DEVELOPMENT.md) is its index.
 - [`releasing/`](releasing/) holds the one-time release setup and the channels
