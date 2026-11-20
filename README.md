@@ -413,4 +413,13 @@ For larger changes, [open an issue](https://github.com/stevyhacker/lokalbot/issu
 
 LokalBot is free software under [GPLv3](LICENSE). Code in the Autocomplete engine that was ported from [Cotabby](https://github.com/FuJacob/cotabby) stays under [AGPLv3](LICENSES/AGPL-3.0.txt). Other third-party components and models retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).
 
+### Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- **Scope:** Windows release executables (`lokalbot.exe`, `lokalbot-cli.exe`) and the Inno Setup installer (`LokalBot-<version>-windows-x86_64-setup.exe`) built from this repository in GitHub Actions; upstream third-party runtime DLLs are not re-signed.
+- **Committers and reviewers:** repository maintainers of `stevyhacker/LokalBot`.
+- **Approvers:** repository owner (`@stevyhacker`), who manually reviews and approves production signing requests in SignPath.
+- **Privacy policy:** This program will not transfer any information to other networked systems unless specifically requested by the user or the person installing or operating it. See [PRIVACY.md](PRIVACY.md) and [lokalbot.com/privacy](https://www.lokalbot.com/privacy).
+
 Built with [llama.cpp](https://github.com/ggml-org/llama.cpp), [speech-swift](https://github.com/soniqo/speech-swift), [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), [WhisperKit](https://github.com/argmaxinc/WhisperKit), [FluidAudio](https://github.com/FluidInference/FluidAudio), [Sparkle](https://github.com/sparkle-project/Sparkle), [XcodeGen](https://github.com/yonaskolb/XcodeGen), [GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui), [GPUI Kit](https://github.com/longbridge/gpui-kit), and [ONNX Runtime](https://github.com/microsoft/onnxruntime), with models including [Qwen3-ASR](https://huggingface.co/Qwen), [IBM Granite Speech](https://huggingface.co/ibm-granite), [Parakeet](https://huggingface.co/nvidia), and [LFM2.5](https://huggingface.co/LiquidAI). The Autocomplete engine started from [Cotabby](https://cotabby.app)'s open-source code.
