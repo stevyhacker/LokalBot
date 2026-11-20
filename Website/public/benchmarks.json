@@ -1,0 +1,1873 @@
+{
+  "schemaVersion": 1,
+  "title": "Local Desktop AI Leaderboard",
+  "subtitle": "Independent, reproducible benchmarks of local models for everyday desktop workflows, measured head-to-head against cloud baselines.",
+  "updated": "2026-11-20",
+  "url": "https://www.lokalbot.com/benchmarks",
+  "dataUrl": "https://www.lokalbot.com/benchmarks.json",
+  "repository": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks",
+  "license": "GPL-3.0-or-later",
+  "hardwareSummary": "Primary desktop runs on Apple M4 Max (48 GB unified memory); Linux CPU memory/extraction runs on AMD Ryzen 7 9700X (64 GB); experimental MemT run on Windows + RX 6600 XT.",
+  "referenceStack": [
+    {
+      "categoryId": "stt",
+      "suiteId": "stt-ami-cloud",
+      "role": "Transcription",
+      "model": "Qwen3-ASR 1.7B",
+      "format": "MLX 8-bit / GGUF Q8_0",
+      "sizeGb": 2.47,
+      "headline": "17.6% WER · 44× RT",
+      "subline": "Lowest disagreement (4.2%) on real 2-track meetings; $0/hr"
+    },
+    {
+      "categoryId": "diarization",
+      "suiteId": "diarization-ami",
+      "role": "Speaker Diarization",
+      "model": "Nemotron 3",
+      "format": "Core ML (FluidAudio)",
+      "sizeGb": 0.2,
+      "headline": "14.56% DER · 500× RT",
+      "subline": "8/8 correct speaker counts vs 43.44% DER for Pyannote"
+    },
+    {
+      "categoryId": "retrieval",
+      "suiteId": "retrieval-qmsum",
+      "role": "Hybrid Search",
+      "model": "EmbeddingGemma 2",
+      "format": "GGUF Q8_0 + SQLite FTS5",
+      "sizeGb": 0.31,
+      "headline": "39 ms p50 · 50 MB RAM",
+      "subline": "0.280 R@1 / 0.595 R@10 across 232 QMSum meetings"
+    },
+    {
+      "categoryId": "autocomplete",
+      "suiteId": "autocomplete-engine",
+      "role": "Inline Autocomplete",
+      "model": "Gemma 4 E2B Base",
+      "format": "GGUF i1-Q6_K (llama.cpp)",
+      "sizeGb": 3.85,
+      "headline": "56 ms · 50.1% precision",
+      "subline": "0/140 unsafe; 49–53 ms after 5-min idle warm-up fix"
+    },
+    {
+      "categoryId": "summaries",
+      "suiteId": "summaries-mac-extraction",
+      "role": "Summaries & Memory",
+      "model": "Qwen3.5 4B",
+      "format": "GGUF Q4_K_M (llama.cpp)",
+      "sizeGb": 2.74,
+      "headline": "33.4 s warm · 95.5% restraint",
+      "subline": "6/6 native tool calls; 42/44 empty memory cases clean"
+    },
+    {
+      "categoryId": "ocr-tts",
+      "suiteId": "ocr-synthetic",
+      "role": "Screen OCR & Voice",
+      "model": "Apple Vision + Kokoro 82M",
+      "format": "macOS native + local TTS",
+      "sizeGb": 0.1,
+      "headline": "0.971 F1 · 119.6 ms OCR",
+      "subline": "57× faster than PP-OCRv6; Kokoro TTS peaks at 0.81 GiB"
+    }
+  ],
+  "categories": [
+    {
+      "id": "stt",
+      "shortLabel": "Speech-to-Text",
+      "label": "Speech-to-Text (Meetings, Multilingual & Live)",
+      "summary": "Local ASR models measured head-to-head against OpenAI, Google, and Alibaba cloud STT APIs on overlapped AMI meetings, real two-track calls, multilingual FLEURS clips, and turn-by-turn live latency.",
+      "suites": [
+        {
+          "id": "stt-ami-cloud",
+          "shortLabel": "AMI vs. Cloud APIs",
+          "label": "AMI Meetings: Local ASR vs. Closed Cloud APIs",
+          "runDate": "2026-09-30",
+          "hardware": "Apple M4 Max (48 GB) · MLX 0.32.3 / mlx-audio 0.5.7 · direct cloud APIs",
+          "dataset": "16 windows (90–120 s) from 4 AMI Mix-Headset test meetings · 27.4 min · 4,160 reference words",
+          "note": "Heavy overlapped crosstalk on a single mixed channel makes deletions dominate every system's WER. Local models run serially with zero upload; API speed includes network upload with 4 requests in flight.",
+          "caveat": "Gemini 3.8 Flash edged Qwen3-ASR 1.7B by 0.9 pts on AMI (within CI), but invented 115 words across 15 spans on real quiet meeting chunks (see Real 2-Track Meetings suite).",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/transcribe/CloudSTT",
+          "blogUrl": "/blog/local-stt-vs-cloud-apis",
+          "defaultSort": { "key": "wer", "dir": "asc" },
+          "primaryMetric": { "key": "wer", "dir": "asc", "max": 25 },
+          "columns": [
+            { "key": "wer", "label": "AMI WER ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "ci", "label": "95% CI", "type": "text", "sortable": false, "align": "right" },
+            { "key": "lowOverlap", "label": "Low-overlap ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "speed", "label": "Speed ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "price", "label": "Price / hr ↓", "type": "cost", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "gemini-3-8-flash",
+              "model": "Gemini 3.8 Flash (prompted)",
+              "org": "Google",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "wer": { "display": "16.7%", "num": 16.7 },
+                "ci": { "display": "14.0–19.0%" },
+                "lowOverlap": { "display": "6.2%", "num": 6.2 },
+                "speed": { "display": "18×", "num": 18 },
+                "price": { "display": "$0.21", "num": 0.21 }
+              },
+              "note": "Lowest AMI WER, but invented 115 words on short/quiet real meeting chunks."
+            },
+            {
+              "id": "qwen3-asr-1-7b-local",
+              "model": "Qwen3-ASR 1.7B",
+              "org": "Qwen / Local",
+              "kind": "local",
+              "status": "default",
+              "runtime": "MLX 8-bit",
+              "quant": "8-bit · 2.47 GB",
+              "sizeGb": 2.47,
+              "values": {
+                "wer": { "display": "17.6%", "num": 17.6 },
+                "ci": { "display": "14.6–20.5%" },
+                "lowOverlap": { "display": "7.1%", "num": 7.1 },
+                "speed": { "display": "44×", "num": 44 },
+                "price": { "display": "$0", "num": 0 }
+              },
+              "note": "LokalBot default. Beat every OpenAI and Qwen cloud API on AMI at $0/hr."
+            },
+            {
+              "id": "qwen3-asr-flash",
+              "model": "Qwen3-ASR Flash",
+              "org": "Alibaba",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "wer": { "display": "18.1%", "num": 18.1 },
+                "ci": { "display": "14.6–20.8%" },
+                "lowOverlap": { "display": "6.3%", "num": 6.3 },
+                "speed": { "display": "25×", "num": 25 },
+                "price": { "display": "$0.13", "num": 0.13 }
+              }
+            },
+            {
+              "id": "qwen-audio-3-1-flash",
+              "model": "Qwen-Audio 3.1 ASR Flash",
+              "org": "Alibaba",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "wer": { "display": "18.5%", "num": 18.5 },
+                "ci": { "display": "14.6–21.8%" },
+                "lowOverlap": { "display": "5.6%", "num": 5.6 },
+                "speed": { "display": "10×", "num": 10 },
+                "price": { "display": "$0.02", "num": 0.02 }
+              },
+              "note": "Cheapest cloud API, but inserted 79 words in 4+ word runs on AMI."
+            },
+            {
+              "id": "parakeet-tdt-0-6b-v3",
+              "model": "Parakeet TDT 0.6B v3",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "MLX / Core ML",
+              "quant": "0.63 GB",
+              "sizeGb": 0.63,
+              "values": {
+                "wer": { "display": "19.2%", "num": 19.2 },
+                "ci": { "display": "15.8–22.3%" },
+                "lowOverlap": { "display": "8.1%", "num": 8.1 },
+                "speed": { "display": "129×", "num": 129 },
+                "price": { "display": "$0", "num": 0 }
+              },
+              "note": "Fastest overall (129× RT) and ahead of all 3 OpenAI STT models on AMI."
+            },
+            {
+              "id": "gpt-4o-mini-transcribe",
+              "model": "GPT-4o mini Transcribe",
+              "org": "OpenAI",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "wer": { "display": "21.8%", "num": 21.8 },
+                "ci": { "display": "17.5–25.7%" },
+                "lowOverlap": { "display": "7.8%", "num": 7.8 },
+                "speed": { "display": "34×", "num": 34 },
+                "price": { "display": "$0.18", "num": 0.18 }
+              }
+            },
+            {
+              "id": "gpt-transcribe",
+              "model": "GPT Transcribe",
+              "org": "OpenAI",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "wer": { "display": "22.2%", "num": 22.2 },
+                "ci": { "display": "17.6–27.5%" },
+                "lowOverlap": { "display": "6.9%", "num": 6.9 },
+                "speed": { "display": "30×", "num": 30 },
+                "price": { "display": "$0.27", "num": 0.27 }
+              }
+            },
+            {
+              "id": "gpt-4o-transcribe",
+              "model": "GPT-4o Transcribe",
+              "org": "OpenAI",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "wer": { "display": "23.0%", "num": 23.0 },
+                "ci": { "display": "18.4–27.0%" },
+                "lowOverlap": { "display": "6.2%", "num": 6.2 },
+                "speed": { "display": "25×", "num": 25 },
+                "price": { "display": "$0.36", "num": 0.36 }
+              },
+              "note": "Dropped 19.8% of reference words on AMI and skipped microphone speech on real calls."
+            }
+          ]
+        },
+        {
+          "id": "stt-meetings-agreement",
+          "shortLabel": "Real 2-Track Calls",
+          "label": "Real Two-Track Meetings: Consensus Disagreement & Hallucinations",
+          "runDate": "2026-09-30",
+          "hardware": "Apple M4 Max (48 GB) · MLX local vs direct cloud APIs",
+          "dataset": "3 real two-track meetings · 99 shared chunks · 69.9 min (no human reference; scored via leave-one-family-out ROVER vote)",
+          "note": "Measures agreement with independent vendor families, not ground-truth WER. Invented = inserted runs ≥ 4 words; Dropped = deleted runs ≥ 4 words.",
+          "caveat": "Reveals failure modes invisible in clean benchmarks: Gemini 3.8 Flash invented 115 words on short/quiet chunks, and GPT-4o Transcribe dropped 278 words on the microphone track.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/transcribe/CloudSTT",
+          "blogUrl": "/blog/local-stt-vs-cloud-apis",
+          "defaultSort": { "key": "disagreement", "dir": "asc" },
+          "primaryMetric": { "key": "disagreement", "dir": "asc", "max": 12 },
+          "columns": [
+            { "key": "disagreement", "label": "Disagreement ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "invented", "label": "Invented words ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "dropped", "label": "Dropped words ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "latency", "label": "Median latency ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "price", "label": "Price / hr ↓", "type": "cost", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "agree-qwen3-local",
+              "model": "Qwen3-ASR 1.7B",
+              "org": "Qwen / Local",
+              "kind": "local",
+              "status": "default",
+              "runtime": "MLX 8-bit",
+              "quant": "2.47 GB",
+              "sizeGb": 2.47,
+              "values": {
+                "disagreement": { "display": "4.2%", "num": 4.2, "sub": "CI 3.4–5.1%" },
+                "invented": { "display": "23", "num": 23 },
+                "dropped": { "display": "0", "num": 0 },
+                "latency": { "display": "0.4 s", "num": 0.4 },
+                "price": { "display": "$0", "num": 0 }
+              }
+            },
+            {
+              "id": "agree-gemini-3-5",
+              "model": "Gemini 3.5 Transcribe",
+              "org": "Google",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "4.5%", "num": 4.5, "sub": "CI 3.6–5.5%" },
+                "invented": { "display": "21", "num": 21 },
+                "dropped": { "display": "11", "num": 11 },
+                "latency": { "display": "6.3 s", "num": 6.3 },
+                "price": { "display": "$0.30", "num": 0.30 }
+              }
+            },
+            {
+              "id": "agree-qwen-audio-3-1",
+              "model": "Qwen-Audio 3.1 ASR Flash",
+              "org": "Alibaba",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "4.6%", "num": 4.6, "sub": "CI 3.8–5.5%" },
+                "invented": { "display": "21", "num": 21 },
+                "dropped": { "display": "11", "num": 11 },
+                "latency": { "display": "2.9 s", "num": 2.9 },
+                "price": { "display": "$0.01", "num": 0.01 }
+              }
+            },
+            {
+              "id": "agree-qwen3-flash",
+              "model": "Qwen3-ASR Flash",
+              "org": "Alibaba",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "5.3%", "num": 5.3, "sub": "CI 4.4–6.2%" },
+                "invented": { "display": "26", "num": 26 },
+                "dropped": { "display": "12", "num": 12 },
+                "latency": { "display": "1.3 s", "num": 1.3 },
+                "price": { "display": "$0.13", "num": 0.13 }
+              }
+            },
+            {
+              "id": "agree-gpt-transcribe",
+              "model": "GPT Transcribe",
+              "org": "OpenAI",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "5.9%", "num": 5.9, "sub": "CI 5.0–6.8%" },
+                "invented": { "display": "9", "num": 9 },
+                "dropped": { "display": "37", "num": 37 },
+                "latency": { "display": "1.2 s", "num": 1.2 },
+                "price": { "display": "$0.27", "num": 0.27 }
+              }
+            },
+            {
+              "id": "agree-gpt-4o-mini",
+              "model": "GPT-4o mini Transcribe",
+              "org": "OpenAI",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "6.2%", "num": 6.2, "sub": "CI 5.2–7.3%" },
+                "invented": { "display": "14", "num": 14 },
+                "dropped": { "display": "23", "num": 23 },
+                "latency": { "display": "1.4 s", "num": 1.4 },
+                "price": { "display": "$0.18", "num": 0.18 }
+              }
+            },
+            {
+              "id": "agree-parakeet",
+              "model": "Parakeet TDT 0.6B v3",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "MLX / Core ML",
+              "quant": "0.63 GB",
+              "sizeGb": 0.63,
+              "values": {
+                "disagreement": { "display": "6.2%", "num": 6.2, "sub": "CI 5.0–7.7%" },
+                "invented": { "display": "16", "num": 16 },
+                "dropped": { "display": "83", "num": 83 },
+                "latency": { "display": "0.2 s", "num": 0.2 },
+                "price": { "display": "$0", "num": 0 }
+              }
+            },
+            {
+              "id": "agree-gemini-3-8",
+              "model": "Gemini 3.8 Flash (prompted)",
+              "org": "Google",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "7.2%", "num": 7.2, "sub": "CI 6.0–8.8%" },
+                "invented": { "display": "115", "num": 115 },
+                "dropped": { "display": "0", "num": 0 },
+                "latency": { "display": "3.6 s", "num": 3.6 },
+                "price": { "display": "$0.33", "num": 0.33 }
+              },
+              "note": "Turned a 1.2 s quiet clip into a fluent 30-word hallucinated sentence."
+            },
+            {
+              "id": "agree-gpt-4o",
+              "model": "GPT-4o Transcribe",
+              "org": "OpenAI",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud API",
+              "quant": "Hosted",
+              "sizeGb": null,
+              "values": {
+                "disagreement": { "display": "10.0%", "num": 10.0, "sub": "CI 8.4–12.0%" },
+                "invented": { "display": "0", "num": 0 },
+                "dropped": { "display": "278", "num": 278 },
+                "latency": { "display": "1.3 s", "num": 1.3 },
+                "price": { "display": "$0.36", "num": 0.36 }
+              },
+              "note": "Skipped large portions of the user's microphone track (42% disagreement on Sept 28 mic)."
+            }
+          ]
+        },
+        {
+          "id": "stt-llamacpp-vs-mlx",
+          "shortLabel": "llama.cpp vs. MLX",
+          "label": "Qwen3-ASR 1.7B Runtime Parity: llama.cpp v1.0.0 vs. MLX",
+          "runDate": "2026-11-14",
+          "hardware": "Apple M4 Max (48 GB) · macOS 27.2.1 · identical Silero VAD windows",
+          "dataset": "11 conditions · 6.6 hours of audio (AMI, owner meetings, German/Japanese/Russian/Serbian FLEURS)",
+          "note": "Compares ggml-org/Qwen3-ASR-1.7B-GGUF Q8_0 on llama.cpp v1.0.0 (b12359) against aufklarer/Qwen3-ASR-1.7B-MLX-8bit on speech-swift 0.0.29.",
+          "caveat": "llama.cpp matched or slightly beat MLX on accuracy while cutting peak memory footprint from 7.6 GB to 2.35 GB, at 8–13% slower throughput.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/QwenLlamaCpp/results/2026-11-14-llama-v1/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/transcribe/QwenLlamaCpp",
+          "defaultSort": { "key": "amiWer", "dir": "asc" },
+          "primaryMetric": { "key": "amiWer", "dir": "asc", "max": 22 },
+          "columns": [
+            { "key": "amiWer", "label": "AMI WER ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "deWer", "label": "German FLEURS ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "srWer", "label": "Serbian + vocab ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "speed", "label": "EN Speed ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "footprint", "label": "Peak Footprint ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "qwen-asr-llamacpp",
+              "model": "Qwen3-ASR 1.7B (llama.cpp v1.0.0)",
+              "org": "ggml-org / Qwen",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama-server b12359",
+              "quant": "Q8_0 + mmproj Q8_0",
+              "sizeGb": 2.52,
+              "values": {
+                "amiWer": { "display": "17.76%", "num": 17.76 },
+                "deWer": { "display": "3.9%", "num": 3.9 },
+                "srWer": { "display": "12.4%", "num": 12.4 },
+                "speed": { "display": "42.2×", "num": 42.2 },
+                "footprint": { "display": "2.35 GB", "num": 2.35 }
+              },
+              "note": "273/277 transcripts byte-identical between llama.cpp v0.9.0 and v1.0.0; 11/12 Serbian names recovered."
+            },
+            {
+              "id": "qwen-asr-mlx",
+              "model": "Qwen3-ASR 1.7B (MLX)",
+              "org": "Qwen / speech-swift",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "MLX 0.32.3",
+              "quant": "8-bit MLX",
+              "sizeGb": 2.47,
+              "values": {
+                "amiWer": { "display": "17.80%", "num": 17.80 },
+                "deWer": { "display": "4.5%", "num": 4.5 },
+                "srWer": { "display": "13.4%", "num": 13.4 },
+                "speed": { "display": "47.2×", "num": 47.2 },
+                "footprint": { "display": "7.60 GB", "num": 7.60, "sub": "3.86 GB MLX alloc" }
+              },
+              "note": "10–13% faster than llama.cpp; higher footprint reflects MLX's untrimmed buffer cache."
+            }
+          ]
+        },
+        {
+          "id": "stt-small-engines",
+          "shortLabel": "Small & Multilingual",
+          "label": "Small Local Speech Engines & Multilingual FLEURS",
+          "runDate": "2026-10-09",
+          "hardware": "Apple M4 Max (48 GB) · network blocked by macOS",
+          "dataset": "44 human-transcribed English clips (24 AMI IHM + 20 FLEURS, 810 words) + 8-clip German/French/Polish FLEURS probes",
+          "note": "Bounded evaluation testing whether a 17 MB ultra-small C++ engine (Whistle) could rival Parakeet Ultra or Qwen3-ASR 1.7B.",
+          "caveat": "German/French/Polish subsets have 8 clips each (~140–227 words); treat as directional rather than population rankings.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/WhistleComparison/results/2026-10-09/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/transcribe/WhistleComparison",
+          "defaultSort": { "key": "enWer", "dir": "asc" },
+          "primaryMetric": { "key": "enWer", "dir": "asc", "max": 24 },
+          "columns": [
+            { "key": "enWer", "label": "English WER ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "deWer", "label": "German WER ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "medianMs", "label": "Median clip ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "speed", "label": "Throughput ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "download", "label": "Download ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "small-qwen3",
+              "model": "Qwen3-ASR 1.7B",
+              "org": "Qwen / Local",
+              "kind": "local",
+              "status": "default",
+              "runtime": "speech-swift / MLX",
+              "quant": "8-bit",
+              "sizeGb": 2.47,
+              "values": {
+                "enWer": { "display": "7.65%", "num": 7.65 },
+                "deWer": { "display": "2.20%", "num": 2.20 },
+                "medianMs": { "display": "157.0 ms", "num": 157.0 },
+                "speed": { "display": "40.4×", "num": 40.4 },
+                "download": { "display": "2.47 GB", "num": 2467.85 }
+              },
+              "note": "Best accuracy; custom vocabulary hints cut name errors from 12.2% to 2.44%."
+            },
+            {
+              "id": "small-parakeet-ultra",
+              "model": "Parakeet Ultra 0.6B",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "FluidAudio 0.17.5 Core ML",
+              "quant": "Core ML",
+              "sizeGb": 0.63,
+              "values": {
+                "enWer": { "display": "8.89%", "num": 8.89 },
+                "deWer": { "display": "1.65%", "num": 1.65 },
+                "medianMs": { "display": "48.0 ms", "num": 48.0 },
+                "speed": { "display": "135.6×", "num": 135.6 },
+                "download": { "display": "632 MB", "num": 632.16 }
+              },
+              "note": "Fastest balanced option (p95 66.1 ms); 1.65% on German and 9.35% on Polish FLEURS."
+            },
+            {
+              "id": "small-whistle",
+              "model": "Whistle (native C++)",
+              "org": "Whistle",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "C API",
+              "quant": "16.9 MB",
+              "sizeGb": 0.02,
+              "values": {
+                "enWer": { "display": "20.25%", "num": 20.25 },
+                "deWer": { "display": "19.78%", "num": 19.78 },
+                "medianMs": { "display": "31.7 ms", "num": 31.7 },
+                "speed": { "display": "200.2×", "num": 200.2 },
+                "download": { "display": "16.9 MB", "num": 16.92 }
+              },
+              "note": "Rejected: +11.4 pt higher WER than Parakeet; 111.7% WER on unsupported Serbian; default telemetry."
+            }
+          ]
+        },
+        {
+          "id": "stt-live-turns",
+          "shortLabel": "Live Turn Latency",
+          "label": "Turn-by-Turn Live Transcript Latency (Two-Track Call)",
+          "runDate": "2026-11-10",
+          "hardware": "Apple M4 Max (48 GB) · macOS 27.2 · Release build",
+          "dataset": "Scripted two-track English call (25 speaker hand-overs); turn closed at speech pause via Silero VAD",
+          "note": "Times measure end-of-word to displayed text. Cutting tracks at pauses cut both latency and word errors versus fixed 4–12 s preview windows.",
+          "caveat": "Synthetic voices on a scripted call without crosstalk; real meetings have pauses mid-sentence. Muse Voice Transcribe (cloud) measured 0.74 s median on separate AMI audio.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/LiveTurns/results/2026-11-10/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/transcribe/LiveTurns",
+          "defaultSort": { "key": "turnMedian", "dir": "asc" },
+          "primaryMetric": { "key": "turnMedian", "dir": "asc", "max": 1.6 },
+          "columns": [
+            { "key": "turnMedian", "label": "Turn median ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "turnWorst", "label": "Turn worst ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "windowMedian", "label": "Old window median", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "turnWer", "label": "Turn WER ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "decodeMedian", "label": "Decode only ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "live-granite5",
+              "model": "Granite Speech 5 fast",
+              "org": "IBM / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "Core ML / fast EN",
+              "quant": "English-only",
+              "sizeGb": 1.05,
+              "values": {
+                "turnMedian": { "display": "0.48 s", "num": 0.48 },
+                "turnWorst": { "display": "0.79 s", "num": 0.79 },
+                "windowMedian": { "display": "1.74 s", "num": 1.74 },
+                "turnWer": { "display": "11.2%", "num": 11.2 },
+                "decodeMedian": { "display": "0.02 s", "num": 0.02 }
+              }
+            },
+            {
+              "id": "live-parakeet-v3",
+              "model": "Parakeet TDT 0.6B v3",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "FluidAudio Core ML",
+              "quant": "0.63 GB",
+              "sizeGb": 0.63,
+              "values": {
+                "turnMedian": { "display": "0.50 s", "num": 0.50 },
+                "turnWorst": { "display": "0.81 s", "num": 0.81 },
+                "windowMedian": { "display": "1.86 s", "num": 1.86 },
+                "turnWer": { "display": "3.4%", "num": 3.4 },
+                "decodeMedian": { "display": "0.04 s", "num": 0.04 }
+              }
+            },
+            {
+              "id": "live-parakeet-ultra",
+              "model": "Parakeet Ultra 0.6B",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "FluidAudio Core ML",
+              "quant": "0.63 GB",
+              "sizeGb": 0.63,
+              "values": {
+                "turnMedian": { "display": "0.50 s", "num": 0.50 },
+                "turnWorst": { "display": "0.81 s", "num": 0.81 },
+                "windowMedian": { "display": "2.23 s", "num": 2.23 },
+                "turnWer": { "display": "4.7%", "num": 4.7 },
+                "decodeMedian": { "display": "0.04 s", "num": 0.04 }
+              }
+            },
+            {
+              "id": "live-qwen3",
+              "model": "Qwen3-ASR 1.7B",
+              "org": "Qwen / Local",
+              "kind": "local",
+              "status": "default",
+              "runtime": "MLX 8-bit",
+              "quant": "2.47 GB",
+              "sizeGb": 2.47,
+              "values": {
+                "turnMedian": { "display": "0.64 s", "num": 0.64 },
+                "turnWorst": { "display": "0.86 s", "num": 0.86 },
+                "windowMedian": { "display": "1.89 s", "num": 1.89 },
+                "turnWer": { "display": "2.9%", "num": 2.9 },
+                "decodeMedian": { "display": "0.15 s", "num": 0.15 }
+              },
+              "note": "Lowest English turn WER (2.9% vs 8.5% on fixed windows); 0.71 s median in Serbian."
+            },
+            {
+              "id": "live-whisper-turbo",
+              "model": "Whisper large-v3 turbo",
+              "org": "OpenAI / WhisperKit",
+              "kind": "local",
+              "status": "option",
+              "runtime": "WhisperKit 1.1.1",
+              "quant": "1.6 GB",
+              "sizeGb": 1.6,
+              "values": {
+                "turnMedian": { "display": "1.32 s", "num": 1.32 },
+                "turnWorst": { "display": "1.52 s", "num": 1.52 },
+                "windowMedian": { "display": "3.22 s", "num": 3.22 },
+                "turnWer": { "display": "5.8%", "num": 5.8 },
+                "decodeMedian": { "display": "0.81 s", "num": 0.81 }
+              },
+              "note": "Best Serbian turn WER (15.6% vs 22.3% for Qwen), but ~0.8 s decode overhead per turn."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "diarization",
+      "shortLabel": "Diarization",
+      "label": "Speaker Diarization (Who Spoke When)",
+      "summary": "Four independent English AMI meetings scored both as headset mixes and distant-microphone rooms (8 conditions, 184.55 minutes, 4 speakers each), with overlap scored and no speaker-count hints.",
+      "suites": [
+        {
+          "id": "diarization-ami",
+          "shortLabel": "AMI 4-Speaker (8 runs)",
+          "label": "AMI Speaker Diarization: Local Core ML vs. Pyannote & Cloud API",
+          "runDate": "2026-09-23",
+          "hardware": "Apple M4 Max (48 GB) · FluidAudio Core ML · Meta cloud API tested 2026-10-27",
+          "dataset": "4 English AMI test meetings × 2 mic conditions = 8 recordings · 184.55 min · 4 speakers · overlap scored",
+          "note": "Diarization Error Rate (DER) = missed speech + false alarms + speaker confusion. Speed is warm median on the 17.49-min ES2004a headset recording.",
+          "caveat": "Pyannote baseline is the pinned FluidAudio port, not every Pyannote setup. Muse cloud DER (60.4%) includes pauses kept inside turns; cut to reference speech it scored 21.7% vs 11.8% for Nemotron offline.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/transcribe/NemotronDiarization",
+          "defaultSort": { "key": "der0", "dir": "asc" },
+          "primaryMetric": { "key": "der0", "dir": "asc", "max": 65 },
+          "columns": [
+            { "key": "der0", "label": "DER (0 ms collar) ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "der250", "label": "DER (250 ms) ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "speakers", "label": "Speaker count ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "speed", "label": "Speed ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "rss", "label": "Peak RSS ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "diar-nemotron-fast128",
+              "model": "Nemotron 3 fast128",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "Core ML (FluidAudio)",
+              "quant": "Full precision",
+              "sizeGb": 0.2,
+              "values": {
+                "der0": { "display": "14.51%", "num": 14.51 },
+                "der250": { "display": "8.19%", "num": 8.19 },
+                "speakers": { "display": "8/8", "num": 8 },
+                "speed": { "display": "365×", "num": 365 },
+                "rss": { "display": "0.64 GiB", "num": 0.64 }
+              }
+            },
+            {
+              "id": "diar-nemotron-offline",
+              "model": "Nemotron 3 offline",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "default",
+              "runtime": "Core ML (FluidAudio)",
+              "quant": "Full precision · ~0.20 GB",
+              "sizeGb": 0.2,
+              "values": {
+                "der0": { "display": "14.56%", "num": 14.56 },
+                "der250": { "display": "8.34%", "num": 8.34 },
+                "speakers": { "display": "8/8", "num": 8 },
+                "speed": { "display": "500×", "num": 500 },
+                "rss": { "display": "0.67 GiB", "num": 0.67 }
+              },
+              "note": "LokalBot default. Cut speaker confusion from 8.87% to 1.77% and beat baseline on all 8 conditions."
+            },
+            {
+              "id": "diar-nemotron-w8a8",
+              "model": "Nemotron 3 c128 W8A8",
+              "org": "NVIDIA / Local",
+              "kind": "local",
+              "status": "option",
+              "runtime": "Core ML (CPU/ANE)",
+              "quant": "W8A8",
+              "sizeGb": 0.12,
+              "values": {
+                "der0": { "display": "15.73%", "num": 15.73 },
+                "der250": { "display": "9.34%", "num": 9.34 },
+                "speakers": { "display": "7/8", "num": 7 },
+                "speed": { "display": "480×", "num": 480 },
+                "rss": { "display": "0.63 GiB", "num": 0.63 }
+              }
+            },
+            {
+              "id": "diar-pyannote",
+              "model": "Pyannote Community-1",
+              "org": "Pyannote / FluidAudio",
+              "kind": "local",
+              "status": "option",
+              "runtime": "Core ML (FluidAudio)",
+              "quant": "Previous default",
+              "sizeGb": 0.25,
+              "values": {
+                "der0": { "display": "43.44%", "num": 43.44 },
+                "der250": { "display": "30.45%", "num": 30.45 },
+                "speakers": { "display": "5/8", "num": 5 },
+                "speed": { "display": "243×", "num": 243 },
+                "rss": { "display": "0.68 GiB", "num": 0.68 }
+              },
+              "note": "Pinned FluidAudio implementation; remains selectable in Settings."
+            },
+            {
+              "id": "diar-muse-cloud",
+              "model": "Muse Voice Transcribe 1.0",
+              "org": "Meta",
+              "kind": "cloud",
+              "status": "cloud",
+              "runtime": "Cloud realtime API",
+              "quant": "Hosted ($0.36/hr)",
+              "sizeGb": null,
+              "values": {
+                "der0": { "display": "60.4%", "num": 60.4, "sub": "21.7% ref-cut" },
+                "der250": { "display": "—", "num": null },
+                "speakers": { "display": "5/8", "num": 5 },
+                "speed": { "display": "Live (0.74 s)", "num": null },
+                "rss": { "display": "Cloud", "num": null }
+              },
+              "note": "Realtime streaming API tested 2026-10-27 on the same 8 AMI files; false alarms from pauses inside turns."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "memory",
+      "shortLabel": "Memory Restraint",
+      "label": "Personal Memory Extraction: Recall vs. Restraint",
+      "summary": "A personal memory writer has two jobs: save durable user facts with valid citations, and return nothing on noise, temporary tasks, third-party gossip, or sensitive exclusions. Most benchmarks only test the first.",
+      "suites": [
+        {
+          "id": "memory-english",
+          "shortLabel": "English (96 cases)",
+          "label": "Recall vs. Restraint — 96 Frozen English Cases (48 Paired Toggles)",
+          "runDate": "2026-10-25",
+          "hardware": "Ryzen 7 9700X Ubuntu CPU (llama.cpp) · MemT on Windows RX 6600 XT (experimental NF4 offload)",
+          "dataset": "96 frozen English cases (52 eligible memories, 44 empty cases) · identical prompt, JSON schema, greedy seed 0",
+          "note": "Recall requires both accurate content AND the exact source-line citation. Always returning empty scores 44/44 empty and 0/52 recall; saving everything scores 52/52 recall and 0/44 empty.",
+          "caveat": "MemT-1.0-Nano ran under experimental NF4 expert offload on Transformers (different hardware/precision than GGUF arms) and statelessly, so its latent persistent-memory branch was not exercised. Cases and semantic review were assistant-authored.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/think/MemoryRetention/2026-10-23/memt-nano/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/think/MemoryRetention/2026-10-23",
+          "blogUrl": "/blog/recall-vs-restraint-memory-benchmark",
+          "defaultSort": { "key": "fullPass", "dir": "desc" },
+          "primaryMetric": { "key": "fullPass", "dir": "desc", "max": 96 },
+          "scatter": {
+            "title": "Pareto frontier: Useful Recall (%) vs. Clean Empty Restraint (%)",
+            "xLabel": "Useful memories recalled (%)",
+            "yLabel": "Empty cases correctly left blank (%)",
+            "xKey": "recall",
+            "yKey": "empty",
+            "sizeKey": "unwanted"
+          },
+          "columns": [
+            { "key": "recall", "label": "Useful recall ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "unwanted", "label": "Unwanted ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "empty", "label": "Empty correct ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "fullPass", "label": "Full contract ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "mem-memt-nano",
+              "model": "MemT-1.0-Nano",
+              "org": "MemTensor (community suggestion)",
+              "kind": "local",
+              "status": "experimental",
+              "runtime": "Transformers NF4 offload",
+              "quant": "Exp. NF4 experts / BF16 dense",
+              "sizeGb": null,
+              "values": {
+                "recall": { "display": "98.1%", "num": 98.1, "sub": "51/52" },
+                "unwanted": { "display": "6", "num": 6 },
+                "empty": { "display": "88.6%", "num": 88.6, "sub": "39/44" },
+                "fullPass": { "display": "89/96", "num": 89 }
+              },
+              "note": "Suggested by r/LocalLLaMA reader; best recall/restraint balance tested so far (Qwen3.6-35B-A3B backbone)."
+            },
+            {
+              "id": "mem-qwen35-9b",
+              "model": "Qwen3.5 9B",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "option",
+              "runtime": "llama.cpp",
+              "quant": "Q4_K_M",
+              "sizeGb": 5.6,
+              "values": {
+                "recall": { "display": "71.2%", "num": 71.2, "sub": "37/52" },
+                "unwanted": { "display": "5", "num": 5 },
+                "empty": { "display": "90.9%", "num": 90.9, "sub": "40/44" },
+                "fullPass": { "display": "77/96", "num": 77 }
+              }
+            },
+            {
+              "id": "mem-qwen35-4b",
+              "model": "Qwen3.5 4B",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp",
+              "quant": "Q4_K_M · 2.74 GB",
+              "sizeGb": 2.74,
+              "values": {
+                "recall": { "display": "57.7%", "num": 57.7, "sub": "30/52" },
+                "unwanted": { "display": "3", "num": 3 },
+                "empty": { "display": "95.5%", "num": 95.5, "sub": "42/44" },
+                "fullPass": { "display": "72/96", "num": 72 }
+              },
+              "note": "LokalBot default. Strictest restraint (only 3 unwanted proposals across 96 cases) in a 2.7 GB footprint."
+            },
+            {
+              "id": "mem-lfm25-24b",
+              "model": "LFM2.5 24B-A2B",
+              "org": "LiquidAI",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp",
+              "quant": "QAD Q4_0",
+              "sizeGb": 14.2,
+              "values": {
+                "recall": { "display": "76.9%", "num": 76.9, "sub": "40/52" },
+                "unwanted": { "display": "53", "num": 53 },
+                "empty": { "display": "22.7%", "num": 22.7, "sub": "10/44" },
+                "fullPass": { "display": "44/96", "num": 44 }
+              },
+              "note": "15 proposals copied few-shot prompt examples; 18 had invalid citation handles."
+            },
+            {
+              "id": "mem-hymemory-30b",
+              "model": "Hy-Memory 30B-A3B",
+              "org": "Tencent",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp",
+              "quant": "Official Q4_K_M",
+              "sizeGb": 18.5,
+              "values": {
+                "recall": { "display": "100.0%", "num": 100.0, "sub": "52/52" },
+                "unwanted": { "display": "76", "num": 76 },
+                "empty": { "display": "0.0%", "num": 0.0, "sub": "0/44" },
+                "fullPass": { "display": "32/96", "num": 32 }
+              },
+              "note": "Perfect recall, zero restraint: never returned an empty list on any of the 44 empty cases."
+            }
+          ]
+        },
+        {
+          "id": "memory-serbian",
+          "shortLabel": "Serbian (24 exploratory)",
+          "label": "Exploratory Serbian Slice — 24 Frozen Cases (Latin & Cyrillic)",
+          "runDate": "2026-10-25",
+          "hardware": "Ryzen 7 9700X Ubuntu CPU (llama.cpp) · MemT on Windows RX 6600 XT",
+          "dataset": "24 frozen Serbian cases (13 eligible memories, 11 empty cases; 12 Latin, 12 Cyrillic)",
+          "note": "Checks recall, restraint, and whether models preserve original language and script without silently translating to English.",
+          "caveat": "Exploratory slice only. Hy-Memory advertises English and Chinese coverage; 3 of MemT's Serbian outputs switched language or script.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/think/MemoryRetention/2026-10-23/memt-nano/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/think/MemoryRetention/2026-10-23",
+          "blogUrl": "/blog/recall-vs-restraint-memory-benchmark",
+          "defaultSort": { "key": "fullPass", "dir": "desc" },
+          "primaryMetric": { "key": "fullPass", "dir": "desc", "max": 24 },
+          "scatter": {
+            "title": "Serbian exploratory slice: Useful Recall (%) vs. Clean Empty Restraint (%)",
+            "xLabel": "Useful memories recalled (%)",
+            "yLabel": "Empty cases correctly left blank (%)",
+            "xKey": "recall",
+            "yKey": "empty",
+            "sizeKey": "unwanted"
+          },
+          "columns": [
+            { "key": "recall", "label": "Useful recall ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "unwanted", "label": "Unwanted ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "empty", "label": "Empty correct ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "fullPass", "label": "Full contract ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "mem-sr-memt",
+              "model": "MemT-1.0-Nano",
+              "org": "MemTensor",
+              "kind": "local",
+              "status": "experimental",
+              "runtime": "Transformers NF4 offload",
+              "quant": "Exp. NF4 / BF16",
+              "sizeGb": null,
+              "values": {
+                "recall": { "display": "100.0%", "num": 100.0, "sub": "13/13" },
+                "unwanted": { "display": "3", "num": 3 },
+                "empty": { "display": "72.7%", "num": 72.7, "sub": "8/11" },
+                "fullPass": { "display": "19/24", "num": 19 }
+              },
+              "note": "3 outputs translated Cyrillic into English."
+            },
+            {
+              "id": "mem-sr-qwen9b",
+              "model": "Qwen3.5 9B",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "option",
+              "runtime": "llama.cpp",
+              "quant": "Q4_K_M",
+              "sizeGb": 5.6,
+              "values": {
+                "recall": { "display": "92.3%", "num": 92.3, "sub": "12/13" },
+                "unwanted": { "display": "2", "num": 2 },
+                "empty": { "display": "81.8%", "num": 81.8, "sub": "9/11" },
+                "fullPass": { "display": "9/24", "num": 9 }
+              }
+            },
+            {
+              "id": "mem-sr-qwen4b",
+              "model": "Qwen3.5 4B",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp",
+              "quant": "Q4_K_M · 2.74 GB",
+              "sizeGb": 2.74,
+              "values": {
+                "recall": { "display": "61.5%", "num": 61.5, "sub": "8/13" },
+                "unwanted": { "display": "2", "num": 2 },
+                "empty": { "display": "90.9%", "num": 90.9, "sub": "10/11" },
+                "fullPass": { "display": "10/24", "num": 10 }
+              }
+            },
+            {
+              "id": "mem-sr-hymemory",
+              "model": "Hy-Memory 30B-A3B",
+              "org": "Tencent",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp",
+              "quant": "Official Q4_K_M",
+              "sizeGb": 18.5,
+              "values": {
+                "recall": { "display": "100.0%", "num": 100.0, "sub": "13/13" },
+                "unwanted": { "display": "25", "num": 25 },
+                "empty": { "display": "0.0%", "num": 0.0, "sub": "0/11" },
+                "fullPass": { "display": "4/24", "num": 4 }
+              }
+            },
+            {
+              "id": "mem-sr-lfm24b",
+              "model": "LFM2.5 24B-A2B",
+              "org": "LiquidAI",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp",
+              "quant": "QAD Q4_0",
+              "sizeGb": 14.2,
+              "values": {
+                "recall": { "display": "61.5%", "num": 61.5, "sub": "8/13" },
+                "unwanted": { "display": "37", "num": 37 },
+                "empty": { "display": "0.0%", "num": 0.0, "sub": "0/11" },
+                "fullPass": { "display": "3/24", "num": 3 }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "autocomplete",
+      "shortLabel": "Autocomplete",
+      "label": "System-Wide Local Autocomplete (Inline Cotyping)",
+      "summary": "Headless engine benchmarks measuring per-keystroke latency, safety, confidence-gated precision across 788 word boundaries, and first-suggestion recovery after a 5-minute pause.",
+      "suites": [
+        {
+          "id": "autocomplete-engine",
+          "shortLabel": "Engine Accuracy & Speed",
+          "label": "Production Autocomplete Engine: Gemma 4 E2B vs. LFM2.5 1.2B",
+          "runDate": "2026-10-15",
+          "hardware": "Apple M4 Max (48 GB) · Release build · in-process llama.cpp",
+          "dataset": "140 safety checks (28 scenarios × 5 passes) + 788 word positions in 96 synthetic phrases across 6 languages",
+          "note": "Accuracy counts held-back suggestions as misses; 'Right when shown' measures precision when the confidence gate displays text. In English, the two models are statistically tied (+1.1 pts, 95% CI −1.4 to +3.5).",
+          "caveat": "Engine timings exclude Accessibility field reads and overlay rendering. Synthetic phrases; some confirmed the hybrid decoder before shipping. On Cotabby's separate 782-checkpoint test, Gemma 4 E2B scored 32.7% vs Cotabby's 30.7%.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-10-15-engine-benchmark/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/autocomplete/Cotyping",
+          "blogUrl": "/blog/local-autocomplete-56ms-benchmark",
+          "defaultSort": { "key": "precision", "dir": "desc" },
+          "primaryMetric": { "key": "precision", "dir": "desc", "max": 60 },
+          "columns": [
+            { "key": "precision", "label": "Right when shown ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "accuracy", "label": "Next-word acc ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "otherLang", "label": "Non-EN acc ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "keystrokeMs", "label": "Keystroke p50 ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "unsafe", "label": "Unsafe / 140 ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "size", "label": "Model size ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "auto-gemma4-e2b",
+              "model": "Gemma 4 E2B Base",
+              "org": "Google / mradermacher",
+              "kind": "local",
+              "status": "default",
+              "runtime": "In-process llama.cpp",
+              "quant": "i1-Q6_K · 3.85 GB",
+              "sizeGb": 3.85,
+              "values": {
+                "precision": { "display": "50.1%", "num": 50.1 },
+                "accuracy": { "display": "23.1%", "num": 23.1, "sub": "25.3% EN" },
+                "otherLang": { "display": "14.6%", "num": 14.6 },
+                "keystrokeMs": { "display": "56 ms", "num": 56, "sub": "102 ms p95" },
+                "unsafe": { "display": "0", "num": 0 },
+                "size": { "display": "3.85 GB", "num": 3.85 }
+              },
+              "note": "LokalBot default. Stronger multilingual coverage (incl. Serbian) and higher precision when shown."
+            },
+            {
+              "id": "auto-lfm25-1-2b",
+              "model": "LFM2.5 1.2B Instruct",
+              "org": "LiquidAI / Unsloth",
+              "kind": "local",
+              "status": "option",
+              "runtime": "In-process llama.cpp",
+              "quant": "Q4_K_M · 0.73 GB",
+              "sizeGb": 0.73,
+              "values": {
+                "precision": { "display": "43.0%", "num": 43.0 },
+                "accuracy": { "display": "20.7%", "num": 20.7, "sub": "24.2% EN" },
+                "otherLang": { "display": "7.3%", "num": 7.3 },
+                "keystrokeMs": { "display": "26 ms", "num": 26, "sub": "76 ms p95" },
+                "unsafe": { "display": "0", "num": 0 },
+                "size": { "display": "0.73 GB", "num": 0.73 }
+              },
+              "note": "Lightweight preset. Statistically tied in English, 2–3× faster per keystroke, loads in 0.16 s."
+            }
+          ]
+        },
+        {
+          "id": "autocomplete-pause",
+          "shortLabel": "5-Min Idle Wake-Up",
+          "label": "First Suggestion After a 5-Minute Pause (Metal Residency Fix)",
+          "runDate": "2026-11-18",
+          "hardware": "Apple M4 Max (48 GB) · macOS 27.2.1 · llama.cpp v1.0.0 (b12359)",
+          "dataset": "Gemma 4 E2B i1-Q6_K · single keystroke after 300 s idle vs immediate warm reference",
+          "note": "After llama.cpp's 180 s GGML_METAL_RESIDENCY_KEEP_ALIVE_S expires, ~3.4 GB of weights unwire (+50–80 ms) and the GPU clocks down (+10–15 ms). Decoding one throwaway token on wake/click/key with llama_synchronize and stripping it via seq_rm preserves the KV prompt.",
+          "caveat": "30-minute pauses under heavy OS memory pressure (file paging) have not been re-measured yet. Four warm-up touches over 5 min added 18 mJ CPU energy (468 vs 450 mJ).",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/autocomplete/Cotyping/results/2026-11-18-first-after-pause/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/autocomplete/Cotyping",
+          "blogUrl": "/blog/local-autocomplete-56ms-benchmark",
+          "defaultSort": { "key": "firstMs", "dir": "asc" },
+          "primaryMetric": { "key": "firstMs", "dir": "asc", "max": 135 },
+          "columns": [
+            { "key": "firstMs", "label": "First suggestion ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "warmRef", "label": "Warm reference", "type": "text", "sortable": false, "align": "right" },
+            { "key": "overhead", "label": "Cold penalty ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "wiring", "label": "Wired while idle", "type": "text", "sortable": false, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "pause-ahead",
+              "model": "Warm-up just before typing (wake / click)",
+              "org": "LokalBot v0.13.3",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "1-token touch + seq_rm",
+              "sizeGb": 3.85,
+              "values": {
+                "firstMs": { "display": "49 ms", "num": 49 },
+                "warmRef": { "display": "47–49 ms" },
+                "overhead": { "display": "~1 ms", "num": 1 },
+                "wiring": { "display": "Released after 3 min away" }
+              }
+            },
+            {
+              "id": "pause-at-key",
+              "model": "Warm-up at first keystroke (45 ms debounce)",
+              "org": "LokalBot v0.13.3",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "1-token touch + seq_rm",
+              "sizeGb": 3.85,
+              "values": {
+                "firstMs": { "display": "51.5 ms", "num": 51.5, "sub": "50, 53 ms" },
+                "warmRef": { "display": "47–49 ms" },
+                "overhead": { "display": "~3.5 ms", "num": 3.5 },
+                "wiring": { "display": "Released after 3 min away" }
+              }
+            },
+            {
+              "id": "pause-every60",
+              "model": "Periodic touch every 60 s while active",
+              "org": "Tested variant",
+              "kind": "local",
+              "status": "option",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "Keep-warm probe",
+              "sizeGb": 3.85,
+              "values": {
+                "firstMs": { "display": "59 ms", "num": 59 },
+                "warmRef": { "display": "47 ms" },
+                "overhead": { "display": "12 ms", "num": 12 },
+                "wiring": { "display": "+2–3 GB wired" }
+              },
+              "note": "Weights stayed wired, but GPU still clocked down (+10–15 ms)."
+            },
+            {
+              "id": "pause-keepalive",
+              "model": "llama.cpp keep-alive raised to 3600 s",
+              "org": "Tested variant",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "Config override",
+              "sizeGb": 3.85,
+              "values": {
+                "firstMs": { "display": "62 ms", "num": 62 },
+                "warmRef": { "display": "48 ms" },
+                "overhead": { "display": "14 ms", "num": 14 },
+                "wiring": { "display": "Stays wired 1 hr away" }
+              },
+              "note": "Rejected: pins 3.4 GB wired even when away from Mac and doesn't wake GPU clocks."
+            },
+            {
+              "id": "pause-before",
+              "model": "Before fix (default 180 s keep-alive)",
+              "org": "Baseline",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "No warm-up touch",
+              "sizeGb": 3.85,
+              "values": {
+                "firstMs": { "display": "112.5 ms", "num": 112.5, "sub": "95, 130 ms" },
+                "warmRef": { "display": "47–49 ms" },
+                "overhead": { "display": "+47–82 ms", "num": 64.5 },
+                "wiring": { "display": "Unwired at 180 s" }
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "retrieval",
+      "shortLabel": "Search & Memory",
+      "label": "Local Hybrid Retrieval & Embedding Models",
+      "summary": "Head-to-head meeting retrieval across 232 public QMSum meetings (1,576 questions) comparing LokalBot's SQLite FTS5 + EmbeddingGemma 2 layer against GBrain v0.60, plus multilingual embedding comparisons.",
+      "suites": [
+        {
+          "id": "retrieval-qmsum",
+          "shortLabel": "QMSum 232 Meetings",
+          "label": "Hybrid Meeting Retrieval: LokalBot (SQLite) vs. GBrain (PGLite MCP)",
+          "runDate": "2026-11-17",
+          "hardware": "Apple M4 Max (48 GB) · shared EmbeddingGemma 2 Q8_0 server (496 MB peak)",
+          "dataset": "QMSum (232 public meetings, 129,177 turns, 2.1M words, 1,576 specific questions)",
+          "note": "Both hybrid configurations queried the exact same EmbeddingGemma 2 Q8_0 llama-server. Cloud Xeon keyword-only repeat matched accuracy exactly.",
+          "caveat": "GBrain beat LokalBot in keyword-only mode (2,000-char chunks vs single transcript rows) and ran without a hosted reranker or query expansion. Neither system automatically supersedes unlinked contradictory statements.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/memory/GBrain/2026-11-17/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/memory/GBrain",
+          "blogUrl": "/blog/gbrain-vs-lokalbot-memory-benchmark",
+          "defaultSort": { "key": "r1", "dir": "desc" },
+          "primaryMetric": { "key": "r1", "dir": "desc", "max": 0.35 },
+          "columns": [
+            { "key": "r1", "label": "R@1 ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "r4", "label": "R@4 / R@10 ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "mrr", "label": "MRR ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "p50", "label": "Query p50 ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "ram", "label": "RAM ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "chars", "label": "Context ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "ret-lokalbot-hybrid",
+              "model": "LokalBot Hybrid (FTS5 + EmbeddingGemma 2)",
+              "org": "LokalBot",
+              "kind": "local",
+              "status": "default",
+              "runtime": "SQLite + llama.cpp",
+              "quant": "RRF k=60 · 167 MB disk",
+              "sizeGb": 0.31,
+              "values": {
+                "r1": { "display": "0.280", "num": 0.280 },
+                "r4": { "display": "0.475", "num": 0.475, "sub": "0.595 R@10" },
+                "mrr": { "display": "0.379", "num": 0.379 },
+                "p50": { "display": "39 ms", "num": 39, "sub": "52 ms p95" },
+                "ram": { "display": "50 MB", "num": 50 },
+                "chars": { "display": "1.2k ch", "num": 1248 }
+              },
+              "note": "+4.1 pts R@1 and +10.9 pts R@4 over GBrain Hybrid at 6.5× lower latency and ~20× lower process RAM."
+            },
+            {
+              "id": "ret-gbrain-keyword",
+              "model": "GBrain v0.60 Keyword-Only",
+              "org": "GBrain (PGLite MCP)",
+              "kind": "local",
+              "status": "option",
+              "runtime": "PGLite over stdio MCP",
+              "quant": "Postgres FTS · 185 MB disk",
+              "sizeGb": null,
+              "values": {
+                "r1": { "display": "0.253", "num": 0.253 },
+                "r4": { "display": "0.412", "num": 0.412, "sub": "0.468 R@10" },
+                "mrr": { "display": "0.325", "num": 0.325 },
+                "p50": { "display": "159 ms", "num": 159, "sub": "212 ms p95" },
+                "ram": { "display": "~1 GB", "num": 1000 },
+                "chars": { "display": "97.4k ch", "num": 97444 }
+              },
+              "note": "Best keyword-only ranker (40.2% gold turn in evidence), but returns full ~97k-char transcripts."
+            },
+            {
+              "id": "ret-gbrain-hybrid",
+              "model": "GBrain v0.60 Hybrid (EmbeddingGemma 2)",
+              "org": "GBrain (PGLite MCP)",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "PGLite + llama.cpp",
+              "quant": "Conservative mode · 247 MB disk",
+              "sizeGb": 0.31,
+              "values": {
+                "r1": { "display": "0.239", "num": 0.239 },
+                "r4": { "display": "0.367", "num": 0.367, "sub": "0.370 R@10" },
+                "mrr": { "display": "0.295", "num": 0.295 },
+                "p50": { "display": "255 ms", "num": 255, "sub": "342 ms p95" },
+                "ram": { "display": "~1 GB", "num": 1000 },
+                "chars": { "display": "96.8k ch", "num": 96761 }
+              },
+              "note": "Sends raw text without EmbeddingGemma query/document prompts; reranker disabled."
+            },
+            {
+              "id": "ret-lokalbot-keyword",
+              "model": "LokalBot Keyword-Only (SQLite FTS5)",
+              "org": "LokalBot",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "SQLite FTS5 BM25",
+              "quant": "80 MB disk",
+              "sizeGb": 0,
+              "values": {
+                "r1": { "display": "0.193", "num": 0.193 },
+                "r4": { "display": "0.335", "num": 0.335, "sub": "0.456 R@10" },
+                "mrr": { "display": "0.274", "num": 0.274 },
+                "p50": { "display": "3 ms", "num": 3, "sub": "8 ms p95" },
+                "ram": { "display": "50 MB", "num": 50 },
+                "chars": { "display": "718 ch", "num": 718 }
+              },
+              "note": "Ultra-fast lexical baseline; shows the +8.7 pt R@1 lift added by EmbeddingGemma 2."
+            }
+          ]
+        },
+        {
+          "id": "retrieval-embeddings",
+          "shortLabel": "Embedding Models",
+          "label": "Multilingual Embedding Models (English + Serbian Latin/Cyrillic)",
+          "runDate": "2026-10-07",
+          "hardware": "Apple M4 Max (48 GB) · identical llama.cpp build",
+          "dataset": "48 authored queries (24 English, 24 Serbian/Montenegrin Latin & Cyrillic) across 60 synthetic passages",
+          "note": "All models ran at Q8_0 on the same llama.cpp build with their native task prompts.",
+          "caveat": "On 48 correlated queries, the +6.3 pt top-1 gain over Harrier is within noise (95% CI −4 to +17 pts); EmbeddingGemma 2 won on matching quality at half the download, half the idle RAM, and 31% lower latency.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/search/EmbeddingGemma2/2026-10-07/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/search/EmbeddingGemma2",
+          "defaultSort": { "key": "top1", "dir": "desc" },
+          "primaryMetric": { "key": "top1", "dir": "desc", "max": 100 },
+          "columns": [
+            { "key": "top1", "label": "Top-1 ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "top5", "label": "Top-5 ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "mrr", "label": "MRR ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "latency", "label": "Query p50 ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "download", "label": "Download ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "emb-gemma2",
+              "model": "EmbeddingGemma 2",
+              "org": "Google / ggml-org",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp",
+              "quant": "Q8_0 · 768-dim",
+              "sizeGb": 0.31,
+              "values": {
+                "top1": { "display": "89.6%", "num": 89.6, "sub": "43/48" },
+                "top5": { "display": "100.0%", "num": 100.0, "sub": "48/48" },
+                "mrr": { "display": "0.944", "num": 0.944 },
+                "latency": { "display": "9.0 ms", "num": 9.0 },
+                "download": { "display": "0.31 GB", "num": 0.31 }
+              },
+              "note": "LokalBot default. 23/24 EN, 20/24 SR; half the idle server RAM of Harrier (0.49 vs 0.97 GiB)."
+            },
+            {
+              "id": "emb-harrier",
+              "model": "Harrier 0.6B",
+              "org": "Microsoft",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "llama.cpp",
+              "quant": "Q8_0 · 1024-dim",
+              "sizeGb": 0.64,
+              "values": {
+                "top1": { "display": "83.3%", "num": 83.3, "sub": "40/48" },
+                "top5": { "display": "97.9%", "num": 97.9, "sub": "47/48" },
+                "mrr": { "display": "0.903", "num": 0.903 },
+                "latency": { "display": "13.1 ms", "num": 13.1 },
+                "download": { "display": "0.64 GB", "num": 0.64 }
+              },
+              "note": "Previous default (22/24 EN, 18/24 SR)."
+            },
+            {
+              "id": "emb-qwen3",
+              "model": "Qwen3-Embedding 0.6B",
+              "org": "Qwen",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp",
+              "quant": "Q8_0",
+              "sizeGb": 0.64,
+              "values": {
+                "top1": { "display": "72.9%", "num": 72.9, "sub": "35/48" },
+                "top5": { "display": "—", "num": null },
+                "mrr": { "display": "—", "num": null },
+                "latency": { "display": "—", "num": null },
+                "download": { "display": "0.64 GB", "num": 0.64 }
+              },
+              "note": "Replaced in September 2026 pilot (35/48 top-1 on the same 48-query set)."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "summaries",
+      "shortLabel": "Summaries & Tools",
+      "label": "Meeting Extraction, Summaries & Native Tool Calling",
+      "summary": "Small local LLMs (2B–4B) evaluated on structured action-item extraction (ownership, deadlines, timestamps, Serbian Latin/Cyrillic, prompt injection) and native OpenAI-format tool calling in llama.cpp.",
+      "suites": [
+        {
+          "id": "summaries-mac-extraction",
+          "shortLabel": "Mac (M4 Max · Metal)",
+          "label": "Structured Extraction & Tool Calls on Apple Silicon",
+          "runDate": "2026-09-10",
+          "hardware": "Apple M4 Max (48 GB) · llama.cpp b10173 · -ngl 99 · 32K context",
+          "dataset": "12 synthetic extraction cases (×2 repeats, 86 fields) + 6 single-turn native tool cases + 19K-token archive check",
+          "note": "In separate full-meeting replays on the same runtime, Qwen3.5 4B summarized a 26-min meeting (4,477 words) in 33.4 s warm / 59.8 s cold and a 91-min meeting (11,229 words) in 71.5–74.2 s (~85 tok/s decode).",
+          "caveat": "Bounded synthetic pilot, not a human-rated meeting summary quality corpus. MiniCPM5 2B also looped on a long summary in the Sept 7 pilot.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/think/MiniCPM5/2026-09-10/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/think/MiniCPM5",
+          "defaultSort": { "key": "fields", "dir": "desc" },
+          "primaryMetric": { "key": "fields", "dir": "desc", "max": 100 },
+          "columns": [
+            { "key": "fields", "label": "Field accuracy ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "cases", "label": "Cases right ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "tools", "label": "Tool calls ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "medianS", "label": "Median req ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "size", "label": "Weights ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "sum-qwen35-4b",
+              "model": "Qwen3.5 4B (thinking off)",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp Metal",
+              "quant": "Q4_K_M · 2.74 GB",
+              "sizeGb": 2.74,
+              "values": {
+                "fields": { "display": "93.0%", "num": 93.0, "sub": "80/86" },
+                "cases": { "display": "9/12", "num": 9 },
+                "tools": { "display": "6/6", "num": 6 },
+                "medianS": { "display": "0.554 s", "num": 0.554 },
+                "size": { "display": "2.74 GB", "num": 2.74 }
+              },
+              "note": "LokalBot default. 6/6 native tool calls, 6/6 long-archive revisions, 4.18 GiB peak footprint."
+            },
+            {
+              "id": "sum-minicpm-think",
+              "model": "MiniCPM5 2B (thinking on)",
+              "org": "OpenBMB",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp Metal",
+              "quant": "Q4_K_M · 1.56 GB",
+              "sizeGb": 1.56,
+              "values": {
+                "fields": { "display": "93.0%", "num": 93.0, "sub": "80/86" },
+                "cases": { "display": "10/12", "num": 10 },
+                "tools": { "display": "—", "num": null },
+                "medianS": { "display": "5.818 s", "num": 5.818 },
+                "size": { "display": "1.56 GB", "num": 1.56 }
+              },
+              "note": "Matched field accuracy only with 10.5× higher latency; still dropped Cyrillic fields."
+            },
+            {
+              "id": "sum-minicpm-q8",
+              "model": "MiniCPM5 2B (Q8_0, thinking off)",
+              "org": "OpenBMB",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp Metal",
+              "quant": "Q8_0",
+              "sizeGb": 2.6,
+              "values": {
+                "fields": { "display": "88.4%", "num": 88.4, "sub": "76/86" },
+                "cases": { "display": "8/12", "num": 8 },
+                "tools": { "display": "—", "num": null },
+                "medianS": { "display": "0.338 s", "num": 0.338 },
+                "size": { "display": "2.60 GB", "num": 2.6 }
+              }
+            },
+            {
+              "id": "sum-minicpm-q4",
+              "model": "MiniCPM5 2B (Q4_K_M, thinking off)",
+              "org": "OpenBMB",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp Metal",
+              "quant": "Q4_K_M · 1.56 GB",
+              "sizeGb": 1.56,
+              "values": {
+                "fields": { "display": "79.1%", "num": 79.1, "sub": "68/86" },
+                "cases": { "display": "7/12", "num": 7 },
+                "tools": { "display": "5/6", "num": 5 },
+                "medianS": { "display": "0.284 s", "num": 0.284 },
+                "size": { "display": "1.56 GB", "num": 1.56 }
+              },
+              "note": "42% smaller footprint, but made owner, timestamp, and Serbian Cyrillic errors."
+            }
+          ]
+        },
+        {
+          "id": "summaries-linux-cpu",
+          "shortLabel": "Linux CPU (Ryzen 9700X)",
+          "label": "4B Extraction & Tool Calls on Linux CPU: Spark-X2.6-4B vs. Qwen3.5 4B",
+          "runDate": "2026-10-20",
+          "hardware": "AMD Ryzen 7 9700X Ubuntu (CPU-only, 8 threads) · llama.cpp b11474 · 32K context",
+          "dataset": "Same 12 synthetic extraction cases (43 fields) + 6 tool cases + ~20K-token long-context pass",
+          "note": "Controlled Linux CPU screen evaluating Apache-2.0 Spark-X2.6-4B as a candidate replacement for Qwen3.5 4B.",
+          "caveat": "Linux CPU observations only, not Mac timings. Spark beat Qwen on short extraction (12/12 vs 10/12) but called search_meetings when asked to send email (no email tool exists) and ran 25% slower on ~20K context.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/think/SparkX26/2026-10-20/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/think/SparkX26",
+          "defaultSort": { "key": "cases", "dir": "desc" },
+          "primaryMetric": { "key": "fieldsPct", "dir": "desc", "max": 100 },
+          "columns": [
+            { "key": "fieldsPct", "label": "Fields ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "cases", "label": "Short cases ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "tools", "label": "Tool calls ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "shortS", "label": "Short p50 ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "longS", "label": "20K-tok req ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "size", "label": "Weights ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "cpu-spark-x26",
+              "model": "Spark-X2.6-4B",
+              "org": "XHToken (Apache-2.0)",
+              "kind": "local",
+              "status": "experimental",
+              "runtime": "llama.cpp CPU",
+              "quant": "Q4_K_M · 3.19 GB",
+              "sizeGb": 3.19,
+              "values": {
+                "fieldsPct": { "display": "100.0%", "num": 100.0, "sub": "43/43" },
+                "cases": { "display": "12/12", "num": 12 },
+                "tools": { "display": "5/6", "num": 5 },
+                "shortS": { "display": "2.72 s", "num": 2.72 },
+                "longS": { "display": "150.08 s", "num": 150.08 },
+                "size": { "display": "3.19 GB", "num": 3.19 }
+              },
+              "note": "Promising candidate; passed the unavailable-tool case when thinking was enabled (18.06 s)."
+            },
+            {
+              "id": "cpu-qwen35-4b",
+              "model": "Qwen3.5 4B",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp CPU",
+              "quant": "Q4_K_M · 2.74 GB",
+              "sizeGb": 2.74,
+              "values": {
+                "fieldsPct": { "display": "95.3%", "num": 95.3, "sub": "41/43" },
+                "cases": { "display": "10/12", "num": 10 },
+                "tools": { "display": "6/6", "num": 6 },
+                "shortS": { "display": "2.86 s", "num": 2.86 },
+                "longS": { "display": "120.03 s", "num": 120.03 },
+                "size": { "display": "2.74 GB", "num": 2.74 }
+              },
+              "note": "Remains default pending full meeting-note + Apple Silicon testing."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "ocr-tts",
+      "shortLabel": "OCR & Voice",
+      "label": "Screenshot OCR & Local Text-to-Speech",
+      "summary": "Opt-in on-device screen text extraction (Apple Vision vs. open-source OCR models) and local spoken summary synthesis (Kokoro 82M vs. Breeze TTS 2).",
+      "suites": [
+        {
+          "id": "ocr-synthetic",
+          "shortLabel": "OCR (Ground Truth)",
+          "label": "Screenshot OCR — Synthetic Ground-Truth Set",
+          "runDate": "2026-06-24",
+          "hardware": "Apple M4 Max (48 GB)",
+          "dataset": "5 generated desktop screenshots with exact ground-truth text manifests",
+          "note": "Measures multiset token precision/recall/F1 and reading-order character similarity.",
+          "caveat": "Small 5-image set; real desktop screenshots (next tab) widened the speed gap even further. PP-OCRv6 also needed ~15 s to load.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/search/OCR/SYNTHETIC-RESULTS-2026-06-24.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/search/OCR",
+          "defaultSort": { "key": "f1", "dir": "desc" },
+          "primaryMetric": { "key": "f1", "dir": "desc", "max": 1.0 },
+          "columns": [
+            { "key": "f1", "label": "Token F1 ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "charSim", "label": "Char sim ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "latency", "label": "Mean latency ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "precision", "label": "Precision / Recall", "type": "text", "sortable": false, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "ocr-ppocr6",
+              "model": "PP-OCRv6 medium",
+              "org": "PaddleOCR",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "det+rec",
+              "quant": "Local weights",
+              "sizeGb": null,
+              "values": {
+                "f1": { "display": "0.974", "num": 0.974 },
+                "charSim": { "display": "0.867", "num": 0.867 },
+                "latency": { "display": "6,780 ms", "num": 6780 },
+                "precision": { "display": "0.960 / 0.990" }
+              },
+              "note": "Highest raw F1 (+0.003 over Apple Vision), but 57× slower with ~15 s model load."
+            },
+            {
+              "id": "ocr-apple-vision",
+              "model": "Apple Vision",
+              "org": "Apple (built into macOS)",
+              "kind": "local",
+              "status": "default",
+              "runtime": "VNRecognizeTextRequest",
+              "quant": "0 MB download",
+              "sizeGb": 0,
+              "values": {
+                "f1": { "display": "0.971", "num": 0.971 },
+                "charSim": { "display": "0.812", "num": 0.812 },
+                "latency": { "display": "119.6 ms", "num": 119.6 },
+                "precision": { "display": "0.971 / 0.971" }
+              },
+              "note": "LokalBot macOS default. 243.2 ms mean on 15 real desktop screenshots."
+            },
+            {
+              "id": "ocr-paddle-vl",
+              "model": "PaddleOCR-VL 1.6 GGUF",
+              "org": "PaddleOCR",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp VLM",
+              "quant": "GGUF",
+              "sizeGb": null,
+              "values": {
+                "f1": { "display": "0.777", "num": 0.777 },
+                "charSim": { "display": "0.731", "num": 0.731 },
+                "latency": { "display": "1,700 ms", "num": 1700 },
+                "precision": { "display": "0.871 / 0.813" }
+              }
+            },
+            {
+              "id": "ocr-deepseek",
+              "model": "DeepSeek-OCR GGUF",
+              "org": "DeepSeek",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp VLM",
+              "quant": "GGUF",
+              "sizeGb": null,
+              "values": {
+                "f1": { "display": "0.741", "num": 0.741 },
+                "charSim": { "display": "0.680", "num": 0.680 },
+                "latency": { "display": "1,440 ms", "num": 1440 },
+                "precision": { "display": "0.844 / 0.732" }
+              },
+              "note": "Hallucinated unrelated content on real desktop screenshots."
+            }
+          ]
+        },
+        {
+          "id": "ocr-real",
+          "shortLabel": "OCR (15 Real Screens)",
+          "label": "Screenshot OCR — 15 Real Desktop Screenshots (Latency)",
+          "runDate": "2026-06-24",
+          "hardware": "Apple M4 Max (48 GB)",
+          "dataset": "15 real LokalBot macOS screenshots (alternatives sampled on 3–5 images due to runtime)",
+          "note": "Every tested open-source OCR or VLM engine was 5× to 92× slower than Apple Vision on real full-screen captures.",
+          "caveat": "Token overlap is measured against Apple Vision rather than human transcription; see Ground Truth tab for absolute F1.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/search/OCR/RESULTS-2026-06-24.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/search/OCR",
+          "defaultSort": { "key": "latency", "dir": "asc" },
+          "primaryMetric": { "key": "latency", "dir": "asc", "max": 23000 },
+          "columns": [
+            { "key": "latency", "label": "Mean latency ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "images", "label": "Images", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "overlap", "label": "Overlap vs Vision", "type": "text", "sortable": false, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "real-vision",
+              "model": "Apple Vision (VNRecognizeTextRequest)",
+              "org": "Apple",
+              "kind": "local",
+              "status": "default",
+              "runtime": "macOS native",
+              "quant": "0 MB",
+              "sizeGb": 0,
+              "values": {
+                "latency": { "display": "243 ms", "num": 243.2 },
+                "images": { "display": "15", "num": 15 },
+                "overlap": { "display": "Baseline" }
+              }
+            },
+            {
+              "id": "real-paddlevl-256",
+              "model": "PaddleOCR-VL 1.6 GGUF (256-tok)",
+              "org": "PaddleOCR",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp VLM",
+              "quant": "256-tok cap",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "1,300 ms", "num": 1300 },
+                "images": { "display": "3", "num": 3 },
+                "overlap": { "display": "0.027" }
+              },
+              "note": "Heavily truncated on full desktop screenshots."
+            },
+            {
+              "id": "real-deepseek",
+              "model": "DeepSeek-OCR GGUF (512-tok)",
+              "org": "DeepSeek",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp VLM",
+              "quant": "512-tok cap",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "1,640 ms", "num": 1640 },
+                "images": { "display": "3", "num": 3 },
+                "overlap": { "display": "0.000" }
+              }
+            },
+            {
+              "id": "real-trocr",
+              "model": "TrOCR small printed",
+              "org": "Microsoft",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "Transformers",
+              "quant": "Line-level",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "2,470 ms", "num": 2470 },
+                "images": { "display": "3", "num": 3 },
+                "overlap": { "display": "0.001" }
+              }
+            },
+            {
+              "id": "real-paddlevl-1024",
+              "model": "PaddleOCR-VL 1.6 GGUF (1024-tok)",
+              "org": "PaddleOCR",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "llama.cpp VLM",
+              "quant": "1024-tok cap",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "2,740 ms", "num": 2740 },
+                "images": { "display": "3", "num": 3 },
+                "overlap": { "display": "0.104" }
+              }
+            },
+            {
+              "id": "real-got",
+              "model": "GOT-OCR 2.0",
+              "org": "StepFun",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "HF / MPS",
+              "quant": "256-tok cap",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "3,700 ms", "num": 3700 },
+                "images": { "display": "3", "num": 3 },
+                "overlap": { "display": "0.000" }
+              }
+            },
+            {
+              "id": "real-glm",
+              "model": "GLM-OCR",
+              "org": "Zhipu",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "MPS",
+              "quant": "256-tok cap",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "5,740 ms", "num": 5740 },
+                "images": { "display": "3", "num": 3 },
+                "overlap": { "display": "0.127" }
+              }
+            },
+            {
+              "id": "real-ppocr6",
+              "model": "PP-OCRv6 medium det+rec",
+              "org": "PaddleOCR",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "PaddleOCR",
+              "quant": "Full det+rec",
+              "sizeGb": null,
+              "values": {
+                "latency": { "display": "22,430 ms", "num": 22430 },
+                "images": { "display": "5", "num": 5 },
+                "overlap": { "display": "0.208" }
+              }
+            }
+          ]
+        },
+        {
+          "id": "tts-voice",
+          "shortLabel": "Local TTS (Voice)",
+          "label": "Local Spoken Summaries: Kokoro 82M vs. Breeze TTS 2",
+          "runDate": "2026-09-09",
+          "hardware": "Apple M4 Max (48 GB) · macOS 27.0 · audio.cpp v0.7.3 Metal vs installed Kokoro",
+          "dataset": "255-word work summary narration + 356-word Qwen3-ASR content check",
+          "note": "Breeze TTS 2 sounded more natural to the owner and streams its first warm chunk in 0.88 s median, while Kokoro is 2.3× faster overall at ~8× lower memory.",
+          "caveat": "Breeze TTS 2 uses a non-commercial research license requiring a separate written agreement for product use; listening preference was unblinded from one listener.",
+          "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/voice/Breeze/2026-09-09/REPORT.md",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks/voice/Breeze",
+          "defaultSort": { "key": "genS", "dir": "asc" },
+          "primaryMetric": { "key": "genS", "dir": "asc", "max": 70 },
+          "columns": [
+            { "key": "genS", "label": "255-word gen ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "rtf", "label": "Gen / audio ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "firstChunk", "label": "First audio ↓", "type": "text", "sortable": false, "align": "right" },
+            { "key": "ram", "label": "Peak memory ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "license", "label": "License", "type": "text", "sortable": false, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "tts-kokoro",
+              "model": "Kokoro 82M (Heart voice)",
+              "org": "hexgrad / Local",
+              "kind": "local",
+              "status": "default",
+              "runtime": "Local runtime",
+              "quant": "82M params",
+              "sizeGb": 0.1,
+              "values": {
+                "genS": { "display": "26.96 s", "num": 26.96 },
+                "rtf": { "display": "0.333×", "num": 0.333 },
+                "firstChunk": { "display": "Full file (5.73 s digest)" },
+                "ram": { "display": "0.81 GiB", "num": 0.81 },
+                "license": { "display": "Apache-2.0" }
+              },
+              "note": "LokalBot default. 1/356 word discrepancy on ASR content check; tiny footprint."
+            },
+            {
+              "id": "tts-breeze",
+              "model": "Breeze TTS 2",
+              "org": "BreezeBlue",
+              "kind": "local",
+              "status": "rejected",
+              "runtime": "audio.cpp v0.7.3 Metal",
+              "quant": "Q8_0 · 5.08 GB",
+              "sizeGb": 5.08,
+              "values": {
+                "genS": { "display": "63.12 s", "num": 63.12 },
+                "rtf": { "display": "0.685×", "num": 0.685 },
+                "firstChunk": { "display": "0.88 s warm (1.3–1.7 s buffered)" },
+                "ram": { "display": "6.42 GiB", "num": 6.42 },
+                "license": { "display": "Non-commercial" }
+              },
+              "note": "More natural voice, but 7.9× peak memory and non-commercial license blocks shipping."
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "gaps": [
+    {
+      "area": "Apple Silicon variety (M1 / M2 / M3, 16 GB)",
+      "detail": "Nearly all Mac numbers come from one M4 Max (48 GB). Timings and memory-pressure behavior on 16 GB M1–M3 Macs need community or secondary-machine runs."
+    },
+    {
+      "area": "Windows & Linux (Vulkan / CUDA / CPU)",
+      "detail": "Only the memory-restraint and Spark-X2.6 suites ran on Linux/Windows so far. Full sherpa-onnx ASR, pyannote/TitaNet diarization, and GPUI Vulkan/CUDA timings are still unmeasured."
+    },
+    {
+      "area": "Human-rated summary faithfulness",
+      "detail": "Extraction tests cover structured fields, ownership, and tool calls, not blind human grading of full meeting recaps across diverse real calls."
+    },
+    {
+      "area": "Long idle pauses under RAM pressure",
+      "detail": "The 5-minute autocomplete warm-up fix is verified (49–53 ms), but 30-minute pauses where macOS pages model files out under memory pressure remain unmeasured."
+    },
+    {
+      "area": "Broader languages & 5–8 speaker calls",
+      "detail": "Diarization covers 4-speaker English AMI rooms; multilingual ASR probes are small FLEURS slices rather than full noisy meetings."
+    }
+  ]
+}

@@ -905,9 +905,9 @@ REFERENCES = [
     },
     {
         "slug": "benchmarks",
-        "eyebrow": "Benchmarks",
-        "h1": "LokalBot local model benchmarks",
-        "description": "Measured speech recognition, speaker diarization, semantic search, summary, autocomplete, and OCR results for LokalBot's local models on Apple Silicon, with methods, sources, and known gaps.",
-        "updated": "2026-11-10",
+        "eyebrow": "Leaderboard",
+        "h1": "Local Desktop AI Leaderboard",
+        "description": "Independent, reproducible benchmarks across seven local desktop AI roles: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and TTS.",
+        "updated": "2026-11-20",
     },
 ]
