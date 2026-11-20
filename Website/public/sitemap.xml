@@ -1,8 +1,55 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://www.lokalbot.com/</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/de</loc>
+    <lastmod>2026-11-20</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/zh</loc>
+    <lastmod>2026-11-20</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/ja</loc>
+    <lastmod>2026-11-20</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
+  </url>
+  <url>
+    <loc>https://www.lokalbot.com/ru</loc>
+    <lastmod>2026-11-20</lastmod>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+    <xhtml:link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+    <xhtml:link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+    <xhtml:link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
   </url>
   <url>
     <loc>https://www.lokalbot.com/guides</loc>
@@ -126,27 +173,27 @@
   </url>
   <url>
     <loc>https://www.lokalbot.com/wrapped</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/migrate</loc>
-    <lastmod>2026-11-19</lastmod>
+    <lastmod>2026-11-20</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/privacy</loc>
-    <lastmod>2026-11-11</lastmod>
+    <lastmod>2026-11-20</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/terms</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-20</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/support</loc>
-    <lastmod>2026-11-02</lastmod>
+    <lastmod>2026-11-20</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/enshittification-proof</loc>
-    <lastmod>2026-11-10</lastmod>
+    <lastmod>2026-11-20</lastmod>
   </url>
   <url>
     <loc>https://www.lokalbot.com/lokalbot-vs-granola</loc>

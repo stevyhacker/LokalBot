@@ -10,6 +10,12 @@
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
   <meta name="google-site-verification" content="lFM4iF9Ki1rYDro5yRHgbWsy0_kwdIkXOhAOcM-oVP0" />
   <link rel="canonical" href="https://www.lokalbot.com/" />
+  <link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+  <link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+  <link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+  <link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+  <link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+  <link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
   <link rel="alternate" type="application/atom+xml" title="LokalBot Blog" href="https://www.lokalbot.com/blog/feed.xml" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
@@ -97,7 +103,7 @@
         "publisher": {
           "@id": "https://www.lokalbot.com/#organization"
         },
-        "dateModified": "2026-11-19",
+        "dateModified": "2026-11-20",
         "image": "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
         "screenshot": [
           "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
@@ -109,6 +115,10 @@
           "https://github.com/stevyhacker/lokalbot",
           "https://www.producthunt.com/products/lokalbot",
           "https://www.raycast.com/stevan_bogosavljevic/lokalbot",
+          "https://www.npmjs.com/package/lokalbot",
+          "https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion",
+          "https://github.com/stevyhacker/obsidian-lokalbot",
+          "https://github.com/stevyhacker/lokalbot-claude-plugin",
           "https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks",
           "https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack"
         ]
@@ -223,7 +233,7 @@
       <a href="#features">What it does</a>
       <a href="#compare">Compare</a>
       <a href="#proof">Privacy</a>
-      <a href="#how">How it works</a>
+      <a href="benchmarks">Benchmarks</a>
       <a href="guides">Guides</a>
       <a href="blog">Blog</a>
       <a href="wrapped">Wrapped</a>
@@ -586,7 +596,7 @@
         <p class="download__sub" data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Extract the archive and run ./install.sh; updates then come through the app. The release page also has a .deb, an .rpm for Fedora, which apt or dnf keep updated, and an Arch package.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
         <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a></p>
         <p class="home-download__setup">Apple Silicon (M1 or later) with macOS 15+ &middot; Windows 10 or 11, x64 &middot; Linux x86_64<br />Windows and Linux are in alpha. Models download during setup. <strong>Try a sample meeting</strong> before you record.</p>
-        <p class="home-download__help"><a href="system-requirements">System requirements</a> &middot; <a href="support">Setup help and feedback</a></p>
+        <p class="home-download__help"><a href="system-requirements">System requirements</a> &middot; <a href="migrate">Import from Granola, Otter &amp; Fireflies</a> &middot; <a href="support">Setup help and feedback</a></p>
       </div>
     </section>
 
@@ -634,6 +644,8 @@
       <a href="#agents">Agent access</a>
       <a href="#android">Android app</a>
       <a href="#how">How it works</a>
+      <a href="wrapped">Agent Wrapped</a>
+      <a href="migrate">Meeting Migrator</a>
       <a href="guides">Guides</a>
       <a href="enshittification-proof">Keeping your data</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download for Mac</a>
@@ -666,7 +678,7 @@
       <a href="terms">Terms</a>
       <a href="support">Support</a>
     </nav>
-    <p class="footer__legal">Local by default. Record with consent.</p>
+    <p class="footer__legal">Local by default. Record with consent. &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a></p>
   </footer>
 </body>
 </html>

@@ -1,6 +1,6 @@
 # LokalBot
 
-> Your personal context engine. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service.
+> Your personal context engine. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service. Full benchmark tables, comparisons, and FAQs in one file: https://www.lokalbot.com/llms-full.txt
 
 Key facts:
 
@@ -72,6 +72,13 @@ Key facts:
 - [LokalBot vs Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow)
 - [LokalBot vs Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe)
 - [LokalBot vs Rewind](https://www.lokalbot.com/lokalbot-vs-rewind)
+
+## Languages
+
+- [Deutsch (German)](https://www.lokalbot.com/de): DSGVO-freundliche lokale KI-Meeting-Notizen ohne Meeting-Bot
+- [中文 (Simplified Chinese)](https://www.lokalbot.com/zh): 100% 本地开源会议纪要（支持腾讯会议/飞书/钉钉与 ModelScope）
+- [日本語 (Japanese)](https://www.lokalbot.com/ja): 完全ローカル・Bot不要の無料オープンソースAI議事録
+- [Русский (Russian)](https://www.lokalbot.com/ru): Локальные заметки встреч без облака (Яндекс Телемост, МТС Линк, GigaAM)
 
 ## Optional
 
