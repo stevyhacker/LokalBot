@@ -26,6 +26,7 @@ Key facts:
 - [LokalBot home](https://www.lokalbot.com/): features, demo, and FAQ
 - [Agent Wrapped](https://www.lokalbot.com/wrapped): local, zero-upload year in review for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI (`npx lokalbot`)
 - [Meeting Migrator](https://www.lokalbot.com/migrate): offline, zero-upload browser converter that turns Granola, Otter.ai, Fireflies, Fathom, and Zoom meeting exports into Obsidian Markdown notes with YAML frontmatter, speaker wikilinks, and a ZIP download
+- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware): interactive zero-upload browser calculator for Apple Silicon Macs, Windows, and Linux estimating exact disk downloads, resident RAM, KV-cache allowances, GPU VRAM offload, and LokalBot's 50% memory residency cap
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
 - [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, and Linux requirements, memory, disk, permissions, and what each platform supports
 - [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): interactive, reproducible benchmarks across 7 workloads and 17 suites (speech vs. cloud APIs, diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, extraction, OCR, TTS) with machine-readable JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)

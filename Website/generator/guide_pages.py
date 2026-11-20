@@ -433,7 +433,7 @@ GUIDES = [
         <p>Intel Macs are not supported. The Mac app is built around Apple Silicon acceleration, Core Audio process taps, the Neural Engine, and Metal. Windows and Linux have their own native app, built separately, with the same pages and the same library format.</p>
 
         <h2>How much memory does a Mac need?</h2>
-        <p>The Mac app runs across the supported Apple Silicon range, but local language-model choice changes the practical memory requirement. Compact built-in models start around 0.53–1.28 GB. Several balanced summary and cotyping models recommend 16 GB of unified memory. The largest long-meeting models in the catalog are roughly 16.8–17.73 GB on disk and target Macs with 32 GB or more.</p>
+        <p>The Mac app runs across the supported Apple Silicon range, but local language-model choice changes the practical memory requirement. Compact built-in models start around 0.53–1.28 GB. Several balanced summary and cotyping models recommend 16 GB of unified memory. The largest long-meeting models in the catalog are roughly 16.8–17.73 GB on disk and target Macs with 32 GB or more. Use the interactive <a href="hardware">Local AI Hardware &amp; RAM Calculator</a> to check exact disk, resident RAM, and KV-cache fit for your Mac or PC.</p>
         <p>You do not need the largest model to record or transcribe a meeting. Choose a compact speech model and a smaller summarizer first, then move up only if the quality gain is worthwhile on your hardware.</p>
 
         <h2>Plan disk space on a Mac</h2>
@@ -908,6 +908,13 @@ REFERENCES = [
         "eyebrow": "Leaderboard",
         "h1": "Local Desktop AI Leaderboard",
         "description": "Independent, reproducible benchmarks across seven local desktop AI roles: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and TTS.",
+        "updated": "2026-11-20",
+    },
+    {
+        "slug": "hardware",
+        "eyebrow": "Calculator",
+        "h1": "Local AI Hardware & RAM Calculator",
+        "description": "Interactive client-side estimator for Apple Silicon Macs, Windows, and Linux: check disk downloads, resident RAM, GPU VRAM offload, and LokalBot's 50% memory residency cap.",
         "updated": "2026-11-20",
     },
 ]
