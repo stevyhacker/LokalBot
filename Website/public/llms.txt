@@ -28,7 +28,7 @@ Key facts:
 - [Meeting Migrator](https://www.lokalbot.com/migrate): offline, zero-upload browser converter that turns Granola, Otter.ai, Fireflies, Fathom, and Zoom meeting exports into Obsidian Markdown notes with YAML frontmatter, speaker wikilinks, and a ZIP download
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
 - [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, and Linux requirements, memory, disk, permissions, and what each platform supports
-- [Benchmarks](https://www.lokalbot.com/benchmarks): measured speech, speaker diarization, search, summary, autocomplete, and OCR results with methods and known gaps
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): interactive, reproducible benchmarks across 7 workloads and 17 suites (speech vs. cloud APIs, diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, extraction, OCR, TTS) with machine-readable JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
 - [Privacy policy](https://www.lokalbot.com/privacy): what stays on your computer and exactly when the app uses the network
 
 ## Blog
