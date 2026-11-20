@@ -83,6 +83,7 @@ PAGES = [
         ],
         "faq": [
             ("Isn't bot-free capture the differentiator?", "Not anymore — Granola and several others skip the meeting bot now. The differentiator is where processing happens. LokalBot transcribes and summarizes on your computer with its built-in default; if you opt into a remote inference server, it receives the request context."),
+            ("Can I bring my existing Granola notes with me?", 'Yes. LokalBot imports Granola exports directly into your local library, or you can convert Granola exports into clean Obsidian Markdown offline in your browser with the free <a href="/migrate">Meeting Migrator</a> (zero uploads).'),
             ("What does LokalBot send over the network?", "Model downloads, update checks, optional Agent Mode setup, and remote inference origins you explicitly approve. Audio stays on your computer; built-in inference keeps transcript and workday context there too."),
             ("Can I try LokalBot next to Granola?", "Yes. LokalBot is free — run it on your next few meetings and compare the notes. Neither app puts a bot in your call, so nobody on the call will notice either one."),
         ],
@@ -182,7 +183,8 @@ PAGES = [
         ],
         "faq": [
             ("Does LokalBot join my calls like Otter does?", "No. Nothing joins the call and nothing appears in the participant list. LokalBot records your microphone and your computer's system audio, so it works with Zoom, Teams, Meet, Slack huddles, or any app that plays sound. You're still responsible for telling participants you're recording."),
-            ("Is on-device transcription accurate enough?", 'For most meetings, yes — but test it on your own audio. LokalBot defaults to Qwen3-ASR and lets you switch to Parakeet or Whisper in Settings, or to Granite Speech on Mac. The <a href="benchmarks">benchmarks page</a> shows speed and error rates, measured on a Mac, for the models the project has tested.'),
+            ("Can I move my existing Otter.ai transcripts out?", 'Yes. LokalBot imports Otter.ai exports directly, or you can convert Otter transcripts into Obsidian Markdown locally in your browser with the free <a href="/migrate">Meeting Migrator</a> without uploading anything.'),
+            ("Is on-device transcription accurate enough?", 'For most meetings, yes — but test it on your own audio. LokalBot defaults to Qwen3-ASR and lets you switch to Parakeet or Whisper in Settings, or to Granite Speech on Mac. The <a href="/benchmarks">Local Desktop AI Leaderboard</a> shows measured speed and word error rates against cloud STT APIs.'),
             ("What does LokalBot cost after the free tier?", "There is no tier. LokalBot is free and open source under GPLv3, with no minute caps, no account, and no subscription."),
         ],
         "cta_title": "Meeting notes, without the bot.",
@@ -231,6 +233,7 @@ PAGES = [
         ],
         "faq": [
             ("Why not use Fireflies without the bot?", "You can capture without the bot through Fireflies' desktop app for Mac and Windows or its Chrome extension, but Fireflies still creates the transcript and summary and keeps them in its cloud, under your account. LokalBot keeps the audio, transcript, and summary on your computer."),
+            ("Can I migrate existing Fireflies transcripts?", 'Yes. LokalBot imports Fireflies exports into your local library, or you can convert them into plain Obsidian Markdown offline in your browser with the free <a href="/migrate">Meeting Migrator</a>.'),
             ("Can LokalBot push notes into my CRM?", "Not directly. LokalBot exposes a read-only CLI and MCP server so local tools and agents can read your library, and it also exports meetings as Markdown and can write a daily memory note to a folder. Anything beyond that is up to you."),
             ("Will people on the call know LokalBot is recording?", "No — nothing appears in the call, which is why you need to tell participants yourself. On a fresh install, LokalBot asks through a notification before it records a detected meeting."),
         ],

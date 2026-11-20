@@ -53,13 +53,13 @@ ORGANIZATION = {
 # Hand-written pages outside the generator, with the date each last changed.
 # Bump a date when you edit that page so the sitemap's lastmod stays honest.
 STATIC_PAGES = {
-    "": "2026-11-19",
-    "wrapped": "2026-11-19",
-    "migrate": "2026-11-19",
-    "privacy": "2026-11-11",
-    "terms": "2026-11-10",
-    "support": "2026-11-02",
-    "enshittification-proof": "2026-11-10",
+    "": "2026-11-20",
+    "wrapped": "2026-11-20",
+    "migrate": "2026-11-20",
+    "privacy": "2026-11-20",
+    "terms": "2026-11-20",
+    "support": "2026-11-20",
+    "enshittification-proof": "2026-11-20",
 }
 
 
@@ -568,6 +568,94 @@ def render_feed() -> str:
     )
 
 
+def render_llms_full(web_dir: Path) -> str:
+    """Full machine-readable context corpus for AI search and answer engines (/llms-full.txt)."""
+
+    llms_index = (web_dir / "llms.txt").read_text(encoding="utf-8").strip()
+    parts: list[str] = [llms_index]
+
+    benchmarks_path = web_dir / "benchmarks.json"
+    if benchmarks_path.is_file():
+        bdata = json.loads(benchmarks_path.read_text(encoding="utf-8"))
+        parts.append("")
+        parts.append("---")
+        parts.append("")
+        parts.append(f"## Full Benchmark Dataset ({SITE}/benchmarks · updated {bdata.get('updated', '')})")
+        parts.append("")
+        parts.append(bdata.get("hardwareSummary", ""))
+        parts.append("")
+        parts.append("### Current local reference stack")
+        parts.append("")
+        parts.append("| Role | Default model | Format | Size (GB) | Headline |")
+        parts.append("| --- | --- | --- | ---: | --- |")
+        for item in bdata.get("referenceStack", []):
+            size = f"{item['sizeGb']}" if item.get("sizeGb") is not None else "Built-in"
+            parts.append(
+                f"| {item['role']} | {item['model']} | {item['format']} | {size} | {item['headline']} |"
+            )
+
+        for cat in bdata.get("categories", []):
+            parts.append("")
+            parts.append(f"### {cat['label']}")
+            parts.append("")
+            parts.append(cat["summary"])
+            for suite in cat.get("suites", []):
+                parts.append("")
+                parts.append(f"#### {suite['label']} (`{SITE}/benchmarks#{suite['id']}`)")
+                parts.append(f"- Run date: {suite['runDate']} · Hardware: {suite['hardware']}")
+                parts.append(f"- Dataset: {suite['dataset']}")
+                parts.append(f"- Report: {suite['reportUrl']}")
+                parts.append("")
+                cols = suite.get("columns", [])
+                headers = ["Model", "Status", "Runtime / Quant"] + [c["label"] for c in cols]
+                sep = ["---", "---", "---"] + ["---:" if c.get("align") == "right" else "---" for c in cols]
+                parts.append("| " + " | ".join(headers) + " |")
+                parts.append("| " + " | ".join(sep) + " |")
+                for row in suite.get("rows", []):
+                    rt = " · ".join(x for x in [row.get("runtime"), row.get("quant")] if x)
+                    cells = [row["model"], row.get("status", ""), rt]
+                    for col in cols:
+                        cell = (row.get("values") or {}).get(col["key"])
+                        cells.append(cell["display"] if cell else "—")
+                    parts.append("| " + " | ".join(cells) + " |")
+                parts.append("")
+                parts.append(f"Note: {suite['note']}")
+                parts.append(f"Caveat: {suite['caveat']}")
+
+    parts.append("")
+    parts.append("---")
+    parts.append("")
+    parts.append("## Detailed Competitor Comparisons")
+    for page in PAGES:
+        parts.append("")
+        parts.append(f"### {page['h1']} ({SITE}/{page['slug']} · verified {verified(page)})")
+        parts.append("")
+        parts.append(plain_text(page["lead"]))
+        parts.append("")
+        parts.append(f"| Feature | LokalBot | {page['competitor_column']} |")
+        parts.append("| --- | --- | --- |")
+        for feat, lokal_val, comp_val in page["table_rows"]:
+            parts.append(f"| {plain_text(feat)} | {plain_text(lokal_val)} | {plain_text(comp_val)} |")
+        if page.get("faq"):
+            parts.append("")
+            for q, a in page["faq"]:
+                parts.append(f"- **Q: {plain_text(q)}** {plain_text(a)}")
+
+    parts.append("")
+    parts.append("---")
+    parts.append("")
+    parts.append("## Guides & Frequently Asked Questions")
+    for guide in GUIDES:
+        parts.append("")
+        parts.append(f"### {guide['h1']} ({SITE}/{guide['slug']})")
+        parts.append(plain_text(guide["description"]))
+        if guide.get("faq"):
+            for q, a in guide["faq"]:
+                parts.append(f"- **Q: {plain_text(q)}** {plain_text(a)}")
+
+    return "\n".join(parts).rstrip() + "\n"
+
+
 def render_sitemap() -> str:
     pages = [
         ("", STATIC_PAGES[""]),
@@ -670,6 +758,7 @@ def main() -> int:
             (web_dir / "blog.html", render_blog_index(templates["blog"], footer)),
             (web_dir / "blog" / "feed.xml", render_feed()),
             (web_dir / "index.html", render_home((web_dir / "index.html").read_text(encoding="utf-8"))),
+            (web_dir / "llms-full.txt", render_llms_full(web_dir)),
             (web_dir / "sitemap.xml", render_sitemap()),
         ]
     )
