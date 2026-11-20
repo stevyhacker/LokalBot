@@ -95,6 +95,7 @@ struct ModelCatalog {
         "granite-4.1-3b",
         "lfm2.5-2.6b",
         "ministral-3-3b-instruct-2512",
+        "qwen3.5-4b-lokalbot-v2",
     ]
 
     /// Local GGUF catalog, roughly ordered from tiny fallbacks to higher-quality
@@ -134,6 +135,14 @@ struct ModelCatalog {
               sha256: "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
               sizeBytes: 2_740_937_888,
               sizeGB: 2.8, blurb: "Default Think model with balanced local summaries and long context. 16 GB Macs.",
+              disablesThinking: true),
+        Entry(id: "qwen3.5-4b-lokalbot-v2", displayName: "Qwen3.5 4B (LokalBot v2)",
+              fileName: "Qwen3.5-4B-LokalBot-v2-Q4_K_M.gguf",
+              url: "https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF/resolve/7901add386cd344a3ef85ee2b755eaac4521dde7/Qwen3.5-4B-LokalBot-v2-Q4_K_M.gguf",
+              sha256: "d3b203035cd5405929ac15a502f713cf5c1c6e861fc3e70e5d412a6e01f197a2",
+              sizeBytes: 2_741_241_920,
+              sizeGB: 2.74,
+              blurb: "LokalBot fine-tuned Think model for meeting notes, memory, and EN/SR. 16 GB Macs.",
               disablesThinking: true),
         Entry(id: "lfm2.5-2.6b", displayName: "LFM2.5 2.6B Reasoning",
               fileName: "LFM2.5-2.6B-Q4_K_M.gguf",

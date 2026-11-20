@@ -122,7 +122,7 @@ const fn text(
     }
 }
 
-static CATALOG: [ModelEntry; 15] = [
+static CATALOG: [ModelEntry; 16] = [
     text(
         COMPACT_FALLBACK_ID,
         "Qwen3.5 0.8B",
@@ -194,6 +194,22 @@ static CATALOG: [ModelEntry; 15] = [
         true,
         true,
     ),
+    ModelEntry {
+        license: Some("Apache 2.0"),
+        ..text(
+            "qwen3.5-4b-lokalbot-v2",
+            "Qwen3.5 4B (LokalBot v2)",
+            "stevyhacker/Qwen3.5-4B-LokalBot-GGUF",
+            "7901add386cd344a3ef85ee2b755eaac4521dde7",
+            "Qwen3.5-4B-LokalBot-v2-Q4_K_M.gguf",
+            "Q4_K_M",
+            2_741_241_920,
+            "d3b203035cd5405929ac15a502f713cf5c1c6e861fc3e70e5d412a6e01f197a2",
+            "LokalBot fine-tuned Think model for meeting notes, memory, and EN/SR. 16 GB RAM.",
+            true,
+            false,
+        )
+    },
     ModelEntry {
         request_overrides: &[
             ("temperature", 0.1),
@@ -810,6 +826,11 @@ mod tests {
     fn presets_and_pickers_follow_macos() {
         assert_eq!(entry("qwen3.5-4b").unwrap().size_bytes, 2_740_937_888);
         assert_eq!(
+            entry("qwen3.5-4b-lokalbot-v2").unwrap().size_bytes,
+            2_741_241_920
+        );
+        assert!(entry("qwen3.5-4b-lokalbot-v2").unwrap().think);
+        assert_eq!(
             embedding_entry().url(),
             "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/bfcd298762cc34d0357ece5ebdd31791a3a374d8/embeddinggemma-2-Q8_0.gguf"
         );
@@ -826,6 +847,7 @@ mod tests {
             "granite-4.1-3b",
             "lfm2.5-2.6b",
             "ministral-3-3b-instruct-2512",
+            "qwen3.5-4b-lokalbot-v2",
             "gemma4-12b",
         ] {
             assert!(!autocomplete.contains(&excluded), "{excluded}");
