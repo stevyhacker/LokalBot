@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local AI Hardware &amp; RAM Calculator — Can My Mac or PC Run Local Models? | LokalBot</title>
+  <meta name="description" content="Free local AI RAM, VRAM, and disk calculator for Apple Silicon Macs, Windows, and Linux. See which speech-to-text, summarizer, embedding, and autocomplete models fit your machine's memory." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/hardware" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/hardware" />
+  <meta property="og:title" content="Local AI Hardware &amp; RAM Calculator — Can My Mac or PC Run Local Models?" />
+  <meta property="og:description" content="Pick your Mac, Windows, or Linux RAM and workloads to see exact disk downloads, resident RAM, GPU VRAM fit, and LokalBot's 50% memory residency cap." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-hardware.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot Local AI Hardware and RAM Calculator for Apple Silicon Macs, Windows, and Linux." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Local AI Hardware &amp; RAM Calculator — Mac, Windows &amp; Linux" />
+  <meta name="twitter:description" content="Check which local transcription, summarization, search, and autocomplete models fit your 8 GB, 16 GB, 24 GB, or 48 GB machine." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-hardware.png" />
+  <meta name="twitter:image:alt" content="LokalBot Local AI Hardware and RAM Calculator for Apple Silicon Macs, Windows, and Linux." />
+
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/hardware#app","name":"LokalBot Local AI Hardware & RAM Calculator","url":"https://www.lokalbot.com/hardware","description":"Interactive client-side calculator for estimating local AI disk downloads, resident memory, KV-cache overhead, GPU VRAM offload, and model recommendations on Apple Silicon Macs, Windows, and Linux.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any (browser-based)","isAccessibleForFree":true,"datePublished":"2026-11-20","dateModified":"2026-11-20","image":"https://www.lokalbot.com/assets/og-hardware.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI Hardware Calculator","item":"https://www.lokalbot.com/hardware"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/hardware#faq","mainEntity":[{"@type":"Question","name":"Can an 8 GB Apple Silicon Mac run local AI meeting notes and autocomplete?","acceptedAnswer":{"@type":"Answer","text":"Yes, with compact models. Pair Qwen3-ASR 0.6B (1.02 GB) or Parakeet TDT 0.6B v3 (0.60 GB) for transcription, Qwen3.5 0.8B (0.53 GB) for summaries, EmbeddingGemma 2 (0.31 GB) for search, and LFM2.5 1.2B (0.73 GB) for lightweight autocomplete. LokalBot's memory governor caps resident models at 50% of physical RAM (4 GB on an 8 GB Mac) and evicts idle models automatically when another task runs."}},{"@type":"Question","name":"What is the best local AI model stack for a 16 GB Mac?","acceptedAnswer":{"@type":"Answer","text":"A 16 GB Apple Silicon Mac runs LokalBot's full default stack (~9.6 GB total on disk): Qwen3-ASR 1.7B (2.52 GB) for transcription, Nemotron 3 Core ML (0.20 GB) for speaker separation, Qwen3.5 4B Q4_K_M (2.74 GB) for summaries and work memory, EmbeddingGemma 2 Q8_0 (0.31 GB, 496 MB server peak) for hybrid search, and Gemma 4 E2B (3.85 GB) or LFM2.5 1.2B (0.73 GB) for autocomplete. ModelResidency automatically swaps idle models inside its 8 GB cap so macOS, browsers, and call apps keep half of system memory."}},{"@type":"Question","name":"Why does total disk size differ from active RAM?","acceptedAnswer":{"@type":"Answer","text":"Two reasons: first, models do not all run at the same time — transcription and speaker diarization load after a meeting and unload when idle, before the summarizer runs. Second, an active language model needs extra memory beyond its GGUF file size for KV cache and runtime buffers (LokalBot budgets +3.0 GiB for the 32K-context main LLM, +768 MiB for 4K autocomplete, and +384 MiB for embeddings)."}},{"@type":"Question","name":"Do I need a dedicated GPU on Windows or Linux?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot's bundled llama.cpp runs on a Vulkan or CUDA GPU when available and falls back to x86_64 CPU otherwise. On an AMD Ryzen 7 9700X (CPU-only, 8 threads), Qwen3.5 4B finished short extraction in 2.86 seconds and a long-meeting stress test in 120 seconds with 6/6 native tool calls in our Linux CPU benchmark. An 8 GB+ GPU fits the default 4B summarizer and autocomplete models in VRAM for faster responses."}},{"@type":"Question","name":"Does this calculator send my hardware specs to a server?","acceptedAnswer":{"@type":"Answer","text":"No. Every calculation runs locally in your browser with zero analytics scripts, cookies, or network requests. Share links encode only the selections you choose in the URL query string."}}]}]}</script>
+  <script src="/app.js" defer></script>
+  <script src="/hardware.js" defer></script>
+  <style>
+    .hw-page {
+      width: min(1140px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 122px 0 84px;
+    }
+
+    .hw-hero { max-width: 100%; margin-bottom: 30px; }
+    .hw-hero .breadcrumbs { margin-bottom: 14px; }
+    .hw-hero h1 {
+      margin: 10px 0 14px;
+      font-size: clamp(2.1rem, 4.2vw, 3.25rem);
+      line-height: 1.07;
+      letter-spacing: -0.035em;
+      color: var(--text);
+      max-width: 24ch;
+      text-wrap: balance;
+    }
+    .hw-hero__lead {
+      font-size: 1.06rem;
+      line-height: 1.62;
+      color: var(--text-dim);
+      max-width: 68ch;
+      margin: 0 0 18px;
+    }
+    .hw-hero__meta {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    .hw-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--pill);
+      font: 600 0.8rem/1.2 var(--mono);
+      color: var(--text-dim);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+      text-decoration: none;
+      transition: border-color 140ms var(--ease), color 140ms var(--ease);
+    }
+    a.hw-chip:hover { border-color: var(--teal); color: var(--accent-text); }
+    .hw-chip--accent {
+      color: var(--accent-text);
+      border-color: rgba(35, 196, 174, 0.36);
+      background: var(--teal-soft);
+    }
+
+    /* Presets bar */
+    .hw-presets {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 18px;
+    }
+    .hw-preset {
+      appearance: none;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      color: var(--text-dim);
+      font: 600 0.82rem/1.2 var(--font);
+      padding: 8px 13px;
+      border-radius: var(--pill);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+    }
+    .hw-preset:hover { border-color: var(--teal); color: var(--text); }
+    .hw-preset.is-active {
+      border-color: rgba(35, 196, 174, 0.55);
+      background: var(--teal-soft);
+      color: var(--accent-text);
+    }
+
+    /* Main interactive grid */
+    .hw-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 380px) minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 44px;
+    }
+    @media (max-width: 960px) {
+      .hw-grid { grid-template-columns: 1fr; }
+    }
+
+    .hw-panel {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .hw-panel h2 {
+      margin: 0 0 16px;
+      font-size: 1.08rem;
+      letter-spacing: -0.015em;
+      color: var(--text);
+    }
+    .hw-field { margin-bottom: 18px; }
+    .hw-field:last-child { margin-bottom: 0; }
+    .hw-field__label {
+      display: block;
+      font: 600 0.78rem/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+
+    .hw-seg {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .hw-seg--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .hw-seg button,
+    .hw-pill {
+      appearance: none;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-tint-chip);
+      color: var(--text-dim);
+      font: 600 0.84rem/1.2 var(--font);
+      padding: 9px 10px;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+    }
+    .hw-seg button:hover,
+    .hw-pill:hover { border-color: var(--teal); color: var(--text); }
+    .hw-seg button.is-active,
+    .hw-pill.is-active {
+      border-color: rgba(35, 196, 174, 0.55);
+      background: var(--teal-soft);
+      color: var(--accent-text);
+    }
+
+    .hw-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+    .hw-pill {
+      padding: 7px 11px;
+      font-family: var(--mono);
+      font-size: 0.8rem;
+    }
+
+    .hw-select,
+    .hw-model-select {
+      width: 100%;
+      appearance: none;
+      background-color: var(--surface-2);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238fa6b4' d='M2.5 4.25L6 7.75l3.5-3.5' stroke='%238fa6b4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill-opacity='0'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      color: var(--text);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius-sm);
+      padding: 8px 28px 8px 11px;
+      font: 600 0.82rem/1.3 var(--font);
+      cursor: pointer;
+    }
+    .hw-model-select { min-width: 195px; }
+    .hw-select:focus,
+    .hw-model-select:focus {
+      outline: 2px solid var(--teal);
+      outline-offset: 1px;
+    }
+
+    .hw-toggles {
+      display: flex;
+      flex-direction: column;
+      gap: 7px;
+    }
+    .hw-toggle {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 11px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-tint-chip);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), background 140ms var(--ease);
+    }
+    .hw-toggle.is-checked {
+      border-color: rgba(35, 196, 174, 0.36);
+      background: rgba(35, 196, 174, 0.06);
+    }
+    .hw-toggle input {
+      margin-top: 3px;
+      accent-color: var(--teal);
+      width: 15px;
+      height: 15px;
+      flex: 0 0 auto;
+    }
+    .hw-toggle__body {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .hw-toggle__body strong {
+      font-size: 0.87rem;
+      color: var(--text);
+    }
+    .hw-toggle__body span {
+      font-size: 0.78rem;
+      color: var(--text-faint);
+      line-height: 1.35;
+    }
+
+    /* Results column */
+    .hw-results {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-width: 0;
+    }
+
+    .hw-verdict {
+      padding: 20px 22px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .hw-verdict--comfortable { border-color: rgba(35, 196, 174, 0.45); }
+    .hw-verdict--lru { border-color: rgba(74, 168, 255, 0.45); }
+    .hw-verdict--tight { border-color: rgba(245, 166, 35, 0.5); }
+    .hw-verdict--exceeds { border-color: rgba(239, 90, 90, 0.55); }
+
+    .hw-verdict__top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .hw-verdict__badge {
+      display: inline-flex;
+      align-items: center;
+      padding: 4px 10px;
+      border-radius: var(--pill);
+      font: 700 0.74rem/1.2 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--teal-soft);
+      color: var(--accent-text);
+    }
+    .hw-verdict--lru .hw-verdict__badge { background: rgba(74, 168, 255, 0.16); color: #67b6ff; }
+    .hw-verdict--tight .hw-verdict__badge { background: rgba(245, 166, 35, 0.18); color: #d98a12; }
+    .hw-verdict--exceeds .hw-verdict__badge { background: rgba(239, 90, 90, 0.18); color: #e25555; }
+    @media (prefers-color-scheme: light) {
+      .hw-verdict--lru .hw-verdict__badge { color: #0b5cab; }
+      .hw-verdict--tight .hw-verdict__badge { color: #9c5b00; }
+      .hw-verdict--exceeds .hw-verdict__badge { color: #b42318; }
+    }
+    .hw-verdict__title {
+      margin: 0 0 6px;
+      font-size: 1.24rem;
+      line-height: 1.25;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .hw-verdict__detail {
+      margin: 0;
+      font-size: 0.92rem;
+      line-height: 1.55;
+      color: var(--text-dim);
+    }
+
+    /* KPI Strip */
+    .hw-kpis {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 10px;
+    }
+    @media (max-width: 720px) {
+      .hw-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    .hw-kpi {
+      padding: 14px 16px;
+      border-radius: var(--radius);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .hw-kpi__label {
+      display: block;
+      font: 600 0.72rem/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      margin-bottom: 5px;
+    }
+    .hw-kpi__value {
+      font: 700 1.18rem/1.15 var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    /* Memory Bar */
+    .hw-meter {
+      padding: 18px 20px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .hw-meter__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 0.84rem;
+      color: var(--text-dim);
+      margin-bottom: 12px;
+    }
+    .hw-meter__legend {
+      display: inline-flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.77rem;
+      color: var(--text-faint);
+    }
+    .hw-dot {
+      display: inline-block;
+      width: 9px;
+      height: 9px;
+      border-radius: 99px;
+      margin-right: 4px;
+      vertical-align: middle;
+    }
+    .hw-dot--warm { background: var(--teal); }
+    .hw-dot--burst { background: #5a9cf8; }
+    .hw-dot--cap { background: #f5a623; }
+
+    .hw-meter__track {
+      position: relative;
+      display: flex;
+      height: 22px;
+      border-radius: 99px;
+      background: var(--surface-2);
+      border: 1px solid var(--glass-border);
+      overflow: visible;
+      margin: 34px 0 12px;
+    }
+    .hw-meter__seg {
+      height: 100%;
+      transition: width 220ms var(--ease);
+    }
+    .hw-meter__seg--warm {
+      background: linear-gradient(90deg, #1aa797, #23c4ae);
+      border-radius: 99px 0 0 99px;
+    }
+    .hw-meter__seg--burst {
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    }
+    .hw-meter__marker {
+      position: absolute;
+      top: -6px;
+      bottom: -6px;
+      width: 2px;
+      pointer-events: none;
+    }
+    .hw-meter__marker--cap { background: #f5a623; }
+    .hw-meter__marker--ram { background: #ef5a5a; }
+    .hw-meter__marker span {
+      position: absolute;
+      bottom: calc(100% + 4px);
+      transform: translateX(-50%);
+      white-space: nowrap;
+      font: 700 0.7rem/1.1 var(--mono);
+      color: var(--text-dim);
+      background: var(--bg);
+      padding: 2px 6px;
+      border-radius: 6px;
+      border: 1px solid var(--glass-border);
+    }
+    .hw-meter__foot {
+      margin: 0;
+      font-size: 0.82rem;
+      line-height: 1.5;
+      color: var(--text-faint);
+    }
+
+    .hw-gpu,
+    .hw-chip-note {
+      padding: 13px 16px;
+      border-radius: var(--radius);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-tint-chip);
+      font-size: 0.86rem;
+      line-height: 1.5;
+      color: var(--text-dim);
+      margin: 0;
+    }
+    .hw-gpu--full-vram { border-color: rgba(35, 196, 174, 0.42); }
+    .hw-gpu--partial-vram { border-color: rgba(245, 166, 35, 0.45); }
+    .hw-gpu--spill-vram { border-color: rgba(239, 90, 90, 0.5); }
+
+    /* Model table */
+    .hw-stack-card {
+      padding: 20px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .hw-stack-card__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .hw-stack-card__head h2 {
+      margin: 0;
+      font-size: 1.06rem;
+      color: var(--text);
+    }
+    .hw-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .hw-btn-ghost {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 12px;
+      border-radius: var(--pill);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-tint-chip);
+      color: var(--text-dim);
+      font: 600 0.8rem/1.2 var(--font);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), color 140ms var(--ease);
+    }
+    .hw-btn-ghost:hover { border-color: var(--teal); color: var(--accent-text); }
+    .hw-btn-ghost[hidden],
+    .hw-gpu[hidden],
+    .hw-field[hidden] { display: none; }
+
+    .hw-table-wrap { overflow-x: auto; }
+    .hw-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.86rem;
+    }
+    .hw-table th {
+      text-align: left;
+      font: 600 0.72rem/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--glass-border);
+      white-space: nowrap;
+    }
+    .hw-table th.hw-num,
+    .hw-table td.hw-num {
+      text-align: right;
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .hw-table td {
+      padding: 12px 10px;
+      border-bottom: 1px solid var(--glass-border);
+      vertical-align: top;
+      color: var(--text-dim);
+    }
+    .hw-table tr:last-child td { border-bottom: 0; }
+    .hw-res-tag {
+      display: inline-block;
+      margin-top: 4px;
+      padding: 2px 7px;
+      border-radius: var(--pill);
+      font: 600 0.68rem/1.2 var(--mono);
+      background: var(--surface-2);
+      color: var(--text-faint);
+    }
+    .hw-res-tag--warm {
+      background: var(--teal-soft);
+      color: var(--accent-text);
+    }
+    .hw-model-static { color: var(--text); }
+    .hw-model-fmt { font: 500 0.78rem/1.2 var(--mono); color: var(--text-faint); }
+    .hw-model-note {
+      display: block;
+      margin-top: 5px;
+      font-size: 0.77rem;
+      line-height: 1.4;
+      color: var(--text-faint);
+    }
+    .hw-bench-link {
+      font: 600 0.8rem/1.35 var(--mono);
+      color: var(--accent-text);
+      text-decoration: none;
+    }
+    .hw-bench-link:hover { text-decoration: underline; }
+    .hw-empty { text-align: center; padding: 24px 12px; color: var(--text-faint); }
+
+    /* Static reference matrix + FAQ */
+    .hw-ref-section { margin: 48px 0; }
+    .hw-ref-section h2 {
+      margin: 8px 0 10px;
+      font-size: clamp(1.45rem, 2.6vw, 1.95rem);
+      letter-spacing: -0.025em;
+      color: var(--text);
+    }
+    .hw-ref-section > p {
+      margin: 0 0 18px;
+      color: var(--text-dim);
+      max-width: 68ch;
+      line-height: 1.6;
+    }
+
+    @media (prefers-reduced-transparency: reduce) {
+      .hw-chip, .hw-preset, .hw-panel, .hw-verdict, .hw-kpi, .hw-meter, .hw-stack-card {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      .hw-chip, .hw-preset, .hw-panel, .hw-verdict, .hw-kpi, .hw-meter, .hw-stack-card {
+        background: var(--surface);
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#hw-main">Skip to calculator</a>
+  <div class="bg-field" aria-hidden="true"></div>
+
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#features">Features</a>
+      <a href="/guides">Guides</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/blog">Blog</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </div>
+  </header>
+
+  <main class="hw-page" id="hw-main">
+    <header class="hw-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides">Guides</a><span aria-hidden="true">/</span><span>Hardware Calculator</span>
+      </nav>
+      <p class="eyebrow">Hardware sizing</p>
+      <h1>Can my Mac or PC run local AI?</h1>
+      <p class="hw-hero__lead">Pick your machine's RAM, GPU VRAM, and desktop AI workloads to see exact disk downloads, resident memory, KV-cache overhead, and which open-weight speech, summary, search, and autocomplete models fit without starving your other apps.</p>
+      <div class="hw-hero__meta">
+        <span class="hw-chip hw-chip--accent">Updated Nov 20, 2026</span>
+        <a class="hw-chip" href="/benchmarks">View full benchmark leaderboard &rarr;</a>
+        <a class="hw-chip" href="/system-requirements">System requirements</a>
+        <a class="hw-chip" href="https://github.com/stevyhacker/LokalBot/blob/master/LokalBot/Engines/ModelResidency.swift" target="_blank" rel="noopener">ModelResidency.swift</a>
+      </div>
+    </header>
+
+    <section id="hw-app" aria-label="Interactive Local AI RAM Calculator">
+      <div class="hw-presets" id="hw-presets" aria-label="Quick machine presets"></div>
+
+      <div class="hw-grid">
+        <aside class="hw-panel" aria-label="Machine configuration">
+          <h2>1. Your machine</h2>
+
+          <div class="hw-field">
+            <span class="hw-field__label">Operating system</span>
+            <div class="hw-seg" id="hw-os" role="group" aria-label="Operating system">
+              <button type="button" data-os="mac" class="is-active" aria-pressed="true">macOS</button>
+              <button type="button" data-os="windows" aria-pressed="false">Windows</button>
+              <button type="button" data-os="linux" aria-pressed="false">Linux</button>
+            </div>
+          </div>
+
+          <div class="hw-field" id="hw-chip-row">
+            <label class="hw-field__label" for="hw-chip">Apple Silicon chip</label>
+            <select id="hw-chip" class="hw-select">
+              <option value="m1">Apple M1 / M1 Pro / Max</option>
+              <option value="m2">Apple M2 / M2 Pro / Max</option>
+              <option value="m3" selected>Apple M3 / M3 Pro / Max</option>
+              <option value="m4">Apple M4 / M4 Pro</option>
+              <option value="m4-max">Apple M4 Max (benchmark host)</option>
+              <option value="m5">Apple M5 family</option>
+            </select>
+          </div>
+
+          <div class="hw-field">
+            <span class="hw-field__label">System memory (RAM)</span>
+            <div class="hw-pills" id="hw-ram" role="group" aria-label="System memory"></div>
+          </div>
+
+          <div class="hw-field" id="hw-vram-row" hidden>
+            <span class="hw-field__label">Dedicated GPU VRAM (Vulkan / CUDA)</span>
+            <div class="hw-pills" id="hw-vram" role="group" aria-label="GPU VRAM"></div>
+          </div>
+
+          <div class="hw-field">
+            <span class="hw-field__label">Model preset</span>
+            <div class="hw-seg hw-seg--4" id="hw-profile" role="group" aria-label="Model preset">
+              <button type="button" data-profile="auto" class="is-active" aria-pressed="true">Auto-fit</button>
+              <button type="button" data-profile="lightweight" aria-pressed="false">Lightweight</button>
+              <button type="button" data-profile="balanced" aria-pressed="false">Default</button>
+              <button type="button" data-profile="quality" aria-pressed="false">Max quality</button>
+            </div>
+          </div>
+
+          <div class="hw-field">
+            <span class="hw-field__label">2. Enabled local workloads</span>
+            <div class="hw-toggles" id="hw-workloads"></div>
+          </div>
+        </aside>
+
+        <div class="hw-results" aria-live="polite">
+          <div class="hw-verdict hw-verdict--comfortable" id="hw-verdict">
+            <div class="hw-verdict__top">
+              <span class="hw-verdict__badge">Estimating...</span>
+              <button type="button" class="hw-btn-ghost" id="hw-apply-light" hidden>Apply Lightweight preset</button>
+            </div>
+            <h2 class="hw-verdict__title">Calculating fit...</h2>
+            <p class="hw-verdict__detail"></p>
+          </div>
+
+          <div class="hw-kpis">
+            <div class="hw-kpi">
+              <span class="hw-kpi__label">Disk download</span>
+              <span class="hw-kpi__value" id="hw-kpi-disk">—</span>
+            </div>
+            <div class="hw-kpi">
+              <span class="hw-kpi__label">Warm resident RAM</span>
+              <span class="hw-kpi__value" id="hw-kpi-warm">—</span>
+            </div>
+            <div class="hw-kpi">
+              <span class="hw-kpi__label">Combined peak</span>
+              <span class="hw-kpi__value" id="hw-kpi-peak">—</span>
+            </div>
+            <div class="hw-kpi">
+              <span class="hw-kpi__label">50% RAM cap</span>
+              <span class="hw-kpi__value" id="hw-kpi-cap">—</span>
+            </div>
+          </div>
+
+          <div class="hw-meter" id="hw-meter"></div>
+
+          <p class="hw-gpu" id="hw-gpu-callout" hidden></p>
+          <p class="hw-chip-note" id="hw-chip-note"></p>
+
+          <div class="hw-stack-card">
+            <div class="hw-stack-card__head">
+              <h2>Recommended local model stack (swap any row to test)</h2>
+              <div class="hw-actions">
+                <button type="button" class="hw-btn-ghost" id="hw-reset-overrides" hidden>Reset swaps</button>
+                <button type="button" class="hw-btn-ghost" id="hw-copy-link">Copy link</button>
+                <button type="button" class="hw-btn-ghost" id="hw-copy-md">Copy Markdown</button>
+              </div>
+            </div>
+            <div class="hw-table-wrap">
+              <table class="hw-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Role</th>
+                    <th scope="col">Model &amp; quantization</th>
+                    <th scope="col" class="hw-num">Disk</th>
+                    <th scope="col" class="hw-num">Active RAM</th>
+                    <th scope="col">Measured benchmark</th>
+                  </tr>
+                </thead>
+                <tbody id="hw-stack-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="hw-ref-section" aria-labelledby="tier-table-title">
+      <p class="eyebrow">Quick reference</p>
+      <h2 id="tier-table-title">Recommended local AI stacks by machine tier</h2>
+      <p>Every model size below comes directly from LokalBot's shipped macOS (<code>ModelCatalog.swift</code>, <code>LlamaServer.swift</code>) and Windows/Linux (<code>catalog.rs</code>, <code>sherpa-onnx</code>) catalogs. Screen OCR uses Apple Vision on macOS (0 GB download) and Windows OCR or Tesseract + ocrs on PCs.</p>
+      <div class="guide-table-wrap">
+        <table class="guide-table">
+          <thead>
+            <tr>
+              <th scope="col">Machine tier</th>
+              <th scope="col">50% RAM cap</th>
+              <th scope="col">Transcription</th>
+              <th scope="col">Summaries &amp; memory</th>
+              <th scope="col">Autocomplete</th>
+              <th scope="col">Search embedder</th>
+              <th scope="col">Total disk</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Mac · 8 GB unified</th>
+              <td>4 GB</td>
+              <td>Qwen3-ASR 0.6B (1.02 GB) or Parakeet v3 (0.60 GB)</td>
+              <td>Qwen3.5 0.8B Q4_K_M (0.53 GB)</td>
+              <td>LFM2.5 1.2B Q4_K_M (0.73 GB)</td>
+              <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
+              <td>~2.8 GB</td>
+            </tr>
+            <tr>
+              <th scope="row">Mac · 16 GB unified (Default)</th>
+              <td>8 GB</td>
+              <td>Qwen3-ASR 1.7B (2.52 GB) + Nemotron 3 (0.20 GB)</td>
+              <td>Qwen3.5 4B Q4_K_M (2.74 GB)</td>
+              <td>Gemma 4 E2B i1-Q6_K (3.85 GB)</td>
+              <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
+              <td>~9.6 GB</td>
+            </tr>
+            <tr>
+              <th scope="row">Mac · 24 GB unified</th>
+              <td>12 GB</td>
+              <td>Qwen3-ASR 1.7B (2.52 GB) + Nemotron 3 (0.20 GB)</td>
+              <td>Qwen3.5 4B (2.74 GB) or Gemma 4 12B (7.12 GB)</td>
+              <td>Gemma 4 E2B i1-Q6_K (3.85 GB)</td>
+              <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
+              <td>~9.6–14.0 GB</td>
+            </tr>
+            <tr>
+              <th scope="row">Mac · 32–48 GB+ unified</th>
+              <td>16–24 GB+</td>
+              <td>Qwen3-ASR 1.7B (2.52 GB) + Nemotron 3 (0.20 GB)</td>
+              <td>Qwen3.6 35B-A3B MoE (17.73 GB) or Qwen3.6 27B (16.82 GB)</td>
+              <td>Gemma 4 E2B i1-Q6_K (3.85 GB)</td>
+              <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
+              <td>~24.6 GB</td>
+            </tr>
+            <tr>
+              <th scope="row">Windows / Linux x64 (alpha)</th>
+              <td>50% RAM (+ GPU VRAM)</td>
+              <td>Qwen3-ASR 0.6B int8 (0.88 GB) + pyannote/TitaNet (0.08 GB)</td>
+              <td>Qwen3.5 4B Q4_K_M (2.74 GB) on Vulkan/CUDA or CPU</td>
+              <td>Gemma 4 E2B (3.85 GB) or LFM2.5 1.2B (0.73 GB)</td>
+              <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
+              <td>~4.7–7.9 GB</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Local AI memory and hardware questions</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>Can an 8 GB Apple Silicon Mac run local AI meeting notes and autocomplete?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes, with compact models. Pair Qwen3-ASR 0.6B (1.02 GB) or Parakeet TDT 0.6B v3 (0.60 GB) for transcription, Qwen3.5 0.8B (0.53 GB) for summaries, EmbeddingGemma 2 (0.31 GB) for search, and LFM2.5 1.2B (0.73 GB) for lightweight autocomplete. LokalBot's memory governor caps resident models at 50% of physical RAM (4 GB on an 8 GB Mac) and evicts idle models automatically when another task runs.</p>
+        </details>
+        <details class="qa">
+          <summary>What is the best local AI model stack for a 16 GB Mac?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>A 16 GB Apple Silicon Mac runs LokalBot's full default stack (~9.6 GB total on disk): Qwen3-ASR 1.7B (2.52 GB) for transcription, Nemotron 3 Core ML (0.20 GB) for speaker separation, Qwen3.5 4B Q4_K_M (2.74 GB) for summaries and work memory, EmbeddingGemma 2 Q8_0 (0.31 GB, 496 MB server peak) for hybrid search, and Gemma 4 E2B (3.85 GB) or LFM2.5 1.2B (0.73 GB) for autocomplete. ModelResidency automatically swaps idle models inside its 8 GB cap so macOS, browsers, and call apps keep half of system memory.</p>
+        </details>
+        <details class="qa">
+          <summary>Why does total disk size differ from active RAM?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Two reasons: first, models do not all run at the same time — transcription and speaker diarization load after a meeting and unload when idle, before the summarizer runs. Second, an active language model needs extra memory beyond its GGUF file size for KV cache and runtime buffers (LokalBot budgets +3.0 GiB for the 32K-context main LLM, +768 MiB for 4K autocomplete, and +384 MiB for embeddings).</p>
+        </details>
+        <details class="qa">
+          <summary>Do I need a dedicated GPU on Windows or Linux?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. LokalBot's bundled llama.cpp runs on a Vulkan or CUDA GPU when available and falls back to x86_64 CPU otherwise. On an AMD Ryzen 7 9700X (CPU-only, 8 threads), Qwen3.5 4B finished short extraction in 2.86 seconds and a long-meeting stress test in 120 seconds with 6/6 native tool calls in our Linux CPU benchmark. An 8 GB+ GPU fits the default 4B summarizer and autocomplete models in VRAM for faster responses.</p>
+        </details>
+        <details class="qa">
+          <summary>Does this calculator send my hardware specs to a server?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. Every calculation runs locally in your browser with zero analytics scripts, cookies, or network requests. Share links encode only the selections you choose in the URL query string.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Run the whole local stack on your own machine.</h2>
+        <p class="section__lead">Free, open source (GPLv3), and no account. Download only the models you pick.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="/benchmarks">Benchmarks</a> &middot; <a href="/system-requirements">System requirements</a> &middot; <a href="/migrate">Meeting Migrator</a> &middot; <a href="/guides">All guides</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Android &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#android">Android app</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

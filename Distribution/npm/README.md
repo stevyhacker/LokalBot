@@ -92,6 +92,8 @@ Needs Node.js 20 or later. Reading OpenCode and Cursor SQLite databases uses Nod
 
 [LokalBot](https://www.lokalbot.com/) ([GitHub](https://github.com/stevyhacker/LokalBot)) is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux that records your meetings with no bot, runs transcription and summaries locally, and gives Claude Code and Codex read-only MCP memory of what was decided. Agent Wrapped reads coding-agent logs the same way LokalBot's timeline does.
 
+More local tools and data from LokalBot: [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)) · [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware) · [Offline Meeting Migrator](https://www.lokalbot.com/migrate).
+
 If you liked your card, a star on [the repository](https://github.com/stevyhacker/LokalBot) helps other people find it.
 
 ## Development

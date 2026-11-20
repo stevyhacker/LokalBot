@@ -47,7 +47,7 @@ brew install --cask stevyhacker/tap/lokalbot
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
+[Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Benchmarks](https://www.lokalbot.com/benchmarks) · [Hardware calculator](https://www.lokalbot.com/hardware) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
 
 </div>
 
@@ -253,15 +253,16 @@ A native Windows and Linux app, written in Rust, has the same pages and reads th
 | --- | --- |
 | [Granola](https://www.lokalbot.com/lokalbot-vs-granola) | The same bot-free capture, but transcription and summaries run on your computer by default. No account and no subscription. |
 | [Apple Notes](https://www.lokalbot.com/lokalbot-vs-apple-notes) | Notes records your microphone, so with headphones on it misses the other side of a Zoom or Teams call. LokalBot records both sides and keeps every meeting searchable, with notes that cite the discussion. |
-| [Otter](https://www.lokalbot.com/lokalbot-vs-otter) · [Fireflies](https://www.lokalbot.com/lokalbot-vs-fireflies) | Nothing joins your call, audio stays on your computer, and there are no minute caps. |
+| [Otter](https://www.lokalbot.com/lokalbot-vs-otter) · [Fireflies](https://www.lokalbot.com/lokalbot-vs-fireflies) · [Fathom](https://www.lokalbot.com/lokalbot-vs-fathom) · [Read.ai](https://www.lokalbot.com/lokalbot-vs-read-ai) | Nothing joins your call, audio stays on your computer, and there are no minute or summary caps. |
+| [Notion AI](https://www.lokalbot.com/lokalbot-vs-notion-ai) | Bot-free capture without upgrading every workspace seat to Business ($20/user/mo), with local models, Linux support, and plain Markdown export. |
 | [Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote) | Local AI ships built in, with no separate model runner or API keys to set up. Dictation, a day timeline, and autocomplete come in the same app. |
 | [Meetily](https://www.lokalbot.com/lokalbot-vs-meetily) | Both are open source and run locally. Speaker separation, meeting detection, and MCP access are free here rather than Pro features, and dictation, a day timeline, and autocomplete come in the same app. |
 | [Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe) | Starts with app and window activity. Screen text and screenshots are opt-in and deleted after 14 days by default. GPLv3 rather than source-available. |
-| [Rewind](https://www.lokalbot.com/lokalbot-vs-rewind) | Rewind's Mac app is discontinued. LokalBot's timeline is open source and actively developed. |
+| [Rewind / Limitless](https://www.lokalbot.com/lokalbot-vs-rewind) | The Rewind / Limitless Mac app is discontinued after Meta's acquisition. LokalBot's timeline is open source and actively developed. |
 | [MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper) · [Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper) | Dictation comes alongside meeting notes, recall, and autocomplete, for free. For transcribing files you already have, MacWhisper is the better tool. |
 | [Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow) | Dictation and bot-free meeting notes run on your computer, with no account, word cap, or connection required. Wispr Flow transcribes both in its cloud. |
 
-<sub>Competitor details were last verified on September 24, 2026, and October 1, 2026 for Apple Notes, Meetily, and Wispr Flow; each link has the full comparison and sources. Trademarks belong to their owners.</sub>
+<sub>Competitor details were last verified on October 26, 2026 (and November 20, 2026 for Fathom, Notion AI, Read.ai, and Rewind / Limitless); each link has the full comparison and sources. Trademarks belong to their owners.</sub>
 
 ## Performance
 
@@ -276,7 +277,7 @@ Measured on Apple M4 Max Macs (48 GB of memory where the report records it), usi
 | Autocomplete | 56 ms median per keystroke (102 ms p95) |
 | Screen text (Apple Vision) | about 120 ms per synthetic screenshot, 243 ms on average for real ones |
 
-The default models take about 9.6 GB of disk on a Mac if you use every role, and about 4 GB on Windows and Linux. That's download size, not a RAM requirement. The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Details are in [Local AI, your choice](#local-ai-your-choice) and in the [benchmark reports](Benchmarks/README.md), which record the exact models, runtimes, and test sets.
+The default models take about 9.6 GB of disk on a Mac if you use every role, and about 4 GB on Windows and Linux. That's download size, not a RAM requirement — check exact disk, resident RAM, and GPU VRAM fit for your machine in the [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware). The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Full interactive tables and reproducible JSON live on the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)), mirrored on the [Hugging Face Benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks), with raw harnesses in the [benchmark reports](Benchmarks/README.md).
 
 ## Local AI, your choice
 
@@ -298,7 +299,7 @@ Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include P
 
 On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses Gemma 4 E2B by default, as on Mac. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
 
-[Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/Search/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
+[Interactive leaderboard](https://www.lokalbot.com/benchmarks) · [Hardware & RAM calculator](https://www.lokalbot.com/hardware) · [Hugging Face benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) · [Hugging Face model Collection](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) · [Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/Search/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
 
 <a id="privacy--verify-it"></a>
 

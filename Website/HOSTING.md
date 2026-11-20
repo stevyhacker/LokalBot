@@ -65,12 +65,12 @@ Expect `308` and `location: https://www.lokalbot.com/privacy`.
 
 ## AI crawlers
 
-`Website/public/robots.txt` allows every crawler. On 2026-09-24 the zone still returned
+`Website/public/robots.txt` allows every crawler. On 2026-09-24 the zone returned
 HTTP 403 to `GPTBot`, `ClaudeBot`, and `CCBot` because Cloudflare's **Block AI
-bots** setting was on. `PerplexityBot`, `OAI-SearchBot`, and Googlebot got 200.
-Blocking those crawlers keeps LokalBot's pages out of the data that AI assistants
-use to answer "what's a private meeting-notes app for Mac?", so it works against
-the site's purpose.
+bots** setting was on; as of 2026-11-20, `GPTBot`, `OAI-SearchBot`, `ClaudeBot`,
+`Claude-SearchBot`, `PerplexityBot`, `Googlebot`, and `CCBot` all return HTTP 200.
+Keep those crawlers allowed so AI assistants can index LokalBot's pages and
+`/llms.txt` / `/llms-full.txt`:
 
 To allow them, open the `lokalbot.com` zone in the Cloudflare dashboard:
 

@@ -26,6 +26,7 @@ Key facts:
 - [LokalBot home](https://www.lokalbot.com/): features, demo, and FAQ
 - [Agent Wrapped](https://www.lokalbot.com/wrapped): local, zero-upload year in review for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI (`npx lokalbot`)
 - [Meeting Migrator](https://www.lokalbot.com/migrate): offline, zero-upload browser converter that turns Granola, Otter.ai, Fireflies, Fathom, and Zoom meeting exports into Obsidian Markdown notes with YAML frontmatter, speaker wikilinks, and a ZIP download
+- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware): interactive zero-upload browser calculator for Apple Silicon Macs, Windows, and Linux estimating exact disk downloads, resident RAM, KV-cache allowances, GPU VRAM offload, and LokalBot's 50% memory residency cap
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
 - [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, and Linux requirements, memory, disk, permissions, and what each platform supports
 - [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): interactive, reproducible benchmarks across 7 workloads and 17 suites (speech vs. cloud APIs, diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, extraction, OCR, TTS) with machine-readable JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
@@ -64,6 +65,9 @@ Key facts:
 - [LokalBot vs Apple Notes](https://www.lokalbot.com/lokalbot-vs-apple-notes)
 - [LokalBot vs Otter.ai](https://www.lokalbot.com/lokalbot-vs-otter)
 - [LokalBot vs Fireflies.ai](https://www.lokalbot.com/lokalbot-vs-fireflies)
+- [LokalBot vs Fathom](https://www.lokalbot.com/lokalbot-vs-fathom)
+- [LokalBot vs Notion AI Meeting Notes](https://www.lokalbot.com/lokalbot-vs-notion-ai)
+- [LokalBot vs Read.ai](https://www.lokalbot.com/lokalbot-vs-read-ai)
 - [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
 - [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
@@ -71,7 +75,7 @@ Key facts:
 - [LokalBot vs Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper)
 - [LokalBot vs Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow)
 - [LokalBot vs Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe)
-- [LokalBot vs Rewind](https://www.lokalbot.com/lokalbot-vs-rewind)
+- [LokalBot vs Rewind & Limitless](https://www.lokalbot.com/lokalbot-vs-rewind)
 
 ## Languages
 
@@ -501,6 +505,82 @@ Fireflies is built for teams: its notetaker joins your calls, transcribes in mor
 - **Q: Can LokalBot push notes into my CRM?** Not directly. LokalBot exposes a read-only CLI and MCP server so local tools and agents can read your library, and it also exports meetings as Markdown and can write a daily memory note to a folder. Anything beyond that is up to you.
 - **Q: Will people on the call know LokalBot is recording?** No — nothing appears in the call, which is why you need to tell participants yourself. On a fresh install, LokalBot asks through a notification before it records a detected meeting.
 
+### LokalBot vs Fathom (https://www.lokalbot.com/lokalbot-vs-fathom · verified 2026-11-20)
+
+Fathom is popular for a reason: its free plan includes unlimited basic recordings and transcripts on Zoom, Google Meet, and Teams, and paid tiers add shared team folders and CRM sync for HubSpot and Salesforce. The trade-off is that your calls live in Fathom's cloud under an account, advanced AI summaries cap at five per month on the free tier, and most platforms still send a bot into the meeting. LokalBot captures from your computer's own audio with no bot, runs transcription and unlimited summaries locally, and needs no account.
+
+| Feature | LokalBot | Fathom |
+| --- | --- | --- |
+| How it captures a meeting | Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); source labels do not identify speakers | A Fathom bot joins Zoom, Google Meet, and Microsoft Teams; a bot-free capture beta is available on Mac |
+| Where transcription and AI run | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Fathom's cloud |
+| Account required | None | Yes |
+| Works offline | Fully, after a one-time model download | Needs a connection |
+| Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | 38 languages |
+| AI summary limits | Unlimited — runs on your own hardware | Free: 5 advanced AI summaries/month · Paid plans: unlimited |
+| CRM and team features | Read-only local CLI and MCP server; Markdown/Obsidian export | Shared team folders, playlists, comments, and HubSpot/Salesforce CRM sync on Business |
+| Compliance | No LokalBot server ever holds your meetings | HIPAA available on Team and higher; SSO/SCIM on Enterprise |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | Free · Premium $16/user/mo annually ($20 monthly) · Team $15/user/mo annually ($19 monthly, 2-seat min) · Business $25/user/mo annually ($34 monthly) |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; Android companion app | Desktop and web for Zoom, Google Meet, and Microsoft Teams |
+
+- **Q: Can I bring my existing Fathom meetings into LokalBot?** Yes. LokalBot includes a built-in Fathom importer (transcripts, summaries, downloaded recordings, or Fathom API JSON), or you can convert Fathom exports into Obsidian Markdown offline in your browser with the free Meeting Migrator.
+- **Q: Does Fathom work without a bot?** Fathom offers a bot-free capture option in beta on Mac, while Zoom, Google Meet, and Teams otherwise use the Fathom notetaker bot. Even without the bot, Fathom uploads and stores recordings and transcripts in its cloud. LokalBot processes audio, transcripts, and summaries locally by default.
+- **Q: Why is LokalBot free when Fathom charges $15–$34 per seat?** LokalBot has no cloud transcription or LLM servers to pay for — the models run on your own Mac, Windows, or Linux computer. You pay for your own hardware and electricity, never a per-seat subscription.
+- **Q: Will LokalBot work on apps besides Zoom, Meet, and Teams?** Yes. Because LokalBot captures local system audio rather than relying on platform bot APIs, it works with Slack huddles, Discord, Webex, FaceTime, WhatsApp, and any other call app on your computer.
+
+### LokalBot vs Notion AI (https://www.lokalbot.com/lokalbot-vs-notion-ai · verified 2026-11-20)
+
+Notion AI Meeting Notes brings bot-free transcription right inside your workspace: type /meet in the Notion desktop app and your summary lands beside your team's docs and databases. The catch is that full access requires Notion's Business plan ($20/user/month billed annually for every workspace member), audio goes to cloud AI subprocessors (with zero data retention limited to Enterprise), and there is no Linux app. LokalBot gives you bot-free capture on your computer for free, runs speech and summary models locally, works offline, and exports clean Markdown anywhere.
+
+| Feature | LokalBot | Notion AI Meeting Notes |
+| --- | --- | --- |
+| Where transcription and AI run | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | In the cloud via Notion and third-party AI subprocessors (such as OpenAI and Anthropic) |
+| Account & workspace lock-in | None — local library plus plain Markdown export | Notion account required; notes live in your Notion workspace |
+| Works offline | Fully, after a one-time model download | Needs a connection for AI transcription and summaries |
+| Bot-free meeting capture | Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); labels show capture source, not identity | Bot-free in the Mac and Windows desktop apps (browser captures mic only) |
+| Data retention & privacy | Audio, transcripts, and default summaries never leave your computer | No default model training; AI subprocessors may retain data up to 30 days on Business; zero retention requires Enterprise |
+| Connect coding agents & tools | Read-only CLI and MCP server, off until you turn them on in Settings | Notion AI connectors and API inside your workspace |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | Free & Plus: limited lifetime trial · Business $20/user/mo annually ($24 monthly, per workspace member) · Enterprise custom |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; Android companion app | macOS 13+ and Windows desktop apps for call audio; web and mobile (mic only); no Linux desktop app |
+
+- **Q: Can I still paste LokalBot summaries into Notion?** Yes. Open any meeting and choose Share → Copy as Markdown (or Export as Markdown), then paste straight into a Notion page — your audio and raw transcript still never touch a cloud server.
+- **Q: Is Notion AI Meeting Notes included in Notion Free or Plus?** No. Notion folded full AI Meeting Notes into the Business ($20/user/month billed annually) and Enterprise tiers; Free and Plus accounts only receive a limited trial. LokalBot has no trial limits or per-seat pricing.
+- **Q: Does Notion AI Meeting Notes run locally on my Mac?** No. While the Notion desktop app captures local system audio so no bot joins the call, it sends the audio to cloud AI subprocessors to transcribe and summarize. LokalBot runs both speech recognition and summarization on your own hardware by default.
+- **Q: How does LokalBot compare for local AI coding agents?** LokalBot exposes a read-only local CLI and MCP server (off until enabled in Settings) so Claude Code, Codex, and Cursor can search your meetings and action items directly on your machine without cloud tokens or workspace permissions.
+
+### LokalBot vs Read.ai (https://www.lokalbot.com/lokalbot-vs-read-ai · verified 2026-11-20)
+
+Read.ai connects to your calendar and dispatches the Read Assistant bot into Zoom, Microsoft Teams, and Google Meet calls, adding engagement scores, coaching reports, and cross-tool search in its cloud. That bot-first model is also why many IT teams block Read.ai and why callers ask who invited the extra participant. LokalBot never joins a call, never emails attendees behind your back, runs transcription and summaries locally on your computer, and has no monthly meeting limit.
+
+| Feature | LokalBot | Read.ai |
+| --- | --- | --- |
+| How it captures a meeting | Microphone + system audio on your computer — no bot ever enters the call or posts in meeting chat; labels show capture source, not identity | Read Assistant bot joins Zoom, Teams, and Google Meet as a visible participant and posts chat notices |
+| Works when IT blocks meeting bots | Captures local audio directly — no external participant for hosts to admit or block | Blocked in many Zoom and Teams environments that restrict third-party bots |
+| Where transcription and AI run | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Read.ai's cloud |
+| Account required | None | Yes |
+| Works offline | Fully, after a one-time model download | Needs a connection |
+| Free plan limits | Unlimited — the entire app is free | 5 meeting transcripts per month |
+| Recording control | On a fresh install, asks via a local notification before recording; never auto-joins calendars | Calendar-connected bot can auto-join scheduled calls unless turned off per meeting or in settings |
+| Compliance | No LokalBot server ever holds your meetings | HIPAA (BAA), SSO/SAML, and custom retention require Enterprise+ |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | Free (5/mo) · Pro $15/mo annually ($19.75 monthly) · Enterprise $22.50/mo annually ($29.75 monthly) · Enterprise+ $29.75/mo annually ($39.75 monthly) |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; Android companion app | Cloud bot for Zoom, Teams, Meet; web, Slack, Outlook, iOS, and Android |
+
+- **Q: Why do companies block Read.ai, and how is LokalBot different?** Most IT policies block third-party meeting bots because they join as an external cloud participant and upload confidential audio to outside servers. LokalBot runs on your computer with local models and no cloud backend — see our guide My company blocks AI notetaker bots for an IT review checklist. Always follow your organization's recording and consent rules.
+- **Q: Will LokalBot ever auto-email meeting recaps to attendees?** No. LokalBot has no account, no email server, and no cloud sharing backend. Everything stays in your local library until you deliberately export or copy it.
+- **Q: Does LokalBot cap how many meetings I can record per month?** No. Unlike Read.ai's 5-meeting free tier, LokalBot has no minute or meeting caps — storage is limited only by your own disk.
+- **Q: How does speaker separation work without a bot?** LokalBot records your microphone and the meeting app's audio on separate tracks and runs local speaker diarization (Nemotron 3 Core ML on Mac, pyannote + TitaNet on Windows/Linux). Capture-track labels describe where audio came from rather than verified speaker identity, and you can name speakers locally.
+
 ### LokalBot vs Hyprnote (https://www.lokalbot.com/lokalbot-vs-hyprnote · verified 2026-10-26)
 
 Hyprnote is the closest cousin on this list: open-source, local-first meeting notes — it helped prove the category. The app is now called anarlog, and hyprnote.com redirects to char.com, the team's newer product. The MIT-licensed anarlog app remains maintained, and it's good. Here's how LokalBot differs.
@@ -665,11 +745,11 @@ Screenpipe records your screen and audio continuously and turns that history int
 - **Q: Does LokalBot record my screen all the time?** No. Out of the box it saves the app name and window title. Visible text and encrypted screenshots are separate opt-ins (on a Mac, they need Accessibility and Screen Recording permission), and captures are deleted after 14 days by default.
 - **Q: Can AI agents read my LokalBot history?** Yes, if you allow it. The bundled CLI and MCP server are read-only and stay off until you allow them in Settings → External Agents on a Mac, or Settings → Privacy & Data on Windows and Linux.
 
-### LokalBot vs Rewind (https://www.lokalbot.com/lokalbot-vs-rewind · verified 2026-10-26)
+### LokalBot vs Rewind / Limitless (https://www.lokalbot.com/lokalbot-vs-rewind · verified 2026-11-20)
 
-Rewind pioneered “search everything you've seen on your Mac.” Its app is now discontinued: the team pivoted to the Limitless wearable, Meta acquired Limitless in December 2025, and rewind.ai today hosts an unrelated site. LokalBot's day timeline carries the idea forward — smaller, open source, and processed on your Mac with the built-in backend.
+Rewind pioneered “search everything you've seen on your Mac” before rebranding to Limitless. After Meta acquired Limitless in December 2025, the Mac app disabled screen and audio capture on December 19, 2025, Limitless stopped selling its Pendant, and rewind.ai now hosts an unrelated site. LokalBot's day timeline carries the local-recall idea forward — smaller, opt-in, GPLv3 open source, and processed on your Mac, Windows, or Linux computer with no cloud backend.
 
-| Feature | LokalBot | Rewind (as it was) |
+| Feature | LokalBot | Rewind / Limitless (discontinued) |
 | --- | --- | --- |
 | Status | Actively developed | Discontinued — the team moved to Limitless, now part of Meta |
 | Screen memory | App and window activity by default; opt-in screen text and encrypted screenshots, searchable by every word | Continuous compressed screen recording, always on |
