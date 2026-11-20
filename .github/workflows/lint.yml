@@ -57,4 +57,5 @@ jobs:
       - name: Check Website/public/ matches Website/generator/render_web.py output
         run: |
           python3 Website/generator/render_web.py --check
+          python3 Distribution/huggingface/scripts/sync_from_leaderboard.py --check
           node --test Website/generator/test_benchmarks.mjs Website/generator/test_migrate.mjs

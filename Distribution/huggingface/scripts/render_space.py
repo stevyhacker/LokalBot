@@ -61,13 +61,14 @@ def main() -> None:
 </head>
 <body>
   <header class="hero">
-    <p class="eyebrow">Measured locally · published with sources</p>
-    <h1>LokalBot local-stack benchmarks</h1>
-    <p class="lede">Speaker diarization, summaries, semantic search, speech recognition, autocomplete, and OCR measured on an Apple M4 Max, with the known gaps listed. No estimates and no rehosted model weights.</p>
+    <p class="eyebrow">Measured locally · synced from lokalbot.com/benchmarks</p>
+    <h1>LokalBot — Local Desktop AI Leaderboard</h1>
+    <p class="lede">7 desktop AI workloads and 17 reproducible suites: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms inline autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and local TTS. No estimates and no rehosted model weights.</p>
     <nav aria-label="Project links">
+      <a href="https://www.lokalbot.com/benchmarks">Interactive leaderboard</a>
+      <a href="https://www.lokalbot.com/benchmarks.json">JSON dataset</a>
       <a href="https://github.com/stevyhacker/lokalbot">GitHub repository</a>
       <a href="{escaped_collection_url}">Recommended model collection</a>
-      <a href="https://www.lokalbot.com/">LokalBot website</a>
     </nav>
   </header>
   <main>{body}</main>

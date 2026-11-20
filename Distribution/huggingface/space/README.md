@@ -9,14 +9,16 @@ license: gpl-3.0
 short_description: Measured on-device model benchmarks behind LokalBot
 ---
 
-# LokalBot local-stack benchmarks
+# LokalBot — Local Desktop AI Leaderboard
 
-Extracted, sourced benchmark numbers for the local model stack behind
-[LokalBot](https://github.com/stevyhacker/lokalbot): speaker diarization,
-summaries, semantic search, speech recognition, autocomplete, and OCR on an
-Apple M4 Max. Every figure links back to its source file in the repository;
-nothing is estimated.
+Extracted, sourced benchmark numbers across 7 desktop AI workloads and 17
+reproducible suites behind [LokalBot](https://github.com/stevyhacker/lokalbot):
+speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint,
+inline autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and
+local TTS. Every figure links back to its source report; nothing is estimated.
 
+- Interactive leaderboard: https://www.lokalbot.com/benchmarks
+- Machine-readable JSON: https://www.lokalbot.com/benchmarks.json
 - Repo: https://github.com/stevyhacker/lokalbot
 - Source of truth: https://github.com/stevyhacker/lokalbot/blob/master/Distribution/huggingface/benchmark-summary.md
 - Recommended models: https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack
