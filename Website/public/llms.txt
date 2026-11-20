@@ -68,7 +68,7 @@ Key facts:
 - [LokalBot vs Fathom](https://www.lokalbot.com/lokalbot-vs-fathom)
 - [LokalBot vs Notion AI Meeting Notes](https://www.lokalbot.com/lokalbot-vs-notion-ai)
 - [LokalBot vs Read.ai](https://www.lokalbot.com/lokalbot-vs-read-ai)
-- [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
+- [LokalBot vs Anarlog (Hyprnote)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
 - [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
 - [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
