@@ -10,27 +10,23 @@ boundary, reproducible development workflows, and current release behavior.
 - [`releasing/`](releasing/) holds the one-time release setup and the channels
   beyond the Mac app (Linux and Windows, package repositories, Android,
   Homebrew, the MCP Registry); [`RELEASING.md`](../RELEASING.md) is the runbook.
-- [`product-roadmap.md`](product-roadmap.md) records direction, not dated
-  promises. Its status line says when it was last refreshed.
 - [`guides/`](guides/) describes repeatable work: the screenshot and demo-film
   kits, the AI assistants page's screenshots, Google OAuth verification, and the
   autocomplete parity checklist.
 - [`explainers/`](explainers/) holds the sources of the release explainers the
   website serves.
-- [`meta-hackathon/`](meta-hackathon/) is the Meta hackathon write-up, demo
-  script and recording checklist.
-- [`ci/`](ci/) records CI benchmark measurements.
+- [`meta-hackathon/`](meta-hackathon/) is the historical Meta hackathon write-up
+  and demo script referenced by the Muse Radar benchmark and test transport.
 - `Video/lokalbot-promo/` is the canonical 16:9, 30-second promo source.
   Generated audio, fonts, snapshots, and renders stay ignored.
 
 The dated files (`<name>-YYYY-MM-DD.md`) are sorted by kind:
-[`designs/`](designs/) for designs and RFCs, [`plans/`](plans/) for
-implementation plans, and [`reports/`](reports/) for validations, measurements,
-fixes and dependency updates. Each records a decision or a measurement as of its
-date, and a plan's status line says whether the work was built; none is kept
-current, so check the code and the root documents before relying on one.
-[`archive/`](archive/) keeps earlier working files, such as the August
-distribution kit and the June–July agent plans.
+[`designs/`](designs/) for active or referenced designs and RFCs,
+[`plans/`](plans/) for in-progress implementation plans, and
+[`reports/`](reports/) for current or benchmark-referenced reports. Once work
+ships and its durable behavior is recorded in `Docs/development/` or
+`PRIVACY.md`, delete the temporary plan or report rather than archiving it—git
+history keeps the record without polluting agent context.
 
 New launch copy, channel plans, and other private working notes go under the
 repository's `Local/` folder, which git ignores, and must never contain

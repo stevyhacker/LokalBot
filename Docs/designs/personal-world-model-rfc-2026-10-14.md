@@ -15,8 +15,8 @@ it came from, whether the person stated it or confirmed an inference, and
 when it was last true.
 
 This RFC grows out of an outside product discussion (14 October). It builds
-on [Ask remembers what you tell it](ask-remembered-facts-design-2026-10-02.md),
-which was never implemented and covers most of Phase 1. It reuses Dream
+on the earlier 2 October "Ask remembers what you tell it" design (pruned once
+folded here), which covered most of Phase 1. It reuses Dream
 provenance and retraction. It also keeps the native memory backend chosen in
 the 13 October memory-systems evaluation, which found deletion residue in
 external engines and no quality gain.
