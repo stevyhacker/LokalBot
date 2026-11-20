@@ -55,4 +55,6 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: Check Website/public/ matches Website/generator/render_web.py output
-        run: python3 Website/generator/render_web.py --check
+        run: |
+          python3 Website/generator/render_web.py --check
+          node --test Website/generator/test_benchmarks.mjs Website/generator/test_migrate.mjs
