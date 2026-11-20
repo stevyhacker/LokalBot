@@ -5,9 +5,9 @@
 
 ## Context
 
-By November 2026 the code held about 28,600 comment blocks, roughly 51,000
-lines: 26,000 in the Swift of the Mac and phone apps, 22,000 in the Rust of the
-Windows and Linux app, and the rest in Kotlin, Python, shell and JavaScript.
+By November 2026 the code held 28,606 comment blocks, about 52,500 lines:
+27,600 in the Swift of the Mac and phone apps, 22,400 in the Rust of the
+Windows and Linux app, and the rest in Kotlin, JavaScript, shell and Python.
 Most were written by coding agents, which keep a comment in step with the code
 no better than a person does, and which take an existing comment as permission:
 a comment that excuses a shortcut gets the shortcut copied into the next change.
@@ -45,9 +45,11 @@ and copyright notices. The AGPL notices on code ported from Cotabby stay, as
 the license requires. So do the `///` doc comments that clap turns into
 `lokalbot-cli --help` text.
 
-The first pass classified every comment and deleted it. Tautologies and stale
-comments went without a trace. Decision records moved into ADRs 0002 and up,
-and excuses became issue drafts listed in the pull request that made this change.
+The first pass classified every comment and deleted it: 10,046 tautologies and
+23 stale comments went without a trace, 18,486 decision records (78% of the
+comment lines) moved into ADRs 0002 to 0124, and 51 excuses became issue
+drafts listed in the pull request that made this change. The baseline started
+empty.
 
 ## Consequences
 
