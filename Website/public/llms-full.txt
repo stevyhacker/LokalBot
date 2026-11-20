@@ -68,7 +68,7 @@ Key facts:
 - [LokalBot vs Fathom](https://www.lokalbot.com/lokalbot-vs-fathom)
 - [LokalBot vs Notion AI Meeting Notes](https://www.lokalbot.com/lokalbot-vs-notion-ai)
 - [LokalBot vs Read.ai](https://www.lokalbot.com/lokalbot-vs-read-ai)
-- [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
+- [LokalBot vs Anarlog (Hyprnote)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
 - [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
 - [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
@@ -581,11 +581,11 @@ Read.ai connects to your calendar and dispatches the Read Assistant bot into Zoo
 - **Q: Does LokalBot cap how many meetings I can record per month?** No. Unlike Read.ai's 5-meeting free tier, LokalBot has no minute or meeting caps — storage is limited only by your own disk.
 - **Q: How does speaker separation work without a bot?** LokalBot records your microphone and the meeting app's audio on separate tracks and runs local speaker diarization (Nemotron 3 Core ML on Mac, pyannote + TitaNet on Windows/Linux). Capture-track labels describe where audio came from rather than verified speaker identity, and you can name speakers locally.
 
-### LokalBot vs Hyprnote (https://www.lokalbot.com/lokalbot-vs-hyprnote · verified 2026-10-26)
+### LokalBot vs Anarlog (Hyprnote) (https://www.lokalbot.com/lokalbot-vs-hyprnote · verified 2026-11-20)
 
 Hyprnote is the closest cousin on this list: open-source, local-first meeting notes — it helped prove the category. The app is now called anarlog, and hyprnote.com redirects to char.com, the team's newer product. The MIT-licensed anarlog app remains maintained, and it's good. Here's how LokalBot differs.
 
-| Feature | LokalBot | Hyprnote (anarlog) |
+| Feature | LokalBot | Anarlog (Hyprnote) |
 | --- | --- | --- |
 | Scope | Meetings, dictation, day timeline, autocomplete, and chat in one app | Meeting notetaker |
 | Transcription | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On-device models on supported Macs, or a cloud provider you select |
@@ -821,8 +821,8 @@ Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, ha
 - **Q: Does it run on Windows on ARM or ARM Linux?** No. The Windows and Linux versions are built only for x64 (x86_64) processors.
 - **Q: Can I move my library between a Mac and a PC?** Yes. The Mac, Windows, and Linux apps use the same library format, so a library recorded on one opens on the others. It lives in ~/Library/Application Support/me.dotenv.LokalBot on a Mac, %LOCALAPPDATA%\LokalBot on Windows, and ~/.local/share/LokalBot on Linux.
 
-### Is there a Granola or Otter alternative for Linux and Windows? (https://www.lokalbot.com/granola-otter-alternatives-linux-windows)
-Granola has no Linux app, and Otter and Fireflies offer Linux only a web app. Which bot-free meeting notetakers run on Linux and Windows, where they transcribe, and how they're licensed.
+### Granola for Linux and Windows: bot-free local alternatives (https://www.lokalbot.com/granola-otter-alternatives-linux-windows)
+Granola has no Linux app. Compare free, bot-free meeting notetakers for Linux and Windows (LokalBot, OpenWhispr, Anarlog, Meetily): local models and licenses.
 - **Q: Does Granola work on Linux?** No. Granola's apps are for Mac, Windows, iPhone, and Android. Its web app can view and edit notes but can't record or transcribe a meeting.
 - **Q: Can I use Otter or Fireflies on Linux?** Only through their web apps and Chrome extensions. Their desktop apps are for Windows and Mac, their notetakers join calls as a bot unless you record from the desktop app or the extension, and transcription happens in their cloud.
 - **Q: Which open-source apps transcribe locally on Linux?** LokalBot and OpenWhispr both transcribe on a Linux computer; with OpenWhispr, choose on-device transcription during setup. Meetily transcribes locally too, but on Linux you build it from source. Anarlog's Linux beta transcribes in the cloud or on a server you run. Screenpipe transcribes locally by default, under a source-available license.
@@ -840,7 +840,7 @@ Add LokalBot to Claude Code or Codex to catch up on your work and find what was 
 - **Q: Can other agents use LokalBot?** Yes. Install for your coding agent… installs the lokalbot-cli skill for agents that read skills, and any MCP client that can start a local command, such as Cursor, can run lokalbot-cli mcp.
 
 ### My company blocks AI notetaker bots. What can I use? (https://www.lokalbot.com/ai-notetaker-bots-blocked-at-work)
-Why companies block meeting bots, what a bot-free local recorder changes and what it doesn't, and a checklist IT can use before approving one.
+Company or client policies blocking Otter, Read.ai, or Fireflies bots? Compare bot-free on-device meeting notes and an IT security approval checklist.
 - **Q: Will Teams, Zoom, or Meet show that LokalBot is recording?** No. It doesn't join the call, so the meeting app has no participant to show. That is why telling people is up to you.
 - **Q: Is a local recorder allowed if my company bans AI notetakers?** Only if the policy allows it, so ask IT or your manager. A local recorder changes where the data goes, not the fact that people are being recorded.
 - **Q: Can IT confirm that meetings never leave the computer?** Yes. The source code is public, and the network test above shows what the app connects to while it records, transcribes, and summarizes with the built-in models.
