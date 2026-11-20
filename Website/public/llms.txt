@@ -73,6 +73,13 @@ Key facts:
 - [LokalBot vs Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe)
 - [LokalBot vs Rewind](https://www.lokalbot.com/lokalbot-vs-rewind)
 
+## Languages
+
+- [Deutsch (German)](https://www.lokalbot.com/de): DSGVO-freundliche lokale KI-Meeting-Notizen ohne Meeting-Bot
+- [中文 (Simplified Chinese)](https://www.lokalbot.com/zh): 100% 本地开源会议纪要（支持腾讯会议/飞书/钉钉与 ModelScope）
+- [日本語 (Japanese)](https://www.lokalbot.com/ja): 完全ローカル・Bot不要の無料オープンソースAI議事録
+- [Русский (Russian)](https://www.lokalbot.com/ru): Локальные заметки встреч без облака (Яндекс Телемост, МТС Линк, GigaAM)
+
 ## Optional
 
 - [Source code and README](https://github.com/stevyhacker/lokalbot)

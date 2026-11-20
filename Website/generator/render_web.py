@@ -30,6 +30,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from comparison_pages import LOKALBOT_UPDATED, PAGES, VERIFIED  # noqa: E402
 from guide_pages import GUIDES, GUIDES_INDEX, REFERENCES  # noqa: E402
 from blog_posts import BLOG_INDEX, POSTS  # noqa: E402
+from locale_pages import LOCALE_PAGES  # noqa: E402
 
 TOKEN_OPEN = "{{"
 
@@ -656,9 +657,111 @@ def render_llms_full(web_dir: Path) -> str:
     return "\n".join(parts).rstrip() + "\n"
 
 
+def render_hreflang_links() -> str:
+    links = [f'  <link rel="alternate" hreflang="en" href="{SITE}/" />']
+    for loc in LOCALE_PAGES:
+        links.append(f'  <link rel="alternate" hreflang="{loc["hreflang"]}" href="{SITE}/{loc["slug"]}" />')
+    links.append(f'  <link rel="alternate" hreflang="x-default" href="{SITE}/" />')
+    return "\n".join(links)
+
+
+def render_lang_switcher(current_slug: str) -> str:
+    items = ['      <a class="loc-lang" href="/" hreflang="en">English</a>']
+    for loc in LOCALE_PAGES:
+        current = ' aria-current="page"' if loc["slug"] == current_slug else ""
+        items.append(
+            f'      <a class="loc-lang" href="/{loc["slug"]}" hreflang="{loc["hreflang"]}"{current}>{loc["label"]}</a>'
+        )
+    return "\n".join(items)
+
+
+def locale_structured_data(loc: dict) -> str:
+    url = f"{SITE}/{loc['slug']}"
+    graph = [
+        {
+            "@type": "WebPage",
+            "@id": f"{url}#page",
+            "url": url,
+            "name": loc["title"],
+            "description": loc["description"],
+            "inLanguage": loc["lang"],
+            "datePublished": "2026-11-20",
+            "dateModified": loc["updated"],
+            "isPartOf": {"@id": f"{SITE}/#website"},
+            "about": {"@id": f"{SITE}/#software"},
+            "publisher": {"@id": f"{SITE}/#organization"},
+        },
+        breadcrumb_list([("Home", f"{SITE}/"), (loc["label"], url)]),
+        faq_page(loc["faq"], url),
+    ]
+    return json_ld(graph)
+
+
+def render_locale_page(template: str, loc: dict, footer: str) -> str:
+    feature_cards = "\n".join(
+        '      <article class="loc-tile">\n'
+        f'        <p class="loc-tile__kicker">{html.escape(kicker)}</p>\n'
+        f"        <h2>{html.escape(title)}</h2>\n"
+        f"        <p>{html.escape(body)}</p>\n"
+        "      </article>"
+        for kicker, title, body in loc["features"]
+    )
+    stack_rows = "\n".join(
+        f"            <tr><td><strong>{html.escape(role)}</strong></td><td>{html.escape(model)}</td><td>{html.escape(detail)}</td></tr>"
+        for role, model, detail in loc["stack_rows"]
+    )
+    replacements = {
+        "{{SLUG}}": loc["slug"],
+        "{{LANG}}": loc["lang"],
+        "{{OG_LOCALE}}": loc["og_locale"],
+        "{{TITLE}}": html.escape(loc["title"]),
+        "{{META_DESCRIPTION}}": html.escape(loc["description"]),
+        "{{OG_TITLE}}": html.escape(loc["og_title"]),
+        "{{OG_DESCRIPTION}}": html.escape(loc["og_description"]),
+        "{{HREFLANG_LINKS}}": render_hreflang_links(),
+        "{{STRUCTURED_DATA}}": locale_structured_data(loc),
+        "{{DOWNLOAD_BTN}}": html.escape(loc["download_btn"]),
+        "{{LANG_SWITCHER}}": render_lang_switcher(loc["slug"]),
+        "{{EYEBROW}}": html.escape(loc["eyebrow"]),
+        "{{H1}}": html.escape(loc["h1"]),
+        "{{LEAD}}": html.escape(loc["lead"]),
+        "{{HERO_CTA}}": html.escape(loc["hero_cta"]),
+        "{{BENCH_CTA}}": html.escape(loc["bench_cta"]),
+        "{{MIGRATE_CTA}}": html.escape(loc["migrate_cta"]),
+        "{{META_LINE}}": html.escape(loc["meta_line"]),
+        "{{FEATURES_ARIA}}": html.escape(loc["features_aria"]),
+        "{{FEATURE_CARDS}}": feature_cards,
+        "{{STACK_EYEBROW}}": html.escape(loc["stack_eyebrow"]),
+        "{{STACK_TITLE}}": html.escape(loc["stack_title"]),
+        "{{STACK_LEAD}}": html.escape(loc["stack_lead"]),
+        "{{COL_ROLE}}": html.escape(loc["col_role"]),
+        "{{COL_MODEL}}": html.escape(loc["col_model"]),
+        "{{COL_DETAIL}}": html.escape(loc["col_detail"]),
+        "{{STACK_ROWS}}": stack_rows,
+        "{{STACK_NOTE}}": loc["stack_note"],
+        "{{FAQ_TITLE}}": html.escape(loc["faq_title"]),
+        "{{FAQ_ITEMS}}": render_faq_items(loc["faq"]),
+        "{{DL_EYEBROW}}": html.escape(loc["dl_eyebrow"]),
+        "{{DL_TITLE}}": html.escape(loc["dl_title"]),
+        "{{DL_LEAD}}": html.escape(loc["dl_lead"]),
+        "{{FOOTER}}": footer,
+    }
+    return fill_template(template, replacements, f"Locale ({loc['slug']})")
+
+
 def render_sitemap() -> str:
+    locale_slugs = {loc["slug"] for loc in LOCALE_PAGES}
+    locale_alternates = (
+        f'    <xhtml:link rel="alternate" hreflang="en" href="{SITE}/" />\n'
+        + "".join(
+            f'    <xhtml:link rel="alternate" hreflang="{loc["hreflang"]}" href="{SITE}/{loc["slug"]}" />\n'
+            for loc in LOCALE_PAGES
+        )
+        + f'    <xhtml:link rel="alternate" hreflang="x-default" href="{SITE}/" />\n'
+    )
     pages = [
         ("", STATIC_PAGES[""]),
+        *((loc["slug"], loc["updated"]) for loc in LOCALE_PAGES),
         ("guides", guides_index_updated()),
         ("blog", blog_updated()),
         *((f"blog/{post['slug']}", post_updated(post)) for post in POSTS),
@@ -667,16 +770,20 @@ def render_sitemap() -> str:
         *((path, updated) for path, updated in STATIC_PAGES.items() if path),
         *((page["slug"], modified(page)) for page in PAGES),
     ]
-    entries = [
-        "  <url>\n"
-        f"    <loc>{SITE}/{path}</loc>\n"
-        f"    <lastmod>{updated}</lastmod>\n"
-        "  </url>"
-        for path, updated in pages
-    ]
+    entries = []
+    for path, updated in pages:
+        extra = locale_alternates if (path == "" or path in locale_slugs) else ""
+        entries.append(
+            "  <url>\n"
+            f"    <loc>{SITE}/{path}</loc>\n"
+            f"    <lastmod>{updated}</lastmod>\n"
+            f"{extra}"
+            "  </url>"
+        )
     return (
         '<?xml version="1.0" encoding="UTF-8"?>\n'
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"\n'
+        '        xmlns:xhtml="http://www.w3.org/1999/xhtml">\n'
         + "\n".join(entries)
         + "\n</urlset>\n"
     )
@@ -721,6 +828,7 @@ def main() -> int:
         "guides": templates_dir / "guides.template.html",
         "blog": templates_dir / "blog.template.html",
         "blog_post": templates_dir / "blog_post.template.html",
+        "locale": templates_dir / "locale.template.html",
         "footer": templates_dir / "footer.partial.html",
     }
     for template_path in template_paths.values():
@@ -761,6 +869,10 @@ def main() -> int:
             (web_dir / "llms-full.txt", render_llms_full(web_dir)),
             (web_dir / "sitemap.xml", render_sitemap()),
         ]
+    )
+    generated_pages.extend(
+        (web_dir / f"{loc['slug']}.html", render_locale_page(templates["locale"], loc, footer))
+        for loc in LOCALE_PAGES
     )
     generated_pages.extend(
         (web_dir / "blog" / f"{post['slug']}.html", render_blog_post(templates["blog_post"], post, footer))

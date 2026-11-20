@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{TITLE}}</title>
+  <meta name="description" content="{{META_DESCRIPTION}}" />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/{{SLUG}}" />
+{{HREFLANG_LINKS}}
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:locale" content="{{OG_LOCALE}}" />
+  <meta property="og:url" content="https://www.lokalbot.com/{{SLUG}}" />
+  <meta property="og:title" content="{{OG_TITLE}}" />
+  <meta property="og:description" content="{{OG_DESCRIPTION}}" />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-home.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="{{OG_TITLE}}" />
+  <meta name="twitter:description" content="{{OG_DESCRIPTION}}" />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-home.png" />
+
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{{STRUCTURED_DATA}}</script>
+  <script src="/app.js" defer></script>
+  <style>
+    .loc-page {
+      width: min(1060px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 122px 0 84px;
+    }
+    .loc-langs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 20px;
+    }
+    .loc-lang {
+      padding: 5px 11px;
+      border-radius: var(--pill);
+      font: 600 0.8rem/1.2 var(--mono);
+      color: var(--text-dim);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+      text-decoration: none;
+    }
+    .loc-lang:hover { border-color: var(--teal); color: var(--accent-text); }
+    .loc-lang[aria-current="page"] {
+      color: var(--accent-text);
+      border-color: rgba(35, 196, 174, 0.42);
+      background: var(--teal-soft);
+    }
+    .loc-hero h1 {
+      margin: 10px 0 16px;
+      font-size: clamp(2rem, 4.2vw, 3.25rem);
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      max-width: 28ch;
+      text-wrap: balance;
+    }
+    .loc-hero__lead {
+      font-size: 1.08rem;
+      line-height: 1.66;
+      color: var(--text-dim);
+      max-width: 68ch;
+      margin: 0 0 24px;
+    }
+    .loc-hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .loc-hero__meta {
+      font: 500 0.86rem/1.5 var(--mono);
+      color: var(--text-faint);
+      margin: 0 0 42px;
+    }
+    .loc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin: 0 0 48px;
+    }
+    @media (max-width: 860px) { .loc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 580px) { .loc-grid { grid-template-columns: 1fr; } }
+    .loc-tile {
+      padding: 22px;
+      border-radius: var(--radius);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .loc-tile__kicker {
+      font: 600 0.72rem/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-text);
+      margin: 0 0 8px;
+    }
+    .loc-tile h2 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+      line-height: 1.3;
+      color: var(--text);
+    }
+    .loc-tile p {
+      margin: 0;
+      font-size: 0.93rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+    }
+    .loc-panel {
+      padding: clamp(22px, 3.4vw, 34px);
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint-strong);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+      margin-bottom: 48px;
+    }
+    .loc-panel h2 {
+      margin: 6px 0 12px;
+      font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+      color: var(--text);
+    }
+    .loc-panel > p {
+      margin: 0 0 18px;
+      max-width: 70ch;
+      line-height: 1.62;
+      color: var(--text-dim);
+    }
+    .loc-note {
+      margin-top: 14px;
+      font-size: 0.88rem;
+      color: var(--text-faint);
+      line-height: 1.55;
+    }
+    .loc-note a { color: var(--accent-text); }
+    @media (prefers-reduced-transparency: reduce) {
+      .loc-lang, .loc-tile, .loc-panel {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+    @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      .loc-lang, .loc-tile, .loc-panel { background: var(--surface); }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">{{DOWNLOAD_BTN}}</a></div>
+  </header>
+
+  <main class="loc-page" id="main">
+    <nav class="loc-langs" aria-label="Languages">
+{{LANG_SWITCHER}}
+    </nav>
+
+    <header class="loc-hero">
+      <p class="eyebrow">{{EYEBROW}}</p>
+      <h1>{{H1}}</h1>
+      <p class="loc-hero__lead">{{LEAD}}</p>
+      <div class="loc-hero__actions">
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-download-simple" aria-hidden="true"></i>{{HERO_CTA}}</a>
+        <a class="btn btn--ghost btn--lg" href="/benchmarks">{{BENCH_CTA}}</a>
+        <a class="btn btn--ghost btn--lg" href="/migrate">{{MIGRATE_CTA}}</a>
+      </div>
+      <p class="loc-hero__meta">{{META_LINE}}</p>
+    </header>
+
+    <section class="loc-grid" aria-label="{{FEATURES_ARIA}}">
+{{FEATURE_CARDS}}
+    </section>
+
+    <section class="loc-panel" aria-labelledby="stack-heading">
+      <p class="eyebrow">{{STACK_EYEBROW}}</p>
+      <h2 id="stack-heading">{{STACK_TITLE}}</h2>
+      <p>{{STACK_LEAD}}</p>
+      <div class="guide-table-wrap">
+        <table class="guide-table">
+          <thead><tr><th>{{COL_ROLE}}</th><th>{{COL_MODEL}}</th><th>{{COL_DETAIL}}</th></tr></thead>
+          <tbody>
+{{STACK_ROWS}}
+          </tbody>
+        </table>
+      </div>
+      <p class="loc-note">{{STACK_NOTE}}</p>
+    </section>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">{{FAQ_TITLE}}</h2>
+      <div class="faq__list">
+{{FAQ_ITEMS}}
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">{{DL_EYEBROW}}</p>
+        <h2 class="section__title">{{DL_TITLE}}</h2>
+        <p class="section__lead">{{DL_LEAD}}</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>{{HERO_CTA}}</a>
+        <p class="download__sub">Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (Alpha) &middot; <a href="/privacy">PRIVACY.md</a> &middot; <a href="/benchmarks">Benchmarks</a></p>
+      </div>
+    </section>
+  </main>
+
+{{FOOTER}}
+</body>
+</html>
