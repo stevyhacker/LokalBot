@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot vs Fathom: bot-free, local meeting notes</title>
+  <meta name="description" content="Compare Fathom's cloud AI notetaker with LokalBot's bot-free, on-device meeting notes. Unlimited local summaries, no account, free and open source." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/lokalbot-vs-fathom" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/lokalbot-vs-fathom" />
+  <meta property="og:title" content="LokalBot vs Fathom — local, bot-free meeting notes" />
+  <meta property="og:description" content="Fathom records to its cloud with a free tier capped at 5 advanced AI summaries a month. LokalBot transcribes and summarizes on your computer with no cap or account." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot vs Fathom — local, bot-free meeting notes" />
+  <meta name="twitter:description" content="Fathom records to its cloud with a free tier capped at 5 advanced AI summaries a month. LokalBot transcribes and summarizes on your computer with no cap or account." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs Fathom","description":"Compare Fathom's cloud AI notetaker with LokalBot's bot-free, on-device meeting notes. Unlimited local summaries, no account, free and open source.","datePublished":"2026-11-20","dateModified":"2026-11-20","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-fathom","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"Fathom"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs Fathom","item":"https://www.lokalbot.com/lokalbot-vs-fathom"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-fathom#faq","mainEntity":[{"@type":"Question","name":"Can I bring my existing Fathom meetings into LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot includes a built-in Fathom importer (transcripts, summaries, downloaded recordings, or Fathom API JSON), or you can convert Fathom exports into Obsidian Markdown offline in your browser with the free Meeting Migrator."}},{"@type":"Question","name":"Does Fathom work without a bot?","acceptedAnswer":{"@type":"Answer","text":"Fathom offers a bot-free capture option in beta on Mac, while Zoom, Google Meet, and Teams otherwise use the Fathom notetaker bot. Even without the bot, Fathom uploads and stores recordings and transcripts in its cloud. LokalBot processes audio, transcripts, and summaries locally by default."}},{"@type":"Question","name":"Why is LokalBot free when Fathom charges $15–$34 per seat?","acceptedAnswer":{"@type":"Answer","text":"LokalBot has no cloud transcription or LLM servers to pay for — the models run on your own Mac, Windows, or Linux computer. You pay for your own hardware and electricity, never a per-seat subscription."}},{"@type":"Question","name":"Will LokalBot work on apps besides Zoom, Meet, and Teams?","acceptedAnswer":{"@type":"Answer","text":"Yes. Because LokalBot captures local system audio rather than relying on platform bot APIs, it works with Slack huddles, Discord, Webex, FaceTime, WhatsApp, and any other call app on your computer."}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- ambient brand background -->
+  <div class="bg-field" aria-hidden="true">
+    <div class="bg-glow bg-glow--a"></div>
+    <div class="bg-glow bg-glow--b"></div>
+    <div class="bg-glow bg-glow--c"></div>
+  </div>
+
+  <!-- ───────────────────────── NAV ───────────────────────── -->
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#features">Features</a>
+      <a href="/guides">Guides</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/blog">Blog</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
+        <i class="ph ph-github-logo" aria-hidden="true"></i>
+      </a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ─────────────────────── HEAD ─────────────────────── -->
+    <section class="section compare-head">
+      <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>LokalBot vs Fathom</span></nav>
+        <p class="eyebrow">Compare</p>
+        <h1 class="section__title">LokalBot vs Fathom</h1>
+        <p class="section__lead">Fathom is popular for a reason: its free plan includes unlimited basic recordings and transcripts on Zoom, Google Meet, and Teams, and paid tiers add shared team folders and CRM sync for HubSpot and Salesforce. The trade-off is that your calls live in Fathom's cloud under an account, advanced AI summaries cap at five per month on the free tier, and most platforms still send a bot into the meeting. LokalBot captures from your computer's own audio with no bot, runs transcription and unlimited summaries locally, and needs no account.</p>
+        <p class="compare-updated">Last verified <time datetime="2026-11-20">November 20, 2026</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+      </header>
+    </section>
+
+    <!-- ─────────────────────── TABLE ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
+      <div class="compare-wrap reveal">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col">Feature</th>
+              <th scope="col">LokalBot</th>
+              <th scope="col">Fathom</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">How it captures a meeting</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); source labels do not identify speakers</td>
+              <td>A Fathom bot joins Zoom, Google Meet, and Microsoft Teams; a bot-free capture beta is available on Mac</td>
+            </tr>
+            <tr>
+              <th scope="row">Where transcription and AI run</th>
+              <td>On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac</td>
+              <td>Fathom's cloud</td>
+            </tr>
+            <tr>
+              <th scope="row">Account required</th>
+              <td><i class="ph ph-x" aria-hidden="true"></i>None</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Yes</td>
+            </tr>
+            <tr>
+              <th scope="row">Works offline</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Fully, after a one-time model download</td>
+              <td>Needs a connection</td>
+            </tr>
+            <tr>
+              <th scope="row">Transcription languages</th>
+              <td>On Mac: 52 languages and dialects with the default model; 99 with Whisper</td>
+              <td>38 languages</td>
+            </tr>
+            <tr>
+              <th scope="row">AI summary limits</th>
+              <td>Unlimited — runs on your own hardware</td>
+              <td>Free: 5 advanced AI summaries/month · Paid plans: unlimited</td>
+            </tr>
+            <tr>
+              <th scope="row">CRM and team features</th>
+              <td>Read-only local CLI and MCP server; Markdown/Obsidian export</td>
+              <td>Shared team folders, playlists, comments, and HubSpot/Salesforce CRM sync on Business</td>
+            </tr>
+            <tr>
+              <th scope="row">Compliance</th>
+              <td>No LokalBot server ever holds your meetings</td>
+              <td>HIPAA available on Team and higher; SSO/SCIM on Enterprise</td>
+            </tr>
+            <tr>
+              <th scope="row">System-wide dictation</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Hold ⌥ Space (Alt+Space on Windows and Linux) in any app</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Day timeline</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Writing autocomplete</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma)</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Source code</th>
+              <td>Open source, GPLv3</td>
+              <td>Proprietary</td>
+            </tr>
+            <tr>
+              <th scope="row">Price</th>
+              <td>Free</td>
+              <td>Free · Premium $16/user/mo annually ($20 monthly) · Team $15/user/mo annually ($19 monthly, 2-seat min) · Business $25/user/mo annually ($34 monthly)</td>
+            </tr>
+            <tr>
+              <th scope="row">Platforms</th>
+              <td>macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; Android companion app</td>
+              <td>Desktop and web for Zoom, Google Meet, and Microsoft Teams</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── PICKS ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
+      <div class="pick-grid">
+        <article class="pick reveal">
+          <h3>Pick Fathom if&hellip;</h3>
+          <p>Strong for sales and customer-facing teams living in a CRM.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want call notes and deal fields synced directly into HubSpot or Salesforce</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Your team wants shared call playlists, comments, and coaching clips</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want video call recordings hosted in the cloud for easy link sharing</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You need a vendor-managed HIPAA or SSO/SCIM workspace</li>
+          </ul>
+        </article>
+        <article class="pick pick--lokal reveal">
+          <h3>Pick LokalBot if&hellip;</h3>
+          <p>Built for unlimited local notes without a bot or a cloud library.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want unlimited AI summaries, action items, and search with no monthly cap</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Your calls cannot be uploaded to a third-party cloud — legal, medical, finance, or NDA work</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want zero bots joining your Zoom, Meet, Teams, or local calls on Mac, Windows, or Linux</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want dictation, a day timeline, autocomplete, and local MCP/CLI access in one open-source app</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── QA ─────────────────────── -->
+    <section class="section faq">
+      <header class="section__head reveal">
+        <p class="eyebrow">Questions</p>
+        <h2 class="section__title">The short answers.</h2>
+      </header>
+      <div class="faq__list reveal">
+        <details class="qa">
+          <summary>Can I bring my existing Fathom meetings into LokalBot?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. LokalBot includes a built-in Fathom importer (transcripts, summaries, downloaded recordings, or Fathom API JSON), or you can convert Fathom exports into Obsidian Markdown offline in your browser with the free <a href="/migrate">Meeting Migrator</a>.</p>
+        </details>
+        <details class="qa">
+          <summary>Does Fathom work without a bot?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Fathom offers a bot-free capture option in beta on Mac, while Zoom, Google Meet, and Teams otherwise use the Fathom notetaker bot. Even without the bot, Fathom uploads and stores recordings and transcripts in its cloud. LokalBot processes audio, transcripts, and summaries locally by default.</p>
+        </details>
+        <details class="qa">
+          <summary>Why is LokalBot free when Fathom charges $15–$34 per seat?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>LokalBot has no cloud transcription or LLM servers to pay for — the models run on your own Mac, Windows, or Linux computer. You pay for your own hardware and electricity, never a per-seat subscription.</p>
+        </details>
+        <details class="qa">
+          <summary>Will LokalBot work on apps besides Zoom, Meet, and Teams?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. Because LokalBot captures local system audio rather than relying on platform bot APIs, it works with Slack huddles, Discord, Webex, FaceTime, WhatsApp, and any other call app on your computer.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── CTA ─────────────────────── -->
+    <section class="section download">
+      <div class="download__panel reveal">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Download</p>
+        <h2 class="section__title">Unlimited local meeting notes, without the bot.</h2>
+        <p class="section__lead">Free and open source. Models download on first use; built-in inference then works offline.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
+          <i class="ph ph-apple-logo" aria-hidden="true"></i>
+          Download for macOS
+        </a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── MORE ─────────────────────── -->
+    <section class="section section--tight" aria-label="More comparisons">
+      <nav class="compare-more" aria-label="More comparisons">
+        <a href="lokalbot-vs-granola">LokalBot vs Granola</a>
+        <a href="lokalbot-vs-apple-notes">LokalBot vs Apple Notes</a>
+        <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
+        <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
+        <a href="lokalbot-vs-notion-ai">LokalBot vs Notion AI</a>
+        <a href="lokalbot-vs-read-ai">LokalBot vs Read.ai</a>
+        <a href="lokalbot-vs-hyprnote">LokalBot vs Hyprnote</a>
+        <a href="lokalbot-vs-meetily">LokalBot vs Meetily</a>
+        <a href="lokalbot-vs-openwhispr">LokalBot vs OpenWhispr</a>
+        <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
+        <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-wispr-flow">LokalBot vs Wispr Flow</a>
+        <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
+        <a href="lokalbot-vs-rewind">LokalBot vs Rewind / Limitless</a>
+      </nav>
+      <p class="compare-disclaimer">Fathom is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on public pages and pricing as of November 2026 and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+    </section>
+  </main>
+
+  <!-- ───────────────────────── FOOTER ───────────────────────── -->
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Android &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#android">Android app</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>
