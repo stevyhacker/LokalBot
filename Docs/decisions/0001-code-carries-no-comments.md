@@ -17,20 +17,21 @@ Sorting every comment showed four kinds:
 - **Tautologies** repeat what the declaration already says.
 - **Stale comments** describe code or behaviour that has since changed.
 - **Excuses** explain away a hack instead of fixing it.
-- **Decision records** keep a reason, measurement, platform quirk, privacy
-  boundary or invariant that the code cannot show.
+- **Decision records** keep an important, non-obvious decision: a reason,
+  measured result, platform quirk, privacy boundary or cross-cutting invariant
+  that someone changing the code would otherwise get wrong.
 
-Only the last kind was worth keeping, and a comment is a poor place for it. A
-comment can't be found by area, isn't reviewed as a decision, and goes stale in
-silence.
+Only the last kind was worth keeping, and it was rare. A comment is also a poor
+place for it: it can't be found by feature, isn't reviewed as a decision, and
+goes stale in silence.
 
 ## Decision
 
 Code carries no comments. What a comment would have said goes to one of three places:
 
 - Code first: a clearer name, a named constant, a type, or a test that names the bug it guards.
-- A decision record goes into the ADR for its area under `Docs/decisions/`,
-  under the file and symbol it concerns.
+- A decision record goes into the ADR for its feature under `Docs/decisions/`,
+  written as a short decision with the files and symbols it concerns.
 - A known shortcut becomes a GitHub issue.
 
 `Scripts/ci/comment-ratchet.py --check` runs in the Lint workflow. The files
@@ -45,16 +46,18 @@ and copyright notices. The AGPL notices on code ported from Cotabby stay, as
 the license requires. So do the `///` doc comments that clap turns into
 `lokalbot-cli --help` text.
 
-The first pass classified every comment and deleted it: 10,046 tautologies and
-23 stale comments went without a trace, 18,486 decision records (78% of the
-comment lines) moved into ADRs 0002 to 0124, and 51 excuses became issue
-drafts listed in the pull request that made this change. The baseline started
-empty.
+Every comment was classified and then deleted. 10,046 tautologies and 23 stale
+comments went without a trace, and 51 excuses became issue drafts listed in the
+pull request that made this change. A first pass took 18,486 comments for
+decision records. A stricter second pass found that most of them only described
+the code, and kept 1,770 (6% of all comments). Those were condensed into 1,083
+decisions in ADRs 0002 to 0024, one per feature, with a decision that the Swift and Rust code
+share written once. The baseline started empty.
 
 ## Consequences
 
-- Reading a non-obvious line means opening its area's ADR, found through the
-  [index](README.md). Search the ADR for the symbol name.
+- Reading a non-obvious line means opening its feature's ADR, found through the
+  [index](README.md). Search the ADR for the file or symbol name.
 - Changing a recorded decision means changing its ADR entry in the same pull request.
 - Xcode's jump bar no longer shows `MARK:` sections.
 - A rename or move carries its baseline count with

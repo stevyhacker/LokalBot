@@ -49,21 +49,32 @@ the baseline change.
      "temporary", "TODO", "planned separately", or a sleep to dodge a race. →
      delete, and draft an issue. A constraint forced by an OS, API or
      third-party bug with no better fix is a decision record, not an excuse.
-   - **Decision record:** a reason, rejected alternative, measurement, platform
-     quirk, privacy or consent boundary, invariant, ordering or threading rule,
-     unit, range or default, or something that must stay in step elsewhere
-     (the Swift/Rust/Kotlin twin, a protocol doc, a Python seeder). It can also
-     be the past bug a line prevents, or why a test exists. → move into an ADR.
-   When torn between tautology and decision record, choose decision record.
+   - **Decision record:** an important, non-obvious decision. Keep it only if
+     all three hold:
+     1. It records a choice between real alternatives with its reason, a
+        measured result that drove a choice, an OS, API or library quirk and how
+        the code copes, a privacy, consent or security boundary, or an invariant
+        that spans files, processes, platforms or a protocol.
+     2. Someone changing the code, reading only the code and its tests, would
+        likely get it wrong without it.
+     3. Getting it wrong costs something real: a user-facing bug, data loss, a
+        leak, a crash or hang, broken platform support, a measured regression,
+        or a repeated investigation.
+     → move into an ADR.
+   Everything else is a tautology, even when it adds a little: what something
+   is or returns, units and defaults, who calls it, UI wording and layout,
+   history, a test restating its assertion. Expect about one comment in ten to
+   be a decision record; the first full pass kept 12%.
 
-3. **Move decision records** into `Docs/decisions/`. Find the ADR for the area
-   in [Docs/decisions/README.md](../../../Docs/decisions/README.md). Add each
-   record under its file heading, as a `####` title that states the decision,
-   then the symbol in backticks, then the comment's wording without comment
-   markers. A record that changes an earlier decision replaces that entry. Don't
-   append a second one. A new area or a new cross-cutting decision gets the
-   next free number. Copy the layout of an existing ADR (title, Status, Date,
-   Context, Decisions, Consequences) and add a row to the README index.
+3. **Move decision records** into `Docs/decisions/`, one ADR per feature (the
+   [index](../../../Docs/decisions/README.md) lists them). Write each as a short
+   decision, not the comment verbatim: a `###` heading that states it, one to
+   four sentences with the reason and any numbers, versions or dates from the
+   comment, then a `Where:` line with the files and symbols. A decision the
+   Swift and Rust code share is written once with both locations. One that
+   changes an earlier decision replaces its entry. A new feature or a decision
+   that cuts across features gets the next free number; copy an existing ADR's
+   layout (Status, Date, Context, Decisions, Consequences) and add it to the index.
 
 4. **Draft issues for excuses.** Write one draft per hack: a title naming the
    fix, the file and symbol, the deleted comment, what is hacky, and what a
