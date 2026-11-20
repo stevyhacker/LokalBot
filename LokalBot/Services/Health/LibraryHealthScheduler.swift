@@ -1,9 +1,5 @@
 import Foundation
 
-/// Runs the library health check once a day on developer builds (Debug, or
-/// the hidden `LokalBotDailyHealthCheck` default) and catches up at launch
-/// when the last run is over a day old. Release builds never run it on their
-/// own; `--health` and Settings run it on demand.
 @MainActor
 final class LibraryHealthScheduler {
     static let defaultHour = 9

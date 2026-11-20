@@ -1,20 +1,7 @@
 import Foundation
 import os
 
-/// Routes pinned Hugging Face file downloads through the source chosen in
-/// Settings → Models (see `ModelDownloadSource`).
-///
-/// Only `https://huggingface.co/<owner>/<repo>/resolve/<revision>/<path>` URLs
-/// are rerouted. The Hugging Face API, GitHub archives and every other host are
-/// untouched, and stored URLs keep their Hugging Face host, so
-/// `ModelDownloadManager`'s pinning policy still applies to them. The chosen
-/// mirror is tried first and each later source is a fallback. A file a mirror
-/// served is accepted only when it matches the caller's pinned size and
-/// SHA-256; otherwise the next source is tried. Callers verify every file again,
-/// exactly as with Hugging Face, which stays a single direct download.
 enum ModelDownloadRouting {
-    /// The source chosen in settings. `SettingsStore` is the one place it
-    /// enters the process, as with `SpeakerAttribution.microphoneIsUser`.
     static var source: ModelDownloadSource {
         get { preference.withLock { $0 } }
         set { preference.withLock { $0 = newValue } }
@@ -24,8 +11,6 @@ enum ModelDownloadRouting {
     static let hfMirrorHost = "hf-mirror.com"
     static let modelScopeOrigin = "https://www.modelscope.cn"
 
-    /// A Hugging Face `resolve` URL split into its parts. `path` stays
-    /// percent-encoded, as it appears in the URL.
     struct ResolvedFile: Equatable, Sendable {
         let repository: String
         let revision: String
@@ -60,12 +45,9 @@ enum ModelDownloadRouting {
         }
     }
 
-    /// The sources to try for `url`, in order.
     static func candidates(for url: URL, source: ModelDownloadSource) -> [Candidate] {
         guard source != .huggingFace, let file = resolvedFile(url) else { return [.original(url)] }
         var result: [Candidate] = []
-        // ModelScope follows branches, not Hugging Face revisions; the listing
-        // check in `modelScopeServes` keeps it to files that match the pin.
         if source == .modelScope,
            let modelScope = URL(string: "\(modelScopeOrigin)/models/\(file.repository)/resolve/master/\(file.path)") {
             result.append(.modelScope(modelScope, file: file))
@@ -78,7 +60,6 @@ enum ModelDownloadRouting {
         return result
     }
 
-    /// One file in a ModelScope repository listing.
     struct ModelScopeFile: Decodable, Equatable, Sendable {
         let path: String
         let size: Int64?
@@ -91,9 +72,6 @@ enum ModelDownloadRouting {
         }
     }
 
-    /// Whether ModelScope serves exactly the pinned file: its listing has the
-    /// same path with the pinned SHA-256 (and size, when both are known).
-    /// Files pinned only by a Git blob SHA-1 never qualify; HF-Mirror serves them.
     static func modelScopeServes(_ file: ResolvedFile, expectedSHA256: String?, expectedBytes: Int64?,
                                  listing: [String: ModelScopeFile]?) -> Bool {
         guard let expectedSHA256, expectedSHA256.count == 64,
@@ -103,10 +81,6 @@ enum ModelDownloadRouting {
         return listed.lowercased() == expectedSHA256.lowercased()
     }
 
-    /// Downloads `url` to a temp file through the chosen source. Pass the
-    /// caller's pinned size and SHA-256 (a 64-hex digest) when it has them:
-    /// ModelScope needs the digest, and a mirror's file is checked against both
-    /// before it is accepted.
     static func download(
         from url: URL,
         session: URLSession,
@@ -124,8 +98,6 @@ enum ModelDownloadRouting {
             })
     }
 
-    /// Testable core: `attempt` downloads one candidate URL to a temp file and
-    /// `listing` returns a ModelScope repository's files by path.
     static func download(
         from url: URL,
         source: ModelDownloadSource,
@@ -174,8 +146,6 @@ enum ModelDownloadRouting {
     }
 }
 
-/// ModelScope repository listings, fetched once per repository per launch.
-/// A failed fetch is not cached, so a later download can try again.
 actor ModelScopeListings {
     static let shared = ModelScopeListings()
 

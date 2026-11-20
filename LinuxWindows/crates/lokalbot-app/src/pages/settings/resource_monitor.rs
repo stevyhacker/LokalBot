@@ -1,6 +1,3 @@
-//! Resource Monitor in Settings → Diagnostics (`ResourceMonitorSection`): a live
-//! readout of LokalBot and its helpers, updated every 2 seconds while it shows.
-
 use std::time::Duration;
 
 use crate::i18n::h_flex;
@@ -34,7 +31,6 @@ fn percent(value: Option<f64>) -> String {
     }
 }
 
-/// 1.0 GB or 512 MB, in the binary units memory is counted in.
 fn memory(bytes: Option<u64>) -> String {
     let Some(bytes) = bytes else {
         return "—".to_string();
@@ -46,7 +42,6 @@ fn memory(bytes: Option<u64>) -> String {
     }
 }
 
-/// "12.3s · ~480 tok · 39 tok/s".
 fn generation_summary(metric: &GenerationMetric) -> String {
     format!(
         "{:.1}s · ~{} tok · {:.0} tok/s",
@@ -79,7 +74,6 @@ fn model_memory_summary(snapshot: &ResourceSnapshot) -> String {
     }
 }
 
-/// The line under Model Storage (`memorySummary`).
 pub(super) fn memory_summary(cx: &App) -> String {
     let Some(engine) = cx.try_global::<EngineHandle>() else {
         return lokalbot_i18n::tr("No models loaded in memory.").to_string();
@@ -95,7 +89,6 @@ pub(super) fn memory_summary(cx: &App) -> String {
 }
 
 impl SettingsPage {
-    /// Starts the readout; it stops itself once Advanced is no longer showing.
     fn start_resource_polling(&mut self, cx: &mut Context<Self>) {
         if self.resources.polling {
             return;
@@ -228,7 +221,6 @@ impl SettingsPage {
             lokalbot_i18n::tr("Updates every 2 seconds and counts LokalBot and its helpers. External Ollama models aren't counted."),
             cx,
         ));
-        // `SettingsView.systemSection`: the five newest, or that there are none.
         let generation_row = |title: SharedString, value: String, cx: &App| {
             h_flex()
                 .gap(px(12.))

@@ -184,7 +184,6 @@ struct RecordingModelTests {
         let capture = FakeCapture()
         let model = RecordingModel(session: session, capture: capture)
         await model.begin()
-        // As if a sync heard `revoked`: the pairing goes, the recording stays.
         let store = try #require(session.store as? FixtureStore)
         await store.forgetPairingKeepingRecordings()
         await session.refresh()

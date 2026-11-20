@@ -1,13 +1,3 @@
-//! The built-in llama.cpp runtime (`Engines/LlamaServer.swift`,
-//! `CLISupport/LlamaServerRole.swift`, `InferenceBroker.swift`).
-//!
-//! macOS bundles a source build; here the pinned prebuilt release of
-//! ggml-org/llama.cpp is downloaded once, verified, and unpacked into
-//! `<root>/runtimes/llama-cpp/<build>-<asset tag>/`. Each role (Think,
-//! embeddings, autocomplete) is its own `llama-server` subprocess on a fixed
-//! loopback port with a random bearer token. A [`Lease`] keeps a server loaded;
-//! after the last lease drops it lingers for the role's idle time, then stops.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::process::{Child, Command, Stdio};
@@ -28,8 +18,6 @@ use crate::process;
 
 mod cuda;
 
-/// The llama.cpp release every platform runs. macOS builds the same commit
-/// from its `v1.0.0` tag.
 pub const LLAMA_BUILD: &str = "b12359";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -63,11 +51,9 @@ impl LlamaBackend {
     }
 }
 
-/// One prebuilt release archive (sizes and digests from the GitHub release API).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RuntimeAsset {
     pub backend: LlamaBackend,
-    /// The release's platform tag, e.g. `win-vulkan-x64`.
     pub tag: &'static str,
     pub name: &'static str,
     pub size: u64,
@@ -87,8 +73,6 @@ impl RuntimeAsset {
     }
 }
 
-/// The build in a runtime folder or archive name: `b12359-ubuntu-x64`,
-/// `llama-b12359-bin-ubuntu-x64.tar.gz`, `cudart-llama-b12359-bin-….tar.gz`.
 fn build_in_name(name: &str) -> Option<&str> {
     let name = name.strip_prefix("cudart-").unwrap_or(name);
     let name = name.strip_prefix("llama-").unwrap_or(name);
@@ -137,7 +121,6 @@ const ASSETS: &[RuntimeAsset] = &[
     },
 ];
 
-/// The assets for this platform.
 pub fn assets() -> &'static [RuntimeAsset] {
     ASSETS
 }
@@ -146,8 +129,6 @@ pub fn asset(backend: LlamaBackend) -> Option<&'static RuntimeAsset> {
     ASSETS.iter().find(|a| a.backend == backend)
 }
 
-/// Upper bound before probing system CUDA libraries. Auto keeps its Vulkan /
-/// CPU policy until native NVIDIA validation supports changing that default.
 pub fn download_bytes(preference: &str) -> u64 {
     match LlamaBackend::preference(preference) {
         Some(backend) => backend_download_bytes(backend),
@@ -173,28 +154,16 @@ const SERVER_BINARY: &str = if cfg!(windows) {
     "llama-server"
 };
 
-/// The folder beside `lokalbot.exe` that holds [`VC_RUNTIME_DLLS`]
-/// (scripts/package.sh). lokalbot-update's `install.rs` names it too.
 pub const VC_RUNTIME_DIR: &str = "vc-runtime";
-/// The Microsoft Visual C++ runtime DLLs upstream's Windows builds import.
-/// Windows without the Visual C++ Redistributable has none of them, so each
-/// runtime gets the bundled copies beside its `llama-server.exe`.
 const VC_RUNTIME_DLLS: [&str; 3] = ["msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
 const VC_REDIST_URL: &str = "https://aka.ms/vc14/vc_redist.x64.exe";
-/// STATUS_DLL_NOT_FOUND: Windows found no file for a DLL the program
-/// imports. The process exits with it before printing anything.
 const STATUS_DLL_NOT_FOUND: i32 = 0xC000_0135_u32 as i32;
-
-// ------------------------------------------------------------------- roles
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Role {
-    /// Think: summaries, digests, Ask.
     Main,
     Embedder,
     Autocomplete,
-    /// The embedder plus its image and audio projector, started for a Files
-    /// pass or for pictures of saved screens (`LlamaServerRole.mediaEmbedder`).
     MediaEmbedder,
 }
 
@@ -206,7 +175,6 @@ impl Role {
         Role::MediaEmbedder,
     ];
 
-    /// The ports the CLI and MCP clients rely on; they never move.
     pub fn release_port(self) -> u16 {
         match self {
             Role::Main => 17_872,
@@ -216,8 +184,6 @@ impl Role {
         }
     }
 
-    /// `release_port` plus `LOKALBOT_PORT_OFFSET`, so a development copy or a
-    /// test run never fights the installed app for a port.
     pub fn port(self) -> u16 {
         self.release_port().saturating_add(port_offset())
     }
@@ -234,7 +200,6 @@ impl Role {
         match self {
             Role::Main | Role::Embedder => Duration::from_secs(600),
             Role::Autocomplete => Duration::from_secs(900),
-            // Stopped two minutes after the last pass (`FileMediaEmbedderRuntime`).
             Role::MediaEmbedder => Duration::from_secs(120),
         }
     }
@@ -248,15 +213,10 @@ impl Role {
         }
     }
 
-    /// Whether starting this role's server may download the llama.cpp
-    /// build. Autocomplete starts as you type, so it only ever uses a build
-    /// that is already installed.
     fn downloads_runtime(self) -> bool {
         self != Role::Autocomplete
     }
 
-    /// With images resized for their budget before they are sent, the token
-    /// limits keep llama.cpp from rescaling them.
     fn projector_args(self, projector: &Path) -> Vec<String> {
         if self != Role::MediaEmbedder {
             return Vec::new();
@@ -271,7 +231,6 @@ impl Role {
         ]
     }
 
-    /// Role arguments, keeping only flags this build understands.
     fn extra_args(self, flags: &[String]) -> Vec<String> {
         let has = |flag: &str| flags.iter().any(|f| f == flag);
         let mut args: Vec<String> = Vec::new();
@@ -284,8 +243,6 @@ impl Role {
                     args.extend(["--reasoning".into(), "on".into()]);
                 }
             }
-            // EmbeddingGemma carries its own pooling; as a bidirectional
-            // encoder each input must fit one micro-batch.
             Role::Embedder | Role::MediaEmbedder => {
                 args.extend(
                     [
@@ -318,9 +275,6 @@ pub fn port_offset() -> u16 {
         .unwrap_or(0)
 }
 
-// ------------------------------------------------------------- installation
-
-/// `install.json` inside an installed runtime folder.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct InstallRecord {
@@ -328,30 +282,21 @@ struct InstallRecord {
     asset: String,
     sha256: String,
     backend: LlamaBackend,
-    /// `llama-server` relative to the runtime folder.
     server: String,
     #[serde(default)]
     version: String,
-    /// The flags from `--help` that LokalBot passes conditionally.
     #[serde(default)]
     flags: Vec<String>,
-    /// Which `CONDITIONAL_FLAGS` list produced `flags`.
     #[serde(default)]
     probe: u32,
-    /// "system" after a successful device probe, or the companion archive's
-    /// pinned digest. Absent on installations predating CUDA support.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     cuda_libraries: Option<String>,
-    /// Setup kept complete, verified files although its final device check
-    /// failed. Background starts skip CUDA until explicit setup confirms one.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     cuda_unverified: bool,
 }
 
-/// Bump when `CONDITIONAL_FLAGS` changes so installed runtimes re-probe.
 const PROBE_VERSION: u32 = 2;
 
-/// `backend.json`: the result of the last auto-detection.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 struct BackendChoice {
@@ -374,13 +319,8 @@ const CUDA_UNAVAILABLE: &str = "CUDA could not initialize with the matching runt
 struct Installer {
     paths: LibraryPaths,
     preference: Mutex<String>,
-    /// The backend this session runs, once known.
     active: Mutex<Option<LlamaBackend>>,
-    /// Cache successes and failures until repair, a backend change, or a failed launch.
-    /// Holding this lock during detection also coalesces simultaneous role starts.
     devices: Mutex<HashMap<PathBuf, std::result::Result<GpuDevice, String>>>,
-    /// A backend change while a probe holds `devices` (up to 30 s) marks the
-    /// cache stale instead of blocking the settings thread.
     devices_stale: AtomicBool,
     lock: Mutex<()>,
 }
@@ -394,7 +334,6 @@ impl Installer {
         self.root().join(asset.folder())
     }
 
-    /// The installed build of `backend`. CUDA has one per toolkit.
     fn record(&self, backend: LlamaBackend) -> Option<(InstallRecord, PathBuf)> {
         ASSETS
             .iter()
@@ -445,12 +384,10 @@ impl Installer {
             .filter(|choice| choice.build == LLAMA_BUILD)
     }
 
-    /// The last auto-detection, even by an older LokalBot.
     fn remembered_choice(&self) -> Option<BackendChoice> {
         serde_json::from_slice(&std::fs::read(self.root().join("backend.json")).ok()?).ok()
     }
 
-    /// Folders an earlier LokalBot installed for another llama.cpp build.
     fn other_builds(&self) -> Vec<PathBuf> {
         let Ok(entries) = std::fs::read_dir(self.root()) else {
             return Vec::new();
@@ -469,8 +406,6 @@ impl Installer {
             .collect()
     }
 
-    /// Someone set up llama.cpp under another build. An interrupted install
-    /// leaves only a staging folder, and removing the runtime leaves nothing.
     fn other_build_installed(&self) -> bool {
         self.other_builds()
             .iter()
@@ -492,15 +427,11 @@ impl Installer {
         self.preference.lock().trim().to_ascii_lowercase()
     }
 
-    /// A CUDA installation background starts may use: complete, and confirmed
-    /// by a device check during setup.
     fn cuda_ready(&self) -> bool {
         self.record(LlamaBackend::Cuda)
             .is_some_and(|(record, _)| !record.cuda_unverified)
     }
 
-    /// Whether auto-detection picks the backend: `auto`, and CUDA until its
-    /// setup succeeds, so selecting CUDA never stops working built-in models.
     fn automatic(&self) -> bool {
         match LlamaBackend::preference(&self.preference()) {
             None => true,
@@ -516,7 +447,6 @@ impl Installer {
         }
     }
 
-    /// Downloads and unpacks one backend unless it is already installed.
     fn install(
         &self,
         backend: LlamaBackend,
@@ -524,8 +454,6 @@ impl Installer {
         progress: &mut dyn FnMut(u64, u64),
     ) -> Result<(InstallRecord, PathBuf)> {
         check_cancelled(cancel)?;
-        // A busy GPU or changed driver does not make an intact installation
-        // corrupt. Startup and explicit repair validate execution separately.
         if let Some(installed) = self.record(backend) {
             return Ok(installed);
         }
@@ -542,7 +470,6 @@ impl Installer {
         self.download_and_unpack(asset, cancel, progress)
     }
 
-    /// [`Self::install`] after it found no installation and chose `asset`.
     fn download_and_unpack(
         &self,
         asset: &RuntimeAsset,
@@ -583,13 +510,9 @@ impl Installer {
                 perms.set_mode(perms.mode() | 0o755);
                 std::fs::set_permissions(&server, perms)?;
             }
-            // Before any GPU check: a missing system library fails every one.
             check_loads(&server)?;
             let (cuda_libraries, cuda_unverified) = if let Some(build) = cuda_build {
                 let (libraries, checked) = self.prepare_cuda(&server, build, cancel, progress)?;
-                // A GPU filled by another app fails only the final check. Keep
-                // the verified files: setup reports the failure, and a retry
-                // repeats the check without downloading them again.
                 if let Err(error) = &checked {
                     log::warn!("llama.cpp CUDA: keeping the downloaded runtime; {error:#}");
                 }
@@ -621,7 +544,6 @@ impl Installer {
             }
             std::fs::rename(&staging, &folder)
                 .with_context(|| format!("installing {}", folder.display()))?;
-            // A successful system-library probe avoided the companion archive.
             let actual = asset.size
                 + cuda_build
                     .filter(|build| {
@@ -647,10 +569,6 @@ impl Installer {
         result
     }
 
-    /// Reuses system CUDA libraries that pass a device check, else places the
-    /// pinned companion libraries beside `server`. Returns what to record and,
-    /// separately, the final device check, so callers can keep complete,
-    /// verified files when only that check fails.
     fn prepare_cuda(
         &self,
         server: &Path,
@@ -675,8 +593,6 @@ impl Installer {
         download::download(&spec, cancel, &mut |done, _| {
             progress(build.server.size + done, build.download_bytes());
         })?;
-        // A completed companion archive is temporary, including when extraction
-        // or the final GPU probe fails. Interrupted downloads can still resume.
         let _archive = CompletedArchive(archive.clone());
         check_cancelled(cancel)?;
         let extracted = tempfile::tempdir_in(self.root())?;
@@ -707,15 +623,12 @@ impl Installer {
     }
 
     fn launch_failed(&self, binary: &Path) {
-        // Re-detect after a previously successful probe fails to launch. Cache a
-        // failed probe itself until the user retries setup or changes backend.
         let mut devices = self.devices.lock();
         if devices.get(binary).is_some_and(Result::is_ok) {
             devices.remove(binary);
         }
     }
 
-    /// Only called by explicit setup/repair, never by a background server start.
     fn repair_cuda(
         &self,
         mut record: InstallRecord,
@@ -734,18 +647,13 @@ impl Installer {
             }
             Err(_) => {
                 cuda::driver_version()?;
-                // Replace only the optional math libraries. The server folder
-                // may be in use by another role, particularly on Windows.
                 let prepared = self.prepare_cuda(binary, build, cancel, progress);
                 if binary.parent().is_some_and(|dir| build.complete(dir)) {
-                    // File completeness and GPU availability are different states.
-                    // Keep newly repaired files even if this GPU is currently busy.
                     record.cuda_libraries = Some(build.libraries.sha256.into());
                 }
                 prepared.and_then(|(_, checked)| checked)
             }
         };
-        // Only a confirmed device lets background starts switch to CUDA.
         if checked.is_ok() {
             record.cuda_unverified = false;
         }
@@ -756,9 +664,6 @@ impl Installer {
         checked
     }
 
-    /// The backend to run. `auto` takes Vulkan only when the Vulkan build
-    /// lists a real GPU (a loader alone, or a software rasterizer, is not one).
-    /// With `allow_download` false, only installed builds are considered.
     fn resolve(
         &self,
         allow_download: bool,
@@ -766,8 +671,6 @@ impl Installer {
         progress: &mut dyn FnMut(u64, u64),
     ) -> Result<(LlamaBackend, InstallRecord, PathBuf)> {
         let _guard = self.lock.lock();
-        // Explicit setup installs CUDA. Until it succeeds, background starts
-        // keep the automatic choice instead of failing.
         if self.preference() == "cuda" && (allow_download || self.cuda_ready()) {
             let (record, binary) =
                 self.installed_or_fetched(LlamaBackend::Cuda, allow_download, cancel, progress)?;
@@ -793,17 +696,12 @@ impl Installer {
         }
     }
 
-    /// Installs what built-in models run on without anyone asking: a selected
-    /// Vulkan or CPU, else the automatic choice. CUDA's download of up to 800 MB
-    /// stays an explicit step in Settings.
     fn install_for_built_in_models(
         &self,
         cancel: &AtomicBool,
         progress: &mut dyn FnMut(u64, u64),
     ) -> Result<()> {
         let _guard = self.lock.lock();
-        // An older build already looked for a GPU and found none, so don't
-        // fetch the Vulkan build to look again.
         if self.automatic()
             && self
                 .remembered_choice()
@@ -818,7 +716,6 @@ impl Installer {
             .map(|_| ())
     }
 
-    /// [`Self::resolve`] past its CUDA branch. The caller holds `lock`.
     fn resolve_without_cuda(
         &self,
         allow_download: bool,
@@ -871,7 +768,6 @@ impl Installer {
                             if vulkan.is_some() {
                                 log::info!("llama.cpp: no Vulkan GPU found; using the CPU build");
                                 self.save_choice(LlamaBackend::Cpu, None);
-                                // Only fetched to look for a GPU; the choice is remembered.
                                 if let Some(asset) = asset(LlamaBackend::Vulkan) {
                                     let _ = std::fs::remove_dir_all(self.folder(asset));
                                 }
@@ -888,14 +784,12 @@ impl Installer {
         Ok((backend, record, binary))
     }
 
-    /// After a Vulkan server failed to start under `auto`.
     fn fall_back_to_cpu(&self) {
         *self.active.lock() = Some(LlamaBackend::Cpu);
         self.save_choice(LlamaBackend::Cpu, None);
     }
 }
 
-/// Removes a fully downloaded setup archive on success and on final failure.
 struct CompletedArchive(PathBuf);
 
 impl Drop for CompletedArchive {
@@ -958,18 +852,12 @@ fn configure_library_path(command: &mut Command, server_dir: &Path, extra: Vec<P
     }
 }
 
-/// The Visual C++ runtime the Windows packages carry beside `lokalbot.exe`.
 #[cfg(windows)]
 fn bundled_vc_runtime() -> Option<PathBuf> {
     let dir = std::env::current_exe().ok()?.parent()?.join(VC_RUNTIME_DIR);
     dir.is_dir().then_some(dir)
 }
 
-/// Copies the bundled Visual C++ runtime beside the server in `server_dir`,
-/// Microsoft's app-local deployment: Windows loads it before any copy in
-/// System32, so the server needs no Visual C++ Redistributable and never runs
-/// against an older one. A copy that differs from the bundled one (after an
-/// update) is replaced; one a running server holds is replaced at a later start.
 #[cfg(any(windows, test))]
 fn deploy_vc_runtime(bundled: &Path, server_dir: &Path) {
     for name in VC_RUNTIME_DLLS {
@@ -990,7 +878,6 @@ fn deploy_vc_runtime(bundled: &Path, server_dir: &Path) {
     }
 }
 
-/// `%SystemRoot%\System32`.
 fn system32() -> PathBuf {
     std::env::var_os("SystemRoot")
         .map(PathBuf::from)
@@ -998,8 +885,6 @@ fn system32() -> PathBuf {
         .join("System32")
 }
 
-/// Whether Windows finds every Visual C++ runtime DLL for a server in
-/// `server_dir`, beside it or installed in System32. Other systems need none.
 fn vc_runtime_found(server_dir: &Path) -> bool {
     cfg!(not(windows))
         || VC_RUNTIME_DLLS
@@ -1007,10 +892,6 @@ fn vc_runtime_found(server_dir: &Path) -> bool {
             .all(|name| server_dir.join(name).is_file() || system32().join(name).is_file())
 }
 
-/// What to install when the system could not load llama-server at all. The
-/// Linux loader names the library on stderr; Windows only exits with
-/// [`STATUS_DLL_NOT_FOUND`], and `vc_runtime_found` tells whether the Visual
-/// C++ runtime, the one DLL set outside the runtime folder it needs, is there.
 fn missing_library(code: Option<i32>, output: &str, vc_runtime_found: bool) -> Option<String> {
     if code == Some(STATUS_DLL_NOT_FOUND) {
         return Some(if vc_runtime_found {
@@ -1021,8 +902,6 @@ fn missing_library(code: Option<i32>, output: &str, vc_runtime_found: bool) -> O
             )
         });
     }
-    // "…/llama-server: error while loading shared libraries: libgomp.so.1:
-    // cannot open shared object file: No such file or directory"
     let library = output
         .lines()
         .find_map(|line| {
@@ -1042,16 +921,11 @@ fn missing_library(code: Option<i32>, output: &str, vc_runtime_found: bool) -> O
     ))
 }
 
-/// [`missing_library`] for the server at `binary`.
 fn missing_library_for(binary: &Path, code: Option<i32>, output: &str) -> Option<String> {
     missing_library(code, output, binary.parent().is_some_and(vc_runtime_found))
 }
 
-/// Fails with what to install when the system cannot load `binary`, so setup
-/// never records a runtime that cannot start.
 fn check_loads(binary: &Path) -> Result<()> {
-    // Just unpacked, it can't run while a process forked by another thread
-    // still holds the file open from when it was being written.
     let started = std::time::Instant::now();
     let out = loop {
         let mut command = server_command(binary);
@@ -1080,7 +954,6 @@ fn text_file_busy(_: &std::io::Error) -> bool {
     false
 }
 
-/// `--version` and the conditional flags `--help` lists.
 fn probe_capabilities(binary: &Path) -> (String, Vec<String>) {
     let version = process::run_capture(
         {
@@ -1152,7 +1025,6 @@ struct GpuDevice {
     name: String,
 }
 
-/// A real device from this backend, never a CPU-only successful exit.
 fn probe_gpu(binary: &Path, backend: LlamaBackend) -> Result<GpuDevice> {
     let mut command = server_command(binary);
     command.arg("--list-devices");
@@ -1198,11 +1070,6 @@ fn parse_gpu_devices(output: &str, backend: LlamaBackend) -> Vec<GpuDevice> {
         .collect()
 }
 
-// ------------------------------------------------------------------ servers
-
-/// `<root>/llama-server-<port>.json`: lets a later run recognize (and stop)
-/// a helper an earlier run left behind, and lets the CLI reach the app's
-/// server. Written 0600 on Unix; it holds the bearer token.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServerMarker {
@@ -1216,8 +1083,6 @@ pub struct ServerMarker {
     pub authentication_token: String,
     #[serde(rename = "ownerPID")]
     pub owner_pid: Option<u32>,
-    /// Only set after startup confirms model layers on the GPU. Older markers
-    /// cannot establish that a CUDA server is really accelerated.
     #[serde(default)]
     pub gpu_offloaded: bool,
 }
@@ -1226,7 +1091,6 @@ pub fn marker_path(paths: &LibraryPaths, port: u16) -> PathBuf {
     paths.root().join(format!("llama-server-{port}.json"))
 }
 
-/// The marker of the server on `port`, for callers that only read (CLI).
 pub fn read_marker(paths: &LibraryPaths, port: u16) -> Option<ServerMarker> {
     serde_json::from_slice(&std::fs::read(marker_path(paths, port)).ok()?).ok()
 }
@@ -1258,7 +1122,6 @@ fn remove_marker_if(paths: &LibraryPaths, port: u16, pid: u32) {
     }
 }
 
-/// 64 lowercase hex characters from two random UUIDs, as on macOS.
 fn new_token() -> String {
     format!(
         "{}{}",
@@ -1267,9 +1130,6 @@ fn new_token() -> String {
     )
 }
 
-/// The tail of llama-server's stderr (`LlamaServerOutputTail`). Before the
-/// first healthy check every line is kept so a failed start can say why;
-/// afterwards only crash lines, since request errors can echo private text.
 #[derive(Default)]
 struct OutputTail {
     lines: Vec<String>,
@@ -1297,7 +1157,6 @@ impl OutputTail {
             self.gpu_offloaded = true;
         }
         let mut line = raw.trim();
-        // "0.00.077.284 E gguf_init_from_reader: …": drop the time and level.
         if let Some((stamp, rest)) = line.split_once(' ')
             && !stamp.is_empty()
             && stamp.chars().all(|c| c.is_ascii_digit() || c == '.')
@@ -1324,7 +1183,6 @@ impl OutputTail {
         }
     }
 
-    /// The first line reporting an error, else the last line.
     fn reason(&self) -> Option<String> {
         self.lines
             .iter()
@@ -1349,9 +1207,7 @@ fn confirms_gpu_offload(line: &str) -> bool {
 
 struct Running {
     pid: u32,
-    /// `None` for a helper adopted from an earlier run or borrowed from a live one.
     child: Option<Child>,
-    /// A live LokalBot elsewhere owns it: never stopped from here.
     borrowed: bool,
     model_path: PathBuf,
     model_id: String,
@@ -1370,11 +1226,8 @@ enum Phase {
 struct ServerState {
     phase: Phase,
     leases: usize,
-    /// How many of those are kept for as long as a task is open, not for one
-    /// request. Nobody waits for these to end.
     held_open: usize,
     idle_since: Option<Instant>,
-    /// The model `lease()` starts when nothing is loaded.
     desired: Option<(String, PathBuf)>,
 }
 
@@ -1386,7 +1239,6 @@ struct ServerInner {
     changed: Condvar,
 }
 
-/// What a resource view shows for one role.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ServerStatus {
     pub role: Role,
@@ -1398,13 +1250,11 @@ pub struct ServerStatus {
     pub backend: Option<LlamaBackend>,
 }
 
-/// One role's `llama-server`.
 #[derive(Clone)]
 pub struct LlamaServer {
     inner: Arc<ServerInner>,
 }
 
-/// Keeps a server loaded; dropping the last lease starts the idle timer.
 pub struct Lease {
     server: Arc<ServerInner>,
     port: u16,
@@ -1415,12 +1265,10 @@ pub struct Lease {
 }
 
 impl Lease {
-    /// `http://127.0.0.1:<port>/v1`
     pub fn base_url(&self) -> String {
         format!("http://127.0.0.1:{}/v1", self.port)
     }
 
-    /// `http://127.0.0.1:<port>`, for `/health`, `/tokenize` and `/props`.
     pub fn root_url(&self) -> String {
         format!("http://127.0.0.1:{}", self.port)
     }
@@ -1441,8 +1289,6 @@ impl Lease {
         &self.model_path
     }
 
-    /// A request could not reach the server: if it has died, forget it so
-    /// the next lease starts a fresh one.
     pub fn mark_unreachable(&self) {
         let mut state = self.server.state.lock();
         let dead = match &mut state.phase {
@@ -1505,18 +1351,15 @@ impl LlamaServer {
         self.inner.port
     }
 
-    /// `http://127.0.0.1:<port>/v1`
     pub fn base_url(&self) -> String {
         format!("http://127.0.0.1:{}/v1", self.inner.port)
     }
 
-    /// Sets the model [`lease`](Self::lease) loads when none is running.
     pub fn set_model(&self, entry: &ModelEntry) {
         let path = catalog::model_path(&self.inner.installer.paths, entry);
         self.inner.state.lock().desired = Some((entry.id.to_string(), path));
     }
 
-    /// Leases the running model, or starts the one from [`set_model`](Self::set_model).
     pub fn lease(&self) -> Result<Lease> {
         let desired = {
             let state = self.inner.state.lock();
@@ -1531,22 +1374,16 @@ impl LlamaServer {
         self.inner.lease_path(&id, &path, false)
     }
 
-    /// Leases `entry`, starting (or switching to) it as needed. A switch waits
-    /// until every lease on the current model is released.
     pub fn lease_model(&self, entry: &ModelEntry) -> Result<Lease> {
         self.lease_entry(entry, false)
     }
 
-    /// [`Self::lease_model`] for a lease kept while a task stays open. A
-    /// request for another model fails while it is held, instead of waiting
-    /// for a task that may never be closed.
     pub fn lease_model_for_task(&self, entry: &ModelEntry) -> Result<Lease> {
         self.lease_entry(entry, true)
     }
 
     fn lease_entry(&self, entry: &ModelEntry, held_open: bool) -> Result<Lease> {
         let paths = &self.inner.installer.paths;
-        // Hashes once when the file has no digest sidecar yet.
         if !catalog::verify_downloaded(paths, entry)? {
             return Err(AiError::ModelMissing(entry.display_name.into()).into());
         }
@@ -1555,7 +1392,6 @@ impl LlamaServer {
         self.inner.lease_path(entry.id, &path, held_open)
     }
 
-    /// Stops the server now (leases still held will see it restart).
     pub fn stop(&self) {
         let phase = std::mem::replace(&mut self.inner.state.lock().phase, Phase::Stopped);
         if let Phase::Running(running) = phase {
@@ -1605,8 +1441,6 @@ impl ServerInner {
                     if running.model_path == model_path
                         && self.installer.accepts_backend(running.backend) =>
                 {
-                    // Existing leases finish before a preference change starts
-                    // another backend; no active generation is interrupted.
                     let alive = match running.child.as_mut() {
                         Some(child) => matches!(child.try_wait(), Ok(None)),
                         None => process::pid_alive(running.pid),
@@ -1614,10 +1448,7 @@ impl ServerInner {
                     if alive { Next::Lease } else { Next::Forget }
                 }
                 Phase::Starting => Next::Wait,
-                // An open task holds what is loaded for as long as it stays
-                // open, which may be for good.
                 Phase::Running(running) if task_open => Next::Held(running.model_id.clone()),
-                // Another model is in use; switch once its cohort finishes.
                 Phase::Running(_) if busy => Next::Wait,
                 _ => Next::Start,
             };
@@ -1735,8 +1566,6 @@ impl ServerInner {
         );
         let context = self.role.context_tokens();
         if backend == LlamaBackend::Cuda {
-            // Reuse a healthy, already-offloaded helper before creating another
-            // CUDA context. Its GPU may have no free VRAM for a new probe.
             if let Some(marker) = read_marker(paths, self.port)
                 && marker.gpu_offloaded
                 && let Some(device) = marker
@@ -1787,7 +1616,6 @@ impl ServerInner {
         if record.flags.iter().any(|f| f == "--jinja") || record.flags.is_empty() {
             args.push("--jinja".into());
         }
-        // b11474 renamed `--no-webui` to `--no-ui` and keeps the old name as an alias.
         if record.flags.iter().any(|f| f == "--no-ui") {
             args.push("--no-ui".into());
         } else if record.flags.iter().any(|f| f == "--no-webui") {
@@ -1849,9 +1677,7 @@ impl ServerInner {
             backend.label()
         );
 
-        // `code`: the exit code of a server that exited during startup.
         let failure = |summary: &str, code: Option<i32>, tail: &Mutex<OutputTail>| {
-            // Let the reader catch the last lines of an exited process.
             for _ in 0..10 {
                 if tail.lock().finished {
                     break;
@@ -1875,9 +1701,6 @@ impl ServerInner {
             };
             anyhow::Error::from(AiError::ServerStart(message))
         };
-        // Loading a large model can take a while. On GPUs without prebuilt
-        // CUDA kernels the driver first compiles PTX, ~50 s on a Titan Xp;
-        // later starts reuse its cache.
         let attempts = if backend == LlamaBackend::Cuda {
             1200
         } else {
@@ -1895,7 +1718,6 @@ impl ServerInner {
             }
             if health(self.port, &token) {
                 if backend == LlamaBackend::Cuda {
-                    // The stderr reader may trail the health response briefly.
                     for _ in 0..20 {
                         if tail.lock().gpu_offloaded {
                             break;
@@ -1918,7 +1740,6 @@ impl ServerInner {
                         write_marker(paths, &marker);
                     }
                 }
-                // Startup lines only explain a failed start.
                 let mut output = tail.lock();
                 output.ready = true;
                 output.lines.clear();
@@ -1945,9 +1766,6 @@ impl ServerInner {
         ))
     }
 
-    /// Deals with a helper recorded on this port. A healthy one with the same
-    /// configuration is reused: adopted when its LokalBot is gone, borrowed
-    /// when that LokalBot still runs. A mismatched orphan is stopped.
     fn reclaim(
         &self,
         model_id: &str,
@@ -2057,7 +1875,6 @@ impl ServerInner {
         );
     }
 
-    /// Stops the server when it has been idle past its role's timeout.
     fn reap_if_idle(&self) {
         let mut state = self.state.lock();
         let idle = state.leases == 0
@@ -2085,7 +1902,6 @@ fn valid_cuda_device_id(id: &str) -> bool {
 }
 
 fn cuda_launch_args(device: &str) -> Vec<String> {
-    // b12359 hides offload evidence at verbosity 3. Preserve plain startup logs.
     [
         "--device",
         device,
@@ -2106,8 +1922,6 @@ fn same_file(a: &Path, b: &Path) -> bool {
     }
 }
 
-// ------------------------------------------------------------------ manager
-
 struct Shared {
     installer: Arc<Installer>,
     servers: [LlamaServer; 4],
@@ -2122,7 +1936,6 @@ impl Drop for Shared {
     }
 }
 
-/// Runtime storage remains visible even when another backend is selected.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeStorage {
     pub name: String,
@@ -2143,15 +1956,12 @@ fn directory_bytes(path: &Path) -> u64 {
         .sum()
 }
 
-/// The four role servers and the runtime they share. Cheap to clone and
-/// `Send + Sync`; every clone controls the same servers.
 #[derive(Clone)]
 pub struct RuntimeManager {
     shared: Arc<Shared>,
 }
 
 impl RuntimeManager {
-    /// Cheap: no download, no process start.
     pub fn new(paths: LibraryPaths, settings: &Settings) -> Self {
         let installer = Arc::new(Installer {
             paths,
@@ -2200,8 +2010,6 @@ impl RuntimeManager {
         &self.shared.servers[index]
     }
 
-    /// Applies a changed `llamaBackend` setting (`auto`, `cuda`, `vulkan`, `cpu`).
-    /// Running servers keep their backend until they restart.
     pub fn set_backend_preference(&self, preference: &str) {
         let installer = &self.shared.installer;
         let mut current = installer.preference.lock();
@@ -2215,8 +2023,6 @@ impl RuntimeManager {
         }
     }
 
-    /// Downloads and installs the runtime the setting asks for (`auto` may
-    /// fetch the Vulkan build to look for a GPU, then the CPU build).
     pub fn ensure_runtime(
         &self,
         settings: &Settings,
@@ -2237,19 +2043,14 @@ impl RuntimeManager {
         Ok(())
     }
 
-    /// An update moved LokalBot to another llama.cpp build: one was set up
-    /// before, and nothing built-in models can run on now is installed.
     pub fn update_pending(&self) -> bool {
         self.usable_backend().is_none() && self.shared.installer.other_build_installed()
     }
 
-    /// Whether earlier versions left runtime folders behind.
     pub fn has_other_builds(&self) -> bool {
         !self.shared.installer.other_builds().is_empty()
     }
 
-    /// Installs what built-in models run on, for work nobody explicitly asked
-    /// to set up. Unlike [`Self::ensure_runtime`], it never downloads CUDA.
     pub fn install_for_built_in_models(
         &self,
         settings: &Settings,
@@ -2263,11 +2064,6 @@ impl RuntimeManager {
             .install_for_built_in_models(cancel, progress)
     }
 
-    /// Removes what earlier versions installed for other llama.cpp builds, and
-    /// their interrupted downloads, once built-in models can run without them.
-    /// A folder a helper still runs from stays until a later launch, and so
-    /// does one Windows won't delete yet. Returns whether this took away a
-    /// CUDA setup that's still selected, which has to be repeated.
     pub fn remove_other_builds(&self) -> bool {
         if self.usable_backend().is_none() {
             return false;
@@ -2313,9 +2109,6 @@ impl RuntimeManager {
             && !installer.cuda_ready()
     }
 
-    /// The selected backend when installed. Auto considers Vulkan and CPU;
-    /// an explicit choice must have its own complete installation, and CUDA
-    /// a setup whose device check succeeded.
     pub fn installed_backend(&self) -> Option<String> {
         let installer = &self.shared.installer;
         match LlamaBackend::preference(&installer.preference()) {
@@ -2325,7 +2118,6 @@ impl RuntimeManager {
         }
     }
 
-    /// CUDA is selected and downloaded, but its setup GPU check has not passed.
     pub fn runtime_needs_check(&self) -> bool {
         let installer = &self.shared.installer;
         LlamaBackend::preference(&installer.preference()) == Some(LlamaBackend::Cuda)
@@ -2334,8 +2126,6 @@ impl RuntimeManager {
                 .is_some_and(|(record, _)| record.cuda_unverified)
     }
 
-    /// The backend built-in models can run on now without a download. CUDA
-    /// keeps the automatic choice until its setup succeeds.
     pub fn usable_backend(&self) -> Option<String> {
         if self.shared.installer.automatic() {
             self.automatic_backend()
@@ -2359,7 +2149,6 @@ impl RuntimeManager {
             .map(|backend| backend.label().to_string())
     }
 
-    /// The backend this session's servers use, once one has been resolved.
     pub fn active_backend(&self) -> Option<LlamaBackend> {
         self.server(Role::Main)
             .status()
@@ -2367,7 +2156,6 @@ impl RuntimeManager {
             .or(*self.shared.installer.active.lock())
     }
 
-    /// The installed `llama-server --version` line, if any.
     pub fn installed_version(&self) -> Option<String> {
         let installer = &self.shared.installer;
         let backend = self.installed_backend()?;
@@ -2404,7 +2192,6 @@ impl RuntimeManager {
         stored
     }
 
-    /// Stops every server and removes the downloaded runtimes.
     pub fn uninstall(&self) -> Result<()> {
         self.shutdown();
         let installer = &self.shared.installer;
@@ -2420,7 +2207,6 @@ impl RuntimeManager {
         }
     }
 
-    /// Stops all servers (app quit).
     pub fn shutdown(&self) {
         for server in &self.shared.servers {
             server.stop();
@@ -2455,24 +2241,19 @@ impl RuntimeManager {
         });
     }
 
-    /// Leases the Think server with `model`.
     pub fn main_server(&self, model: &ModelEntry) -> Result<Lease> {
         self.lease(Role::Main, model)
     }
 
-    /// The Think server for an Agent Mode task, which keeps its model loaded
-    /// until the task is closed. See [`LlamaServer::lease_model_for_task`].
     pub fn main_server_for_task(&self, model: &ModelEntry) -> Result<Lease> {
         self.start_reaper();
         self.server(Role::Main).lease_model_for_task(model)
     }
 
-    /// Leases the embedder (EmbeddingGemma 2).
     pub fn embedder_server(&self) -> Result<Lease> {
         self.lease(Role::Embedder, catalog::embedding_entry())
     }
 
-    /// Leases the embedder with its projector, which must be downloaded.
     pub fn media_embedder_server(&self) -> Result<Lease> {
         let projector = catalog::projector_entry();
         if !catalog::verify_downloaded(self.paths(), projector)? {
@@ -2694,7 +2475,6 @@ mod tests {
             "Settings still offers CUDA setup"
         );
 
-        // Files kept after a failed final device check do not switch roles.
         let folder = fixture_record(installer, LlamaBackend::Cuda, Some("system"));
         set_cuda_unverified(&folder, true);
         assert_eq!(background(), LlamaBackend::Cpu);
@@ -2702,7 +2482,6 @@ mod tests {
         assert_eq!(manager.usable_backend().as_deref(), Some("CPU"));
         assert_eq!(manager.installed_backend(), None);
 
-        // A confirmed CUDA setup takes over when servers next restart.
         set_cuda_unverified(&folder, false);
         assert!(!installer.accepts_backend(LlamaBackend::Cpu));
         assert!(installer.accepts_backend(LlamaBackend::Cuda));
@@ -2763,7 +2542,6 @@ mod tests {
         *manager.shared.installer.active.lock() = Some(LlamaBackend::Cpu);
         manager.set_backend_preference("cuda");
         assert_eq!(*manager.shared.installer.active.lock(), None);
-        // CUDA is not set up yet, so a running CPU server keeps serving.
         assert!(manager.shared.installer.accepts_backend(LlamaBackend::Cpu));
         assert!(manager.shared.installer.accepts_backend(LlamaBackend::Cuda));
         fixture_record(
@@ -2790,7 +2568,6 @@ mod tests {
         let mut tail = OutputTail::default();
         tail.keep("load_tensors: offloaded 0/33 layers to GPU");
         assert!(!tail.gpu_offloaded);
-        // Captured from b11669 on an NVIDIA L4 with --log-verbosity 4.
         tail.keep("0.02.021.855 I load_tensors: offloaded 25/25 layers to GPU");
         for _ in 0..100 {
             tail.keep("other startup line");
@@ -2807,8 +2584,6 @@ mod tests {
         )
     }
 
-    /// A script that was just written can't run while a process another test
-    /// forked meanwhile still holds it open.
     #[cfg(unix)]
     fn wait_until_runnable(path: &Path) {
         for _ in 0..500 {
@@ -2835,9 +2610,6 @@ mod tests {
         binary
     }
 
-    /// Stands in for a downloaded release archive: `download` accepts a file
-    /// of the pinned size whose digest sidecar matches, and nothing reads the
-    /// sparse padding after the gzip stream.
     #[cfg(unix)]
     fn seed_archive(dir: &Path, asset: &RuntimeAsset, files: &[(&str, &[u8])]) {
         std::fs::create_dir_all(dir).unwrap();
@@ -2859,7 +2631,6 @@ mod tests {
         download::write_sidecar(&path, asset.sha256).unwrap();
     }
 
-    /// What an earlier LokalBot left: the install record of another build.
     fn older_install(root: &Path, tag: &str) -> PathBuf {
         let folder = root.join(format!("b11669-{tag}"));
         std::fs::create_dir_all(&folder).unwrap();
@@ -2886,7 +2657,6 @@ mod tests {
                 "cudart-llama-b11669-bin-ubuntu-cuda-13.4-x64.tar.gz",
                 Some("b11669"),
             ),
-            // Windows' library archives keep their name across builds.
             ("cudart-llama-bin-win-cuda-13.4-x64.zip", None),
             (".downloads", None),
             (".staging-0123", None),
@@ -2907,7 +2677,6 @@ mod tests {
 
         let manager = manager_with(dir.path(), "auto");
         let root = manager.shared.installer.root();
-        // Not an install: staging, downloads, and a folder with no record.
         for name in [".staging-1", ".downloads", "b11669-ubuntu-x64"] {
             std::fs::create_dir_all(root.join(name)).unwrap();
         }
@@ -2920,7 +2689,6 @@ mod tests {
             assert!(manager.update_pending(), "older install: {backend}");
         }
 
-        // Removing the runtime in Settings means it doesn't come back.
         manager.uninstall().unwrap();
         assert!(!manager.update_pending());
     }
@@ -2961,11 +2729,9 @@ mod tests {
         )
         .unwrap();
         let downloads = root.join(".downloads");
-        // Only the CPU build is seeded, so any other download would fail here.
         let cpu = asset(LlamaBackend::Cpu).unwrap();
         let server = probe_script(0);
         seed_archive(&downloads, cpu, &[(SERVER_BINARY, server.as_bytes())]);
-        // Left by an interrupted download of the older build, and of this one.
         let interrupted =
             downloads.join("cudart-llama-b11669-bin-ubuntu-cuda-13.4-x64.tar.gz.part");
         std::fs::write(&interrupted, b"partial").unwrap();
@@ -3015,7 +2781,6 @@ mod tests {
         let idle = older_install(&root, "ubuntu-vulkan-x64");
         let marker = marker_path(&installer.paths, Role::Main.port());
         std::fs::create_dir_all(marker.parent().unwrap()).unwrap();
-        // This test process stands in for the old helper.
         std::fs::write(
             &marker,
             serde_json::to_vec(&ServerMarker {
@@ -3050,9 +2815,7 @@ mod tests {
         let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &settings);
         let installer = &manager.shared.installer;
         let downloads = installer.root().join(".downloads");
-        // The CUDA 12 build, which older GPUs and drivers select.
         let build = &cuda::BUILDS[1];
-        // Exits with an error, like a GPU with no memory free for a new context.
         let busy = probe_script(1);
         seed_archive(
             &downloads,
@@ -3069,7 +2832,6 @@ mod tests {
             .collect();
         seed_archive(&downloads, &build.libraries, &libraries);
 
-        // `install` checks the NVIDIA driver first; no test machine has one.
         let (record, binary) = installer
             .download_and_unpack(&build.server, &AtomicBool::new(false), &mut |_, _| {})
             .unwrap();
@@ -3087,7 +2849,6 @@ mod tests {
         assert!(!installer.cuda_ready());
         assert_eq!(manager.installed_backend(), None);
 
-        // Retrying setup repeats only the device check.
         let retry = |manager: &RuntimeManager| {
             manager.ensure_runtime(&settings, &AtomicBool::new(false), &mut |_, _| {
                 panic!("downloaded again")
@@ -3146,7 +2907,6 @@ mod tests {
 
     const MISSING_GOMP: &str = "llama-server needs libgomp.so.1, which isn't installed. Install the package that provides it (libgomp1 on Debian, Ubuntu and openSUSE; libgomp on Fedora and Arch), then try again.";
 
-    /// What the dynamic loader prints for llama-server without libgomp1.
     #[cfg(unix)]
     const MISSING_GOMP_SERVER: &str = "#!/bin/sh\necho \"$0: error while loading shared libraries: libgomp.so.1: cannot open shared object file: No such file or directory\" >&2\nexit 127\n";
 
@@ -3158,14 +2918,12 @@ mod tests {
             redist,
             "llama-server needs the Microsoft Visual C++ Redistributable (x64), which isn't installed. Install it from https://aka.ms/vc14/vc_redist.x64.exe, then try again."
         );
-        // With the Visual C++ runtime in place, a DLL of the runtime folder is gone.
         let other = missing_library(Some(STATUS_DLL_NOT_FOUND), "", true).unwrap();
         assert!(
             other.contains("0xC0000135") && other.contains("download it again"),
             "{other}"
         );
 
-        // From b11669 in an ubuntu:24.04 container without libgomp1.
         let loader = "/root/.local/share/LokalBot/runtimes/llama-cpp/b11669-ubuntu-x64/llama-b11669/llama-server: error while loading shared libraries: libgomp.so.1: cannot open shared object file: No such file or directory";
         assert_eq!(
             missing_library(Some(127), loader, true).as_deref(),
@@ -3192,7 +2950,6 @@ mod tests {
             .contains("vulkan-icd-loader on Arch")
         );
 
-        // Other failures keep llama-server's own reason.
         assert_eq!(
             missing_library(Some(1), "error: failed to load model 'x.gguf'", false),
             None
@@ -3216,7 +2973,6 @@ mod tests {
         for name in VC_RUNTIME_DLLS {
             assert_eq!(read(name), format!("{name} 14.44"));
         }
-        // An update brings a newer runtime.
         std::fs::write(bundled.join("msvcp140.dll"), "msvcp140.dll 14.51").unwrap();
         deploy_vc_runtime(&bundled, &server);
         assert_eq!(read("msvcp140.dll"), "msvcp140.dll 14.51");
@@ -3258,7 +3014,6 @@ mod tests {
         use std::os::unix::fs::PermissionsExt as _;
         let dir = tempfile::tempdir().unwrap();
         let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &Settings::default());
-        // A free port, so this test never binds a release port.
         let port = std::net::TcpListener::bind("127.0.0.1:0")
             .unwrap()
             .local_addr()
@@ -3308,8 +3063,6 @@ mod tests {
         );
     }
 
-    /// A Think server that counts as running `model`, with no process behind
-    /// it that a test could stop.
     fn running_server(manager: &RuntimeManager, model: &ModelEntry) -> Arc<ServerInner> {
         let path = catalog::model_path(manager.paths(), model);
         Arc::new(ServerInner {
@@ -3363,7 +3116,6 @@ mod tests {
                 loaded.display_name
             )
         );
-        // The model the task uses is still shared with everyone else.
         drop(server.lease_path(loaded.id, &loaded_path, false).unwrap());
         assert_eq!(server.state.lock().held_open, 1);
         drop(task);
@@ -3396,7 +3148,6 @@ mod tests {
         let installer = &manager.shared.installer;
         let folder = fixture_record(installer, LlamaBackend::Cuda, Some("system"));
         let before = std::fs::read(folder.join("install.json")).unwrap();
-        // The fixture binary cannot execute. GPU availability is deliberately irrelevant.
         for _ in 0..2 {
             installer
                 .install(LlamaBackend::Cuda, &AtomicBool::new(false), &mut |_, _| {
@@ -3490,7 +3241,6 @@ mod tests {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let port = listener.local_addr().unwrap().port();
         let inner = manager.server(Role::Autocomplete).inner.clone();
-        // Build a separate inner so this test never binds a release port.
         let server = ServerInner {
             role: Role::Autocomplete,
             port,
@@ -3559,7 +3309,6 @@ mod tests {
         let running = result.unwrap();
         assert_eq!(running.pid, std::process::id());
         assert!(running.child.is_none());
-        // No server was added to the manager or stopped by this fixture.
         assert!(inner.installer.devices.lock()[&binary].is_err());
     }
 
@@ -3657,7 +3406,6 @@ mod tests {
                 .mode();
             assert_eq!(mode & 0o777, 0o600);
         }
-        // A dead helper's marker is discarded before binding.
         let reclaimed = inner
             .reclaim(
                 "m",

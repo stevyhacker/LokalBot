@@ -1,32 +1,15 @@
 #!/bin/bash
-# Fetches the pinned sherpa-onnx offline CLIs (+ onnxruntime dylibs)
-# into Vendor/sherpa-onnx/, which the Xcode build copies into the app bundle.
-# This is the ONNX-runtime path for SenseVoice (CJK) and GigaAM (Russian) —
-# models WhisperKit/FluidAudio don't cover well — and Kokoro TTS. Run as an
-# Xcode pre-build phase, mirroring fetch-llama.sh; idempotent and safe to run
-# manually.
-#
-# Integration model (same as the bundled llama-server): we bundle the
-# `sherpa-onnx-offline`/`sherpa-onnx-offline-tts` binaries + dylibs, copy them
-# out of the bundle on first run, and invoke them as subprocesses — no C++/ONNX
-# linking into the Swift app, no notarization-of-linked-lib dance.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 VERSION=v1.13.8
-ONNXRUNTIME_VERSION=v1.28.2  # bundled runtime reports macOS 11.0, satisfying our 15.0 target
+ONNXRUNTIME_VERSION=v1.28.2
 DEPLOYMENT_TARGET=15.0
 ARTIFACT="sherpa-onnx-$VERSION-osx-arm64-shared.tar.bz2"
 URL="https://github.com/k2-fsa/sherpa-onnx/releases/download/$VERSION/$ARTIFACT"
-# SHA-256 of the release artifact — a GitHub release asset can be replaced in
-# place, so verify before bundling. Recompute when bumping VERSION:
-#   shasum -a 256 <file>
 ARCHIVE_SHA256=b10e5c7e2c30ea03de9c442655d14860d9edc475c6251d58a8f5f06e913a1d56
 SHERPA_LICENSE_URL="https://raw.githubusercontent.com/k2-fsa/sherpa-onnx/$VERSION/LICENSE"
 SHERPA_LICENSE_SHA256=cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30
-# ONNX Runtime's MIT license, committed rather than downloaded: on 2026-11-18
-# github.com/microsoft/onnxruntime started answering 404, which broke every
-# clean build. Same bytes as its $ONNXRUNTIME_VERSION LICENSE.
 ONNXRUNTIME_LICENSE=LICENSES/onnxruntime-LICENSE.txt
 ONNXRUNTIME_LICENSE_SHA256=2f07c72751aed99790b8a4869cf2311df85a860b22ded05fa22803587a48922c
 DEST=Vendor/sherpa-onnx
@@ -57,9 +40,6 @@ version_exceeds() {
 validate_runtime() {
   local file minos asr_help tts_help flag
   test -s "$1/libonnxruntime.dylib" && test -s "$1/libsherpa-onnx-c-api.dylib" || return 1
-# A bundle that advertises macOS 15.0 cannot quietly include a runtime that
-# only loads on a later point release. Verify the architecture, deployment
-# target, and bundle-relative rpath for every native object before packaging.
 for file in "$1/sherpa-onnx-offline" "$1/sherpa-onnx-offline-tts" "$1"/*.dylib; do
   if ! file -b "$file" | grep -q 'Mach-O 64-bit.*arm64'; then
     echo "fetch-sherpa: $file is not an arm64 Mach-O runtime" >&2
@@ -81,8 +61,6 @@ for file in "$1/sherpa-onnx-offline" "$1/sherpa-onnx-offline-tts" "$1"/*.dylib; 
   fi
 done
 
-# Fail closed if an older compatible release ever drops an option LokalBot
-# depends on for SenseVoice, GigaAM, or Kokoro.
 asr_help=$(DYLD_LIBRARY_PATH="$1" "$1/sherpa-onnx-offline" --help 2>&1)
 for flag in --model-type --nemo-ctc-model --sense-voice-model --sense-voice-use-itn; do
   grep -q -- "$flag" <<< "$asr_help" || {
@@ -124,9 +102,6 @@ FINAL_DEST="$DEST"
 mkdir -p "$(dirname "$DEST")"
 DEST=$(mktemp -d "$DEST.staging.XXXXXX")
 trap 'rm -rf "$tmp" "$DEST"' EXIT
-# Only the offline file-based recogniser, offline TTS, and dylibs. Microphone,
-# websocket, and other tools aren't needed. Flat layout; the app spawns the
-# binary with DYLD_LIBRARY_PATH pointed at this directory.
 cp "$src/bin/sherpa-onnx-offline" "$DEST/"
 cp "$src/bin/sherpa-onnx-offline-tts" "$DEST/"
 cp "$src"/lib/*.dylib "$DEST/"

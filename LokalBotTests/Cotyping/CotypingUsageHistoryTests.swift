@@ -16,7 +16,6 @@ final class CotypingUsageHistoryTests: XCTestCase {
         var history = CotypingUsageHistory()
         let now = date(2026, 10, 14)
         for _ in 0..<4 { history.recordShown(surface: "chat", model: "e2b", at: now, calendar: calendar) }
-        // One suggestion taken in three word-by-word presses, another in one.
         history.recordAccept(words: 1, characters: 4, firstOfSuggestion: true, surface: "chat", model: "e2b", at: now, calendar: calendar)
         history.recordAccept(words: 1, characters: 3, firstOfSuggestion: false, surface: "chat", model: "e2b", at: now, calendar: calendar)
         history.recordAccept(words: 0, characters: 1, firstOfSuggestion: false, surface: "chat", model: "e2b", at: now, calendar: calendar)
@@ -52,7 +51,6 @@ final class CotypingUsageHistoryTests: XCTestCase {
     func testTimeSavedUsesYourTypingSpeedOnceMeasured() {
         var history = CotypingUsageHistory()
         let now = date(2026, 10, 14)
-        // 101 characters, 1 accept press: 100 keystrokes saved.
         history.recordAccept(words: 20, characters: 101, firstOfSuggestion: true, surface: "other", model: "e2b", at: now, calendar: calendar)
 
         var summary = history.summary(.week, now: now, calendar: calendar)
@@ -62,7 +60,6 @@ final class CotypingUsageHistoryTests: XCTestCase {
         for _ in 0..<CotypingUsageHistory.minimumTypingGaps {
             history.recordTyped(characters: 1, gapMilliseconds: 200, at: now, calendar: calendar)
         }
-        // Pauses longer than a second are not typing speed.
         history.recordTyped(characters: 1, gapMilliseconds: 4_000, at: now, calendar: calendar)
         summary = history.summary(.week, now: now, calendar: calendar)
         XCTAssertEqual(summary.total.typingGaps, CotypingUsageHistory.minimumTypingGaps)
@@ -142,7 +139,6 @@ final class CotypingUsageHistoryTests: XCTestCase {
     func testDaysFollowTheLocalCalendar() {
         var tokyo = calendar
         tokyo.timeZone = TimeZone(identifier: "Asia/Tokyo")!
-        // 20:00 UTC on 14 October is 05:00 on 15 October in Tokyo.
         XCTAssertEqual(CotypingUsageHistory.dayKey(date(2026, 10, 14, hour: 20), calendar: tokyo), "2026-10-15")
         XCTAssertEqual(CotypingUsageHistory.monthKey(date(2026, 10, 14), calendar: calendar), "2026-10")
     }
@@ -204,7 +200,6 @@ final class CotypingUsageStoreTests: XCTestCase {
         XCTAssertEqual(flushed.count, 1)
         XCTAssertEqual(flushed.last?.summary(.week).total.typedCharacters, 2)
 
-        // A generation writes the counters; the unchanged history is not written again.
         store.recordGeneration(latencyMs: 80)
         await store.waitForPendingPersistence()
         let afterGeneration = await persistence.usage()

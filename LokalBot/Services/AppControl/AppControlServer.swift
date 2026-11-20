@@ -1,8 +1,5 @@
 import Foundation
 
-/// The app end of the CLI control socket. Runs only while the person allows
-/// external agents to change settings; accepts connections from this user
-/// only and hands each request to the main actor.
 final class AppControlServer {
     typealias Handler = @MainActor (AppControlRequest, AppControlPeer) async -> AppControlResponse
 
@@ -24,8 +21,6 @@ final class AppControlServer {
 
     func start() throws {
         guard source == nil else { return }
-        // A socket left by a crashed run would make bind fail. The library
-        // instance lock guarantees no other app serves this path.
         unlink(path)
         var address = try AppControlSocket.address(path: path)
         let descriptor = socket(AF_UNIX, SOCK_STREAM, 0)
@@ -63,8 +58,6 @@ final class AppControlServer {
                 if errno == EINTR { continue }
                 return
             }
-            // Accepted sockets inherit O_NONBLOCK; requests use blocking I/O
-            // bounded by the socket timeouts instead.
             _ = fcntl(client, F_SETFL, fcntl(client, F_GETFL) & ~O_NONBLOCK)
             queue.async { [weak self] in self?.serve(client) }
         }
@@ -101,8 +94,6 @@ final class AppControlServer {
     }
 }
 
-/// Who sent a control request, for the audit log: the client process and,
-/// when it runs under a shell, the agent that started that shell.
 struct AppControlPeer: Equatable, Sendable {
     var pid: Int32?
     var description: String

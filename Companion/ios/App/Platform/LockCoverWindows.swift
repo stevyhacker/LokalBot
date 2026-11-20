@@ -1,11 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// Shows the lock cover above everything each of the app's windows presents.
-/// The cover in a window's own view tree lies under that window's sheets, the
-/// recording screen, alerts and menus, which would stay readable while the app
-/// is locked and in the app switcher. This one sits in a window of its own,
-/// above all of them.
 @MainActor
 final class LockCoverWindows: NSObject {
     private weak var appLock: AppLock?
@@ -21,9 +16,6 @@ final class LockCoverWindows: NSObject {
         center.addObserver(self, selector: #selector(sceneDidDisconnect), name: UIScene.didDisconnectNotification, object: nil)
     }
 
-    /// iOS shows a window in the app switcher from here on, and takes its
-    /// picture once it's in the background, so the cover goes up before this
-    /// returns instead of waiting for the next view update.
     @objc private func sceneWillDeactivate(_ notification: Notification) {
         refresh(leaving: notification.object as? UIScene)
     }
@@ -45,13 +37,6 @@ final class LockCoverWindows: NSObject {
         covers.removeValue(forKey: ObjectIdentifier(scene))?.isHidden = true
     }
 
-    /// With App Lock on, covers every window while the app is locked or none
-    /// of its windows is in use, and any window that is in the background.
-    /// "In use" is read from the windows themselves as well as from `AppLock`,
-    /// whose own state arrives with the next view update. A window named here
-    /// is changing state and doesn't report it yet: `leaving` is about to stop
-    /// being active, `entering` is coming to the foreground and `active` has
-    /// just become active.
     func refresh(leaving: UIScene? = nil, entering: UIScene? = nil, active: UIScene? = nil) {
         guard let appLock, appLock.isEnabled else {
             covers.values.forEach { $0.isHidden = true }
@@ -63,7 +48,6 @@ final class LockCoverWindows: NSObject {
         for scene in scenes {
             let inBackground = scene.activationState == .background && scene !== entering && scene !== active
             if appLock.isLocked || appLock.isObscured || !inUse || inBackground {
-                // A keyboard left up would float above the cover and still type into the page under it.
                 if appLock.isLocked { scene.windows.forEach { $0.endEditing(true) } }
                 cover(for: scene, appLock: appLock).isHidden = false
             } else {
@@ -77,7 +61,6 @@ final class LockCoverWindows: NSObject {
         let window = UIWindow(windowScene: scene)
         window.windowLevel = .alert + 1
         window.rootViewController = UIHostingController(rootView: LockCover().environment(appLock).brandTinted())
-        // VoiceOver reads this window and nothing under it.
         window.accessibilityViewIsModal = true
         covers[ObjectIdentifier(scene)] = window
         return window

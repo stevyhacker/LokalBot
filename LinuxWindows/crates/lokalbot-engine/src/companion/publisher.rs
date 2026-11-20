@@ -1,10 +1,3 @@
-//! Keeps the host's records equal to what the library shares
-//! (`CompanionPublisher.swift`). A full reconcile builds every record,
-//! publishes it, and withdraws keys that no longer exist (deleted, merged,
-//! out of the history window, or a class turned off). Change hooks queue
-//! narrower rebuilds, coalesced on one thread, so a burst of edits costs one
-//! pass.
-
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::path::Path;
 use std::sync::Arc;
@@ -27,8 +20,6 @@ use super::library::{CompanionLibrary, is_shared, read_all_meetings};
 use super::records::{self, Record, RecordKind};
 use super::sharing::{Sharing, day_key};
 
-/// Where built records go: the sync host while sharing is on, an in-memory
-/// store in tests. Publishing an unchanged body is a no-op on the host.
 pub trait RecordSink: Send + Sync {
     fn publish(&self, kind: &str, key: &str, body_json: &str) -> anyhow::Result<bool>;
     fn remove(&self, kind: &str, key: &str) -> anyhow::Result<bool>;
@@ -36,7 +27,6 @@ pub trait RecordSink: Send + Sync {
     fn set_manifest(&self, body_json: &str) -> anyhow::Result<()>;
 }
 
-/// What one pass changed, for logs and tests.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Report {
     pub published: usize,
@@ -57,7 +47,6 @@ struct Pending {
     meeting_ids: HashSet<Uuid>,
     day_keys: BTreeSet<String>,
     connections: bool,
-    /// Compare the library with what the records were built from.
     rescan: bool,
 }
 
@@ -74,15 +63,12 @@ impl Pending {
 enum Request {
     Update(Box<Context>),
     Change(Box<dyn FnOnce(&mut Pending) + Send>),
-    /// Rebuild one meeting and what depends on it now.
     Now(Uuid, Sender<()>),
-    /// Run whatever is queued and report it.
     #[cfg(test)]
     Flush(Sender<Report>),
     Today {
         window: chrono::Duration,
     },
-    /// Look for changes the hooks don't report.
     Check,
     Stop,
 }
@@ -124,8 +110,6 @@ impl Publisher {
         }
     }
 
-    /// Replace the settings the records depend on. A different record scope
-    /// rebuilds everything; the manifest is always refreshed.
     pub fn update(&self, context: Context) {
         let _ = self.requests.send(Request::Update(Box::new(context)));
     }
@@ -134,9 +118,6 @@ impl Publisher {
         self.change(|pending| pending.full = true);
     }
 
-    /// Meeting evidence changed on these days: outcomes, notes, processing,
-    /// deletion or a merge. Which meetings is found by comparing the library
-    /// with what the records were built from.
     pub fn evidence_changed(&self, days: &[NaiveDate]) {
         let keys: Vec<String> = days.iter().copied().map(day_key).collect();
         self.change(move |pending| {
@@ -156,20 +137,14 @@ impl Publisher {
         });
     }
 
-    /// Today's Timeline grows while the person works; rebuild today's record
-    /// when anything was recorded within `window`.
     pub fn refresh_today_if_active(&self, window: chrono::Duration) {
         let _ = self.requests.send(Request::Today { window });
     }
 
-    /// Writes from other pages (notes, a new title, people and project
-    /// choices) reach no hook. One stat per file finds them.
     pub fn check_for_changes(&self) {
         let _ = self.requests.send(Request::Check);
     }
 
-    /// Rebuild one meeting and what depends on it before returning, for ops
-    /// the device waits on. Returns false when the pass did not finish in time.
     pub fn republish_now(&self, meeting_id: Uuid, timeout: Duration) -> bool {
         let (done, finished) = bounded(1);
         if self.requests.send(Request::Now(meeting_id, done)).is_err() {
@@ -178,7 +153,6 @@ impl Publisher {
         finished.recv_timeout(timeout).is_ok()
     }
 
-    /// Run whatever is queued now and wait for it, for tests.
     #[cfg(test)]
     pub fn flush(&self) -> Report {
         let (done, finished) = bounded(1);
@@ -188,7 +162,6 @@ impl Publisher {
         finished.recv().unwrap_or_default()
     }
 
-    /// Queued work is dropped; a pass under way finishes on its own thread.
     pub fn stop(&self) {
         let _ = self.requests.send(Request::Stop);
         self.thread.lock().take();
@@ -214,7 +187,6 @@ struct Worker {
     due: Option<Instant>,
     projection_cache: HashMap<Uuid, OutcomeProjection>,
     built: Option<CompanionLibrary>,
-    /// When each shared meeting's sources last changed, as of its last build.
     fingerprints: HashMap<Uuid, Fingerprint>,
     curation_stamp: Option<[Option<SystemTime>; 3]>,
 }
@@ -361,8 +333,6 @@ impl Worker {
                 return Report::default();
             }
         }
-        // The meeting list is cheap to read again; outcomes are reloaded only
-        // for the meetings that changed.
         for id in &work.meeting_ids {
             self.projection_cache.remove(id);
         }
@@ -421,7 +391,6 @@ impl Worker {
                 );
             }
         }
-        // What was just rebuilt needs no second pass.
         for id in &work.meeting_ids {
             self.fingerprints.remove(id);
         }
@@ -447,9 +416,6 @@ impl Worker {
             })
     }
 
-    /// Names the meetings whose files changed, and those gone or newly
-    /// shared. Only dates reach the change hook here, and writes outside the
-    /// evidence path (a finished recording, a summary) reach it not at all.
     fn rescan(&mut self, work: &mut Pending) {
         let now = Utc::now();
         let history = self.context.sharing.history;
@@ -536,7 +502,6 @@ impl Worker {
     }
 }
 
-/// When a meeting's record's sources last changed.
 type Fingerprint = [Option<SystemTime>; 6];
 
 fn fingerprint(library: &Library, meeting: &Meeting) -> Fingerprint {
@@ -565,9 +530,6 @@ fn modified(path: &Path) -> Option<SystemTime> {
         .ok()
 }
 
-/// When People and Projects choices and the "Where it stands" notes last
-/// changed: `people/curation.json`, `projects/tracked.json`,
-/// `projects/summaries.json`.
 fn curation_stamp(library: &Library) -> [Option<SystemTime>; 3] {
     let paths = library.paths();
     [

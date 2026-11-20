@@ -1,15 +1,11 @@
 import Foundation
 
-/// Optional personalization folded into the cotyping prompt's conditioning
-/// preface. Sourced from settings; all fields are opt-in.
 struct CotypingPersonalization: Sendable, Equatable {
     var userName: String?
     var styleNote: String?
     var languageHint: String?
     var isMultiLine: Bool
-    /// Condition the prompt on the focused app + window title / field placeholder.
     var appContextEnabled: Bool
-    /// Free-form glossary / jargon / notes folded into the prompt as context.
     var extendedContext: String?
 
     static let none = CotypingPersonalization(
@@ -17,10 +13,7 @@ struct CotypingPersonalization: Sendable, Equatable {
         isMultiLine: false, appContextEnabled: false)
 }
 
-/// Pure assembly of a `CotypingRequest` from a focused field. Separated from the
-/// I/O engine so request construction is unit-testable without a model.
 enum CotypingRequestBuilder {
-    /// Returns `nil` when the field has no usable context (blank before caret).
     static func build(
         field: CotypingField,
         config: CotypingConfiguration,
@@ -34,7 +27,6 @@ enum CotypingRequestBuilder {
         wordPrefixIsValidWord: Bool = true,
         allowsBlankPrefix: Bool = false
     ) -> CotypingRequest? {
-        // A blank field gets no suggestion; its prompt can still be prefilled.
         guard allowsBlankPrefix || CotypingPrefixWindow.shouldGenerate(for: field.precedingText) else { return nil }
         let prefix = CotypingPrefixWindow.truncatedPrefix(
             from: field.precedingText,
@@ -64,7 +56,6 @@ enum CotypingRequestBuilder {
             windowContext: windowContext,
             learnedExamples: learnedExamples)
 #if LOKALBOT_TEST_HOOKS
-        // The autocomplete film replays these prompts to chart the model's choices.
         if TestHooks.filmsAutocomplete,
            let json = try? JSONSerialization.data(withJSONObject: ["prefix": prefix, "prompt": renderedPrompt.prompt]) {
             lokalbotLog("film: request \(String(decoding: json, as: UTF8.self))")
@@ -92,35 +83,15 @@ enum CotypingRequestBuilder {
     }
 }
 
-/// The I/O seam: turn a built request into normalized ghost text. Behind a
-/// protocol so the coordinator and the in-app preview can run against a fake in
-/// tests without a live server.
 @MainActor
 protocol CotypingCompleting: AnyObject {
-    /// Debounce behavior for the route currently serving completions.
-    /// Selectors override this as they move between local and model-server paths.
     var debounceProfile: CotypingDebouncePolicy.RuntimeProfile { get }
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult
-    /// Streaming variant: `onPartial` receives normalized partials as they
-    /// arrive. Default (below) is non-streaming.
     func generateStreaming(_ request: CotypingRequest,
                            onPartial: @escaping @Sendable (CotypingNormalizationResult) -> Void) async throws -> CotypingNormalizationResult
-    /// Loads + primes any in-process model so the first completion isn't cold.
-    /// Default is a no-op: only the in-process `LocalLlamaCotypingEngine` has a
-    /// model to prewarm; the HTTP engine boots its server lazily.
     func prewarm() async throws
-    /// Best-effort focus-time prompt prefill for in-process engines. This lets
-    /// the first real keystroke reuse prompt KV when the user pauses after focus.
     func prewarm(for request: CotypingRequest) async throws
-    /// After a pause, readies an in-process model that is already loaded, so
-    /// the first suggestion is not slower than the rest. Never loads one.
-    /// Default is a no-op: only the in-process engine keeps a model in this
-    /// process.
     func warmAfterPause() async
-    /// Frees resources owned by the engine. The in-process engine releases its
-    /// model/context; the HTTP engine stops its dedicated `llama-server`.
-    /// Selectors await this hook before changing routes so two copies of the
-    /// cotyping model cannot remain resident at once.
     func unload() async
 }
 
@@ -145,25 +116,11 @@ extension CotypingCompleting {
     func unload() async {}
 }
 
-/// The HTTP route: runs one raw completion over a `TextEngine` and through the
-/// shared normalizer. It serves the built-in autocomplete model on its own
-/// `LlamaServer.cotyping` instance when the in-process engine does not apply
-/// (`CotypingEngineSelector`), and a server the user chose
-/// (`CotypingServerRoute`).
 @MainActor
 final class CotypingEngine: CotypingCompleting {
-    /// Resolves the active `TextEngine`. In production this is
-    /// `ThinkExecution.makeTextEngine(settings)`, which also boots the
-    /// built-in llama-server with the selected model on first use.
     private let makeEngine: () async throws -> TextEngine
     private let stopRuntime: () async -> Void
-    /// Applies the in-process engine's token healing over plain HTTP: the prompt
-    /// is sent cut back to the word boundary, and only output that re-types the
-    /// cut text counts. A server cannot be constrained to that prefix, so other
-    /// output is suppressed. Off for llama-server, whose prompt stays byte-for-byte.
     private let healsCaretBoundary: Bool
-    /// For chat replies, which have no token at the caret: puts back the space
-    /// a chat model leaves out before a new word (`restoringWordSpace`).
     private let restoresWordSpace: Bool
 
     init(
@@ -178,9 +135,6 @@ final class CotypingEngine: CotypingCompleting {
         self.restoresWordSpace = restoresWordSpace
     }
 
-    /// The resolved `TextEngine` is intentionally short-lived, but its
-    /// dedicated built-in server is process-wide. Give the lifecycle owner an
-    /// explicit, awaitable way to release that server.
     func unload() async {
         await stopRuntime()
     }
@@ -199,7 +153,6 @@ final class CotypingEngine: CotypingCompleting {
         let (completion, requiredPrefix) = completionRequest(for: request)
         let restoresWordSpace = self.restoresWordSpace
         let raw = try await engine.completeStreaming(completion) { cumulative in
-            // Nothing is shown until the healed boundary has been re-typed.
             guard cumulative.count > requiredPrefix.count || requiredPrefix.isEmpty else { return }
             let reply = restoresWordSpace ? Self.restoringWordSpace(cumulative, for: request) : cumulative
             onPartial(Self.normalize(reply, requiredPrefix: requiredPrefix, for: request))
@@ -216,25 +169,15 @@ final class CotypingEngine: CotypingCompleting {
             prompt = healed.prompt
             requiredPrefix = String(decoding: healed.requiredPrefixUTF8, as: UTF8.self)
         }
-        // A space joins the first word's token; a cut word fragment needs a few more.
         let healingTokens = requiredPrefix.allSatisfy(\.isWhitespace) ? 0 : 4
         let completion = CompletionRequest(
             prompt: prompt, maxTokens: request.maxTokens + healingTokens, temperature: request.temperature,
             topP: request.topP, topK: request.topK, minP: request.minP,
             repeatPenalty: request.repeatPenalty, seed: request.seed,
-            // Single-line mode stops the server at the first newline; the
-            // normalizer still collapses defensively.
             stop: request.isMultiLine ? [] : ["\n"])
         return (completion, requiredPrefix)
     }
 
-    /// Chat models often leave out the space before a new word: "at a" +
-    /// "higher level" would show as "ahigher level", or not at all once the seam
-    /// guard sees the misspelling. After a whole word, a reply that starts with a
-    /// letter or digit starts a new word, so it gets the space back. Inside a
-    /// word, after a fragment the spell checker does not know ("follo"), when the
-    /// reply restates the word at the caret (the normalizer drops it), and in
-    /// scripts written without spaces, the reply is left as it is.
     nonisolated static func restoringWordSpace(_ reply: String, for request: CotypingRequest) -> String {
         guard !request.forceWordContinuation, request.wordPrefixIsValidWord,
               let last = request.prefixText.last, let first = reply.first,
@@ -244,8 +187,6 @@ final class CotypingEngine: CotypingCompleting {
         return " " + reply
     }
 
-    /// A letter or digit of a script that puts spaces between words, so not Han,
-    /// kana, Hangul, Thai, Lao, Myanmar or Khmer.
     private nonisolated static func isSpacedWordCharacter(_ character: Character) -> Bool {
         guard character.isLetter || character.isNumber, let scalar = character.unicodeScalars.first else { return false }
         switch scalar.value {

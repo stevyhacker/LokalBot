@@ -91,8 +91,6 @@ struct ImportCommand: ParsableCommand {
         }.joined(separator: "\n")
     }
 
-    /// What the files hold, newest first. Titles and counts only: notes and
-    /// transcripts stay in the files.
     static func previewJSON(_ scan: ExternalImportScan, source: ExternalMeetingSource) -> JSONValue {
         let formatter = ISO8601DateFormatter()
         let meetings = scan.meetings.sorted { ($0.startedAt ?? .distantPast) > ($1.startedAt ?? .distantPast) }

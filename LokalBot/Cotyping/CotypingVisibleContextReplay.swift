@@ -1,9 +1,5 @@
 import Foundation
 
-/// Synthetic OS boundary for headless model evals and non-UI capture tests.
-/// Answers/scoring are deliberately absent from this schema. The Settings
-/// rehearsal also uses it, to pass its sample conversation through the same
-/// selection as live nearby text.
 final class CotypingVisibleContextReplay: CotypingVisibleContextSource {
     struct Fixture: Codable {
         var target: CotypingVisibleContext.Target

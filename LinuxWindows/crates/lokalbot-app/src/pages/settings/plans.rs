@@ -1,12 +1,3 @@
-//! Think on a ChatGPT, Claude, Antigravity, or Gemini plan
-//! (`SubscriptionPlanSetupView.swift`): the account, the model and the plan's
-//! own consent, shown under Settings → Models → Connections. Signing in,
-//! approval and the model are separate steps: a sign-in alone never lets
-//! context leave this PC.
-//!
-//! Also the OpenRouter provider data policy and the Anthropic API note shown
-//! with the OpenAI-compatible connection (`ModelConnectionsView.swift`).
-
 use std::path::PathBuf;
 
 use crate::i18n::h_flex;
@@ -28,7 +19,6 @@ use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// Claude Code's aliases, which follow the newest model of each family.
 const CLAUDE_CHOICES: [(&str, &str); 5] = [
     ("", "Claude Code default"),
     ("fable", "Fable"),
@@ -37,7 +27,6 @@ const CLAUDE_CHOICES: [(&str, &str); 5] = [
     ("haiku", "Haiku"),
 ];
 
-/// What the plan forms know about the accounts. Filled in the background.
 #[derive(Default)]
 pub struct PlansState {
     chatgpt_loading: bool,
@@ -71,8 +60,6 @@ fn error_text(err: &anyhow::Error) -> String {
 }
 
 impl SettingsPage {
-    // ------------------------------------------------------------ ChatGPT
-
     fn load_chatgpt(&mut self, refresh_models: bool, cx: &mut Context<Self>) {
         let plans = &mut self.models.plans;
         if plans.chatgpt_loading {
@@ -104,7 +91,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// A signed-in account with no model chosen gets its first model.
     fn choose_first_chatgpt_model(&mut self, cx: &mut Context<Self>) {
         let first = match &self.models.plans.chatgpt_models {
             Some(Ok(models)) => models.first().map(|m| m.slug.clone()),
@@ -186,8 +172,6 @@ impl SettingsPage {
         .detach();
     }
 
-    // ------------------------------------------------------------- Claude
-
     fn check_claude(&mut self, refresh: bool, cx: &mut Context<Self>) {
         let plans = &mut self.models.plans;
         if plans.claude_checking {
@@ -225,8 +209,6 @@ impl SettingsPage {
         })
         .detach();
     }
-
-    // -------------------------------------------------------- Antigravity
 
     fn check_antigravity(&mut self, refresh: bool, cx: &mut Context<Self>) {
         let plans = &mut self.models.plans;
@@ -266,8 +248,6 @@ impl SettingsPage {
         .detach();
     }
 
-    // ------------------------------------------------------------- Gemini
-
     fn check_gemini(&mut self, refresh: bool, cx: &mut Context<Self>) {
         let plans = &mut self.models.plans;
         if plans.gemini_checking {
@@ -298,9 +278,6 @@ impl SettingsPage {
         .detach();
     }
 
-    // -------------------------------------------------------------- forms
-
-    /// The account, model and consent rows for one plan.
     pub(super) fn plan_form(&mut self, plan: SubscriptionPlan, cx: &mut Context<Self>) -> Div {
         match plan {
             SubscriptionPlan::ChatGpt => {
@@ -571,8 +548,6 @@ impl SettingsPage {
                 .collect(),
             _ => Vec::new(),
         };
-        // A saved model the list no longer offers stays visible instead of
-        // silently changing.
         if !selection.is_empty() && !models.iter().any(|(slug, _)| *slug == selection) {
             models.push((selection.clone(), selection.clone()));
         }
@@ -1141,7 +1116,6 @@ impl SettingsPage {
     }
 }
 
-/// "Allow sending context to OpenAI with my ChatGPT plan" and what it means.
 fn plan_consent(data: Entity<AppData>, plan: SubscriptionPlan, cx: &App) -> Div {
     let lb = cx.lb();
     let approved = plan.is_approved(&data.read(cx).settings);
@@ -1184,7 +1158,6 @@ fn plan_consent(data: Entity<AppData>, plan: SubscriptionPlan, cx: &App) -> Div 
         .child(settings_row::help(plan_consent_notice(&provider), cx))
 }
 
-/// What approving a plan covers (`SubscriptionPlanConsentSection`).
 fn plan_consent_notice(provider: &str) -> String {
     lokalbot_i18n::format(
         "Think sends meeting transcripts, screen text, and dictation requests to {provider} when you use those features. Scheduled daily summaries and overnight review also run there without asking each time, including activity titles, meeting evidence, and retained Dream memory. {provider}'s terms for your account apply, and requests count toward your plan's usage limits.",
@@ -1238,7 +1211,6 @@ pub(super) fn manage_usage(
     )
 }
 
-/// OpenRouter's provider data policy, shown with an OpenRouter server URL.
 pub(super) fn openrouter_policy(data: Entity<AppData>, cx: &App) -> Div {
     let policy = data.read(cx).settings.open_router_data_policy;
     let detail = match policy {
@@ -1310,7 +1282,6 @@ fn confirm_account_policy(data: Entity<AppData>, window: &mut Window, cx: &mut A
     });
 }
 
-/// What Think does with an Anthropic API URL.
 pub(super) fn anthropic_note(cx: &App) -> Div {
     v_flex()
         .gap(px(4.))

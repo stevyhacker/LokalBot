@@ -6,7 +6,7 @@ final class DictationIntentTests: XCTestCase {
     func testTranscribeNeverConstructsModelOrReadsContext() async throws {
         var settings = AppSettings()
         settings.dictationIntent = .transcribe
-        settings.dictationUseScreenContext = true // Even a stale stored opt-in cannot widen Transcribe.
+        settings.dictationUseScreenContext = true
         var contextReads = 0, modelCreations = 0
         let result = try await DictationTextPreparation.prepare(speech: "Recognized speech.", settings: settings,
             screenContext: { contextReads += 1; return nil }, makeEngine: { _ in modelCreations += 1; return IntentTestEngine() })

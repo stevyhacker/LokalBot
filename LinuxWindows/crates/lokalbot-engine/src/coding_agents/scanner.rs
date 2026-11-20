@@ -1,7 +1,3 @@
-//! Collects bursts from every enabled agent and applies the person's
-//! project-folder exclusions before anything leaves the reader
-//! (`CodingAgentSessionScanner.swift`).
-
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -15,8 +11,6 @@ use super::claude::ClaudeCodeReader;
 use super::codex::CodexReader;
 use super::text;
 
-/// What one reader found. Unreadable files are reported, never fatal: an agent
-/// update that changes its format must not stop the digest.
 #[derive(Debug, Default)]
 pub struct ReadResult {
     pub transcripts: Vec<Transcript>,
@@ -25,7 +19,6 @@ pub struct ReadResult {
     pub unreadable_files: Vec<String>,
 }
 
-/// Coding-agent work for a run of local days.
 #[derive(Debug)]
 pub struct DayScan {
     pub start: DateTime<Utc>,
@@ -45,8 +38,6 @@ enum Reader {
 
 pub struct Scanner {
     readers: Vec<Reader>,
-    /// Sessions whose working directory is inside one of these folders are
-    /// dropped, for repositories whose work must never enter the library.
     excluded_folders: Vec<String>,
     home: Option<String>,
 }
@@ -76,8 +67,6 @@ impl Scanner {
         }
     }
 
-    /// Every local day from `first` through `last`, reading each transcript
-    /// once. Bursts never cross midnight, so each belongs to exactly one day.
     pub fn scan(&self, first: NaiveDate, last: NaiveDate, cache: Option<&ParseCache>) -> DayScan {
         let (start, _) = local_day_bounds(first.min(last));
         let (last_start, end) = local_day_bounds(first.max(last));

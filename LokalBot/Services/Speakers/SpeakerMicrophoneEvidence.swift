@@ -1,8 +1,5 @@
 import Foundation
 
-/// A microphone is an audio source, not a person. Echo removal is optional:
-/// independently verified quiet reference windows can also support a voice
-/// suggestion or a later, explicit enrollment.
 enum SpeakerMicrophoneEvidence {
     struct Selection: Sendable {
         var samples: [SpeakerVoiceSample] = []
@@ -45,8 +42,6 @@ enum SpeakerMicrophoneEvidence {
                 reason = hasRemote ? "verifiedEchoRemoval" : "microphoneOnly"
             } else if let timing, let reader,
                       let reference = timing.referenceRange(start: max(0, sample.range.start - 0.5), end: sample.range.end + 0.25) {
-                // The padding includes plausible playback-to-microphone delay.
-                // A diarizer miss is not silence; verify the actual waveform too.
                 if remoteTurns.contains(where: { $0.overlap(reference) > 0 }) {
                     reason = "remoteSpeech"
                 } else if let pcm = try? reader.samples(from: reference.start, to: reference.end),
@@ -68,8 +63,6 @@ enum SpeakerMicrophoneEvidence {
         guard expectedDuration.isFinite, expectedDuration >= 3, !samples.isEmpty,
               abs(Double(samples.count) - expectedDuration * SpanAudioReader.sampleRate) <= 32,
               samples.allSatisfy(\.isFinite) else { return false }
-        // Test short windows as well as the peak so a brief remote syllable
-        // cannot disappear in the mean of a long silent interval.
         for start in stride(from: 0, to: samples.count, by: 320) {
             let window = samples[start..<min(samples.count, start + 320)]
             let power = window.reduce(0.0) { $0 + Double($1) * Double($1) } / Double(window.count)

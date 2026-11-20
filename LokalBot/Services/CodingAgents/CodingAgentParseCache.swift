@@ -1,48 +1,27 @@
 import Foundation
 
-/// What a reader keeps of one transcript file between scans: enough to build
-/// its transcript for any window that starts at or after the time it was
-/// kept from. Summaries hold no window of their own, so a new day or a
-/// refresh reuses them and parses only the lines agents appended since.
 protocol CodingAgentFileSummary: Sendable {
-    /// Folds in complete lines, keeping timed records from `start` on.
     mutating func consume(_ lines: CodingAgentJSONLines, retainingFrom start: Date)
-    /// Drops timed records before `start`, which no later scan reads.
     mutating func trim(before start: Date)
 }
 
-/// An event as a file summary keeps it. Folder, branch, and record id live
-/// on the record it came from, so a busy record's events share them.
 struct CodingAgentStoredEvent: CodingAgentTimedEvent, Sendable {
     var at: Date
     var kind: CodingAgentEvent.Kind
-    /// The source record's index in its summary, or `-1` for none.
     var record: Int32
 }
 
-/// A transcript file's summary and how far it was read. Both agents only
-/// append to their transcripts; a file that shrank, was replaced, or whose
-/// bytes before the resume point changed is parsed again from the start.
 struct CodingAgentFileState<Summary: CodingAgentFileSummary>: Sendable {
     var created: Date
     var modified: Date
     var size: Int
-    /// Bytes folded into `summary`: every complete line. A line still being
-    /// written is read again once its newline arrives.
     var offset: Int
-    /// Hash of the bytes just before `offset`.
     var boundary: Int
-    /// Records from before this time were not kept, so a scan reaching
-    /// further back parses the file again.
     var retainedFrom: Date
-    /// Activity is compacted by local day, so a time zone change reparses.
     var timeZone: TimeZone
     var summary: Summary
 }
 
-/// Per-file parse state from earlier scans, keyed by path. Each scan clips a
-/// file's summary to its own window, so a window that moves to a new day
-/// reuses every file, and a refresh parses only the bytes appended since.
 final class CodingAgentParseCache: @unchecked Sendable {
     private let lock = NSLock()
     private var states: [String: any Sendable] = [:]
@@ -55,7 +34,6 @@ final class CodingAgentParseCache: @unchecked Sendable {
         lock.withLock { states[path] = state }
     }
 
-    /// Forget files under `root` that a scan no longer selected.
     func prune(keeping paths: Set<String>, under root: URL) {
         let prefix = root.path + "/"
         lock.withLock {
@@ -69,10 +47,6 @@ final class CodingAgentParseCache: @unchecked Sendable {
         return hasher.finalize()
     }
 
-    /// `file`'s summary for a scan whose window starts at `start`: the cached
-    /// one while the file is unchanged, extended by the lines appended since
-    /// otherwise. Without a cache the whole file is parsed. `bytesRead` is
-    /// `nil` when the file was not opened.
     static func summary<Summary: CodingAgentFileSummary>(
         of file: CodingAgentCandidateFile,
         from start: Date,
@@ -127,7 +101,6 @@ final class CodingAgentParseCache: @unchecked Sendable {
 
         var summary = current.summary
         if complete < data.count {
-            // The last line has no newline yet: read it for this scan only.
             summary.consume(
                 CodingAgentJSONLines(data: data[offset(complete, in: data)...]),
                 retainingFrom: current.retainedFrom)
@@ -135,10 +108,6 @@ final class CodingAgentParseCache: @unchecked Sendable {
         return (summary, data.count - resumeAt)
     }
 
-    /// A compressed transcript is one Codex has finished with, so nothing is
-    /// appended to it: it is read whole when it is new or changed, and its
-    /// summary is reused while its size and modification date stay the same.
-    /// Its state's `size` and `offset` are both the compressed size.
     private static func compressedSummary<Summary: CodingAgentFileSummary>(
         of file: CodingAgentCandidateFile,
         from start: Date,

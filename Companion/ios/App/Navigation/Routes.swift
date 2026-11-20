@@ -1,9 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Values pushed onto navigation stacks. Links inside a screen push in place
-/// (an evidence pill opens the meeting right there, Back returns), so every
-/// stack registers all of them with `companionDestinations()`.
 struct MeetingRoute: Hashable {
     let id: String
     var offset: Double?

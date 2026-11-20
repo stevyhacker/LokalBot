@@ -1,9 +1,6 @@
 import Combine
 import Foundation
 
-/// Publishes the ordered list of long-running work shown by the sidebar
-/// progress card. It only combines state the owners already publish, so a
-/// cancelled or failed run disappears as soon as its owner clears it.
 @MainActor
 final class BackgroundActivityMonitor: ObservableObject {
     struct Sources {
@@ -28,8 +25,6 @@ final class BackgroundActivityMonitor: ObservableObject {
             dream,
             sources.downloads.$progress)
             .combineLatest(sources.reindex)
-            // @Published emits before the owner's property changes; deliver
-            // on the next main-queue turn so views never update mid-update.
             .receive(on: DispatchQueue.main)
             .sink { [weak self] owned, reindex in
                 let (stages, runs, dream, downloads) = owned

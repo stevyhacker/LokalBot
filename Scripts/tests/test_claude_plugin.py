@@ -48,8 +48,6 @@ class ClaudePluginTests(unittest.TestCase):
         cls.entry = next(p for p in cls.marketplace["plugins"] if p["name"] == "lokalbot")
 
     def test_marketplace_points_at_the_plugin_folder(self):
-        # An install copies the plugin's source folder, so it must be this
-        # small folder and never the repository root.
         self.assertEqual(self.entry["source"], "./Distribution/claude-plugin")
         self.assertEqual(self.manifest["name"], self.entry["name"])
         self.assertEqual(self.manifest["description"], self.entry["description"])
@@ -57,22 +55,16 @@ class ClaudePluginTests(unittest.TestCase):
                          "the repository root must not be a plugin")
 
     def test_no_local_mcp_server(self):
-        # The directory refuses plugins that start an MCP server on the user's
-        # computer unless the organization is Verified, which LokalBot isn't.
         self.assertNotIn("mcpServers", self.manifest)
         self.assertNotIn("mcpServers", self.entry)
         for path in (".mcp.json", "hooks"):
             self.assertFalse((PLUGIN / path).exists(), path)
 
     def test_one_semver_version_in_the_manifest(self):
-        # Installs stay on their cached copy until this string changes, and
-        # the marketplace entry must not carry a second one that could drift.
         self.assertRegex(self.manifest.get("version", ""), r"^\d+\.\d+\.\d+$")
         self.assertNotIn("version", self.entry)
 
     def test_listing_icon_is_a_square_png_in_range(self):
-        # Found by its path; naming it in the manifest or README puts the
-        # submission on a policy hold ("image the plugin's code could run").
         self.assertNotIn("icon", self.manifest)
         self.assertNotIn("icon.png", (PLUGIN / "README.md").read_text(encoding="utf-8"))
         icon = PLUGIN / ".claude-plugin" / "icon.png"
@@ -101,8 +93,6 @@ class ClaudePluginTests(unittest.TestCase):
                 self.assertEqual(fields.get("disable-model-invocation"), "true")
 
     def test_nothing_links_outside_the_plugin(self):
-        # Installs and the plugin's own repository (stevyhacker/lokalbot-claude-plugin)
-        # hold only this folder, so a relative link above it breaks there.
         for doc in [PLUGIN / "README.md", *sorted(PLUGIN.glob("skills/*/SKILL.md"))]:
             text = doc.read_text(encoding="utf-8")
             with self.subTest(doc=str(doc.relative_to(PLUGIN))):
@@ -114,7 +104,6 @@ class ClaudePluginTests(unittest.TestCase):
         self.assertIn('"Distribution/claude-plugin/**"', workflow)
         self.assertIn("rsync -a --delete --exclude .git Distribution/claude-plugin/", workflow)
         self.assertIn("git@github.com:stevyhacker/lokalbot-claude-plugin.git", workflow)
-        # The deploy key must never reach a self-hosted runner.
         self.assertEqual(re.findall(r"runs-on: (.+)", workflow), ["ubuntu-24.04"])
 
     def test_readme_lists_every_mcp_tool(self):
@@ -126,8 +115,6 @@ class ClaudePluginTests(unittest.TestCase):
                 self.assertIn(f"`{tool}`", readme)
 
     def test_skills_name_every_authority_personal_context_returns(self):
-        # An agent told every item is the user's own statement quotes a learned,
-        # possibly outdated one as the user's words.
         access = (ROOT / "LokalBot" / "CLISupport" / "PersonalContextAccess.swift").read_text(
             encoding="utf-8")
         authorities = set(re.findall(r'authority = "([a-z]+)"', access))

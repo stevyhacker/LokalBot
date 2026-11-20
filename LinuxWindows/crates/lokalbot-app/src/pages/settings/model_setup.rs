@@ -1,7 +1,3 @@
-//! Safe model switching (`ModelSetupController`, `ModelSelectionPatch`): the
-//! replacement is prepared first and the settings change only once it is ready,
-//! so the current models stay active until then.
-
 use std::collections::HashSet;
 
 use crate::i18n::h_flex;
@@ -22,8 +18,6 @@ use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// A deliberately narrow patch: applying or undoing a switch never overwrites
-/// privacy choices, credentials or unrelated edits made during a download.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ModelPatch {
     pub transcription: Option<String>,
@@ -92,7 +86,6 @@ impl ModelPatch {
         self.inverse(settings) == *self
     }
 
-    /// What has to be on this PC before the switch.
     pub fn needs(&self, settings: &Settings) -> Vec<String> {
         let target = self.applying(settings);
         let mut ids = Vec::new();
@@ -100,7 +93,6 @@ impl ModelPatch {
             if !lokalbot_speech::models::is_remote(&target.transcription_model) {
                 ids.push(target.transcription_model.clone());
             }
-            // Speech detection and speaker separation run here even with a server.
             ids.extend(lokalbot_speech::models::supporting_ids(
                 target.multi_speaker_diarization,
             ));
@@ -120,9 +112,6 @@ impl ModelPatch {
         ids
     }
 
-    /// Why the target can't be used now: a transcription server or Think server
-    /// that isn't approved. Checked again at the end, because an approval can be
-    /// revoked while the replacement's downloads run.
     pub fn blocked_reason(&self, settings: &Settings) -> Option<String> {
         let target = self.applying(settings);
         if self.transcription.is_some()
@@ -159,8 +148,6 @@ impl ModelPatch {
         None
     }
 
-    /// Ids alone don't identify a custom model's files or a server. Activation
-    /// is refused if either changed while the replacement was preparing.
     pub fn preparation_context_matches(&self, latest: &Settings, original: &Settings) -> bool {
         if original.custom_built_in_models != latest.custom_built_in_models {
             return false;
@@ -193,7 +180,6 @@ struct Pending {
     needs: Vec<String>,
 }
 
-/// One switch at a time, as long as the Settings page lives.
 #[derive(Default)]
 pub struct ModelSetup {
     pending: Option<Pending>,
@@ -207,7 +193,6 @@ impl ModelSetup {
         self.pending.is_some()
     }
 
-    /// The switch under way, for `lokalbot-cli models status`.
     pub fn pending_title(&self) -> Option<&str> {
         self.pending.as_ref().map(|p| p.change.title.as_str())
     }
@@ -240,7 +225,6 @@ impl ModelSetup {
         }
         let needs = change.patch.needs(&original);
         data.update(cx, |data, cx| {
-            // An earlier attempt's failure says nothing about this one.
             data.downloads
                 .retain(|id, download| !(needs.contains(id) && download.error.is_some()));
             data.cancelled_downloads.clear();
@@ -258,7 +242,6 @@ impl ModelSetup {
         self.poll(data, cx);
     }
 
-    /// Follows the downloads; the switch happens once the last one lands.
     pub fn poll(&mut self, data: &Entity<AppData>, cx: &mut App) {
         let Some(pending) = &self.pending else {
             return;
@@ -282,7 +265,6 @@ impl ModelSetup {
             )
         };
         if cancelled {
-            // Cancelling the download keeps the current selection.
             self.pending = None;
             return;
         }
@@ -323,7 +305,6 @@ impl ModelSetup {
         self.completed = Some(change);
     }
 
-    /// Keeps the current selection. Downloads already running continue.
     pub fn cancel(&mut self) {
         self.pending = None;
     }
@@ -334,8 +315,6 @@ impl ModelSetup {
         }
     }
 
-    /// Goes through the same preparation: the old files may have been removed
-    /// since the switch.
     fn undo(&mut self, data: &Entity<AppData>, cx: &mut App) {
         let Some(completed) = self.completed.clone() else {
             return;
@@ -360,8 +339,6 @@ impl ModelSetup {
 }
 
 impl SettingsPage {
-    /// The strip above the roles while a switch runs, failed or just finished
-    /// (`ModelSetupFeedback`).
     pub(super) fn model_setup_feedback(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let lb = cx.lb().clone();
         let setup = &self.models.setup;
@@ -589,7 +566,6 @@ mod tests {
             transcription: Some(lokalbot_core::remote_transcription::MODEL_ID.into()),
             ..Default::default()
         };
-        // A Think approval doesn't send audio.
         settings
             .approved_remote_inference_origins
             .push("https://audio.example".into());

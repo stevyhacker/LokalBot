@@ -1,9 +1,5 @@
 import AVFoundation
 
-/// Writes arbitrarily long timeline gaps with one bounded, reusable buffer.
-/// Call only when real audio is ready to follow the gap, on the recorder's
-/// writer queue. Account for each successful chunk so a failed disk write can
-/// retry the remaining gap without duplicating silence already persisted.
 enum AudioTimelinePadding {
     static func write(frames: Int64, format: AVAudioFormat,
                       consume: (AVAudioPCMBuffer) throws -> Void) throws {
@@ -25,10 +21,6 @@ enum AudioTimelinePadding {
     }
 }
 
-/// Independent 16 kHz mono PCM recovery beside the AAC track (~230 MB/hour
-/// per PCM copy). The growing CAF serves live transcription; closed checkpoints
-/// survive a damaged/unfinalized container. Failures reach capture health, and
-/// one sink failing cannot disable the other. Called only on the writer queue.
 final class AudioPreviewTee {
 
     static let micFileName = "mic.live.caf"
@@ -77,7 +69,6 @@ final class AudioPreviewTee {
         }
     }
 
-    /// Resample + downmix `buffer` (in the source format) into the tee file.
     @discardableResult
     func write(_ buffer: AVAudioPCMBuffer, isPadding: Bool = false) -> Bool {
         guard let converter, buffer.frameLength > 0 else { return false }
@@ -101,13 +92,12 @@ final class AudioPreviewTee {
             return buffer
         }
         guard status != .error else {
-            // Disable rather than spam the audio thread with retries.
             NSLog("AudioPreviewTee convert failed: \(conversionError?.localizedDescription ?? "unknown")")
             writeFailure = conversionError?.localizedDescription ?? "PCM conversion failed"
             self.converter = nil
             return false
         }
-        guard output.frameLength > 0 else { return true } // converter retained a short tail
+        guard output.frameLength > 0 else { return true }
         return writePCM(output, isPadding: isPadding)
     }
 
@@ -119,16 +109,13 @@ final class AudioPreviewTee {
         if let file {
             do { try file.write(from: output); saved = true } catch {
                 writeFailure = error.localizedDescription
-                self.file = nil // never resume this file with missing frames
+                self.file = nil
             }
         }
         return saved
     }
 
     func close() {
-        // Resampling can retain a short tail. Flush it before closing so a
-        // finalized preview/recovery file keeps the primary track's timeline,
-        // including the final speech after a long padded interval.
         if let converter {
             for _ in 0..<8 {
                 guard let tail = AVAudioPCMBuffer(pcmFormat: teeFormat, frameCapacity: 4_096) else { break }

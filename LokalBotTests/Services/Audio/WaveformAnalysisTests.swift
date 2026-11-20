@@ -12,9 +12,9 @@ final class WaveformAnalysisTests: XCTestCase {
         let peaks = try XCTUnwrap(WaveformAnalysis.decode(.init(sources: [
             .init(url: mic, gain: 1), .init(url: system, gain: 0.5)
         ], duration: 2)))
-        XCTAssertEqual(peaks[128], 1, accuracy: 0.01) // Mic at 0.25s, not stretched to 0.5s.
+        XCTAssertEqual(peaks[128], 1, accuracy: 0.01)
         XCTAssertEqual(peaks[256], 0)
-        XCTAssertEqual(peaks[793], 0.5, accuracy: 0.01) // System at 1.55s, honoring gain.
+        XCTAssertEqual(peaks[793], 0.5, accuracy: 0.01)
         XCTAssertEqual(peaks[1000], 0)
     }
 
@@ -59,7 +59,6 @@ final class WaveformAnalysisTests: XCTestCase {
         let request = WaveformAnalysis.Request(sources: [.init(url: url, gain: 1)], duration: 2)
         let firstResult = await WaveformAnalysis.load(request)
         let first = try XCTUnwrap(firstResult)
-        // Different size guarantees a changed identity even on coarse timestamp filesystems.
         try writeAudio(url, duration: 2, active: 1.5..<1.6)
         WaveformAnalysis.clearMemoryCache()
         let secondResult = await WaveformAnalysis.load(request)
@@ -133,7 +132,6 @@ final class WaveformAnalysisTests: XCTestCase {
                     reference[bin] = max(reference[bin], abs(samples[frame]))
                 }
             }
-            // Close the writer before opening the decoder.
             do {
                 let file = try AVAudioFile(forWriting: url, settings: format.settings)
                 try file.write(from: buffer)
@@ -176,7 +174,6 @@ final class WaveformAnalysisTests: XCTestCase {
         let data = try XCTUnwrap(buffer.floatChannelData)
         for channel in 0..<Int(channels) {
             for frame in 0..<Int(count) {
-                // In stereo only the second channel has audio, guarding channel coverage.
                 data[channel][frame] = channel == Int(channels) - 1 && active.contains(Double(frame) / sampleRate) ? 0.5 : 0
             }
         }

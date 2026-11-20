@@ -1,8 +1,6 @@
 import AVFoundation
 import CryptoKit
 
-/// Independently closed PCM checkpoints. Only the serial audio writer calls
-/// append/close. Manifest failure never removes the surviving chunks.
 final class AudioRecoveryJournal {
     struct Segment: Codable {
         var file: String
@@ -45,7 +43,6 @@ final class AudioRecoveryJournal {
         directory = Self.directory(for: previewURL)
         self.format = format
         manifest = Manifest(sampleRate: format.sampleRate, channels: format.channelCount)
-        // Never overwrite an earlier attempt's journal.
         if FileManager.default.fileExists(atPath: directory.path) {
             guard try FileManager.default.contentsOfDirectory(atPath: directory.path).isEmpty else {
                 throw CocoaError(.fileWriteFileExists)
@@ -88,7 +85,6 @@ final class AudioRecoveryJournal {
             }
             framesWritten += Int64(buffer.frameLength)
         } catch {
-            // A partial write cannot be resumed at a guessed frame offset.
             failedWrite = true
             failureDescription = error.localizedDescription
             checkpoint()
@@ -130,9 +126,6 @@ final class AudioRecoveryJournal {
             .flatMap { try? JSONDecoder().decode(Recovery.self, from: $0) }
     }
 
-    /// Decode the contiguous prefix, including an unmanifested last chunk left
-    /// by process death. Corruption never hides an earlier verified interval or
-    /// compresses a gap. Incomplete recovery retains every original chunk.
     static func recover(previewURL: URL) throws -> URL? {
         let directory = directory(for: previewURL)
         guard FileManager.default.fileExists(atPath: directory.path) else { return nil }
@@ -170,7 +163,6 @@ final class AudioRecoveryJournal {
         do {
             return try reconstruct(chunks: chunks, manifest: manifest, signature: signature, previewURL: previewURL)
         } catch {
-            // A previous reconstruction can now be the only surviving copy.
             guard var cached = verifiedReceipt(previewURL: previewURL) else { throw error }
             cached.complete = false
             cached.sourceSignature = signature
@@ -203,10 +195,6 @@ final class AudioRecoveryJournal {
         var writer: AVAudioFile? = try AVAudioFile(forWriting: temporary, settings: format.settings)
         var frames: Int64 = 0
         var complete = manifest != nil
-        // Look chunks and segments up by name once. A sixteen-hour recording
-        // has about 29,000 checkpoints per track; searching the manifest for
-        // each one kept the library from loading for longer than anyone waited
-        // (2026-11-18).
         let committedByFile = Dictionary((manifest?.segments ?? []).map { ($0.file, $0) },
                                          uniquingKeysWith: { first, _ in first })
         if let manifest {
@@ -241,8 +229,6 @@ final class AudioRecoveryJournal {
         guard frames > 0 else { throw CocoaError(.fileReadCorruptFile) }
         let output = recoveredURL(for: previewURL)
         if var cached = verifiedReceipt(previewURL: previewURL), cached.frames > frames {
-            // Never replace a previously verified full reconstruction with a
-            // shorter prefix after a chunk is damaged or goes missing.
             cached.complete = false
             cached.sourceSignature = signature
             try JSONEncoder().encode(cached).write(to: receiptURL(for: previewURL), options: .atomic)
@@ -260,7 +246,6 @@ final class AudioRecoveryJournal {
 }
 
 enum AudioWriteSafety {
-    /// Failure of the primary encoder cannot suppress the PCM copy.
     static func write(recovery: () -> Bool, primary: () throws -> Void) -> (saved: Bool, error: String?) {
         let recovered = recovery()
         do {

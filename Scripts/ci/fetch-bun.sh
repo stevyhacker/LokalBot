@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Download the checksum-pinned Bun that AgentRuntimeManifest already trusts, for
-# CI tests that run the model stub. Prints the verified binary path last.
-#   Scripts/ci/fetch-bun.sh [dest-dir]
-#   Scripts/ci/fetch-bun.sh --print-pins
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SOURCE="$ROOT/LokalBot/Agent/AgentRuntime.swift"

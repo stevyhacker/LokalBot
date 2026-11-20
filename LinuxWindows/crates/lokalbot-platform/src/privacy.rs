@@ -1,38 +1,19 @@
-//! Privacy rules for day memory, ported from `ScreenContextPrivacy.swift`:
-//! app and site exclusions, password managers, and secret redaction.
-//!
-//! The rules favor false positives on purpose: a redacted title stays useful,
-//! while a stored credential cannot be taken back.
-
 use std::sync::LazyLock;
 
 use lokalbot_core::{ActivitySample, Settings};
 use regex::{Captures, Regex};
 
-/// App name stored for excluded apps and sites (`activity_blocks.app`).
 pub const PRIVATE_APP: &str = "Private";
 
-/// `app_id` the samplers give LokalBot's own windows. Their titles are never
-/// read and [`disposition`] skips them.
 pub const SELF_APP_ID: &str = "lokalbot";
 
-/// What day memory may store for one sample
-/// (`ScreenContextPrivacy.activityDisposition`).
 #[derive(Clone, Debug, PartialEq)]
 pub enum SampleDisposition {
-    /// Store the sample. The title is redacted, or empty when a configured site
-    /// exclusion cannot be ruled out; the URL is sanitized.
     Keep(ActivitySample),
-    /// An excluded app or site: store the time as app [`PRIVATE_APP`] with an
-    /// empty title and no URL.
     Private,
-    /// Store nothing and leave the current block as it is, as when no app is
-    /// frontmost: LokalBot's own windows and the lock screen.
     Skip,
 }
 
-/// Applies the user's exclusions, the built-in password-manager list and
-/// title redaction to one sample.
 pub fn disposition(sample: &ActivitySample, settings: &Settings) -> SampleDisposition {
     disposition_with_rules(
         sample,
@@ -41,7 +22,6 @@ pub fn disposition(sample: &ActivitySample, settings: &Settings) -> SampleDispos
     )
 }
 
-/// [`disposition`] with explicit rule lists.
 pub fn disposition_with_rules(
     sample: &ActivitySample,
     excluded_apps: &[String],
@@ -57,8 +37,6 @@ pub fn disposition_with_rules(
     }
     let has_domain_rules = excluded_domains.iter().any(|rule| !rule.trim().is_empty());
     let url = sanitized_url(sample.url.as_deref());
-    // A browser whose address is unknown cannot be shown to be outside a
-    // configured site exclusion, so only its time is kept.
     let unverifiable_site =
         has_domain_rules && is_browser(&sample.app, &sample.app_id) && url.is_none();
     let title = if unverifiable_site {
@@ -73,7 +51,6 @@ pub fn disposition_with_rules(
     })
 }
 
-/// App ids whose windows are not activity: LokalBot itself and lock screens.
 fn is_skipped(app_id: &str) -> bool {
     let id = app_id.to_lowercase();
     id == SELF_APP_ID
@@ -83,9 +60,6 @@ fn is_skipped(app_id: &str) -> bool {
         )
 }
 
-/// Password managers and credential prompts are never captured, whatever the
-/// editable list says. Ids are desktop-file ids, Wayland app ids, `WM_CLASS`
-/// values and Windows executable names (lowercase).
 const PASSWORD_MANAGER_IDS: &[&str] = &[
     "1password",
     "1password.exe",
@@ -121,11 +95,9 @@ const PASSWORD_MANAGER_IDS: &[&str] = &[
     "kwalletmanager5",
     "org.kde.kwalletmanager",
     "org.kde.kwalletmanager5",
-    // The Windows credential prompt ("Windows Security").
     "credentialuibroker.exe",
 ];
 
-/// Display names of the same apps, compared case-insensitively.
 const PASSWORD_MANAGER_NAMES: &[&str] = &[
     "1password",
     "bitwarden",
@@ -148,13 +120,9 @@ pub fn is_password_manager(app_name: &str, app_id: &str) -> bool {
         return true;
     }
     let name = app_name.trim().to_lowercase();
-    // KeePass, KeePassXC, KeePassX, "KeePass Password Safe".
     name.starts_with("keepass") || PASSWORD_MANAGER_NAMES.contains(&name.as_str())
 }
 
-/// A rule excludes an app when it is a case-insensitive substring of the app
-/// name, or when it contains a dot and equals the app id or a dotted prefix of
-/// it (`ScreenContextPrivacy.isExcluded(appName:bundleIdentifier:rules:)`).
 pub fn is_excluded_app(app_name: &str, app_id: &str, rules: &[String]) -> bool {
     if is_password_manager(app_name, app_id) {
         return true;
@@ -174,9 +142,6 @@ pub fn is_excluded_app(app_name: &str, app_id: &str, rules: &[String]) -> bool {
     })
 }
 
-/// Whether a page address matches a site rule: a URL prefix (`https://x/y`),
-/// a host or `*.host` (subdomains included), or `host/path`
-/// (`ScreenContextPrivacy.isExcluded(sourceURL:rules:)`).
 pub fn is_excluded_url(source_url: Option<&str>, rules: &[String]) -> bool {
     let Some(source_url) = source_url else {
         return false;
@@ -221,8 +186,6 @@ fn host_matches(host: &str, rule: &str) -> bool {
     host == rule || host.ends_with(&format!(".{rule}"))
 }
 
-/// Removes credentials, query and fragment before an address is stored, at
-/// most 800 characters (`ScreenContextPrivacy.sanitizedURL`).
 pub fn sanitized_url(raw: Option<&str>) -> Option<String> {
     let raw = raw?.trim();
     if raw.is_empty() {
@@ -237,7 +200,6 @@ pub fn sanitized_url(raw: Option<&str>) -> Option<String> {
     Some(url.as_str().chars().take(800).collect())
 }
 
-/// Browsers, by app id (desktop id, executable) or display name.
 pub fn is_browser(app_name: &str, app_id: &str) -> bool {
     const IDS: &[&str] = &[
         "firefox",
@@ -297,7 +259,6 @@ pub fn is_browser(app_name: &str, app_id: &str) -> bool {
     IDS.contains(&id.as_str()) || NAMES.contains(&name.as_str())
 }
 
-/// Private or incognito window titles (`ScreenContextPrivacy.isPrivateWindow`).
 pub fn is_private_window(title: &str) -> bool {
     let normalized = fold_diacritics(&title.to_lowercase());
     [
@@ -328,14 +289,9 @@ fn fold_diacritics(text: &str) -> String {
         .collect()
 }
 
-// ------------------------------------------------------------- redaction
-
 enum Guard {
     Always,
-    /// Stands in for the Swift `(?!\[REDACTED)` lookahead: the capture group
-    /// must not already be a redaction marker.
     NotRedacted(usize),
-    /// Card and IBAN candidates must pass their checksum.
     Checksum(fn(&str) -> bool),
 }
 
@@ -347,7 +303,6 @@ struct Rule {
 
 impl Rule {
     fn new(pattern: &str, replacement: &'static str, guard: Guard) -> Self {
-        // Built-in patterns; a failure is a programming error caught by tests.
         let expression = Regex::new(pattern).expect("built-in redaction pattern compiles");
         Self {
             expression,
@@ -366,8 +321,6 @@ impl Rule {
         }
     }
 
-    /// Replaces every accepted match. A rejected match is retried one
-    /// character later, which is how the Swift lookahead behaves.
     fn apply(&self, text: &str) -> (String, usize) {
         let mut out = String::with_capacity(text.len());
         let mut copied = 0;
@@ -409,7 +362,6 @@ fn next_boundary(text: &str, index: usize) -> usize {
 static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     use Guard::*;
     vec![
-        // The name may carry a prefix ("DB_PASSWORD", "aws_secret_access_key").
         Rule::new(
             r#"(?i)\b((?:[A-Za-z0-9]+[_.-])*(?:api[\s_-]?key|access[\s_-]?token|auth[\s_-]?token|client[\s_-]?secret|password|passwd|secret|private[\s_-]?key|access[_-]?key|account[_-]?key|shared[_-]?access[_-]?key|token))(\s*[:=]\s*)["']?([^\s"',;]{6,})"#,
             "${1}${2}[REDACTED]",
@@ -458,7 +410,6 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
             Always,
         ),
         Rule::new(r"\bpypi-[A-Za-z0-9_-]{50,}", "[REDACTED_TOKEN]", Always),
-        // "postgres://admin:hunter22@db:5432" keeps its user and host.
         Rule::new(
             r"(?i)\b([a-z][a-z0-9+.-]*://[^\s:/@]+):([^\s@/]+)@",
             "${1}:[REDACTED]@",
@@ -477,9 +428,6 @@ static RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     ]
 });
 
-/// Numbers whose checksum makes them almost certainly a payment card or an
-/// IBAN. The Swift card pattern's `\1`/`\2` backreferences are spelled out
-/// per separator.
 static CHECKED_RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     vec![
         Rule::new(
@@ -495,9 +443,6 @@ static CHECKED_RULES: LazyLock<Vec<Rule>> = LazyLock::new(|| {
     ]
 });
 
-/// Replaces credentials, tokens, private keys, payment cards and IBANs with
-/// markers. Returns the text and how many replacements were made
-/// (`ScreenContextPrivacy.redact`).
 pub fn redact(text: &str) -> (String, usize) {
     if text.is_empty() {
         return (String::new(), 0);
@@ -514,8 +459,6 @@ pub fn redact(text: &str) -> (String, usize) {
     (output, count)
 }
 
-/// A known issuer prefix and a valid Luhn checksum
-/// (`ScreenContextPrivacy.isPaymentCardNumber`).
 pub fn is_payment_card_number(candidate: &str) -> bool {
     let digits: Vec<u32> = candidate.chars().filter_map(|c| c.to_digit(10)).collect();
     if !(13..=19).contains(&digits.len()) {
@@ -524,7 +467,6 @@ pub fn is_payment_card_number(candidate: &str) -> bool {
     let two = digits[0] * 10 + digits[1];
     let three = two * 10 + digits[2];
     let four = three * 10 + digits[3];
-    // Visa, Mastercard, Amex, Diners, Discover, JCB, UnionPay.
     let issued = digits[0] == 4
         || (51..=55).contains(&two)
         || (2221..=2720).contains(&four)
@@ -548,7 +490,6 @@ pub fn is_payment_card_number(candidate: &str) -> bool {
     sum.is_multiple_of(10)
 }
 
-/// The IBAN mod-97 check (`ScreenContextPrivacy.isIBAN`).
 pub fn is_iban(candidate: &str) -> bool {
     let compact: Vec<char> = candidate.chars().filter(|c| !c.is_whitespace()).collect();
     if !(15..=34).contains(&compact.len()) {
@@ -595,9 +536,7 @@ mod tests {
             "DB_PASSWORD=[REDACTED] and api_key: [REDACTED]"
         );
         assert_eq!(redact("GITHUB_TOKEN=abcdef12").1, 1);
-        // Too short to be a secret.
         assert_eq!(redact("password=abc").0, "password=abc");
-        // The opening quote is consumed, as in the Swift template.
         assert_eq!(
             redact(r#"password="hunter2222""#).0,
             r#"password=[REDACTED]""#
@@ -614,7 +553,6 @@ mod tests {
 
     #[test]
     fn a_skipped_marker_does_not_hide_a_later_secret() {
-        // The lookahead port retries after a rejected match.
         assert_eq!(
             redact("password=[REDACTED]token=abcdefgh").0,
             "password=[REDACTED]token=[REDACTED]"
@@ -671,9 +609,7 @@ mod tests {
         );
         assert_eq!(redact("4111-1111-1111-1111").0, "[REDACTED_CARD]");
         assert_eq!(redact("Amex 3782 822463 10005").0, "Amex [REDACTED_CARD]");
-        // Luhn fails: an order number stays readable.
         assert_eq!(redact("order 4111111111111112").0, "order 4111111111111112");
-        // Mixed separators are not a card.
         assert_eq!(redact("4111 1111-1111 1111").1, 0);
         assert_eq!(
             redact("IBAN DE89 3704 0044 0532 0130 00").0,
@@ -696,7 +632,6 @@ mod tests {
         let apps = rules("1Password, Bitwarden, KeePassXC, KeePass");
         let out = disposition_with_rules(&sample("KeePassXC", "keepassxc", "Vault"), &apps, &[]);
         assert_eq!(out, SampleDisposition::Private);
-        // Built-in list even when the user cleared theirs.
         let out = disposition_with_rules(&sample("Proton Pass", "proton pass.exe", "x"), &[], &[]);
         assert_eq!(out, SampleDisposition::Private);
         let out = disposition_with_rules(
@@ -705,7 +640,6 @@ mod tests {
             &[],
         );
         assert_eq!(out, SampleDisposition::Private);
-        // Substring of the name, and dotted id prefixes.
         assert!(is_excluded_app("Slack", "slack", &rules("sla")));
         assert!(is_excluded_app(
             "Notes",
@@ -756,21 +690,18 @@ mod tests {
             kept(out).map(|s| (s.app, s.title)),
             Some(("Firefox".into(), String::new()))
         );
-        // Native apps keep titles.
         let out = disposition_with_rules(
             &sample("Files", "org.gnome.nautilus", "Home"),
             &[],
             &domains,
         );
         assert_eq!(kept(out).map(|s| s.title), Some("Home".into()));
-        // A known excluded address is private.
         let mut browsing = sample("Google Chrome", "chrome.exe", "Account");
         browsing.url = Some("https://login.bank.example/home?session=1".into());
         assert_eq!(
             disposition_with_rules(&browsing, &[], &domains),
             SampleDisposition::Private
         );
-        // A readable address outside the rules keeps the title, sanitized.
         let mut browsing = sample("Google Chrome", "chrome.exe", "Docs");
         browsing.url = Some("https://user:pw@docs.example/a?b=c#d".into());
         let stored = kept(disposition_with_rules(&browsing, &[], &domains)).unwrap();

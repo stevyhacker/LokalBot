@@ -1,10 +1,3 @@
-//! The floating dictation status: a pill at the bottom of the screen while
-//! listening, transcribing or composing, or a panel with the live transcript,
-//! then a short notice (`DictationOverlayView.swift`,
-//! `DictationOverlayContent.swift`). It never takes focus, so text still lands
-//! in the app the user is typing in. On Wayland it is a layer surface, which
-//! tiling compositors leave out of their layout.
-
 use std::time::Duration;
 
 use crate::i18n::h_flex;
@@ -27,15 +20,12 @@ use crate::ui::{self, Ico};
 const PILL: (f32, f32) = (196., 40.);
 const STATUS: (f32, f32) = (320., 40.);
 const NOTICE: (f32, f32) = (400., 40.);
-/// A delivery message too long for one line.
 const LONG_NOTICE: (f32, f32) = (460., 64.);
 const LONG_NOTICE_CHARACTERS: usize = 56;
 const TRANSCRIPT: (f32, f32) = (540., 172.);
 const PREPARATION: (f32, f32) = (380., 76.);
-/// Space between the pill and the bottom of the screen.
 const BOTTOM_MARGIN: f32 = 64.;
 
-/// Opens, resizes or closes the overlay to match `AppData.dictation`.
 pub fn sync(cx: &mut App) {
     let data = AppData::global(cx);
     let (state, live_panel, show_overlay) = {
@@ -59,7 +49,6 @@ pub fn sync(cx: &mut App) {
     let dimensions = dimensions(&state, live_panel);
     match existing {
         Some((_, open)) if open == dimensions => {}
-        // Layer surfaces and popups keep the size they opened with.
         Some((window, _)) => {
             let _ = window.update(cx, |_, window, _| window.remove_window());
             cx.remove_global::<HudWindow>();
@@ -68,8 +57,6 @@ pub fn sync(cx: &mut App) {
             }
         }
         None => {
-            // The panel with Retry and the notice with Copy are the only way
-            // to those, so they show even with the floating status off.
             let essential = matches!(
                 state,
                 DictationHud::PreparationFailed(_) | DictationHud::Undelivered { .. }
@@ -93,9 +80,6 @@ impl gpui_kit::Global for HudWindow {}
 
 fn open((width, height): (f32, f32), cx: &mut App) -> Option<AnyWindowHandle> {
     let size = size(px(width), px(height));
-    // On Wayland the pill is a layer surface on the bottom edge: a tiling
-    // compositor would otherwise tile it and give it the keyboard, and the
-    // dictated text would land in the pill.
     #[cfg(target_os = "linux")]
     if let Some(kind) = crate::windows::layer_surface(
         "lokalbot-dictation",
@@ -140,8 +124,6 @@ fn options(bounds: Bounds<Pixels>, kind: WindowKind) -> WindowOptions {
     }
 }
 
-/// The shape for this state. Starting already has the shape recording keeps,
-/// so the overlay does not jump when the microphone comes up.
 fn dimensions(state: &DictationHud, live_panel: bool) -> (f32, f32) {
     match state {
         DictationHud::Failed(text) | DictationHud::Notice(text)
@@ -193,7 +175,6 @@ fn level_bars(level: f32, count: usize, lb: &Palette) -> impl IntoElement + use<
         .gap(px(3.))
         .items_center()
         .children((0..count).map(move |i| {
-            // A gentle shape so the middle bars move more than the edges.
             let center =
                 1.0 - ((i as f32 - (count as f32 - 1.0) / 2.0).abs() / (count as f32 / 2.0));
             let height = 3.0 + 15.0 * (level * (0.45 + 0.55 * center)).clamp(0.0, 1.0);
@@ -215,7 +196,6 @@ impl Hud {
     fn new(cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
         let subscription = cx.observe(&data, |_, _, cx| cx.notify());
-        // Keep the level bars moving even if no new state arrives.
         cx.spawn(async move |this, cx| {
             loop {
                 smol::Timer::after(Duration::from_millis(80)).await;
@@ -231,7 +211,6 @@ impl Hud {
         }
     }
 
-    /// The panel with the live transcript (`transcriptPanel`).
     fn transcript_panel(&self, state: &DictationHud, lb: &Palette, cx: &App) -> AnyElement {
         let transcript = self.data.read(cx).dictation_transcript.clone();
         let (title, placeholder): (&str, &str) = match state {
@@ -271,7 +250,6 @@ impl Hud {
             .px(px(16.))
             .py(px(12.))
             .overflow_hidden()
-            // The newest words stay in view; earlier lines leave at the top.
             .justify_end()
             .text_size(px(16.))
             .line_height(px(22.));
@@ -350,7 +328,6 @@ impl Hud {
             .into_any_element()
     }
 
-    /// The model is loading, or did not load (`preparationPanel`).
     fn preparation_panel(
         &self,
         failure: Option<SharedString>,
@@ -427,7 +404,6 @@ impl Hud {
             .into_any_element()
     }
 
-    /// Pasted text the field did not show: offer it again instead of losing it.
     fn undelivered_row(&self, copied: bool, lb: &Palette) -> AnyElement {
         h_flex()
             .size_full()
@@ -499,7 +475,6 @@ impl Hud {
     }
 }
 
-/// The transcript's text and the range of its tentative tail.
 fn transcript_text(
     transcript: &lokalbot_ai::dictation_preview::LiveTranscript,
 ) -> (String, Option<std::ops::Range<usize>>) {
@@ -558,8 +533,6 @@ impl Render for Hud {
             _ => (None, 0.0),
         };
         let listening = matches!(state, DictationHud::Listening { .. });
-        // A microphone problem replaces the bars with words: the overlay must
-        // not look healthy while no audio arrives.
         let mic_problem = listening && label.is_some();
         let failed = matches!(state, DictationHud::Failed(_)) || mic_problem;
         let wrapped = dimensions(&state, live_panel) == LONG_NOTICE;

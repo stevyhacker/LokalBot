@@ -1,78 +1,30 @@
-//! The system tray icon and its menu, the Linux/Windows counterpart of the
-//! macOS menu bar extra (`MenuBarView.swift`, `MenuBarStatusBlock.swift`,
-//! `MenuBarRows.swift`, `MenuBarStatus.swift`).
-//!
-//! A tray menu is drawn by the desktop, not by LokalBot, so the Mac's panel
-//! becomes the closest native menu: its status block as the first rows (a
-//! heading and its lines, which cannot be chosen, then the block's buttons as
-//! items), then rows with an icon and their text, and the switch as a check
-//! item. What the Mac shows at a row's far side (a shortcut, a time, a timer)
-//! is right-aligned on Windows and follows the text on Linux.
-//!
-//! Linux publishes a StatusNotifierItem over D-Bus (`ksni`; KDE, GNOME with
-//! the AppIndicator extension, waybar…) whose rows name freedesktop icons, so
-//! the host paints them in its own menu colours. Windows uses `tray-icon` on a
-//! worker thread with its own message loop; its rows draw the pixels the app
-//! hands to [`Tray::new`]. Create the tray from any thread (the GPUI main
-//! thread is fine); `on_event` runs on a background thread.
-
 use lokalbot_core::settings::{AutoRecordMode, DictationTriggerMode};
 
-/// The symbol at the start of a menu row (`MenuBarRowIcon`, the status
-/// block's tile). Linux hosts look it up in the icon theme by
-/// [`TrayGlyph::icon_name`]; Windows draws the pixels given to [`Tray::new`].
-/// [`TrayGlyph::Record`] and [`TrayGlyph::Stop`] are drawn here, in the
-/// recording red, as the Mac's buttons draw them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum TrayGlyph {
-    /// `circle.fill` in red: Record now, Record, and the recording heading.
     Record,
-    /// `record.circle`: Not recording.
     Idle,
-    /// `stop.fill` in red: Stop.
     Stop,
-    /// `calendar`: a meeting about to start.
     Calendar,
-    /// Join the call.
     Join,
-    /// `pause`: day memory is paused, Pause day memory.
     Pause,
-    /// `play`: Resume, Resume day memory.
     Resume,
-    /// `exclamationmark.triangle`: something needs attention.
     Warning,
-    /// `checkmark.shield`: settings changes waiting for approval.
     Approval,
-    /// `mic`: dictation and the microphone.
     Microphone,
-    /// The call's audio while recording.
     CallAudio,
-    /// `stop.circle`: Stop dictation.
     StopDictation,
-    /// `xmark.circle`: Cancel dictation.
     Cancel,
-    /// `magnifyingglass`: Quick Recall.
     Search,
-    /// `doc.on.doc`: Copy last dictation.
     Copy,
-    /// Earlier dictations (the port's menu for the Mac's context menu).
     History,
-    /// `waveform`: a recent meeting.
     Meeting,
-    /// Open notes, Open live notes.
     Notes,
-    /// Capture Screen Now.
     Capture,
-    /// `macwindow`: Open LokalBot.
     Window,
-    /// `gearshape`: Settings….
     Settings,
-    /// A newer LokalBot on offer.
     Update,
-    /// `power`: Quit LokalBot.
     Quit,
-    /// No symbol: keeps a status line's words in line with its heading's,
-    /// as the Mac indents the block's lines past its tile.
     Blank,
 }
 
@@ -104,10 +56,6 @@ impl TrayGlyph {
         Self::Blank,
     ];
 
-    /// The freedesktop icon name, symbolic so GTK and GNOME Shell paint it in
-    /// the menu's own text colour on light and dark menus alike. Every name is
-    /// in Adwaita, Yaru, elementary and Breeze (KDE falls back to the name
-    /// without "-symbolic"). [`TrayGlyph::Blank`] has none.
     pub fn icon_name(self) -> &'static str {
         match self {
             Self::Record | Self::Idle => "media-record-symbolic",
@@ -135,8 +83,6 @@ impl TrayGlyph {
         }
     }
 
-    /// The glyphs drawn here rather than taken from the theme or the app:
-    /// the red Record and Stop, and the clear [`TrayGlyph::Blank`].
     pub fn drawn(self) -> Option<TrayIcon> {
         match self {
             Self::Record => Some(red_mark(GLYPH_SIZE, false)),
@@ -151,23 +97,17 @@ impl TrayGlyph {
     }
 }
 
-/// Pixels on a side of a drawn glyph: twice the menus' 16 px icons, so they
-/// stay sharp at 200 % and are scaled down elsewhere.
 const GLYPH_SIZE: u32 = 32;
 
-/// #FF3B30, the system red the macOS menu bar uses.
 const RECORDING_RED: [u8; 3] = [0xFF, 0x3B, 0x30];
-/// #FF9F0A, the attention amber (`LBTokens.Palette.attention`).
 const ATTENTION_AMBER: [u8; 3] = [0xFF, 0x9F, 0x0A];
 
-/// A red dot, or a red rounded square for Stop, with soft edges.
 fn red_mark(size: u32, square: bool) -> TrayIcon {
     let s = size as f32;
     let mut pixels = vec![0u8; (size * size * 4) as usize];
     for y in 0..size {
         for x in 0..size {
             let (px, py) = (x as f32 + 0.5 - s / 2., y as f32 + 0.5 - s / 2.);
-            // Signed distance from the shape's edge, negative inside.
             let distance = if square {
                 let half = s * 0.3;
                 let radius = s * 0.08;
@@ -187,14 +127,10 @@ fn red_mark(size: u32, square: bool) -> TrayIcon {
     (pixels, size, size)
 }
 
-/// What a row shows: its words, an icon before them, and what the Mac shows
-/// at the far side.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TrayLabel {
     pub text: String,
     pub icon: Option<TrayGlyph>,
-    /// A shortcut, a time or a timer. Windows right-aligns it; Linux menus
-    /// have no such column, so it follows the text after a middle dot.
     pub trailing: Option<String>,
 }
 
@@ -212,14 +148,11 @@ impl TrayLabel {
         self
     }
 
-    /// Nothing is shown for `None` or an empty text.
     pub fn trailing(mut self, trailing: Option<impl Into<String>>) -> Self {
         self.trailing = trailing.map(Into::into).filter(|text| !text.is_empty());
         self
     }
 
-    /// The dbusmenu label: a single "_" marks an access key there, so each is
-    /// doubled.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     fn linux_text(&self) -> String {
         let text = match &self.trailing {
@@ -229,8 +162,6 @@ impl TrayLabel {
         text.replace('_', "__")
     }
 
-    /// The Win32 menu text: "&" marks an access key there, and text after a
-    /// tab is drawn right-aligned in the shortcut column.
     #[cfg_attr(not(windows), allow(dead_code))]
     fn windows_text(&self) -> String {
         let text = self.text.replace('&', "&&").replace('\t', " ");
@@ -253,25 +184,19 @@ impl From<String> for TrayLabel {
     }
 }
 
-/// One menu row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TrayItem {
-    /// A row that cannot be chosen: the status block's heading and lines, a
-    /// group's heading.
     Status(TrayLabel),
     Action {
         id: String,
         label: TrayLabel,
         enabled: bool,
     },
-    /// A row with a checkmark, for a switch. Tray menus draw no icon beside
-    /// a checkmark.
     Toggle {
         id: String,
         label: String,
         checked: bool,
     },
-    /// A row that opens more rows.
     Submenu {
         label: TrayLabel,
         items: Vec<TrayItem>,
@@ -292,7 +217,6 @@ impl TrayItem {
         Self::Status(label.into())
     }
 
-    /// The same row, greyed out when `enabled` is false.
     pub fn enabled(self, enabled: bool) -> Self {
         match self {
             Self::Action { id, label, .. } => Self::Action { id, label, enabled },
@@ -300,7 +224,6 @@ impl TrayItem {
         }
     }
 
-    /// The row's words, without what sits at its far side.
     pub fn text(&self) -> Option<&str> {
         match self {
             Self::Status(label) | Self::Action { label, .. } | Self::Submenu { label, .. } => {
@@ -314,54 +237,33 @@ impl TrayItem {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TrayEvent {
-    /// The icon itself was clicked (left click on Windows, activate on Linux).
     Activated,
-    /// A menu item was chosen, by its id.
     Item(String),
-    /// The menu is about to open (Linux hosts say so; on Windows the right
-    /// button went down): a chance to bring its status up to date.
     MenuOpening,
 }
 
-/// What the menu shows (`MenuBarStatus` and the panel's other inputs).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TrayMenuState {
-    /// Included in equality so a new interface language rebuilds the menu.
     pub interface_language: String,
-    /// The status block's one state.
     pub block: TrayBlock,
-    /// Attention items listed under the block: every one while a recording
-    /// or a dictation leads, the rest when the first of them is the block.
     pub more_attention: Vec<TrayAttention>,
-    /// A meeting is being recorded: it holds the microphone.
     pub recording: bool,
-    /// What dictation is doing.
     pub dictation: TrayDictation,
-    /// How long the dictation has been spoken, while it is.
     pub dictation_timer: Option<String>,
     pub dictation_enabled: bool,
-    /// The dictation shortcut's label.
     pub dictation_shortcut: String,
     pub dictation_trigger: DictationTriggerMode,
-    /// Quick Recall's shortcut, while the shortcut is on.
     pub quick_recall_shortcut: Option<String>,
-    /// Recent dictations to copy again, newest first.
     pub recent_dictations: Vec<TrayDictationEntry>,
-    /// The latest meetings, the one just saved first.
     pub recent_meetings: Vec<TrayMeeting>,
     pub autocomplete_enabled: bool,
-    /// Day memory runs, so it can be paused.
     pub tracking_enabled: bool,
     pub day_memory_paused: bool,
-    /// Screen context is on: offer "Capture Screen Now".
     pub screen_capture: bool,
-    /// A newer LokalBot is on offer.
     pub update: Option<TrayUpdate>,
 }
 
 impl TrayMenuState {
-    /// The recording dot, or the glyph: faint while day memory is paused,
-    /// with a dot while something needs attention (`MenuBarLabel`).
     pub fn icon_state(&self) -> TrayIconState {
         let recording = match &self.block {
             TrayBlock::Recording(recording) => Some(recording.timer.clone()),
@@ -377,9 +279,6 @@ impl TrayMenuState {
     }
 }
 
-/// The status block's one state, picked in this order: recording, dictating,
-/// needs attention, a meeting about to start, day memory paused, just
-/// stopped, idle (`MenuBarStatus.Block`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TrayBlock {
     Recording(TrayRecording),
@@ -389,11 +288,9 @@ pub enum TrayBlock {
     Paused {
         habit: AutoRecordMode,
     },
-    /// A recording made here that ended within two minutes.
     JustStopped {
         meeting_id: String,
         title: String,
-        /// "12 min".
         duration: String,
     },
     Idle {
@@ -409,71 +306,49 @@ impl Default for TrayBlock {
     }
 }
 
-/// The recording in progress.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TrayRecording {
     pub title: String,
-    /// "12:04".
     pub timer: String,
-    /// What the recorder warns about, in the interface language.
     pub warnings: Vec<String>,
     pub microphone: TraySource,
-    /// `None` while only the microphone is recorded.
     pub call_audio: Option<TraySource>,
 }
 
-/// Whether sound is arriving from one source of the recording
-/// (`MenuBarAudioLine.Source`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TraySource {
-    /// The recorder's own words, such as "Receiving audio" (Mac keys).
     pub status: String,
     pub receiving: bool,
 }
 
-/// A calendar meeting that starts within 15 minutes or is under way and not
-/// being recorded.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TraySoonMeeting {
     pub event_id: String,
     pub title: String,
-    /// "In 5 min", "Starting now", "In progress".
     pub status: String,
-    /// "6:00 PM – 6:30 PM".
     pub schedule: String,
-    /// Recording starts on its own when the call does.
     pub auto_records: bool,
-    /// Other people or a link: a call, recorded with the event's context.
     pub is_call: bool,
-    /// A call with a link to join.
     pub joinable: bool,
 }
 
-/// One thing the menu asks the person to fix (`MenuBarAttention`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TrayAttention {
-    /// The app's latest error, until it is dismissed.
     Error(String),
-    /// Requests from the terminal waiting for an answer.
     Approvals(usize),
 }
 
-/// A dictation the clipboard may have lost.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TrayDictationEntry {
     pub id: String,
-    /// The start of the text, on one line.
     pub preview: String,
-    /// "2:20 PM — Can you check…".
     pub menu_title: String,
 }
 
-/// A meeting in the Recent meetings list.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TrayMeeting {
     pub id: String,
     pub title: String,
-    /// "Just now", "11:00 AM", "Yesterday", "Nov 9".
     pub when: String,
 }
 
@@ -492,7 +367,6 @@ impl TrayDictation {
         !matches!(self, Self::Idle)
     }
 
-    /// The dictation row and button (`dictationTitle`).
     fn button(self) -> &'static str {
         match self {
             Self::Idle => "Start dictation",
@@ -510,32 +384,24 @@ impl TrayDictation {
     }
 }
 
-/// The update row (Sparkle's "Install Update…").
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TrayUpdate {
     pub version: String,
     pub action: TrayUpdateAction,
-    /// Downloading or installing.
     pub busy: bool,
 }
 
-/// What the update row does.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TrayUpdateAction {
-    /// LokalBot replaces itself and relaunches.
     Install,
-    /// Opens the download.
     Download,
-    /// A package manager updates this copy: opens Settings, which says how.
     Show,
 }
 
-/// Menu item ids used by [`standard_items`].
 pub mod item_ids {
     pub const RECORD: &str = "record";
     pub const STOP_RECORDING: &str = "stop-recording";
     pub const COPY_LAST_DICTATION: &str = "copy-last-dictation";
-    /// Quick Recall.
     pub const ASK: &str = "ask";
     pub const OPEN: &str = "open";
     pub const SETTINGS: &str = "settings";
@@ -546,34 +412,25 @@ pub mod item_ids {
     pub const DOWNLOAD_UPDATE: &str = "download-update";
     pub const SHOW_UPDATE: &str = "show-update";
     pub const QUIT: &str = "quit";
-    /// Open live notes: the meeting being recorded.
     pub const LIVE_TRANSCRIPT: &str = "live-transcript";
     pub const DICTATION_BUTTON: &str = "dictation-button";
     pub const AUTOCOMPLETE_ENABLED: &str = "autocomplete-enabled";
     pub const APPROVALS: &str = "approvals";
-    /// Clears the latest error.
     pub const DISMISS_ERROR: &str = "dismiss-error";
-    /// Followed by a meeting id: opens its notes.
     pub const MEETING_PREFIX: &str = "meeting:";
-    /// Followed by a recent dictation's id.
     pub const DICTATION_PREFIX: &str = "dictation:";
-    /// Followed by a calendar event's id: opens its call link.
     pub const JOIN_PREFIX: &str = "join:";
-    /// Followed by a calendar event's id: records it with its context.
     pub const RECORD_EVENT_PREFIX: &str = "record-event:";
 }
 
-/// A menu row shows one line, so long titles shorten (`shortMenuTitle`).
 fn short_title(title: &str) -> String {
     shortened(title, 30, "...")
 }
 
-/// A line of the status block: a meeting's title, a schedule.
 fn short_line(line: &str) -> String {
     shortened(line.lines().next().unwrap_or(line), 60, "…")
 }
 
-/// An error on one line of a menu.
 fn short_error(error: &str) -> String {
     shortened(error.lines().next().unwrap_or(error), 80, "…")
 }
@@ -590,7 +447,6 @@ fn shortened(text: &str, limit: usize, ellipsis: &str) -> String {
     out
 }
 
-/// "A settings change is waiting for your approval", or how many are.
 fn approvals_text(count: usize) -> String {
     use lokalbot_i18n::tr;
     if count == 1 {
@@ -603,8 +459,6 @@ fn approvals_text(count: usize) -> String {
     }
 }
 
-/// What makes a recording start. While day memory is paused the line says
-/// meetings are not: pausing never touches recording (`habitText`).
 fn habit_text(habit: AutoRecordMode, paused: bool) -> &'static str {
     use lokalbot_i18n::tr;
     match habit {
@@ -615,8 +469,6 @@ fn habit_text(habit: AutoRecordMode, paused: bool) -> &'static str {
     }
 }
 
-/// One source of the recording on one row: its name while sound arrives,
-/// otherwise the recorder's words for it (`MenuBarAudioLineRow`).
 fn source_row(source: &TraySource, name: &str, detailed: &str, glyph: TrayGlyph) -> TrayItem {
     let text = if source.receiving {
         name.to_string()
@@ -626,19 +478,14 @@ fn source_row(source: &TraySource, name: &str, detailed: &str, glyph: TrayGlyph)
     TrayItem::status(TrayLabel::new(text).icon(glyph))
 }
 
-/// The status block's rows: what LokalBot is doing in one heading, its
-/// lines, and its buttons, always in the same place under it
-/// (`MenuBarStatusBlock`).
 fn block_items(state: &TrayMenuState, items: &mut Vec<TrayItem>) {
     use item_ids::*;
     use lokalbot_i18n::tr;
-    // A dictation holds the microphone: Record waits for it.
     let record = |text: &str| {
         TrayItem::action(RECORD, TrayLabel::new(text).icon(TrayGlyph::Record))
             .enabled(!state.dictation.is_working())
     };
     let heading = |text: &str, glyph: TrayGlyph| TrayLabel::new(text).icon(glyph);
-    // A line under the heading, in line with the heading's words.
     let line = |text: &str| TrayItem::status(TrayLabel::new(text).icon(TrayGlyph::Blank));
     match &state.block {
         TrayBlock::Recording(recording) => {
@@ -763,8 +610,6 @@ fn block_items(state: &TrayMenuState, items: &mut Vec<TrayItem>) {
                     heading(tr("Join"), TrayGlyph::Join),
                 ));
             }
-            // A solo event without a link may not be a call: it is recorded
-            // like any other manual start, without the event's context.
             let record_event = if meeting.is_call {
                 TrayItem::action(
                     &format!("{RECORD_EVENT_PREFIX}{}", meeting.event_id),
@@ -816,7 +661,6 @@ fn block_items(state: &TrayMenuState, items: &mut Vec<TrayItem>) {
             items.push(record(tr("Record now")));
         }
     }
-    // The rest of what needs attention, each with its fix on its row.
     for item in &state.more_attention {
         items.push(match item {
             TrayAttention::Error(message) => TrayItem::action(
@@ -835,10 +679,6 @@ fn block_items(state: &TrayMenuState, items: &mut Vec<TrayItem>) {
     }
 }
 
-/// The macOS menu bar panel as a menu: the status block, then Quick Recall,
-/// dictation and the last dictation; the two most recent meetings; the
-/// Autocomplete switch, Pause day memory and (port-only) Capture Screen Now;
-/// then Open LokalBot, Settings…, the update on offer and Quit LokalBot.
 pub fn standard_items(state: &TrayMenuState) -> Vec<TrayItem> {
     use item_ids::*;
     use lokalbot_i18n::tr;
@@ -852,8 +692,6 @@ pub fn standard_items(state: &TrayMenuState) -> Vec<TrayItem> {
             .icon(TrayGlyph::Search)
             .trailing(state.quick_recall_shortcut.clone()),
     ));
-    // Starts dictation; while one runs, the same row stops or cancels it. A
-    // meeting recording holds the microphone, so the row waits for it.
     let working = state.dictation.is_working();
     let dictation_trailing = if state.dictation == TrayDictation::Recording {
         state.dictation_timer.clone()
@@ -871,8 +709,6 @@ pub fn standard_items(state: &TrayMenuState) -> Vec<TrayItem> {
         )
         .enabled(!state.recording || working),
     );
-    // The way back to a dictation the clipboard lost: the newest with its
-    // preview, earlier ones in a menu of their own (`LastDictationMenuRow`).
     if let Some((latest, earlier)) = state.recent_dictations.split_first() {
         items.push(TrayItem::action(
             COPY_LAST_DICTATION,
@@ -979,24 +815,17 @@ pub fn standard_items(state: &TrayMenuState) -> Vec<TrayItem> {
     items
 }
 
-/// RGBA pixels, width and height.
 pub type TrayIcon = (Vec<u8>, u32, u32);
 
-/// How the tray icon looks.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TrayIconState {
-    /// A meeting is being recorded: the red dot, which wins over the rest.
     pub recording: bool,
-    /// "MM:SS" while recording, for the tooltip.
     pub timer: Option<String>,
-    /// Day memory is paused: the icon is drawn faint.
     pub dimmed: bool,
-    /// Something needs attention: a dot on the top right corner.
     pub attention: bool,
 }
 
 impl TrayIconState {
-    /// The parts that change the picture, not only the tooltip.
     fn variant(&self) -> (bool, bool, bool) {
         (
             self.recording,
@@ -1006,13 +835,8 @@ impl TrayIconState {
     }
 }
 
-/// How much of the icon is left while day memory is paused
-/// (`MenuBarIcon.dimmedOpacity`).
 const DIMMED_OPACITY: f32 = 0.38;
 
-/// The icon as `state` draws it: the red recording dot, or the icon faint
-/// while day memory is paused, with an amber dot cut into its top right
-/// corner while something needs attention (`MenuBarIcon.image`).
 pub fn icon_variant(icon: &TrayIcon, state: &TrayIconState) -> TrayIcon {
     if state.recording {
         return recording_variant(icon);
@@ -1028,7 +852,6 @@ pub fn icon_variant(icon: &TrayIcon, state: &TrayIconState) -> TrayIcon {
         let (w, h) = (*width as f32, *height as f32);
         let side = w.min(h);
         let radius = side * 0.2;
-        // The clear ring that separates the dot from the icon under it.
         let gap = side * 0.08;
         let (cx, cy) = (w - radius - side * 0.02, radius + side * 0.02);
         for y in 0..*height {
@@ -1051,7 +874,6 @@ pub fn icon_variant(icon: &TrayIcon, state: &TrayIconState) -> TrayIcon {
     (out, *width, *height)
 }
 
-/// The icon with a red recording dot in its lower right corner.
 pub fn recording_variant(icon: &TrayIcon) -> TrayIcon {
     let (pixels, width, height) = icon;
     let mut out = pixels.clone();
@@ -1076,9 +898,6 @@ pub fn recording_variant(icon: &TrayIcon) -> TrayIcon {
     (out, *width, *height)
 }
 
-/// "LokalBot — Recording 12:04", "LokalBot — Needs attention, Day memory is
-/// paused": the icon's state in words, as the Mac's status item says it to
-/// assistive tools.
 fn tooltip_text(base: &str, state: &TrayIconState) -> String {
     use lokalbot_i18n::tr;
     let mut words: Vec<String> = Vec::new();
@@ -1102,15 +921,11 @@ fn tooltip_text(base: &str, state: &TrayIconState) -> String {
     }
 }
 
-/// The tray icon. Dropping it removes the icon.
 pub struct Tray {
     inner: backend::Tray,
 }
 
 impl Tray {
-    /// `glyphs` are the row icons' pixels for menus that draw pixels
-    /// (Windows); Linux names its icons instead. Glyphs that are
-    /// [`TrayGlyph::drawn`] here need none.
     pub fn new(
         icon_rgba: TrayIcon,
         tooltip: &str,
@@ -1128,13 +943,10 @@ impl Tray {
         })
     }
 
-    /// Shows the recording dot, the dimmed icon or the attention dot, and
-    /// says so in the tooltip.
     pub fn set_icon_state(&self, state: TrayIconState) -> anyhow::Result<()> {
         self.inner.set_icon_state(state)
     }
 
-    /// Replaces the menu.
     pub fn set_items(&self, items: Vec<TrayItem>) -> anyhow::Result<()> {
         self.inner.set_items(items)
     }
@@ -1157,7 +969,6 @@ mod backend {
         tooltip_text,
     };
 
-    /// ARGB32 in network byte order, as StatusNotifierItem expects.
     fn pixmap(icon: &TrayIcon) -> Vec<ksni::Icon> {
         let (pixels, width, height) = icon;
         let data = pixels
@@ -1173,7 +984,6 @@ mod backend {
         }]
     }
 
-    /// PNG data for the glyphs drawn here, made once.
     fn drawn_png(glyph: TrayGlyph) -> Option<&'static [u8]> {
         static PNGS: OnceLock<HashMap<TrayGlyph, Vec<u8>>> = OnceLock::new();
         PNGS.get_or_init(|| {
@@ -1197,8 +1007,6 @@ mod backend {
         Some(out)
     }
 
-    /// A row's icon as dbusmenu carries it: a theme name, or PNG data for the
-    /// red glyphs.
     fn icon_fields(label: &TrayLabel) -> (String, Vec<u8>) {
         match label.icon {
             None => (String::new(), Vec::new()),
@@ -1242,8 +1050,6 @@ mod backend {
             (self.on_event)(TrayEvent::Activated);
         }
 
-        /// The app answers with the menu as it is now; hosts that ask before
-        /// opening it show the status current.
         fn menu_about_to_show(&mut self) {
             (self.on_event)(TrayEvent::MenuOpening);
         }
@@ -1320,7 +1126,6 @@ mod backend {
             icon: TrayIcon,
             tooltip: String,
             items: Vec<TrayItem>,
-            // Rows name theme icons here.
             _glyphs: Vec<(TrayGlyph, TrayIcon)>,
             on_event: Box<dyn Fn(TrayEvent) + Send>,
         ) -> anyhow::Result<Self> {
@@ -1391,7 +1196,6 @@ mod backend {
 
     type Handler = Arc<Mutex<Box<dyn Fn(TrayEvent) + Send>>>;
 
-    /// `tray-icon` and `muda` allow one event handler each per process.
     static HANDLER: Mutex<Option<Handler>> = Mutex::new(None);
 
     fn install_handlers() {
@@ -1406,8 +1210,6 @@ mod backend {
                     button_state: MouseButtonState::Up,
                     ..
                 } => deliver(TrayEvent::Activated),
-                // The menu opens when the right button comes up: the app
-                // sends it current before then.
                 TrayIconEvent::Click {
                     button: MouseButton::Right,
                     button_state: MouseButtonState::Down,
@@ -1438,7 +1240,6 @@ mod backend {
         thread: Option<std::thread::JoinHandle<()>>,
     }
 
-    /// The row icons, made once on the tray thread.
     type Glyphs = HashMap<TrayGlyph, MenuIcon>;
 
     fn glyph_icons(given: Vec<(TrayGlyph, TrayIcon)>) -> Glyphs {
@@ -1460,7 +1261,6 @@ mod backend {
             .collect()
     }
 
-    /// A row that cannot be chosen, or an action, with its icon when there is one.
     fn row(
         id: Option<&str>,
         label: &TrayLabel,
@@ -1689,7 +1489,6 @@ mod backend {
 mod tests {
     use super::*;
 
-    /// The rows' words, each with what sits at its far side.
     fn rows(items: &[TrayItem]) -> Vec<String> {
         items
             .iter()
@@ -1782,7 +1581,6 @@ mod tests {
                 "Quit LokalBot",
             ]
         );
-        // Every row that can be chosen has an icon; the switch is a check item.
         for item in &items {
             if let TrayItem::Action { label, .. } = item {
                 assert!(label.icon.is_some(), "{} has no icon", label.text);
@@ -1795,8 +1593,6 @@ mod tests {
         }));
         assert_eq!(icon(find(&items, "Record now")), Some(TrayGlyph::Record));
         assert_eq!(id_of(find(&items, "Design review meeting")), "meeting:A");
-        // Gone with the redesign: the Tools caption, the dictation switch,
-        // View all and Star on GitHub.
         for gone in ["Tools", "Recent", "View all", "Star on GitHub"] {
             assert!(items.iter().all(|item| item.text() != Some(gone)), "{gone}");
         }
@@ -1804,7 +1600,6 @@ mod tests {
             item.text()
                 .is_some_and(|t| t.starts_with("Dictation shortcut"))
         }));
-        // Without its shortcut on, Quick Recall shows none; no meetings yet.
         let bare = standard_items(&TrayMenuState::default());
         assert_eq!(
             find(&bare, "Quick Recall…"),
@@ -1857,7 +1652,6 @@ mod tests {
         assert_eq!(id_of(&items[4]), item_ids::STOP_RECORDING);
         assert_eq!(icon(&items[4]), Some(TrayGlyph::Stop));
         assert_eq!(id_of(&items[5]), item_ids::LIVE_TRANSCRIPT);
-        // The recording holds the microphone: dictation waits.
         assert!(!enabled(find(&items, "Start dictation")));
 
         let alone = standard_items(&recording(None, vec!["The microphone went quiet".into()]));
@@ -1898,7 +1692,6 @@ mod tests {
             id_of(find(&items, "Resume day memory")),
             item_ids::RESUME_DAY_MEMORY
         );
-        // Nothing is captured while day memory is paused.
         assert!(
             items
                 .iter()
@@ -1972,7 +1765,6 @@ mod tests {
         );
         assert_eq!(id_of(&items[3]), "join:E1");
         assert_eq!(id_of(&items[4]), "record-event:E1");
-        // A solo event is recorded like any manual start, and has no Join.
         let solo = soon(false, false);
         assert_eq!(id_of(find(&solo, "Record")), item_ids::RECORD);
         assert!(solo.iter().all(|item| item.text() != Some("Join")));
@@ -2009,7 +1801,6 @@ mod tests {
         );
         assert_eq!(id_of(&approvals[1]), item_ids::APPROVALS);
 
-        // Under a recording, an error keeps its fix on its own row.
         let recording = standard_items(&TrayMenuState {
             block: TrayBlock::Recording(TrayRecording::default()),
             more_attention: vec![TrayAttention::Error("Disk is full".into())],
@@ -2043,9 +1834,7 @@ mod tests {
             ]
         );
         assert_eq!(id_of(&items[2]), item_ids::DICTATION_BUTTON);
-        // The row below says the same, with the timer at its far side.
         assert!(rows(&items[3..]).contains(&"Stop dictation | 00:07".to_string()));
-        // A dictation holds the microphone: a Record shown meanwhile waits.
         let starting = standard_items(&TrayMenuState {
             dictation: TrayDictation::Starting,
             ..Default::default()
@@ -2101,7 +1890,6 @@ mod tests {
                 .any(|item| matches!(item, TrayItem::Submenu { .. }))
         );
 
-        // Earlier ones sit in a menu of their own, each copied by its id.
         let items = standard_items(&TrayMenuState {
             recent_dictations: vec![
                 entry("1", "Can you check the build"),
@@ -2149,7 +1937,6 @@ mod tests {
             item_ids::DOWNLOAD_UPDATE,
             "Download LokalBot 0.10.11…"
         )));
-        // A package manager's copy: Settings says how to update it.
         assert!(
             update(TrayUpdateAction::Show, false)
                 .contains(&row(item_ids::SHOW_UPDATE, "LokalBot 0.10.11 is available"))
@@ -2237,12 +2024,10 @@ mod tests {
                 ..Default::default()
             },
         );
-        // The dot sits top right at full strength, cut out of the faint icon.
         assert_eq!(at(&attention.0, 25, 6), [0xFF, 0x9F, 0x0A, 0xFF]);
         assert_eq!(at(&attention.0, 18, 6)[3], 0);
         assert_eq!(at(&attention.0, 2, 30), [0x40, 0x40, 0x40, 24]);
 
-        // Recording wins: the dot and the dimming wait until it ends.
         let both = icon_variant(
             &icon,
             &TrayIconState {
@@ -2297,7 +2082,6 @@ mod tests {
                 attention: true,
             }
         );
-        // Paused without day memory on is not paused.
         let off = TrayMenuState {
             tracking_enabled: false,
             ..paused.clone()

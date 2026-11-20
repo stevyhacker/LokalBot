@@ -1,11 +1,7 @@
 import XCTest
 @testable import LokalBot
 
-/// What the Quick Recall window lists, where its keyboard is, and what an
-/// answer asked from it reads.
 final class QuickRecallResultsTests: XCTestCase {
-    // MARK: Grouping
-
     func testGroupsKeepAFixedOrderAndListThreeOfEachKind() {
         var found = QuickRecallGrouping.Found()
         found.commands = commands(1)
@@ -25,9 +21,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertEqual(groups[1].rows.map(\.id), found.meetings.prefix(3).map(\.id), "the best three, in ranked order")
     }
 
-    /// Forty screen matches used to push every meeting below the fold.
-    /// A search word that only sits inside a command's name ("ion" in "Start
-    /// dictation") must not put that command under Return.
     func testLooselyMatchingCommandsComeAfterTheSearchResults() {
         var found = QuickRecallGrouping.Found()
         found.looseCommands = commands(2)
@@ -68,8 +61,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertEqual(QuickRecallGrouping.groups(found, showsAgentNotes: false).map(\.kind), [.files])
     }
 
-    /// The search lists at most `displayLimit` of a kind. A kind that filled
-    /// it while the search says more matched reads "40+", never "40".
     func testACappedKindNeverReadsAsAnExactTotal() {
         var found = QuickRecallGrouping.Found()
         found.meetings = meetings(7)
@@ -87,8 +78,6 @@ final class QuickRecallResultsTests: XCTestCase {
                        ["7", "\(RecallSearch.displayLimit)"], "exactly forty that were all listed is a total")
     }
 
-    /// A saved moment can stand for a whole screen source, so there can be
-    /// fewer rows than the sources the search listed and cut.
     func testScreensFoldedBySavedMomentsStillSayTheListWasCut() {
         var found = QuickRecallGrouping.Found()
         found.screens = screens(38)
@@ -102,8 +91,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertTrue(group.hasMore)
     }
 
-    /// A capped kind keeps "Show all" even when its three rows are all it
-    /// lists here; commands are counted, never capped.
     func testCommandsExpandInPlaceAndAreNeverCapped() {
         var found = QuickRecallGrouping.Found()
         found.commands = commands(RecallSearch.displayLimit + 5)
@@ -135,8 +122,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertEqual(groups.map(\.hasMore), [false, false])
         XCTAssertEqual(QuickRecallGrouping.idle(recent: [], commands: commands(2)).map(\.kind), [.commands])
     }
-
-    // MARK: Recent
 
     func testRecentMergesMeetingsAndSavedMomentsByTime() {
         let first = UUID(), second = UUID()
@@ -170,8 +155,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertNil(rows[0].qualifier, "a meeting still recording has no length yet")
         XCTAssertTrue(QuickRecallRecent.rows(meetings: [], savedMoments: []).isEmpty)
     }
-
-    // MARK: Selection
 
     func testTheFirstRowIsSelectedAndNothingIsWhenThereAreNoRows() {
         var cursor = QuickRecallCursor()
@@ -227,10 +210,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertEqual(cursor.target(rowCount: 9, hasAsk: true), .ask)
     }
 
-    // MARK: What an answer reads
-
-    /// A word, or a phrase of up to three words, is answered from the listed
-    /// meetings and screen moments, as ⌘Return always was.
     func testAWordOrShortPhraseReadsTheListedMeetingsAndScreens() {
         let meeting = UUID()
         for query in ["captions", "atlas pilot", "atlas pilot dates"] {
@@ -258,8 +237,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertEqual(onlyMeetings.screenSnapshotIDs, [])
     }
 
-    /// The Ask screen's rule (`AskAnswerScope.isFullQuestion`): a full
-    /// question reads everything in the sources, whatever is listed.
     func testAFullQuestionReadsEverySource() {
         for query in ["what did we decide about captions?", "podsjeti me šta smo dogovorili", "why atlas?"] {
             XCTAssertTrue(AskAnswerScope.isFullQuestion(query), query)
@@ -322,8 +299,6 @@ final class QuickRecallResultsTests: XCTestCase {
                        "Model connection blocked")
     }
 
-    // MARK: A source's quoted line
-
     func testAQuoteMarksTheQuestionsWordsLikeASearchResult() {
         XCTAssertEqual(QuickRecallQuote.terms(in: "What about the Captions, and captions?"), ["captions"])
         XCTAssertEqual(
@@ -347,8 +322,6 @@ final class QuickRecallResultsTests: XCTestCase {
         XCTAssertTrue(line?.contains("«pilot»") == true, "the excerpt is cut around the question's word")
         XCTAssertLessThan(line?.count ?? .max, 240)
     }
-
-    // MARK: When
 
     func testWhenIsShortAndDropsTheTimeOnceItIsOlderThanAWeek() {
         var calendar = Calendar(identifier: .gregorian)
@@ -374,8 +347,6 @@ final class QuickRecallResultsTests: XCTestCase {
                                         locale: Locale(identifier: "de_DE"), localize: { $0 == "Today" ? "Heute" : $0 }),
             "Heute 10:43")
     }
-
-    // MARK: Fixtures
 
     private func time(_ offset: TimeInterval) -> Date { Date(timeIntervalSince1970: 1_700_000_000 + offset) }
 

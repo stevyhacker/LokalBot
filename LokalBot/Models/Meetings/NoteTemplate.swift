@@ -1,9 +1,5 @@
 import Foundation
 
-/// Shape of the notes the LLM should produce. Adapted from Seminarly's
-/// `NoteTemplate` — LokalBot keeps summarisation output as Markdown rather
-/// than structured JSON, so the JSON section schema isn't ported, just the
-/// enum that drives prompt selection.
 enum NoteTemplate: String, Codable, CaseIterable, Identifiable, Sendable {
     case meeting
     case lecture
@@ -23,7 +19,6 @@ enum NoteTemplate: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// One-line summary used in the Settings picker.
     var description: String {
         switch self {
         case .meeting:

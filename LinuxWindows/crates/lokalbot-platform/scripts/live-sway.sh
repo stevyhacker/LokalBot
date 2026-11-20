@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Runs the ignored Wayland live tests inside a headless Sway session with a
-# private runtime folder and D-Bus session. Needs sway, foot, wtype, Python with GTK 3 and
-# dbus-run-session.
-# Usage: crates/lokalbot-platform/scripts/live-sway.sh
 set -euo pipefail
 if [ -z "${LOKALBOT_LIVE_BUS:-}" ]; then
   exec env LOKALBOT_LIVE_BUS=1 dbus-run-session -- "$0" "$@"

@@ -10,12 +10,6 @@ import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
-/**
- * Keeps this device's long-term X25519 private key encrypted with an AES-GCM
- * key that never leaves the Android Keystore (StrongBox when the device has
- * one). The encrypted key lives in no-backup storage, so it is never copied
- * to another device.
- */
 class DeviceKeyVault(
     private val file: File,
     private val alias: String = "me.dotenv.lokalbot.device-key-wrap",
@@ -49,7 +43,6 @@ class DeviceKeyVault(
         check(temp.renameTo(file)) { "Could not save the device key" }
     }
 
-    /** Forgets the device key; pairing again creates a new one. */
     fun erase() {
         file.delete()
         runCatching { keyStore().deleteEntry(alias) }

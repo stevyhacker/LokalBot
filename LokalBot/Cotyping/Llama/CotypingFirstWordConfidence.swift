@@ -1,14 +1,11 @@
 import Foundation
 
-/// Replay-only alternatives. Neither is a calibrated acceptance probability.
 enum CotypingConfidenceBoundaryMode: String, Codable, Sendable {
     case selectedToken
     case wordOnly
     case boundaryMass
 }
 
-/// One sampled token stream, with independent sticky confidence decisions.
-/// The fallback never changes a passing current decision or a forced midword.
 struct CotypingConfidenceDecision: Sendable {
     static let hybridMinimum: Float = 0.31
     private(set) var primary: CotypingFirstWordConfidence
@@ -44,7 +41,6 @@ struct CotypingConfidenceDecision: Sendable {
     }
 
     mutating func accept(piece: String, probability: Float, boundaryProbability: Float?, isEOG: Bool = false) -> Bool {
-        // The existing selected-token gate intentionally does not weigh EOS.
         if primaryPassed, !isEOG || primary.boundaryMode != .selectedToken {
             primaryPassed = primary.accept(piece: piece, probability: probability, boundaryProbability: boundaryProbability)
         }
@@ -55,17 +51,6 @@ struct CotypingConfidenceDecision: Sendable {
     }
 }
 
-/// The confidence gate: stay quiet when the model is unsure, as Cotypist does.
-/// A suggestion at the start of a word is dropped when the model's own
-/// probability of its first word falls below `minimumProbability`.
-///
-/// The probability is the product of the emitted tokens' probabilities up to
-/// and including the token in which the first word ends. Measured on real
-/// replies and the user's own prompts and messages (2026-10-06, E2B): wrong
-/// suggestions shown halve for about 1.5 points of keystrokes saved, because a
-/// hidden suggestion usually comes back as a completion once the first letter
-/// is typed. Suggestions inside a word are not gated: their first token is
-/// forced to re-type the fragment, so its probability is not comparable.
 struct CotypingFirstWordConfidence: Equatable, Sendable {
     static let minimumProbability: Float = 0.1
 
@@ -73,7 +58,6 @@ struct CotypingFirstWordConfidence: Equatable, Sendable {
     let boundaryMode: CotypingConfidenceBoundaryMode
     private(set) var probability: Float = 1
     private var text = ""
-    /// The first word has ended, or the gate is off: nothing more to weigh.
     private(set) var isSettled: Bool
 
     init(minimum: Float, boundaryMode: CotypingConfidenceBoundaryMode = .selectedToken,
@@ -92,8 +76,6 @@ struct CotypingFirstWordConfidence: Equatable, Sendable {
         return Self.endsFirstWord(text + String(first))
     }
 
-    /// Inspect the first complete Unicode scalar, even if the token ends in an
-    /// incomplete UTF-8 sequence. Byte continuation tokens are never boundaries.
     static func tokenStartsBoundary(_ bytes: [UInt8]) -> Bool {
         guard let first = bytes.first else { return false }
         let length: Int
@@ -111,16 +93,9 @@ struct CotypingFirstWordConfidence: Equatable, Sendable {
         return !(character.isLetter || character.isNumber || character == "_" || "'’-".contains(character))
     }
 
-    /// Weighs the next emitted token. Returns false once the first word is
-    /// known to fall below the minimum; the product only falls, so generation
-    /// can stop there.
     mutating func accept(piece: String, probability tokenProbability: Float, boundaryProbability: Float? = nil) -> Bool {
         guard !isSettled else { return true }
         if boundaryMode != .selectedToken, startsNewBoundary(piece) {
-            // A token that begins the next word is evidence of termination; its
-            // particular suffix is irrelevant to first-word agreement. WordOnly
-            // is an upper-bound heuristic. BoundaryMass retains termination mass
-            // on this token path; it does not marginalize other tokenizations.
             let factor: Float = boundaryMode == .wordOnly ? 1 : (boundaryProbability ?? 0)
             probability *= factor.isFinite ? min(1, max(0, factor)) : 0
             isSettled = true
@@ -133,7 +108,6 @@ struct CotypingFirstWordConfidence: Equatable, Sendable {
         return true
     }
 
-    /// A word character followed by a character that cannot continue a word.
     static func endsFirstWord(_ text: String) -> Bool {
         var inWord = false
         for character in text.drop(while: \.isWhitespace) {

@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// "Try a sample meeting" before its models are on this Mac: what downloads,
-/// as its own step, then the steps that follow. Nothing downloads until the
-/// person chooses to; the sample is added as soon as the models are ready.
 struct SampleMeetingSetupSheet: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var modelRoles: ModelRoles
@@ -71,8 +68,6 @@ struct SampleMeetingSetupSheet: View {
     }
 }
 
-/// The banner on the sample meeting: what it is, how far processing got, the
-/// suggested question, and removing it in one step.
 struct SampleMeetingBanner: View {
     @EnvironmentObject var app: AppState
     let meeting: Meeting
@@ -129,7 +124,6 @@ struct SampleMeetingBanner: View {
     }
 }
 
-/// One step of the sample: done, running, or still to come.
 struct SampleMeetingStage: View {
     let done: Bool
     let active: Bool

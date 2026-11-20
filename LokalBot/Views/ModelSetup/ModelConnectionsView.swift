@@ -243,7 +243,6 @@ struct ModelConnectionsView: View {
                         .onChange(of: openAIAPIKeyDraft) { openAIAPIKeySaved = false }
                     Button("Save key") {
                         app.settings.openAIAPIKey = openAIAPIKeyDraft
-                        // Only acknowledge persistence after reading back from Keychain.
                         openAIAPIKeySavedValue = app.settings.openAIAPIKey
                         openAIAPIKeySaved = openAIAPIKeySavedValue == openAIAPIKeyDraft
                         if openAIAPIKeySaved { editingOpenAIAPIKey = false }

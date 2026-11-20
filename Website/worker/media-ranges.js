@@ -1,10 +1,5 @@
-// Workers static assets answer byte-range requests with the whole file. Safari
-// won't play audio or video without ranges, and other browsers can't seek, so
-// media requests run through here first (see run_worker_first in
-// wrangler.jsonc). Everything else is served by the assets directly.
-
 const MEDIA = /\.(mp4|m4a|mp3|webm|mov)$/i;
-const MAX_BYTES = 64 * 1024 * 1024; // larger files are served whole, as before
+const MAX_BYTES = 64 * 1024 * 1024;
 
 export default {
   async fetch(request, env) {
@@ -18,7 +13,6 @@ export default {
       return whole;
     }
 
-    // The asset response doesn't always say how long it is, so read it whole.
     const body = await res.arrayBuffer();
     const size = body.byteLength;
     let start, end;

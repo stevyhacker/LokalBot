@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The round, Reminders-like toggle used for action items everywhere they
-/// appear. Done is a filled teal check; open is an empty circle.
 public struct ActionItemToggleStyle: ToggleStyle {
     var pending: Bool
 
@@ -20,8 +18,6 @@ extension ToggleStyle where Self == ActionItemToggleStyle {
     public static func actionItem(pending: Bool) -> ActionItemToggleStyle { .init(pending: pending) }
 }
 
-/// The circle itself, with a 44 pt target. A change waiting for the Mac
-/// shows an amber ring.
 public struct ActionCheck: View {
     let isDone: Bool
     let pending: Bool

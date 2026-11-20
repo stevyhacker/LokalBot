@@ -1,5 +1,3 @@
-//! The job allowance for one notes run (`MeetingGenerationBudget.swift`).
-
 use std::time::Instant;
 
 use lokalbot_core::settings::GenerationBudget;
@@ -16,7 +14,6 @@ pub struct Limits {
     pub requests: usize,
     pub input_tokens: u64,
     pub output_tokens: u64,
-    /// Standard limits cover four meeting parts and grow with the meeting.
     pub scales_with_parts: bool,
 }
 
@@ -56,7 +53,6 @@ impl Limits {
 }
 
 const PARTS_PER_BUDGET: f64 = 4.0;
-/// Output tokens per second the time allowance assumes.
 const TOKENS_PER_SECOND: f64 = 35.0;
 
 pub struct Budget {
@@ -80,7 +76,6 @@ impl Budget {
         }
     }
 
-    /// `standard_parts` counts the work in standard-size parts.
     pub fn record_plan(&mut self, parts: usize, standard_parts: f64) {
         if self.limits.scales_with_parts {
             self.scale =
@@ -104,8 +99,6 @@ impl Budget {
         (self.limits.seconds * self.scale - self.started.elapsed().as_secs_f64()).max(0.0)
     }
 
-    /// Output tokens for the next call: the desired amount, shared fairly with
-    /// the parts this run can still process (one repair reserved per part).
     pub fn allowance(
         &self,
         remaining_parts: usize,
@@ -138,7 +131,6 @@ impl Budget {
         Ok(())
     }
 
-    /// Unknown usage keeps the reservation; absence is never zero usage.
     pub fn finish(&mut self, reserved: u64, actual: Option<u64>) {
         if let Some(actual) = actual {
             self.output_tokens = (self.output_tokens + actual).saturating_sub(reserved);
@@ -159,8 +151,6 @@ mod tests {
         let mut small = Budget::new(Limits::for_preset(GenerationBudget::Conservative));
         small.record_plan(8, 8.0);
         assert_eq!(small.request_limit(), 6);
-        // Three processable parts: 4,096 output tokens each, but 300 s at
-        // 35 tokens/s caps each at about 3,500.
         let allowance = small.allowance(8, 8_192, 512).unwrap();
         assert!((3_400..=3_500).contains(&allowance), "{allowance}");
     }

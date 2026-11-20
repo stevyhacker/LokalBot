@@ -3,18 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Where the ghost text goes and how it looks, as pure math so it is
-//! deterministic and testable (`CotypingOverlayGeometry.swift`,
-//! `CotypingInlineGhostLayout.swift`, `CotypingGhostTextLayout.swift`,
-//! `CotypingGhostSizing.swift`, `CotypingRenderMode.swift`,
-//! `CotypingFieldStyle.swift`).
-//!
-//! Rects use screen pixels with the origin at the top left, as AT-SPI and UI
-//! Automation report them (macOS works bottom-up, so "below" there is
-//! "above" in the Swift code). Text is measured through a closure, so tests
-//! need no fonts.
-
-/// A rectangle in screen pixels, origin at the top left.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Rect {
     pub x: f32,
@@ -52,7 +40,6 @@ impl Rect {
             && self.height.is_finite()
     }
 
-    /// Grows (negative) or shrinks (positive) every edge.
     pub fn inset(&self, dx: f32, dy: f32) -> Rect {
         Rect::new(
             self.x + dx,
@@ -99,7 +86,6 @@ impl Rect {
         (right > x && bottom > y).then(|| Rect::new(x, y, right - x, bottom - y))
     }
 
-    /// Whole pixels that cover this rect.
     pub fn integral(&self) -> Rect {
         let x = self.x.floor();
         let y = self.y.floor();
@@ -112,7 +98,6 @@ impl Rect {
     }
 }
 
-/// An sRGB color.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Rgb {
     pub r: u8,
@@ -128,8 +113,6 @@ impl Rgb {
         b: 255,
     };
 
-    /// "#1a2b3c", "1a2b3c", or the toolkit forms "26,43,60" (AT-SPI) and
-    /// "rgb(26,43,60)".
     pub fn parse(text: &str) -> Option<Rgb> {
         let text = text.trim();
         let hex = text.strip_prefix('#').unwrap_or(text);
@@ -154,7 +137,6 @@ impl Rgb {
         if parts.len() < 3 {
             return None;
         }
-        // AT-SPI reports 16-bit channels ("65535,65535,65535").
         let scale = if parts[..3].iter().any(|v| *v > 255.0) {
             257.0
         } else {
@@ -168,34 +150,26 @@ impl Rgb {
         })
     }
 
-    /// Perceived luminance (0–1), Rec. 601 weights
-    /// (`CotypingGhostStyle.relativeLuminance`).
     pub fn luminance(&self) -> f32 {
         (0.299 * f32::from(self.r) + 0.587 * f32::from(self.g) + 0.114 * f32::from(self.b)) / 255.0
     }
 }
 
-/// A color with opacity, what the ghost is painted in.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Paint {
     pub rgb: Rgb,
     pub alpha: f32,
 }
 
-/// The field's own font and colors, when its toolkit reports them
-/// (`CotypingFieldStyle`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FieldStyle {
     pub font_family: Option<String>,
-    /// Font size in points.
     pub font_points: Option<f32>,
     pub color: Option<Rgb>,
     pub background: Option<Rgb>,
 }
 
-/// Opacity of ghost text relative to the field's text color.
 pub const GHOST_OPACITY: f32 = 0.4;
-/// The part the next Tab takes is drawn a little stronger.
 pub const EMPHASIS_OPACITY: f32 = 0.62;
 const UNRELIABLE_CONTRAST: f32 = 2.0;
 const MIN_LEGIBLE_CONTRAST: f32 = 3.0;
@@ -215,10 +189,6 @@ fn dim_hint(dark_background: bool) -> Paint {
     }
 }
 
-/// The ghost's color: the field's text color dimmed, unless it would be
-/// hard to read against the field, then a light or dark hint. A sampled
-/// background luminance beats anything the toolkit reported
-/// (`CotypingGhostStyle.resolvedGhostColor`).
 pub fn ghost_paint(
     style: Option<&FieldStyle>,
     dark_environment: bool,
@@ -252,24 +222,15 @@ pub fn ghost_paint(
     }
 }
 
-/// Font size bounds for the ghost, in logical pixels (8–48 pt on macOS).
 pub const MIN_FONT_PX: f32 = 10.0;
 pub const MAX_FONT_PX: f32 = 64.0;
-/// A caret estimated from the field frame says little about the text.
 pub const MAX_ESTIMATED_FONT_PX: f32 = 21.0;
-/// A font's glyph box is about 1.2 times its size, and toolkits report a
-/// caret about that tall.
 const GLYPH_BOX_PER_SIZE: f32 = 1.2;
 
-/// Points to logical pixels (96 per inch, the convention of GPUI and both
-/// toolkits).
 pub fn points_to_px(points: f32) -> f32 {
     points * 96.0 / 72.0
 }
 
-/// The ghost's font size in the same pixels as `caret_height`: the field's
-/// own size when reported, corrected for page zoom when the caret is far off
-/// its glyph box, else estimated from the caret (`CotypingGhostFontSizing`).
 pub fn ghost_font_px(style_px: Option<f32>, caret_height: f32, caret_exact: bool) -> f32 {
     let size = match style_px.filter(|px| px.is_finite() && *px > 0.0) {
         Some(reported) => {
@@ -299,19 +260,12 @@ pub fn ghost_font_px(style_px: Option<f32>, caret_height: f32, caret_exact: bool
     size.clamp(MIN_FONT_PX, MAX_FONT_PX)
 }
 
-/// How a suggestion is shown (`CotypingRenderMode`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RenderMode {
-    /// In the text, right after the caret.
     Inline,
-    /// A small pill under the caret's line: text follows the caret on its
-    /// line, or the caret position is only estimated.
     Pill,
 }
 
-/// Inline only at the end of a line with an exact caret; ghost text over
-/// the characters after the caret would be unreadable
-/// (`CotypingRenderModePolicy.mode`).
 pub fn render_mode(caret_exact: bool, caret_at_end_of_line: bool) -> RenderMode {
     if caret_exact && caret_at_end_of_line {
         RenderMode::Inline
@@ -320,67 +274,46 @@ pub fn render_mode(caret_exact: bool, caret_at_end_of_line: bool) -> RenderMode 
     }
 }
 
-/// Metrics of the ghost font, in the same pixels as the caret.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FontMetrics {
-    /// The font's default line height.
     pub line_height: f32,
 }
 
-/// One line of an inline suggestion.
 #[derive(Clone, Debug, PartialEq)]
 pub struct InlineLine {
     pub text: String,
-    /// Where `text` starts in the displayed suggestion, in characters.
     pub offset: usize,
-    /// The line's box: its leading end (the right end for right-to-left
-    /// text), its top and its height. Text is centered vertically in it.
     pub x: f32,
     pub y: f32,
     pub height: f32,
     pub width: f32,
 }
 
-/// Where each line of an inline suggestion goes. The first continues the
-/// caret's line from the caret; what does not fit before the field's edge
-/// wraps onto the lines below, at the field's text edge, but only onto
-/// lines that hold no text and lie inside the field. Nothing is ever drawn
-/// over text (`CotypingInlineGhostLayout`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct InlineLayout {
     pub lines: Vec<InlineLine>,
     pub right_to_left: bool,
-    /// Every character has a place. When false the lines hold only the
-    /// start, or nothing.
     pub complete: bool,
-    /// Where wrapped lines start.
     pub wrap_edge: f32,
 }
 
-/// Kept clear inside the field's edges, where most fields pad their text.
 pub const FIELD_INSET: f32 = 8.0;
 pub const SCREEN_MARGIN: f32 = 8.0;
 pub const MAX_INLINE_LINES: usize = 6;
 const FIELD_EDGE_TOLERANCE: f32 = 1.0;
 
-/// What an inline layout is computed from.
 #[derive(Clone, Copy, Debug)]
 pub struct InlineInput<'a> {
     pub caret: Rect,
     pub field: Option<Rect>,
-    /// The field's paragraph up to the caret. When it fits on one line it
-    /// shows where the field's text starts, which wrapped lines line up with.
     pub preceding_line: &'a str,
     pub screen: Option<Rect>,
     pub right_to_left: bool,
-    /// Nothing follows the caret, so the lines below it are free.
     pub lines_below_free: bool,
     pub metrics: FontMetrics,
 }
 
 impl InlineLayout {
-    /// Lays out `text` at the caret. `measure` gives a string's width in the
-    /// ghost font.
     pub fn make(
         text: &str,
         input: &InlineInput<'_>,
@@ -408,7 +341,6 @@ impl InlineLayout {
         let pitch = input.caret.height.max(input.metrics.line_height);
         let mut top = input.caret.y;
         let height = input.caret.height.max(1.0);
-        // Wrapped lines stay inside the field: below it is other interface.
         let lowest_bottom = input
             .field
             .map(|field| field.bottom() + FIELD_EDGE_TOLERANCE);
@@ -439,9 +371,6 @@ impl InlineLayout {
             let remaining: String = chars[position..].iter().collect();
             let piece = fitting_prefix(&remaining, budget, !first, measure);
             if first && piece.is_empty() && continues_word {
-                // The rest of the word at the caret does not fit, so the app
-                // moves the whole word to the next line: no place on screen
-                // shows where this text will go.
                 return InlineLayout {
                     lines: Vec::new(),
                     right_to_left: rtl,
@@ -462,7 +391,6 @@ impl InlineLayout {
                 });
                 position += count;
             }
-            // A line break or the space the app wraps at is not drawn.
             while position < chars.len() && (chars[position] == ' ' || chars[position] == '\n') {
                 position += 1;
             }
@@ -483,7 +411,6 @@ impl InlineLayout {
         }
     }
 
-    /// The boxes of every line together.
     pub fn bounds(&self) -> Option<Rect> {
         self.lines
             .iter()
@@ -498,9 +425,6 @@ impl InlineLayout {
             .reduce(|a, b| a.union(&b))
     }
 
-    /// The longest start of `text`, ending after a word, that can be drawn
-    /// whole. `None` when nothing can, or when `allow_partial` is off and the
-    /// whole cannot (`CotypingInlineGhostLayout.longestDrawable`).
     pub fn longest_drawable(
         text: &str,
         allow_partial: bool,
@@ -523,10 +447,6 @@ impl InlineLayout {
             })
     }
 
-    /// Where the caret will be once `typed` is in the field: at the end of
-    /// `typed` laid out from the caret, since the app wraps it by the same
-    /// rule. `None` when that is only known once the app shows it
-    /// (`CotypingInlineGhostLayout.caretRect(afterTyping:)`).
     pub fn caret_after_typing(
         typed: &str,
         input: &InlineInput<'_>,
@@ -546,7 +466,6 @@ impl InlineLayout {
         } else {
             input.caret.right()
         };
-        // Spaces are never drawn at a line's end, but the caret goes past them.
         let trailing: String = typed
             .chars()
             .rev()
@@ -572,7 +491,6 @@ impl InlineLayout {
     }
 }
 
-/// Every start of `text` that ends after a word, shortest first.
 pub fn word_prefixes(text: &str) -> Vec<String> {
     let mut prefixes = Vec::new();
     let chars: Vec<(usize, char)> = text.char_indices().collect();
@@ -593,8 +511,6 @@ pub fn word_prefixes(text: &str) -> Vec<String> {
     prefixes
 }
 
-/// Whitespace runs drawn as one space, keeping a leading space and line
-/// breaks (`CotypingInlineGhostLayout.displayText`).
 pub fn display_text(text: &str) -> String {
     text.split('\n')
         .map(|line| {
@@ -613,8 +529,6 @@ pub fn display_text(text: &str) -> String {
         .join("\n")
 }
 
-/// Horizontal room for text: inside the field when it reports a frame wide
-/// enough to hold a line, and always on screen.
 fn text_span(caret: Rect, field: Option<Rect>, screen: Option<Rect>) -> (f32, f32) {
     let screen =
         screen.unwrap_or_else(|| Rect::new(caret.x - 400.0, caret.y - 300.0, 1200.0, 600.0));
@@ -629,8 +543,6 @@ fn text_span(caret: Rect, field: Option<Rect>, screen: Option<Rect>) -> (f32, f3
     (min, max.max(min))
 }
 
-/// Where wrapped lines start. A paragraph that fits on one line ends at the
-/// caret, so its width back from the caret finds the field's text edge.
 fn wrap_edge(
     preceding_line: &str,
     anchor: f32,
@@ -659,9 +571,6 @@ fn wrap_edge(
     if rtl { span.1 } else { span.0 }
 }
 
-/// The longest run of whole words from the start of `text` that fits in
-/// `available`, stopping at a line break. A word wider than a whole line is
-/// split between characters when `must_take_something` is set.
 fn fitting_prefix(
     text: &str,
     available: f32,
@@ -705,14 +614,10 @@ fn fitting_prefix(
     chars[..fitted].iter().collect()
 }
 
-/// Gap between the caret and the pill, and the pill and screen edges.
 pub const PILL_GAP: f32 = 2.0;
-/// Movement too small to see, or rounding between two reads.
 pub const REANCHOR_TOLERANCE: f32 = 1.5;
 pub const BACKWARD_DRIFT_HOLD_MS: u64 = 300;
 
-/// The pill under the caret's line, above it when there is no room below
-/// (`CotypingOverlayGeometry.mirrorFrame`).
 pub fn pill_frame_at_caret(caret: Rect, width: f32, height: f32, screen: Option<Rect>) -> Rect {
     let width = width.max(8.0);
     let height = height.max(18.0);
@@ -732,10 +637,6 @@ pub fn pill_frame_at_caret(caret: Rect, width: f32, height: f32, screen: Option<
     Rect::new(x, y, width, height)
 }
 
-/// Where the pill goes. An exact caret gets [`pill_frame_at_caret`]. A caret
-/// estimated from the field says nothing about where the text is, so the
-/// pill goes just outside the field, below it or else above it, never over
-/// its text; `None` without such room (`CotypingOverlayGeometry.popupFrame`).
 pub fn pill_frame(
     caret: Rect,
     caret_exact: bool,
@@ -768,11 +669,6 @@ pub fn pill_frame(
     (above.y >= screen.y).then_some(above)
 }
 
-/// Whether an inline ghost stays put when the caret is read again: it moves
-/// to any other line, and whenever the caret is further along than the ghost
-/// starts (the ghost would cover typed text). A ghost ahead of the caret is
-/// held only just after an accept, since apps often show inserted text
-/// before they move the caret (`CotypingOverlayGeometry.shouldHoldInlineReanchor`).
 pub fn should_hold_reanchor(
     current: (f32, f32),
     target: (f32, f32),
@@ -791,8 +687,6 @@ pub fn should_hold_reanchor(
     caret_ahead < 0.0 && ms_since_accept.is_some_and(|ms| ms <= BACKWARD_DRIFT_HOLD_MS)
 }
 
-/// The widest a pill's text may be, and how many lines it shows
-/// (`CotypingGhostTextLayout`).
 pub const PILL_MAX_TEXT_WIDTH: f32 = 420.0;
 pub const PILL_MIN_TEXT_WIDTH: f32 = 80.0;
 pub const PILL_MAX_LINES: usize = 4;
@@ -804,8 +698,6 @@ pub fn pill_text_width(screen: Option<Rect>) -> f32 {
     }
 }
 
-/// Wraps pill text into at most `max_lines` lines no wider than
-/// `max_width`, ending with "..." when cut (`CotypingGhostTextLayout.wrappedLines`).
 pub fn pill_lines(
     text: &str,
     max_width: f32,
@@ -843,7 +735,6 @@ pub fn pill_lines(
             }
             words.drain(..used);
             if measure(&line) > max_width {
-                // One word wider than the pill: split it between characters.
                 let mut cut = String::new();
                 for c in line.chars() {
                     let mut next = cut.clone();
@@ -881,7 +772,6 @@ pub fn pill_lines(
 mod tests {
     use super::*;
 
-    /// A monospace stand-in: every character is 8 px wide.
     fn mono(text: &str) -> f32 {
         text.chars().count() as f32 * 8.0
     }
@@ -913,8 +803,6 @@ mod tests {
 
     #[test]
     fn long_text_wraps_at_the_field_text_edge_onto_free_lines() {
-        // The paragraph "Hi" (16 px) ends at the caret: the field's text
-        // starts at 108, which wrapped lines line up with.
         let field = Rect::new(100.0, 100.0, 200.0, 200.0);
         let caret = Rect::new(123.0, 110.0, 1.0, 18.0);
         let layout = InlineLayout::make(
@@ -927,11 +815,9 @@ mod tests {
         assert!(layout.lines.len() >= 2);
         assert_eq!(layout.lines[1].x, 108.0);
         assert_eq!(layout.lines[1].y, 128.0);
-        // No line ends past the field's text edge.
         for line in &layout.lines {
             assert!(line.x + line.width <= field.right() - FIELD_INSET + 0.01);
         }
-        // With text after the caret nothing wraps, so the layout is partial.
         let mut busy = input(caret, Some(field), "Hi");
         busy.lines_below_free = false;
         let partial = InlineLayout::make(" there, this wraps around", &busy, None, &mono);
@@ -942,7 +828,6 @@ mod tests {
     #[test]
     fn a_word_that_moves_to_the_next_line_has_no_place() {
         let field = Rect::new(0.0, 0.0, 200.0, 100.0);
-        // The caret is at the very edge, mid-word.
         let caret = Rect::new(190.0, 10.0, 1.0, 18.0);
         let layout = InlineLayout::make("ing", &input(caret, Some(field), "follow"), None, &mono);
         assert!(layout.lines.is_empty());
@@ -971,7 +856,6 @@ mod tests {
         let moved = InlineLayout::caret_after_typing(" up", &input, None, &mono).unwrap();
         assert_eq!(moved.x, 324.0);
         assert_eq!(moved.y, 110.0);
-        // A trailing space still moves the caret.
         let spaced = InlineLayout::caret_after_typing(" up ", &input, None, &mono).unwrap();
         assert_eq!(spaced.x, 332.0);
         assert!(InlineLayout::caret_after_typing("a\nb", &input, None, &mono).is_none());
@@ -992,10 +876,8 @@ mod tests {
         let low = Rect::new(100.0, 780.0, 1.0, 18.0);
         let above = pill_frame_at_caret(low, 120.0, 24.0, screen);
         assert_eq!(above.y, 780.0 - PILL_GAP - 24.0);
-        // Kept on screen at the right edge.
         let edge = pill_frame_at_caret(Rect::new(990.0, 10.0, 1.0, 18.0), 120.0, 24.0, screen);
         assert_eq!(edge.x, 880.0);
-        // An estimated caret: outside the field, never over its text.
         let field = Rect::new(50.0, 300.0, 400.0, 100.0);
         let pill = pill_frame(caret, false, Some(field), 120.0, 24.0, screen).unwrap();
         assert_eq!(pill.y, 402.0);
@@ -1019,14 +901,12 @@ mod tests {
             None,
             false
         ));
-        // The caret ran past the ghost: move.
         assert!(!should_hold_reanchor(
             (100.0, 50.0),
             (130.0, 50.0),
             None,
             false
         ));
-        // Behind the ghost right after an accept: hold.
         assert!(should_hold_reanchor(
             (130.0, 50.0),
             (100.0, 50.0),
@@ -1039,7 +919,6 @@ mod tests {
             Some(900),
             false
         ));
-        // Another line: move.
         assert!(!should_hold_reanchor(
             (100.0, 50.0),
             (100.0, 70.0),
@@ -1050,14 +929,10 @@ mod tests {
 
     #[test]
     fn font_size_follows_the_field_or_the_caret() {
-        // Reported size, caret consistent with it.
         assert_eq!(ghost_font_px(Some(15.0), 18.0, true), 15.0);
-        // A zoomed page reports the unzoomed size; the caret shows the zoom.
         let zoomed = ghost_font_px(Some(12.0), 60.0, true);
         assert!(zoomed > 30.0, "{zoomed}");
-        // Estimated from the caret.
         assert_eq!(ghost_font_px(None, 24.0, true), 20.0);
-        // An estimated caret stays modest.
         assert_eq!(ghost_font_px(None, 60.0, false), MAX_ESTIMATED_FONT_PX);
         assert_eq!(ghost_font_px(None, 2.0, true), MIN_FONT_PX);
         assert_eq!(points_to_px(12.0), 16.0);
@@ -1077,14 +952,12 @@ mod tests {
                 alpha: GHOST_OPACITY
             }
         );
-        // Black text reported on a dark field is a flattened dynamic color.
         let wrong = FieldStyle {
             color: Some(Rgb::BLACK),
             background: Some(Rgb { r: 5, g: 5, b: 5 }),
             ..Default::default()
         };
         assert_eq!(ghost_paint(Some(&wrong), false, None).rgb, Rgb::WHITE);
-        // Sampled pixels win.
         assert_eq!(
             ghost_paint(Some(&dark_text), false, Some(0.05)).rgb,
             Rgb::WHITE

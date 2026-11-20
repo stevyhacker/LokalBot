@@ -1,8 +1,5 @@
 import Foundation
 
-/// Settings changed from the terminal: an append-only log in
-/// `diagnostics/settings-changes.jsonl` and the recent list Settings shows
-/// with Undo. Values are kept as stored, so Undo restores them exactly.
 @MainActor
 final class AgentSettingsChanges: ObservableObject {
     struct Entry: Codable, Identifiable, Equatable {
@@ -15,7 +12,6 @@ final class AgentSettingsChanges: ObservableObject {
     }
 
     static let recentLimit = 20
-    /// The log keeps the newest entries once it grows past this size.
     static let maximumLogBytes = 1_048_576
     static let keptEntries = 1_000
 
@@ -43,36 +39,27 @@ final class AgentSettingsChanges: ObservableObject {
         recent = Array((entries.reversed() + recent).prefix(Self.recentLimit))
     }
 
-    /// An API key, which the log names but never stores.
     func recordSecret(_ secret: AppSecret, isSet: Bool, caller: String, time: Date = Date()) {
         recordEvent("secret.\(secret.rawValue)", .string(isSet ? "set" : "cleared"), caller: caller, time: time)
     }
 
-    /// Access the person allowed from an agent's setup request.
     func recordSetup(_ grants: [AgentSetup.Grant], caller: String, time: Date = Date()) {
         recordEvent("setup.access", .string(grants.map(\.rawValue).joined(separator: ", ")), caller: caller, time: time)
     }
 
-    /// Something an agent did that is not a stored setting, such as choosing
-    /// a model preset or launch at login. Listed, never undone.
     func recordEvent(_ key: String, _ value: JSONValue, caller: String, time: Date = Date()) {
         let entry = Entry(time: time, caller: caller, key: key, previous: nil, value: value)
         append([entry])
         recent = Array(([entry] + recent).prefix(Self.recentLimit))
     }
 
-    /// Undoing a retention change could delete without the review a shorter
-    /// policy needs, so those are changed back in Settings instead.
     static let keysWithoutUndo: Set<String> = ["retentionDays", "keepOCRTextForever"]
 
-    /// Undo is offered only while the setting still holds the agent's value.
     func canUndo(_ entry: Entry, in settings: AppSettings) -> Bool {
         SettingRegistry.spec(for: entry.key) != nil && !Self.keysWithoutUndo.contains(entry.key)
             && AppControlHandler.encoded(settings)[entry.key] == entry.value
     }
 
-    /// The person clicked Undo, so turning a feature back on asks for its
-    /// permissions the way its Settings control would.
     func undo(_ entry: Entry, in app: AppState) throws {
         guard canUndo(entry, in: app.settings), let spec = SettingRegistry.spec(for: entry.key) else { return }
         let item = SettingsChangePlan.Item(spec: spec, previous: entry.value, stored: entry.previous, change: .preference)

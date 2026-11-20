@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Native form surfaces with shared accent and semantic status colors.
 enum SettingsPalette {
     static func accent(_ scheme: ColorScheme) -> Color { Brand.teal }
     static func remote(_ scheme: ColorScheme) -> Color { LBTokens.Palette.attentionText }
@@ -81,10 +80,6 @@ extension View {
     }
 }
 
-// MARK: - Row labels
-
-/// One-sentence explanation shown under a settings control. It is smaller and
-/// quieter than the control label so each row reads as one setting.
 struct SettingsHelp: View {
     let text: String
 
@@ -100,8 +95,6 @@ struct SettingsHelp: View {
     }
 }
 
-/// A settings control label: the title with its explanation attached, for use
-/// as the label of a Toggle, Picker, Stepper, or LabeledContent.
 struct SettingsLabel: View {
     let title: String
     let help: String?
@@ -119,8 +112,6 @@ struct SettingsLabel: View {
     }
 }
 
-/// Longer mechanics behind a collapsed disclosure, so the default view of a
-/// section stays a list of controls.
 struct SettingsDetails: View {
     let title: String
     let text: String
@@ -141,11 +132,6 @@ struct SettingsDetails: View {
     }
 }
 
-// MARK: - Readouts
-
-/// One headline number in a settings readout: what it measures, the value,
-/// and a line of context. Writing → Statistics and Advanced → Resource
-/// Monitor share it, so their rows read alike.
 struct SettingsMetricTile: View {
     let icon: String
     let title: String
@@ -191,8 +177,6 @@ struct SettingsMetricTile: View {
     }
 }
 
-/// Lays tiles out in equal columns: all in one row when each gets at least
-/// `minimumWidth`, otherwise in rows of two. Tiles in a row share its height.
 struct SettingsTileLayout: Layout {
     var minimumWidth: CGFloat = 150
     var spacing: CGFloat = 8

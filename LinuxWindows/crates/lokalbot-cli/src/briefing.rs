@@ -1,7 +1,3 @@
-//! `get_briefing` and `lokalbot-cli brief` (`Briefing.swift`): the first read
-//! of an agent session. Every section sits under the permission covering its
-//! data; with nothing granted it only lists the permissions.
-//!
 use std::collections::{BTreeSet, HashMap};
 
 use chrono::{DateTime, Local, Utc};
@@ -16,9 +12,6 @@ use crate::session::{Session, day_key};
 
 pub const TOOL_NAME: &str = "get_briefing";
 
-/// What the briefing tells the agent to call next: MCP tools for
-/// `get_briefing`, `lokalbot-cli` commands for `brief`, so an agent that can
-/// only run a shell isn't pointed at tools it can't reach.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Vocabulary {
     Mcp,
@@ -311,8 +304,6 @@ struct WorkMemory {
     work_goals: Option<Vec<Goal>>,
 }
 
-/// Items need the grant of every kind of source behind them; unattributed
-/// items are never shown.
 fn work_memory(
     session: &Session,
     meetings_on: bool,
@@ -375,8 +366,6 @@ fn work_memory(
     Some(lines.join("\n"))
 }
 
-/// Recent days in detail, older weeks and months as one line each, all inside the
-/// screen-memory history window. A line whose reviews changed is never shown.
 fn timeline(session: &Session, now: DateTime<Utc>, cutoff_day: Option<&str>) -> Option<String> {
     use lokalbot_core::dream::rollup::{self, Kind};
     use lokalbot_core::dream::{day_from_key, day_key as key_of};

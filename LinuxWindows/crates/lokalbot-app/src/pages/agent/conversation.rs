@@ -1,9 +1,3 @@
-//! One task (`AgentSessionView.swift`): a new task's heading and composer
-//! mid-page, or the conversation with the composer docked under it. While
-//! the agent works its words show in full and its steps fold to one line a
-//! run; a finished turn folds its work into one steps line above its answer
-//! and the files it changed. An approval request docks above the composer.
-
 use std::borrow::Cow;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash as _, Hasher as _};
@@ -37,8 +31,6 @@ use crate::ui::answer_text::{self, Answer, AnswerStyle};
 use crate::ui::citations::CitationSource;
 use crate::ui::{self, Ico};
 
-/// What the conversation shows for the selected task, copied out of the
-/// model so rendering can borrow the page mutably.
 pub(super) struct Snapshot {
     pub task: Uuid,
     pub status: TaskStatus,
@@ -49,7 +41,6 @@ pub(super) struct Snapshot {
     pub has_failed_prompt: bool,
     pub archived: bool,
     pub can_branch: bool,
-    /// Nothing has been said yet, so the composer sits mid-page.
     pub is_new_task: bool,
     pub workspace: PathBuf,
     pub workspace_name: String,
@@ -61,7 +52,6 @@ impl Snapshot {
         self.state == SessionState::Running
     }
 
-    /// The files the given steps wrote or edited.
     pub fn changed_files(&self, steps: &[TranscriptItem]) -> Vec<ChangedFile> {
         ChangedFile::list(steps, &self.workspace, &self.workspace_name, |id| {
             self.write_targets
@@ -72,7 +62,6 @@ impl Snapshot {
     }
 }
 
-/// `starters` in `AgentSessionView`.
 const STARTERS: [(&str, &str, Ico); 3] = [
     (
         "Draft follow-up",
@@ -133,7 +122,6 @@ impl AgentPage {
         })
     }
 
-    /// A meeting's title from the ID or ID prefix a lookup names.
     pub(super) fn meeting_title(&self, cx: &App) -> impl Fn(&str) -> Option<String> + 'static {
         let meetings: Vec<(String, String)> = self
             .data
@@ -191,8 +179,6 @@ impl AgentPage {
             .into_any_element()
     }
 
-    /// The heading, what the agent may do, the composer and three starters,
-    /// a little above the middle of the pane.
     fn render_new_task(
         &mut self,
         snapshot: &Snapshot,
@@ -267,9 +253,6 @@ impl AgentPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------ find
-
-    /// Block ids whose text contains the find query.
     fn matches(&self, blocks: &[Block]) -> Vec<String> {
         let query = self.find_query.trim().to_lowercase();
         if query.is_empty() {
@@ -287,7 +270,6 @@ impl AgentPage {
             return;
         };
         let blocks = presentation::layout(&snapshot.items, snapshot.is_working());
-        // A match inside a folded run of steps opens that run.
         let query = self.find_query.trim().to_lowercase();
         if !query.is_empty() {
             for block in &blocks {
@@ -391,8 +373,6 @@ impl AgentPage {
         .pt(px(10.))
         .pb(px(8.))
     }
-
-    // ------------------------------------------------------- transcript
 
     fn render_transcript(
         &mut self,
@@ -609,8 +589,6 @@ impl AgentPage {
             )
     }
 
-    /// The user's message on the trailing side; Copy, Edit as follow-up and
-    /// Branch from here are in its menu.
     fn render_user(
         &mut self,
         item: &TranscriptItem,
@@ -688,7 +666,6 @@ impl AgentPage {
             .into_any_element()
     }
 
-    /// The agent's words, in full: plain while they stream, formatted after.
     fn render_text(
         &mut self,
         id: &str,
@@ -736,7 +713,6 @@ impl AgentPage {
         .into_any_element()
     }
 
-    /// What the agent says while it works, in full and without actions.
     fn render_said(&mut self, item: &TranscriptItem, cx: &mut Context<Self>) -> AnyElement {
         match item {
             TranscriptItem::Assistant {
@@ -748,8 +724,6 @@ impl AgentPage {
         }
     }
 
-    /// The answer a finished turn ends with: the focal point, then the files
-    /// that turn changed and quiet copy and retry controls.
     fn render_answer(
         &mut self,
         item: &TranscriptItem,
@@ -849,7 +823,6 @@ impl AgentPage {
             .into_any_element()
     }
 
-    /// The files one turn wrote or edited, under its answer.
     fn render_changed_files(
         &mut self,
         files: &[ChangedFile],
@@ -971,9 +944,6 @@ impl AgentPage {
         card.into_any_element()
     }
 
-    /// A run of steps as one quiet line that opens to a row per step. A
-    /// finished turn's line counts its steps and holds what the agent said
-    /// between them.
     fn render_steps(
         &mut self,
         group: &StepGroup,
@@ -1013,7 +983,6 @@ impl AgentPage {
             .cursor_pointer()
             .text_size(ty::SECONDARY)
             .text_color(lb.text_secondary)
-            // Points along the reading direction while folded, down once open.
             .child(ui::icon(
                 if expanded {
                     Ico::ChevronDown
@@ -1150,7 +1119,6 @@ impl AgentPage {
                     })
                     .into_any_element()
             }
-            // What the agent said between steps, kept in order and quieter than the answer.
             TranscriptItem::Assistant { text, .. } => div()
                 .w_full()
                 .text_size(px((self.text_size - 2.).max(12.)))
@@ -1176,9 +1144,6 @@ impl AgentPage {
         answer
     }
 
-    /// A numbered reference opens its attached source beside the task, as
-    /// source links in macOS answers do; references to anything else do
-    /// nothing.
     fn open_cited_source(&mut self, source: &CitationSource, cx: &mut Context<Self>) {
         let attachment = self
             .model(cx)
@@ -1205,8 +1170,6 @@ impl AgentPage {
         }
     }
 
-    /// A link in an answer opens the source or tool result it names beside the
-    /// task (`AgentSessionView`'s `openURL`); any other link does nothing.
     fn open_answer_link(&mut self, url: &str, cx: &mut Context<Self>) {
         let Some(tab) = self.model(cx).and_then(|m| m.tasks.as_ref()?.selected()) else {
             return;
@@ -1232,7 +1195,6 @@ impl AgentPage {
         }
     }
 
-    /// Task errors (`sessions.error`, an alert on macOS) appear as a toast once.
     pub(super) fn show_task_error(&mut self, cx: &mut Context<Self>) {
         let Some(error) = self
             .model(cx)
@@ -1252,7 +1214,6 @@ impl AgentPage {
     }
 }
 
-/// A denial, an error or a note from the task.
 fn render_notice(item: &TranscriptItem, cx: &App) -> AnyElement {
     let TranscriptItem::Notice { text, is_error, .. } = item else {
         return div().into_any_element();
@@ -1287,7 +1248,6 @@ fn render_notice(item: &TranscriptItem, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// The step the agent is on right now: "Reading open actions…".
 fn render_live(item: &TranscriptItem, context: &StepContext, cx: &App) -> AnyElement {
     let TranscriptItem::Tool {
         name, args_json, ..
@@ -1322,7 +1282,6 @@ fn render_live(item: &TranscriptItem, context: &StepContext, cx: &App) -> AnyEle
         .into_any_element()
 }
 
-/// A row centred at the reading width, 20 px from the pane's edges.
 fn reading_column(element: AnyElement) -> Div {
     h_flex().w_full().justify_center().px(px(20.)).child(
         div()
@@ -1337,11 +1296,6 @@ pub(super) fn mono_font(cx: &App) -> SharedString {
     cx.theme().mono_font_family.clone()
 }
 
-/// Agent answers cite attached sources by their identifiers, often as
-/// Markdown links such as `[meeting:<id>](meeting:<id>)` or
-/// `[Title](moment:<n>)`. The shared answer renderer shows `[meeting:<id>]`
-/// and `[screen:<n>]` markers as numbered references, so links to a source
-/// and bare moment ids become those markers.
 fn cite_sources(text: &str) -> Cow<'_, str> {
     if !text.contains("meeting:") && !text.contains("moment:") && !text.contains("screen:") {
         return Cow::Borrowed(text);
@@ -1366,8 +1320,6 @@ fn cite_sources(text: &str) -> Cow<'_, str> {
     Cow::Owned(out)
 }
 
-/// At a `[`: a `[label](source)` link or a bare `[moment:<n>]`, as the
-/// length to replace and its replacement.
 fn source_reference(tail: &str) -> Option<(usize, String)> {
     let close = tail.find(']')?;
     let label = &tail[1..close];
@@ -1395,8 +1347,6 @@ fn source_reference(tail: &str) -> Option<(usize, String)> {
     Some((close + 1, marker))
 }
 
-/// `meeting:<id>[@m:ss]` → `[meeting:<id>[@m:ss]]`; `moment:<n>` or
-/// `screen:<n>` → `[screen:<n>]`.
 fn source_marker(target: &str) -> Option<String> {
     if let Some(id) = target.strip_prefix("meeting:") {
         let valid = id.len() >= 3

@@ -1,23 +1,5 @@
 import Foundation
 
-/// Reads Zoom recordings where they already are, with no export step:
-///
-/// - **Computer recordings.** The Zoom app saves each one in its own folder
-///   under `~/Documents/Zoom`, named for the start in local time and the
-///   topic (`2026-03-04 10.15.00 Pricing review`, older apps append the
-///   meeting ID). It holds the audio-only file (`audio_only.m4a`, or
-///   `audio12345678.m4a` in newer apps), the video (`zoom_0.mp4` or
-///   `video12345678.mp4`), `chat.txt`, and sometimes saved captions
-///   (`meeting_saved_closed_caption.txt`, `closed_caption.txt`, a `.vtt`).
-///   Separate participant tracks sit in an `Audio Record` subfolder.
-/// - **Cloud recordings.** The web portal's downloads start with the UTC
-///   start (`GMT20260304-091500_Recording.m4a`, `…_Recording_1920x1080.mp4`,
-///   `…_Recording.transcript.vtt`, `…_Recording.cc.vtt`), so files that
-///   share that prefix are one meeting.
-///
-/// The audio-only file becomes the meeting's recording (else the video), and
-/// the audio transcript its transcript. Chat is never read. Files are only
-/// read, never changed.
 enum ZoomMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.zoom
     static let exportHint = "Choose the Zoom folder in Documents, or one meeting's folder in it; the Zoom app shows where it saves computer recordings under Settings › Recording › Local recording storage. For a cloud recording, open Recordings & Transcripts › Cloud recordings in the Zoom web portal, click the meeting, download its Audio only and Audio transcript files, and choose them."
@@ -58,22 +40,13 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return scan
     }
 
-    // MARK: - Files
-
     private enum Kind {
-        /// The whole meeting's audio: `audio_only.m4a`, `audio12345678.m4a`,
-        /// or a cloud recording's `…_Recording.m4a`.
         case audio
-        /// One participant's track, from "Record a separate audio file for
-        /// each participant". Never the meeting's recording.
         case participantAudio
         case video
         case subtitles
-        /// Captions saved as text.
         case captions
         case chat
-        /// `double_click_to_convert_01.zoom`: a recording Zoom hasn't
-        /// converted yet, which nothing but Zoom can read.
         case unconverted
     }
 
@@ -82,8 +55,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         var kind: Kind
     }
 
-    /// What a file is, from its name and folder alone, or nil when it isn't
-    /// one of Zoom's.
     private static func kind(of url: URL) -> Kind? {
         let name = url.lastPathComponent.lowercased()
         let stem = url.deletingPathExtension().lastPathComponent.lowercased()
@@ -111,8 +82,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// `audio_only`, `audio_only_1`, `audio12345678`: the names Zoom gives
-    /// the meeting's audio-only file.
     private static func isGenericAudio(_ stem: String) -> Bool {
         guard stem.hasPrefix("audio") else { return false }
         var rest = stem.dropFirst(5)
@@ -121,13 +90,10 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return rest.allSatisfy(isDigit)
     }
 
-    /// `audioJohnSmith12345678`: a participant's name between "audio" and
-    /// Zoom's number.
     private static func looksLikeParticipantTrack(_ stem: String) -> Bool {
         stem.hasPrefix("audio") && stem.dropFirst(5).contains(where: \.isLetter) && stem.last.map(isDigit) == true
     }
 
-    /// `zoom_0`, `zoom_1`, `video12345678`.
     private static func isGenericVideo(_ stem: String) -> Bool {
         if stem.hasPrefix("zoom_") {
             let rest = stem.dropFirst(5)
@@ -140,8 +106,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         url.deletingLastPathComponent().lastPathComponent.lowercased() == "audio record"
     }
 
-    /// Names only the Zoom app gives a computer recording's files, which tie
-    /// them to their folder even after the person renamed it.
     private static func hasComputerRecordingName(_ url: URL) -> Bool {
         let name = url.lastPathComponent.lowercased()
         let stem = url.deletingPathExtension().lastPathComponent.lowercased()
@@ -154,8 +118,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// The folder a file belongs to as a recording: its own, or the one
-    /// above for a participant track in `Audio Record`.
     private static func recordingFolder(of file: URL) -> URL {
         let parent = file.deletingLastPathComponent()
         return parent.lastPathComponent.lowercased() == "audio record" ? parent.deletingLastPathComponent() : parent
@@ -165,7 +127,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         character.isASCII && character.isNumber
     }
 
-    /// Whether `text` starts with `pattern`, where "#" stands for a digit.
     private static func hasPattern(_ text: Substring, _ pattern: String) -> Bool {
         guard text.count >= pattern.count else { return false }
         return zip(text, pattern).allSatisfy { character, expected in
@@ -173,21 +134,13 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: - Names
-
-    /// "2026-03-04 10.15.00" and an optional topic: how Zoom names a
-    /// computer recording's folder. Checks the shape only, so walking a
-    /// folder of recordings stays cheap.
     private static func isRecordingFolderName(_ name: String) -> Bool {
         let name = Substring(name)
         return hasPattern(name, "####-##-## ##.##.##") && (name.count == 19 || name.dropFirst(19).first == " ")
     }
 
-    /// "2026-03-04 10.15.00 Topic": a computer recording's folder. Zoom names
-    /// it in the computer's local time; older apps append the meeting ID.
     private struct FolderStamp {
         var date: Date
-        /// Seconds since local midnight, for captions saved with clock times.
         var secondsIntoDay: TimeInterval
         var topic: String
 
@@ -200,8 +153,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.timeZone = .current
             formatter.dateFormat = "yyyy-MM-dd HH.mm.ss"
-            // A folder made in the hour clocks skip for daylight saving
-            // still has a start.
             formatter.isLenient = true
             guard let date = formatter.date(from: stamp) else { return nil }
             self.date = date
@@ -215,8 +166,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// "GMT20260304-091500": the UTC start every file a cloud recording
-    /// downloads as begins with.
     private struct CloudStamp {
         var key: String
         var date: Date
@@ -235,14 +184,9 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: - Grouping
-
     private enum Group: Hashable {
-        /// A computer recording's folder.
         case folder(String)
-        /// A cloud recording's downloads in one folder, by their stamp.
         case cloud(folder: String, stamp: String)
-        /// A transcript on its own.
         case file(String)
     }
 
@@ -257,7 +201,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return .file(file.standardizedFileURL.path)
     }
 
-    /// Members by recording, in the order their first file was found.
     private static func grouped(_ members: [Member]) -> [(group: Group, members: [Member])] {
         var order: [Group] = []
         var byGroup: [Group: [Member]] = [:]
@@ -269,10 +212,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return order.map { ($0, byGroup[$0] ?? []) }
     }
 
-    /// The whole recording one chosen file belongs to: its folder's files
-    /// for a computer recording, the files sharing its stamp for a cloud
-    /// one. Choosing the audio or the transcript alone, or both, reads the
-    /// same meeting with the same id.
     private static func recording(around chosen: Member) -> (group: Group, members: [Member]) {
         let target = group(of: chosen.url)
         if case .file = target { return (target, [chosen]) }
@@ -283,8 +222,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         let hasChosen = siblings.contains { $0.url.standardizedFileURL.path == chosenPath }
         return (target, hasChosen ? siblings : siblings + [chosen])
     }
-
-    // MARK: - Meetings
 
     private static func meeting(for group: Group, members: [Member],
                                 problems: inout [ExternalImportScan.Problem]) -> ExternalMeeting? {
@@ -302,8 +239,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
         var subtitleFile: URL?
         var lines = transcript(ranked(files(.subtitles), by: subtitleRank), chosen: &subtitleFile, problems: &problems)
-        // Text captions are a last resort: a recording LokalBot can
-        // transcribe itself gives exact times and voices.
         if lines.isEmpty, audioURL == nil {
             lines = savedCaptions(ranked(files(.captions), by: captionRank),
                                   meetingClock: folderStamp?.secondsIntoDay, problems: &problems)
@@ -351,14 +286,12 @@ enum ZoomMeetingReader: ExternalMeetingReader {
             audioURL: audioURL, origin: origin)
     }
 
-    /// "Weekly sync.transcript.vtt" reads as "Weekly sync".
     private static func transcriptTitle(_ file: URL) -> String {
         var stem = file.deletingPathExtension()
         if ["transcript", "cc"].contains(stem.pathExtension.lowercased()) { stem = stem.deletingPathExtension() }
         return ExternalImportText.title(fromFileName: stem.appendingPathExtension(file.pathExtension))
     }
 
-    /// `files` best first by `rank`, keeping path order among equals.
     private static func ranked(_ files: [URL], by rank: (URL) -> Int) -> [URL] {
         files.enumerated()
             .sorted { (rank($0.element), $0.offset) < (rank($1.element), $1.offset) }
@@ -370,16 +303,12 @@ enum ZoomMeetingReader: ExternalMeetingReader {
             || CloudStamp(name: url.lastPathComponent) != nil ? 0 : 1
     }
 
-    /// Zoom's own video names first; a cloud recording's screen share alone
-    /// (`_as_`) last.
     private static func videoRank(_ url: URL) -> Int {
         let stem = url.deletingPathExtension().lastPathComponent.lowercased()
         if stem.contains("_as_") { return 2 }
         return isGenericVideo(stem) || CloudStamp(name: url.lastPathComponent) != nil ? 0 : 1
     }
 
-    /// The audio transcript (`.transcript.vtt`) first, closed captions
-    /// (`.cc.vtt`) last.
     private static func subtitleRank(_ url: URL) -> Int {
         let name = url.lastPathComponent.lowercased()
         if name.contains(".transcript") || name.contains("transcript.") { return 0 }
@@ -387,14 +316,10 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return 1
     }
 
-    /// "Save transcript" in a meeting writes `meeting_saved_…`, which names
-    /// speakers; the automatic `closed_caption.txt` doesn't.
     private static func captionRank(_ url: URL) -> Int {
         url.lastPathComponent.lowercased().hasPrefix("meeting_saved_") ? 0 : 1
     }
 
-    /// The first file that can be opened and isn't empty. Others in the way
-    /// are problems.
     private static func playable(_ files: [URL], problems: inout [ExternalImportScan.Problem]) -> URL? {
         for file in files {
             guard FileManager.default.isReadableFile(atPath: file.path) else {
@@ -411,11 +336,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return nil
     }
 
-    // MARK: - Transcripts
-
-    /// Lines from the best WebVTT file: the first that names speakers (Zoom
-    /// has written names into the audio transcript or the closed captions,
-    /// depending on the version), else the first with any lines.
     private static func transcript(_ files: [URL], chosen: inout URL?,
                                    problems: inout [ExternalImportScan.Problem]) -> [ExternalMeeting.Line] {
         var fallback: (file: URL, lines: [ExternalMeeting.Line])?
@@ -458,8 +378,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// Zoom labels voices it couldn't attribute "Unknown Speaker", which is
-    /// nobody in particular.
     private static func named(_ lines: [ExternalMeeting.Line]) -> [ExternalMeeting.Line] {
         lines.map { line in
             var line = line
@@ -471,12 +389,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// Captions Zoom saved as text. Zoom documents neither file's layout, so
-    /// this reads the shapes they take: a "[Name] 10:15:32" header above the
-    /// words, "10:15:32 Name: words" or "[10:15:32] words" on one line, or
-    /// subtitle cues. Clock times count from `meetingClock`, the folder's
-    /// start in seconds since midnight, when the captions begin within six
-    /// hours of it, else from the first caption.
     private static func captionLines(_ text: String, meetingClock: TimeInterval?) -> [ExternalMeeting.Line] {
         if text.contains("-->") { return SubtitleTranscript.parse(text) }
         var entries: [(clock: TimeInterval?, speaker: String?, words: [String], headed: Bool)] = []
@@ -522,8 +434,6 @@ enum ZoomMeetingReader: ExternalMeetingReader {
         return (clock, split.speaker, split.text)
     }
 
-    /// "10:15:32" as seconds; a clock always has hours, so "10:15" in a
-    /// sentence isn't one.
     private static func clockTime(_ text: String) -> TimeInterval? {
         guard text.filter({ $0 == ":" }).count == 2 else { return nil }
         return ExternalImportText.timestamp(text)

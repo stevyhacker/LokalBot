@@ -1,7 +1,5 @@
 import Foundation
 
-/// Reads only complete top-level array records. It never closes a partial
-/// object/string or invents missing fields, and handles escaped quotes/braces.
 enum CompleteJSONRecords {
     struct Result {
         var arrays: [String: [[String: Any]]] = [:]
@@ -24,7 +22,6 @@ enum CompleteJSONRecords {
             return result
         }
 
-        // The strict envelope starts with an object, not arbitrary prose.
         let chars = Array(text)
         guard chars.first == "{" else { return Result() }
         var result = Result()

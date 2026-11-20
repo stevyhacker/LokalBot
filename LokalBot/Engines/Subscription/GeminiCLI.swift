@@ -1,13 +1,8 @@
 import Foundation
 
-/// The user's own Gemini CLI (`gemini`), run unmodified in headless mode.
-/// The user signs in through Gemini CLI's own flow (`gemini` in Terminal);
-/// LokalBot never reads, stores, or forwards Google credentials or `~/.gemini`
-/// files, and never offers a Gemini login of its own.
 enum GeminiCLI {
     static let setupURL = URL(string: "https://geminicli.com/docs/get-started/installation/")!
 
-    /// Where Gemini CLI installers put `gemini`, checked after PATH.
     static func candidatePaths(home: String) -> [String] {
         [
             "/opt/homebrew/bin/gemini",
@@ -19,7 +14,6 @@ enum GeminiCLI {
         ]
     }
 
-    /// The first executable `gemini` on PATH or in a known install location.
     static func locate(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         home: String = NSHomeDirectory(),
@@ -40,9 +34,6 @@ enum GeminiCLI {
         await PlanCLIProcess.locateWithLoginShell(command: "gemini", environment: environment)
     }
 
-    /// The child environment: LokalBot's own with the executable's folder first
-    /// on PATH so an npm-installed `gemini` finds its `node`, plus optional
-    /// per-request isolation paths for system prompt and system settings.
     static func environment(
         for executable: URL,
         base: [String: String] = ProcessInfo.processInfo.environment,
@@ -75,7 +66,6 @@ enum GeminiCLI {
         var id: String { slug }
     }
 
-    /// Fallback choices if an older Gemini CLI lacks `gemini models -o json`.
     static let fallbackModels: [ModelEntry] = [
         .init(slug: "", displayName: "Gemini CLI default", inputTokens: 1_048_576),
         .init(slug: "gemini-2.5-pro", displayName: "gemini-2.5-pro", inputTokens: 1_048_576),
@@ -83,7 +73,6 @@ enum GeminiCLI {
         .init(slug: "gemini-3.1-flash-lite", displayName: "gemini-3.1-flash-lite", inputTokens: 1_048_576),
     ]
 
-    /// Parses the JSON array printed by `gemini models -o json`.
     static func parseModelsJSON(_ data: Data) -> [ModelEntry] {
         guard let list = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
         var seen: Set<String> = []
@@ -134,7 +123,6 @@ enum GeminiCLI {
     }
 }
 
-/// Finds Gemini CLI once per launch; a manual check looks again.
 actor GeminiCLILocator {
     static let shared = GeminiCLILocator()
     private var cached: URL?

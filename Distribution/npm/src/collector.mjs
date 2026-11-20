@@ -1,7 +1,3 @@
-// What the readers gather for one year: per-session counts and event
-// times. Request and reply text is counted and dropped; nothing here holds
-// what was said.
-
 import path from 'node:path';
 
 export const AGENTS = {
@@ -15,23 +11,18 @@ export const AGENTS = {
   'gemini-cli': 'Gemini CLI',
 };
 
-/** `start` and `end` are epoch milliseconds; `end` is exclusive. */
 export function createCollector({ start, end }) {
   const sessions = new Map();
   return {
     start,
     end,
     sessions,
-    /** Unique absolute paths of files an agent changed. */
     files: new Set(),
-    /** Record ids already counted: a forked or resumed session copies its history. */
     seenRecords: new Set(),
     filesRead: 0,
     bytesRead: 0,
     unreadableFiles: 0,
-    /** Compressed logs this Node.js cannot decompress. */
     compressedSkipped: 0,
-    /** SQLite databases this Node.js cannot open (needs Node.js 22.5+). */
     sqliteSkipped: 0,
     inWindow(at) {
       return at >= start && at < end;
@@ -52,7 +43,6 @@ function newSession(agent, id) {
   return {
     agent,
     id,
-    /** A helper thread with no known parent: its tokens count, its hours do not. */
     hidden: false,
     times: [],
     prompts: 0,
@@ -98,7 +88,6 @@ export function emptyActions() {
   return { commits: [], pullRequestsOpened: [], pullRequestsMerged: [], releases: [], pushes: 0, testRuns: 0 };
 }
 
-/** Folds one command's actions (from `actionsInCommand`) into a running tally. */
 export function mergeActions(into, actions) {
   into.commits.push(...actions.commits);
   into.pullRequestsOpened.push(...actions.pullRequestsOpened);
@@ -120,7 +109,6 @@ export function addActions(session, tally) {
   session.testRuns += tally.testRuns;
 }
 
-/** Records a changed file by its absolute path, so one file counts once. */
 export function addFile(collector, file, workingDirectory) {
   if (typeof file !== 'string' || file.length === 0) return;
   const absolute = file.startsWith('/') || /^[A-Za-z]:[\\/]/.test(file) || file.startsWith('\\\\');
@@ -128,12 +116,10 @@ export function addFile(collector, file, workingDirectory) {
     collector.files.add(file);
     return;
   }
-  // The log may come from another system, so the folder's own style decides.
   const style = workingDirectory.includes('\\') && !workingDirectory.includes('/') ? path.win32 : path.posix;
   collector.files.add(style.join(workingDirectory, file));
 }
 
-/** `mcp__github__create_issue` (and Antigravity/Cursor MCP tool names) are tallied as `<server> (MCP)`. */
 export function toolLabel(name) {
   if (typeof name !== 'string' || name.length === 0) return 'unknown';
   const mcp = /^mcp__(.+?)__/.exec(name)

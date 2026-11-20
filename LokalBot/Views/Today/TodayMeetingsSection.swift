@@ -1,16 +1,11 @@
 import SwiftUI
 
-/// The day's meetings as one panel: what was recorded, with a line saying
-/// what it was about, and what the calendar still holds, with a line at now.
-/// Work sessions and apps are on Timeline.
 struct TodayMeetingsSection: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.appTextScale) private var textScale
     let rows: [TodayAgenda.Row]
     let count: Int
-    /// One line per recorded meeting, where its saved summary offers one.
     let recaps: [Meeting.ID: String]
-    /// Calendar use is off: offer to turn it on, once, under the list.
     let offersCalendar: Bool
 
     private static let timeColumnWidth: CGFloat = 70
@@ -42,7 +37,6 @@ struct TodayMeetingsSection: View {
             Text("Upcoming meetings can show here too")
                 .sectionPanelFooterText()
             Button("Connect Calendar…") {
-                // Calendar use and its permission are set up in Settings.
                 app.openSettings(tab: .recording)
                 app.focusedSettingID = "settings.calendarDetectionEnabled"
             }
@@ -50,15 +44,11 @@ struct TodayMeetingsSection: View {
         }
     }
 
-    /// A hairline divides two meetings. The now line draws its own rule, so
-    /// the meeting before it has none, and the last row ends at the panel.
     static func hasHairline(after index: Int, in rows: [TodayAgenda.Row]) -> Bool {
         guard rows.indices.contains(index + 1) else { return false }
         if case .now = rows[index + 1] { return false }
         return true
     }
-
-    // MARK: Rows
 
     @ViewBuilder private func entryRow(_ entry: TodayAgenda.Entry) -> some View {
         if let meeting = entry.meeting {
@@ -110,8 +100,6 @@ struct TodayMeetingsSection: View {
         .contentShape(Rectangle())
     }
 
-    /// A saved recording says where and how long; everything else says where
-    /// it stands in the day.
     @ViewBuilder private func status(_ entry: TodayAgenda.Entry) -> some View {
         switch entry.status {
         case .recorded:
@@ -132,11 +120,7 @@ struct TodayMeetingsSection: View {
         }
     }
 
-    /// "Now · 10:48 AM" under a rule the width of the panel. Above the first
-    /// meeting the rule takes the place of the header's hairline.
     private func nowLine(_ date: Date, leads: Bool) -> some View {
-        // The text is the element: a container with only a label has no
-        // role, which the accessibility audit reports.
         Text("Now · \(date.formatted(date: .omitted, time: .shortened))")
             .font(AppFont.scaledSystem(size: 11, weight: .bold).monospacedDigit())
             .foregroundStyle(LBTokens.Palette.recordingText)

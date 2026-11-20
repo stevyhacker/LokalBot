@@ -59,14 +59,9 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.timeline.TimelineScreen
 import me.dotenv.lokalbot.companion.ui.today.TodayScreen
 
-/** Destinations the navigation bar leaves out, shown from a "More" menu in page headers. */
 val LocalOverflowDestinations = staticCompositionLocalOf<List<Destination>> { emptyList() }
 val LocalAppNavigator = staticCompositionLocalOf<AppNavigator> { error("AppNavigator not provided") }
 
-/**
- * The app shell: a bottom bar on compact widths, a rail on medium widths and
- * beside a fold, the Mac-like drawer on expanded widths.
- */
 @Composable
 fun LokalBotApp(
     repository: CompanionRepository,
@@ -77,13 +72,10 @@ fun LokalBotApp(
     recorder: MeetingRecorder? = null,
 ) {
     val layout = remember(adaptiveInfo) { WindowLayout.from(adaptiveInfo) }
-    // Only a paired library can record; the sample library doesn't offer it at all.
     val libraryRecorder = recorder?.takeIf { repository.canRecord }
     val heightDp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
     val suiteType = when {
         layout.widthClass == WidthClass.Compact -> NavigationSuiteType.NavigationBar
-        // Beside a fold, and on short windows such as a phone in landscape, the drawer would
-        // crowd the content or run off the screen.
         layout.widthClass == WidthClass.Medium || layout.bookHinge != null || layout.heightCompact -> NavigationSuiteType.NavigationRail
         else -> NavigationSuiteType.NavigationDrawer
     }
@@ -146,7 +138,6 @@ fun LokalBotApp(
                     }
                 },
             ) {
-                // Each destination keeps its scroll and pane state while you move between them.
                 val saveableState = rememberSaveableStateHolder()
                 Box(Modifier.fillMaxSize()) {
                     saveableState.SaveableStateProvider(navigator.destination.name) {
@@ -167,7 +158,6 @@ fun LokalBotApp(
     }
 }
 
-/** A navigation label that shrinks to one line at large font scales instead of breaking mid-word. */
 @Composable
 private fun NavLabel(text: String) {
     val style = LocalTextStyle.current
@@ -179,11 +169,6 @@ private fun NavLabel(text: String) {
     )
 }
 
-/**
- * The "More" button for destinations the bottom bar leaves out, and a way to
- * record from any page unless [offerRecord] says the page has its own. With
- * nothing left out, recording is the only thing to offer.
- */
 @Composable
 fun OverflowDestinationsButton(offerRecord: Boolean = true) {
     val overflow = LocalOverflowDestinations.current

@@ -41,7 +41,6 @@ test('a session counts requests, tool calls, tokens and recorded actions', (t) =
   writeLines(path.join(root, '-Users-maya-code-harbor-app', 'session-a.jsonl'), [
     { type: 'custom-title', customTitle: 'Upload retries', sessionId: 'session-a' },
     user('add a retry to the upload job', at(3, 14, 9, 0)),
-    // One API message written as two records: its usage counts once.
     assistant('msg_1', [{ type: 'text', text: 'I will add it.' }], usage(100, 5, 1000, 50), at(3, 14, 9, 0, 10)),
     assistant('msg_1', [{ type: 'tool_use', name: 'Edit', input: { file_path: `${CWD}/src/upload.ts` } }], usage(100, 40, 1000, 50), at(3, 14, 9, 0, 20)),
     toolResult(at(3, 14, 9, 0, 30)),
@@ -49,10 +48,8 @@ test('a session counts requests, tool calls, tokens and recorded actions', (t) =
       { type: 'tool_use', name: 'Bash', input: { command: 'npm test && git commit -m "Retry failed uploads" && git push' } },
       { type: 'tool_use', name: 'mcp__github__create_issue', input: {} },
     ], usage(200, 60), at(3, 14, 9, 1)),
-    // Harness text in the person's turn is not a request.
     user('<system-reminder>Be brief.</system-reminder>', at(3, 14, 9, 1, 30)),
     user('injected by the harness', at(3, 14, 9, 1, 40), { isMeta: true }),
-    // Last year's work is out of the window.
     user('an old request', new Date(Date.UTC(YEAR - 1, 11, 31, 23)).toISOString()),
   ]);
 
@@ -72,7 +69,6 @@ test('a session counts requests, tool calls, tokens and recorded actions', (t) =
   assert.deepEqual([...session.models.entries()], [['claude-fable-5', 2]]);
   assert.deepEqual([...session.folders.keys()], [CWD]);
   assert.deepEqual([...collector.files], [`${CWD}/src/upload.ts`]);
-  // The prompt, three assistant records, the tool result and the reminder; not the meta or last year's.
   assert.equal(session.times.length, 6);
   assert.equal(collector.filesRead, 1);
 });
@@ -84,7 +80,6 @@ test('history copied into a forked session is counted once', (t) => {
   const reply = assistant('msg_1', [{ type: 'text', text: 'Done.' }], usage(10, 5), at(4, 2, 10, 0, 30));
   const original = writeLines(path.join(folder, 'original.jsonl'), [first, reply]);
   writeLines(path.join(folder, 'fork.jsonl'), [first, reply, user('a follow-up in the fork', at(4, 2, 11, 0))]);
-  // The original was created first, so its records are credited to it.
   const earlier = new Date(Date.now() - 60000);
   fs.utimesSync(original, earlier, new Date());
 
@@ -130,7 +125,6 @@ test('a tool result adds its time and nothing else, however large', (t) => {
   writeLines(path.join(root, 'project', 'big.jsonl'), [
     user('read the log', at(6, 1, 8, 0)),
     toolResult(at(6, 1, 8, 5), 'x'.repeat(3 * 1024 * 1024)),
-    // Records that are neither a turn nor a tool result are not activity.
     { type: 'api-request-blob', hash: 'h', message: { role: 'system', content: 'y'.repeat(200000) } },
     { type: 'attachment', attachment: { type: 'hook_success', stdout: 'q'.repeat(150000) }, uuid: id('attachment'), timestamp: at(6, 1, 8, 6) },
   ]);
@@ -145,7 +139,6 @@ test('large turns are counted like small ones', (t) => {
     user('write the fixture file', at(6, 2, 8, 0)),
     assistant('msg_1', [{ type: 'tool_use', name: 'Write', input: { file_path: `${CWD}/fixture.json`, content: 'z'.repeat(150000) } }], usage(500, 9000, 20000), at(6, 2, 8, 1)),
     toolResult(at(6, 2, 8, 2), 'w'.repeat(150000)),
-    // A request with a pasted screenshot is still a request.
     user([{ type: 'text', text: 'now commit it' }, { type: 'image', source: { type: 'base64', data: 'A'.repeat(150000) } }], at(6, 2, 8, 3)),
     assistant('msg_2', [{ type: 'tool_use', name: 'Bash', input: { command: 'git commit -m "Add the fixture"' } }], usage(700, 30, 20500), at(6, 2, 8, 4)),
     toolResult(at(6, 2, 8, 5)),

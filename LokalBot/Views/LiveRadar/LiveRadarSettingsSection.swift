@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Settings → Meetings → Live Radar: whether it is offered, what it may look
-/// up to answer a question, and its floating panel. It reads with the Think
-/// model chosen in Settings → Models, so there is no model to pick here.
 struct LiveRadarSettingsSection: View {
     @EnvironmentObject var app: AppState
 
@@ -83,7 +80,6 @@ struct LiveRadarSettingsSection: View {
     }
 }
 
-/// The folders live answers may read, with a folder picker to add more.
 private struct LiveAnswerFolderList: View {
     @Binding var folders: [String]
 

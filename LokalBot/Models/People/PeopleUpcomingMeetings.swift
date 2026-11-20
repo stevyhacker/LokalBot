@@ -1,34 +1,18 @@
 import Foundation
 
-/// The next calendar meeting with one person, as People shows it. It holds
-/// names only: an invited address without a display name is left out.
 struct PersonUpcomingMeeting: Equatable, Sendable {
     let eventID: String
     let title: String
     let start: Date
     let end: Date
-    /// Everyone else invited, by display name, in the invitation's order.
-    /// The person and the user are not listed.
     let others: [String]
 
     func isInProgress(at now: Date) -> Bool { start <= now && end > now }
 }
 
-/// Matches upcoming calendar events to people through the keys
-/// `PeopleDirectory` already registers for an attendee: the address, then the
-/// name. Nothing is stored; a match lasts as long as the page shows it.
 enum PeopleUpcomingMeetings {
-    /// "Coming up" looks this many days ahead.
     static let windowDays = 7
 
-    /// The soonest event for each person, keyed by person id. `events` is nil
-    /// while Calendar use is off or access is missing, and then nobody has one.
-    ///
-    /// An attendee with an address is the person registered under that
-    /// address, or the one still known only by that full name. An attendee
-    /// without an address is the one person carrying that full name, or, for a
-    /// lone first name, the one person whose full name starts with it. Two
-    /// people who share a name are never guessed between.
     static func match(
         events: [CalendarMeetingCandidate]?,
         people: [PersonProfile],
@@ -52,7 +36,6 @@ enum PeopleUpcomingMeetings {
         let isSelf = PeopleDirectory.SelfMatcher(selfNames: selfNames)
         var result: [String: PersonUpcomingMeeting] = [:]
         for event in upcoming {
-            // Each attendee as (the person they are, the name to show).
             var attendees: [(personID: String?, name: String?)] = []
             for identity in event.resolvedParticipantIdentities {
                 let name = (identity.name ?? PeopleDirectory.nameFromAddress(identity))
@@ -76,8 +59,6 @@ enum PeopleUpcomingMeetings {
         return result
     }
 
-    /// Calendar events are read only while Calendar use is on and access has
-    /// been granted. Otherwise nothing is fetched and nothing is asked for.
     static func events(
         calendarEnabled: Bool,
         authorization: CalendarAuthorizationStatus,
@@ -87,14 +68,9 @@ enum PeopleUpcomingMeetings {
         return fetch()
     }
 
-    /// Looks attendees up by the directory's own keys without ever holding an
-    /// address: a person's ids are hashes of those keys.
     private struct Index {
-        /// Every id folded into a person, to that person's id.
         var personByMemberID: [String: String] = [:]
-        /// Normalized full names (shown and other) to the people carrying them.
         var peopleByName: [String: Set<String>] = [:]
-        /// First word of a full name of two or more words.
         var peopleByFirstName: [String: Set<String>] = [:]
         var names: [String: String] = [:]
 
@@ -120,9 +96,6 @@ enum PeopleUpcomingMeetings {
                 if let match = personByMemberID[PeopleDirectory.opaqueID("email:" + email.lowercased())] {
                     return match
                 }
-                // A person so far known only by this name takes the address
-                // when the directory next sees it; someone registered under
-                // another address stays a different person.
                 return nameKey.flatMap { personByMemberID[PeopleDirectory.opaqueID("name:" + $0)] }
             }
             guard let nameKey else { return nil }

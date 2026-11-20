@@ -30,7 +30,6 @@ fn packets_are_length_prefixed_and_split_from_a_stream() {
         reader.read(&mut source).unwrap().unwrap(),
         vec![7u8; 65_535]
     );
-    // The stream ended.
     assert!(reader.read(&mut source).is_err());
     assert!(encode_packet(&[0; 65_536]).is_err());
 }
@@ -59,8 +58,6 @@ fn a_partial_packet_survives_a_read_timeout() {
     assert_eq!(got.unwrap(), b"hello world");
 }
 
-/// A peer that hands over one byte per read and never runs dry. The first two
-/// bytes declare a 65,535-byte packet.
 struct Trickle {
     reads: usize,
 }
@@ -80,7 +77,6 @@ fn a_trickled_packet_stops_at_the_deadline() {
     let passed = Instant::now();
     assert_eq!(reader.read_until(&mut source, Some(passed)).unwrap(), None);
     assert_eq!(source.reads, 1);
-    // The byte it brought is kept: without a deadline the packet completes.
     assert_eq!(reader.read(&mut source).unwrap().unwrap().len(), 65_535);
     assert_eq!(source.reads, 2 + 65_535);
 }
@@ -98,7 +94,6 @@ fn the_handshake_timeout_holds_against_a_peer_that_trickles_bytes() {
         let stop = stop.clone();
         std::thread::spawn(move || {
             use std::io::Write as _;
-            // A byte every 10 ms always lands inside the 100 ms read timeout.
             let _ = writer.write_all(&[0xFF, 0xFF]);
             let started = Instant::now();
             while started.elapsed() < Duration::from_secs(4) && !stop.load(Ordering::SeqCst) {
@@ -139,7 +134,6 @@ fn messages_split_into_frames_of_at_most_60000_bytes() {
     assert_eq!(assembler.push(&frames[0]).unwrap(), None);
     assert_eq!(assembler.push(&frames[1]).unwrap(), None);
     assert_eq!(assembler.push(&frames[2]).unwrap().unwrap(), message);
-    // The assembler starts over for the next message.
     assert_eq!(
         assembler.push(&small[0]).unwrap().unwrap(),
         b"{\"type\":\"ping\"}"
@@ -208,7 +202,6 @@ fn unknown_message_types_and_fields_are_ignored() {
     );
 }
 
-/// A connected pair of encrypted channels over loopback.
 fn session_pair() -> (
     (std::sync::Arc<crate::wire::Channel>, crate::wire::Inbox),
     (std::sync::Arc<crate::wire::Channel>, crate::wire::Inbox),
@@ -296,10 +289,8 @@ fn transport_messages_cannot_be_replayed_or_altered() {
     let second = buffer[..n].to_vec();
 
     assert!(receiver.read_message(&first, &mut scratch).is_ok());
-    // A replay of the first message fails: the nonce has moved on.
     assert!(receiver.read_message(&first, &mut scratch).is_err());
 
-    // One flipped bit fails authentication; the genuine message still reads.
     let mut tampered = second.clone();
     tampered[3] ^= 1;
     assert!(receiver.read_message(&tampered, &mut scratch).is_err());
@@ -321,7 +312,6 @@ fn a_pairing_handshake_with_the_wrong_psk_fails_on_the_mac() {
     responder.read_message(&buffer[..n], &mut scratch).unwrap();
     let n = responder.write_message(&[], &mut buffer).unwrap();
     initiator.read_message(&buffer[..n], &mut scratch).unwrap();
-    // The phone learns the Mac's key before it sends its own.
     assert_eq!(initiator.get_remote_static().unwrap(), &mac.public_key[..]);
     let n = initiator.write_message(&[], &mut buffer).unwrap();
     assert!(responder.read_message(&buffer[..n], &mut scratch).is_err());

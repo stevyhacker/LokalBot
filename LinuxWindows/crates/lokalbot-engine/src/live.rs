@@ -1,9 +1,3 @@
-//! Live transcript preview while recording (`LiveMeetingTranscriber`,
-//! `LiveTranscriptChunker`). It is opt-in: nothing loads or runs until the
-//! user starts it. Each track is read in 4–12 s chunks cut at a quiet moment
-//! and transcribed without speakers; the full transcript replaces it after
-//! the meeting.
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -30,7 +24,6 @@ const IDLE_POLL: Duration = Duration::from_secs(1);
 const LIVE_EDGE_PAUSE_SECONDS: f64 = 0.4;
 const RETRY_BASE_SECONDS: f64 = 1.0;
 
-/// Starts, pauses and stops the preview; the worker thread does the audio work.
 #[derive(Clone)]
 pub struct LiveTranscriber {
     inner: Arc<Inner>,
@@ -39,8 +32,6 @@ pub struct LiveTranscriber {
 struct Inner {
     shared: Arc<Shared>,
     models: Models,
-    /// Bumped on every start, pause and stop; a worker from an older
-    /// generation drops whatever it was doing.
     generation: AtomicU64,
     state: Mutex<State>,
 }
@@ -48,8 +39,6 @@ struct Inner {
 struct State {
     folder: Option<PathBuf>,
     tracks: [Track; 2],
-    /// Cursors are set by the first start only; resume and retry keep them so
-    /// accepted chunks are never transcribed twice.
     initialized: bool,
     transcribed_once: bool,
     preview: LivePreview,
@@ -99,7 +88,6 @@ impl LiveTranscriber {
         }
     }
 
-    /// A recording started in `folder`; the preview is off until started.
     pub fn prepare(&self, folder: PathBuf) {
         self.inner.generation.fetch_add(1, Ordering::SeqCst);
         let mut state = self.inner.state.lock();
@@ -108,7 +96,6 @@ impl LiveTranscriber {
         self.inner.publish(&state);
     }
 
-    /// Starts, resumes or retries. `from_beginning` applies only to the first start.
     pub fn start(&self, from_beginning: bool) {
         let session = {
             let mut state = self.inner.state.lock();
@@ -160,7 +147,6 @@ impl LiveTranscriber {
         self.inner.publish(&state);
     }
 
-    /// The recording ended: drop the preview.
     pub fn stop(&self) {
         self.inner.generation.fetch_add(1, Ordering::SeqCst);
         let mut state = self.inner.state.lock();
@@ -169,10 +155,8 @@ impl LiveTranscriber {
     }
 }
 
-/// What the next chunk of one track holds.
 enum Chunk {
     NoWork,
-    /// Nothing worth transcribing up to this frame.
     Advance(u64),
     Ready {
         samples: Vec<f32>,
@@ -191,7 +175,6 @@ impl Inner {
         self.generation.load(Ordering::SeqCst) == session && !self.shared.is_shutting_down()
     }
 
-    /// Runs `f` on the state only while `session` is still the current one.
     fn update<T>(&self, session: u64, f: impl FnOnce(&mut State) -> T) -> Option<T> {
         let mut state = self.state.lock();
         if !self.is_current(session) {
@@ -279,7 +262,6 @@ impl Inner {
         }
     }
 
-    /// Transcribes one chunk; returns false when the session is over.
     fn transcribe(
         &self,
         session: u64,
@@ -348,8 +330,6 @@ impl Inner {
         }
     }
 
-    /// Backs one track off, or stops the preview after repeated failures.
-    /// Returns false when the session is over.
     fn failed(&self, session: u64, index: usize, err: &anyhow::Error) -> bool {
         self.update(session, |state| {
             let track = &mut state.tracks[index];
@@ -381,7 +361,6 @@ impl Inner {
     }
 }
 
-/// The latest 12 seconds of the longer track, as one start for both tracks.
 fn recent_start(folder: &Path) -> f64 {
     let duration = [MIC_FILE, SYSTEM_FILE]
         .iter()
@@ -391,7 +370,6 @@ fn recent_start(folder: &Path) -> f64 {
     (duration - TARGET_CHUNK_SECONDS).max(0.0)
 }
 
-/// Reads the next unprocessed chunk of a track that is still being written.
 fn next_chunk(path: &Path, processed_frames: u64) -> Result<Chunk> {
     if !path.exists() {
         return Ok(Chunk::NoWork);
@@ -405,8 +383,6 @@ fn next_chunk(path: &Path, processed_frames: u64) -> Result<Chunk> {
     reader.seek_frame(start)?;
     let mut samples = Vec::with_capacity(count as usize);
     reader.read_mono(count as usize, &mut samples)?;
-    // At the live edge someone may still be mid-sentence: wait for a pause
-    // rather than cut a sentence in two, unless 12 s have built up.
     let capped = (count as f64) >= TARGET_CHUNK_SECONDS * rate;
     if start + count == total && !capped && !ends_quietly(&samples, rate) {
         return Ok(Chunk::NoWork);
@@ -433,7 +409,6 @@ fn next_chunk(path: &Path, processed_frames: u64) -> Result<Chunk> {
     })
 }
 
-/// `LiveTranscriptChunker.nextChunk`: at least 4 s available, at most 12 s.
 fn chunk_range(processed: u64, total: u64, rate: f64) -> Option<(u64, u64)> {
     if !(rate.is_finite() && rate > 0.0) || total < processed {
         return None;
@@ -446,7 +421,6 @@ fn chunk_range(processed: u64, total: u64, rate: f64) -> Option<(u64, u64)> {
     Some((processed, count))
 }
 
-/// Whether the last 400 ms are a pause relative to the chunk.
 fn ends_quietly(samples: &[f32], rate: f64) -> bool {
     let tail = samples.len().min((LIVE_EDGE_PAUSE_SECONDS * rate) as usize);
     if tail == 0 {
@@ -463,8 +437,6 @@ fn rms(samples: &[f32]) -> f32 {
     (energy(samples) / samples.len() as f32).sqrt()
 }
 
-/// `LiveTranscriptChunker.refinedCutOffset`: the middle of the quietest
-/// 200 ms window, so a chunk does not end mid-word.
 fn refined_cut_offset(tail: &[f32], rate: f64) -> usize {
     let window = (0.2 * rate) as usize;
     let hop = (0.05 * rate) as usize;
@@ -485,8 +457,6 @@ fn refined_cut_offset(tail: &[f32], rate: f64) -> usize {
     quietest_start + window / 2
 }
 
-/// `LiveTranscriptChunker.speechCandidate`: drops silence and low-frequency
-/// drift only; speech detection itself is left to the VAD.
 fn speech_candidate(samples: &[f32], rate: f64) -> Option<Vec<f32>> {
     if !(rate.is_finite() && rate > 0.0) || samples.is_empty() {
         return None;
@@ -523,7 +493,6 @@ fn energy(samples: &[f32]) -> f32 {
     samples.iter().map(|s| s * s).sum()
 }
 
-/// One-pole high-pass filter, started without a false DC impulse.
 fn high_pass(samples: &[f32], rate: f64) -> Vec<f32> {
     let rc = 1.0 / (2.0 * std::f64::consts::PI * GATE_HIGH_PASS_HZ);
     let alpha = (rc / (rc + 1.0 / rate)) as f32;
@@ -573,7 +542,6 @@ mod tests {
     #[test]
     fn silence_and_drift_are_not_speech_candidates() {
         assert!(speech_candidate(&vec![0.0; 16_000], RATE).is_none());
-        // A constant offset is all DC: the high-pass filter removes it.
         assert!(speech_candidate(&vec![0.2; 16_000], RATE).is_none());
         let tone: Vec<f32> = (0..16_000)
             .map(|i| 0.1 * (i as f32 * 2.0 * std::f32::consts::PI * 440.0 / 16_000.0).sin())
@@ -590,15 +558,12 @@ mod tests {
                 .map(|i| 0.2 * (i as f32 * 2.0 * std::f32::consts::PI * 220.0 / 16_000.0).sin())
                 .collect()
         };
-        // Still talking at the end of what has been recorded: wait.
         lokalbot_audio::write_wav_16k(&path, &speech(6.0)).unwrap();
         assert!(matches!(next_chunk(&path, 0).unwrap(), Chunk::NoWork));
-        // A pause at the end: transcribe up to it.
         let mut paused = speech(6.0);
         paused.extend(std::iter::repeat_n(0.0, (0.6 * RATE) as usize));
         lokalbot_audio::write_wav_16k(&path, &paused).unwrap();
         assert!(matches!(next_chunk(&path, 0).unwrap(), Chunk::Ready { .. }));
-        // Twelve seconds of uninterrupted speech are transcribed anyway.
         lokalbot_audio::write_wav_16k(&path, &speech(13.0)).unwrap();
         assert!(matches!(next_chunk(&path, 0).unwrap(), Chunk::Ready { .. }));
     }

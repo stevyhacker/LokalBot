@@ -1,9 +1,5 @@
 import Foundation
 
-/// Turns encoded `AppSettings` into what `config list` and `config get`
-/// report: registry keys only, choice values as tokens, URLs without user info
-/// or query. The app encodes its live settings and fresh defaults; this stays
-/// pure so the CLI target and tests can share it.
 enum SettingsSnapshot {
     static func entries(
         current: [String: JSONValue],
@@ -27,7 +23,6 @@ enum SettingsSnapshot {
         }
     }
 
-    /// The specs a `settings.list` request asks for, in registry order.
     static func specs(category: String?, keys: [String]?) throws -> [SettingSpec] {
         if let keys {
             return try keys.map { key in

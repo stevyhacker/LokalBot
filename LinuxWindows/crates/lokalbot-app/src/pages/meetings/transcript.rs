@@ -1,9 +1,3 @@
-//! The Transcript tab (`MeetingTranscriptList`): one panel with Find in its
-//! header and "Transcribed with …" in its footer, speaker turns on its
-//! surface with a quiet time before each line. The list is virtualized, so
-//! the panel is drawn in pieces: its top with the header, one piece per line,
-//! and its bottom with the footer.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::Input;
@@ -26,7 +20,6 @@ use crate::ui::action_row::short_stamp;
 use crate::ui::{self, Ico};
 
 impl MeetingsPage {
-    /// "2 of 5 · Transcript", or "No matches".
     fn find_status(&self) -> Option<String> {
         let total = self.find.matches.len();
         if self.find.query.trim().is_empty() {
@@ -46,7 +39,6 @@ impl MeetingsPage {
         }
     }
 
-    /// The previous and next match buttons.
     fn find_steps(&self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let lb = cx.lb().clone();
         let has_matches = !self.find.matches.is_empty();
@@ -75,7 +67,6 @@ impl MeetingsPage {
         ]
     }
 
-    /// The field's surface (`workspaceControl`).
     fn find_field(&self, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         h_flex()
@@ -97,8 +88,6 @@ impl MeetingsPage {
             )
     }
 
-    /// Ctrl+F's search of the whole meeting, pinned under the player because
-    /// its matches move between tabs.
     pub(super) fn render_find_bar(&mut self, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
         let status = self.find_status();
@@ -129,9 +118,6 @@ impl MeetingsPage {
         )
     }
 
-    /// Find in transcript, at the trailing edge of the Transcript panel's
-    /// header with its count before it; the steps show once something is
-    /// typed.
     fn render_panel_find(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let scale = self.text_scale(cx);
@@ -169,7 +155,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// The panel's header bar: its symbol, "Transcript", and Find.
     fn transcript_header(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let find = (super::presentation::find_placement(self.tab, self.find.open)
@@ -266,8 +251,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// One piece of the page: item 0 is the status lines and the panel's
-    /// top; item r + 1 is line r, the last one closing the panel.
     fn render_transcript_item(
         &mut self,
         ix: usize,
@@ -375,9 +358,6 @@ impl MeetingsPage {
         column(self, cx, piece)
     }
 
-    /// One line: on a new speaker turn the speaker above it, then a quiet
-    /// time and what was said. The line being played or opened is
-    /// highlighted, and any time plays from there.
     fn render_line(
         &mut self,
         doc: &MeetingDoc,

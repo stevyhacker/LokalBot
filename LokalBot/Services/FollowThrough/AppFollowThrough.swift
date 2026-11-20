@@ -1,9 +1,6 @@
 import AppKit
 import Foundation
 
-/// The library reads and hand-offs behind Follow-through. Reads reuse Ask's
-/// meeting tools (never screen memory, which has its own permission).
-/// Approved steps open as drafts in the person's own apps.
 @MainActor
 final class AppFollowThroughEnvironment: FollowThroughEnvironment {
     private weak var app: AppState?
@@ -88,14 +85,11 @@ final class AppFollowThroughEnvironment: FollowThroughEnvironment {
 
     private static func open(_ url: URL) -> Bool {
 #if LOKALBOT_UI_TEST_HOST
-        // The hosted UI suite must not launch Mail or Calendar on the runner.
         if MuseUITestTransport.isEnabled { return true }
 #endif
         return NSWorkspace.shared.open(url)
     }
 
-    /// The calendar address for a name said in the meeting, matched on the
-    /// full name or the first name. Addresses never go to the model.
     static func address(for name: String, in identities: [CalendarParticipantIdentity]) -> String? {
         let wanted = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !wanted.isEmpty, !wanted.contains("@") else { return nil }
@@ -120,8 +114,6 @@ final class AppFollowThroughEnvironment: FollowThroughEnvironment {
 enum FollowThroughBriefing {
     static let maximumSummaryCharacters = 4_000
 
-    /// What the model is told about the action. Names only: calendar
-    /// addresses stay local.
     static func make(target: FollowThroughTarget, meeting: Meeting?, summary: String?,
                      radar: MeetingRadarRecord?, personName: String = "") -> String {
         var sections = ["ACTION: \(target.text)",
@@ -152,7 +144,6 @@ enum FollowThroughBriefing {
 }
 
 extension AppState {
-    /// Opens Follow-through for one saved action.
     func followThrough(_ reference: OutcomeActionReference) {
         let evidence = reference.action.citations.map { citation in
             "\(Transcript.stamp(citation.start)) \(SpeakerDisplayName.label(citation.speaker)): “\(citation.excerpt)”"
@@ -164,7 +155,6 @@ extension AppState {
             due: reference.due, evidence: evidence))
     }
 
-    /// Opens Follow-through for a commitment Live Radar caught.
     func followThrough(_ item: RadarItem, in meeting: Meeting) {
         let speaker = item.speaker == "local" || item.speaker == "me" ? "Me" : "Others"
         startFollowThrough(FollowThroughTarget(
@@ -177,14 +167,11 @@ extension AppState {
         let meeting = meetings.first { $0.id == target.meetingID }
         let folder = meeting?.folderURL(in: storage)
         let summary = folder.flatMap { try? String(contentsOf: $0.appendingPathComponent("summary.md"), encoding: .utf8) }
-        // The name from Settings → Writing, so drafts are signed.
         let briefing = FollowThroughBriefing.make(target: target, meeting: meeting, summary: summary,
                                                   radar: folder.flatMap(MeetingRadarRecord.load(from:)),
                                                   personName: settings.cotypingUserName)
         let environment = AppFollowThroughEnvironment(app: self)
 #if LOKALBOT_UI_TEST_HOST
-        // The hosted film runs Follow-through on scripted replies, or on
-        // Meta's models with the film's key. Both speak Meta's wire format.
         if MuseUITestTransport.isEnabled {
             followThroughSession = FollowThroughSession(
                 target: target, briefing: briefing, model: MetaModelAPI.museWonder.id, environment: environment,
@@ -192,8 +179,6 @@ extension AppState {
             return
         }
 #endif
-        // The Think model, as Settings → Models has it at each turn: its
-        // server, its approval and its request gate are Think's own.
         followThroughSession = FollowThroughSession(
             target: target, briefing: briefing, model: settings.thinkModelDisplayName, environment: environment,
             call: { [weak self] messages, tools in

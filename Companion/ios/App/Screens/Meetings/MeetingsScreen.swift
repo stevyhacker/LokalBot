@@ -1,7 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Meetings list beside the selected meeting; one stack in compact width.
 struct MeetingsSplit: View {
     @Environment(AppNavigator.self) private var navigator
     @State private var selection: MeetingRoute?
@@ -61,7 +60,6 @@ struct MeetingsList: View {
                     }
                 }
                 if model.hasMore {
-                    // Reaching the end of what's listed loads the meetings before it.
                     ProgressView()
                         .frame(maxWidth: .infinity)
                         .listRowSeparator(.hidden)
@@ -109,8 +107,6 @@ struct MeetingsList: View {
     }
 }
 
-/// Search hits from the device's copy, each opening its meeting at the
-/// matched moment, or its day.
 struct SearchResults: View {
     @Environment(AppNavigator.self) private var navigator
     let hits: [SearchHit]
@@ -171,7 +167,6 @@ struct SearchHitRow: View {
         }
     }
 
-    /// The snippet with the matched words in the primary color.
     private var highlighted: AttributedString {
         SearchSnippet.parts(hit.snippet, query: query).reduce(into: AttributedString()) { text, part in
             var piece = AttributedString(part.text)

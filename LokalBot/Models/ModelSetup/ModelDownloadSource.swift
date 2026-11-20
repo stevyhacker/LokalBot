@@ -1,13 +1,5 @@
 import Foundation
 
-/// Where LokalBot fetches its pinned model files, chosen in Settings → Models.
-///
-/// huggingface.co is blocked in mainland China, so two opt-in sources serve the
-/// same files there: HF-Mirror (hf-mirror.com), a community mirror with
-/// Hugging Face's paths, and ModelScope (modelscope.cn), Alibaba's model hub.
-/// Every file is still checked against the size and SHA-256 LokalBot pins, so a
-/// source can make a download fail but cannot change a model. See
-/// `ModelDownloadRouting`.
 enum ModelDownloadSource: String, Codable, CaseIterable, Identifiable, Sendable {
     case huggingFace
     case hfMirror

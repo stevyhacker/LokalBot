@@ -1,5 +1,3 @@
-//! Shared limits and text handling for the memory readers (`AgentMemoryText`).
-
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -7,12 +5,10 @@ use lokalbot_ai::sanitize;
 
 use crate::coding_agents::text as agent_text;
 
-/// A memory file larger than this is not a note someone wrote.
 pub const MAX_FILE_BYTES: u64 = 4 * 1_024 * 1_024;
 pub const MAX_NOTE_CHARACTERS: usize = 24_000;
 pub const MAX_TITLE_CHARACTERS: usize = 160;
 pub const MAX_SUMMARY_CHARACTERS: usize = 400;
-/// Per agent, so a runaway folder cannot fill the library.
 pub const MAX_NOTES_PER_AGENT: usize = 5_000;
 
 #[derive(Debug, PartialEq, Eq)]
@@ -21,8 +17,6 @@ pub enum ReadFailure {
     TooLarge,
 }
 
-/// A file's text with Windows line endings folded, so one set of rules splits
-/// lines wherever the agent wrote them.
 pub fn contents(path: &Path) -> Result<String, ReadFailure> {
     let size = std::fs::metadata(path).map(|meta| meta.len()).unwrap_or(0);
     if size > MAX_FILE_BYTES {
@@ -32,8 +26,6 @@ pub fn contents(path: &Path) -> Result<String, ReadFailure> {
     Ok(String::from_utf8_lossy(&bytes).replace("\r\n", "\n"))
 }
 
-/// Credentials redacted, line endings folded, edges trimmed, capped at a line
-/// end. Markdown layout is kept so a quoted passage reads as written.
 pub fn body(raw: &str) -> String {
     let text = sanitize::redact(raw)
         .replace("\r\n", "\n")
@@ -47,7 +39,6 @@ pub fn body(raw: &str) -> String {
     format!("{}\n…", kept.trim())
 }
 
-/// One line, credentials redacted, capped; `None` when nothing is left.
 pub fn line(raw: Option<&str>, max_characters: usize) -> Option<String> {
     let text = agent_text::sanitized(raw?, max_characters);
     (!text.is_empty()).then_some(text)
@@ -60,8 +51,6 @@ pub fn modification_date(path: &Path) -> DateTime<Utc> {
         .unwrap_or(DateTime::UNIX_EPOCH)
 }
 
-/// One heading and the text under it, up to the next heading that starts a
-/// section.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Section {
     pub level: usize,
@@ -69,9 +58,6 @@ pub struct Section {
     pub body: String,
 }
 
-/// Splits Markdown at headings of the given levels. Text before the first such
-/// heading comes back with level 0 and an empty heading. Headings inside
-/// fenced code are text.
 pub fn sections(markdown: &str, levels: &[usize]) -> Vec<Section> {
     fn close(result: &mut Vec<Section>, mut current: Section, lines: &mut Vec<&str>) {
         current.body = lines.join("\n").trim().to_string();
@@ -121,7 +107,6 @@ pub fn sections(markdown: &str, levels: &[usize]) -> Vec<Section> {
     result
 }
 
-/// The value of a `key: value` line, without surrounding quotes.
 pub fn value(key: &str, line: &str) -> Option<String> {
     let rest = line.strip_prefix(key)?.strip_prefix(':')?;
     Some(unquoted(rest.trim()))
@@ -143,7 +128,6 @@ pub fn unquoted(value: &str) -> String {
     }
 }
 
-/// A heading or header value that is a folder path, written on any platform.
 pub fn is_folder_path(text: &str) -> bool {
     text.starts_with('/') || agent_text::is_windows_path(text)
 }

@@ -2,10 +2,6 @@ import SQLite3
 import XCTest
 @testable import LokalBot
 
-/// Ask and Quick Recall search meetings and then screens on every debounced
-/// keystroke. The typed query is embedded once for both sources, at the
-/// caller's priority, while indexing stays background work, sent in small
-/// requests so the query waits behind at most one of them.
 @MainActor
 final class EmbeddingIndexQueryTests: XCTestCase {
     private final class Recorder {
@@ -31,7 +27,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         }
     }
 
-    /// Holds each request until the test answers it, like a busy server.
     @MainActor
     private final class HeldEmbedder {
         struct Request: Equatable {
@@ -43,8 +38,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         private var held: [Int: CheckedContinuation<[[Float]], Error>] = [:]
         private var answersImmediately = false
 
-        /// The vector says which text it belongs to, so stored rows can be
-        /// checked against their text.
         static func vector(for text: String) -> [Float] { [Float(text.count), 0] }
 
         func embed(_ texts: [String], priority: InferencePriority) async throws -> [[Float]] {
@@ -62,7 +55,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
             held.removeValue(forKey: index)?.resume(returning: posted[index].texts.map(Self.vector))
         }
 
-        /// Answers everything held so far and every later request.
         func answerAll() {
             answersImmediately = true
             for index in held.keys.sorted() { answer(index) }
@@ -93,8 +85,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         }
     }
 
-    /// One embedded meeting chunk and one embedded screen, both matching the
-    /// recorder's query vector exactly.
     private func makeLibrary(embedder: EmbeddingIndex.Embedder? = nil) throws -> Library {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("embedding-query-\(UUID().uuidString)", isDirectory: true)
@@ -129,9 +119,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
                        recorder: recorder, meetingID: meetingID, screenID: screenID)
     }
 
-    /// The database paths score rows in place and read text only for the rows
-    /// they keep; they must rank exactly like the in-memory rankers, ties and
-    /// floors included.
     func testDatabaseRankingMatchesInMemoryRanking() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("embedding-ranking-\(UUID().uuidString)", isDirectory: true)
@@ -139,7 +126,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let databaseURL = root.appendingPathComponent("lokalbotv3.sqlite")
         let store = ActivityStore(databaseURL: databaseURL)
-        // Creates the embedding tables.
         let index = EmbeddingIndex(databaseURL: databaseURL, storage: StorageManager(rootURL: root),
                                    embedder: { texts, _, _ in texts.map { _ in [1, 0] } })
         defer { withExtendedLifetime(index) {} }
@@ -149,7 +135,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         XCTAssertTrue(database.run(
             "INSERT INTO embedded_meetings (meeting_id, source_mtime, model_id) VALUES (?1, ?2, ?3)",
             bind: [meetingID.uuidString, 1.0, EmbeddingIndex.indexVersion]))
-        // Cosines with [1, 0]: below both floors, ties, between the floors.
         let cosines: [Float] = [0.5, 0.8, 0.8, 0.6, 0.95, 0.8, 0.7, 0.9]
         var screens: [EmbeddingIndex.ScreenCandidate] = []
         var chunks: [EmbeddingIndex.Candidate] = []
@@ -180,7 +165,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         XCTAssertEqual(foundChunks.map(\.score), rankedChunks.map(\.score))
         XCTAssertEqual(foundChunks.map(\.start), [4, 7, 1, 2, 5])
 
-        // A capture deleted while ranking ran is dropped by the main-actor check.
         try store.deleteScreenshot(id: foundScreens[0].snapshotID)
         XCTAssertEqual(EmbeddingIndex.liveScreenHits(foundScreens, in: database).map(\.snapshotID),
                        foundScreens.dropFirst().map(\.snapshotID))
@@ -189,7 +173,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
     func testMeetingAndScreenSearchShareOneQueryEmbedding() async throws {
         let library = try makeLibrary()
 
-        // Typing pauses after a space; the padded query is the same query.
         let meetings = await library.index.search("launch budget ", priority: .interactive)
         let screens = await library.index.searchScreen("launch budget", priority: .interactive)
 
@@ -213,7 +196,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         XCTAssertEqual(changed.map(\.meetingID), [library.meetingID])
         XCTAssertEqual(library.recorder.queries.map(\.texts),
                        [["launch budget"], ["launch budget"], ["hiring plan"]])
-        // Callers that pass no priority keep the previous background lease.
         XCTAssertEqual(library.recorder.queries.map(\.priority),
                        [.interactive, .interactive, .background])
     }
@@ -243,17 +225,12 @@ final class EmbeddingIndexQueryTests: XCTestCase {
             "SELECT 1 FROM screen_embeddings WHERE snapshot_id = ?1", bind: [unembeddedScreen]))
     }
 
-    // MARK: - Background requests and typed queries
-
-    /// Lets queued main-actor work run until `condition` holds.
     private func settle(until condition: () -> Bool,
                         file: StaticString = #filePath, line: UInt = #line) async {
         for _ in 0..<1_000 where !condition() { await Task.yield() }
         XCTAssertTrue(condition(), "condition never held", file: file, line: line)
     }
 
-    /// A meeting whose transcript makes one chunk per line, each line a
-    /// different length.
     private func writeMeeting(in library: Library, lines: Int) throws -> Meeting {
         let meetingID = UUID()
         try MeetingFixture.write([
@@ -288,13 +265,11 @@ final class EmbeddingIndexQueryTests: XCTestCase {
         let indexing = Task { try await library.index.index(meeting) }
         await settle { held.posted.count == 1 }
         let searching = Task { await library.index.search("launch budget", priority: .interactive) }
-        // The query is posted while the background request is on the server.
         await settle { held.posted.count == 2 }
         XCTAssertEqual(held.posted[1], .init(texts: ["launch budget"], priority: .interactive))
 
         held.answer(0)
         for _ in 0..<100 { await Task.yield() }
-        // The next background request is held until the query has its vector.
         XCTAssertEqual(held.posted.count, 2)
 
         held.answerAll()
@@ -313,7 +288,6 @@ final class EmbeddingIndexQueryTests: XCTestCase {
             XCTAssertLessThanOrEqual(request.texts.count, EmbeddingIndex.backgroundRequestMaximumInputs)
             XCTAssertLessThanOrEqual(characters, EmbeddingIndex.backgroundRequestMaximumCharacters)
         }
-        // Every chunk is stored once, in order, with its own vector.
         let database = try XCTUnwrap(SQLiteDatabase(url: library.databaseURL))
         let stored: [(text: String, vector: [Float])] = database.query(
             "SELECT text, vec FROM embeddings WHERE meeting_id = ?1 ORDER BY rowid",

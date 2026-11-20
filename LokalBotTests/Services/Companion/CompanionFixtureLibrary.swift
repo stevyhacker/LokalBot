@@ -1,14 +1,10 @@
 import Foundation
 @testable import LokalBot
 
-/// A small synthetic library for companion-record tests. It deliberately
-/// holds every kind of private data that must never reach a phone, each
-/// marked with a distinctive string listed in `secrets`.
 struct CompanionFixtureLibrary {
     let root: URL
     let now: Date
     let calendar = Calendar.current
-    /// The day of the main meeting, at local noon.
     let day: Date
     let designReview: Meeting
     let olderMeeting: Meeting
@@ -31,7 +27,6 @@ struct CompanionFixtureLibrary {
     static let personalContextSecret = "PERSONAL-CONTEXT-SECRET likes"
     static let reviewNoteSecret = "OVERNIGHT-REVIEW-NOTE-SECRET"
 
-    /// Strings that must never appear in any record body.
     static let secrets = [
         ocrSecret, "account 4417", screenshotPathSecret, attendeeEmailSecret, "example-private.test",
         unnamedAttendeeEmail, "unnamed-attendee-secret.test", voiceProfileSecret, calendarIdentitySecret,
@@ -53,7 +48,6 @@ struct CompanionFixtureLibrary {
         let day = calendar.date(byAdding: .hour, value: 12, to: calendar.date(byAdding: .day, value: -2, to: today)!)!
         let storage = StorageManager(rootURL: root)
 
-        // The main meeting: calendar attendees with emails, an agenda, a link.
         var designReview = Meeting(
             id: UUID(uuidString: "3F6C2A10-8A4E-4D2B-9B1E-0A1B2C3D4E01")!,
             title: "Design review — onboarding", appName: "Zoom",
@@ -104,12 +98,10 @@ struct CompanionFixtureLibrary {
         var state = MeetingOutcomeState()
         state.actions["act-study"] = .init(status: .deferred, userEdited: true)
         try MeetingOutcomeStore.writeState(state, to: folder)
-        // Private speaker evidence beside the meeting; never read by builders.
         let evidence = folder.appendingPathComponent("speaker-evidence", isDirectory: true)
         try FileManager.default.createDirectory(at: evidence, withIntermediateDirectories: true)
         try Data(voiceProfileSecret.utf8).write(to: evidence.appendingPathComponent("assignments.sealed"))
 
-        // An older meeting, outside a 30-day window.
         let olderDay = calendar.date(byAdding: .day, value: -45, to: day)!
         let olderMeeting = Meeting(
             id: UUID(uuidString: "3F6C2A10-8A4E-4D2B-9B1E-0A1B2C3D4E02")!,
@@ -118,7 +110,6 @@ struct CompanionFixtureLibrary {
             relativePath: try storage.reserveMeetingFolder(title: "Pricing workshop", startedAt: olderDay))
         try storage.saveMeta(olderMeeting)
 
-        // A merge: the source is folded into the parent and never shared.
         let mergedSourceID = UUID(uuidString: "3F6C2A10-8A4E-4D2B-9B1E-0A1B2C3D4E03")!
         let mergedParentID = UUID(uuidString: "3F6C2A10-8A4E-4D2B-9B1E-0A1B2C3D4E04")!
         var mergedSource = Meeting(
@@ -134,7 +125,6 @@ struct CompanionFixtureLibrary {
         mergedParent.mergedSourceMeetingIDs = [mergedSourceID]
         try storage.saveMeta(mergedParent)
 
-        // LokalBot's bundled sample meeting is made up and never shared.
         var sampleMeeting = Meeting(
             id: UUID(uuidString: "3F6C2A10-8A4E-4D2B-9B1E-0A1B2C3D4E05")!,
             title: "Orders API sample", appName: "Sample",
@@ -143,8 +133,6 @@ struct CompanionFixtureLibrary {
         sampleMeeting.sampleID = "orders-api/en"
         try storage.saveMeta(sampleMeeting)
 
-        // Activity: window titles, a screenshot with a path and OCR text, a
-        // saved moment, and a coding-agent burst.
         let activity = ActivityStore(databaseURL: root.appendingPathComponent("lokalbotv3.sqlite"))
         activity.insert(ActivityBlock(app: "Numbers", title: windowTitleSecret,
                                       start: day.addingTimeInterval(1800), end: day.addingTimeInterval(1800 + 1500)))
@@ -161,7 +149,6 @@ struct CompanionFixtureLibrary {
             prompts: ["shorten the onboarding flow"], promptCount: 1, finalReply: nil,
             changedFiles: [], changedFileCount: 0, actions: [], pullRequests: [], toolCallCount: 3)])
 
-        // The day's digest, with the evidence log LokalBot renders from capture.
         let journal = root.appendingPathComponent("journal", isDirectory: true)
         try FileManager.default.createDirectory(at: journal, withIntermediateDirectories: true)
         try Data("""
@@ -195,8 +182,6 @@ struct CompanionFixtureLibrary {
               - [screen:\(screenshotID)], 12:33: \(ocrSecret)
             """.utf8).write(to: journal.appendingPathComponent("\(DreamDay.key(for: day, calendar: calendar)).md"))
 
-        // Tracked project with a "Where it stands" note; one point came from
-        // overnight review notes, which stay on the Mac.
         let projects = root.appendingPathComponent("projects", isDirectory: true)
         try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
         let projectID = UUID(uuidString: "7A1D0C55-2B8F-4F3A-A6C4-5E6F7A8B9C01")!
@@ -216,7 +201,6 @@ struct CompanionFixtureLibrary {
             generatedAt: day, engineName: "Fixture", location: "this Mac"),
         ]).write(to: projects.appendingPathComponent(ProjectStatusSummary.fileName))
 
-        // Dream memory and Personal Context files: never read.
         let memory = root.appendingPathComponent("memory", isDirectory: true)
         try FileManager.default.createDirectory(at: memory, withIntermediateDirectories: true)
         try Data("{\"projects\":[{\"name\":\"\(dreamSecret)\"}]}".utf8).write(to: memory.appendingPathComponent("memory.json"))
@@ -244,7 +228,6 @@ struct CompanionFixtureLibrary {
     }
 }
 
-/// The host's record store, reduced to what the publisher relies on.
 final class InMemoryCompanionSink: CompanionRecordSink {
     private(set) var records: [String: [String: String]] = [:]
     private(set) var manifest: String?

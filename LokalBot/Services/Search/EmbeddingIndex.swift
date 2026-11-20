@@ -2,10 +2,6 @@ import Accelerate
 import Foundation
 import SQLite3
 
-/// Coalesces expensive embedding-model preparation by destination. Waiters
-/// can cancel independently; the shared operation is never canceled and runs
-/// to completion even after its last waiter leaves, so one abandoned search
-/// cannot break active indexing and a later caller rejoins it.
 actor EmbeddingModelPreparationCoordinator {
     typealias Operation = @Sendable () async throws -> URL
 
@@ -68,10 +64,6 @@ actor EmbeddingModelPreparationCoordinator {
         guard var flight = flights[key],
               let continuation = flight.waiters.removeValue(forKey: waiterID) else { return }
         continuation.resume(throwing: CancellationError())
-        // Keep the preparation flight alive even when its current waiter set
-        // becomes empty. Download/install cancellation is not guaranteed to be
-        // instantaneous; retaining the flight lets a later caller rejoin it
-        // instead of racing a second install against a still-unwinding first.
         flights[key] = flight
     }
 
@@ -84,11 +76,6 @@ actor EmbeddingModelPreparationCoordinator {
     }
 }
 
-/// Orders requests to the embedder llama-server. It runs `--parallel 1` and
-/// encodes inputs first in, first out, so a typed query waits for every input
-/// posted before it. Background requests go one at a time and are held while
-/// a foreground request is in flight: a query waits for at most the one
-/// background request already on the server.
 @MainActor
 final class EmbeddingRequestGate {
     private var foregroundCount = 0
@@ -144,10 +131,6 @@ final class EmbeddingRequestGate {
     }
 }
 
-/// M6 semantic layer (design §4.1): transcript/summary chunks embedded with
-/// EmbeddingGemma 2 GGUF, served by the second llama-server instance.
-/// Vectors live in SQLite; query = brute-force cosine (normalized dot) —
-/// instant at personal-library scale, no extra dependency.
 @MainActor
 final class EmbeddingIndex {
 
@@ -169,13 +152,8 @@ final class EmbeddingIndex {
         var id: Int64 { snapshotID }
     }
 
-    /// When background passes over screen text run. Tests shorten these.
     struct ScreenBackfillSchedule: Sendable {
-        /// New captures wait this long, so one pass embeds a batch of them
-        /// instead of waking the embedder for every capture.
         var newTextDelay: Duration
-        /// The wait after the first failed pass. Each further failure doubles
-        /// it, up to `maximumRetryDelay`; a successful pass resets it.
         var firstRetryDelay: Duration
         var maximumRetryDelay: Duration
 
@@ -195,45 +173,25 @@ final class EmbeddingIndex {
     }
 
     nonisolated static let modelID = "embeddinggemma-2-q8"
-    /// Persisted separately from the server-facing model name. Any change to
-    /// pooling, prompting, or chunking must advance this value so vectors made
-    /// under incompatible contracts are discarded before search resumes.
     nonisolated static let indexVersion = "embeddinggemma-2-q8-mean-768-v1"
     nonisolated static let modelFile = "embeddinggemma-2-Q8_0.gguf"
     nonisolated private static let modelBytes: Int64 = 309_855_456
     nonisolated private static let modelSHA256 = "2188ac1deca4b77dffefd603c2776a9d76d9d74ec01841392982ebb840b09135"
     nonisolated private static let modelURL =
         "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/bfcd298762cc34d0357ece5ebdd31791a3a374d8/embeddinggemma-2-Q8_0.gguf"
-    /// Embedders this app shipped before. Their files are deleted, by exact
-    /// name, once the current model has been verified.
     nonisolated static let obsoleteModelFiles = [
         "harrier-oss-v1-0.6b.Q8_0.gguf",
         "Qwen3-Embedding-0.6B-Q8_0.gguf",
         "nomic-embed-text-v1.5.Q8_0.gguf",
     ]
-    /// The checkpoint's own retrieval prompts (`SearchQuery` and `Document`).
-    /// Meetings and screens share them; the stored text says which it is.
     nonisolated static let documentPrefix = "title: none | text: "
     nonisolated static let queryPrefix = "task: search result | query: "
     private static let screenDocumentPrefix = documentPrefix
     private static let screenQueryPrefix = queryPrefix
-    /// EmbeddingGemma 2 scores unrelated text higher than Harrier did: on a
-    /// real library, unrelated meeting chunks had a median of 0.59 and
-    /// unrelated screens 0.61. These floors pass the same share of unrelated
-    /// pairs as Harrier's 0.45 (32% of meeting chunks, 76% of screens) while
-    /// keeping 99.7% and 100% of the passages the queries were written from.
-    /// Recalibrate whenever the embedding model changes.
     nonisolated static let meetingSimilarityFloor: Float = 0.61
     nonisolated static let screenSimilarityFloor: Float = 0.58
     nonisolated static let transcriptChunkTargetCharacters = 500
-    /// Preserve the existing chunk shape for normal ASR output while keeping a
-    /// single pathological segment safely below the embedder's 2K context.
     nonisolated static let transcriptChunkHardLimitCharacters = 1_800
-    /// Limits for one background embedding request, so a typed query waits
-    /// for at most about 100 ms (M4 Max): a 1,500-character OCR row is about
-    /// 900 tokens and 50 ms, a 500-character transcript chunk about 11 ms.
-    /// Splitting costs almost nothing (each input is encoded on its own) and
-    /// does not change the vectors.
     nonisolated static let backgroundRequestMaximumInputs = 8
     nonisolated static let backgroundRequestMaximumCharacters = 2_000
     private static let modelPreparation = EmbeddingModelPreparationCoordinator()
@@ -242,39 +200,20 @@ final class EmbeddingIndex {
     private let storage: StorageManager
     private var locallyDeletedMeetingIDs: Set<UUID> = []
     private var screenReindexFlight: (id: UUID, task: Task<Void, Never>)?
-    /// The next automatic pass, set by new screen text or a failed pass.
     private var scheduledScreenReindex: (id: UUID, task: Task<Void, Never>)?
     private let screenBackfillSchedule: ScreenBackfillSchedule
-    /// Failed passes since the last one that finished; sets the retry delay.
     private(set) var screenReindexFailures = 0
-    /// Set once this library has searched screens by meaning. Until then new
-    /// captures are not embedded, so people who never use the feature do not
-    /// download a model or spend background inference time on it.
     private var screenSearchInUse = false
-    /// Startup discarded screen vectors an earlier model made. This library
-    /// already used semantic screen search, so they are rebuilt after the
-    /// meetings instead of waiting for a search.
     private(set) var screenVectorsNeedRebuild = false
-    /// Ask and Quick Recall search meetings and then screens with the same
-    /// query, and search again when only a filter or a trailing space changes.
-    /// The model is fixed for an index version, so the last vector stays valid.
     private var lastQueryEmbedding: (input: String, vector: [Float])?
-    /// Called when screens are searched by meaning, so picture vectors
-    /// (`ScreenImageEmbeddings`) can start once they are wanted.
     var screenSearchByMeaningDidStart: (() -> Void)?
 
-    /// Turns texts into vectors. The app sends them to the embedder
-    /// llama-server; tests pass a recorder instead.
     typealias Embedder = @MainActor (
         _ texts: [String], _ prefix: String, _ priority: InferencePriority
     ) async throws -> [[Float]]
     private let embedder: Embedder
     private let requestGate = EmbeddingRequestGate()
 
-    /// Fails like an embedder that is not ready, so search keeps its keyword
-    /// results and indexing tries again later. Unit tests' `AppState` uses it:
-    /// semantic search is on there, and the real embedder would download the
-    /// model into the test's temporary library.
     static let unavailableEmbedder: Embedder = { _, _, _ in
         throw TextEngineError.unavailable("The embedding model is not available.")
     }
@@ -341,8 +280,6 @@ final class EmbeddingIndex {
                 SELECT 1 FROM sqlite_master
                 WHERE type = 'table' AND name = 'screenshots'
                 """) {
-                // Two index ranges instead of `!=`, which reads every vector
-                // (41 MB on a large library) at each launch on the main actor.
                 screenVectorsNeedRebuild = database.hasRow(
                     "SELECT 1 FROM screen_embeddings WHERE model_id < ?1 OR model_id > ?1 LIMIT 1",
                     bind: [Self.indexVersion])
@@ -356,11 +293,6 @@ final class EmbeddingIndex {
         _ = reconcileDeletedMeetings()
     }
 
-    // MARK: - Indexing
-
-    /// Re-embeds meetings whose sources changed. `progress` receives
-    /// `(done, total)` over only the meetings that need work, starting at
-    /// `(0, total)` when any do, so an up-to-date library reports nothing.
     func reindexAll(
         _ meetings: [Meeting],
         progress: ((_ done: Int, _ total: Int) -> Void)? = nil
@@ -375,8 +307,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// Prefix that identifies a semantic chunk taken from the user's own
-    /// meeting notes, so a hit can be mapped back to its notes passage.
     nonisolated static let notesChunkMarker = "My meeting notes: "
 
     nonisolated static func notesChunks(_ notes: String) -> [(start: TimeInterval, text: String)] {
@@ -389,11 +319,6 @@ final class EmbeddingIndex {
             bind: [meetingID.uuidString, Self.notesChunkMarker.count, Self.notesChunkMarker]) ?? false
     }
 
-    /// Matches the historical ~500-character transcript chunks for ordinary
-    /// segments. A malformed or low-quality ASR segment can contain thousands
-    /// of characters, so enforce a separate hard ceiling before it reaches the
-    /// embedding server. Split pieces preserve every source character and keep
-    /// the segment timestamp for deep-linking.
     nonisolated static func transcriptChunks(
         _ transcript: Transcript
     ) -> [(start: TimeInterval, text: String)] {
@@ -432,9 +357,6 @@ final class EmbeddingIndex {
         return chunks
     }
 
-    /// Prefer a nearby whitespace boundary but fall back to an exact character
-    /// boundary for very long unbroken tokens. Substrings are not trimmed, so
-    /// concatenating the pieces reconstructs the original input byte-for-byte.
     nonisolated private static func splitEmbeddingText(
         _ text: String,
         maximumCharacters: Int
@@ -461,8 +383,6 @@ final class EmbeddingIndex {
         return pieces
     }
 
-    /// Sources of a meeting whose vectors are missing or stale; nil when
-    /// `index(_:)` has nothing to do.
     private func pendingIndexState(
         for meeting: Meeting
     ) -> (folder: URL, mtime: TimeInterval, notes: String?, hasNotesVectors: Bool)? {
@@ -477,11 +397,6 @@ final class EmbeddingIndex {
         return (folder, mtime, notes, hasNotesVectors)
     }
 
-    /// The meetings `index(_:)` has work for. Looking at every meeting's
-    /// files and rows (at launch, the whole library) runs off the main actor
-    /// on its own read-only connection; only the meetings it finds are checked
-    /// again here, so one deleted or changed meanwhile is still judged by
-    /// `pendingIndexState`.
     private func meetingsNeedingVectors(_ meetings: [Meeting]) async -> [Meeting] {
         guard database != nil, !meetings.isEmpty else { return [] }
         let sources = meetings.map { MeetingSource(id: $0.id, folder: $0.folderURL(in: storage)) }
@@ -492,7 +407,6 @@ final class EmbeddingIndex {
         }
         let candidates = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
         guard !Task.isCancelled else { return [] }
-        // Without the second connection, every meeting is checked here as before.
         return meetings.filter {
             (candidates?.contains($0.id) ?? true) && pendingIndexState(for: $0) != nil
         }
@@ -503,8 +417,6 @@ final class EmbeddingIndex {
         let folder: URL
     }
 
-    /// `pendingIndexState`'s answer for many meetings at once: three queries
-    /// for the whole library instead of four per meeting.
     nonisolated static func meetingIDsNeedingVectors(
         _ sources: [MeetingSource], in database: SQLiteDatabase
     ) -> Set<UUID> {
@@ -544,7 +456,6 @@ final class EmbeddingIndex {
             && isDirectory.boolValue
     }
 
-    /// The newest of the files a meeting's vectors are made from.
     nonisolated private static func sourceMtime(in folder: URL) -> TimeInterval {
         ["transcript.json", "summary.md", MeetingNotes.fileName].compactMap {
             (try? FileManager.default.attributesOfItem(
@@ -552,9 +463,6 @@ final class EmbeddingIndex {
         }.map(\.timeIntervalSince1970).max() ?? 0
     }
 
-    /// Notes joined the semantic corpus after libraries were embedded, and
-    /// clearing notes deletes the file without raising the newest mtime.
-    /// Either way, notes present on only one side force a fresh embedding.
     nonisolated private static func needsVectors(
         mtime: TimeInterval, indexedMtime: TimeInterval?, hasNotes: Bool, hasNotesVectors: Bool
     ) -> Bool {
@@ -579,7 +487,6 @@ final class EmbeddingIndex {
         }
         if let notes { chunks.append(contentsOf: Self.notesChunks(notes)) }
         guard !chunks.isEmpty else {
-            // Nothing left to embed; drop vectors of the removed notes.
             if hasNotesVectors, let database {
                 _ = database.transaction {
                     database.run("DELETE FROM embeddings WHERE meeting_id = ?1", bind: [meeting.id.uuidString])
@@ -608,9 +515,6 @@ final class EmbeddingIndex {
                     "SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1",
                     bind: [meetingID]),
                       FileManager.default.fileExists(atPath: folder.path) else { return true }
-                // Embedding can suspend for minutes. Recheck freshness under
-                // BEGIN IMMEDIATE so an older request cannot replace a newer
-                // snapshot after it finally receives vectors.
                 if let indexed = try database.firstDoubleChecked(
                     """
                     SELECT source_mtime FROM embedded_meetings
@@ -649,9 +553,6 @@ final class EmbeddingIndex {
         return Self.remove(meetingID, in: database)
     }
 
-    /// Immediately closes the async rank/delete race without waiting for a
-    /// potentially busy SQLite writer. AppState follows this in-memory marker
-    /// with durable utility-worker cleanup.
     func noteDeletion(_ meetingID: UUID) {
         locallyDeletedMeetingIDs.insert(meetingID)
     }
@@ -660,9 +561,6 @@ final class EmbeddingIndex {
         locallyDeletedMeetingIDs.remove(meetingID)
     }
 
-    /// Drops a live meeting's vectors so the next pass re-embeds its changed
-    /// sources. Unlike `remove`, it writes no deletion tombstone: tombstones
-    /// are shared with keyword search and would hide the meeting from both.
     @discardableResult
     func clearVectors(for meetingID: UUID) -> Bool {
         guard let database else { return false }
@@ -673,18 +571,12 @@ final class EmbeddingIndex {
         }
     }
 
-    /// Utility-worker entry point used by AppState deletion. It deliberately
-    /// opens its own FULLMUTEX connection so SQLite's busy timeout can never
-    /// stall the main actor.
     @discardableResult
     nonisolated static func remove(_ meetingID: UUID, databaseURL: URL) -> Bool {
         guard let database = SQLiteDatabase(url: databaseURL) else { return false }
         return remove(meetingID, in: database)
     }
 
-    /// Completes cleanup for tombstones whose original deletion was
-    /// interrupted. The tombstone remains the source of truth and query paths
-    /// exclude it while these reconstructible rows are being removed.
     @discardableResult
     func reconcileDeletedMeetings() -> Bool {
         guard let database else { return false }
@@ -696,8 +588,6 @@ final class EmbeddingIndex {
         guard let database = SQLiteDatabase(url: databaseURL) else { return false }
         return reconcileDeletedMeetings(in: database)
     }
-
-    // MARK: - Query
 
     var hasEmbeddings: Bool {
         database?.hasRow("""
@@ -737,9 +627,6 @@ final class EmbeddingIndex {
             """, bind: [Self.indexVersion])
     }
 
-    /// Called once the meetings are indexed at launch. Rebuilds screen vectors
-    /// a model change discarded; otherwise schedules a pass for captures made
-    /// before launch or left behind by passes that failed.
     func resumeScreenBackfill() async {
         if screenVectorsNeedRebuild {
             screenVectorsNeedRebuild = false
@@ -750,9 +637,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// New screen text was stored. Libraries that search screens by meaning
-    /// get it embedded by a batched background pass instead of waiting for
-    /// the next search; a pass already scheduled covers it too.
     func screenTextDidArrive() {
         guard scheduledScreenReindex == nil else { return }
         if !screenSearchInUse { screenSearchInUse = hasScreenEmbeddings }
@@ -760,8 +644,6 @@ final class EmbeddingIndex {
         scheduleScreenTextReindex(after: screenBackfillSchedule.newTextDelay)
     }
 
-    /// Cancels the scheduled and running passes, for example when semantic
-    /// search is turned off. Rows already embedded stay.
     func stopScreenBackfill() {
         scheduledScreenReindex?.task.cancel()
         scheduledScreenReindex = nil
@@ -782,17 +664,11 @@ final class EmbeddingIndex {
         scheduledScreenReindex = (id, task)
     }
 
-    /// Backfills immutable OCR rows that do not yet have a vector. Semantic
-    /// screen search starts a pass, new captures schedule one
-    /// (`screenTextDidArrive`), and a failed pass schedules a retry with
-    /// exponential backoff, so a temporary embedder failure never leaves new
-    /// screens out of semantic search until someone happens to search again.
     func reindexScreenText() async {
         if let flight = screenReindexFlight {
             await flight.task.value
             return
         }
-        // This pass covers every pending row, so it replaces a scheduled one.
         scheduledScreenReindex?.task.cancel()
         scheduledScreenReindex = nil
         let id = UUID()
@@ -878,10 +754,6 @@ final class EmbeddingIndex {
                 try database.withTransaction {
                     for (document, vector) in zip(batch, vectors) {
                         let vectorData = Self.vectorData(vector)
-                        // Retention or explicit deletion may remove OCR while
-                        // embedding is suspended. Recheck the exact live text
-                        // under the write transaction so an in-flight backfill
-                        // cannot resurrect expired plaintext in this table.
                         let liveTexts: [String] = try database.queryChecked("""
                             SELECT ocr.text FROM ocr_fts AS ocr
                             JOIN screenshots AS shot
@@ -911,17 +783,12 @@ final class EmbeddingIndex {
                     }
                 }
             } catch {
-                // Only this pass's own cancellation ends it quietly; anything
-                // else, including a stray CancellationError, is retried.
                 return Task.isCancelled ? .cancelled : .failed(error)
             }
         }
         return .cancelled
     }
 
-    /// Semantic retrieval over screen OCR, with the same date/app filter
-    /// contract as lexical FTS. Results retain the snapshot ID needed for an
-    /// exact citation, thumbnail, saved moment, or timeline jump.
     func searchScreen(
         _ query: String,
         filter: ScreenSearchFilter = .all,
@@ -931,7 +798,6 @@ final class EmbeddingIndex {
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard limit > 0, !trimmed.isEmpty, let database else { return [] }
         screenSearchInUse = true
-        // Backfill is single-flight and independent of this interactive query.
         if screenReindexFlight == nil {
             Task { [weak self] in await self?.reindexScreenText() }
         }
@@ -950,8 +816,6 @@ final class EmbeddingIndex {
         return Self.liveScreenHits(ranked, in: database)
     }
 
-    /// Drops hits whose capture or screen text was deleted while ranking ran.
-    /// One query for all hits: this runs on the main actor.
     nonisolated static func liveScreenHits(_ hits: [ScreenHit], in database: SQLiteDatabase) -> [ScreenHit] {
         guard !hits.isEmpty else { return [] }
         let placeholders = hits.indices.map { "?\($0 + 1)" }.joined(separator: ",")
@@ -965,21 +829,14 @@ final class EmbeddingIndex {
         return hits.filter { live.contains($0.snapshotID) }
     }
 
-    /// A capture's best meaning match for a query, and what search shows for it.
-    /// Its text is read only for the captures a search keeps (`screenTexts`).
     struct ScreenMeaningMatch: Sendable {
         let meaning: ScreenSearchRanking.Meaning
         let ts: Date
         let app: String
     }
 
-    /// Screens have been searched by meaning on this library.
     var isScreenSearchInUse: Bool { screenSearchInUse || hasScreenEmbeddings }
 
-    /// Every screen vector, text and picture, scored against the query on one
-    /// scale (`ScreenSearchRanking.meaning`), then limited to `filter`. The
-    /// scale comes from all vectors, so a date or app filter never changes how
-    /// far a capture stands out.
     func screenMeanings(
         _ query: String,
         filter: ScreenSearchFilter = .all,
@@ -1025,9 +882,6 @@ final class EmbeddingIndex {
                        app: String(cString: app), modality: modality,
                        cosine: scorer.score(blob))
         }
-        // Text stays unread here: a search shows a few hundred captures at
-        // most, and reading every capture's text was about a quarter of this
-        // scan's time at 30,000 captures.
         var rows: [Row] = database.query("""
             SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.vec
             FROM screen_embeddings AS embedded
@@ -1063,9 +917,6 @@ final class EmbeddingIndex {
         return matches
     }
 
-    /// The text behind each capture's text vector, for the captures a search
-    /// shows (`screenMeanings` leaves it unread). A capture with only a
-    /// picture vector, or none, has no entry.
     nonisolated static func screenTexts(_ ids: [Int64], in database: SQLiteDatabase) -> [Int64: String] {
         let wanted = Array(Set(ids))
         var texts: [Int64: String] = [:]
@@ -1087,7 +938,6 @@ final class EmbeddingIndex {
         return texts
     }
 
-    /// `screenTexts` on this index's connection.
     func screenTexts(ids: [Int64]) -> [Int64: String] {
         guard let database else { return [:] }
         return Self.screenTexts(ids, in: database)
@@ -1096,7 +946,6 @@ final class EmbeddingIndex {
     func search(_ query: String, limit: Int = 10,
                 meetingIDs: Set<UUID>? = nil,
                 priority: InferencePriority = .background) async -> [Hit] {
-        // Trimmed like screen search, so both sources share one query vector.
         let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard limit > 0, !trimmed.isEmpty, database != nil, hasEmbeddings else { return [] }
         if let meetingIDs, meetingIDs.isEmpty { return [] }
@@ -1109,9 +958,6 @@ final class EmbeddingIndex {
         }
         let ranked = await withTaskCancellationHandler { await worker.value } onCancel: { worker.cancel() }
         guard !Task.isCancelled else { return [] }
-        // Ranking yields the main actor. A meeting can be deleted after the
-        // candidate snapshot but before ranking completes, so validate again
-        // synchronously before publishing any hit.
         return liveHits(from: ranked)
     }
 
@@ -1141,7 +987,6 @@ final class EmbeddingIndex {
         let vector: Data
     }
 
-    /// Brute-force meeting retrieval over one read-only connection.
     nonisolated static func meetingHits(
         in database: SQLiteDatabase,
         meetingIDs: Set<UUID>?,
@@ -1157,9 +1002,6 @@ final class EmbeddingIndex {
             }
             scope = "embedded.meeting_id IN (\(parameters.joined(separator: ",")))"
         } else { scope = "1 = 1" }
-        // Score every row straight from SQLite's buffer, then read text only
-        // for the rows kept: copying all chunks' text and vectors first cost
-        // more than the scoring itself.
         var scorer = VectorScorer(queryVector)
         var scored: [(score: Float, order: Int, rowID: Int64, meetingID: UUID, start: TimeInterval)] = []
         database.withStatement(
@@ -1198,7 +1040,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// Brute-force screen retrieval over one read-only connection.
     nonisolated static func screenHits(
         in database: SQLiteDatabase,
         filter: ScreenSearchFilter,
@@ -1229,7 +1070,6 @@ final class EmbeddingIndex {
             conditions.append("embedded.app = ?\(parameter) COLLATE NOCASE")
         }
 
-        // As for meetings: score in place, read app and text for kept rows.
         var scorer = VectorScorer(queryVector)
         var scored: [(score: Float, snapshotID: Int64, ts: TimeInterval)] = []
         database.withStatement("""
@@ -1276,8 +1116,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// Dot products against one query, reading each stored vector through a
-    /// reused aligned buffer (SQLite blobs carry no alignment guarantee).
     struct VectorScorer {
         let queryVector: [Float]
         let byteCount: Int
@@ -1289,7 +1127,6 @@ final class EmbeddingIndex {
             scratch = Array(repeating: 0, count: queryVector.count)
         }
 
-        /// `bytes` must hold `byteCount` bytes.
         mutating func score(_ bytes: UnsafeRawPointer) -> Float {
             var total: Float = 0
             scratch.withUnsafeMutableBytes { $0.copyMemory(from: UnsafeRawBufferPointer(start: bytes, count: byteCount)) }
@@ -1297,7 +1134,6 @@ final class EmbeddingIndex {
             return total
         }
 
-        /// Nil when the stored vector has another dimension.
         mutating func score(_ vector: Data) -> Float? {
             guard byteCount > 0, vector.count == byteCount else { return nil }
             return vector.withUnsafeBytes { score($0.baseAddress!) }
@@ -1322,7 +1158,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// In-memory ranking with the same floor and order as `meetingHits`.
     nonisolated static func rank(
         _ candidates: [Candidate],
         against queryVector: [Float],
@@ -1340,7 +1175,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// In-memory ranking with the same floor and order as `screenHits`.
     nonisolated static func rankScreen(
         _ candidates: [ScreenCandidate],
         against queryVector: [Float],
@@ -1358,13 +1192,11 @@ final class EmbeddingIndex {
         }.prefix(limit))
     }
 
-    /// Higher score first; equal scores keep library order.
     nonisolated private static func meetingRanksFirst(_ lhs: (score: Float, order: Int),
                                                       _ rhs: (score: Float, order: Int)) -> Bool {
         lhs.score != rhs.score ? lhs.score > rhs.score : lhs.order < rhs.order
     }
 
-    /// Higher score, then the newer capture, then the lower capture ID.
     nonisolated private static func screenRanksFirst(_ lhs: (score: Float, ts: TimeInterval, id: Int64),
                                                      _ rhs: (score: Float, ts: TimeInterval, id: Int64)) -> Bool {
         if lhs.score != rhs.score { return lhs.score > rhs.score }
@@ -1379,16 +1211,8 @@ final class EmbeddingIndex {
         }
     }
 
-    // MARK: - Embedding via llama-server
-
-    /// The checkpoint's symmetric prompt, for comparing two statements
-    /// rather than ranking documents against a query.
     nonisolated static let similarityPrefix = "task: sentence similarity | query: "
 
-    /// L2-normalized vectors for a one-off comparison, such as checking that
-    /// a learned item means what the person's line says. Waits behind typed
-    /// searches. Nil when the embedding model isn't on this Mac (this never
-    /// starts a download) or the request fails.
     func similarityVectors(_ texts: [String]) async -> [[Float]]? {
         guard !texts.isEmpty else { return [] }
         let model = storage.rootURL.appendingPathComponent("models/\(Self.modelFile)")
@@ -1398,14 +1222,10 @@ final class EmbeddingIndex {
         return vectors
     }
 
-    /// The query's search vector, for searches outside this index (Files).
-    /// Shares the cache with meeting and screen search, so one typed query is
-    /// embedded once. Nil when the embedder is not available.
     func queryVector(_ query: String, priority: InferencePriority = .interactive) async -> [Float]? {
         await embedQuery(query, prefix: Self.queryPrefix, priority: priority)
     }
 
-    /// A failed or cancelled embedding is not kept, so the next search retries.
     private func embedQuery(_ query: String, prefix: String,
                             priority: InferencePriority) async -> [Float]? {
         let input = prefix + query
@@ -1416,8 +1236,6 @@ final class EmbeddingIndex {
         return vector
     }
 
-    /// Embeds documents for indexing in small requests, returning one vector
-    /// per text in input order.
     private func embedInBackground(_ texts: [String], prefix: String) async throws -> [[Float]] {
         var vectors: [[Float]] = []
         vectors.reserveCapacity(texts.count)
@@ -1434,8 +1252,6 @@ final class EmbeddingIndex {
         return vectors
     }
 
-    /// Background work waits its turn; anything a person or an agent waits
-    /// for goes straight to the server and holds background work back.
     private func embedThroughGate(_ texts: [String], prefix: String,
                                   priority: InferencePriority) async throws -> [[Float]] {
         if priority == .background {
@@ -1444,8 +1260,6 @@ final class EmbeddingIndex {
         return try await requestGate.foreground { try await embedder(texts, prefix, priority) }
     }
 
-    /// Consecutive runs of texts within the background request limits. A text
-    /// longer than the character limit goes alone.
     nonisolated static func backgroundRequestRanges(_ texts: [String]) -> [Range<Int>] {
         var ranges: [Range<Int>] = []
         var start = 0
@@ -1485,11 +1299,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// EmbeddingGemma is a bidirectional encoder: every token attends to the
-    /// whole input, so reusing another input's cached prompt prefix would be
-    /// wrong. The bundled llama.cpp already re-encodes each input (vectors were
-    /// identical with caching on); turning it off keeps that independent of
-    /// server defaults.
     nonisolated static func embeddingRequestBody(_ texts: [String], prefix: String) -> [String: Any] {
         [
             "input": texts.map { prefix + $0 },
@@ -1498,8 +1307,6 @@ final class EmbeddingIndex {
         ]
     }
 
-    /// Returns one L2-normalized vector per input, in input order. Rows are
-    /// ordered by their `index` rather than trusting the response order.
     nonisolated static func embeddingVectors(fromResponse data: Data) throws -> [[Float]] {
         guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let rows = json["data"] as? [[String: Any]] else {
@@ -1519,8 +1326,6 @@ final class EmbeddingIndex {
         }
     }
 
-    /// The verified text model, downloading it first if needed. The media
-    /// embedder for Files loads the same file next to its projector.
     static func preparedModel(storage: StorageManager) async throws -> URL {
         try await ensureModel(storage: storage)
     }
@@ -1566,16 +1371,11 @@ final class EmbeddingIndex {
         return path
     }
 
-    /// Previous embedders are never loaded again, and nothing else references
-    /// their files. Delete only those exact names, and only after the current
-    /// model verified, so a failed download never leaves search without one.
     nonisolated static func removeObsoleteModels(in folder: URL) {
         for name in obsoleteModelFiles where name != modelFile {
             DownloadIntegrity.removeFileAndMarker(at: folder.appendingPathComponent(name))
         }
     }
-
-    // MARK: - Plumbing
 
     private func indexedMtime(_ id: UUID) -> TimeInterval? {
         database?.firstDouble(

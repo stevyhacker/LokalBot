@@ -28,7 +28,6 @@ final class PerformanceReadPathTests: XCTestCase {
         }, engine: "test")
         let keys = (0..<20).map { "them \($0)" }
         let start = Date()
-        // The presentation adds display-only names ("Them 3" → "Speaker 3").
         let previousNames = keys.map { SpeakerDisplayName.label(transcript.displaySpeaker(for: $0)) }
         let previousSeconds = Date().timeIntervalSince(start)
         let cachedStart = Date()
@@ -49,7 +48,6 @@ final class PerformanceReadPathTests: XCTestCase {
         let first = try store.insertScreenshot(ts: Date(), path: "", app: "Notes", ocr: "Substring AlphaBeta")
         let saved = try store.insertScreenshot(ts: Date(), path: "", app: "Notes", ocr: "Saved AlphaBeta")
         let database = try XCTUnwrap(SQLiteDatabase(url: url))
-        // Exercise migration of real FTS rows whose row IDs differ from capture IDs.
         try database.execute("DROP TABLE ocr_metadata")
         let migrated = ActivityStore(databaseURL: url)
         XCTAssertEqual(migrated.ocrText(snapshotID: first), "Substring AlphaBeta")
@@ -138,9 +136,6 @@ final class PerformanceReadPathTests: XCTestCase {
         XCTAssertEqual(result[42]?.state, .ended)
     }
 
-    /// Meet detection polls every 2 s. A browser window whose complete read
-    /// found no Meet document is walked again only when its title changes or
-    /// the entry ages out: 2 walks a minute instead of 30.
     func testQuietBrowserWindowIsWalkedAgainOnlyOnTitleChangeOrAge() {
         let cache = BrowserMeetingSession.QuietWindowCache()
         let window = AXUIElementCreateApplication(90_001)
@@ -157,21 +152,16 @@ final class PerformanceReadPathTests: XCTestCase {
         XCTAssertFalse(cache.isQuiet(window, title: "Meet - abc-defg-hij", processID: pid, now: 32))
         XCTAssertFalse(cache.isQuiet(other, title: "Inbox", processID: pid, now: 32))
         XCTAssertFalse(cache.isQuiet(window, title: "Inbox", processID: pid + 1, now: 32))
-        // A read that found Meet, or could not finish, is never remembered.
         cache.record(window, title: "Inbox", quiet: false, processID: pid, now: 32)
         XCTAssertFalse(cache.isQuiet(window, title: "Inbox", processID: pid, now: 34))
-        // A closed window is forgotten.
         cache.record(other, title: "Docs", quiet: true, processID: pid, now: 34)
         cache.keep(only: [window], processID: pid)
         XCTAssertFalse(cache.isQuiet(other, title: "Docs", processID: pid, now: 36))
-        // Microphone changes (a call starting) clear everything.
         cache.record(window, title: "Inbox", quiet: true, processID: pid, now: 36)
         cache.removeAll()
         XCTAssertFalse(cache.isQuiet(window, title: "Inbox", processID: pid, now: 38))
     }
 
-    /// Activity samples (every 5 s) need a page address only to apply site
-    /// exclusions; without any, the sampler reads the window, not its pages.
     @MainActor
     func testActivitySamplesWalkPagesOnlyWhenSitesAreExcluded() async throws {
         struct Workspace: WorkspaceSource {
@@ -214,8 +204,6 @@ final class PerformanceReadPathTests: XCTestCase {
         XCTAssertEqual(sampler.currentApp, "Private", "the excluded site still keeps its exclusion")
     }
 
-    /// Daily retention clears one expired capture's path at a time on the main
-    /// actor; each clear must use the partial path index, not scan every row.
     func testRetentionPathClearUsesThePathIndex() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

@@ -1,61 +1,36 @@
 import CryptoKit
 import Foundation
 
-/// One thing LokalBot knows about the person: a fact about them, how they want
-/// help, a goal, or a principle they decide by
-/// (Docs/designs/personal-world-model-rfc-2026-10-14.md). Stated claims are the
-/// person's own words. Learned claims come from what the person said in a
-/// meeting; they carry that meeting as evidence and retract with it.
-/// Principles are never learned.
 struct PersonalClaim: Codable, Identifiable, Equatable, Sendable, PersonalContextItem {
     typealias Kind = PersonalClaimKind
 
     enum Origin: Codable, Equatable, Sendable {
-        /// "Remember …" typed in Ask or Quick Recall.
         case said(conversationID: UUID, messageID: UUID)
-        /// Added in Settings → Personal Context.
         case added
-        /// Picked up overnight from the person's own line in this meeting.
         case learned(meetingID: UUID, dayKey: String)
-        /// Picked up overnight from something the person typed that day.
         case typed(source: TypedSource, dayKey: String)
-        /// A goal or project the overnight review kept for weeks; the day
-        /// is when it was first seen.
         case workMemory(dayKey: String)
     }
 
-    /// Where the person typed the words a claim was learned from.
     enum TypedSource: Codable, Equatable, Sendable {
-        /// A request to Claude Code or Codex, saved by Read coding agent sessions.
         case codingAgent(name: String)
-        /// A question asked in Ask or Quick Recall.
         case ask(conversationID: UUID)
-        /// Words dictated into another app, kept by Learn from my dictation
-        /// only until the night's pass read them.
         case dictation(app: String)
     }
 
-    /// Who may read the claim besides LokalBot itself.
     enum Sharing: String, Codable, Sendable {
-        /// Ask and Quick Recall only. The default for every claim.
         case lokalBotOnly
-        /// Also external agents, while the Personal context grant is on.
         case agents
     }
 
     enum Status: String, Codable, Sendable {
-        /// In use by Ask and, if shared, agents.
         case confirmed
-        /// A learned preference waiting for the person's review; never used.
         case proposed
     }
 
     enum Authority: String, Codable, Sendable {
-        /// The person stated it or kept it as their own statement.
         case stated
-        /// Saved automatically from what the person said in a meeting.
         case learned
-        /// Learned, then confirmed by the person in review.
         case confirmed
     }
 
@@ -63,15 +38,11 @@ struct PersonalClaim: Codable, Identifiable, Equatable, Sendable, PersonalContex
     var kind: Kind
     var text: String
     let origin: Origin
-    /// Included first in every eligible prompt, ahead of relevance ranking.
     var alwaysUse: Bool
     var sharing: Sharing
     var status: Status
     var authority: Authority
-    /// The meeting a learned claim came from. Nil means no evidence
-    /// dependency (stated claims, or a learned one the person kept).
     var evidence: DreamEvidenceProvenance?
-    /// The person's own line the claim was learned from, shown in review.
     var quote: String?
     let createdAt: Date
     var updatedAt: Date
@@ -97,8 +68,6 @@ struct PersonalClaim: Codable, Identifiable, Equatable, Sendable, PersonalContex
         self.lastUsedAt = lastUsedAt
     }
 
-    /// Learned automatically rather than stated (it may since have been
-    /// kept or restated, which `authority` records).
     var isLearned: Bool {
         switch origin {
         case .learned, .typed, .workMemory: true
@@ -111,8 +80,6 @@ struct PersonalClaim: Codable, Identifiable, Equatable, Sendable, PersonalContex
         case createdAt, updatedAt, lastUsedAt
     }
 
-    /// Fields added after Phase 1 decode with defaults that keep earlier
-    /// behavior: an older claim is a confirmed, stated, LokalBot-only one.
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(UUID.self, forKey: .id)
@@ -150,9 +117,6 @@ extension PersonalClaimKind {
         }
     }
 
-    /// A starting kind for a statement typed in Ask. Only obvious English
-    /// openings are recognized; principles are never guessed, because the
-    /// person decides what counts as one of their values.
     static func suggested(for text: String) -> PersonalClaimKind {
         let lowered = text.lowercased()
         let preferenceOpenings = ["i prefer", "i like", "i don't like", "i do not like", "i dislike",
@@ -181,8 +145,6 @@ extension PersonalContextProjection.Claim {
     }
 }
 
-/// The person's claims plus the rules every edit goes through. Pure value
-/// type: the store persists it and the controller publishes it.
 struct PersonalModel: Codable, Equatable, Sendable {
     static let currentVersion = 1
     static let maxClaims = 300
@@ -214,8 +176,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         }
     }
 
-    /// A forgotten learned claim or a dismissed suggestion, kept only as a
-    /// one-way hash so the same text isn't learned again.
     struct Tombstone: Codable, Equatable, Sendable {
         var key: String
         var createdAt: Date
@@ -225,16 +185,11 @@ struct PersonalModel: Codable, Equatable, Sendable {
     static let proposalLifetime: TimeInterval = 14 * 24 * 60 * 60
     static let tombstoneLifetime: TimeInterval = 180 * 24 * 60 * 60
 
-    /// When a work-memory goal or project was first seen, as a hash of its
-    /// text, so one that lasts for weeks can be suggested.
     struct WorkSighting: Codable, Equatable, Sendable {
         var key: String
         var firstDayKey: String
     }
 
-    /// A day the overnight learning pass has read, and a hash of the lines it
-    /// read. The review rebuilds days whenever their sources change; the pass
-    /// runs again only when the person's own lines did.
     struct LearnedDay: Codable, Equatable, Sendable {
         var dayKey: String
         var fingerprint: String
@@ -278,9 +233,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         learnedDays.append(LearnedDay(dayKey: dayKey, fingerprint: fingerprint, learnedAt: date))
     }
 
-    /// The source of a learned claim changed but still has the line it
-    /// quotes: tie the claim to the current evidence revision instead of
-    /// retracting it.
     mutating func refreshEvidence(ids: Set<UUID>, revision: UInt64) {
         for index in claims.indices where ids.contains(claims[index].id) {
             claims[index].evidence?.revision = revision
@@ -291,8 +243,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         SHA256.hash(data: Data(duplicateKey(text).utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Prompt-safe text, or why it can't be kept. Over-long text is refused
-    /// rather than truncated: a cut sentence can drop a negation.
     static func validatedText(_ raw: String) -> Result<String, EditError> {
         let text = PromptContextSanitizer.sanitize(raw)
         guard !text.isEmpty else { return .failure(.empty) }
@@ -301,7 +251,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return .success(text)
     }
 
-    /// Case-, width- and diacritic-insensitive key used to merge duplicates.
     static func duplicateKey(_ text: String) -> String {
         var key = text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive],
                                locale: nil)
@@ -310,8 +259,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return key
     }
 
-    /// Adds a claim, or refreshes the existing one when the same text is
-    /// already remembered. Saved claims are never evicted to make room.
     @discardableResult
     mutating func add(_ raw: String, kind: PersonalClaim.Kind, origin: PersonalClaim.Origin,
                       now: Date) -> Result<PersonalClaim, EditError> {
@@ -322,7 +269,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         }
         let key = Self.duplicateKey(text)
         if let index = claims.firstIndex(where: { Self.duplicateKey($0.text) == key }) {
-            // Saying what LokalBot learned makes it the person's statement.
             if claims[index].isLearned {
                 claims[index].status = .confirmed
                 claims[index].authority = .stated
@@ -350,8 +296,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
             }
             let key = Self.duplicateKey(claim.text)
             if claims.contains(where: { $0.id != id && Self.duplicateKey($0.text) == key }) {
-                // Editing into an existing claim merges them: keep the edited
-                // one, drop the older duplicate.
                 claims.removeAll { $0.id != id && Self.duplicateKey($0.text) == key }
             }
         }
@@ -364,8 +308,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return .success(claim)
     }
 
-    /// Forgetting a learned claim leaves a tombstone so tomorrow's review
-    /// doesn't learn it again; stated claims leave nothing behind.
     mutating func remove(ids: Set<UUID>, now: Date = Date()) {
         for claim in claims where ids.contains(claim.id) && claim.isLearned && claim.authority != .stated {
             tombstones.append(Tombstone(key: Self.tombstoneKey(claim.text), createdAt: now))
@@ -373,14 +315,10 @@ struct PersonalModel: Codable, Equatable, Sendable {
         claims.removeAll { ids.contains($0.id) }
     }
 
-    /// Source deletion or correction: the claim goes, with no tombstone, so
-    /// it can be learned again from evidence that still exists.
     mutating func retract(ids: Set<UUID>) {
         claims.removeAll { ids.contains($0.id) }
     }
 
-    /// Deleting an Ask conversation takes back what was learned from the
-    /// questions in it, unless the person kept it as their own statement.
     mutating func retract(learnedFromConversation conversationID: UUID) {
         claims.removeAll { claim in
             guard claim.authority != .stated,
@@ -392,13 +330,9 @@ struct PersonalModel: Codable, Equatable, Sendable {
     struct LearningCandidate: Equatable, Sendable {
         var kind: PersonalClaim.Kind
         var text: String
-        /// The person's own words it came from; nil for work memory.
         var quote: String?
         var origin: PersonalClaim.Origin
-        /// Nil only for Ask questions, which retract with their conversation.
         var evidence: DreamEvidenceProvenance?
-        /// From typing, from work memory, or grounded only by meaning across
-        /// languages: even a fact or goal waits for the person's review.
         var needsReview = false
 
         init(kind: PersonalClaim.Kind, text: String, quote: String?, origin: PersonalClaim.Origin,
@@ -411,7 +345,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
             self.needsReview = needsReview
         }
 
-        /// A line the person said in a meeting.
         init(kind: PersonalClaim.Kind, text: String, quote: String, meetingID: UUID, dayKey: String,
              evidence: DreamEvidenceProvenance, needsReview: Bool = false) {
             self.init(kind: kind, text: text, quote: quote, origin: .learned(meetingID: meetingID, dayKey: dayKey),
@@ -425,10 +358,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         var skipped = 0
     }
 
-    /// Facts and goals are saved and used at once; preferences, and items
-    /// grounded only by meaning across languages, wait for review;
-    /// principles are never learned. Duplicates, forgotten or
-    /// dismissed text, invalid text, and anything past the limits are skipped.
     @discardableResult
     mutating func learn(_ candidates: [LearningCandidate], now: Date) -> LearningOutcome {
         var outcome = LearningOutcome()
@@ -465,8 +394,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return outcome
     }
 
-    /// The same thing reworded: most content words of the shorter text appear
-    /// in the other. Models restate known items despite being told not to.
     static func isNearDuplicate(_ lhs: String, _ rhs: String) -> Bool {
         let left = PersonalContextSelection.contentWords(lhs)
         let right = PersonalContextSelection.contentWords(rhs)
@@ -475,7 +402,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return Double(left.intersection(right).count) / Double(smaller) >= 0.7
     }
 
-    /// Review of a learned suggestion: keep it as confirmed.
     @discardableResult
     mutating func confirm(id: UUID, now: Date) -> Result<PersonalClaim, EditError> {
         guard let index = claims.firstIndex(where: { $0.id == id }) else { return .failure(.notFound) }
@@ -485,13 +411,10 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return .success(claims[index])
     }
 
-    /// Dismissing a suggestion: it goes and won't be suggested again.
     mutating func dismiss(id: UUID, now: Date) {
         remove(ids: [id], now: now)
     }
 
-    /// The person vouches for a learned claim: it no longer depends on the
-    /// meeting, so deleting that meeting keeps it.
     @discardableResult
     mutating func keepAsStatement(id: UUID, now: Date) -> Result<PersonalClaim, EditError> {
         guard let index = claims.firstIndex(where: { $0.id == id }) else { return .failure(.notFound) }
@@ -502,7 +425,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
         return .success(claims[index])
     }
 
-    /// Drops suggestions nobody reviewed and old tombstones.
     mutating func prune(now: Date) {
         claims.removeAll { $0.status == .proposed && now.timeIntervalSince($0.createdAt) > Self.proposalLifetime }
         tombstones.removeAll { now.timeIntervalSince($0.createdAt) > Self.tombstoneLifetime }
@@ -516,8 +438,6 @@ struct PersonalModel: Codable, Equatable, Sendable {
     }
 }
 
-/// Recognizes "Remember …" messages typed in Ask, in English and Serbian
-/// (Latin and Cyrillic). Pure; Settings → Add works in any language.
 enum RememberIntent {
     private static let triggers = [
         "please remember that ", "please remember: ", "please remember ",
@@ -525,9 +445,6 @@ enum RememberIntent {
         "molim te zapamti da ", "molim te zapamti ", "zapamti da ", "zapamti: ", "zapamti:", "zapamti ",
         "молим те запамти да ", "молим те запамти ", "запамти да ", "запамти: ", "запамти:", "запамти ",
     ]
-    /// After these triggers a question word means the message asks about
-    /// the past ("remember when …", "zapamti da li …") rather than stating
-    /// something to keep.
     private static let questionCheckedTriggers: Set<String> = [
         "please remember ", "remember ",
         "molim te zapamti da ", "molim te zapamti ", "zapamti da ", "zapamti ",
@@ -539,8 +456,6 @@ enum RememberIntent {
         "кад", "када", "шта", "ко", "кога", "где", "како", "зашто", "ли", "који", "која",
     ]
 
-    /// The statement to remember, or nil when the message is not a request
-    /// to remember something (including every question about the past).
     static func parse(_ message: String) -> String? {
         let trimmed = message.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.hasSuffix("?") else { return nil }

@@ -1,35 +1,16 @@
 import Foundation
 
-/// One sync pass for one Gmail account.
-///
-/// - **First pass, or after Gmail expires the history:** search the window
-///   (threads you wrote in, plus threads with calendar people), keep what
-///   qualifies, and drop stored threads that no longer do.
-/// - **Later passes:** read Gmail's change history since the saved cursor
-///   and recheck only the threads it names, then search once for any person
-///   who joined the calendar since the last pass.
-///
-/// The cursor is saved only after the threads it covers are stored, so an
-/// interrupted pass repeats work instead of skipping it, and repeating it
-/// rewrites the same files. A thread Gmail fails to return is left as it
-/// was and checked again on the next pass, rather than holding back every
-/// other one; a lost connection or an expired sign-in ends the pass.
 struct GmailSyncer: Sendable {
-    /// Parallel thread fetches. Gmail allows about 25 thread reads a second
-    /// per user; four in flight stays well under it.
     static let concurrency = 4
 
     let client: GmailClient
     let store: EmailStore
     let now: Date
-    /// Threads one search may return; a scan that reaches it says so.
     var threadLimit = EmailScope.maxThreadsPerScan
 
     func sync(_ account: EmailAccount, attendees: Set<String>) async throws -> EmailAccount {
         var account = account
         let windowStart = EmailScope.windowStart(now: now)
-        // People stay known for the window after they were last on the
-        // calendar, so a calendar that is briefly unreadable changes nothing.
         var people = account.sync.people.filter { $0.value >= windowStart }
         for address in EmailScope.knownPeople(attendees, excluding: account.ownedAddresses) {
             people[address] = now
@@ -71,13 +52,9 @@ struct GmailSyncer: Sendable {
         return account
     }
 
-    // MARK: Passes
-
     private func fullScan(_ account: EmailAccount, people: Set<String>,
                           windowStart: Date) async throws -> EmailAccount {
         var account = account
-        // The cursor is read before searching, so mail that arrives during
-        // the scan is replayed by the next pass rather than missed.
         let profile = try await client.profile()
         let aliases = (try? await client.sendAsAddresses()) ?? []
         let address = profile.emailAddress.lowercased()
@@ -101,13 +78,10 @@ struct GmailSyncer: Sendable {
         }
         let result = try await fetch(candidates, sentIDs: Set(sent), accountID: account.id, people: people,
                                      windowStart: windowStart)
-        // A full scan is the whole truth for the window, except for threads
-        // it couldn't read this time.
         for id in store.threadIDs(accountID: account.id).subtracting(result.kept).subtracting(result.failed) {
             try store.deleteThread(accountID: account.id, threadID: id)
         }
         if !result.failed.isEmpty { lokalbotLog("email sync deferred threads=\(result.failed.count)") }
-        // Counts only: never addresses, subjects, or ids.
         lokalbotLog("email scan sent=\(sent.count) withPeople=\(candidates.count - sent.count) "
                     + "kept=\(result.kept.count) people=\(people.count) searched=\(searched.count) cut=\(cut)")
         account.sync.retryThreadIDs = Self.retries(result.failed)
@@ -117,9 +91,6 @@ struct GmailSyncer: Sendable {
         return account
     }
 
-    /// Rechecks threads Gmail says changed: store the ones that still
-    /// qualify, remove the ones that no longer do (trashed, deleted, spam).
-    /// Returns the ids that couldn't be read and were left as they were.
     @discardableResult
     private func recheck(_ threadIDs: Set<String>, accountID: UUID, people: Set<String>,
                          windowStart: Date) async throws -> Set<String> {
@@ -134,9 +105,7 @@ struct GmailSyncer: Sendable {
 
     private struct Found {
         var ids: [String] = []
-        /// People whose search ran to the end.
         var completed: Set<String> = []
-        /// The thread limit stopped the searches early.
         var cut = false
     }
 
@@ -152,7 +121,6 @@ struct GmailSyncer: Sendable {
             for id in ids where seen.insert(id).inserted {
                 found.ids.append(id)
             }
-            // A full page may have stopped at the limit with more to come.
             if found.ids.count >= limit {
                 found.cut = true
                 break
@@ -167,8 +135,6 @@ struct GmailSyncer: Sendable {
         var failed: Set<String> = []
     }
 
-    /// Fetches candidates a few at a time and stores the ones that qualify.
-    /// Threads you wrote in skip the headers-only check.
     private func fetch(_ ids: [String], sentIDs: Set<String>, accountID: UUID, people: Set<String>,
                        windowStart: Date) async throws -> Fetched {
         var fetched = Fetched()
@@ -208,26 +174,19 @@ struct GmailSyncer: Sendable {
                 addNext()
             }
         }
-        // Many failures at once mean Gmail is having trouble, not a few odd
-        // threads: end the pass so the cursor stays and it runs again later.
         if let lastFailure, fetched.failed.count > max(Self.skippableFailures, ids.count / 10) {
             throw lastFailure
         }
         return fetched
     }
 
-    /// Threads one pass may skip before it gives up.
     static let skippableFailures = 3
-    /// Threads kept for the next pass to retry; the rest wait for a change.
     static let maxRetries = 200
 
     static func retries(_ failed: Set<String>) -> Set<String> {
         Set(failed.sorted().prefix(maxRetries))
     }
 
-    /// Errors that concern one thread only. Anything else (sign-in,
-    /// connection, rate limits that outlasted the retries, cancellation)
-    /// stops the pass.
     static func isThreadSpecific(_ error: Error) -> Bool {
         switch error as? GmailError {
         case .unexpectedResponse?:
@@ -254,9 +213,6 @@ struct GmailSyncer: Sendable {
         return EmailScope.thread(from: full, accountID: accountID, windowStart: windowStart)
     }
 
-    /// Drops messages that aged out of the window, then threads whose
-    /// remaining messages no longer qualify on their own (the reply that
-    /// qualified them aged out). Returns what remains.
     private func prune(_ accountID: UUID, people: Set<String>,
                        windowStart: Date) throws -> (threads: Int, messages: Int) {
         var threads = 0

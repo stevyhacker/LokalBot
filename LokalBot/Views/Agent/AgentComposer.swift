@@ -1,16 +1,12 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Where the agent is told what to do: the message, what to attach, the
-/// working folder and how much it may do on its own. A message sent while the
-/// agent works waits above the field until the turn ends.
 struct AgentComposer: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject var controller: AgentSessionController
     @ObservedObject var sessions: AgentSessionTabs
     let taskID: UUID
-    /// A new task has no conversation above the composer yet.
     var isNewTask = false
     let showPreview: (AgentResultPreview) -> Void
     @State private var pickingFiles = false
@@ -85,8 +81,6 @@ struct AgentComposer: View {
         .onAppear { focused = true }
     }
 
-    // MARK: - Field and controls
-
     private var placeholder: String {
         if isWorking { return localized("Add to this task") }
         return localized(isNewTask ? "Ask the agent…" : "Ask a follow-up")
@@ -118,7 +112,6 @@ struct AgentComposer: View {
         .accessibilityIdentifier("agent.composerSurface")
     }
 
-    /// Attach, the working folder, and the one access chip.
     private var contextControls: some View {
         HStack(spacing: 12) {
             Menu {
@@ -137,7 +130,6 @@ struct AgentComposer: View {
         }.font(AppFont.scaled(.callout).weight(.medium)).foregroundStyle(.primary)
     }
 
-    /// Names what the agent does on its own, and opens the levels.
     private var accessChip: some View {
         let mode = controller.approvalMode
         return Button { showingAccess.toggle() } label: {
@@ -154,7 +146,6 @@ struct AgentComposer: View {
         .accessibilityIdentifier("agent.approvalMode")
         .popover(isPresented: $showingAccess, arrowEdge: .bottom) {
             AgentAccessPopover(controller: controller, model: model) { mode in
-                // Raising the level is confirmed; lowering it applies at once.
                 if mode.rawValue > controller.approvalMode.rawValue {
                     showingAccess = false
                     pendingMode = mode
@@ -198,8 +189,6 @@ struct AgentComposer: View {
             .accessibilityIdentifier("agent.attachments")
     }
 
-    /// Shown only when the model is not on this Mac, so where a task's
-    /// prompts go stays in view without opening the access list.
     @ViewBuilder private var destinationLine: some View {
         if model.destination != .onDevice {
             HStack(spacing: 5) {
@@ -214,9 +203,6 @@ struct AgentComposer: View {
         }
     }
 
-    // MARK: - Queued messages
-
-    /// Up to three rows show whole; a longer queue scrolls in the same space.
     private var queue: some View {
         Group {
             if controller.queuedPrompts.count <= 3 { queueRows } else { ScrollView { queueRows }.frame(height: 118) }
@@ -266,8 +252,6 @@ struct AgentComposer: View {
         }
     }
 
-    /// While the agent works, Send queues the message. Otherwise it starts
-    /// the task if needed and sends.
     private func submit() {
         guard hasPrompt, !submitting else { return }
         if isWorking { controller.queueDraft(); return }
@@ -277,7 +261,6 @@ struct AgentComposer: View {
         Task {
             defer { submitting = false }
             guard await sessions.start(taskID) else { return }
-            // Never send a stale draft after a suspended model warm-up.
             guard controller.draft == original, controller.attachments == sources else { return }
             controller.draft = ""; controller.attachments = []
             let sent = await controller.send(prompt: original.trimmingCharacters(in: .whitespacesAndNewlines), attachments: sources)

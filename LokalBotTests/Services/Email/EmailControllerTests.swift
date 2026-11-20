@@ -90,7 +90,6 @@ final class EmailControllerTests: XCTestCase {
                                 connectedAt: GmailFixtures.now)
         var removed = EmailAccount(id: UUID(), provider: .gmail, address: GmailFixtures.me, aliases: [],
                                    connectedAt: GmailFixtures.now)
-        // Recent successes keep the background check from starting.
         removed.sync.lastSuccessAt = Date()
         var keptAccount = kept
         keptAccount.sync.lastSuccessAt = Date()
@@ -131,7 +130,6 @@ final class EmailControllerTests: XCTestCase {
                                              connectedAt: GmailFixtures.now)])
         let url = EmailStore.accountsURL(root: root)
         let before = try Data(contentsOf: url)
-        // Another key, as when the Keychain item can't be read as saved.
         let controller = EmailController(root: root, secrets: MemoryEmailSecrets(), keyProvider: { GmailFixtures.key() })
         controller.start()
         defer { controller.stop() }

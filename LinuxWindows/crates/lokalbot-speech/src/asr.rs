@@ -1,6 +1,3 @@
-//! One loaded sherpa-onnx recognizer and how each model family is configured
-//! and fed (`QwenASREngine`, `OnnxTranscriptionEngine` on macOS).
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -15,27 +12,22 @@ use sherpa_onnx::{
 
 use crate::models::{Family, SpeechModel, model_file};
 
-/// Longest span each family decodes at once.
 pub fn max_span_seconds(family: Family) -> f64 {
     match family {
-        // `QwenASREngine`: spans of at most 15 s.
         Family::Qwen3Asr => 15.0,
         Family::NemoTransducer | Family::SenseVoice | Family::NemoCtc => 30.0,
         Family::Whisper => 28.0,
     }
 }
 
-/// Recognizer output for one span; times in seconds from the span start.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Decoded {
     pub text: String,
     pub tokens: Vec<String>,
     pub timestamps: Vec<f32>,
-    /// Word times from a server that gives them, relative to the clip.
     pub words: Vec<lokalbot_core::remote_transcription::TimedWord>,
 }
 
-/// Qwen3-ASR's prompt names languages in English (`language English`).
 pub fn qwen_language_name(code: &str) -> Option<&'static str> {
     Some(match code {
         "zh" => "Chinese",
@@ -68,14 +60,11 @@ pub fn qwen_language_name(code: &str) -> Option<&'static str> {
         "hu" => "Hungarian",
         "mk" => "Macedonian",
         "ro" => "Romanian",
-        // Not on the model's list, but on the Mac naming it explicitly measured
-        // 44.3% against 54.2% WER, where detection reads it as Croatian.
         "sr" => "Serbian",
         _ => return None,
     })
 }
 
-/// `QwenASREngine.maxTokens`: clamp(seconds × 18, 128, 768).
 fn qwen_max_new_tokens(samples: usize) -> i32 {
     let seconds = samples as f64 / 16_000.0;
     ((seconds * 18.0) as i32).clamp(128, 768)
@@ -85,7 +74,6 @@ fn path(file: impl AsRef<Path>) -> Option<String> {
     Some(file.as_ref().to_string_lossy().into_owned())
 }
 
-/// No interior NUL can reach the C API (the wrapper would panic).
 fn c_safe(value: &str) -> String {
     value.replace('\0', "")
 }
@@ -94,8 +82,6 @@ pub struct Asr {
     model: &'static SpeechModel,
     family: Family,
     base: OfflineRecognizerConfig,
-    /// Language the current recognizer was built for (SenseVoice and Whisper
-    /// fix it at creation), and the recognizer.
     current: Mutex<(Option<String>, Arc<OfflineRecognizer>)>,
 }
 
@@ -171,8 +157,6 @@ impl Asr {
         self.family
     }
 
-    /// The recognizer for `language`, rebuilding SenseVoice and Whisper
-    /// recognizers when the language changes.
     fn recognizer(&self, language: Option<&str>) -> Result<Arc<OfflineRecognizer>> {
         let fixed_language = match self.family {
             Family::SenseVoice => language
@@ -203,7 +187,6 @@ impl Asr {
         Ok(recognizer)
     }
 
-    /// Decodes one span of 16 kHz mono audio.
     pub fn decode(
         &self,
         samples: &[f32],
@@ -217,10 +200,6 @@ impl Asr {
         if self.family != Family::NemoTransducer {
             return Ok(decoded);
         }
-        // Parakeet's greedy TDT search occasionally stops emitting part-way
-        // through a span (seen on real spans, fixed by moving the start by a
-        // few hundred ms). When the words end well before the audio does,
-        // decode again behind a little silence and keep the fuller result.
         let duration = samples.len() as f32 / 16_000.0;
         let last = decoded.timestamps.last().copied().unwrap_or(0.0);
         if duration <= 2.0 || last + 1.5 >= duration {
@@ -270,7 +249,6 @@ impl Asr {
                 stream.set_option("hotwords", &list);
             }
         }
-        // Spans shorter than 100 ms give the front end too little to read.
         let minimum = 1_600;
         if samples.len() < minimum {
             let mut padded = samples.to_vec();

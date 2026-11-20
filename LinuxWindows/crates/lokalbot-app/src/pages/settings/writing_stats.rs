@@ -1,9 +1,3 @@
-//! Settings → Autocomplete → Usage: Statistics (`AutocompleteStatisticsView.swift`) and
-//! Usage and timing (`AutocompleteExperienceView.usage`): how much autocomplete
-//! wrote, what it was shown and what was kept. These are worked out from reads
-//! of the field rather than from keys, so they are estimates, and the footer
-//! says so. Bars are drawn with plain elements.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant};
 use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
@@ -27,7 +21,6 @@ const RANGES: [UsageRange; 4] = [
     UsageRange::AllTime,
 ];
 
-/// "≈ 3 hr, 25 min", "≈ 41 min", "≈ 50 sec", "0".
 pub fn time_saved(seconds: f64) -> String {
     let rounded = seconds.round() as i64;
     if rounded <= 0 {
@@ -112,7 +105,6 @@ fn time_saved_detail(summary: &UsageSummary) -> String {
     }
 }
 
-/// "Used on 12 of 30 days · 4 typos fixed".
 fn active_detail(summary: &UsageSummary) -> String {
     let args = [
         ("0", summary.active_bars().to_string()),
@@ -133,7 +125,6 @@ fn active_detail(summary: &UsageSummary) -> String {
     text
 }
 
-/// Kinds of app with any suggestion shown, most words first.
 fn surface_rows(bucket: &UsageBucket) -> Vec<(String, UsageCounts)> {
     let mut rows: Vec<(String, UsageCounts)> = SURFACES
         .iter()
@@ -159,7 +150,6 @@ fn surface_title(title: &'static str) -> &'static str {
     }
 }
 
-/// Models with any suggestion shown, most shown first.
 fn model_rows(bucket: &UsageBucket) -> Vec<(String, UsageCounts)> {
     let mut rows: Vec<(String, UsageCounts)> = bucket
         .models
@@ -234,7 +224,6 @@ fn tiles(summary: &UsageSummary, cx: &App) -> gpui_kit::Div {
         ))
 }
 
-/// One column per day or month; empty periods keep the time axis even.
 fn chart(summary: &UsageSummary, words: bool, cx: &App) -> gpui_kit::Div {
     const HEIGHT: f32 = 110.0;
     let lb = cx.lb();
@@ -244,7 +233,6 @@ fn chart(summary: &UsageSummary, words: bool, cx: &App) -> gpui_kit::Div {
         let fraction = if words {
             counts.words as f32 / ceiling
         } else {
-            // A day with nothing shown has no rate, not a rate of zero.
             counts.acceptance_rate().unwrap_or(0.0) as f32
         };
         div()
@@ -366,7 +354,6 @@ fn insertions(measure: &LiveMeasure) -> String {
 }
 
 impl SettingsPage {
-    /// Hidden while autocomplete was never used and is off.
     pub(super) fn statistics_section(&mut self, cx: &mut Context<Self>) -> Option<Section> {
         let enabled = self.data.read(cx).settings.cotyping_enabled;
         let autocomplete = crate::autocomplete::global(cx)?;
@@ -452,7 +439,6 @@ impl SettingsPage {
             if surfaces.len() > 1 {
                 body = body.child(breakdown(lokalbot_i18n::tr("By kind of app"), surfaces, cx));
             }
-            // A model column says something only once there is another to compare.
             let models = model_rows(&summary.total);
             if models.len() > 1 {
                 body = body.child(breakdown(lokalbot_i18n::tr("By model"), models, cx));
@@ -481,8 +467,6 @@ impl SettingsPage {
         ))
     }
 
-    /// Counters and timings from typing in other apps, on Usage under "How
-    /// quickly suggestions arrive" (`AutocompleteMeasurements`).
     pub(super) fn usage_timing(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let mut body = v_flex().w_full().gap(px(8.));

@@ -24,9 +24,6 @@ final class HelperVersionTests: XCTestCase {
         XCTAssertEqual(HelperVersion.current(binaryPath: "/tmp/loose-binary"), "dev")
     }
 
-    /// `lokalbot-cli --version` answers from the app bundle alone. It runs
-    /// through a PATH symlink like `~/.local/bin/lokalbot-cli`, where argv[0]
-    /// is only the bare name, against a library root that must stay untouched.
     func testEmbeddedHelperPrintsVersionThroughPATHSymlink() throws {
         let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/lokalbot-cli")
         guard FileManager.default.isExecutableFile(atPath: helper.path) else {

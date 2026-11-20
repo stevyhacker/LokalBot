@@ -1,9 +1,3 @@
-//! The library handle shared by the app, engine and CLI.
-//!
-//! Files follow the macOS layout. Every method is synchronous and cheap enough
-//! to call from a background task; the UI must not call them on its main
-//! thread for whole-library operations (lists, search, rebuilds).
-
 use std::collections::HashMap;
 use std::fs;
 use std::io::Write as _;
@@ -30,8 +24,6 @@ pub const OUTCOME_STATE_FILE: &str = "outcome-state.json";
 pub const MIC_TRACK: &str = "mic.wav";
 pub const SYSTEM_TRACK: &str = "system.wav";
 
-/// SQLite schema shared with the macOS app (`SearchIndex.swift`,
-/// `ActivityTracker.swift`, `EmbeddingIndex.swift`, `PipelineJobStore.swift`).
 pub const SCHEMA: &str = r#"
 CREATE TABLE IF NOT EXISTS indexed_meetings (meeting_id TEXT PRIMARY KEY, source_mtime REAL NOT NULL);
 CREATE VIRTUAL TABLE IF NOT EXISTS docs USING fts5(
@@ -90,7 +82,6 @@ CREATE TABLE IF NOT EXISTS pipeline_jobs (meeting_id TEXT PRIMARY KEY, transcrib
     enqueued_at REAL NOT NULL, last_error TEXT);
 "#;
 
-/// A cheap-to-clone handle on one library root.
 #[derive(Clone)]
 pub struct Library {
     inner: Arc<Inner>,
@@ -100,21 +91,17 @@ struct Inner {
     paths: LibraryPaths,
     db: Mutex<Connection>,
     read_only: bool,
-    /// The `chat-key`, once the engine has installed its source.
     chat_keys: parking_lot::RwLock<Option<crate::sealed::KeySource>>,
-    /// Conversations that couldn't be saved, kept for this run.
     unsaved_chats: Mutex<HashMap<Uuid, Conversation>>,
     personal: Mutex<crate::personal::controller::State>,
 }
 
-/// The two audio tracks of a meeting, if present on disk.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MeetingAudio {
     pub mic: Option<PathBuf>,
     pub system: Option<PathBuf>,
 }
 
-/// Result of resolving a CLI/MCP meeting reference.
 #[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum MeetingLookup {
@@ -136,10 +123,7 @@ impl Library {
         &self.inner.personal
     }
 
-    /// Opens (creating if needed) the library and its SQLite schema.
     pub fn open(paths: LibraryPaths) -> Result<Self> {
-        // Owner-only (0700 on Unix), which also repairs an older library
-        // whose files were created world-readable under the usual umask.
         crate::access::ensure_private_dir(paths.root())
             .with_context(|| format!("creating {}", paths.root().display()))?;
         fs::create_dir_all(paths.meetings_dir())?;
@@ -165,8 +149,6 @@ impl Library {
         })
     }
 
-    /// Opens an existing library for reading only (CLI, MCP). Missing database
-    /// files are tolerated: file-based reads still work.
     pub fn open_read_only(paths: LibraryPaths) -> Result<Self> {
         let db = if paths.database().is_file() {
             Connection::open_with_flags(
@@ -198,20 +180,11 @@ impl Library {
         self.inner.read_only
     }
 
-    /// Runs `f` with the shared SQLite connection.
     pub fn with_db<T>(&self, f: impl FnOnce(&Connection) -> Result<T>) -> Result<T> {
         let db = self.inner.db.lock();
         f(&db)
     }
 
-    // ---------------------------------------------------------------- meetings
-
-    /// Every visible meeting (merged sources hidden), newest first.
-    ///
-    /// Merge markers are resolved as on macOS (`StorageManager.loadAllMeetings`):
-    /// a merged meeting's source list covers a source marker an interrupted
-    /// merge never wrote, and a source whose merged meeting is gone is shown
-    /// again. A writable library saves those repairs.
     pub fn list_meetings(&self) -> Result<Vec<Meeting>> {
         let mut meetings = self.list_all_meetings()?;
         let resolved = resolve_merge_relationships(&meetings);
@@ -232,7 +205,6 @@ impl Library {
             };
             match repaired {
                 Ok(updated) => *meeting = updated,
-                // Keep the old marker: it is the journal a later load retries.
                 Err(err) => log::warn!("meeting merge recovery failed: {err:#}"),
             }
         }
@@ -241,10 +213,6 @@ impl Library {
         Ok(meetings)
     }
 
-    /// Makes a merge source visible again once its merged meeting is gone
-    /// (`StorageManager.restoreMergedSource`): the merged meeting is
-    /// tombstoned, the source's tombstone removed so it is indexed again, and
-    /// the marker cleared last.
     pub fn restore_merged_source(&self, source: &Meeting) -> Result<Meeting> {
         let Some(merged) = source.merged_into_meeting_id else {
             return Ok(source.clone());
@@ -268,10 +236,6 @@ impl Library {
         Ok(restored)
     }
 
-    /// Keeps only `range` of a finished meeting (`AppState.setMeetingBoundaries`):
-    /// the transcript keeps the segments inside it, generated notes move aside
-    /// to `*.previous.*` until they are written again, and the raw audio stays
-    /// as recorded. The caller re-indexes and queues transcription and notes.
     pub fn set_meeting_boundaries(
         &self,
         meeting: &Meeting,
@@ -289,7 +253,6 @@ impl Library {
         updated.content_range_source = Some(ContentRangeSource::UserReviewed);
         let dir = self.meeting_dir(&updated);
         let transcript = self.transcript(meeting)?;
-        // Withdraw what was built from the old range even when no segment survives.
         crate::evidence::with_meeting_removal(self.paths().root(), &[meeting], || {
             invalidate_generated_notes(&dir)?;
             if let Some(mut transcript) = transcript {
@@ -311,15 +274,12 @@ impl Library {
         Ok(updated)
     }
 
-    /// The user's own meetings, newest first: every visible meeting except the
-    /// sample. Digests, the day, people, projects and action lists use these.
     pub fn list_own_meetings(&self) -> Result<Vec<Meeting>> {
         let mut meetings = self.list_meetings()?;
         meetings.retain(Meeting::is_own_work);
         Ok(meetings)
     }
 
-    /// The sample meeting, when the library has one.
     pub fn sample_meeting(&self) -> Result<Option<Meeting>> {
         Ok(self.list_meetings()?.into_iter().find(Meeting::is_sample))
     }
@@ -328,7 +288,6 @@ impl Library {
         Ok(self.list_all_meetings()?.into_iter().find(|m| m.id == id))
     }
 
-    /// Including merged sources, unsorted.
     pub fn list_all_meetings(&self) -> Result<Vec<Meeting>> {
         let mut out = Vec::new();
         for meta in meeting_meta_files(&self.paths().meetings_dir()) {
@@ -344,7 +303,6 @@ impl Library {
         Ok(out)
     }
 
-    /// `latest`, a full UUID, or a unique short-id prefix.
     pub fn find_meeting(&self, reference: &str) -> Result<MeetingLookup> {
         let reference = reference.trim().to_lowercase();
         let meetings = self.list_meetings()?;
@@ -377,7 +335,6 @@ impl Library {
         })
     }
 
-    /// Creates `meetings/YYYY/MM/DD-<slug>[-N]/meta.json` for a new recording.
     pub fn create_meeting(
         &self,
         title: &str,
@@ -390,9 +347,6 @@ impl Library {
         Ok(meeting)
     }
 
-    /// Creates an empty `meetings/YYYY/MM/DD-<slug>[-N]` folder and returns
-    /// its relative path. A library scan ignores it until `meta.json` is
-    /// written, so imports and merges write that last.
     pub fn reserve_meeting_folder(&self, title: &str, started_at: DateTime<Utc>) -> Result<String> {
         let local = started_at.with_timezone(&Local);
         let base = format!(
@@ -406,8 +360,6 @@ impl Library {
         let mut n = 2;
         loop {
             let dir = self.paths().meeting_dir(&relative);
-            // Outside the match: a file where a parent folder belongs also says
-            // AlreadyExists, and no other name gets past that.
             if let Some(parent) = dir.parent() {
                 fs::create_dir_all(parent).with_context(|| format!("creating {relative}"))?;
             }
@@ -440,10 +392,6 @@ impl Library {
         }
     }
 
-    /// Deletes a meeting and, for a merged meeting, the sources folded into it
-    /// (`StorageManager.deletionOrder`): sources go first, so an interrupted
-    /// delete leaves the survivors folded and a retry skips what is gone.
-    /// Overnight memory built from them is withdrawn first.
     pub fn delete_meeting(&self, meeting: &Meeting) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -458,8 +406,6 @@ impl Library {
         })
     }
 
-    /// Descendants before their merged meeting. A source that doesn't point
-    /// back at its merged meeting, or a cycle, means the markers are corrupt.
     pub fn deletion_order(&self, meeting: &Meeting) -> Result<Vec<Meeting>> {
         let all: std::collections::HashMap<Uuid, Meeting> = self
             .list_all_meetings()?
@@ -495,8 +441,6 @@ impl Library {
         Ok(ordered)
     }
 
-    /// Takes meetings out of search, meaning search and the processing queue,
-    /// with a tombstone, as deleting or folding them into a merge does.
     pub fn tombstone_meetings(&self, meetings: &[Meeting]) -> Result<()> {
         self.with_db(|db| {
             for meeting in meetings {
@@ -515,7 +459,6 @@ impl Library {
         })
     }
 
-    /// Tombstones one meeting in the indexes, then removes its folder.
     pub(crate) fn remove_meeting(&self, meeting: &Meeting) -> Result<()> {
         self.tombstone_meetings(std::slice::from_ref(meeting))?;
         let dir = self.meeting_dir(meeting);
@@ -525,14 +468,10 @@ impl Library {
         Ok(())
     }
 
-    // ------------------------------------------------------------- artifacts
-
     pub fn transcript(&self, meeting: &Meeting) -> Result<Option<Transcript>> {
         read_json(&self.meeting_dir(meeting).join(TRANSCRIPT_FILE))
     }
 
-    /// Writes `transcript.json` and the matching `transcript.md`, withdrawing
-    /// overnight memory built from the old transcript first.
     pub fn save_transcript(&self, meeting: &Meeting, transcript: &Transcript) -> Result<()> {
         let dir = self.meeting_dir(meeting);
         crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
@@ -545,11 +484,6 @@ impl Library {
         })
     }
 
-    /// Saves a fresh transcription (`ProcessingPipeline.write`). When it
-    /// differs from the saved transcript, the summary, claims and outcomes
-    /// written from the old one move aside to `*.previous.*` first, so they
-    /// are not shown, searched or asked about as current until notes are
-    /// written again.
     pub fn save_new_transcript(&self, meeting: &Meeting, transcript: &Transcript) -> Result<()> {
         let dir = self.meeting_dir(meeting);
         crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
@@ -580,12 +514,10 @@ impl Library {
         Ok(())
     }
 
-    /// The user's own notes; empty when there are none.
     pub fn notes(&self, meeting: &Meeting) -> Result<String> {
         Ok(read_text(&self.meeting_dir(meeting).join(NOTES_FILE))?.unwrap_or_default())
     }
 
-    /// Saves notes, deleting the file when they are blank.
     pub fn save_notes(&self, meeting: &Meeting, notes: &str) -> Result<()> {
         let path = self.meeting_dir(meeting).join(NOTES_FILE);
         if notes.trim().is_empty() {
@@ -598,13 +530,6 @@ impl Library {
         Ok(())
     }
 
-    /// Extracted outcomes in display order (`MeetingOutcomes.load`).
-    ///
-    /// macOS treats outcomes whose `transcriptRevision` no longer matches the
-    /// transcript's SHA-256 (over Swift's exact JSON bytes) as stale. This
-    /// port cannot reproduce those bytes, so it treats outcomes as current;
-    /// its own new transcriptions move them aside instead
-    /// ([`Self::save_new_transcript`]).
     pub fn outcomes(&self, meeting: &Meeting) -> Result<Option<MeetingOutcomes>> {
         Ok(
             read_json::<MeetingOutcomes>(&self.meeting_dir(meeting).join(OUTCOMES_FILE))?
@@ -622,19 +547,16 @@ impl Library {
         Ok(read_json(&self.meeting_dir(meeting).join(OUTCOME_STATE_FILE))?.unwrap_or_default())
     }
 
-    /// Status and corrections are evidence too (`OutcomeIndex.mutateEvidence`).
     pub fn save_outcome_state(&self, meeting: &Meeting, state: &OutcomeState) -> Result<()> {
         crate::evidence::with_meeting_mutation(self.paths().root(), &[meeting], || {
             write_json(&self.meeting_dir(meeting).join(OUTCOME_STATE_FILE), state)
         })
     }
 
-    /// The saved follow-up draft (`follow-up-draft.json`), if any.
     pub fn follow_up_draft(&self, meeting: &Meeting) -> Result<Option<FollowUpDraft>> {
         read_json(&self.meeting_dir(meeting).join(FOLLOW_UP_FILE))
     }
 
-    /// Saves the draft the user reviewed, as macOS does (`saveFollowUp`).
     pub fn save_follow_up_draft(&self, meeting: &Meeting, draft: &FollowUpDraft) -> Result<()> {
         let mut draft = draft.clone();
         draft.updated_at = crate::time::now_millis();
@@ -643,7 +565,6 @@ impl Library {
         write_json(&self.meeting_dir(meeting).join(FOLLOW_UP_FILE), &draft)
     }
 
-    /// Marks one extracted action open, done or deferred.
     pub fn set_action_status(
         &self,
         meeting: &Meeting,
@@ -660,8 +581,6 @@ impl Library {
         entry.user_edited = true;
         self.save_outcome_state(meeting, &state)
     }
-
-    // --------------------------------------------------------------- digest
 
     pub fn journal_path(&self, day: chrono::NaiveDate) -> PathBuf {
         self.paths()
@@ -682,9 +601,6 @@ impl Library {
         )
     }
 
-    /// Writes the journal and its sidecar (journal first, as on macOS). An
-    /// empty `journal_digest` and a missing `journal_modified_at` are filled
-    /// in from the written journal.
     pub fn save_digest(
         &self,
         day: chrono::NaiveDate,
@@ -713,20 +629,12 @@ impl Library {
     }
 }
 
-// ------------------------------------------------------------------ helpers
-
-/// SHA-256 hex, as `ContentFingerprint.digest`.
-/// Asked for a range outside the recording.
 #[derive(Debug, thiserror::Error)]
 #[error("Choose a start and end within the recorded audio, with the end after the start.")]
 pub struct BoundaryError;
 
-/// Present while generated notes predate the transcript (`MeetingAttributionArtifacts`).
 pub const REFRESH_MARKER: &str = "attribution-refresh-needed.json";
 
-/// `MeetingAttributionArtifacts.invalidate`: summary, claims and outcomes
-/// move to their `*.previous.*` names, the refresh marker is written and
-/// unfinished notes are dropped.
 fn invalidate_generated_notes(dir: &Path) -> Result<()> {
     for (current, previous) in [
         (SUMMARY_FILE, "summary.previous.md"),
@@ -754,10 +662,6 @@ fn invalidate_generated_notes(dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// `Meeting.resolvingMergeRelationships`: the merged meeting each meeting is
-/// folded into, in the same order. A source marker holds only while its
-/// merged meeting still lists it; otherwise whichever merged meeting lists it
-/// (the last by uppercase ID, as on macOS) wins, or none.
 pub fn resolve_merge_relationships(meetings: &[Meeting]) -> Vec<Option<Uuid>> {
     use std::collections::{HashMap, HashSet};
     let mut by_id: Vec<&Meeting> = meetings.iter().collect();
@@ -792,7 +696,6 @@ pub fn sha256_hex(bytes: &[u8]) -> String {
     hex::encode(sha2::Sha256::digest(bytes))
 }
 
-/// Creates and backfills `ocr_metadata` once (`OCRMetadataIndex.migrate`).
 fn migrate_ocr_metadata(db: &Connection) -> Result<()> {
     let exists = db
         .query_row(
@@ -815,7 +718,6 @@ fn migrate_ocr_metadata(db: &Connection) -> Result<()> {
     Ok(())
 }
 
-/// `meetings/YYYY/MM/<folder>/meta.json` paths.
 fn meeting_meta_files(meetings_dir: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     let Ok(years) = fs::read_dir(meetings_dir) else {
@@ -858,7 +760,6 @@ pub fn read_json<T: serde::de::DeserializeOwned>(path: &Path) -> Result<Option<T
     }
 }
 
-/// Pretty-printed with sorted keys, like the macOS encoder.
 pub fn write_json<T: serde::Serialize>(path: &Path, value: &T) -> Result<()> {
     let value = serde_json::to_value(value)?;
     let bytes = serde_json::to_vec_pretty(&sort_keys(value))?;
@@ -880,14 +781,12 @@ pub(crate) fn sort_keys(value: serde_json::Value) -> serde_json::Value {
     }
 }
 
-/// Write to a sibling temp file, flush, then rename over the target.
 pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     let dir = path.parent().unwrap_or_else(|| Path::new("."));
     fs::create_dir_all(dir)?;
     let file_name = path.file_name().and_then(|n| n.to_str()).unwrap_or("file");
     let tmp = dir.join(format!(".{file_name}.{}.tmp", Uuid::new_v4().simple()));
     {
-        // Transcripts, notes and settings are readable by their owner only.
         let mut options = fs::OpenOptions::new();
         options.write(true).create_new(true);
         #[cfg(unix)]
@@ -912,8 +811,6 @@ pub fn write_atomic(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 mod tests {
     use super::*;
 
-    /// That says AlreadyExists, like a taken name, and trying more names never
-    /// ended. On its own thread so this fails instead of hanging the test run.
     #[test]
     fn a_file_where_a_month_folder_belongs_is_an_error() {
         let (sender, answer) = std::sync::mpsc::channel();
@@ -1047,7 +944,6 @@ mod tests {
             .unwrap();
         notes(&library);
 
-        // The same words again (a retry) keep the notes.
         library
             .save_new_transcript(&meeting, &said("We ship Friday."))
             .unwrap();
@@ -1075,7 +971,6 @@ mod tests {
         let mode = |path: &Path| fs::metadata(path).unwrap().permissions().mode() & 0o777;
         let dir = tempfile::tempdir().unwrap();
         let root = dir.path().join("LokalBot");
-        // A library from an older build, created under umask 022.
         fs::create_dir_all(&root).unwrap();
         fs::set_permissions(&root, fs::Permissions::from_mode(0o755)).unwrap();
 
@@ -1145,7 +1040,6 @@ mod tests {
             .collect();
         assert_eq!(visible, [merged.id]);
 
-        // macOS Undo, or a crash part-way through it, removes the merged meeting first.
         fs::remove_dir_all(library.meeting_dir(&merged)).unwrap();
         let mut visible: Vec<Uuid> = library
             .list_meetings()

@@ -237,8 +237,6 @@ final class ModelRolesTests: XCTestCase {
         await gate.waitUntilCompleted()
     }
 
-    /// Settings › Models' Cancel stops the selected models' downloads the
-    /// way each one's own Cancel on Downloaded does.
     func testCancellingTheCoreDownloadsStopsTheSelectedTranscriptionPreparation() async {
         let storage = temporaryStorage()
         defer { try? FileManager.default.removeItem(at: storage.rootURL) }
@@ -364,7 +362,7 @@ final class ModelRolesTests: XCTestCase {
             settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
             prepareTranscription: { _, _, _ in
                 await gate.run()
-                downloaded = true // Simulate a backend that finishes despite cancellation.
+                downloaded = true
             },
             downloadedTranscriptionModels: { _ in downloaded ? [TranscriptionModelChoice.qwenASR06B.id] : [] },
             onReadinessChanged: {})

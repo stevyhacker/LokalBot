@@ -147,7 +147,6 @@ final class ExternalMeetingWriterTests: XCTestCase {
         buffer.frameLength = frames
         let samples = try XCTUnwrap(buffer.floatChannelData)[0]
         for index in 0..<Int(frames) { samples[index] = 0.2 * sinf(Float(index) * 2 * .pi * 220 / 16_000) }
-        // The file is closed, and its header finished, when it goes out of scope.
         try {
             let file = try AVAudioFile(forWriting: audio, settings: [
                 AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16_000, AVNumberOfChannelsKey: 1,

@@ -30,7 +30,6 @@ RATE = 22_050
 GAP = 1.0
 TAIL = 4
 
-# Priya owns the website; the four things the person takes on go to agents.
 FOLLOW_UP = [
     ("them", "Hi! Thanks for making time. I know the week is packed, so this will be quick."),
     ("me", "No problem. I have the pricing sheet open, so let's go through what is left before the launch."),
@@ -52,9 +51,6 @@ WARMUP = [
     ("me", "Yes, loud and clear."),
 ]
 
-# Everything that could capture, learn, or reach past the library stays off;
-# the meeting is transcribed on this Mac and summarized, like the agents' work,
-# by the OpenRouter model. Unlisted settings keep their defaults.
 SETTINGS = {
     "summarizerBackend": "OpenAI-compatible server",
     "openAIBaseURL": "https://openrouter.ai/api/v1",
@@ -137,8 +133,6 @@ def write_settings(suite, model):
     for args in (["lokalbotv3.settings", "-data", blob.hex()],
                  ["lokalbotv3.onboarding.shown", "-bool", "YES"],
                  ["lokalbotv3.gettingStartedDismissed", "-bool", "YES"],
-                 # Full access: no tool asks first, so the agents run unattended.
-                 # In the narrower modes each lokalbot-cli lookup waits for a click.
                  ["lokalbotv3.agent.approvalMode", "-int", "3"]):
         subprocess.run(["defaults", "write", suite, *args], check=True)
 

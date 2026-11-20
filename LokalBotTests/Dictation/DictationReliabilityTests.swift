@@ -4,12 +4,8 @@ import CoreMedia
 import XCTest
 @testable import LokalBot
 
-/// Dictation failures reported from a Bluetooth headset (AirPods) and the
-/// delivery problems found while investigating them.
 @MainActor
 final class DictationReliabilityTests: XCTestCase {
-
-    // MARK: - Microphone recovery
 
     func testFlapDetectorTripsOnlyOnRepeatedRecoveriesInsideTheWindow() {
         var detector = MicRecoveryFlapDetector(limit: 3, window: 20)
@@ -27,9 +23,6 @@ final class DictationReliabilityTests: XCTestCase {
         }
     }
 
-    /// The AirPods loop: every rebuild succeeded, reset the retry budget, and
-    /// the device dropped again, so dictation recorded fragments forever and
-    /// never told anyone. A successful rebuild must not reset the flap budget.
     func testRecorderDegradesWhenTheInputKeepsDroppingAfterSuccessfulRecoveries() async throws {
         let folder = try Self.temporaryFolder()
         defer { try? FileManager.default.removeItem(at: folder) }
@@ -118,8 +111,6 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertEqual(converted.floatChannelData![0][512], 0.5, accuracy: 0.000_1)
     }
 
-    // MARK: - Shortcut
-
     func testShortcutDuringTranscriptionNeverDiscardsTheDictation() {
         let transcribing = DictationCoordinator.State.transcribing(startedAt: Date())
         let composing = DictationCoordinator.State.composing(startedAt: Date())
@@ -149,8 +140,6 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertFalse(DictationView.readyText(triggerMode: .toggle, shortcut: shortcut).contains("hold"))
         XCTAssertTrue(DictationView.readyText(triggerMode: .toggle, shortcut: shortcut).contains("press"))
     }
-
-    // MARK: - Delivery target
 
     func testTextSelectedBeforeDictatingIsReplacedNotRefused() throws {
         let selection = DictationTextSelection(location: 4, length: 6)
@@ -227,9 +216,6 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertEqual(patient.snapshot?.focusIdentityKey, "composer")
     }
 
-    /// Review finding: the retry took a fresh focus read during recording, so
-    /// switching apps right after the shortcut made the second app the paste
-    /// destination. The late answer must come from the shortcut's own read.
     func testSlowFocusReadStillBindsTheFieldFocusedAtTheShortcut() async {
         let focus = FocusedApp(processID: 42)
         let executor = DictationFocusSnapshotExecutor(deadlineMilliseconds: 20) {
@@ -245,7 +231,7 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertTrue(early.timedOut)
         XCTAssertLessThan(started.duration(to: .now), .milliseconds(200), "the microphone does not wait")
 
-        focus.processID = 7 // the person switches apps while dictation starts
+        focus.processID = 7
         let late = await full.value
         XCTAssertEqual(late.snapshot?.processID, 42)
     }
@@ -272,9 +258,6 @@ final class DictationReliabilityTests: XCTestCase {
             capture: capture(42), pressedProcessID: nil).target)
     }
 
-    /// Review finding: after waiting for the paste, a cancelled dictation
-    /// still completed (resetting a newer recording) and could type its
-    /// fallback text.
     func testCancelledDictationNeverFinishesDeliveryAfterThePasteWait() {
         for outcome in [CotypingInserter.PasteOutcome.pasted, .unconfirmed, .failed] {
             var typed = false
@@ -293,8 +276,6 @@ final class DictationReliabilityTests: XCTestCase {
             .unconfirmed, sessionIsCurrent: true, typeFallback: { true }), .unconfirmed)
     }
 
-    /// Review finding on b323141: a paste queued behind another ran even after
-    /// its dictation was cancelled, into whatever app had focus by then.
     func testQueuedPasteIsDroppedWhenItsCallerIsCancelled() async throws {
         let queue = SerialTaskQueue()
         let gate = Gate()
@@ -341,8 +322,6 @@ final class DictationReliabilityTests: XCTestCase {
             .skipped, sessionIsCurrent: false, typeFallback: { true }), .cancelled)
     }
 
-    /// Review finding on b323141: holding ⌃⌥ while an earlier dictation was
-    /// transcribing, then pressing another key, cancelled that transcription.
     func testChordCancelsOnlyTheRecordingItStarted() {
         XCTAssertFalse(DictationCoordinator.shouldCancelShortcutStart(
             startedGeneration: nil, currentGeneration: 4, isStarting: false, isRecording: false),
@@ -357,8 +336,6 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertFalse(DictationCoordinator.shouldCancelShortcutStart(
             startedGeneration: 5, currentGeneration: 5, isStarting: false, isRecording: false))
     }
-
-    // MARK: - Paste
 
     func testPasteIsConfirmedByTheAppReadingTheText() async throws {
         let pasteboard = NSPasteboard(name: .init("lokalbot-dictation-\(UUID().uuidString)"))
@@ -422,8 +399,6 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertEqual(CotypingInserter.typingChunks(""), [])
     }
 
-    // MARK: - Speech recognition
-
     func testSingleWindowIsNotDecodedAgainInItsOwnLanguage() {
         let one = ["Please send the updated contract to the legal team before Friday."]
         XCTAssertNil(QwenASREngine.pinnedLanguage(for: one))
@@ -445,8 +420,6 @@ final class DictationReliabilityTests: XCTestCase {
         XCTAssertFalse(DictationCoordinator.shouldRetryWithoutVocabulary(
             transcript: spoken, prompt: "Mila Novak", speechSeconds: 1.6))
     }
-
-    // MARK: - Helpers
 
     private static func temporaryFolder() throws -> URL {
         let folder = FileManager.default.temporaryDirectory
@@ -489,7 +462,6 @@ final class DictationReliabilityTests: XCTestCase {
     }
 }
 
-/// Holds an operation open until the test releases it.
 @MainActor
 private final class Gate {
     private var isOpen = false
@@ -525,8 +497,6 @@ private struct WaitTimedOut: Error {
     let seconds: TimeInterval
 }
 
-/// Inputs that start successfully and stop when told to, like a Bluetooth
-/// microphone that drops each time it switches profile.
 private final class ScriptedInputs: @unchecked Sendable {
     private(set) var made = 0
     private(set) var current: ScriptedInput?

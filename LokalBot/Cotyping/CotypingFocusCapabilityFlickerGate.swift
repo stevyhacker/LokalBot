@@ -1,9 +1,5 @@
 import Foundation
 
-/// Suppresses a single `supported -> blocked -> supported` focus poll on the
-/// same editable element. Some host apps briefly publish a non-empty selection
-/// while redrawing the caret; without this, the ghost overlay tears down and
-/// rebuilds even though focus did not really leave the field.
 struct CotypingFocusCapabilityFlickerGate: Sendable {
     static let requiredConsecutiveBlockedReads = 2
 
@@ -47,8 +43,6 @@ struct CotypingFocusCapabilityFlickerGate: Sendable {
         }
     }
 
-    /// Never smooth secure-field blocks: privacy beats visual stability. Today
-    /// the only editable blocked state that is safe to smooth is selected text.
     nonisolated static func isSmoothableBlockedReason(_ reason: String) -> Bool {
         reason == "Text selected."
     }

@@ -1,6 +1,3 @@
-//! Searchable settings (`SettingDescriptor.swift`): title, category, extra
-//! words to match, and the current value shown in results.
-
 use lokalbot_core::Settings;
 use lokalbot_core::settings::{AppTheme, TextSize};
 
@@ -30,7 +27,6 @@ fn text(value: &str) -> String {
     }
 }
 
-/// The device list has no value of its own: it follows the switch above it.
 fn details_or_off(settings: &Settings) -> String {
     if settings.companion_sharing_enabled {
         details(settings)
@@ -523,7 +519,6 @@ pub const ENTRIES: &[Entry] = &[
         aliases: "ask sources meetings day memory files personal context",
         value: |_| String::new(),
     },
-    // Phones and tablets
     Entry {
         id: "settings.companionSharingEnabled",
         title: "Share with my phones and tablets",
@@ -1454,9 +1449,6 @@ pub const ENTRIES: &[Entry] = &[
     },
 ];
 
-/// Entries whose title, aliases or category contain every query word.
-/// The setting's name on its page, where it differs from its title
-/// (`SettingDescriptor.label`): results show it, and it is searched too.
 pub fn label(id: &str) -> Option<&'static str> {
     Some(match id {
         "settings.cotypingDebounceMs" => "Wait after you stop typing",
@@ -1496,7 +1488,6 @@ pub fn label(id: &str) -> Option<&'static str> {
     })
 }
 
-/// What a result is called: its name on the page, else its title.
 pub fn display_title(entry: &Entry) -> &'static str {
     label(entry.id).unwrap_or(entry.title)
 }
@@ -1545,7 +1536,6 @@ fn search_in(query: &str, locale: &str) -> Vec<&'static Entry> {
             )
         })
         .collect();
-    // Exact titles, then titles that start with the query, then the rest.
     let score = |entry: &Entry| {
         let title = entry.title.to_lowercase();
         if title == normalized {
@@ -1564,8 +1554,6 @@ fn search_in(query: &str, locale: &str) -> Vec<&'static Entry> {
     found
 }
 
-/// The control a setting's search result opens: the setting itself, or the
-/// switch it shows behind while that is off (`SettingDescriptor.focusTarget`).
 pub fn focus_target<'a>(id: &'a str, settings: &Settings) -> &'a str {
     use lokalbot_core::ScreenContextMode;
     use lokalbot_core::settings::SummarizerBackend;
@@ -1622,7 +1610,6 @@ pub fn focus_target<'a>(id: &'a str, settings: &Settings) -> &'a str {
     {
         return "settings.screenContextCaptureMode";
     }
-    // Phones & tablets shows its other controls only while sharing is on.
     if !settings.companion_sharing_enabled
         && key.starts_with("companion")
         && key != "companionSharingEnabled"
@@ -1632,7 +1619,6 @@ pub fn focus_target<'a>(id: &'a str, settings: &Settings) -> &'a str {
     id
 }
 
-/// Said under a result that opens another control.
 pub fn prerequisite(id: &str, settings: &Settings) -> Option<&'static str> {
     (focus_target(id, settings) != id).then(|| {
         lokalbot_i18n::tr("Enable the parent feature to edit this setting. Opens that control.")
@@ -1663,8 +1649,6 @@ pub fn category_key(category: SettingsCategory) -> &'static str {
     }
 }
 
-/// What a page was called before, so search still finds its settings by the
-/// old name (`SettingsTab.formerNames`).
 pub fn former_keys(category: SettingsCategory) -> &'static [&'static str] {
     match category {
         PersonalContext => &["Personal Context"],
@@ -1746,7 +1730,6 @@ mod tests {
     #[test]
     fn features_missing_on_this_platform_are_not_offered() {
         assert!(search("chime").is_empty());
-        // What was added lately can be found.
         assert!(
             search("sessions")
                 .iter()
@@ -1771,7 +1754,6 @@ mod tests {
         assert!(autocomplete.contains(&"settings.cotypingEnabled"));
         assert!(autocomplete.contains(&"settings.cotypingBuiltInModelID"));
         assert!(!autocomplete.contains(&"settings.autocompleteAvailability"));
-        // Updates check, download and install here too.
         let updates: Vec<&str> = search("updates").iter().map(|e| e.id).collect();
         assert_eq!(
             updates,
@@ -1781,14 +1763,12 @@ mod tests {
 
     #[test]
     fn punctuation_and_diacritics_fold_and_exact_titles_lead() {
-        // "auto-record" used to miss.
         assert!(
             search("auto-record")
                 .iter()
                 .any(|e| e.id == "settings.autoRecordMode")
         );
         assert_eq!(search("Theme")[0].id, "settings.appTheme");
-        // "Thème" finds it too.
         assert!(search("Thème").iter().any(|e| e.id == "settings.appTheme"));
         let budget = search("think processing budget");
         assert_eq!(budget[0].id, "settings.generationBudgetPreset");
@@ -1826,7 +1806,6 @@ mod tests {
             focus_target("settings.openAIBaseURL", &off),
             "settings.summarizerBackend"
         );
-        // The level is a row of its own under Models' Advanced now.
         assert_eq!(
             focus_target("settings.thinkReasoningLevel", &off),
             "settings.thinkReasoningLevel"
@@ -1862,7 +1841,6 @@ mod tests {
         assert_eq!(page("settings.agentAccess"), Agents);
         assert_eq!(page("settings.agentCLI"), Agents);
         assert_eq!(page("settings.permissions"), Privacy);
-        // Old page names still find what they held.
         assert!(
             search("day memory")
                 .iter()

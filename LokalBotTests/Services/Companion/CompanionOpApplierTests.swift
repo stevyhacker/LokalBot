@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// `action.setStatus` from a phone goes through `OutcomeIndex` like a click
-/// in Actions: by id, by the text snapshot when reprocessing changed the id,
-/// and otherwise reported as unmatched.
 @MainActor
 final class CompanionOpApplierTests: XCTestCase {
     private var fixture: CompanionFixtureLibrary!

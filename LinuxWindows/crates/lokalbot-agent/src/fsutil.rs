@@ -1,5 +1,3 @@
-//! Owner-only folders and files for task metadata and session history.
-
 use std::path::Path;
 
 pub fn create_private_dir(dir: &Path) -> std::io::Result<()> {

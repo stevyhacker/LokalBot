@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Topping up a suggestion while it is accepted. Cotypist keeps its ghost two
-/// to five words ahead until the sentence ends; a suggestion that ran out
-/// every three words and reappeared a moment later is what these rules replace.
 final class CotypingSuggestionExtensionTests: XCTestCase {
     private typealias Rules = CotypingSuggestionExtension
 
@@ -20,9 +17,7 @@ final class CotypingSuggestionExtensionTests: XCTestCase {
 
     func testOnlyOutputCutByTheLengthLimitIsContinued() {
         XCTAssertTrue(Rules.isOpenEnded(" between the number", wordLimit: 3))
-        // One word short still counts: the token budget can end before the last word is whole.
         XCTAssertTrue(Rules.isOpenEnded(" discuss how", wordLimit: 3))
-        // A finished sentence, or a short answer the model chose to stop at, is left alone.
         XCTAssertFalse(Rules.isOpenEnded(" care of it.", wordLimit: 3))
         XCTAssertFalse(Rules.isOpenEnded(" 16:", wordLimit: 3))
         XCTAssertFalse(Rules.isOpenEnded(" first line\nsecond line", wordLimit: 3))
@@ -33,7 +28,6 @@ final class CotypingSuggestionExtensionTests: XCTestCase {
         XCTAssertFalse(Rules.shouldExtend(fresh, wordLimit: 3), "three words ahead is enough")
         let oneAccepted = fresh.advanced(by: " between".count)
         XCTAssertTrue(Rules.shouldExtend(oneAccepted, wordLimit: 3))
-        // Typing part of the next word does not change how many words are left.
         XCTAssertTrue(Rules.shouldExtend(fresh.advanced(by: " between t".count), wordLimit: 3))
         XCTAssertFalse(Rules.shouldExtend(fresh.advanced(by: fresh.fullText.count), wordLimit: 3),
                        "an exhausted suggestion is replaced, not topped up")
@@ -50,7 +44,6 @@ final class CotypingSuggestionExtensionTests: XCTestCase {
         XCTAssertEqual(Rules.threshold(wordLimit: 3), 2)
         XCTAssertEqual(Rules.threshold(wordLimit: 12), 2)
         XCTAssertEqual(Rules.threshold(wordLimit: 2), 1)
-        // One word at a time means exactly that.
         XCTAssertEqual(Rules.threshold(wordLimit: 1), 0)
         let single = session(" between").advanced(by: " betw".count)
         XCTAssertFalse(Rules.shouldExtend(single, wordLimit: 1))
@@ -73,9 +66,7 @@ final class CotypingSuggestionExtensionTests: XCTestCase {
     func testAnAdditionNeverChangesWordsAlreadyOnScreen() {
         let shown = " between the number"
         XCTAssertEqual(Rules.addition(from: " of menu items", to: shown), " of menu items")
-        // Punctuation may attach to the last word.
         XCTAssertEqual(Rules.addition(from: ", and", to: shown), ", and")
-        // "number" must not turn into "numbers" under the reader's eyes.
         XCTAssertNil(Rules.addition(from: "s of items", to: shown))
         XCTAssertNil(Rules.addition(from: "   ", to: shown))
         XCTAssertNil(Rules.addition(from: "", to: shown))
@@ -97,7 +88,6 @@ final class CotypingSuggestionExtensionTests: XCTestCase {
     }
 }
 
-/// The Settings rehearsal tops up by the same rules as a live field.
 final class CotypingRehearsalTopUpTests: XCTestCase {
     private let draft = "The main tradeoff is"
 
@@ -113,7 +103,6 @@ final class CotypingRehearsalTopUpTests: XCTestCase {
         XCTAssertTrue(rehearsal.topUp(with: " of menu items", continuing: prefix, wordLimit: 3))
         XCTAssertEqual(rehearsal.ghost, " the number of menu items")
         XCTAssertNil(rehearsal.topUpPrefix(wordLimit: 3))
-        // The accept keys walk straight on into the appended words.
         XCTAssertEqual(rehearsal.accept(.whole, text: first, options: .init()),
                        draft + " between the number of menu items")
     }
@@ -134,7 +123,6 @@ final class CotypingRehearsalTopUpTests: XCTestCase {
         _ = try XCTUnwrap(rehearsal.accept(.chunk, text: "Sounds good, I can take", options: .init()))
         XCTAssertNil(rehearsal.topUpPrefix(wordLimit: 3))
 
-        // The fixed opening suggestion is presented without a limit.
         rehearsal.present(" up on the", after: draft)
         _ = try XCTUnwrap(rehearsal.accept(.chunk, text: draft, options: .init()))
         XCTAssertNil(rehearsal.topUpPrefix(wordLimit: 3))
@@ -149,7 +137,6 @@ final class CotypingRehearsalTopUpTests: XCTestCase {
     }
 }
 
-/// Search boxes stay quiet.
 final class CotypingSearchFieldDetectorTests: XCTestCase {
     func testSearchFieldsAreRecognizedByRoleOrSubrole() {
         XCTAssertTrue(CotypingSearchFieldDetector.isSearchField(role: "AXTextField", subrole: "AXSearchField"))

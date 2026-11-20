@@ -3,14 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! What autocomplete may read and where it may suggest, kept pure so it is
-//! testable without a desktop: the app read policy, secure and search field
-//! detection, the bounded text windows around the caret, site exclusions,
-//! focus smoothing and the field identity that suggestions are anchored to
-//! (`CotypingAXPolicies.swift`, `CotypingAvailability.swift`,
-//! `CotypingBrowserDomain.swift`, `CotypingFieldIdentity.swift`,
-//! `CotypingFocusPollBackoff.swift`, `CotypingFocusCapabilityFlickerGate.swift`).
-
 use std::time::{Duration, Instant};
 
 use unicode_segmentation::UnicodeSegmentation as _;
@@ -18,17 +10,12 @@ use unicode_segmentation::UnicodeSegmentation as _;
 use super::geometry::Rect;
 use super::{Capability, FieldSnapshot, FocusSnapshot};
 
-/// Text before the caret, in UTF-16 units, as on macOS
-/// (`CotypingAcceptanceContentBounds.maximumPrecedingUTF16Length`).
 pub const MAX_BEFORE_UTF16: usize = 4_096;
-/// Text after the caret, in UTF-16 units.
 pub const MAX_AFTER_UTF16: usize = 1_024;
 
-/// How long a field stays quiet after Escape (`CotypingEscapeBehavior.pauseSeconds`).
 pub const ESCAPE_PAUSE: Duration = Duration::from_secs(10);
 
 pub mod reasons {
-    //! Why a field gets no suggestion, as macOS words it in its status line.
     pub const SECURE: &str = "Secure field — never read.";
     pub const SELECTION: &str = "Text selected.";
     pub const NOT_EDITABLE: &str = "Not an editable text field.";
@@ -47,31 +34,16 @@ pub mod reasons {
     pub const UNKNOWN_APP: &str = "Cannot tell which app this field belongs to.";
 }
 
-/// Who may be read at all. App exclusions authorize the read itself, before
-/// any field text exists (`CotypingAppReadPolicy`): an excluded app's fields
-/// are never read, not read and then dropped.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ReadPolicy {
-    /// Autocomplete is on. Off means nothing is read.
     pub enabled: bool,
-    /// "Never suggest in these apps" (`cotyping_excluded_apps`).
     pub excluded_apps: Vec<String>,
-    /// "Never suggest on these sites" (`cotyping_excluded_domains`).
     pub excluded_domains: Vec<String>,
-    /// Day memory's "Never capture these apps", which also keeps the text
-    /// around a field out of a suggestion (`CotypingVisibleContext.Policy`).
     pub capture_excluded_apps: Vec<String>,
-    /// Day memory's "Never capture these sites".
     pub capture_excluded_domains: Vec<String>,
-    /// Read the text shown above the field, such as the conversation being
-    /// answered. Never on the Tab path.
     pub visible_text: bool,
-    /// The whole focused window may be read from its pixels
-    /// (`cotyping_use_window_text`); the engine does the reading.
     pub window_text: bool,
-    /// Read the field's font and colors (`cotyping_match_host_style`).
     pub match_host_style: bool,
-    /// Suggest in xterm.js surfaces (`cotyping_suggest_in_integrated_terminals`).
     pub suggest_in_integrated_terminals: bool,
 }
 
@@ -90,7 +62,6 @@ impl ReadPolicy {
         }
     }
 
-    /// Whether `app_name`/`app_id` may be read. Unknown owners fail closed.
     pub fn allows_app(&self, app_name: &str, app_id: &str) -> bool {
         if !self.enabled || (app_name.trim().is_empty() && app_id.trim().is_empty()) {
             return false;
@@ -107,10 +78,6 @@ impl ReadPolicy {
         !is_excluded(app_name, app_id, &self.excluded_apps)
     }
 
-    /// Whether the text around the field may join a suggestion: the field's
-    /// own rules plus day memory's capture exclusions, with private windows
-    /// and browsers whose page cannot be read left out
-    /// (`CotypingVisibleContext.Policy.permits`).
     pub fn allows_visible_text(&self, field: &FieldSnapshot) -> bool {
         self.visible_text
             && !field.is_integrated_terminal
@@ -122,8 +89,6 @@ impl ReadPolicy {
             )
     }
 
-    /// The same rule for text read from the focused window's pixels. Each
-    /// source needs its own grant.
     pub fn allows_window_text(
         &self,
         app_name: &str,
@@ -165,8 +130,6 @@ impl ReadPolicy {
     }
 }
 
-/// Case-insensitive substring of the app name or id
-/// (`CotypingAvailability.isExcluded`).
 pub fn is_excluded(app_name: &str, app_id: &str, rules: &[String]) -> bool {
     let haystacks = [app_name.to_lowercase(), app_id.to_lowercase()];
     rules
@@ -180,16 +143,12 @@ pub fn is_excluded(app_name: &str, app_id: &str, rules: &[String]) -> bool {
         })
 }
 
-/// Whether a DOM class list marks an xterm.js surface
-/// (`CotypingSurfaceClassifier.isIntegratedTerminal`).
 pub fn is_integrated_terminal(dom_classes: &str) -> bool {
     dom_classes
         .split_whitespace()
         .any(|class| class.to_lowercase().starts_with("xterm"))
 }
 
-/// Terminal emulators: their history and completions fight ghost text
-/// (`CotypingSurfaceClassifier` `.terminal`).
 pub fn is_terminal_app(app_name: &str, app_id: &str) -> bool {
     let id = app_id.to_lowercase();
     let name = app_name.trim().to_lowercase();
@@ -202,9 +161,6 @@ pub fn is_terminal_app(app_name: &str, app_id: &str) -> bool {
         )
 }
 
-/// Conservative secure-field check over every label a toolkit exposes. A
-/// false positive only hides autocomplete; a false negative could show a
-/// secret as ghost text (`CotypingSecureFieldDetector`).
 pub fn is_secure_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
     const MARKERS: [&str; 13] = [
         "secure",
@@ -227,11 +183,6 @@ pub fn is_secure_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
     })
 }
 
-/// Fields for a verification code, PIN or one-time password stay quiet: a
-/// code is not prose to continue. Pages often name such a field only through
-/// its placeholder, label or element id, so callers pass those too. Matches
-/// whole words, so "pin" never matches "pinned". A false positive only hides
-/// autocomplete in one field (`CotypingCodeFieldDetector`).
 pub fn is_code_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
     const CODE_WORDS: [&str; 3] = ["code", "kod", "код"];
     const SECRET_WORDS: [&str; 10] = [
@@ -265,7 +216,6 @@ pub fn is_code_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
         "access",
         "backup",
         "recovery",
-        // Serbian, Croatian and Bosnian, in Latin and Cyrillic.
         "verifikacioni",
         "verifikacijski",
         "verifikaciju",
@@ -320,9 +270,6 @@ pub fn is_code_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
     })
 }
 
-/// Lowercased words, split at anything that is not a letter or digit and at
-/// camelCase humps, so the element ids `otpInput`, `SMSCode` and
-/// `verification-code` read as words too (`CotypingCodeFieldDetector.words`).
 pub fn label_words(label: &str) -> Vec<String> {
     let characters: Vec<char> = label.chars().collect();
     let mut words = Vec::new();
@@ -352,9 +299,6 @@ pub fn label_words(label: &str) -> Vec<String> {
     words
 }
 
-/// Search boxes stay quiet: a query is not prose to continue, and Tab there
-/// belongs to the results (`CotypingSearchFieldDetector`). `roles` are the
-/// toolkit's role names, ARIA roles and input types.
 pub fn is_search_field<'a>(roles: impl IntoIterator<Item = &'a str>) -> bool {
     roles.into_iter().any(|role| {
         let role = role.trim().to_lowercase();
@@ -362,10 +306,6 @@ pub fn is_search_field<'a>(roles: impl IntoIterator<Item = &'a str>) -> bool {
     })
 }
 
-/// The bounded text before the caret. `read_truncated` says the reader
-/// already left out text before what it returned. A clipped window drops its
-/// outermost grapheme, which the cut may have split
-/// (`CotypingAcceptanceContentBounds.context`).
 pub fn bounded_before(text: &str, read_truncated: bool) -> (String, bool) {
     let mut start = 0;
     let mut units = 0;
@@ -388,7 +328,6 @@ pub fn bounded_before(text: &str, read_truncated: bool) -> (String, bool) {
     (rest.to_string(), true)
 }
 
-/// The bounded text after the caret, the mirror of [`bounded_before`].
 pub fn bounded_after(text: &str, read_truncated: bool) -> String {
     let mut end = text.len();
     let mut units = 0;
@@ -411,14 +350,10 @@ pub fn bounded_after(text: &str, read_truncated: bool) -> String {
     window[..keep].to_string()
 }
 
-/// Whether the caret is at the end of its line: nothing follows it, or what
-/// follows starts with a line break (`CotypingRenderModePolicy.isCaretAtEndOfLine`).
 pub fn caret_at_end_of_line(after: &str) -> bool {
     after.chars().next().is_none_or(|c| c == '\n' || c == '\r')
 }
 
-/// Lowercased host of a page address without a leading `www.`; `None` for
-/// addresses without a network host (`CotypingBrowserDomain.host`).
 pub fn host_from_url(url: &str) -> Option<String> {
     let parsed = url::Url::parse(url.trim()).ok()?;
     let host = parsed.host_str()?.to_lowercase();
@@ -435,8 +370,6 @@ fn strip_www(host: &str) -> &str {
     }
 }
 
-/// Whether a host is covered by a site rule: the same host or a subdomain of
-/// it. Rules may be pasted as full URLs (`CotypingBrowserDomain.isHostDisabled`).
 pub fn is_host_disabled(host: Option<&str>, rules: &[String]) -> bool {
     let Some(host) = host.filter(|h| !h.is_empty()) else {
         return false;
@@ -452,8 +385,6 @@ pub fn is_host_disabled(host: Option<&str>, rules: &[String]) -> bool {
     })
 }
 
-/// Why `focus` gets no suggestion, or `None` when it may
-/// (`CotypingAvailability.disabledReason`).
 pub fn disabled_reason(policy: &ReadPolicy, focus: &FocusSnapshot) -> Option<&'static str> {
     if !policy.enabled {
         return Some("Autocomplete is off.");
@@ -476,8 +407,6 @@ pub fn disabled_reason(policy: &ReadPolicy, focus: &FocusSnapshot) -> Option<&'s
     if is_host_disabled(host.as_deref(), &policy.excluded_domains) {
         return Some(reasons::EXCLUDED_SITE);
     }
-    // A site rule is a privacy boundary: a browser whose page cannot be read
-    // is paused, never treated as allowed.
     let has_site_rules = policy.excluded_domains.iter().any(|d| !d.trim().is_empty());
     if has_site_rules
         && crate::privacy::is_browser(&field.app_name, &field.app_id)
@@ -488,9 +417,6 @@ pub fn disabled_reason(policy: &ReadPolicy, focus: &FocusSnapshot) -> Option<&'s
     None
 }
 
-/// Identity of "the same field" across snapshots: the toolkit's own element
-/// identity, else the field frame, else the window title. Content is left
-/// out so typing through a suggestion keeps it (`CotypingFieldIdentity`).
 pub fn field_identity(field: &FieldSnapshot) -> String {
     let part = if !field.focus_key.is_empty() {
         format!("focus:{}", field.focus_key)
@@ -514,9 +440,6 @@ pub fn field_identity(field: &FieldSnapshot) -> String {
     .join("\u{1f}")
 }
 
-/// Cotabby's idle backoff for the poll fallback: full speed after activity,
-/// slower after repeated captures that changed nothing
-/// (`CotypingFocusPollBackoff`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PollBackoff {
     idle_captures: u32,
@@ -547,10 +470,6 @@ impl PollBackoff {
     }
 }
 
-/// Smooths one `supported → selected → supported` blip on the same element:
-/// some apps briefly report a selection while redrawing the caret, which
-/// would tear the ghost down and rebuild it. Secure fields are never
-/// smoothed (`CotypingFocusCapabilityFlickerGate`).
 #[derive(Clone, Debug, Default)]
 pub struct FlickerGate {
     last_supported: Option<String>,
@@ -560,7 +479,6 @@ pub struct FlickerGate {
 impl FlickerGate {
     pub const REQUIRED_BLOCKED_READS: u32 = 2;
 
-    /// True to deliver `focus`, false to keep the previous one for now.
     pub fn apply(&mut self, focus: &FocusSnapshot) -> bool {
         match &focus.capability {
             Capability::Supported => {
@@ -599,11 +517,6 @@ impl FlickerGate {
     }
 }
 
-/// Picks the caret from what a field reports for the empty range at the
-/// caret and for the character before it: that character's trailing edge
-/// when it is one glyph inside the field, else the empty range. Several apps
-/// report the empty range a line off or with no size, while the character
-/// before the caret is where it is drawn (`CotypingCaretGeometry.caret`).
 pub fn choose_caret(
     empty_range: Option<Rect>,
     previous_character: Option<Rect>,
@@ -633,14 +546,10 @@ pub fn choose_caret(
     empty_range
 }
 
-/// Whether a rect reported for the collapsed selection is a caret rather
-/// than a whole line or field (`CotypingCaretGeometry.isCollapsedCaret`).
 pub fn is_collapsed_caret(rect: &Rect) -> bool {
     rect.is_finite() && rect.height > 0.0 && rect.width <= (rect.height / 4.0).max(2.0)
 }
 
-/// Escape keeps one field quiet for a while; it never follows the user to
-/// another field (`CotypingCoordinator.isPausedByEscape`).
 #[derive(Clone, Debug, Default)]
 pub struct EscapePause {
     paused: Option<(String, Instant)>,
@@ -667,10 +576,6 @@ impl EscapePause {
     }
 }
 
-/// Right-to-left when the last strong character is Hebrew or Arabic
-/// (`CotypingTextDirectionDetector`), for choosing the caret's edge. The
-/// engine's `lokalbot_ai::autocomplete::is_right_to_left` does the same for
-/// placing the ghost; this crate does not depend on that one.
 pub fn is_right_to_left(text: &str) -> bool {
     text.chars()
         .rev()
@@ -711,7 +616,6 @@ mod tests {
             "Inbox - Private Browsing",
             None
         ));
-        // A browser whose page cannot be read abstains.
         assert!(!allows("Firefox", "firefox", "Inbox", None));
         assert!(allows(
             "Firefox",
@@ -804,7 +708,6 @@ mod tests {
         let policy = policy();
         assert!(policy.allows_app("Text Editor", "org.gnome.TextEditor"));
         assert!(!policy.allows_app("KeePassXC", "keepassxc"));
-        // Built in even when the user cleared the list.
         let cleared = ReadPolicy {
             enabled: true,
             ..Default::default()
@@ -814,7 +717,6 @@ mod tests {
         assert!(!cleared.allows_app("LokalBot", "lokalbot"));
         assert!(!cleared.allows_app("Terminal", "gnome-terminal-server"));
         assert!(!cleared.allows_app("Windows Terminal", "WindowsTerminal.exe"));
-        // Substring of the name or the id, case-insensitive, as on macOS.
         let custom = ReadPolicy {
             enabled: true,
             excluded_apps: rules("slack, code.exe"),
@@ -823,7 +725,6 @@ mod tests {
         assert!(!custom.allows_app("Slack", "slack"));
         assert!(!custom.allows_app("Visual Studio Code", "Code.exe"));
         assert!(custom.allows_app("Notepad", "notepad.exe"));
-        // Off, or an unknown owner, reads nothing.
         assert!(!ReadPolicy::default().allows_app("Notepad", "notepad.exe"));
         assert!(!cleared.allows_app("", ""));
     }
@@ -896,16 +797,13 @@ mod tests {
     fn context_windows_are_bounded_like_macos() {
         let (before, truncated) = bounded_before("Hello there", false);
         assert_eq!((before.as_str(), truncated), ("Hello there", false));
-        // Too long: the last 4096 units, minus the outer grapheme.
         let long = format!("{}{}", "a".repeat(10), "b".repeat(MAX_BEFORE_UTF16));
         let (before, truncated) = bounded_before(&long, false);
         assert!(truncated);
         assert_eq!(before.len(), MAX_BEFORE_UTF16 - 1);
         assert!(before.chars().all(|c| c == 'b'));
-        // A reader that clipped already: the first grapheme may be split.
         let (before, truncated) = bounded_before("e\u{301}tude", true);
         assert_eq!((before.as_str(), truncated), ("tude", true));
-        // UTF-16 counting: astral characters take two units.
         let emoji = "😀".repeat(MAX_BEFORE_UTF16 / 2 + 3);
         let (before, _) = bounded_before(&emoji, false);
         assert!(before.encode_utf16().count() <= MAX_BEFORE_UTF16);
@@ -944,7 +842,6 @@ mod tests {
         let mut browsing = field("Firefox", "firefox");
         browsing.url = Some("https://docs.example.com/page".into());
         assert_eq!(disabled_reason(&policy, &focus_of(browsing.clone())), None);
-        // A site rule pauses a browser whose page it cannot read.
         policy.excluded_domains = rules("bank.com");
         browsing.url = None;
         assert_eq!(
@@ -956,7 +853,6 @@ mod tests {
             disabled_reason(&policy, &focus_of(browsing)),
             Some(reasons::EXCLUDED_SITE)
         );
-        // Native apps have no page to authorize.
         assert_eq!(
             disabled_reason(&policy, &focus_of(field("Text Editor", "gedit"))),
             None
@@ -981,14 +877,12 @@ mod tests {
         assert!(!policy.allows_visible_text(&chat));
         policy.visible_text = true;
         assert!(policy.allows_visible_text(&chat));
-        // Private windows and browsers without a readable page abstain.
         chat.window_title = "New Tab - Private Browsing".into();
         assert!(!policy.allows_visible_text(&chat));
         let mut browser = field("Firefox", "firefox");
         assert!(!policy.allows_visible_text(&browser));
         browser.url = Some("https://chat.example.com/room".into());
         assert!(policy.allows_visible_text(&browser));
-        // Day memory's capture exclusions apply too.
         policy.capture_excluded_domains = rules("example.com");
         assert!(!policy.allows_visible_text(&browser));
         policy.capture_excluded_apps = rules("Element");
@@ -1004,7 +898,6 @@ mod tests {
         assert_eq!(field_identity(&a), id);
         a.focus_key = ":1.5/org/a11y/atspi/accessible/9".into();
         assert_ne!(field_identity(&a), id);
-        // Without a toolkit identity the frame stands in.
         let mut b = field("App", "app");
         b.focus_key.clear();
         b.field_frame = Some(Rect::new(10.2, 20.0, 300.0, 40.0));
@@ -1044,14 +937,11 @@ mod tests {
         blip.capability = Capability::Blocked(reasons::SELECTION);
         blip.field = None;
         assert!(!gate.apply(&blip));
-        // The second blocked read in a row goes through.
         assert!(gate.apply(&blip));
         assert!(gate.apply(&supported));
-        // Secure fields are never smoothed.
         let mut secure = blip.clone();
         secure.capability = Capability::Blocked(reasons::SECURE);
         assert!(gate.apply(&secure));
-        // Another element is never smoothed.
         assert!(gate.apply(&supported));
         let mut other = blip.clone();
         other.focus_key = Some("other".into());
@@ -1061,7 +951,6 @@ mod tests {
     #[test]
     fn caret_prefers_the_character_before_it() {
         let field = Some(Rect::new(0.0, 0.0, 400.0, 40.0));
-        // The previous character's trailing edge wins over a misplaced range.
         let caret = choose_caret(
             Some(Rect::new(100.0, -20.0, 0.0, 18.0)),
             Some(Rect::new(90.0, 10.0, 8.0, 18.0)),
@@ -1069,11 +958,8 @@ mod tests {
             false,
         );
         assert_eq!(caret, Some(Rect::new(98.0, 10.0, 0.0, 18.0)));
-        // Right to left: the leading edge.
         let caret = choose_caret(None, Some(Rect::new(90.0, 10.0, 8.0, 18.0)), field, true);
         assert_eq!(caret, Some(Rect::new(90.0, 10.0, 0.0, 18.0)));
-        // A whole line is not one glyph; a character outside the field with no
-        // range to confirm it is not trusted.
         assert_eq!(
             choose_caret(None, Some(Rect::new(0.0, 10.0, 300.0, 18.0)), field, false),
             None

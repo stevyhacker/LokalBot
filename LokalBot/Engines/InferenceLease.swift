@@ -1,18 +1,9 @@
 import Foundation
 
-/// Who is waiting on an inference request, in increasing order of
-/// deferability. Step 1 records priorities for the dashboard and the broker
-/// API; eviction stays LRU+pins — priority-ordered eviction is a step-2
-/// concern once pressure-derived budgets exist.
 enum InferencePriority: Int, Comparable, CaseIterable, Sendable {
-    /// The user is watching this happen (chat, cotyping, model test).
     case interactive = 0
-    /// An agent is waiting (Agent Mode session, external ask_library).
     case agent = 1
-    /// Processing the person will open next: notes for a meeting that just
-    /// ended or that they asked to summarize. Ahead of scheduled work.
     case pipeline = 2
-    /// Scheduled work nobody is waiting for (digests, Dream, briefs, embeddings).
     case background = 3
 
     static func < (lhs: Self, rhs: Self) -> Bool { lhs.rawValue < rhs.rawValue }
@@ -27,9 +18,6 @@ enum InferencePriority: Int, Comparable, CaseIterable, Sendable {
     }
 }
 
-/// The three shared llama-server runtimes the broker owns in step 1.
-/// Granite's private ASR server holds direct ModelResidency pins during
-/// preparation/transcription; it does not need a broker role.
 enum InferenceRole: String, CaseIterable, Sendable {
     case mainLLM
     case embedder
@@ -50,12 +38,8 @@ enum InferenceRole: String, CaseIterable, Sendable {
         self = role
     }
 
-    /// Matches the ledger id `LlamaServer` registers under.
     var residencyID: String { serverRole.residencyID }
 
-    /// How long the server stays resident after its last lease releases —
-    /// long enough that bursty consumers (chat follow-ups, typing) don't pay
-    /// a model reload, short enough that the RAM comes back within minutes.
     var defaultLingerSeconds: TimeInterval {
         switch self {
         case .mainLLM: 600
@@ -65,22 +49,14 @@ enum InferenceRole: String, CaseIterable, Sendable {
     }
 }
 
-/// A claim on a running model: held for one request (or one Agent Mode
-/// session). While any lease on a role is open, that model cannot be evicted
-/// by the residency budget.
 struct InferenceLease: Identifiable, Equatable, Sendable {
     let id: UUID
     let role: InferenceRole
-    /// Canonical weights path served for the entire lifetime of this lease.
-    /// Leases on the same role but a different model are queued by the broker.
     let modelPath: String
     let priority: InferencePriority
     let purpose: String
 }
 
-/// Pure lease bookkeeping. The broker actor owns one; keeping the arithmetic
-/// here (no clocks, no tasks, no I/O) makes it unit-testable the same way
-/// `ModelResidencyPolicy` is.
 struct LeaseBook {
     struct Record: Equatable {
         let lease: InferenceLease
@@ -114,13 +90,10 @@ struct LeaseBook {
         records.filter { $0.lease.role == role }.count
     }
 
-    /// Residency ids that must never be eviction victims right now.
     var pinnedResidencyIDs: Set<String> {
         Set(records.map { $0.lease.role.residencyID })
     }
 
-    /// Dashboard strings per residency id, e.g. "chat (interactive)",
-    /// ordered by priority then purpose so the display is stable.
     var descriptionsByResidencyID: [String: [String]] {
         var out: [String: [String]] = [:]
         let ordered = records.sorted {

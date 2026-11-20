@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// One meeting's mention of an action in the Actions details pane: the
-/// meeting and its day, then what was said. The meeting name opens the
-/// meeting at the quote; the time plays the passage here.
 struct ActionEvidencePassages: View {
     @EnvironmentObject private var app: AppState
     let reference: OutcomeActionReference
@@ -51,7 +48,6 @@ struct ActionEvidencePassages: View {
                 }
             }
             if reference.textWasCorrected {
-                // A correction never replaces what was extracted.
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Original Wording")
                         .font(AppFont.scaled(.callout).weight(.semibold))
@@ -90,7 +86,6 @@ struct ActionEvidencePassages: View {
             }
             .font(AppFont.scaled(.callout).monospacedDigit())
             .foregroundStyle(LBTokens.Palette.accentText)
-            // A comfortable click target around the small timestamp.
             .padding(.horizontal, 4)
             .padding(.vertical, 3)
             .contentShape(Rectangle())

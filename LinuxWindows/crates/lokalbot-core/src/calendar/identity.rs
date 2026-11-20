@@ -1,10 +1,3 @@
-//! `CalendarParticipantIdentity.swift`: one remote attendee of the calendar
-//! event matched to a meeting.
-//!
-//! The email address stays in local meeting metadata only, so the rename
-//! sheet can tell same-named attendees apart. Transcripts keep the opaque
-//! `id`, never the address.
-
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -18,7 +11,6 @@ static ROLE_SUFFIX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)\s*\((host|co-host|organizer|presenter|you|me)\)\s*").expect("valid regex")
 });
 
-/// Mailboxes that name a team, a room or a robot rather than a person.
 const SHARED_MAILBOXES: &[&str] = &[
     "admin",
     "all",
@@ -45,8 +37,6 @@ const SHARED_MAILBOXES: &[&str] = &[
 ];
 
 impl CalendarParticipantIdentity {
-    /// A normalized identity, or `None` when neither the name nor the address
-    /// is usable. A blank `id` gets a fresh uppercase UUID, as on macOS.
     pub fn new(id: &str, name: Option<&str>, email_address: Option<&str>) -> Option<Self> {
         let name = name.and_then(Self::normalized_display_name);
         let email_address = email_address.and_then(Self::normalized_email_address);
@@ -65,9 +55,6 @@ impl CalendarParticipantIdentity {
         })
     }
 
-    /// An editable picker suggestion, never an automatic speaker identity.
-    /// Calendars often give an address without a display name; metadata
-    /// keeps that absence so automatic naming cannot treat a guess as fact.
     pub fn suggested_speaker_name(&self) -> Option<String> {
         if let Some(name) = &self.name {
             return Some(name.clone());
@@ -93,8 +80,6 @@ impl CalendarParticipantIdentity {
         Self::normalized_display_name(&capitalized.join(" "))
     }
 
-    /// Accepts only `mailto:` participants, so opaque provider identifiers
-    /// are never mistaken for addresses.
     pub fn email_from_participant_uri(uri: &str) -> Option<String> {
         let trimmed = uri.trim();
         let (scheme, rest) = trimmed.split_once(':')?;
@@ -134,8 +119,6 @@ impl CalendarParticipantIdentity {
         Some(name)
     }
 
-    /// Deduplicates by address first, and by name only when an address is
-    /// missing. A same-name, different-address pair stays two people.
     pub fn normalized(
         identities: &[CalendarParticipantIdentity],
     ) -> Vec<CalendarParticipantIdentity> {
@@ -180,7 +163,6 @@ impl CalendarParticipantIdentity {
         result
     }
 
-    /// Name-only rosters from older metadata, with ids stable across loads.
     pub fn from_legacy_names(names: &[String]) -> Vec<CalendarParticipantIdentity> {
         let identities: Vec<CalendarParticipantIdentity> = names
             .iter()
@@ -197,7 +179,6 @@ impl CalendarParticipantIdentity {
     }
 }
 
-/// `Meeting.resolvedCalendarParticipantIdentities`.
 pub fn resolved_meeting_identities(
     meeting: &crate::model::Meeting,
 ) -> Vec<CalendarParticipantIdentity> {
@@ -233,7 +214,6 @@ fn merged(
     }
 }
 
-/// Case-, accent- and width-insensitive name key.
 pub(crate) fn name_key(name: &str) -> String {
     name.nfkd()
         .filter(|c| !is_combining_mark(*c))

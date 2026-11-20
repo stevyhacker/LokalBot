@@ -1,10 +1,3 @@
-//! Timeline's rail, on the trailing side of the day's page
-//! (`TimelineRail.swift`): the paused line, the tracked total with the hour
-//! strip and its legend, then the day's sessions and meetings in time order
-//! under Morning, Afternoon and Evening, with All captured activity pinned
-//! as its bottom row. Choosing a row, or a bar of the strip, shows it on the
-//! page beside; choosing it again returns to the day.
-
 use chrono::{DateTime, Utc};
 use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::v_flex;
@@ -24,29 +17,21 @@ use crate::ui::section_panel::{PillTone, pill};
 use crate::ui::{self, Ico};
 use lokalbot_i18n::{mac, mac_count};
 
-/// From the rail's edge to its text, the panels' own inset.
 const INSET: f32 = 16.;
-/// The row's padding before its time, and the column the dots sit in.
 const ROW_LEADING: f32 = 4.;
 const AXIS_WIDTH: f32 = 24.;
-/// Rows sit this far in from the rail's edges, so their selection floats.
 const ROW_MARGIN: f32 = 8.;
-/// A row's title and second line, and from its top to the centre of its dot.
 const TITLE_LINE: f32 = 18.;
 const DETAIL_LINE: f32 = 16.;
 const DOT_CENTER: f32 = 5. + TITLE_LINE / 2.;
 
-/// The strip's lanes: meetings above, work below, then the hour labels.
 const MEETING_LANE_HEIGHT: f32 = 9.;
 const WORK_LANE_TOP: f32 = 13.;
 const WORK_LANE_HEIGHT: f32 = 20.;
 const LABEL_TOP: f32 = 37.;
 const STRIP_HEIGHT: f32 = LABEL_TOP + 16.;
-/// About one hour label every 44 points keeps "12 PM" clear of its neighbours.
 const LABEL_WIDTH: f32 = 44.;
 
-/// What the legend lists: a project's or app's time, the folded rest, or the
-/// meetings' total.
 struct LegendRow {
     label: String,
     seconds: f64,
@@ -54,8 +39,6 @@ struct LegendRow {
     meetings: bool,
 }
 
-/// A rail row's time: "9:10" on a 12-hour clock, without AM or PM (the list
-/// is under Morning, Afternoon and Evening), the locale's own form otherwise.
 pub(super) fn list_clock(at: DateTime<Utc>) -> String {
     let twelve_hour = lokalbot_i18n::date_pattern("%-I:%M %p").contains("%p");
     at.with_timezone(&chrono::Local)
@@ -66,8 +49,6 @@ pub(super) fn list_clock(at: DateTime<Utc>) -> String {
         .to_string()
 }
 
-/// "9 AM" for the first hour and noon, "10" for the rest; a 24-hour clock
-/// shows the hour either way.
 fn hour_label(at: DateTime<Utc>, names_day_period: bool) -> String {
     let twelve_hour = lokalbot_i18n::date_pattern("%-I:%M %p").contains("%p");
     let pattern = match (twelve_hour, names_day_period) {
@@ -80,7 +61,6 @@ fn hour_label(at: DateTime<Utc>, names_day_period: bool) -> String {
         .to_string()
 }
 
-/// A colour key's colour: a project's or app's own, neutral for other activity.
 fn key_color(key: Option<&str>, lb: &Palette) -> Hsla {
     key.map_or(lb.text_tertiary.opacity(0.8), |key| lb.app_color(key))
 }
@@ -164,7 +144,6 @@ impl TimelinePage {
         .into_any_element()
     }
 
-    /// "Day memory is paused" with Resume, above everything else.
     fn paused_banner(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let data = self.data.clone();
@@ -200,11 +179,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    // ---------------------------------------------------------- tracked
-
-    /// The day's total in large type, the meetings and what the agents
-    /// recorded, the hour strip, and where the time went as rows. Left out
-    /// on a day with no tracked time and no meetings.
     fn tracked_block(&self, model: &DayModel, cx: &mut Context<Self>) -> Option<AnyElement> {
         let lb = cx.lb().clone();
         let activity = &model.activity;
@@ -228,7 +202,6 @@ impl TimelinePage {
         )));
         let (day_start, day_end) = lokalbot_core::time::local_day_bounds(self.day);
         let strip = DayStrip::new(model.list.rows(), day_start, day_end);
-        // By project when the day's agents name them, else by app.
         let mut legend: Vec<LegendRow> = if activity.project_split.projects.is_empty() {
             shares
                 .iter()
@@ -342,9 +315,6 @@ impl TimelinePage {
         )
     }
 
-    /// The day strip: hour lines and labels, a thin lane of meetings above
-    /// the lane of work. A bar chooses its row in the list under it. Hours
-    /// run left to right in every language, like a clock's day.
     fn day_strip(&self, strip: &DayStrip, model: &DayModel, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let measured = self.strip_width.clone();
@@ -458,10 +428,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    // --------------------------------------------------------- sessions
-
-    /// The sessions and meetings under their part of the day, every entry a
-    /// direct child so a chosen row can be scrolled into view.
     fn session_rows(
         &mut self,
         model: &DayModel,
@@ -521,8 +487,6 @@ impl TimelinePage {
         children
     }
 
-    /// A session or meeting: its time, its dot or waveform on the day's
-    /// line, its title over a second line, and how long it ran.
     fn session_row(
         &self,
         row: &Row,
@@ -571,8 +535,6 @@ impl TimelinePage {
                 ))
                 .into_any_element()
         };
-        // One line runs through the dots of neighbouring rows, so the list
-        // reads as a day. It starts at the first dot and ends at the last.
         let spine_x = ROW_LEADING + time_width + AXIS_WIDTH / 2. - 0.75;
         let spine = (joins_above || joins_below).then(|| {
             let top = if joins_above { 0. } else { DOT_CENTER };
@@ -626,7 +588,6 @@ impl TimelinePage {
                     .w_full()
                     .items_start()
                     .py(px(5.))
-                    // The time's side gets the small inset, in either direction.
                     .map(|this| {
                         if rtl {
                             this.pr(px(ROW_LEADING)).pl(px(10.))
@@ -714,7 +675,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// The rail's bottom row, opening every activity block and screen moment.
     fn raw_capture_row(
         &self,
         model: &DayModel,
@@ -787,7 +747,6 @@ impl TimelinePage {
     }
 }
 
-/// "3 activity entries · 0 screen moments", each count its own catalog entry.
 pub(super) fn capture_counts(model: &DayModel) -> String {
     format!(
         "{} · {}",
@@ -804,7 +763,6 @@ pub(super) fn capture_counts(model: &DayModel) -> String {
     )
 }
 
-/// "9:00 AM–10:30 AM".
 pub(super) fn time_range(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     format!(
         "{}–{}",
@@ -813,8 +771,6 @@ pub(super) fn time_range(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     )
 }
 
-/// A stretch with nothing recorded between two rows: a dotted piece of the
-/// line through the dots, and how long it lasted.
 fn away_row(start: DateTime<Utc>, end: DateTime<Utc>, cx: &App) -> AnyElement {
     let lb = cx.lb();
     let seconds = (end - start).num_seconds().max(0) as f64;

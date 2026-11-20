@@ -1,19 +1,12 @@
 import Combine
 import SwiftUI
 
-/// The home screen answers three things: what is live, what is next, and what
-/// needs you. A card leads only while it matters (a recording in progress, a
-/// meeting within the hour); the rest is the day's actions, meetings and
-/// activity, each in its own panel, in two columns when the window has room.
-/// Timeline stays the hour-by-hour view of the same day.
 struct TodayView: View {
     @EnvironmentObject var app: AppState
     @StateObject private var model = CaptureModel()
     @StateObject private var upcomingMeeting = UpcomingMeetingPreparationModel()
     @State private var dream: DreamReport?
     @State private var recaps: [Meeting.ID: String] = [:]
-    /// False until the day's activity has loaded once, so an empty page is
-    /// not mistaken for a first day while it loads.
     @State private var dayLoaded = false
     @AppStorage("lokalbotv3.gettingStartedDismissed")
     private var gettingStartedDismissed = false
@@ -21,8 +14,6 @@ struct TodayView: View {
 
     private static let attentionLimit = 3
 
-    /// The recording in progress leads, so it is found even before the
-    /// library lists it.
     private var recordings: [Meeting] {
         (app.currentMeeting.map { [$0] } ?? []) + app.meetings
     }
@@ -32,7 +23,6 @@ struct TodayView: View {
             TimelineView(.periodic(from: .now, by: 30)) { context in
                 page(now: context.date)
                     .frame(maxWidth: .infinity, alignment: .top)
-                    // The marker tests wait for before they use the window.
                     .accessibilityElement(children: .contain)
                     .accessibilityIdentifier("today.header")
             }
@@ -46,8 +36,6 @@ struct TodayView: View {
                 }
                 .labelStyle(.titleAndIcon)
                 .accessibilityIdentifier("today.askDay")
-                // The page has no recording bar: Record lives here, and the
-                // live card holds the only Stop.
                 Button {
                     app.startRecording(context: app.recordingContext(for: app.detector.activeApp))
                 } label: {
@@ -92,16 +80,11 @@ struct TodayView: View {
         .task(id: finishedRecordingIDs) {
             await refreshRecaps()
         }
-        // The publisher reports every change, also when a fast load starts
-        // and ends between two renders.
         .onReceive(model.$overviewLoading.removeDuplicates().dropFirst()) { loading in
             if !loading, !dayLoaded { dayLoaded = true }
         }
         .onChange(of: app.latestDreamReport) { _, _ in
             guard app.navSection == .today else { return }
-            // A report normally arrives after midnight while this view may
-            // have remained mounted since yesterday. Re-anchor every section,
-            // not just the dream card, before selecting the new report.
             reloadCurrentDay(at: Date())
         }
         .onChange(of: app.libraryReady) { _, ready in
@@ -122,8 +105,6 @@ struct TodayView: View {
         }
     }
 
-    // MARK: Page
-
     @ViewBuilder private func page(now: Date) -> some View {
         let recordings = recordings
         let threads = ActionAttentionOrder.sorted(app.outcomeIndex.openUserActionThreads)
@@ -140,8 +121,6 @@ struct TodayView: View {
             hasContent: hasContent, gettingStartedDismissed: gettingStartedDismissed)
 
         let showsMeetings = !entries.isEmpty || calendarIsOff
-        // The panels each column would hold. A side with none leaves the
-        // page one column at its reading width.
         let hasLeading = layout.showsSections && (!threads.isEmpty || showsMeetings)
         let hasTrailing = layout.showsSections && (hasDay || dream != nil)
 
@@ -198,19 +177,14 @@ struct TodayView: View {
             alignment: .leading)
     }
 
-    /// The library and the day's activity have both answered, so "nothing
-    /// yet" is a fact and not a page still loading.
     private var isSettled: Bool { dayLoaded && app.libraryReady }
 
-    /// Calendar use is off, or macOS has not granted access to it.
     private var calendarIsOff: Bool {
         switch upcomingMeeting.status {
         case .disabled, .permissionRequired, .permissionDenied: true
         case .loading, .noMeetingsToday, .ready: false
         }
     }
-
-    // MARK: Loading
 
     private var finishedRecordingIDs: [Meeting.ID] {
         let calendar = Calendar.current
@@ -219,7 +193,6 @@ struct TodayView: View {
             .map(\.id)
     }
 
-    /// One line per finished recording from the summary saved beside it.
     private func refreshRecaps() async {
         let calendar = Calendar.current
         let finished = app.meetings.filter {
@@ -237,7 +210,6 @@ struct TodayView: View {
         if loaded != recaps { recaps = loaded }
     }
 
-    // Keep the previous-workday summary anchored to the selected date.
     private func reloadCurrentDay(at date: Date) {
         model.selectDay(date, app: app)
         dream = TodayDreamSelection.report(
@@ -247,16 +219,12 @@ struct TodayView: View {
     }
 }
 
-/// Type sizes Today adds to the shared set: the title of the card at the
-/// top. Panel titles are `SectionPanelMetric.titleFont`.
 enum TodayType {
     static var cardTitle: AppFont { AppFont.scaledSystem(size: 20, weight: .bold) }
-    /// The next meeting's title while another meeting is being recorded.
     static var cardTitleCompact: AppFont { AppFont.scaledSystem(size: 17, weight: .bold) }
 }
 
 extension View {
-    /// The raised card at the top of Today and around the first-day steps.
     func todayCardSurface(tint: Color? = nil) -> some View {
         modifier(TodayCardSurface(tint: tint))
     }
@@ -286,14 +254,8 @@ private struct TodayCardSurface: ViewModifier {
 }
 
 enum TodayDreamSelection {
-    /// How many days back (yesterday included) the card will reach for a
-    /// substantive brief before going quiet.
     static let lookbackDays = 5
 
-    /// Yesterday's brief when there is one; otherwise the newest substantive
-    /// brief within the lookback. Empty-day stubs exist only to mark their day
-    /// dreamed — they are never surfaced, and a returning user sees their last
-    /// real morning brief instead of "nothing was recorded".
     static func report(
         referenceDate: Date,
         latest: DreamReport?,
@@ -313,8 +275,6 @@ enum TodayDreamSelection {
         return nil
     }
 
-    /// False when the report covers an older day than yesterday, so the card
-    /// can label it instead of presenting it as fresh.
     static func isCurrent(
         _ report: DreamReport,
         referenceDate: Date,
@@ -324,9 +284,6 @@ enum TodayDreamSelection {
         return report.day == DreamDay.key(for: yesterday, calendar: calendar)
     }
 
-    /// Only a current evidence-only brief caused by model generation deserves
-    /// an inline retry. Empty days have nothing to regenerate, and retrying an
-    /// older card would silently replace yesterday's report instead.
     static func isRetryableFailure(
         _ report: DreamReport,
         referenceDate: Date,
@@ -337,20 +294,12 @@ enum TodayDreamSelection {
         return isCurrent(report, referenceDate: referenceDate, calendar: calendar)
     }
 
-    /// Whose priorities a brief holds: today's when it covers yesterday, an
-    /// older day's otherwise.
     enum PrioritiesSource: Equatable {
         case today
-        /// The covered day by name: its weekday within the last week, its
-        /// date beyond that.
         case day(String)
-        /// The covered day is unreadable.
         case previousWorkday
     }
 
-    /// A brief from yesterday earns "Priorities for today"; anything older is
-    /// framed with its own day so a Friday brief on Monday never reads as
-    /// current. Weekday alone within the lookback window, full date beyond it.
     static func prioritiesSource(
         for report: DreamReport,
         referenceDate: Date,
@@ -366,7 +315,6 @@ enum TodayDreamSelection {
         return .day(day.formatted(date: .abbreviated, time: .omitted))
     }
 
-    /// `prioritiesSource` in English, for text that is not interface text.
     static func prioritiesHeading(
         for report: DreamReport,
         referenceDate: Date,

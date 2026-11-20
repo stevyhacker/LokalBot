@@ -2,12 +2,6 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// A small always-on-top window with Live Radar, for checking it from the
-/// meeting app: it floats over other apps and full-screen calls and never
-/// takes focus from them. It opens when a recording starts (if Live Radar is
-/// on, with Start Radar in it) and when the radar starts, remembers where
-/// it was dragged, and collapses to its header. By default it is left out of
-/// screen sharing and screen recordings.
 @MainActor
 final class LiveRadarPanelController {
     static let width: CGFloat = 360
@@ -25,14 +19,9 @@ final class LiveRadarPanelController {
         model.$collapsed.dropFirst().removeDuplicates()
             .sink { [weak self] collapsed in self?.resize(collapsed: collapsed) }
             .store(in: &observers)
-        // "Hide from screen sharing" applies at once, also to a panel that is
-        // already up: `show()` alone set it only the next time the panel
-        // opened. The published value is the new one; `app.settings` is not yet.
         app.$settings.map { Self.sharingType($0) }.removeDuplicates()
             .sink { [weak self] sharingType in self?.panel?.sharingType = sharingType }
             .store(in: &observers)
-        // Turning "Show the floating Live Radar panel" off also takes down a
-        // panel that is already up. The menu bar item still opens it on request.
         app.$settings.map(\.liveRadarPanelEnabled).removeDuplicates()
             .sink { [weak self] enabled in if !enabled { self?.hide() } }
             .store(in: &observers)
@@ -61,8 +50,6 @@ final class LiveRadarPanelController {
         if isVisible { hide() } else { show() }
     }
 
-    /// Shown to others when sharing the screen only if the person turned the
-    /// hiding off, for example to record a demo. Films need it visible.
     private static func sharingType(_ settings: AppSettings) -> NSWindow.SharingType {
 #if LOKALBOT_UI_TEST_HOST
         return .readOnly
@@ -84,8 +71,6 @@ final class LiveRadarPanelController {
         panel.isMovableByWindowBackground = true
         panel.becomesKeyOnlyIfNeeded = true
         panel.title = String(localized: "Live Radar")
-        // A floating window to VoiceOver (and to UI tests), not a dialog
-        // waiting for an answer.
         panel.setAccessibilitySubrole(.floatingWindow)
         let root = LiveRadarPanelView(
             radar: app.meetingRadar, transcriber: app.liveTranscriber, recording: app.recording, model: model,
@@ -104,7 +89,6 @@ final class LiveRadarPanelController {
         return panel
     }
 
-    /// Keeps the top edge where it is, so collapsing pulls the bottom up.
     private func resize(collapsed: Bool) {
         guard let panel else { return }
         let height = collapsed ? Self.collapsedHeight : Self.expandedHeight
@@ -120,8 +104,6 @@ final class LiveRadarPanelController {
         UserDefaults.standard.set(NSStringFromPoint(topLeft), forKey: Self.originKey)
     }
 
-    /// Where it was left, if that is still on a screen; else the top-right
-    /// corner of the screen in front.
     private static func origin(for size: NSSize) -> NSPoint {
         if let saved = UserDefaults.standard.string(forKey: originKey) {
             let topLeft = NSPointFromString(saved)
@@ -141,14 +123,9 @@ final class LiveRadarPanelModel: ObservableObject {
     @Published var collapsed = false
     @Published var showsTranscript = true
     @Published var isShown = false
-    /// An item the person clicked, shown in the spotlight until a newer one
-    /// arrives.
     @Published var pinnedID: String?
 }
 
-/// The panel's content: a header with the recording time and counts, the
-/// newest item as a large card, the earlier ones as rows, and the last few
-/// transcript lines.
 struct LiveRadarPanelView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var radar: MeetingRadar
@@ -191,8 +168,6 @@ struct LiveRadarPanelView: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("liveRadarPanel")
     }
-
-    // MARK: - Header
 
     private var header: some View {
         HStack(spacing: 8) {
@@ -246,8 +221,6 @@ struct LiveRadarPanelView: View {
         .padding(.horizontal, 12)
         .padding(.bottom, 8)
     }
-
-    // MARK: - Content
 
     @ViewBuilder private var content: some View {
         if radar.meetingID == nil || (radar.meetingID != app.currentMeeting?.id && !radar.isActive && radar.items.isEmpty) {
@@ -307,7 +280,6 @@ struct LiveRadarPanelView: View {
         }
     }
 
-    /// Start Radar without leaving the meeting app.
     private var startPrompt: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let reason = MeetingRadar.unavailableReason(app.settings) {
@@ -332,7 +304,6 @@ struct LiveRadarPanelView: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// An earlier item in one or two lines.
     private func row(_ item: RadarItem) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: item.kind.systemImage)
@@ -378,9 +349,6 @@ struct LiveRadarPanelView: View {
         .accessibilityIdentifier("panel.row.\(item.kind.rawValue).\(item.id)")
     }
 
-    // MARK: - Transcript
-
-    /// The last few lines, and the turn still being spoken.
     private var transcript: some View {
         VStack(alignment: .leading, spacing: 3) {
             let shown = Array(transcriber.lines.suffix(3))
@@ -399,7 +367,6 @@ struct LiveRadarPanelView: View {
     private func transcriptLine(_ line: LiveMeetingTranscriber.Line, partial: Bool) -> some View {
         let isMe = line.speaker == "local" || line.speaker == "me"
         return HStack(alignment: .firstTextBaseline, spacing: 6) {
-            // The microphone track is the person; the call track is everyone else.
             Image(systemName: isMe ? "person.fill" : "person.2.fill")
                 .font(.system(size: 9))
                 .foregroundStyle(isMe ? LBTokens.Palette.accentText : .secondary)

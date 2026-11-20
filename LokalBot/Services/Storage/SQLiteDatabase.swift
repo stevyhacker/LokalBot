@@ -1,11 +1,6 @@
 import Foundation
 import SQLite3
 
-/// Small SQLite wrapper shared by the app's indexes and durable queues.
-///
-/// The checked APIs preserve SQLite failures as typed errors. The legacy
-/// boolean/empty-result APIs remain for source compatibility, but now log the
-/// same failure instead of silently hiding it.
 final class SQLiteDatabase {
     enum DatabaseError: Swift.Error, LocalizedError {
         case unavailable(path: String)
@@ -79,12 +74,6 @@ final class SQLiteDatabase {
             return nil
         }
 
-        // Multiple app components own independent connections to the same
-        // database. WAL lets readers proceed during a writer transaction;
-        // NORMAL keeps the durability/performance tradeoff appropriate for
-        // locally reconstructible indexes and queues. Configure the raw handle
-        // before assigning `db`, so a failed failable initializer owns exactly
-        // one close path.
         for (operation, sql) in (readOnly ? [] : [
             ("journal_mode", "PRAGMA journal_mode=WAL;"),
             ("synchronous", "PRAGMA synchronous=NORMAL;"),
@@ -110,10 +99,6 @@ final class SQLiteDatabase {
         sqlite3_close(db)
     }
 
-    // MARK: - Checked APIs
-
-    /// Makes a consistent standalone snapshot, including committed WAL rows.
-    /// The caller owns the new destination and any cleanup after an error.
     func backup(to destination: URL) throws {
         guard !FileManager.default.fileExists(atPath: destination.path) else {
             throw record(.backup(code: SQLITE_CANTOPEN, message: "backup destination already exists"))
@@ -137,9 +122,6 @@ final class SQLiteDatabase {
             throw record(.backup(code: stepResult == SQLITE_DONE ? finishResult : stepResult,
                                  message: String(cString: sqlite3_errmsg(target))))
         }
-        // A backup inherits WAL mode from the source header. Normalize it while
-        // writable so a read-only verifier can open the standalone file without
-        // requiring a new WAL/SHM pair in the recovery directory.
         let journalResult = sqlite3_exec(target, "PRAGMA journal_mode=DELETE", nil, nil, nil)
         guard journalResult == SQLITE_OK else {
             throw record(.backup(code: journalResult, message: String(cString: sqlite3_errmsg(target))))
@@ -163,8 +145,6 @@ final class SQLiteDatabase {
         }
     }
 
-    /// Executes an already-prepared statement, resetting and rebinding it so
-    /// callers can reuse one statement for a batch of rows.
     func runChecked(_ statement: OpaquePointer, bind values: [Any] = []) throws {
         let resetResult = sqlite3_reset(statement)
         guard resetResult == SQLITE_OK else {
@@ -175,8 +155,6 @@ final class SQLiteDatabase {
         try stepToCompletion(statement, sql: nil)
     }
 
-    /// Runs a group of writes atomically. Any thrown error rolls the whole
-    /// group back before it is propagated to the caller.
     func withTransaction<T>(_ body: () throws -> T) throws -> T {
         try execute("BEGIN IMMEDIATE TRANSACTION")
         do {
@@ -211,9 +189,6 @@ final class SQLiteDatabase {
         }
     }
 
-    /// Stream rows without building an intermediate array. Returning `false`
-    /// from `row` intentionally stops iteration (useful for bounded context
-    /// assembly); SQLite failures encountered before that point still throw.
     func forEachRowChecked(_ sql: String, bind values: [Any] = [],
                            row: (OpaquePointer) -> Bool) throws {
         try withPreparedStatement(sql, bind: values) { statement in
@@ -269,8 +244,6 @@ final class SQLiteDatabase {
         return try body(statement)
     }
 
-    // MARK: - Compatibility APIs
-
     @discardableResult
     func exec(_ sql: String) -> Bool {
         do {
@@ -281,7 +254,6 @@ final class SQLiteDatabase {
         }
     }
 
-    /// Rowid of the most recent successful INSERT on this connection.
     func lastInsertRowID() -> Int64 {
         sqlite3_last_insert_rowid(db)
     }
@@ -341,8 +313,6 @@ final class SQLiteDatabase {
                           _ body: (OpaquePointer) -> T) -> T? {
         try? withPreparedStatement(sql, bind: values, body)
     }
-
-    // MARK: - Internals
 
     private var message: String { String(cString: sqlite3_errmsg(db)) }
 

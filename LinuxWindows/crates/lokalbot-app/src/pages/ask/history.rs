@@ -1,5 +1,3 @@
-//! The conversation list (`ChatConversationList`).
-
 use chrono::{DateTime, Days, Local, Utc};
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 
@@ -31,7 +29,6 @@ impl AskPage {
         let sections = sections(&self.conversations, &self.history_query, now);
         let query = self.history_query.trim().to_string();
 
-        // A search field and the New button; the list below needs no heading.
         let header = h_flex()
             .gap(px(8.))
             .items_center()
@@ -55,7 +52,6 @@ impl AskPage {
                     .on_click(cx.listener(|this, _, window, cx| this.new_conversation(window, cx))),
             );
 
-        // The unsaved new question is listed, selected, until it is asked.
         let draft = (self.selected.is_none() && query.is_empty())
             .then(|| self.render_draft_row(now, cx).into_any_element());
         let mut rows: Vec<AnyElement> = Vec::new();
@@ -110,8 +106,6 @@ impl AskPage {
         )
     }
 
-    /// "New question" and when it was started (`ChatConversationList.row` for
-    /// a conversation with no question yet).
     fn render_draft_row(
         &self,
         now: chrono::DateTime<Local>,
@@ -240,13 +234,11 @@ fn confirm_delete(
     });
 }
 
-/// A 64-bit key for element ids derived from a UUID.
 pub fn element_key(id: uuid::Uuid) -> u64 {
     let (high, low) = id.as_u64_pair();
     high ^ low
 }
 
-/// The list title (`ChatViewModel.displayTitle`).
 pub fn display_title(conversation: &Conversation) -> String {
     let stored = conversation.title.trim();
     if stored == NEW_TITLE {
@@ -265,7 +257,6 @@ pub fn display_title(conversation: &Conversation) -> String {
     compact_title(source)
 }
 
-/// `ChatViewModel.compactTitle`: first line, polite prefixes dropped, ≤ 38 characters.
 pub fn compact_title(text: &str) -> String {
     let line = text.lines().next().unwrap_or(text);
     let mut candidate = line.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -318,7 +309,6 @@ pub fn compact_title(text: &str) -> String {
     }
 }
 
-/// "10:42 AM" today, "Yesterday", else "Oct 8, 2026".
 pub fn row_timestamp(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     let local = at.with_timezone(&Local);
     let today = now.date_naive();
@@ -341,7 +331,6 @@ pub fn row_timestamp(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     }
 }
 
-/// Today, Yesterday, Previous 7 Days and Earlier, filtered by `query`.
 pub fn sections<'a>(
     conversations: &'a [Conversation],
     query: &str,

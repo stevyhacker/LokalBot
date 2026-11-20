@@ -1,25 +1,3 @@
-//! Shortcuts that let [`super::hits`] skip text that cannot match, and fold
-//! the rest faster, without changing a single hit.
-//!
-//! [`fold`] decomposes (NFD), drops combining marks, lowercases and collapses
-//! whitespace. Each step works on one character at a time, with two
-//! exceptions: lowercasing turns a capital sigma into `ς` or `σ` depending on
-//! its neighbours, and decomposing reorders characters with a nonzero
-//! combining class (all of them combining marks in current Unicode, which
-//! are dropped anyway). So:
-//!
-//! - [`fold_fast`] folds one character at a time, with an ASCII shortcut, and
-//!   hands a text with either exception to [`fold`].
-//! - A *skeleton* is folded text with every run of characters that are not
-//!   letters or digits written as one space, and `ς` written as `σ`. Whatever
-//!   `fold(text)` contains, written the same way, the text's skeleton
-//!   contains, and a whole word there is a whole word in the skeleton.
-//! - [`Prefilter`] looks for each search word's skeleton in a text's
-//!   skeleton, or in a `transcript.json` before it is decoded. It answers
-//!   "no" only when no word can match. When it cannot read something
-//!   (invalid UTF-8, a broken escape) it answers "maybe", and the decoder and
-//!   matcher decide as before.
-
 use std::cell::Cell;
 
 use lokalbot_core::ids::fold;
@@ -29,11 +7,8 @@ use unicode_normalization::char::{
 };
 
 const SEPARATOR: u8 = b' ';
-/// A byte the ASCII loop leaves to slower code.
 const SPECIAL: u8 = 0xFF;
 
-/// Each ASCII byte folded (letters lowercased, digits kept, anything else a
-/// separator); non-ASCII bytes, and in JSON a quote or backslash, special.
 const fn byte_table(json: bool) -> [u8; 256] {
     let mut table = [SPECIAL; 256];
     let mut byte = 0;
@@ -54,9 +29,6 @@ const fn byte_table(json: bool) -> [u8; 256] {
 static TEXT_BYTES: [u8; 256] = byte_table(false);
 static JSON_BYTES: [u8; 256] = byte_table(true);
 
-/// Folds bytes until one `table` marks special and returns how many it
-/// read. The hot loop: separators collapse without a branch, and the only
-/// branch (the stop) is rarely taken, so it runs at a few cycles a byte.
 fn push_run(bytes: &[u8], table: &[u8; 256], out: &mut Vec<u8>) -> usize {
     let mut separated = out.last() == Some(&SEPARATOR);
     for (index, &byte) in bytes.iter().enumerate() {
@@ -64,7 +36,6 @@ fn push_run(bytes: &[u8], table: &[u8; 256], out: &mut Vec<u8>) -> usize {
         if folded == SPECIAL {
             return index;
         }
-        // Write every byte, then take back a separator after a separator.
         out.push(folded);
         let repeated = separated && folded == SEPARATOR;
         out.truncate(out.len() - usize::from(repeated));
@@ -73,10 +44,6 @@ fn push_run(bytes: &[u8], table: &[u8; 256], out: &mut Vec<u8>) -> usize {
     bytes.len()
 }
 
-/// What one character folds to, before whitespace is collapsed: its
-/// canonical decomposition without combining marks, lowercased. `false`
-/// when the result can depend on its neighbours (a capital sigma, or a
-/// character that canonical ordering may move).
 fn fold_parts(c: char, mut emit: impl FnMut(char)) -> bool {
     let mut alone = true;
     decompose_canonical(c, |part| {
@@ -93,7 +60,6 @@ fn fold_parts(c: char, mut emit: impl FnMut(char)) -> bool {
     alone
 }
 
-/// Exactly [`fold`]`(text)`, computed one character at a time.
 pub(super) fn fold_fast(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut space = false;
@@ -131,7 +97,6 @@ fn push_ascii(byte: u8, out: &mut Vec<u8>) {
     }
 }
 
-/// One already folded character, as the skeleton writes it.
 fn push_folded(c: char, out: &mut Vec<u8>) {
     if c.is_ascii() {
         push_ascii(c as u8, out);
@@ -143,8 +108,6 @@ fn push_folded(c: char, out: &mut Vec<u8>) {
     }
 }
 
-/// Adds one character of the original text; `false` when canonical ordering
-/// may move what it folds to (never in current Unicode).
 fn push_char(c: char, out: &mut Vec<u8>) -> bool {
     if c.is_ascii() {
         push_ascii(c as u8, out);
@@ -165,13 +128,11 @@ fn push_char(c: char, out: &mut Vec<u8>) -> bool {
     ordered
 }
 
-/// The skeleton of a text; `false` when it cannot be written.
 fn text_skeleton(text: &str, out: &mut Vec<u8>) -> bool {
     out.clear();
     let mut at = 0;
     loop {
         at += push_run(&text.as_bytes()[at..], &TEXT_BYTES, out);
-        // The run stopped before a non-ASCII character, or at the end.
         let Some(c) = text[at..].chars().next() else {
             return true;
         };
@@ -192,8 +153,6 @@ fn skip_json_whitespace(json: &[u8], mut at: usize) -> usize {
     at
 }
 
-/// Where the string starting at `start` (after its opening quote) ends, and
-/// whether it has an escape.
 fn json_string_end(json: &[u8], start: usize) -> Option<(usize, bool)> {
     let mut at = start;
     let mut escaped = false;
@@ -202,7 +161,6 @@ fn json_string_end(json: &[u8], start: usize) -> Option<(usize, bool)> {
         if json[at] == b'"' {
             return Some((at, escaped));
         }
-        // The escaped byte, then (for \u) four hex digits, hold no quote.
         escaped = true;
         at += 2;
     }
@@ -215,8 +173,6 @@ fn hex4(json: &[u8], at: usize) -> Option<u32> {
     })
 }
 
-/// The character a `\u` escape at `at` spells (a surrogate pair takes two),
-/// and the escape's length.
 fn unicode_escape(json: &[u8], at: usize) -> Option<(char, usize)> {
     let unit = hex4(json, at + 2)?;
     if (0xD800..0xDC00).contains(&unit) {
@@ -233,8 +189,6 @@ fn unicode_escape(json: &[u8], at: usize) -> Option<(char, usize)> {
     Some((char::from_u32(unit)?, 6))
 }
 
-/// Adds the skeleton of the JSON string starting at `start` and returns the
-/// index of its closing quote; `None` when it cannot be read.
 fn push_json_string(json: &[u8], start: usize, out: &mut Vec<u8>) -> Option<usize> {
     let mut at = start;
     loop {
@@ -243,7 +197,6 @@ fn push_json_string(json: &[u8], start: usize, out: &mut Vec<u8>) -> Option<usiz
         match byte {
             b'"' => return Some(at),
             b'\\' => match json.get(at + 1)? {
-                // `"`, `\`, `/` and control characters: separators.
                 b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => {
                     push_separator(out);
                     at += 2;
@@ -257,7 +210,6 @@ fn push_json_string(json: &[u8], start: usize, out: &mut Vec<u8>) -> Option<usiz
                 }
                 _ => return None,
             },
-            // The run stopped, so this starts a non-ASCII character.
             _ => {
                 let width = match byte {
                     0xC2..=0xDF => 2,
@@ -278,9 +230,6 @@ fn push_json_string(json: &[u8], start: usize, out: &mut Vec<u8>) -> Option<usiz
     }
 }
 
-/// The skeletons of a `transcript.json`'s `"text"` values, one after
-/// another. A key with an escape might spell `text`, so its value counts
-/// too. `false` when the file cannot be read this way.
 fn transcript_skeleton(json: &[u8], out: &mut Vec<u8>) -> bool {
     out.clear();
     let mut at = 0;
@@ -290,7 +239,6 @@ fn transcript_skeleton(json: &[u8], out: &mut Vec<u8>) -> bool {
             return false;
         };
         at = end + 1;
-        // A key is followed by a colon; anything else was a value.
         let colon = skip_json_whitespace(json, at);
         if json.get(colon) != Some(&b':') {
             continue;
@@ -309,19 +257,14 @@ fn transcript_skeleton(json: &[u8], out: &mut Vec<u8>) -> bool {
     true
 }
 
-/// One search word as a skeleton.
 struct Needle {
     finder: Finder<'static>,
-    /// Up to three ASCII characters match only as a whole word.
     whole_word: bool,
-    /// The word starts (ends) with a separator, which stands for the
-    /// characters around it as well.
     open_start: bool,
     open_end: bool,
 }
 
 impl Needle {
-    /// `None` when the word has no letter or digit to look for.
     fn new(term: &str) -> Option<Self> {
         let mut bytes = Vec::with_capacity(term.len());
         for c in term.chars() {
@@ -358,10 +301,8 @@ impl Needle {
     }
 }
 
-/// Whether a text may contain any of the search words.
 pub(super) struct Prefilter {
     needles: Vec<Needle>,
-    /// Some word has no letter or digit, so any text may match it.
     everything: bool,
     buffer: Cell<Vec<u8>>,
 }
@@ -389,13 +330,10 @@ impl Prefilter {
         found
     }
 
-    /// `false` only when no search word can match `fold(text)`.
     pub(super) fn may_match(&self, text: &str) -> bool {
         self.found(|out| text_skeleton(text, out))
     }
 
-    /// `false` only when no search word can match any segment of the
-    /// transcript these bytes decode to.
     pub(super) fn may_match_transcript(&self, json: &[u8]) -> bool {
         self.found(|out| transcript_skeleton(json, out))
     }
@@ -406,7 +344,6 @@ pub(crate) mod tests {
     use super::*;
     use crate::search::word_range;
 
-    /// SplitMix64: deterministic and dependency-free.
     pub(crate) struct Random(pub u64);
 
     impl Random {
@@ -427,7 +364,6 @@ pub(crate) mod tests {
         }
     }
 
-    /// Characters where folding goes wrong if done carelessly.
     pub(crate) const TRICKY: &[&str] = &[
         "a",
         "B",
@@ -521,7 +457,6 @@ pub(crate) mod tests {
             .collect()
     }
 
-    /// What the skeleton should be, built from `fold` itself.
     fn skeleton_of_folded(folded: &str) -> Vec<u8> {
         let mut out = Vec::new();
         for c in folded.chars() {
@@ -562,7 +497,6 @@ pub(crate) mod tests {
     fn every_scalar_folds_the_same_alone_and_among_marks() {
         let mut text = String::new();
         for c in (0..=0x10_FFFF).filter_map(char::from_u32) {
-            // The shortcuts rely on this; they would fall back otherwise.
             assert!(
                 canonical_combining_class(c) == 0 || is_combining_mark(c),
                 "{c:?}"
@@ -607,13 +541,10 @@ pub(crate) mod tests {
         assert!(!may_match("telescope", "the quick brown fox"));
         assert!(may_match("a b", "x a\n\tb y"));
         assert!(!may_match("a b", "x ab y"));
-        // A word without letters or digits may match anything.
         assert!(may_match("...", "plain"));
-        // No words: nothing matches, as in the matcher.
         assert!(!Prefilter::new(&[]).may_match("anything"));
     }
 
-    /// Words worth looking for in `folded`: its own pieces, so many match.
     fn needles(random: &mut Random, folded: &str) -> Vec<String> {
         let chars: Vec<char> = folded.chars().collect();
         let mut out = vec![tricky_text(random, 3), fold(&tricky_text(random, 4))];
@@ -645,11 +576,9 @@ pub(crate) mod tests {
                 skipped += usize::from(!maybe);
             }
         }
-        // The fuzz exercised both sides.
         assert!(found > 100_000 && skipped > 100_000, "{found} {skipped}");
     }
 
-    /// `text` as a JSON string, with some characters escaped the long way.
     pub(crate) fn json_string(random: &mut Random, text: &str) -> String {
         let mut out = String::from('"');
         for c in text.chars() {
@@ -686,7 +615,6 @@ pub(crate) mod tests {
                 .iter()
                 .enumerate()
                 .map(|(index, text)| {
-                    // Keys spelled with escapes still name the field.
                     let key = *random.pick(&["\"text\"", "\"te\\u0078t\"", "\"\\u0074ext\""]);
                     format!(
                         "{{\"end\": {index}.5, \"speaker\": \"them\", \"start\": {index}.0, {key} : {}}}",
@@ -725,7 +653,6 @@ pub(crate) mod tests {
         assert!(filter.may_match_transcript(json));
         let json = br#"{"segments": [{"speaker": "speaker", "text": "plain"}]}"#;
         assert!(!filter.may_match_transcript(json));
-        // Unreadable: maybe, and the decoder decides.
         for broken in [
             &br#"{"text": "\ud800"}"#[..],
             br#"{"text": "\x"}"#,
@@ -735,7 +662,6 @@ pub(crate) mod tests {
         ] {
             assert!(filter.may_match_transcript(broken), "{broken:?}");
         }
-        // UTF-16 never decodes, so skipping it changes nothing.
         let utf16: Vec<u8> = "{\"text\": \"plain\"}"
             .encode_utf16()
             .flat_map(u16::to_le_bytes)

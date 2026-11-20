@@ -20,8 +20,6 @@ final class AgentAccessGateTests: XCTestCase {
         XCTAssertFalse(gate.isEnabled)
     }
 
-    /// The skill and AGENT_SETUP.md tell agents to look for these codes, and
-    /// the Windows and Linux CLI prints the same ones.
     func testACommandRefusedForASwitchThatIsOffNamesItsCode() throws {
         let (gate, root) = makeGate()
         defer { try? FileManager.default.removeItem(at: root) }

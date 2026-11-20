@@ -1,5 +1,3 @@
-// Run against a checksum-pinned, frozen-lockfile runtime:
-// LOKALBOT_PINNED_RUNTIME_ROOT=/path/to/runtime bash Scripts/tests/run-pi-runtime-tests.sh
 import { expect, test } from "bun:test";
 import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { existsSync } from "node:fs";
@@ -83,12 +81,8 @@ test("Agent fetch rejects same-origin redirects and preserves normal response st
   } finally { server.stop(true); }
 });
 
-// Exercise the actual extension hook without a model, library, or tool runner.
-// Returning undefined is what allows Pi to execute, so a blocking result must
-// be returned even if the fake UI would approve every request.
 async function withExtensionFixture(run: (fixture: {
   root: string; workspace: string; library: string;
-  // `cwd` is the session folder pi resolves tool paths against (ctx.cwd).
   call: (toolName: string, input: unknown, cwd?: string) => Promise<any>;
   approvals: any[];
   provider: any;
@@ -168,10 +162,8 @@ test("the provider key never reaches the environment shell commands inherit", as
   await withExtensionFixture(async ({ provider }) => {
     expect(provider.apiKey).toBe("synthetic-token");
     expect(process.env.LOKALBOT_LLM_API_KEY).toBeUndefined();
-    // pi's bash tool spawns each command with a copy of process.env.
     const shell = Bun.spawnSync(["/usr/bin/env"], { env: { ...process.env } });
     expect(shell.stdout.toString()).not.toContain("synthetic-token");
-    // pi evaluates the extension again for a new session.
     let renewed: any;
     lokalbotExtension({ registerProvider(_name: string, config: any) { renewed = config; }, on() {} } as any);
     expect(renewed.apiKey).toBe("synthetic-token");
@@ -206,10 +198,6 @@ test("workspace symlinks do not turn private-library reads into implicit access"
     expect(approvals[0].path).toBe(join(library, "meeting.md"));
   });
 });
-
-// pi's file tools rewrite a requested path before opening it (pi 1.5.2
-// utils/paths.js and core/tools/path-utils.js). Checked as typed, each of
-// these named a missing file inside the workspace and ran without asking.
 
 test("a leading @ is removed before the boundary check, as pi removes it", async () => {
   await withExtensionFixture(async ({ workspace, library, call, approvals }) => {
@@ -246,7 +234,6 @@ test("file URLs are checked as the file pi opens", async () => {
     expect(approvals.map(approval => approval.path)).toEqual([
       join(library, "transcript.txt"), join(library, "transcript.txt"),
     ]);
-    // A path pi cannot resolve is never treated as a workspace name.
     await call("read", { path: "file://remote.example/etc/hosts" });
     expect(approvals).toHaveLength(3);
   });
@@ -270,8 +257,6 @@ test("Unicode spaces are checked as the plain spaces pi opens", async () => {
 test("a missing name is checked as the look-alike file pi opens instead", async () => {
   await withExtensionFixture(async ({ workspace, library, call, approvals }) => {
     await writeFile(join(library, "transcript.txt"), "synthetic transcript");
-    // pi retries a missing name with a narrow no-break space before AM/PM,
-    // in NFD, and with curly apostrophes.
     await symlink(library, join(workspace, "it\u2019s"));
     await symlink(library, join(workspace, "Shot 9.41\u202FAM.d"));
     await call("read", { path: "it's/transcript.txt" });
@@ -288,7 +273,6 @@ test("a missing name is checked as the look-alike file pi opens instead", async 
 test("relative paths resolve against pi's session folder", async () => {
   await withExtensionFixture(async ({ root, library, call, approvals }) => {
     await writeFile(join(library, "transcript.txt"), "synthetic transcript");
-    // pi resolves against ctx.cwd: a resumed session keeps the folder it was saved with.
     await call("read", { path: "private-library/transcript.txt" }, root);
     expect(approvals).toHaveLength(1);
     expect(approvals[0].path).toBe(join(library, "transcript.txt"));
@@ -299,7 +283,6 @@ test("a differently cased library path is still the private library", async () =
   await withExtensionFixture(async ({ root, library, call, approvals }) => {
     await writeFile(join(library, "transcript.txt"), "synthetic transcript");
     const variant = join(root, "PRIVATE-LIBRARY", "transcript.txt");
-    // On a case-sensitive volume pi cannot open the variant either.
     if (!existsSync(variant)) return;
     process.chdir(root);
     await call("read", { path: variant });
@@ -374,10 +357,6 @@ test("arguments of a tool without a preview must fit in full before approval", a
   });
 });
 
-// One Pi RPC turn against a stub model that requests `toolCall` and then
-// replies STUB-REPLY. Every approval prompt is answered with `approved`.
-/// A Responses event stream as OpenAI sends it: each output item added, its
-/// text, the item done, then the completed response.
 function responsesStream(items: any[]): string {
   const events: any[] = [{ type: "response.created", response: { id: "resp-test", status: "in_progress" } }];
   items.forEach((item, index) => {
@@ -393,8 +372,6 @@ function responsesStream(items: any[]): string {
   return events.map((event) => `data: ${JSON.stringify(event)}\n\n`).join("");
 }
 
-/// What LokalBot's ChatGPT plan relay passes back: encrypted reasoning and a
-/// tool call, then the answer once the tool's output comes in.
 function responsesTurn(body: any, toolCall: { name: string; arguments: unknown }): string {
   if (body.input.some((item: any) => item.type === "function_call_output")) {
     return responsesStream([{ type: "message", id: "msg-test", role: "assistant", status: "completed",
@@ -457,7 +434,6 @@ async function piTurn(options: {
     env: { ...options.environment, PATH: process.env.PATH, HOME: options.home ?? options.workspace,
       ...(options.tmp ? { TMPDIR: options.tmp } : {}),
       PI_SKIP_VERSION_CHECK: "1", PI_TELEMETRY: "0",
-      // As in PiLaunchPlanner: no compiled copies outside the runtime.
       BUN_RUNTIME_TRANSPILER_CACHE_PATH: "0", NODE_DISABLE_COMPILE_CACHE: "1", JITI_FS_CACHE: "false",
       PI_CODING_AGENT_DIR: options.piConfig ?? join(options.workspace, "pi-config"),
       LOKALBOT_AGENT_PRIVATE_ROOTS: JSON.stringify(options.privateRoots ?? []),
@@ -529,8 +505,6 @@ for (const approved of [false, true]) {
   }, 25_000);
 }
 
-// Pi's MCP client is a built-in extension that Agent Mode's --no-extensions
-// leaves off. Loading it explicitly proves its tools still pass the gate.
 const STUB_MCP_SERVER = String.raw`
 import { writeFileSync } from "node:fs";
 let pending = "";
@@ -626,8 +600,6 @@ test.skipIf(!runtime)("Pi keeps no compiled copies of itself or the extension ou
       toolCall: { name: "read", arguments: { path: "notes.txt" } } });
     expect(turn.approvals).toHaveLength(0);
     expect(turn.reply).toBe(true);
-    // Otherwise Bun's transpiler cache is written to ~/Library/Caches/bun, and
-    // pi's compile cache and jiti's extension cache to the temporary folder.
     expect(await readdir(home)).toEqual([]);
     expect(await readdir(tmp)).toEqual([]);
   } finally {
@@ -654,7 +626,6 @@ test("the environment section names the day, the working folder and the model", 
   const relayed = environmentSection(now, "agent-workspace", "gpt-6.1-sol", new URL("http://127.0.0.1:5123/v1"), true,
     "OpenAI on the user's ChatGPT plan");
   expect(relayed).toEndWith("You run on the model gpt-6.1-sol, served by OpenAI on the user's ChatGPT plan.");
-  // Launched without a kind (an older host): say nothing about the folder.
   expect(environmentSection(now, undefined, "m", new URL("http://127.0.0.1/v1"), true)).not.toContain("working folder");
 });
 
@@ -699,8 +670,6 @@ test.skipIf(!runtime)("a task saved with Pi's coding prompt resumes with LokalBo
       environment: { LOKALBOT_AGENT_WORKSPACE_KIND: "chosen-folder" } });
     expect(after.reply).toBe(true);
     const request = after.requests[0];
-    // Small local models' chat templates reject a system message after the
-    // first; Pi folds the changed prompt into the leading one instead.
     expect(request.messages.filter((message: any) => message.role === "system")).toHaveLength(1);
     expect(request.messages[0].role).toBe("system");
     const text: string = request.messages[0].content;
@@ -837,7 +806,6 @@ test("the provider speaks the Responses API only when LokalBot asks for it", asy
   });
   await withExtensionFixture(async ({ provider }) => {
     expect(provider.api).toBe("openai-responses");
-    // Instructions go out as a developer message, and no output cap.
     expect(provider.models[0].reasoning).toBe(true);
     expect(provider.models[0].compat.supportsMaxOutputTokens).toBe(false);
   }, undefined, { LOKALBOT_LLM_API: "openai-responses" });
@@ -907,8 +875,6 @@ test.skipIf(!runtime)("Pi runs a tool turn over the Responses API, as the ChatGP
     expect(first.max_output_tokens).toBeUndefined();
     expect(first.input[0].role).toBe("developer");
     expect(first.tools.map((tool: any) => tool.name)).toContain("read");
-    // store: false keeps nothing on OpenAI's side, so pi replays the
-    // encrypted reasoning with the call and its output.
     expect(second.input).toContainEqual(expect.objectContaining({
       type: "reasoning", encrypted_content: "SYNTHETIC-ENCRYPTED" }));
     expect(second.input).toContainEqual(expect.objectContaining({ type: "function_call", call_id: "call-test" }));

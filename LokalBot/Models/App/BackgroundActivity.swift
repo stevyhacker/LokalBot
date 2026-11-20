@@ -1,8 +1,5 @@
 import Foundation
 
-/// Long-running work shown in the sidebar progress card. The owners of each
-/// kind of work stay the source of truth; `derive` maps their published state
-/// into one list ordered by `Kind`.
 struct BackgroundActivity: Identifiable, Equatable {
     enum Kind: Int, Comparable {
         case meetingProcessing, dayDigest, dream, download, reindex
@@ -31,13 +28,10 @@ struct BackgroundActivity: Identifiable, Equatable {
     let kind: Kind
     let title: String
     let detail: String
-    /// 0...1 when the owner knows how far along the work is.
     let fraction: Double?
-    /// Where tapping the activity navigates; nil when it has no screen.
     let destination: Destination?
 }
 
-/// Completed and total units of countable work.
 struct BackgroundCount: Equatable, Sendable {
     var done: Int
     var total: Int
@@ -147,7 +141,6 @@ extension BackgroundActivity {
                 destination: nil))
         }
 
-        // Stable: kinds in priority order, owners' order within a kind.
         return result.enumerated()
             .sorted { ($0.element.kind, $0.offset) < ($1.element.kind, $1.offset) }
             .map(\.element)
@@ -172,7 +165,6 @@ extension BackgroundActivity {
 }
 
 extension ProcessingPipeline.Stage {
-    /// Model work in progress, as opposed to parked, queued, or failed.
     var isActiveWork: Bool {
         switch self {
         case .preparingTranscriptionModel, .preparingDiarizationModel, .preparingSummaryModel,
@@ -181,7 +173,6 @@ extension ProcessingPipeline.Stage {
         }
     }
 
-    /// Compact stage name for progress surfaces.
     var shortLabel: String? {
         switch self {
         case .preparingTranscriptionModel: "Preparing transcription model"

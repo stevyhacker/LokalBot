@@ -1,41 +1,22 @@
-//! The suggestion on screen and how the field's next state moves it, kept
-//! pure (`CotypingSession`, `CotypingSessionReconciler.swift`,
-//! `CotypingRehearsal` in `CotypingContinuationAcceptance.swift`).
-//!
-//! Typing the next characters of the ghost, or the app showing text an accept
-//! inserted, shortens the ghost at once; anything else leaves it behind.
-
 use std::collections::VecDeque;
 use std::time::{Duration, Instant};
 
 use unicode_segmentation::UnicodeSegmentation as _;
 
-/// A visible suggestion for one field.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GhostSession {
     pub field_id: u64,
-    /// The text before the caret that `remaining` continues.
     pub anchor: String,
-    /// What is still offered after the caret.
     pub remaining: String,
-    /// Whether `anchor` is a clipped window of a longer text.
     pub anchor_truncated: bool,
-    /// The text before the caret when the oldest accept the app has not
-    /// shown yet was made. Reads from before it arrives are not a change
-    /// (`shouldAwaitPostInsertionSync`).
     pub awaiting: Option<String>,
 }
 
-/// What a new state of the field does to the suggestion.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reconcile {
-    /// Same text before the caret.
     Unchanged,
-    /// The user typed, or the app showed, the start of the ghost.
     Advanced { typed: String },
-    /// Everything offered is now in the field.
     Exhausted,
-    /// The text left the suggestion behind.
     Stale,
 }
 
@@ -50,14 +31,11 @@ impl GhostSession {
         }
     }
 
-    /// Moves the suggestion to `before`, the field's new text before the
-    /// caret (`sessionReconciledByPublishedTyping`).
     pub fn reconcile(&mut self, before: &str, before_truncated: bool) -> Reconcile {
         if before == self.anchor {
             self.awaiting = None;
             return Reconcile::Unchanged;
         }
-        // An accept the app has shown only part of, or none of, yet.
         if let Some(start) = &self.awaiting
             && self.anchor.starts_with(before)
             && before.starts_with(start.as_str())
@@ -87,11 +65,6 @@ impl GhostSession {
         }
     }
 
-    /// An accept took `chunk` (the start of `remaining`) and typed
-    /// `insertion` after deleting `backward` user-perceived characters
-    /// before the caret (an emoji's `:shortcode`). The ghost moves on before
-    /// the app shows the text, so a quick second Tab takes the next chunk.
-    /// Returns false when `chunk` is not the start.
     pub fn accept(&mut self, chunk: &str, insertion: &str, backward: usize) -> bool {
         if chunk.is_empty() || !self.remaining.starts_with(chunk) {
             return false;
@@ -113,8 +86,6 @@ impl GhostSession {
         true
     }
 
-    /// Stops waiting for an accept to arrive in the field: the next read
-    /// that does not show it leaves the suggestion behind.
     pub fn stop_awaiting(&mut self) {
         self.awaiting = None;
     }
@@ -124,9 +95,6 @@ impl GhostSession {
     }
 }
 
-/// The text typed after `anchor` to reach `before`. For clipped windows,
-/// whose start moves as the text grows, the anchor's tail is found in
-/// `before` instead (`hasCappedPrefixWindowOverlap`).
 fn typed_since<'a>(anchor: &str, before: &'a str, truncated: bool) -> Option<&'a str> {
     if let Some(rest) = before.strip_prefix(anchor) {
         return Some(rest);
@@ -147,15 +115,11 @@ fn typed_since<'a>(anchor: &str, before: &'a str, truncated: bool) -> Option<&'a
     Some(&before[at + tail.len()..])
 }
 
-/// `text` without its first `count` user-perceived characters: the text
-/// after the caret once an accept replaced the rest of a word.
 pub fn drop_graphemes(text: &str, count: usize) -> String {
     let (_, forward) = replaced_bytes("", text, 0, count);
     text[forward..].to_string()
 }
 
-/// The bytes an accept replaces: the last `backward` user-perceived
-/// characters of `before` and the first `forward` of `after`.
 pub fn replaced_bytes(
     before: &str,
     after: &str,
@@ -180,11 +144,7 @@ pub fn replaced_bytes(
     (back, ahead)
 }
 
-/// The part of a suggestion a field can draw inline, in preedit: its first
-/// line, up to what an input method's protocol carries. `None` when `whole`
-/// suggestions (which show entire or not at all) do not fit.
 pub fn inline_text(text: &str, whole: bool) -> Option<String> {
-    /// Below the 4000 bytes of `zwp_input_method_v2`, on a character boundary.
     const LIMIT: usize = 3900;
     let line = text.split('\n').next().unwrap_or("").trim_end_matches('\r');
     let mut end = line.len().min(LIMIT);
@@ -198,8 +158,6 @@ pub fn inline_text(text: &str, whole: bool) -> Option<String> {
     Some(shown.to_string())
 }
 
-/// Contexts recently sent for one field, newest last, so a suggestion that
-/// arrives after more typing can be fitted to the field's current text.
 #[derive(Clone, Debug, Default)]
 pub struct SentContexts {
     sent: VecDeque<(u64, String, Instant)>,
@@ -227,9 +185,6 @@ impl SentContexts {
         self.sent.clear();
     }
 
-    /// `suggestion` as it continues `latest`. A suggestion made for an
-    /// earlier context that the user has since typed into starts with what
-    /// was typed; that part is already in the field.
     pub fn fit<'a>(
         &self,
         field_id: u64,
@@ -292,7 +247,6 @@ mod tests {
             Reconcile::Stale
         );
         let mut ghost = session();
-        // Backspace or a caret move to earlier text.
         assert_eq!(
             ghost.reconcile("Thanks, I wanted to follo", false),
             Reconcile::Stale
@@ -310,8 +264,6 @@ mod tests {
         assert!(ghost.accept(" up", " up", 0));
         assert_eq!(ghost.remaining, " on the plan");
         assert_eq!(ghost.anchor, "Thanks, I wanted to follow up");
-        // A read from before the insert arrived, then a partial one: still
-        // waiting for the app.
         assert_eq!(
             ghost.reconcile("Thanks, I wanted to follow", false),
             Reconcile::Unchanged
@@ -320,24 +272,20 @@ mod tests {
             ghost.reconcile("Thanks, I wanted to follow u", false),
             Reconcile::Unchanged
         );
-        // The app then shows it all.
         assert_eq!(
             ghost.reconcile("Thanks, I wanted to follow up", false),
             Reconcile::Unchanged
         );
         assert_eq!(ghost.awaiting, None);
-        // Once shown, a step back is a real change.
         assert_eq!(
             ghost.reconcile("Thanks, I wanted to follow", false),
             Reconcile::Stale
         );
         assert!(!session().accept(" off", " off", 0));
-        // The typed text may differ from the chunk (a space the field had).
         let mut spaced = GhostSession::new(1, "Hi ".into(), " there friend".into(), false);
         assert!(spaced.accept(" there", "there", 0));
         assert_eq!(spaced.anchor, "Hi there");
         assert_eq!(spaced.reconcile("Hi there", false), Reconcile::Unchanged);
-        // An emoji replaces its shortcode.
         let mut emoji = GhostSession::new(2, "Launch :rock".into(), "🚀".into(), false);
         assert!(emoji.accept("🚀", "🚀", 5));
         assert_eq!(emoji.anchor, "Launch 🚀");
@@ -354,7 +302,6 @@ mod tests {
         let text = "x".repeat(5000);
         let anchor = text[1000..].to_string();
         let mut ghost = GhostSession::new(1, anchor, " more words".into(), true);
-        // The window moved by one character as one was typed.
         let before = format!("{} ", &text[1001..]);
         assert_eq!(
             ghost.reconcile(&before, true),
@@ -389,13 +336,9 @@ mod tests {
         let mut sent = SentContexts::default();
         sent.record(3, "Hello", now);
         sent.record(3, "Hello ", now);
-        // Made for "Hello" and arriving after the space: the space is typed.
         assert_eq!(sent.fit(3, "Hello ", " world", now), "world");
-        // Made for "Hello ": shown as is.
         assert_eq!(sent.fit(3, "Hello ", "world", now), "world");
-        // Another field's history is not used.
         assert_eq!(sent.fit(4, "Hello ", " world", now), " world");
-        // Old entries are forgotten.
         let later = now + Duration::from_secs(10);
         assert_eq!(sent.fit(3, "Hello ", " world", later), " world");
     }

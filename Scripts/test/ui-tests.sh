@@ -1,36 +1,4 @@
 #!/bin/bash
-# LokalBot UI test runner: remote by default, foreground only by opt-in.
-#
-# Drives the dedicated LokalBot UI Test Host via XCUITest against a
-# synthetic meetings library — no microphone/screen-recording permissions,
-# no real audio, no network. The host is compiled with LOKALBOT_UI_TEST=1
-# and skips every side-effectful subsystem (Core Audio polling,
-# accessibility-trusted detector, Sparkle, screenshots).
-#
-# Local XCUITest sends real mouse and keyboard events. It therefore owns the
-# foreground while it runs; it cannot be made invisible in the same login
-# session without weakening these into non-UI tests. Prefer --remote, which
-# dispatches the existing GitHub Actions job and returns immediately.
-#
-# Prereq for explicit --foreground runs (macOS TCC): the controlling terminal
-# and generated test runner MUST hold:
-#   • Privacy & Security → Automation → Xcode  (allowed)
-#   • Privacy & Security → Accessibility       (allowed)
-# without these, the XCUITest runner fails with
-# "Timed out while enabling automation mode." — that error is the missing
-# TCC grant, NOT a bug in the suite. The UI-test target is development-signed
-# with a stable bundle identity so the grant survives ordinary rebuilds.
-#
-# Usage:
-#   Scripts/test/ui-tests.sh                # dispatch all tests without stealing focus
-#   Scripts/test/ui-tests.sh --remote       # explicit form of the default above
-#   Scripts/test/ui-tests.sh --remote MainWindowUITests/testSearchFindsTranscriptHitAndDeepLinks
-#   Scripts/test/ui-tests.sh --build-only   # compile without launching the app
-#   Scripts/test/ui-tests.sh --test-only --only MainWindowUITests/testSearchFindsTranscriptHitAndDeepLinks
-#                                     # hosted CI: reuse this job's build
-#   Scripts/test/ui-tests.sh --foreground --skip RedesignUITests/testWorkspaceVisualMatrix
-#   Scripts/test/ui-tests.sh --foreground   # run all tests in this login session
-#   Scripts/test/ui-tests.sh --foreground MainWindowUITests/testSearchFindsTranscriptHitAndDeepLinks
 set -euo pipefail
 
 PROJECT="$(cd "$(dirname "$0")/../.." && pwd)/LokalBot.xcodeproj"
@@ -124,14 +92,11 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-# A reuse request must never implicitly take control of a developer's desktop.
 if [ "$MODE" = "test" ] && [ "${CI:-}" != "true" ]; then
   echo "--test-only is for hosted CI; use --foreground for an explicit local run." >&2
   exit 2
 fi
 
-# A developer invocation is remote by default. CI keeps running the suite on
-# its hosted macOS session, where foreground ownership cannot disturb anyone.
 if [ -z "$MODE" ] && [ -z "${CI:-}" ]; then
   MODE="remote"
 fi
@@ -152,8 +117,6 @@ if [ "$MODE" = "remote" ]; then
     exit 2
   fi
 
-  # A remote runner cannot see working-tree changes. Refuse to report a green
-  # result for stale UI code while still allowing unrelated local work.
   UI_PATHS=(
     LokalBot
     LokalBotUITests
@@ -176,9 +139,6 @@ if [ "$MODE" = "remote" ]; then
   fi
   UPSTREAM_REMOTE="${UPSTREAM%%/*}"
   UPSTREAM_BRANCH="${UPSTREAM#*/}"
-  # Refresh the actual remote ref before comparing it. If the branch advances
-  # again between this fetch and dispatch, candidate_sha makes the hosted job
-  # fail rather than reporting another commit as validation for this checkout.
   git -C "$ROOT" fetch --quiet "$UPSTREAM_REMOTE" "$UPSTREAM_BRANCH"
   HEAD_SHA="$(git -C "$ROOT" rev-parse HEAD)"
   if [ "$HEAD_SHA" != "$(git -C "$ROOT" rev-parse "$UPSTREAM")" ]; then
@@ -209,8 +169,6 @@ ARGS=(
   -clonedSourcePackagesDirPath .build/SourcePackages
 )
 
-# CI runners hold no signing certificate; let workflows opt out of signing
-# (CODE_SIGNING_ALLOWED=NO Scripts/test/ui-tests.sh) without changing local runs.
 if [ "${CODE_SIGNING_ALLOWED:-}" != "" ]; then
   ARGS+=("CODE_SIGNING_ALLOWED=${CODE_SIGNING_ALLOWED}")
 fi
@@ -235,7 +193,6 @@ fi
 if [ "$MODE" = "test" ]; then
   python3 Scripts/ci/ui-build-stamp.py verify "$STAMP"
 else
-  # A failed build must invalidate the preceding build's reuse stamp.
   rm -f "$STAMP"
   echo "→ building for testing…"
   if [ -n "${COMPILER_CACHE_MODE:-}" ]; then
@@ -253,8 +210,6 @@ if [ "$MODE" = "build" ]; then
 fi
 
 echo "→ running UI tests…"
-# Consume the portable run configuration directly; downstream runners need no
-# generated project, native vendor build or Swift package resolution.
 RUN_FILES=("$DERIVED"/Build/Products/*.xctestrun)
 [ "${#RUN_FILES[@]}" -eq 1 ] && [ -f "${RUN_FILES[0]}" ] || { echo "Expected one xctestrun" >&2; exit 2; }
 xcodebuild test-without-building -xctestrun "${RUN_FILES[0]}" \

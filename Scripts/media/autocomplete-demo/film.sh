@@ -1,29 +1,4 @@
 #!/bin/bash
-# Films LokalBot's autocomplete in TextEdit on a hosted Mac in CI, with the
-# default on-device model and real keystrokes.
-#
-#   LOKALBOT_APP=<Debug LokalBot.app> Scripts/media/autocomplete-demo/film.sh <out-dir> [take...]
-#
-# Takes are Scripts/media/autocomplete-demo/shots/*.json (default: all but warmup;
-# SHOTS names another folder, which needs its own warmup.json), filmed once
-# per appearance (APPEARANCES, default "light"). Each take is
-# typed by Scripts/media/readme-gif/rig.swift with real key events and recorded at
-# 30 fps with ScreenCaptureKit: TextEdit's window plus LokalBot's suggestion
-# panel, which the Debug build shows to capture with --lokalbot-film-ghost.
-# The rig waits for each suggestion and accepts it word by word with Tab; a
-# take whose suggestion never comes, or whose typing comes out wrong, is
-# filmed again (ATTEMPTS, default 3).
-# LokalBot runs as a child of this script, so the runner is responsible for
-# its permissions; LAUNCH=open starts it with `open` instead.
-#
-# CI only: it grants this runner's TCC permissions to LokalBot and the rig
-# with sudo and turns macOS inline predictions and corrections off. TextEdit
-# opens each document in plain text at FONT_SIZE (default 44) points: it is
-# sandboxed and reads its preferences from its container, so its settings go
-# in as launch arguments rather than through `defaults`.
-#
-# Writes <out-dir>/clips/<appearance>-<take>.mp4 with a .json of the take's
-# events, the raw takes' metadata, and the app's log.
 set -euo pipefail
 [[ "${GITHUB_ACTIONS:-}" == true ]] || { echo "film.sh changes system settings; run it in GitHub Actions" >&2; exit 1; }
 HERE=$(cd "$(dirname "$0")" && pwd)
@@ -70,8 +45,7 @@ python3 "$HERE/stage.py" settings "$SUITE"
 swiftc -O -swift-version 5 "$ROOT/Scripts/media/readme-gif/rig.swift" -o "$RIG"
 
 echo "== permissions =="
-# Hosted images run with SIP off, so the TCC databases take rows directly.
-grant() {  # grant <client> <client_type: 0 bundle id, 1 path>
+grant() {
   local service db
   for service in kTCCServiceAccessibility kTCCServiceListenEvent kTCCServicePostEvent kTCCServiceScreenCapture; do
     for db in "/Library/Application Support/com.apple.TCC/TCC.db" "$HOME/Library/Application Support/com.apple.TCC/TCC.db"; do
@@ -97,7 +71,7 @@ TEXTEDIT_ARGS=(-RichText NO -NSFixedPitchFont HelveticaNeue -NSFixedPitchFontSiz
 
 background() { [[ $1 == dark ]] && echo "${BACKGROUND_DARK:-#1E1E1E}" || echo "${BACKGROUND_LIGHT:-#FFFFFF}"; }
 
-launch_app() {  # launch_app <appearance>
+launch_app() {
   stop_app
   if [[ $1 == dark ]]; then defaults write -g AppleInterfaceStyle Dark; else defaults delete -g AppleInterfaceStyle 2>/dev/null || true; fi
   "$RIG" appearance "$1" || true
@@ -106,7 +80,6 @@ launch_app() {  # launch_app <appearance>
   if [[ $LAUNCH == open ]]; then
     open -n -g "$APP" --args "${args[@]}"
   else
-    # A child of this shell: macOS holds the runner responsible for its permissions.
     "$BIN" "${args[@]}" >> "$OUT/logs/app-stdout.log" 2>&1 &
   fi
   for _ in $(seq 120); do pgrep -f "$BIN" >/dev/null && break; sleep 0.5; done
@@ -114,7 +87,6 @@ launch_app() {  # launch_app <appearance>
   sleep 6
 }
 
-# film <appearance> <take> <dest>: one attempt; the rig's exit code
 film() {
   local shot="$SHOTS/$2.json" doc status=0
   pkill -x TextEdit 2>/dev/null || true
@@ -130,7 +102,7 @@ film() {
   return $status
 }
 
-warm_up() {  # warm_up <appearance>: the model loads; true once a suggestion shows
+warm_up() {
   local status=1 attempt
   for attempt in $(seq "$ATTEMPTS"); do
     status=0

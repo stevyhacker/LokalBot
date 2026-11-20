@@ -1,23 +1,14 @@
 import SwiftUI
 
-/// Timeline's rail, on the trailing side of the day's page: the tracked total
-/// with the hour strip and its legend, then the day's sessions and meetings in
-/// time order under Morning, Afternoon and Evening, with All captured activity
-/// pinned as its bottom row. Choosing a row, or a bar of the strip, shows it
-/// on the page beside; choosing it again returns to the day.
 struct TimelineRail<Banner: View>: View {
     @Environment(\.appTextScale) private var textScale
-    /// Nil on a day with no tracked time and no meetings.
     let tracked: TimelineTrackedSummary?
     let list: TimelineDayList
     let hasDay: Bool
-    /// "3 activity entries · 0 screen moments".
     let captureCounts: Text
     let selection: TimelineListSelection
-    /// Screen moments kept during a session, for its row's spoken value.
     var sceneCount: (TimelineDayList.Row) -> Int = { _ in 0 }
     let onSelect: (TimelineListSelection) -> Void
-    /// The paused line, above everything else.
     @ViewBuilder var banner: Banner
     @FocusState private var focused: Bool
 
@@ -56,8 +47,6 @@ struct TimelineRail<Banner: View>: View {
                 if next != selection { onSelect(next) }
                 return .handled
             }
-            // A bar of the strip, or an arrow key, can choose a row the list
-            // has scrolled away from.
             .onChange(of: selection) { _, selected in
                 if case .row = selected { proxy.scrollTo(selected.scrollID) }
             }
@@ -71,8 +60,6 @@ struct TimelineRail<Banner: View>: View {
         focused = true
         onSelect(target)
     }
-
-    // MARK: Sessions and meetings
 
     private var sessionsHeader: some View {
         HStack(alignment: .center, spacing: 8) {
@@ -128,8 +115,6 @@ struct TimelineRail<Banner: View>: View {
         return true
     }
 
-    // MARK: All captured activity
-
     private var rawRow: some View {
         Button { select(.raw) } label: {
             HStack(spacing: 10) {
@@ -178,7 +163,6 @@ extension TimelineRail where Banner == EmptyView {
     }
 }
 
-/// "3 activity entries · 0 screen moments", each count its own catalog entry.
 enum TimelineCaptureCounts {
     static func text(entries: Int, moments: Int) -> Text {
         Text(entries == 1 ? "\(entries) activity entry" : "\(entries) activity entries")
@@ -188,7 +172,6 @@ enum TimelineCaptureCounts {
 }
 
 extension TimelineListSelection {
-    /// The identity a row scrolls into view by.
     var scrollID: String {
         switch self {
         case .digest: "digest"
@@ -199,9 +182,6 @@ extension TimelineListSelection {
     }
 }
 
-/// "Day memory is paused" with Resume, at the top of the rail while tracking
-/// is paused. It observes the sampler itself, which publishes too often for
-/// the whole page to follow.
 struct TimelinePausedLine: View {
     @ObservedObject var sampler: ActivitySampler
 
@@ -239,10 +219,6 @@ struct TimelinePausedBanner: View {
     }
 }
 
-// MARK: - Tracked
-
-/// The top of the rail: the day's total in large type, the meetings and what
-/// the agents recorded, the hour strip, and where the time went as rows.
 struct TimelineTrackedBlock: View {
     let summary: TimelineTrackedSummary
     let rows: [TimelineDayList.Row]
@@ -279,8 +255,6 @@ struct TimelineTrackedBlock: View {
         .accessibilityIdentifier("capture.dayOverview")
     }
 
-    /// Each project's time, or each app's on a day without projects, then
-    /// the meetings' total. App and project names are shown as captured.
     @ViewBuilder private var legend: some View {
         if !summary.legend.isEmpty || summary.meetingSeconds > 0 {
             VStack(alignment: .leading, spacing: 4) {
@@ -327,8 +301,6 @@ struct TimelineTrackedBlock: View {
     }
 }
 
-/// The day strip: hour lines and labels, a thin lane of meetings above the
-/// lane of work. A bar chooses its row in the list under it.
 struct TimelineDayStripView: View {
     @Environment(\.appTextScale) private var textScale
     let strip: TimelineDayStrip
@@ -340,14 +312,12 @@ struct TimelineDayStripView: View {
     private static let workLaneHeight: CGFloat = 20
     private static let labelTop: CGFloat = 37
 
-    /// The lanes, then one line of hour labels at the current text size.
     private var height: CGFloat { Self.labelTop + (15 * max(1, textScale)).rounded(.up) }
 
     var body: some View {
         let height = height
         GeometryReader { geometry in
             let width = geometry.size.width
-            // About one label every 44 points keeps "12 PM" clear of its neighbours.
             let labelWidth: CGFloat = 44 * max(1, textScale)
             let labelled = strip.labelledTicks(fitting: max(1, Int(width / labelWidth)))
             ZStack(alignment: .topLeading) {
@@ -381,27 +351,18 @@ struct TimelineDayStripView: View {
             .frame(width: width, height: height, alignment: .topLeading)
         }
         .frame(height: height)
-        // Hours run left to right in every language, like a clock's day; the
-        // bars are placed by offset, which does not mirror.
         .environment(\.layoutDirection, .leftToRight)
-        // The list under the strip has the same rows, each with its name and
-        // times, so assistive technologies read the strip as one picture.
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Day chronology")
-        // Without a trait the strip has no role at all.
         .accessibilityAddTraits(.isImage)
         .accessibilityIdentifier("timeline.dayStrip")
     }
 
-    /// "8 AM" for the first hour and noon, "9" for the rest; a 24-hour clock
-    /// shows the hour either way.
     private static func hourStyle(namesDayPeriod: Bool) -> Date.FormatStyle {
         let style = Date.FormatStyle.dateTime
         return namesDayPeriod ? style.hour() : style.hour(.defaultDigits(amPM: .omitted))
     }
 
-    /// The bar is as wide as its time. A click a little to either side of a
-    /// thin one still chooses it.
     @ViewBuilder
     private func segment(_ bar: TimelineDayStrip.Bar, width: CGFloat, top: CGFloat,
                          height: CGFloat, color: Color) -> some View {
@@ -422,18 +383,11 @@ struct TimelineDayStripView: View {
     }
 }
 
-// MARK: - Rows
-
-/// The list reads like the Meetings list: a 13-point title over a 12-point
-/// second line.
 enum TimelineListStyle {
     static var title: AppFont { AppFont.scaledSystem(size: 13) }
     static var detail: AppFont { AppFont.scaledSystem(size: 12) }
-    /// Morning, Afternoon, Evening.
     static var heading: AppFont { AppFont.scaledSystem(size: 11, weight: .bold) }
-    /// From the rail's edge to its text, the panels' own inset.
     static let inset: CGFloat = SectionPanelMetric.inset
-    /// The selected row, as a list shows its selection while another pane has the keyboard.
     static let selection = Color(nsColor: .unemphasizedSelectedContentBackgroundColor)
 
     static func rowBackground(selected: Bool, hovering: Bool = false) -> some View {
@@ -442,14 +396,10 @@ enum TimelineListStyle {
     }
 }
 
-/// Column widths of a row. The time has no AM or PM, since the list is
-/// already under Morning, Afternoon and Evening, and follows the text size.
 struct TimelineListMetrics {
     let timeWidth: CGFloat
     let axisWidth: CGFloat = 24
-    /// The row's padding before its time.
     let leadingInset: CGFloat = 4
-    /// From the row's top edge to the centre of its dot.
     let dotCenterY: CGFloat
 
     init(textScale: CGFloat) {
@@ -458,18 +408,14 @@ struct TimelineListMetrics {
         dotCenterY = (5 + 8 * scale).rounded()
     }
 
-    /// The marker's height, which centres the dot on `dotCenterY` under the
-    /// row's 5-point top padding.
     var markerHeight: CGFloat { (dotCenterY - 5) * 2 }
 
-    /// From the row's leading edge to the line through the dots.
     var spineLeading: CGFloat {
         let center = leadingInset + timeWidth + axisWidth / 2
         return center - 0.75
     }
 }
 
-/// A row's time, in the interface's language and time zone.
 private struct TimelineListTime: View {
     let date: Date
     @Environment(\.locale) private var locale
@@ -484,7 +430,6 @@ private struct TimelineListRow: View {
     let row: TimelineDayList.Row
     let metrics: TimelineListMetrics
     let isSelected: Bool
-    /// A row above or below continues the line through the dots.
     let joinsAbove: Bool
     let joinsBelow: Bool
     let sceneCount: Int
@@ -548,8 +493,6 @@ private struct TimelineListRow: View {
         .accessibilityIdentifier(identifier)
     }
 
-    /// Meetings keep the waveform and the accent; a session shows the colour
-    /// of its project, the same one its bar has in the day strip.
     @ViewBuilder private var marker: some View {
         let ground = isSelected ? AnyShapeStyle(TimelineListStyle.selection) : AnyShapeStyle(.background)
         if row.isMeeting {
@@ -569,8 +512,6 @@ private struct TimelineListRow: View {
         }
     }
 
-    /// One line runs through the dots of neighbouring rows, so the list reads
-    /// as a day. It starts at the first dot and ends at the last.
     @ViewBuilder private var spine: some View {
         if joinsAbove || joinsBelow {
             Rectangle()
@@ -578,13 +519,11 @@ private struct TimelineListRow: View {
                 .frame(width: 1.5)
                 .frame(maxHeight: joinsBelow ? .infinity : metrics.dotCenterY, alignment: .top)
                 .padding(.top, joinsAbove ? 0 : metrics.dotCenterY)
-                // Padding, not an offset, so the line follows a right-to-left layout.
                 .padding(.leading, metrics.spineLeading)
                 .accessibilityHidden(true)
         }
     }
 
-    /// A meeting's second line keeps the accent, or red while it records.
     @ViewBuilder private var detail: some View {
         let text = Text(verbatim: row.detail)
         if row.isMeeting {
@@ -623,8 +562,6 @@ private struct TimelineListRow: View {
     }
 }
 
-/// A stretch with nothing recorded between two rows: a dotted piece of the
-/// line through the dots, and how long it lasted.
 private struct TimelineListAwayRow: View {
     let start: Date
     let end: Date
@@ -640,8 +577,6 @@ private struct TimelineListAwayRow: View {
             Text("Away \(CaptureStyle.hm(end.timeIntervalSince(start)))")
                 .font(TimelineListStyle.detail)
                 .workspaceSupportingForeground()
-                // The label is on the text, which keeps its role; a
-                // container with only a label has none.
                 .accessibilityLabel("No activity from \(start.formatted(date: .omitted, time: .shortened)) to \(end.formatted(date: .omitted, time: .shortened))")
         }
         .frame(height: 24)
@@ -658,8 +593,6 @@ private struct TimelineDottedSpine: Shape {
     }
 }
 
-/// One colour per project, or per app on a day without projects, from the
-/// app's existing name-hashed palette. Other activity is neutral.
 enum TimelineRowColor {
     static func color(for key: String?) -> Color {
         key.map(CaptureStyle.color(for:)) ?? Color.gray

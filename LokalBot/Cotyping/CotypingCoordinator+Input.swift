@@ -1,17 +1,12 @@
 import Foundation
 
-/// Focus changes, keyboard input, and host-publish reconciliation.
 extension CotypingCoordinator {
-    // MARK: - Input handling
-
     func handleKey(_ event: CotypingInputEvent) {
         guard isRunning else { return }
         warmModelAfterPause()
         discardRevokedMemoryContext()
         noteKey(event, live: focusTracker.focus.field)
         if event.isEscape, let shown = session, overlay.isVisible, inputMonitor.isAcceptActive {
-            // The accept tap takes this Escape and decides whether the app
-            // sees it. Should the tap miss the key, the suggestion still goes.
             pendingKeystrokeUptime = nil
             Task { [weak self] in
                 try? await Task.sleep(for: .milliseconds(60))
@@ -24,19 +19,13 @@ extension CotypingCoordinator {
         }
         switch event.kind {
         case .acceptance, .fullAcceptance:
-            // The accept itself is owned by the accept tap.
             CotypingWindowTextCapture.shared.noteTyping()
         case .textMutation:
             CotypingWindowTextCapture.shared.noteTyping()
-            // Typing through a ghost that is already on screen has no wait to
-            // measure; scheduling the next suggestion starts a new one.
             pendingKeystrokeUptime = nil
             if advanceActiveSessionIfTypedCharactersMatch(event.characters) {
                 return
             }
-            // The key leaves the suggestion behind. The app draws its letters
-            // where the ghost starts, so the ghost goes now rather than when
-            // the app publishes them, which in a browser can take a while.
             if session != nil {
                 clearSuggestion()
                 state = .idle
@@ -54,8 +43,6 @@ extension CotypingCoordinator {
         guard isRunning else { return }
         discardRevokedMemoryContext()
         resolveInsertionCheck(live: focus.field)
-        // Text read from the screen is forgotten as soon as focus leaves the
-        // field it was read for.
         CotypingAXHelper.forgetVisibleContext(exceptFor: focus.field?.focusIdentityKey, field: focus.field)
         if activeVisibleContext != nil, focus.field == nil {
             cancelPendingGenerationWork()
@@ -66,21 +53,16 @@ extension CotypingCoordinator {
             lastSuggestion = nil
             state = .idle
         }
-        // Drop a live suggestion when focus leaves the field/app it belongs to.
         if let session,
            CotypingSessionReconciler.shouldClearActiveSessionOnFocusChange(
                session,
                liveField: focus.field,
                pendingInsertionConsumedCount: pendingInsertionConsumedCount) {
             clearSuggestion()
-            // Without a session the state is no longer "ready"; left there, it
-            // keeps the new field from being read ahead of its first key.
             if case .ready = state { state = .idle }
         } else if let field = focus.field {
             reanchorVisibleSuggestion(to: field)
         }
-        // Surface a disabled reason in the UI while idle (no live suggestion).
-        // A recording's pause label stays until the recording ends.
         if session == nil, state == .idle || isDisabledState, !isMeetingRecordingActive() {
             let settings = settingsProvider()
             if let reason = CotypingAvailability.disabledReason(
@@ -90,8 +72,6 @@ extension CotypingCoordinator {
                 suggestInIntegratedTerminals: settings.cotypingSuggestInIntegratedTerminals,
                 selfBundleID: selfBundleID, focus: focus),
                case .unsupported = focus.capability {
-                // Only reflect hard "not a text field" states passively; avoid
-                // flapping the label on every transient focus change.
                 state = .disabled(reason)
             } else if case .supported = focus.capability {
                 state = .idle
@@ -111,7 +91,6 @@ extension CotypingCoordinator {
         let baseline = explicitBaseline ?? focusTracker.focus.field
         let pollGeneration = hostPublishPollGeneration
         let keystrokeUptimeNanoseconds = DispatchTime.now().uptimeNanoseconds
-        // Measured from here until the suggestion this keystroke asks for is visible.
         pendingKeystrokeUptime = keystrokeUptimeNanoseconds
 
         hostPublishPollTask?.cancel()
@@ -206,24 +185,15 @@ extension CotypingCoordinator {
         return true
     }
 
-    /// Moves the visible ghost to the caret the app reports, once the app
-    /// shows everything accepted or typed through so far. Until then the
-    /// ghost stays where the keys moved it. Called for every focus change,
-    /// so the ghost also follows a field that scrolls or moves.
     func reanchorVisibleSuggestion(to liveField: CotypingField) {
         guard let current = session, case .continuation = current.kind, overlay.isVisible,
               CotypingSessionReconciler.sessionReconciledByPublishedTyping(current, liveField: liveField) == current
         else { return }
-        // Every accept so far is in the field.
         pendingInsertionConsumedCount = nil
         reanchor(current, to: liveField)
     }
 
-    /// Lays out the rest of `current` at `liveField`'s caret unless it is
-    /// already there; a ghost that would cover typed text always moves.
     private func reanchor(_ current: CotypingSession, to liveField: CotypingField) {
-        // A quick read leaves out the field's font; the suggestion keeps the
-        // one it was drawn in.
         var live = liveField
         if live.fieldStyle == nil { live.fieldStyle = current.field.fieldStyle }
         let field = displayField(live)
@@ -271,15 +241,11 @@ extension CotypingCoordinator {
             markReady(remainingText)
             refreshCaretSoon()
         } else if overlay.isShowingInline {
-            // Where the typed letters end is known only once the app shows
-            // them, and the caret read for this suggestion is behind them.
-            // The rest comes back from the anchor cache at the app's caret.
             clearSuggestion()
             state = .idle
             scheduleGenerationAfterHostPublishDelay()
             return true
         } else {
-            // A popup sits under the caret's line, clear of the text.
             showSuggestion(remainingText, on: current.field)
             guard session != nil else { return true }
         }

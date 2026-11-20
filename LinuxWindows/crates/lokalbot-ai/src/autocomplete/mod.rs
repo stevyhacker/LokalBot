@@ -1,18 +1,3 @@
-//! Autocomplete (`LokalBot/Cotyping`): suggestions for the text field the
-//! user is typing in, from the Autocomplete model on its own llama-server.
-//!
-//! This crate holds the prediction pipeline, the same for every model in the
-//! catalog: a request from the field ([`prompt`]), one streamed completion
-//! with token healing and the confidence gate ([`client`]), cleanup into
-//! ghost text ([`normalize`], [`seam`]), and the rules for accepting,
-//! typing through and topping up a suggestion ([`accept`], [`session`]),
-//! with saved facts, learned examples, the clipboard and the focused window's
-//! text when allowed ([`memory`], [`learning`], [`clipboard`],
-//! [`window_text`]). `/macros` and typo corrections ([`macros`], [`typo`]) win
-//! over the model, and a chosen server can stand in for it ([`server`]). The
-//! engine's worker schedules it; the desktop integration reads fields and
-//! draws and inserts the suggestions.
-
 pub mod accept;
 pub mod client;
 pub mod clipboard;
@@ -41,8 +26,6 @@ pub use normalize::{Normalized, Suppression};
 pub use prompt::{Extras, Field, Personalization, Request, build_request};
 pub use session::{Reconciled, Session, SuggestionKind};
 
-/// The part of `suggestion` one accept key press takes: the next word or
-/// phrase, with the spacing that belongs to it (`CotypingAcceptanceChunker`).
 pub fn accept_chunk(suggestion: &str, options: AcceptOptions) -> String {
     match options.granularity {
         lokalbot_core::settings::AcceptGranularity::Word => {
@@ -54,12 +37,6 @@ pub fn accept_chunk(suggestion: &str, options: AcceptOptions) -> String {
     }
 }
 
-/// The edit one accept key press makes at the caret
-/// (`CotypingContinuationAcceptance`, `CotypingReplacementAcceptancePlanner`):
-/// the chunk it takes, the text to type for it, and what it replaces before
-/// the caret (an emoji's `:shortcode`, a `/macro`, a misspelled word) or after
-/// it (the rest of a word the caret is inside of). `None` when nothing would
-/// be accepted, or a replacement no longer matches the live text.
 pub fn plan_acceptance(
     suggestion: &str,
     kind: &SuggestionKind,
@@ -95,24 +72,17 @@ pub fn plan_acceptance(
     }
 }
 
-/// What to draw for an emoji suggestion ("🚀 :rocket:"), as macOS does; `None`
-/// when `suggestion` is not the emoji for the `:shortcode` before the caret.
 pub fn emoji_ghost(before: &str, suggestion: &str) -> Option<String> {
     emoji::ghost(before, suggestion)
 }
 
-/// Whether the text nearest the caret runs right to left, for placing the
-/// ghost (`CotypingTextDirectionDetector`): the last strongly directional
-/// character before the caret decides.
 pub fn is_right_to_left(before: &str) -> bool {
-    // Hebrew to Arabic Extended, the presentation forms, the RTL mark.
     const RTL: [(u32, u32); 4] = [
         (0x0590, 0x08FF),
         (0xFB1D, 0xFDFF),
         (0xFE70, 0xFEFF),
         (0x200F, 0x200F),
     ];
-    // Latin, Greek, Cyrillic, CJK ideographs, the LTR mark.
     const LTR: [(u32, u32); 7] = [
         (0x41, 0x5A),
         (0x61, 0x7A),
@@ -246,7 +216,6 @@ mod tests {
         };
         let done = plan("10", calc.clone(), "Total /5+5").unwrap();
         assert_eq!((done.backward_delete, done.insertion.as_str()), (4, "10"));
-        // The query changed since the offer.
         assert_eq!(plan("10", calc, "Total /5+55"), None);
         let fix = SuggestionKind::Correction {
             typo: "wrld".into(),

@@ -1,8 +1,3 @@
-//! The Day Digest and the day's activity overview on Timeline
-//! (`DayDigestCard.swift`, `DayDigestView.swift`, `DayActivityOverview.swift`).
-//! Today's So far today shows only the digest's highlights and when it was
-//! written, with `hm` and `digest_updated_at` from here.
-
 use chrono::{DateTime, NaiveDate, Utc};
 use gpui_kit::{App, AppContext as _, Entity, Hsla};
 use lokalbot_core::{DayActivity, DayDigest};
@@ -10,7 +5,6 @@ use lokalbot_core::{DayActivity, DayDigest};
 use crate::state::AppData;
 use crate::theme::LbThemeExt as _;
 
-/// `CaptureStyle.hm`: "3h 50m", "48m", "<1m" (and "0m" for nothing).
 pub(crate) fn hm(seconds: f64) -> String {
     if seconds <= 0. {
         lokalbot_i18n::directional(lokalbot_i18n::tr("0m"))
@@ -19,14 +13,12 @@ pub(crate) fn hm(seconds: f64) -> String {
     }
 }
 
-/// One proportion-bar segment: label, seconds, whether it is "Other".
 pub(crate) struct AppShare {
     pub label: String,
     pub seconds: f64,
     pub is_other: bool,
 }
 
-/// Top five apps with at least a minute, then "Other" (`ProportionBarMath`).
 pub(crate) fn app_shares(activity: &DayActivity) -> Vec<AppShare> {
     let mut shares = Vec::new();
     let mut other = 0.;
@@ -97,7 +89,6 @@ pub(crate) fn export_markdown(
     .detach();
 }
 
-/// When the digest was written: its sidecar's time, else the file's.
 pub(crate) fn digest_updated_at(digest: &DayDigest) -> Option<DateTime<Utc>> {
     digest
         .meta

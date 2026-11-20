@@ -1,10 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The matches for what is typed in Ask: a row per meeting, screen moment,
-/// file or saved agent note, each with the lines that matched. The same list sits under the field
-/// on a new question, in the tray above the field inside a conversation, and
-/// under an answer that failed. Clicking a title or a line opens it.
 struct AskMatchesList: View {
     enum Style { case card, tray }
 
@@ -12,15 +8,11 @@ struct AskMatchesList: View {
     @Environment(\.appTextScale) private var textScale
 
     let matches: AskMatches
-    /// The searched text, so a file opens with its words marked.
     let query: String
     var style: Style = .card
-    /// The row the arrow keys are on, if they left the field.
     var selected: Int?
     var pinnedScreenIDs: Set<Int64> = []
     var togglePin: ((ActivityStore.OCRHit) -> Void)?
-    /// Rows whose folded lines are showing. The page keeps this when it
-    /// lays the list out more than once (the tray, which may scroll).
     var expandedRows: Binding<Set<String>>?
 
     @State private var locallyExpanded: Set<String> = []
@@ -35,9 +27,7 @@ struct AskMatchesList: View {
         }
     }
 
-    /// Wide enough for "0:35 · Other speaker" beside the matched words.
     private static let kindColumnWidth: CGFloat = 148
-    /// How many matching lines a row lists before folding the rest.
     private static let foldedLineCount = 3
 
     static func rowID(_ index: Int) -> String { "ask.match.\(index)" }
@@ -72,8 +62,6 @@ struct AskMatchesList: View {
     @ViewBuilder private var rowDivider: some View {
         if style == .card { Divider().padding(.leading, 14) }
     }
-
-    // MARK: Meetings
 
     private func meetingRow(_ group: MeetingRecallGroup, index: Int) -> some View {
         let meeting = app.meetings.first { $0.id == group.id }
@@ -115,8 +103,6 @@ struct AskMatchesList: View {
         case .outcome: Text("Outcome")
         }
     }
-
-    // MARK: Screen moments
 
     private func screenRow(_ group: ScreenRecallGroup, index: Int) -> some View {
         let primary = group.primary
@@ -172,8 +158,6 @@ struct AskMatchesList: View {
         .accessibilityLabel(isPinned ? "Unpin screen from context" : "Pin screen as context")
     }
 
-    // MARK: Files
-
     private func fileRow(_ hit: FileSearchHit, index: Int) -> some View {
         rowShell(index: index) {
             Image(nsImage: NSWorkspace.shared.icon(forFile: hit.path))
@@ -196,10 +180,6 @@ struct AskMatchesList: View {
         }
     }
 
-    // MARK: Agent notes
-
-    /// A note a coding agent saved for itself: its title, the agent and
-    /// project, then the matched words. It opens the agent's own file.
     private func agentNoteRow(_ hit: AgentNoteHit, index: Int) -> some View {
         rowShell(index: index) {
             AskSourceTile(symbol: "note.text")
@@ -219,8 +199,6 @@ struct AskMatchesList: View {
             .help(hit.path)
         }
     }
-
-    // MARK: Row anatomy
 
     private var locale: Locale { app.settings.appLanguage.locale }
 
@@ -315,7 +293,6 @@ struct AskMatchesList: View {
     }
 }
 
-/// "Matches · 3 in 1 meeting", and the keys that act on them.
 struct AskMatchesHeader: View {
     struct KeyHint: Identifiable {
         let key: String
@@ -325,8 +302,6 @@ struct AskMatchesHeader: View {
 
     let countLabel: String?
     var isSearching = false
-    /// Return was pressed while matches were still arriving; the question
-    /// goes out once they are in.
     var isWaitingToAsk = false
     var hints: [KeyHint] = []
 
@@ -377,13 +352,10 @@ struct AskMatchesHeader: View {
         }
         .workspaceSupportingForeground()
         .fixedSize()
-        // The keys are announced by the field's own hint.
         .accessibilityHidden(true)
     }
 }
 
-/// The small rounded tile that leads a meeting row here and in an answer's
-/// sources list.
 struct AskSourceTile: View {
     let symbol: String
     var size = CGSize(width: 44, height: 30)
@@ -402,7 +374,6 @@ struct AskSourceTile: View {
     }
 }
 
-/// A transcript time in the accent colour, with the small play mark.
 struct AskTimeStamp: View {
     let seconds: TimeInterval
 
@@ -419,7 +390,6 @@ struct AskTimeStamp: View {
     }
 }
 
-/// White card chrome for matches and source lists on the Ask page.
 extension View {
     func askCard(cornerRadius: CGFloat = 12) -> some View {
         modifier(AskCardModifier(cornerRadius: cornerRadius))
@@ -443,7 +413,6 @@ private struct AskCardModifier: ViewModifier {
     }
 }
 
-/// A source's name: plain text that underlines on hover, like a link.
 struct AskTitleButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View { Label(configuration: configuration) }
 
@@ -461,7 +430,6 @@ struct AskTitleButtonStyle: ButtonStyle {
     }
 }
 
-/// One matching line or suggestion: a quiet row that tints on hover.
 struct AskLineButtonStyle: ButtonStyle {
     var cornerRadius: CGFloat = 6
 

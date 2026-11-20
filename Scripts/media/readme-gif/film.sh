@@ -1,14 +1,4 @@
 #!/bin/bash
-# Records the README GIF takes from the LokalBot UI Test Host.
-#
-#   APP_BUNDLE=".../LokalBot UI Test Host.app" Scripts/media/readme-gif/film.sh <takes-dir> [take...]
-#
-# Takes: recall meeting ask (default: all). APPEARANCES="light dark" (default).
-# Each take launches the host on a fresh copy of one seeded fictional library,
-# with its own UserDefaults suite, places the window on the built-in Retina
-# display, records it with rig, and quits the host. Needs Screen Recording and
-# Accessibility for the terminal. A take waits until nobody has touched the
-# keyboard, mouse or trackpad for a few seconds, and restarts if they do.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 : "${APP_BUNDLE:?set APP_BUNDLE to a built LokalBot UI Test Host.app}"

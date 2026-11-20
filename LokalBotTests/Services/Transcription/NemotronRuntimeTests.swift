@@ -2,8 +2,6 @@ import FluidAudio
 import XCTest
 @testable import LokalBot
 
-/// Explicit public-fixture test. CI stays offline; see the benchmark README for
-/// preparing these pinned models, AMI audio, and the old runtime's voice vectors.
 final class NemotronRuntimeTests: XCTestCase {
     struct Baseline: Decodable {
         struct Sample: Decodable { var start: Double; var end: Double; var vector: [Float] }
@@ -12,8 +10,6 @@ final class NemotronRuntimeTests: XCTestCase {
         var segments: [Segment]
     }
 
-    /// Opt-in hardware check on the same pinned v2 files the app downloads.
-    /// Silence still runs the model; no VAD mask bypasses inference here.
     func testPinnedV2ModelRunsAndResetsOnCPUAndNeuralEngine() async throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_NEMOTRON_TEST_MODEL_DIR"] else {
             throw XCTSkip("Set LOKALBOT_NEMOTRON_TEST_MODEL_DIR to the verified v2 model directory")
@@ -77,8 +73,6 @@ final class NemotronRuntimeTests: XCTestCase {
             minimumCosine = min(minimumCosine, SpeakerVoiceMatcher.cosine(actual.vector, expected.vector))
             XCTAssertEqual(actual.model, SpeakerVoiceSample.fingerprint)
         }
-        // Profiles compare normalized directions, not bitwise-equal model output.
-        // CoreML execution can round differently across builds/accelerator routes.
         XCTAssertGreaterThan(minimumCosine, 0.99999)
         print("Nemotron runtime: \(first.segments.count) matching segments; \(samples.count) voice samples; min cosine \(minimumCosine); max component delta \(maxDifference)")
     }

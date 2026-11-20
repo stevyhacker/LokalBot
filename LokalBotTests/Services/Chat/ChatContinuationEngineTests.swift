@@ -3,8 +3,6 @@ import Network
 import XCTest
 @testable import LokalBot
 
-/// Autocomplete through a chat endpoint, against a loopback server that answers
-/// the way OpenRouter does when a reply reaches `max_tokens`.
 final class ChatContinuationEngineTests: XCTestCase {
     func testAReplyCutOffAtItsLimitKeepsItsText() async throws {
         let server = try ChatReplyFixture { _ in Self.reply("up on the migration timeline we", finish: "length") }
@@ -18,8 +16,6 @@ final class ChatContinuationEngineTests: XCTestCase {
         XCTAssertEqual(server.bodies.first?["max_tokens"] as? Int, 32)
     }
 
-    /// `z-ai/glm-5.3-flash` always reasons: on 2026-10-15 its 32-token reply
-    /// ended inside the reasoning, and autocomplete showed only an error.
     func testAModelThatAlwaysReasonsIsAskedWithRoomForItFromThenOn() async throws {
         let server = try ChatReplyFixture { index in
             index == 0 ? Self.reply(nil, finish: "length") : Self.reply("up on the migration timeline.", finish: "stop")
@@ -107,8 +103,6 @@ final class ChatContinuationEngineTests: XCTestCase {
     }
 }
 
-/// Loopback-only chat server. Each request gets the JSON `reply` returns for
-/// its position, and its body is kept for the test to read.
 private final class ChatReplyFixture: @unchecked Sendable {
     private let listener: NWListener
     private let queue = DispatchQueue(label: "chat-reply-fixture")

@@ -1,30 +1,18 @@
 import AppKit
 
-/// Hands one meeting action to a coding agent installed on this Mac, with a
-/// prompt already typed into its input box. Every route only fills the box:
-/// nothing leaves this Mac until the user sends the prompt there.
 enum ActionAgentHandoff: String, CaseIterable, Identifiable {
     case claudeCode = "Claude Code"
     case codex = "Codex"
 
     var id: String { rawValue }
 
-    /// Claude Code's limit for a deep link's `q`. Codex documents no limit;
-    /// it gets the same budget.
     static let promptCharacterLimit = 5_000
 
     enum Route: Equatable {
-        /// `claude://code/new`: a new session in the Claude app's Code tab.
         case claudeDesktop
-        /// `claude-cli://open`: Claude Code in a new window of the terminal
-        /// it last ran in. Claude Code registers this handler itself after
-        /// the first prompt of an interactive session.
         case claudeCodeTerminal
-        /// `codex://new`: a new chat in the Codex app. The Codex CLI has no
-        /// documented way to fill a prompt without sending it.
         case codexApp
 
-        /// The link without its prompt, for records of where a handoff went.
         var link: String {
             switch self {
             case .claudeDesktop: "claude://code/new"
@@ -33,8 +21,6 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
             }
         }
 
-        /// Each route's documented link. None sets a working folder, so the
-        /// agent starts where it normally does rather than in the library.
         func url(prompt: String) -> URL? {
             let value = ExternalAgentHandoff.encodeQueryValue(prompt)
             return switch self {
@@ -45,8 +31,6 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
         }
     }
 
-    /// The first route something on this Mac handles, or nil. A desktop app
-    /// wins over the terminal. `handler` returns the app registered for a link.
     func route(handler: (URL) -> URL?) -> Route? {
         let routes: [(String, Route)] = switch self {
         case .claudeCode: [("claude://code/new", .claudeDesktop), ("claude-cli://open", .claudeCodeTerminal)]
@@ -56,9 +40,6 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
     }
 }
 
-/// Installed targets, looked up at most once a minute: workspace menus
-/// rebuild their items on every playback update, and Claude Code registers
-/// its link handler only after its first interactive prompt.
 @MainActor enum ActionAgentAvailability {
     private static var cache: (checkedAt: Date, routes: [ActionAgentHandoff: ActionAgentHandoff.Route])?
 
@@ -80,8 +61,6 @@ enum ActionAgentHandoff: String, CaseIterable, Identifiable {
     }
 }
 
-/// What a handoff prompt says about one action: its details, and where each
-/// meeting it came up in keeps its summary, notes, and transcript.
 struct ActionHandoffBrief: Equatable {
     struct File: Equatable {
         var label: String
@@ -92,7 +71,6 @@ struct ActionHandoffBrief: Equatable {
         var title: String
         var startedAt: Date
         var meetingID: String
-        /// Where the action's first cited passage starts in the recording.
         var evidenceAt: TimeInterval?
         var folder: URL
         var files: [File]
@@ -105,18 +83,14 @@ struct ActionHandoffBrief: Equatable {
     var dueDate: Date?
     var dueSaidOn: Date?
     var status: String
-    /// Latest first.
     var sources: [Source]
 
     static let maximumSources = 5
     static let maximumTextCharacters = 1_000
 
-    /// The meeting files an agent can read, labeled as the prompt names them.
     static let meetingFiles = [("Summary", "summary.md"), ("My notes", MeetingNotes.fileName),
                                ("Transcript", "transcript.md")]
 
-    /// One source per meeting, latest first. `folder` resolves a meeting's
-    /// folder, and files that don't exist yet are left out.
     static func sources(for references: [OutcomeActionReference], folder: (Meeting.ID) -> URL?,
                         fileExists: (URL) -> Bool = { FileManager.default.fileExists(atPath: $0.path) }) -> [Source] {
         var seen: Set<Meeting.ID> = []
@@ -134,8 +108,6 @@ struct ActionHandoffBrief: Equatable {
 }
 
 extension ActionAgentHandoff {
-    /// A prompt the user can send as is. Older meetings are left out first
-    /// when the prompt would pass `limit`.
     static func prompt(_ brief: ActionHandoffBrief, limit: Int = promptCharacterLimit,
                        timeZone: TimeZone = .current) -> String {
         var sources = Array(brief.sources.prefix(ActionHandoffBrief.maximumSources))
@@ -203,8 +175,6 @@ extension ActionAgentHandoff {
 }
 
 extension AppState {
-    /// Opens `target` with a prompt for one action, or for every meeting an
-    /// action thread came up in. `owner` is the name the row shows.
     func handOff(_ references: [OutcomeActionReference], text: String, owner: String?, ownerIsUser: Bool,
                  due: String?, dueDate: Date?, dueSaidOn: Date?, status: String, to target: ActionAgentHandoff) {
         let byID = Dictionary(meetings.map { ($0.id, $0) }, uniquingKeysWith: { first, _ in first })
@@ -234,7 +204,6 @@ extension AppState {
                 dueSaidOn: thread.dueReferenceDate, status: thread.statusLabel, to: target)
     }
 
-    /// Rows show "You" only for an owner named "Me" on the user's own work.
     private static func isUserOwner(_ owner: String?, isForUser: Bool) -> Bool {
         isForUser && owner?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "me"
     }

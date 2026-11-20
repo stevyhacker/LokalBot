@@ -1,20 +1,10 @@
 import Foundation
 
-/// Lightweight wall-clock scheduler for the optional daily Markdown export.
-/// The app normally lives in the menu bar, so a minute tick is sufficient and
-/// remains correct across sleep/wake and daylight-saving changes.
-///
-/// Today's note is written at the export hour and refreshed when its evidence
-/// changes. A Mac asleep or off at that hour never wrote that day's note, so
-/// past days within the digest's catch-up window get a note if the folder has
-/// none, and a past day's note is rewritten once its digest is finalized.
 @MainActor
 final class DailyMemoryExportScheduler {
     struct Configuration: Equatable, Sendable {
         var enabled: Bool
         var hour: Int
-        /// Folder + format identity. Changing either should export to the new
-        /// destination even when today's prior destination already succeeded.
         var destinationID: String
 
         var normalizedHour: Int { min(23, max(0, hour)) }
@@ -22,7 +12,6 @@ final class DailyMemoryExportScheduler {
 
     typealias Export = @Sendable (Date, DailyMemoryExportPass) async throws -> Void
 
-    /// Yesterday plus the six days before it, as for the digest.
     nonisolated static let catchUpDays = DayDigestScheduler.catchUpDays
 
     private let calendar: Calendar
@@ -32,9 +21,7 @@ final class DailyMemoryExportScheduler {
     private var timer: Timer?
     private var exportTask: Task<Void, Never>?
     private var lastSuccessfulDay: Date?
-    /// Past days already checked for a missing note in this session.
     private var caughtUpDays: Set<Date> = []
-    /// Past days whose digest changed after their note was written.
     private var reopenedDays: Set<Date> = []
     private var lastAttempt: Date?
     private var errorHandler: ((String) -> Void)?
@@ -82,9 +69,6 @@ final class DailyMemoryExportScheduler {
         exportTask = nil
     }
 
-    /// An action correction or late meeting artifact can change today's
-    /// export after its scheduled run. Reopen only the affected current day;
-    /// historical exports remain user-controlled and collision-safe.
     func reconsider(day: Date) {
         reconsider(days: [day])
     }
@@ -96,9 +80,6 @@ final class DailyMemoryExportScheduler {
         restart()
     }
 
-    /// A digest finished or rebuilt after its note was written. Today's note
-    /// refreshes as for any evidence change; a past day's note within the
-    /// catch-up window is rewritten with the finished digest.
     func digestDidChange(on day: Date) {
         let today = calendar.startOfDay(for: now())
         let start = calendar.startOfDay(for: day)
@@ -112,8 +93,6 @@ final class DailyMemoryExportScheduler {
         restart()
     }
 
-    /// Cancels an in-flight export so it cannot record a day as done with
-    /// evidence that has since changed; policy then picks the next export.
     private func restart() {
         generation &+= 1
         exportTask?.cancel()
@@ -136,8 +115,6 @@ final class DailyMemoryExportScheduler {
             caughtUpDays: caughtUpDays,
             reopenedDays: reopenedDays,
             calendar: calendar) else { return }
-        // A failed filesystem write should be visible but not retried every
-        // minute. Fifteen minutes gives removable/network volumes time to return.
         if let lastAttempt, current.timeIntervalSince(lastAttempt) < 15 * 60 { return }
         lastAttempt = current
         let runGeneration = generation
@@ -146,10 +123,6 @@ final class DailyMemoryExportScheduler {
             guard let self else { return }
             var succeeded = false
             do {
-                // The scheduler owns a structured utility-priority child. A
-                // configure/stop cancellation therefore reaches the actual
-                // filesystem worker instead of only cancelling an outer task
-                // that is awaiting an unstructured detached task.
                 try await withThrowingTaskGroup(of: Void.self) { group in
                     group.addTask(priority: .utility) {
                         try Task.checkCancellation()
@@ -160,14 +133,11 @@ final class DailyMemoryExportScheduler {
                 guard !Task.isCancelled else { return }
                 guard generation == runGeneration else { return }
                 finish(next.day, isPastDay: isPastDay)
-                // The retry wait is for failures; the next export runs now.
                 lastAttempt = nil
                 succeeded = true
             } catch is CancellationError {
             } catch {
                 if generation == runGeneration {
-                    // A past day is tried once per session, so a note that
-                    // cannot be written never holds back today's.
                     if isPastDay { finish(next.day, isPastDay: true) }
                     errorHandler?("Daily memory export failed: \(error.localizedDescription)")
                 }
@@ -188,8 +158,6 @@ final class DailyMemoryExportScheduler {
         }
     }
 
-    /// Reopened past days first, then past days not yet checked for a
-    /// missing note (oldest first), then today once its hour arrives.
     nonisolated static func nextExport(
         at date: Date,
         hour: Int,

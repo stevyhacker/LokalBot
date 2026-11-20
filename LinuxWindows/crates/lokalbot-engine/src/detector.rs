@@ -1,10 +1,3 @@
-//! Meeting detection and the recording mode it follows (`MeetingDetector.swift`):
-//! record automatically, ask through a notification, or never auto-record.
-//!
-//! With calendar detection on, the active calendar event backs the call
-//! ([`CalendarHint`]), titles the recording, and splits a recording the
-//! detector started when back-to-back events hand over within one call.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -44,12 +37,9 @@ impl Detector {
     }
 }
 
-/// The call the detector is following.
 struct Call {
     meeting: DetectedMeeting,
-    /// The calendar event the call is bound to (`activeCalendarEvent`).
     event_id: Option<String>,
-    /// LokalBot started recording this call automatically.
     recording: bool,
 }
 
@@ -78,7 +68,6 @@ fn run(
         for detected in events {
             match detected {
                 DetectorEvent::Started(meeting) => {
-                    // Another app's call took over; the old one ended first.
                     call = Some(Call {
                         meeting: meeting.clone(),
                         event_id: event.as_ref().map(|e| e.external_id.clone()),
@@ -125,9 +114,6 @@ fn run(
     }
 }
 
-/// Back-to-back events within one call: the recording the detector started
-/// splits; with nothing recording (the user stopped the previous event), the
-/// next event records in automatic mode.
 fn hand_over(
     shared: &Shared,
     commands: &Sender<Command>,
@@ -171,8 +157,6 @@ fn hand_over(
     }
 }
 
-/// The calendar title when titling is on, else the Meet tab's meeting name,
-/// else "<App> meeting".
 fn title(
     settings: &lokalbot_core::Settings,
     meeting: &DetectedMeeting,

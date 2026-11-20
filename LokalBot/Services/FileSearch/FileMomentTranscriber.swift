@@ -1,24 +1,13 @@
 import AVFoundation
 import Foundation
 
-/// What was said at a recording's or video's matched moment, for the Ask
-/// assistant: Files finds the 30-second window by meaning, and this
-/// transcribes just that window with the person's own transcription model, so
-/// the answer can quote it instead of only pointing at the moment.
-///
-/// It never downloads a transcription model (`ModelReadinessSnapshot`), waits
-/// while a meeting records so it can't compete with live transcription, and
-/// keeps the text only in memory: the tool's observation is not saved with
-/// the conversation (`ChatMessage` stores the answer and activity line).
 @MainActor
 final class FileMomentTranscriber {
-    /// The model ignores sound past 30 s of one input, so a match covers this.
     static let window: TimeInterval = 30
     static let cacheLimit = 64
 
     typealias Transcribe = @MainActor (_ clip: URL) async throws -> String
 
-    /// The transcription model is on this Mac and no meeting is recording.
     var isAvailable: () -> Bool
     private let transcribe: Transcribe
     private var cache: [String: String] = [:]
@@ -40,8 +29,6 @@ final class FileMomentTranscriber {
             })
     }
 
-    /// The words at `hit`'s moment, or nil when it isn't a recording or video
-    /// moment, transcription isn't available, or the clip can't be read.
     func passage(for hit: FileSearchHit) async -> String? {
         guard hit.kind == .audio || hit.kind == .video, let start = hit.seconds, isAvailable() else { return nil }
         let modified = (try? hit.url.resourceValues(forKeys: [.contentModificationDateKey]))?
@@ -70,8 +57,6 @@ final class FileMomentTranscriber {
         if order.count > Self.cacheLimit { cache[order.removeFirst()] = nil }
     }
 
-    /// The audio of `url` from `start` for `duration` seconds as an M4A clip.
-    /// Works for recordings and for videos' soundtracks alike.
     nonisolated static func exportClip(of url: URL, from start: TimeInterval, duration: TimeInterval,
                                        to output: URL) async throws {
         let asset = AVURLAsset(url: url)

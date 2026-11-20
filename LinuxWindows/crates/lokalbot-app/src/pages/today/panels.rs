@@ -1,7 +1,3 @@
-//! Today's day panels: Needs attention (`NeedsAttentionSection`), Meetings
-//! today (`TodayMeetingsSection.swift`) and So far today
-//! (`TodaySoFarSection.swift`).
-
 use std::collections::HashMap;
 
 use gpui_kit::component::{Sizable as _, v_flex};
@@ -20,21 +16,13 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::section_panel::{SectionPanel, footer_text, panel_label, panel_link};
 use crate::ui::{self, action_row};
 
-/// The time column of Meetings today, at the standard text size.
 const TIME_COLUMN_WIDTH: f32 = 76.;
-/// So far today's name and duration columns, which grow with the text size
-/// like the time column. 100 pt fits "Google Chrome".
 const APP_NAME_WIDTH: f32 = 108.;
 const APP_DURATION_WIDTH: f32 = 56.;
-/// "2h 25m" over the bars (22 pt on macOS).
 const TRACKED_TOTAL: gpui_kit::Pixels = px(24.);
-/// "Now · 10:48 AM" (11 pt bold on macOS).
 const NOW_LINE: gpui_kit::Pixels = px(12.);
 
 impl TodayPage {
-    /// The most urgent of the user's open actions, overdue first, with how
-    /// many are overdue and how many more wait in Actions. Nothing to act on
-    /// means no panel at all.
     pub(super) fn render_attention(
         &self,
         model: &TodayModel,
@@ -95,9 +83,6 @@ impl TodayPage {
         )
     }
 
-    /// The day's meetings as one panel: what was recorded, with a line saying
-    /// what it was about, and what the calendar still holds, with a line at
-    /// now. Work sessions and apps are on Timeline.
     pub(super) fn render_meetings(
         &self,
         rows: Vec<AgendaRow>,
@@ -122,8 +107,6 @@ impl TodayPage {
                     }
                 }
                 AgendaRow::Now(at) => {
-                    // The rule above the words; above the first meeting it
-                    // takes the place of the header's hairline.
                     list = list.child(
                         v_flex()
                             .w_full()
@@ -168,9 +151,6 @@ impl TodayPage {
                         "today-connect-calendar",
                         lokalbot_i18n::tr("Connect Calendar…"),
                         move |_, cx| {
-                            // Calendar use and its sources are set up in
-                            // Settings: the switch while it is off, else the
-                            // calendar links it reads.
                             let focus = if calendar_enabled {
                                 "settings.calendarLinks"
                             } else {
@@ -188,8 +168,6 @@ impl TodayPage {
             .into_any_element()
     }
 
-    /// One meeting: its time, title and where it stands, with the recap line
-    /// under a recorded one. A recording opens; a calendar event does not.
     fn meeting_row(
         &self,
         index: usize,
@@ -304,10 +282,6 @@ impl TodayPage {
         }
     }
 
-    /// The day up to now: the tracked total, a bar per app, the digest's
-    /// highlights, and a footer saying where the digest stands, with Update
-    /// when there is newer activity. Sessions, tasks and the full digest are
-    /// on Timeline.
     pub(super) fn render_so_far(
         &self,
         model: &TodayModel,
@@ -385,8 +359,6 @@ impl TodayPage {
                                 .child(ui::status_dot(color, px(7.)))
                                 .child(div().min_w_0().truncate().text_color(lb.text).child(label)),
                         )
-                        // The name and the time say everything; the bar only
-                        // shows it, growing from the leading edge.
                         .child(
                             h_flex()
                                 .flex_1()
@@ -455,7 +427,6 @@ impl TodayPage {
         panel.into_any_element()
     }
 
-    /// Where the digest stands, in So far today's footer.
     fn digest_line(
         &self,
         panel: SectionPanel,

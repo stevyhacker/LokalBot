@@ -3,9 +3,6 @@ import XCTest
 
 @MainActor
 final class LocalLlamaCotypingEngineTests: XCTestCase {
-    /// The compact fallback model from the local cache or
-    /// `LOKALBOT_COTYPING_TEST_MODEL`, never the checkout (see
-    /// `LlamaCotypingRuntimeTests`).
     private func bundledModelPath() throws -> String {
         let entry = ModelCatalog.entry(id: ModelCatalog.compactFallbackID)!
         guard let url = ModelCatalog.localURL(for: entry, storage: StorageManager()) else {
@@ -44,10 +41,6 @@ final class LocalLlamaCotypingEngineTests: XCTestCase {
         XCTAssertGreaterThan(partials.value, 0)
     }
 
-    /// `unload()` is callable on the engine seam and is a safe no-op when nothing
-    /// is loaded (mirrors LlamaCotypingRuntimeTests.testMemoryPressureUnloadsWhenNotLoaded).
-    /// No GGUF needed: the runtime is never loaded, so unload just confirms the
-    /// route-away teardown path the selector uses can't crash on an idle engine.
     func testUnloadIsCallableAndLeavesUnloadedRuntimeUnloaded() async {
         let runtime = LlamaCotypingRuntime()
         let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: "/nonexistent.gguf")

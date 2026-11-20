@@ -1,31 +1,16 @@
 import Foundation
 
-/// Chat-shaped requests answered by the Think model chosen in Settings →
-/// Models. Live Radar and Follow-through are written against chat messages:
-/// a structured reply per radar pass, and one tool call per live-answer or
-/// Follow-through turn. The Think engines take a
-/// system prompt, a prompt and context, and return text. This turns one into
-/// the other the way Ask's tool loop does: the tools are described in the
-/// system prompt, each turn is asked for as one JSON object (held to a schema
-/// where the backend can hold it), and earlier calls travel as context with
-/// what they returned.
 enum ThinkChat {
-    /// A reply held to `schema`. The system message is the system prompt and
-    /// the user message the prompt. Token use isn't reported by the engines.
     static func structuredReply(from engine: TextEngine, messages: [[String: Any]], schema: [String: Any],
                                 options: TextGenerationOptions) async throws -> MuseChatClient.Reply {
         let request = request(messages: messages, tools: [])
         let output = try await engine.generate(system: request.system, prompt: request.prompt,
                                                context: request.context, schema: schema, options: options)
-        // A backend that can't hold a schema may wrap the object in prose or a code fence.
         let text = strippingReasoning(output)
         return MuseChatClient.Reply(content: ChatPrompt.extractJSONObject(text) ?? text, toolCalls: [],
                                     usage: .init(), finishReason: "stop")
     }
 
-    /// The next tool call of a loop. A reply that isn't a call to one of
-    /// `tools` is asked for once more; after that the text comes back with
-    /// no call, and the loop decides what that means.
     static func toolCall(from engine: TextEngine, messages: [[String: Any]], tools: [[String: Any]],
                          options: TextGenerationOptions) async throws -> MuseChatClient.Reply {
         let request = request(messages: messages, tools: tools)
@@ -49,12 +34,6 @@ enum ThinkChat {
     static let retry = "Your previous reply was not a valid tool call. Reply with exactly one JSON object of the form "
         + callFormat + " and nothing else."
 
-    // MARK: - Messages (pure)
-
-    /// What the engine is given. With tools, the task (the first user
-    /// message) and every earlier call with its result are context, in the
-    /// order they happened, and the prompt asks for the next call; a later
-    /// user message, such as a last-turn nudge, replaces that request.
     static func request(messages: [[String: Any]], tools: [[String: Any]])
         -> (system: String, prompt: String, context: [String]) {
         var system = ""
@@ -88,13 +67,10 @@ enum ThinkChat {
                 Array(users.prefix(1)) + transcript)
     }
 
-    /// Text content as is; of content in parts, the text parts.
     private static func text(of content: Any?) -> String {
         if let text = content as? String { return text }
         return (content as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }.joined(separator: "\n")
     }
-
-    // MARK: - Tools (pure)
 
     private static func functions(_ tools: [[String: Any]])
         -> [(name: String, description: String, parameters: [String: Any])] {
@@ -104,7 +80,6 @@ enum ThinkChat {
         }
     }
 
-    /// The tools, for a model that has no tool channel of its own.
     static func toolInstructions(_ tools: [[String: Any]]) -> String {
         var lines = ["TOOLS", "Reply with exactly one JSON object and nothing else: \(callFormat). One call per reply. "
             + "Earlier calls are listed as \"Assistant:\" lines, each followed by an \"Observation:\" with what it returned."]
@@ -125,7 +100,6 @@ enum ThinkChat {
         return lines.joined(separator: "\n")
     }
 
-    /// `{"call": one of the tools}`, each with its own arguments.
     static func toolCallSchema(_ tools: [[String: Any]]) -> [String: Any] {
         let variants: [[String: Any]] = functions(tools).map { tool in
             let parameters = tool.parameters.isEmpty ? ["type": "object", "properties": [String: Any]()] : tool.parameters
@@ -147,8 +121,6 @@ enum ThinkChat {
         ]
     }
 
-    /// Strict structured output wants every object closed and every property
-    /// required, so an optional property becomes one that may be null.
     static func strict(_ schema: [String: Any]) -> [String: Any] {
         var schema = schema
         if let items = schema["items"] as? [String: Any] { schema["items"] = strict(items) }
@@ -169,9 +141,6 @@ enum ThinkChat {
         return schema
     }
 
-    /// The call in a reply, when it names one of the tools. Models without a
-    /// schema to hold them wrap the object in prose, or leave out the outer
-    /// `call`; arguments given as null are dropped.
     static func toolCall(in output: String, names: Set<String>, id: String) -> MuseChatClient.ToolCall? {
         guard let text = ChatPrompt.extractJSONObject(strippingReasoning(output)), let reply = object(from: text) else { return nil }
         let call = reply["call"] as? [String: Any] ?? reply

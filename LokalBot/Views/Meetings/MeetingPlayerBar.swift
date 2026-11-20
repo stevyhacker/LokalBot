@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// The meeting's player: one slim bar under the header on every tab. It shows
-/// who is speaking and what is being said at the playhead, so a time played
-/// from the summary can be followed without leaving the summary.
 struct MeetingPlayerBar: View {
     @ObservedObject var player: MeetingPlayer
     @ObservedObject private var clock: MeetingPlaybackClock
@@ -10,7 +7,6 @@ struct MeetingPlayerBar: View {
     let playhead: MeetingDetailPresentation.PlayheadIndex
     let speakerName: (String) -> String
     let speakerColorIndex: (String) -> Int
-    /// The transcript tab already shows the line, so the link is left out there.
     var showsTranscriptLink = true
     let onShowInTranscript: (MeetingDetailPresentation.Caption) -> Void
 
@@ -69,7 +65,6 @@ struct MeetingPlayerBar: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 9)
-        // The panels' raised surface, so the pinned bar reads as one of them.
         .todayCardSurface()
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Meeting playback")

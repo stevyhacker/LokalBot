@@ -3,9 +3,6 @@ import CryptoKit
 import Darwin
 import os
 
-/// Shared sherpa-onnx runtime installer. The app bundles the native binaries
-/// as resources, then copies them to Application Support before execution so
-/// subprocess paths are writable/stable across signed app updates.
 enum SherpaOnnxRuntime {
     static func installedRuntime(executableName: String) throws -> (binary: URL, libDir: URL) {
         guard let bundled = Bundle.main.resourceURL?
@@ -34,9 +31,6 @@ enum SherpaOnnxRuntime {
     }
 }
 
-/// A content-addressed installation keeps a running helper's dylibs stable
-/// across app updates. Validate every file on reuse; size and a success marker
-/// alone cannot detect same-size updates, corruption, or a missing dependency.
 enum NativeRuntimeInstaller {
     static func install(bundled: URL, root: URL, executables: [String]) throws -> URL {
         let fm = FileManager.default
@@ -66,8 +60,6 @@ enum NativeRuntimeInstaller {
                                  ofItemAtPath: staged.appendingPathComponent(name).path)
         }
         guard try manifest(in: staged) == expected else { throw InstallError.invalidContents }
-        // A failed copy never removes a valid installation. Prior content
-        // versions stay while another app instance may still execute from one.
         if fm.fileExists(atPath: destination.path) {
             let backup = root.appendingPathComponent(".invalid-\(UUID())")
             try fm.moveItem(at: destination, to: backup)
@@ -82,17 +74,12 @@ enum NativeRuntimeInstaller {
         return adopt(identity, in: root)
     }
 
-    /// Shared locks this process holds on the versions it installed or
-    /// reused. The kernel drops them when the process exits, crashes
-    /// included, so a version stays claimed as long as an app may run from it.
     private static let claims = OSAllocatedUnfairLock(initialState: [String: Int32]())
 
     static func claimURL(for identity: String, in root: URL) -> URL {
         root.appendingPathComponent(".claim-\(identity).lock")
     }
 
-    /// Called with the install lock held, so no other install or removal
-    /// can run between claiming the version and returning it.
     private static func adopt(_ identity: String, in root: URL) -> URL {
         let path = claimURL(for: identity, in: root).path
         claims.withLock { held in
@@ -106,12 +93,6 @@ enum NativeRuntimeInstaller {
         return root.appendingPathComponent(identity, isDirectory: true)
     }
 
-    /// Each signed build re-signs the bundled binaries with a fresh timestamp,
-    /// so every update used to leave its previous version (about 50 MB) behind
-    /// for good (#406). A version stays while any LokalBot holds its claim or
-    /// any process executes from it. Everything else in `root` goes, including
-    /// the flat layout older releases installed and interrupted installs.
-    /// Best effort: a failure here never fails the install.
     private static func removeUnusedVersions(in root: URL, keeping identity: String) {
         let fm = FileManager.default
         let kept: Set<String> = [identity, claimURL(for: identity, in: root).lastPathComponent, ".install.lock"]
@@ -131,8 +112,6 @@ enum NativeRuntimeInstaller {
             try? fm.removeItem(at: root.appendingPathComponent(version, isDirectory: true))
             try? fm.removeItem(atPath: claim)
         }
-        // A claim's lock lives on its file, so one is only ever deleted with its
-        // version, under the exclusive lock taken above.
         let isClaim = { (name: String) in name.hasPrefix(".claim-") && name.hasSuffix(".lock") }
         guard !running.contains(where: { ($0 as NSString).deletingLastPathComponent == canonicalRoot }) else { return }
         for entry in entries where !versions.contains(entry) && !isClaim(entry) {
@@ -144,8 +123,6 @@ enum NativeRuntimeInstaller {
         name.count == 64 && name.allSatisfy { ("0"..."9").contains($0) || ("a"..."f").contains($0) }
     }
 
-    /// Executable paths of every process this user can inspect; nil when the
-    /// list cannot be read, which must not pass for "nothing is running".
     private static func runningExecutablePaths() -> [String]? {
         let capacity = proc_listallpids(nil, 0)
         guard capacity > 0 else { return nil }
@@ -208,8 +185,6 @@ enum NativeRuntimeInstaller {
 
 enum ArchiveExtractor {
     static func extractBzip2Tar(_ archive: URL, into dir: URL) throws {
-        // Validate paths and entry types before extraction. Model archives must
-        // contain ordinary files/directories, never links or special files.
         let names = try listing(archive, verbose: false)
         let types = try listing(archive, verbose: true)
         guard !names.isEmpty,

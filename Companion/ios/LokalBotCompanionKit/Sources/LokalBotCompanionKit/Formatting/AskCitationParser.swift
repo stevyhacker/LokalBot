@@ -1,17 +1,11 @@
 import Foundation
 
-/// `[n]` markers in an Ask answer refer to `AskResult.citations[].index`.
-/// They become links the answer view styles as teal source badges, the way the
-/// Mac's editorial transcript does.
 public enum AskCitationParser {
     public static let scheme = "lokalbot-citation"
 
-    /// `[3]` or `[1, 2]`, not the label of a Markdown link `[text](url)`.
     private static let marker = try! NSRegularExpression(pattern: #"\[(\d{1,3}(?:\s*,\s*\d{1,3})*)\](?!\()"#)
-    /// An unfinished marker at the end of streamed text: `[`, `[1`, `[1, `.
     private static let partialTail = try! NSRegularExpression(pattern: #"\[[\d,\s]*$"#)
 
-    /// Citation numbers in the order they first appear.
     public static func markers(in answer: String) -> [Int] {
         var seen: [Int] = []
         for numbers in matches(in: answer).flatMap(\.numbers) where !seen.contains(numbers) {
@@ -20,9 +14,6 @@ public enum AskCitationParser {
         return seen
     }
 
-    /// The answer as Markdown in which each known `[n]` links to
-    /// `lokalbot-citation://source/n`. Unknown numbers stay plain text. While
-    /// streaming, a marker cut off at the end is held back until it completes.
     public static func linkedMarkdown(_ answer: String, valid: Set<Int>, streaming: Bool = false) -> String {
         var text = answer
         if streaming, let tail = partialTail.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
@@ -47,7 +38,6 @@ public enum AskCitationParser {
         return Int(url.lastPathComponent)
     }
 
-    /// The answer without markers, for copying and for VoiceOver.
     public static func plainText(_ answer: String) -> String {
         var result = ""
         var cursor = answer.startIndex

@@ -1,9 +1,5 @@
 import Foundation
 
-/// Runs one short-lived CLI child process for a CLI-backed subscription plan:
-/// writes stdin without SIGPIPE risk, collects stdout (or streams it line by
-/// line) and a bounded stderr tail, and terminates the child when the calling
-/// task is cancelled or the timeout passes.
 enum PlanCLIProcess {
     struct Output: Sendable {
         var status: Int32
@@ -58,8 +54,6 @@ enum PlanCLIProcess {
         process.terminationHandler = { _ in finished.leave() }
 
         let writer = stdin.fileHandleForWriting
-        // A child that exits early closes its end: the write must fail with
-        // EPIPE instead of raising SIGPIPE, which would end LokalBot.
         _ = fcntl(writer.fileDescriptor, F_SETNOSIGPIPE, 1)
         do {
             try process.run()
@@ -87,8 +81,6 @@ enum PlanCLIProcess {
         }
         if Task.isCancelled { throw CancellationError() }
         if stopper.reason == "timed out" {
-            // Short limits (sign-in/status checks) are named in seconds:
-            // whole minutes turned them into "0 minutes".
             let seconds = timeout.components.seconds
             let limit = seconds < 60 ? "\(seconds) seconds"
                 : seconds < 120 ? "1 minute" : "\(seconds / 60) minutes"
@@ -97,9 +89,6 @@ enum PlanCLIProcess {
         return Output(status: process.terminationStatus, stdout: collector.stdout, stderrTail: collector.stderrTail)
     }
 
-    /// Writes `files` (relative paths, creating intermediate subdirectories
-    /// with `0700` permissions) inside a fresh private `0700` temporary folder,
-    /// invokes `body`, and deletes the folder afterwards.
     static func withPrivateDirectory<T>(
         prefix: String,
         files: [String: Data],
@@ -126,8 +115,6 @@ enum PlanCLIProcess {
         return try await body(directory)
     }
 
-    /// Looks up `command` in the user's login shell when Finder launches the
-    /// app with a minimal PATH.
     static func locateWithLoginShell(
         command: String,
         environment: [String: String] = ProcessInfo.processInfo.environment

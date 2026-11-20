@@ -1,19 +1,9 @@
-//! Speaker labels and attribution (`AttributedTrackTranscriber`).
-//!
-//! Diarization partitions the audio before recognition: the track timeline is
-//! cut at every turn boundary, so text is never divided across speakers and
-//! overlapping voices never inherit a majority label. The microphone gives
-//! `local`, `local N`, `local unclear`; system audio gives `them`, `them N`,
-//! `them unclear`. A server that times words is the exception: its clips span turns,
-//! and [`attribute_words`] splits its text at the words where the speaker changes.
-
 use lokalbot_core::remote_transcription::TimedWord;
 use lokalbot_core::{
     AttributionMethod, AttributionSource, Segment, SpeakerAttribution, SpeakerIdentity,
     TimingPrecision,
 };
 
-/// A diarizer turn on the track timeline.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Turn {
     pub start: f64,
@@ -21,7 +11,6 @@ pub struct Turn {
     pub speaker: i32,
 }
 
-/// A stretch of the timeline with one label.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Region {
     pub start: f64,
@@ -37,8 +26,6 @@ pub fn prefix(source: AttributionSource) -> &'static str {
     }
 }
 
-/// `SpeakerAttribution.applyingMicrophoneDefault`: microphone track,
-/// diarization and legacy speech follow "My microphone is me".
 pub fn apply_microphone_default(
     attribution: SpeakerAttribution,
     microphone_is_user: bool,
@@ -61,7 +48,6 @@ pub fn apply_microphone_default(
     }
 }
 
-/// Attribution of undiarized speech on a track.
 pub fn track_attribution(
     source: AttributionSource,
     microphone_is_user: bool,
@@ -81,9 +67,6 @@ pub fn track_attribution(
     )
 }
 
-/// The timeline of a track cut at every turn boundary: one active speaker
-/// gives `prefix N` (numbered by first appearance), overlap gives
-/// `prefix unclear`, no turn keeps the track label. Equal neighbours merge.
 pub fn regions(
     duration: f64,
     turns: &[Turn],
@@ -179,9 +162,6 @@ pub fn regions(
     out
 }
 
-/// Renumbers `prefix N` labels by first appearance among the segments that
-/// carry text, so a voice that never said anything (residual bleed, a cough)
-/// does not leave the first speaker labelled `local 2`.
 pub fn renumber_speakers(segments: &mut [lokalbot_core::Segment]) {
     let mut order: Vec<String> = Vec::new();
     let mut sorted: Vec<usize> = (0..segments.len()).collect();
@@ -202,7 +182,6 @@ pub fn renumber_speakers(segments: &mut [lokalbot_core::Segment]) {
     }
 }
 
-/// The prefix of a `local N` / `them N` label.
 fn numbered(label: &str) -> Option<&'static str> {
     let (prefix, number) = label.split_once(' ')?;
     let prefix = match prefix {
@@ -213,22 +192,16 @@ fn numbered(label: &str) -> Option<&'static str> {
     number.parse::<u32>().ok().map(|_| prefix)
 }
 
-/// Words this close to a speaker turn take that speaker (`wordGapTolerance`).
-/// Diarizer turn edges and word edges disagree by a few hundred milliseconds.
 const WORD_GAP_TOLERANCE: f64 = 1.0;
-/// A pause this long between words starts a new segment (`wordPauseSplit`).
 const WORD_PAUSE_SPLIT: f64 = 0.75;
-/// No segment grows past this (`maxSegmentSeconds`).
 const MAX_SEGMENT_SECONDS: f64 = 15.0;
 
-/// One clip's text, with its words on the track's timeline.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AlignedSegment {
     pub start: f64,
     pub end: f64,
     pub text: String,
     pub precision: TimingPrecision,
-    /// Empty: the clip keeps one speaker, chosen at its midpoint.
     pub words: Vec<TimedWord>,
 }
 
@@ -247,9 +220,6 @@ struct SpeakerPiece {
     precision: TimingPrecision,
 }
 
-/// Where each word begins in `text`, matched in order on its letters and digits.
-/// `None` when a word can't be found, so the caller keeps the clip whole rather
-/// than guessing a cut (`wordStarts`).
 fn word_starts(words: &[TimedWord], text: &str) -> Option<Vec<usize>> {
     let mut cursor = 0;
     let mut starts = Vec::with_capacity(words.len());
@@ -266,12 +236,6 @@ fn word_starts(words: &[TimedWord], text: &str) -> Option<Vec<usize>> {
     Some(starts)
 }
 
-/// Splits each clip where its words change speaker, pause, or would outgrow
-/// [`MAX_SEGMENT_SECONDS`] (`AttributedTrackTranscriber.attribute`). One active turn
-/// names the speaker, overlapping turns are unclear, and words away from every turn
-/// keep the track label. Text is cut from the clip, never divided proportionally.
-/// Speaker pieces then widen to the edges of their own turns, without crossing a
-/// neighbour, so acoustic turns stay supported.
 pub fn attribute_words(
     aligned: &[AlignedSegment],
     duration: f64,
@@ -520,7 +484,6 @@ mod tests {
         assert_eq!(segments[0].speaker, "them 1");
         assert_eq!(segments[1].text, "Yes, I am.");
         assert_eq!(segments[1].speaker, "them 2");
-        // Pieces widen to the edges of their own turns.
         assert_eq!(segments[0].start, 0.0);
         assert_eq!(segments[1].end, 4.0);
         assert_eq!(segments[0].timing_precision, Some(TimingPrecision::Token));
@@ -555,7 +518,6 @@ mod tests {
         assert_eq!(segments[1].text, "two");
         let attribution = segments[0].attribution.unwrap();
         assert_eq!(attribution.identity, SpeakerIdentity::User);
-        // Widening stops at the neighbour.
         assert!(segments[0].end <= segments[1].start);
     }
 
@@ -585,7 +547,6 @@ mod tests {
         assert_eq!(segments.len(), 1);
         assert_eq!(segments[0].speaker, "them 2");
         assert_eq!(segments[0].timing_precision, Some(TimingPrecision::Span));
-        // A word the text doesn't hold: no guessing at a cut.
         let wrong = [clip(
             0.0,
             8.0,

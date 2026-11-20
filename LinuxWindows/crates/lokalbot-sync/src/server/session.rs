@@ -1,9 +1,3 @@
-//! One accepted connection: the preface, then either pairing or a session.
-//!
-//! A session has two threads. The reader turns packets into events; the
-//! worker (this connection's thread) handles events one at a time: hello,
-//! catch-up, ops, questions, recordings, live pushes, pings and revocation.
-
 use std::net::{SocketAddr, TcpStream};
 use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, RecvTimeoutError, Sender};
@@ -24,21 +18,14 @@ use crate::wire::{
     SCHEMA_VERSION, Tuning, pairing_handshake, remote_static, session_handshake,
 };
 
-/// How long the host waits for the phone to close after a final message, so
-/// closing never cuts off data the phone has not read yet.
 const LINGER: Duration = Duration::from_secs(2);
 
 pub(crate) enum Event {
     Message(Message),
-    /// The phone sent something unreadable.
     Invalid(String),
-    /// The Mac published or removed a record.
     Changed,
-    /// The Mac removed this device.
     Revoke,
-    /// The answer to this session's question is complete.
     AskFinished,
-    /// The connection closed, went quiet, or the server stopped.
     Closed,
 }
 
@@ -61,14 +48,13 @@ fn serve_pairing(
     pairing_id: &[u8],
     tuning: &Tuning,
 ) -> Result<()> {
-    // An unknown, expired or cancelled offer gets no handshake at all.
     let Some(offer) = inner.offer_for(pairing_id) else {
         return Ok(());
     };
     let mut handshake = pairing_handshake(false, &inner.private_key, &offer.secret)?;
-    conn.read_handshake(&mut handshake)?; // -> e
-    conn.write_handshake(&mut handshake)?; // <- e, ee, s, es
-    conn.read_handshake(&mut handshake)?; // -> s, se, psk (fails on a wrong secret)
+    conn.read_handshake(&mut handshake)?;
+    conn.write_handshake(&mut handshake)?;
+    conn.read_handshake(&mut handshake)?;
     let device_key = remote_static(&handshake)?;
     if !inner.consume_offer(pairing_id) {
         return Ok(());
@@ -128,8 +114,6 @@ fn pair_device(
     Ok(())
 }
 
-/// Asks the delegate on its own thread, so the connection keeps pinging
-/// while the person decides. No answer within the timeout is a refusal.
 fn await_approval(
     inner: &Arc<ServerInner>,
     channel: &Channel,
@@ -175,7 +159,7 @@ fn serve_session(
     tuning: &Tuning,
 ) -> Result<()> {
     let mut handshake = session_handshake(&inner.private_key, None)?;
-    conn.read_handshake(&mut handshake)?; // -> e, es, s, ss
+    conn.read_handshake(&mut handshake)?;
     let device_key = remote_static(&handshake)?;
     let (device, revoked) = {
         let store = inner.store.lock();
@@ -184,11 +168,9 @@ fn serve_session(
         (device, revoked)
     };
     if device.is_none() && !revoked {
-        // A key this Mac never paired learns nothing, not even that it
-        // reached LokalBot.
         return Ok(());
     }
-    conn.write_handshake(&mut handshake)?; // <- e, ee, se
+    conn.write_handshake(&mut handshake)?;
     let (channel, mut inbox) = conn.into_channel(handshake.into_transport_mode()?)?;
     let Some(device) = device else {
         let _ = channel.send(&Message::Revoked);
@@ -210,8 +192,6 @@ fn run_session(
     let device_id = device.device_id.clone();
     let (events, received) = mpsc::channel();
     let session_id = inner.register(&device_id, events.clone(), Arc::clone(&channel));
-    // `stop` closes the sessions it finds; one that finished its handshake
-    // just after must not live on.
     if !inner.running() {
         inner.unregister(session_id);
         channel.close();
@@ -286,7 +266,6 @@ fn read_loop(channel: &Channel, inbox: &mut Inbox, events: &Sender<Event>, tunin
     }
 }
 
-/// Waits briefly for the phone to close before the host does.
 fn linger_inbox(channel: &Channel, inbox: &mut Inbox, tuning: &Tuning) {
     let deadline = Instant::now() + LINGER;
     while let Ok(message) = inbox.recv(channel, tuning, Some(deadline)) {
@@ -303,12 +282,10 @@ struct Worker<'a> {
     events: Sender<Event>,
     received: Receiver<Event>,
     tuning: Tuning,
-    /// Every record with a seq up to this one has been sent.
     sent_seq: u64,
     syncing: bool,
     asked: bool,
     uploading: bool,
-    /// The recording this session is receiving.
     incoming: Option<Incoming>,
 }
 
@@ -423,7 +400,6 @@ impl Worker<'_> {
         }
     }
 
-    /// The next event, pinging while idle. `None` at the deadline.
     fn next(&self, deadline: Option<Instant>) -> Option<Event> {
         loop {
             let mut wait = self
@@ -454,12 +430,10 @@ impl Worker<'_> {
         }
     }
 
-    /// Everything after the phone's cursor, newest first, ending `done: true`.
     fn catch_up(&mut self, cursor: u64) -> Result<()> {
         let (snapshot, keys) = {
             let store = self.inner.store.lock();
             let snapshot = store.current_seq()?;
-            // A cursor beyond this database means it was recreated: send all.
             let cursor = if cursor > snapshot { 0 } else { cursor };
             (snapshot, store.changed_keys(cursor, snapshot)?)
         };
@@ -468,7 +442,6 @@ impl Worker<'_> {
         Ok(())
     }
 
-    /// Pushes records published since the last batch.
     fn flush(&mut self) -> Result<()> {
         let (latest, keys) = {
             let store = self.inner.store.lock();
@@ -483,8 +456,6 @@ impl Worker<'_> {
         Ok(())
     }
 
-    /// Sends the records' current state in batches of at most `batch_bytes`
-    /// of JSON (one larger record goes alone); the last is `done: true`.
     fn send_records(&self, keys: &[(String, String)], last_seq: u64) -> Result<()> {
         let mut batch: Vec<String> = Vec::new();
         let mut size = 0;
@@ -520,8 +491,6 @@ impl Worker<'_> {
         self.channel.send_json(json.as_bytes())
     }
 
-    /// Applies one op through the delegate, then sends the records it
-    /// republished, then the op's result.
     fn apply(&mut self, op: Value) -> Result<()> {
         let Some(op_id) = op.get("opId").and_then(Value::as_str).map(str::to_owned) else {
             log::info!("companion session: ignored an op without opId");
@@ -562,7 +531,6 @@ impl Worker<'_> {
             let _ = self.events.send(Event::AskFinished);
             return;
         }
-        // Asking again for an answer the Mac is writing or kept attaches to it.
         let answers = &self.inner.answers;
         let (answer, new) = answers.begin(
             &self.device.device_id,
@@ -583,7 +551,6 @@ impl Worker<'_> {
         sha256: &str,
         recording: Value,
     ) -> Result<()> {
-        // Starting another recording lets go of the last one, kept for later.
         self.incoming = None;
         let begun = uploads::begin(
             self.inner,
@@ -626,10 +593,6 @@ impl Worker<'_> {
         }
     }
 
-    /// Checks the recording and hands it to the Mac on its own thread, so
-    /// the connection keeps pinging meanwhile. A phone that disconnects
-    /// doesn't stop it; it hears the outcome when it sends the recording
-    /// again.
     fn upload_finish(&mut self, upload_id: &str) -> Result<()> {
         let Some(incoming) = self.incoming.take().filter(|i| i.matches(upload_id)) else {
             return self.send_upload_done(upload_id, UploadOutcome::deferred(uploads::NOT_BEGUN));

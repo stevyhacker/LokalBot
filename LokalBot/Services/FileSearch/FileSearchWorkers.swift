@@ -2,8 +2,6 @@ import CoreServices
 import DigUpKit
 import Foundation
 
-/// Asked by DigUp's indexer before each job; set from the main actor to end a
-/// pass at the next job boundary (a recording started, Files was turned off).
 final class FileIndexStopFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var stopped = false
@@ -13,9 +11,6 @@ final class FileIndexStopFlag: @unchecked Sendable {
     func clear() { lock.withLock { stopped = false } }
 }
 
-/// Owns the index while it is written: one serial queue, one connection
-/// (DigUp's `Database` is single-threaded). Indexing runs here, off the main
-/// thread, with a pool drained per call like DigUp's helper process.
 final class FileIndexWorker: @unchecked Sendable {
     private let queue = DispatchQueue(label: "me.dotenv.LokalBot.file-index", qos: .utility)
     let folder: URL
@@ -38,7 +33,6 @@ final class FileIndexWorker: @unchecked Sendable {
         }
     }
 
-    /// Closes the connection and removes the index folder.
     func deleteIndex() async {
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
             queue.async { [self] in
@@ -57,10 +51,6 @@ final class FileIndexWorker: @unchecked Sendable {
     }
 }
 
-/// Owns the searcher: its own connection on its own serial queue, so a search
-/// never waits for indexing (SQLite's WAL lets it read while the index is
-/// written). Vectors load on the first search by meaning and are released
-/// after a while without one.
 final class FileSearchReader: @unchecked Sendable {
     private let queue = DispatchQueue(label: "me.dotenv.LokalBot.file-search", qos: .userInitiated)
     private let folder: URL
@@ -81,8 +71,6 @@ final class FileSearchReader: @unchecked Sendable {
         } ?? []
     }
 
-    /// The stored text of one passage (a PDF page, a document chunk, a
-    /// screenshot's text); nil for a picture or a video frame.
     func passage(segment: Int64) async -> String? {
         await onQueue { [self] in try? openSearcher()?.text(ofSegment: segment) } ?? nil
     }
@@ -108,12 +96,10 @@ final class FileSearchReader: @unchecked Sendable {
         } ?? nil
     }
 
-    /// New files were indexed: the next search reads them.
     func markStale() {
         queue.async { [self] in stale = true }
     }
 
-    /// Frees the vectors (about 1.5 KB each) when nothing searched for a while.
     func releaseIfIdle(after seconds: TimeInterval) {
         queue.async { [self] in
             guard let searcher, searcher.vectorsLoaded,
@@ -158,9 +144,6 @@ final class FileSearchReader: @unchecked Sendable {
     }
 }
 
-/// FSEvents on the chosen folders. A batch that can't alter what a sync finds
-/// (`FileChangeFilter`) goes no further; from the others, the first change that
-/// can is reported and the service decides whether a pass is due.
 final class FileFolderWatcher {
     private var stream: FSEventStreamRef?
     private let queue = DispatchQueue(label: "me.dotenv.LokalBot.file-watch", qos: .utility)

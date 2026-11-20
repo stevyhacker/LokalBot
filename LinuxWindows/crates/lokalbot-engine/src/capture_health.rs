@@ -1,7 +1,3 @@
-//! Live capture warnings and `recording-health.json`
-//! (`RecordingController.updateCaptureWarnings`). The meeting view shows every
-//! warning as it happens; the saved report is what its page warns from later.
-
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -47,7 +43,6 @@ impl CaptureMonitor {
         }
     }
 
-    /// At most once a second: what to show and notify, when that changed.
     pub fn tick(&mut self, recorder: &Recorder) -> Option<(Vec<String>, Vec<String>)> {
         let now = Instant::now();
         if self
@@ -68,7 +63,6 @@ impl CaptureMonitor {
             elapsed,
         });
         if !health.mic_attached {
-            // The recording went on from system audio alone.
             messages.retain(|m| !m.starts_with("Microphone audio is not arriving"));
         }
         if elapsed >= 5.0 && !messages.is_empty() {
@@ -117,9 +111,6 @@ impl CaptureMonitor {
         Some((messages, notify))
     }
 
-    /// Saves the report when it changed, and otherwise every `REPORT_INTERVAL`
-    /// since the last save. False when a due save failed; the next check
-    /// tries again.
     fn save_when_due(&mut self, changed: bool, now: Instant) -> bool {
         let due = changed
             || self
@@ -146,7 +137,6 @@ impl CaptureMonitor {
         }
     }
 
-    /// The final report, read for the warning on the meeting's page.
     pub fn finish(&mut self, write_failed: bool) {
         if write_failed {
             self.report.had_write_failure = Some(true);
@@ -172,8 +162,6 @@ mod tests {
         assert!(file.exists());
         std::fs::remove_file(&file).unwrap();
 
-        // Checks run once a second. They used to move the last-saved time
-        // forward each time, so the interval never passed.
         for second in 1..REPORT_INTERVAL.as_secs() {
             assert!(monitor.save_when_due(false, start + Duration::from_secs(second)));
             assert!(!file.exists(), "saved early, after {second} s");

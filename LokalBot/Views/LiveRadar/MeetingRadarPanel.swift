@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Live Radar in the live meeting view: the main area, beside the transcript
-/// and notes. Nothing is sent until the person presses Start Radar for this
-/// meeting; once it runs, the floating panel shows the same items over the
-/// meeting app.
 struct MeetingRadarPanel: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var radar: MeetingRadar
@@ -88,7 +84,6 @@ struct MeetingRadarPanel: View {
         }
     }
 
-    /// Before the radar starts, or while it waits for its first item.
     private var emptyState: some View {
         VStack(spacing: 14) {
             Image(systemName: "dot.radiowaves.left.and.right")
@@ -134,13 +129,11 @@ struct MeetingRadarPanel: View {
         return sent + Text(verbatim: " ") + audio
     }
 
-    /// The model reading this meeting, or the Think model that would.
     private var modelName: String {
         isThisMeeting && !radar.model.isEmpty
             ? MetaModelAPI.displayName(for: radar.model) : app.settings.thinkModelDisplayName
     }
 
-    /// The Think model reports no cost, so the cost shows only when there is one.
     private var passSummary: Text {
         let passes = radar.totals.passes
         let last = radar.totals.lastPassSeconds.map { String(format: "%.1f", $0) }
@@ -157,8 +150,6 @@ struct MeetingRadarPanel: View {
 }
 
 extension RadarItem.Kind {
-    /// One color per kind across the board, the floating panel, and the
-    /// meeting page.
     var tint: Color {
         switch self {
         case .contradiction: LBTokens.Palette.attention
@@ -178,7 +169,6 @@ extension RadarItem.Kind {
     }
 }
 
-/// How many of each kind the radar holds, as icons with numbers.
 struct RadarCounts: View {
     let items: [RadarItem]
 
@@ -198,21 +188,14 @@ struct RadarCounts: View {
     }
 }
 
-/// Radar items as cards: contradictions and questions answered from the
-/// screen first and full width, then commitments, decisions, and questions
-/// in a grid, newest first. Used live and on the finished meeting.
 struct RadarItemList: View {
     @EnvironmentObject var app: AppState
     let items: [RadarItem]
     var emptyMessage: LocalizedStringKey = "Nothing caught."
-    /// Offered on the person's own commitments once the meeting has ended.
     var followThrough: ((RadarItem) -> Void)?
     var openSource: ((RadarItem) -> Void)?
-    /// The meeting folder, where screen-answer crops are saved.
     var folder: URL?
-    /// Live answers' current step per question, while it looks.
     var steps: [String: String] = [:]
-    /// False inside a page that already scrolls.
     var scrolls = true
 
     static let order: [RadarItem.Kind] = [.contradiction, .commitment, .decision, .question]
@@ -280,20 +263,13 @@ struct RadarItemList: View {
     }
 }
 
-/// One radar item: its kind and time, the text, owner and deadline, the
-/// line it quotes, and what it conflicts with or how the screen answered it.
 struct RadarCard: View {
     @EnvironmentObject var app: AppState
     let item: RadarItem
     var folder: URL?
-    /// Larger text, for what needs attention and the panel's spotlight.
     var prominent = false
-    /// Prefix of the accessibility identifiers, so the floating panel's
-    /// copies don't collide with the main window's.
     var idPrefix = "radar"
-    /// False where a popover can't open, as in the floating panel.
     var allowsEnlarge = true
-    /// What live answers is doing for this question right now.
     var step: String?
     var openSource: ((RadarItem) -> Void)?
     var followThrough: ((RadarItem) -> Void)?
@@ -345,7 +321,6 @@ struct RadarCard: View {
                 .accessibilityIdentifier("radar.answerStep")
             }
             if let answer = item.screenAnswer {
-                // The panel is narrow; the board has room for a readable crop.
                 RadarScreenAnswerView(answer: answer, folder: folder, allowsEnlarge: allowsEnlarge,
                                       imageHeight: prominent && allowsEnlarge ? 220 : 120)
             }
@@ -402,9 +377,6 @@ struct RadarCard: View {
     }
 }
 
-/// The answer to a meeting question, with the line it quotes and the crop
-/// of the earlier screen capture it came from. Clicking the crop shows it
-/// full size, with a way into screen memory.
 struct RadarScreenAnswerView: View {
     @EnvironmentObject var app: AppState
     let answer: RadarScreenAnswer
@@ -480,9 +452,6 @@ struct RadarScreenAnswerView: View {
     }
 }
 
-/// A live answer: the answer to say, the sources it rests on with the words
-/// that support it, and where it looked. Clicking a source opens it: the
-/// meeting at that moment, or the file, commit, or pull request.
 struct RadarLiveAnswerView: View {
     @EnvironmentObject var app: AppState
     let answer: RadarAnswer

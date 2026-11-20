@@ -1,14 +1,9 @@
 import SwiftUI
 
-/// Timeline's main area when something other than the day is chosen in the
-/// rail: a work session, a meeting's short preview, all captured activity, or
-/// one activity block or screen moment opened from those. Each is a title
-/// panel, then one panel per section it has; "Day digest" above goes back.
 struct TimelineContextPanel: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
     let list: TimelineDayList
-    /// Returns to the day's page.
     let onShowDigest: () -> Void
     @State private var expandedTitles: Set<String> = []
     @State private var showsAllMoments = false
@@ -18,9 +13,6 @@ struct TimelineContextPanel: View {
         VStack(spacing: 0) {
             selectedContent
         }
-        // No identifier here: this wrapper and the pane around it reach
-        // assistive tools as one element, which keeps the pane's. Each page's
-        // title carries the page's identifier instead.
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .onChange(of: model.selectedSessionID) {
             showsAllMoments = false
@@ -84,7 +76,6 @@ struct TimelineContextPanel: View {
         return meeting
     }
 
-    /// A selection that is still loading, or one the day no longer has.
     private var nothingSelected: some View {
         TimelinePage(onShowDigest: onShowDigest) {
             SectionPanelLead {
@@ -99,10 +90,6 @@ struct TimelineContextPanel: View {
         }
     }
 
-    // MARK: - All captured activity
-
-    /// One panel that fills the main area: its title and the way to delete
-    /// screen moments on top, the hour track scrolling under them.
     private var rawCapturePage: some View {
         VStack(alignment: .leading, spacing: TimelinePageMetric.panelGap) {
             TimelineDigestLink(action: onShowDigest)
@@ -118,9 +105,6 @@ struct TimelineContextPanel: View {
                             Image(systemName: "waveform.path.ecg.rectangle")
                         }
                         if !model.rewindFrames.isEmpty {
-                            // A toggle, so it keeps its name while the range controls
-                            // are open and reads as on; a second "Cancel" beside the
-                            // review sheet's own would say nothing about what it cancels.
                             Toggle("Delete screen moments…", isOn: $deletingRange)
                                 .toggleStyle(.button)
                                 .accessibilityIdentifier("timeline.deleteRange.toggle")
@@ -147,8 +131,6 @@ struct TimelineContextPanel: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 
-    // MARK: - A work session
-
     private func sessionPage(_ session: TimelineWorkSession) -> some View {
         let language = app.settings.appLanguage
         let text = TimelineDayList.workText(for: session, localize: language.catalog)
@@ -156,7 +138,6 @@ struct TimelineContextPanel: View {
         let representative = model.representativeFrames(in: session)
         let momentCount = model.shots.filter { $0.ts >= session.start && $0.ts <= session.end }.count
         let tasks = TimelineAgentTask.tasks(from: session.agentBursts)
-        // The dot the session has in the list and the day strip.
         let colorKey: String? = row.map(\.colorKey) ?? (session.project ?? session.primaryApp)
         return TimelinePage(onShowDigest: onShowDigest) {
             SectionPanelLead {
@@ -236,8 +217,6 @@ struct TimelineContextPanel: View {
         }
     }
 
-    /// A window or document the session had open, with its time. Opening the
-    /// row lists the activity behind the title, which stays inspectable.
     private func titleRow(_ evidence: TimelineWorkSession.TitleEvidence) -> some View {
         let isExpanded = Binding(
             get: { expandedTitles.contains(evidence.id) },
@@ -312,8 +291,6 @@ struct TimelineContextPanel: View {
         .buttonStyle(.plain)
         .accessibilityIdentifier("timeline.sessionMoment.\(screenshot.id)")
     }
-
-    // MARK: - One activity block
 
     private func activityPreview(_ block: ActivityBlock) -> some View {
         let scoped = model.shots
@@ -416,7 +393,6 @@ struct TimelineContextPanel: View {
         .accessibilityIdentifier("timeline.activityMoment.\(screenshot.id)")
     }
 
-    /// "Day digest" above the page clears the selection.
     private func multiSelection(_ count: Int) -> some View {
         TimelinePage(onShowDigest: onShowDigest) {
             SectionPanelLead {
@@ -434,8 +410,6 @@ struct TimelineContextPanel: View {
     }
 }
 
-/// A session's line under its title: "Atlas · 9:10 – 10:15 AM · 1h 5m
-/// active · Xcode, Terminal, Safari".
 enum TimelineSessionWording {
     static func subtitle(for session: TimelineWorkSession, localize: (String) -> String = { $0 }) -> String {
         var parts: [String] = []
@@ -450,10 +424,6 @@ enum TimelineSessionWording {
     }
 }
 
-// MARK: - Page pieces
-
-/// The column every page in Timeline's main area shares: panels that fill
-/// the width inside their gutters, up to the widest line.
 struct TimelinePageColumn<Content: View>: View {
     @ViewBuilder var content: Content
 
@@ -469,10 +439,7 @@ struct TimelinePageColumn<Content: View>: View {
     }
 }
 
-/// A scrolling page of panels for something chosen in the rail.
 struct TimelinePage<Content: View>: View {
-    /// Shows "Day digest" above the page. Nil for a page opened inside
-    /// another, which has its own way back.
     var onShowDigest: (() -> Void)?
     @ViewBuilder var content: Content
 
@@ -488,8 +455,6 @@ struct TimelinePage<Content: View>: View {
     }
 }
 
-/// "‹ Day digest": the way from a session, a meeting or all captured activity
-/// back to the day's page. Choosing the selected row again does the same.
 struct TimelineDigestLink: View {
     let action: () -> Void
 
@@ -499,21 +464,16 @@ struct TimelineDigestLink: View {
                 .font(AppFont.scaled(.body))
         }
         .buttonStyle(.workspaceLink)
-        // Sits a little nearer the panel it leads to than panels sit to each other.
         .padding(.top, -4)
         .padding(.bottom, -6)
         .accessibilityIdentifier("timeline.backToDigest")
     }
 }
 
-/// A page's heading: its mark (a colour dot or an icon), the title, and one
-/// quiet line under it.
 struct TimelinePageHeader<Mark: View>: View {
     let title: Text
     let subtitle: String
     var subtitleText: Text?
-    /// Names the page for UI tests. It goes on the title alone: on the whole
-    /// header it would be copied onto every text inside.
     var identifier = ""
     @ViewBuilder let mark: Mark
 
@@ -524,8 +484,6 @@ struct TimelinePageHeader<Mark: View>: View {
                 .foregroundStyle(LBTokens.Palette.accentText)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 2) {
-                // A heading stays plain text: selectable text with the
-                // header trait reaches assistive tools without its words.
                 title
                     .font(AppFont.scaledSystem(size: 20, weight: .bold))
                     .lineLimit(3)
@@ -542,11 +500,7 @@ struct TimelinePageHeader<Mark: View>: View {
     }
 }
 
-/// The way back from a page opened inside another: an activity block to its
-/// session, a moment to its activity.
 private struct TimelineBackLink: View {
-    /// "Back to work session": the full phrase is the tooltip and the
-    /// VoiceOver label, and the destination alone is the visible text.
     let label: String
     let action: () -> Void
 
@@ -566,16 +520,11 @@ private struct TimelineBackLink: View {
     }
 }
 
-// MARK: - A meeting
-
-/// A meeting on Timeline is a short preview: the recap, the user's actions,
-/// the decisions, and the way to the meeting itself.
 private struct TimelineMeetingPreview: View {
     @EnvironmentObject private var app: AppState
     let meeting: Meeting
     let onShowDigest: () -> Void
 
-    /// The preview stays short; the meeting has the rest.
     private static let rowLimit = 6
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
@@ -587,7 +536,6 @@ private struct TimelineMeetingPreview: View {
     }
 
     var body: some View {
-        // One read per render: the recap and the empty state both need it.
         let summary = savedSummary
         let end = CaptureTrackItem.meetingEnd(meeting, now: Date())
         let actions = app.outcomeIndex.userActionThreads.filter { thread in
@@ -606,8 +554,6 @@ private struct TimelineMeetingPreview: View {
                 title: meeting.displayTitle,
                 facts: facts.filter { !$0.isEmpty }.joined(separator: " · "),
                 isLive: meeting.endedAt == nil,
-                // The recap only: decisions and actions follow as their own
-                // panels, so the full summary would repeat them.
                 recap: summary.flatMap(SummaryPresentation.recap),
                 hasNoOutcomes: hasNoOutcomes)
 
@@ -649,15 +595,11 @@ private struct TimelineMeetingPreview: View {
     }
 }
 
-/// The meeting's title panel: its name, when it ran and where, and the recap
-/// under a hairline.
 struct TimelineMeetingLead: View {
     let title: String
-    /// "11:00 – 11:25 AM · 25m · Zoom".
     let facts: String
     let isLive: Bool
     let recap: String?
-    /// The meeting ended and nothing was extracted from it yet.
     let hasNoOutcomes: Bool
 
     var body: some View {
@@ -690,10 +632,8 @@ struct TimelineMeetingLead: View {
     }
 }
 
-/// Decisions as a panel: one per row under a check.
 struct TimelineDecisionsPanel: View {
     let decisions: [String]
-    /// The meeting's decisions in all; the preview lists the first few.
     let count: Int
     let identifier: String
 
@@ -725,18 +665,9 @@ struct TimelineDecisionsPanel: View {
     }
 }
 
-// MARK: - Coding agent
-
-/// What the agents did in a work session, one task after another: the
-/// request that started it and the pull requests and commits it recorded,
-/// with when it ran in the panel's footer. Recorded actions come from the
-/// commands the agent ran; its own report is left out because it is only a
-/// claim.
 struct TimelineAgentPanel: View {
     let tasks: [TimelineAgentTask]
-    /// One task named like its session needs no second title.
     let sessionTitle: String
-    /// Looks a catalog key up in the interface language.
     let localize: (String) -> String
 
     var body: some View {
@@ -755,7 +686,6 @@ struct TimelineAgentPanel: View {
                     TimelineAgentTaskBlock(
                         task: task,
                         showsTitle: tasks.count > 1 || task.title != sessionTitle,
-                        // The last task's line is the panel's footer.
                         metadata: isLast ? nil : TimelineAgentTaskWording.metadata(task, localize: localize))
                     if !isLast { Divider() }
                 }
@@ -772,8 +702,6 @@ struct TimelineAgentPanel: View {
 }
 
 enum TimelineAgentTaskWording {
-    /// "Claude Code · Asked at 9:12 AM · worked until 9:58 AM", or the time
-    /// range alone when the request was not kept.
     static func metadata(_ task: TimelineAgentTask, localize: (String) -> String = { $0 }) -> String {
         var parts: [String] = [task.agent.displayName]
         if task.request != nil {
@@ -788,12 +716,9 @@ enum TimelineAgentTaskWording {
     }
 }
 
-/// One agent task: its title or request, then a row for each thing it
-/// recorded.
 private struct TimelineAgentTaskBlock: View {
     let task: TimelineAgentTask
     let showsTitle: Bool
-    /// When the task ran, for every task but the panel's last.
     let metadata: String?
 
     private struct PullRequestLink: Hashable {
@@ -866,7 +791,6 @@ private struct TimelineAgentTaskBlock: View {
         .accessibilityIdentifier("timeline.agentTask.\(task.id)")
     }
 
-    /// Opened pull requests, merged ones, then the commits.
     private var outcomes: [Outcome] {
         let recorded = TimelineAgentOutcomes(task.bursts)
         var rows: [(String, Text)] = recorded.openedPullRequests.map {
@@ -884,8 +808,6 @@ private struct TimelineAgentTaskBlock: View {
         return rows.enumerated().map { Outcome(id: $0.offset, symbol: $0.element.0, text: $0.element.1) }
     }
 
-    /// The pull requests the agent session linked, at most three, as
-    /// "repository #number".
     private var links: [PullRequestLink] {
         var result: [PullRequestLink] = []
         for raw in task.pullRequests {

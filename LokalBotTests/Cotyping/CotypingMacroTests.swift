@@ -2,11 +2,7 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Inline macros
-
 final class CotypingMacroTests: XCTestCase {
-    /// Deterministic engine: fixed clock (2026-06-23 14:30 UTC, a Tuesday), UTC
-    /// calendar, en_US locale, and an injected RNG/UUID.
     private func fixedEngine(random: @escaping (ClosedRange<Int>) -> Int = { $0.lowerBound }) -> CotypingMacro.Engine {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
@@ -22,7 +18,6 @@ final class CotypingMacroTests: XCTestCase {
         return engine
     }
 
-    // Arithmetic
     func testArithmeticPreviewAndInsertion() {
         let result = fixedEngine().evaluate("5+5")
         XCTAssertEqual(result?.preview, "= 10")
@@ -48,7 +43,6 @@ final class CotypingMacroTests: XCTestCase {
         XCTAssertNil(fixedEngine().evaluate("notamacro"))
     }
 
-    // Date / time
     func testDateToday() {
         XCTAssertEqual(fixedEngine().evaluate("today(iso)")?.insertion, "2026-06-23")
         XCTAssertEqual(fixedEngine().evaluate("tdy(iso)")?.insertion, "2026-06-23")
@@ -71,7 +65,6 @@ final class CotypingMacroTests: XCTestCase {
         XCTAssertEqual(fixedEngine().evaluate("now(24h)")?.insertion, "14:30")
     }
 
-    // Random (RNG returns the low bound by default)
     func testRandomFamilies() {
         XCTAssertEqual(fixedEngine().evaluate("dice")?.insertion, "1")
         XCTAssertEqual(fixedEngine().evaluate("d20")?.insertion, "1")
@@ -83,7 +76,6 @@ final class CotypingMacroTests: XCTestCase {
         XCTAssertEqual(fixedEngine(random: { $0.upperBound }).evaluate("d20")?.insertion, "20")
     }
 
-    // Unit conversion
     func testUnitConversions() {
         XCTAssertEqual(fixedEngine().evaluate("10km->mi")?.insertion, "6.214 mi")
         XCTAssertEqual(fixedEngine().evaluate("1000m->km")?.insertion, "1 km")
@@ -93,7 +85,6 @@ final class CotypingMacroTests: XCTestCase {
         XCTAssertNil(fixedEngine().evaluate("10km->kg"))
     }
 
-    // Currency (bundled offline rates: USD=1.0, EUR=0.92)
     func testCurrencyConversion() {
         XCTAssertTrue(fixedEngine().evaluate("100usd to eur")?.insertion.contains("92") ?? false)
         XCTAssertTrue(fixedEngine().evaluate("$100 to eur")?.insertion.contains("92") ?? false)
@@ -102,7 +93,6 @@ final class CotypingMacroTests: XCTestCase {
         XCTAssertNil(fixedEngine().evaluate("100 kr to usd"))
     }
 
-    // Trigger scan (boundary + internal slash + evaluate-gating)
     func testTrailingQueryScan() {
         XCTAssertEqual(CotypingMacro.trailingQuery(in: "go /today"), "today")
         XCTAssertEqual(CotypingMacro.trailingQuery(in: "/5+5"), "5+5")

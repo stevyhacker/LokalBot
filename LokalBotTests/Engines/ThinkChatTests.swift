@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The bridge from chat messages and function tools to the Think engines,
-/// which take a system prompt, a prompt and context and return text.
 final class ThinkChatTests: XCTestCase {
     private let tools: [[String: Any]] = [
         LiveAnswerTools.function(
@@ -24,8 +22,6 @@ final class ThinkChatTests: XCTestCase {
     private func object(_ text: String) throws -> [String: Any] {
         try XCTUnwrap(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [String: Any])
     }
-
-    // MARK: - Messages
 
     func testAStructuredRequestKeepsItsSystemAndPrompt() {
         let request = ThinkChat.request(
@@ -63,14 +59,11 @@ final class ThinkChatTests: XCTestCase {
         XCTAssertEqual((inner["arguments"] as? [String: Any])?["query"] as? String, "panel")
         XCTAssertEqual(request.context[2], "Observation: [R1] Widget\nPanel.swift:2: let hidden = true")
 
-        // A later user message, such as the last turn's nudge, is what is asked.
         messages.append(["role": "user", "content": "Answer now with what you have read, or call no_answer."])
         request = ThinkChat.request(messages: messages, tools: tools)
         XCTAssertEqual(request.prompt, "Answer now with what you have read, or call no_answer.")
         XCTAssertEqual(request.context.count, 3)
     }
-
-    // MARK: - Schema
 
     func testTheSchemaOffersOneCallPerToolAndClosesEveryObject() throws {
         let schema = ThinkChat.toolCallSchema(tools)
@@ -107,8 +100,6 @@ final class ThinkChatTests: XCTestCase {
         XCTAssertTrue(values.last is NSNull)
     }
 
-    // MARK: - Reading a call
-
     func testACallIsReadFromProseAFenceOrABareObject() throws {
         let names: Set<String> = ["search_code", "answer"]
         let wrapped = "Let me look.\n```json\n{\"call\": {\"tool\": \"search_code\", \"arguments\": "
@@ -134,8 +125,6 @@ final class ThinkChatTests: XCTestCase {
                                         names: names, id: "call_0"), "only the offered tools can be called")
         XCTAssertNil(ThinkChat.toolCall(in: "I don't know.", names: names, id: "call_0"))
     }
-
-    // MARK: - Asking the engine
 
     func testAReplyThatIsNotACallIsAskedForOnceMore() async throws {
         let messages: [[String: Any]] = [["role": "system", "content": "Find the answer."],

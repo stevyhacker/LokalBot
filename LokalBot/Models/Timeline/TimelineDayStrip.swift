@@ -1,35 +1,25 @@
 import CoreGraphics
 import Foundation
 
-/// The day strip in Timeline's rail: the hours left to right, meetings in a
-/// lane above work. Each bar stands for a row of the list under it, so
-/// clicking one selects that row. Positions are fractions of the strip's
-/// span, which runs over whole hours and never leaves the civil day.
 struct TimelineDayStrip: Equatable {
     struct Bar: Identifiable, Equatable {
-        /// The list row the bar selects.
         let id: String
-        /// Where the bar starts and ends, 0 at the leading edge and 1 at the trailing one.
         let start: Double
         let end: Double
-        /// See `TimelineDayList.Row.colorKey`.
         let colorKey: String?
     }
 
     struct Tick: Equatable {
         let position: Double
         let date: Date
-        /// The first hour and noon say AM or PM where the clock has them.
         let namesDayPeriod: Bool
     }
 
     let span: DateInterval
     let meetings: [Bar]
     let work: [Bar]
-    /// One per hour, from the first hour to the last one that starts inside the span.
     let ticks: [Tick]
 
-    /// Nil for a day with no rows inside it.
     init?(rows: [TimelineDayList.Row], day: Date, calendar: Calendar = .current) {
         let dayInterval = ActivityStore.dayInterval(containing: day, calendar: calendar)
         let clipped: [(row: TimelineDayList.Row, start: Date, end: Date)] = rows.compactMap { row in
@@ -39,7 +29,6 @@ struct TimelineDayStrip: Equatable {
         guard let first = clipped.map(\.start).min(), let last = clipped.map(\.end).max() else { return nil }
         let spanStart = calendar.dateInterval(of: .hour, for: first)?.start ?? first
         var spanEnd = last
-        // An end on the hour needs no extra hour; any other rounds up.
         if let hour = calendar.dateInterval(of: .hour, for: last), hour.start < last { spanEnd = hour.end }
         spanEnd = min(max(spanEnd, spanStart.addingTimeInterval(3600)), dayInterval.end)
         let span = DateInterval(start: spanStart, end: max(spanEnd, spanStart.addingTimeInterval(60)))
@@ -63,23 +52,18 @@ struct TimelineDayStrip: Equatable {
             let position: Double = cursor.timeIntervalSince(span.start) / length
             let namesDayPeriod = ticks.isEmpty || hour == 12
             ticks.append(Tick(position: position, date: cursor, namesDayPeriod: namesDayPeriod))
-            // Step by the calendar so a daylight-saving day keeps its hours.
             let next = calendar.date(byAdding: .hour, value: 1, to: cursor) ?? cursor.addingTimeInterval(3600)
             cursor = next > cursor ? next : cursor.addingTimeInterval(3600)
         }
         self.ticks = ticks
     }
 
-    /// The ticks that get a label when only `count` labels fit: every
-    /// second or third hour on a long day, always starting with the first.
     func labelledTicks(fitting count: Int) -> [Tick] {
         guard count > 0, ticks.count > count else { return count > 0 ? ticks : [] }
         let stride = Int((Double(ticks.count) / Double(count)).rounded(.up))
         return ticks.enumerated().filter { $0.offset % stride == 0 }.map(\.element)
     }
 
-    /// A bar's place in a lane `width` points wide. A short bar keeps
-    /// `minimumWidth` so it can be seen and clicked, and never leaves the lane.
     static func frame(of bar: Bar, in width: CGFloat, minimumWidth: CGFloat = 3) -> (x: CGFloat, width: CGFloat) {
         guard width > 0 else { return (0, 0) }
         let start = CGFloat(min(max(bar.start, 0), 1)) * width
@@ -89,8 +73,6 @@ struct TimelineDayStrip: Equatable {
     }
 }
 
-/// Where the day's tracked time went, for the strip's legend: by project
-/// when coding-agent sessions name projects, else by app.
 enum TimelineDayLegend {
     struct Entry: Identifiable, Equatable {
         enum Kind: Equatable { case app, otherApps, project, otherProjects, otherActivity }
@@ -99,7 +81,6 @@ enum TimelineDayLegend {
         let kind: Kind
         var id: String { "\(kind)-\(label)" }
 
-        /// An app or a project has its own colour; the folded entries are neutral.
         var colorKey: String? { kind == .app || kind == .project ? label : nil }
     }
 
@@ -116,8 +97,6 @@ enum TimelineDayLegend {
         }
     }
 
-    /// The four busiest projects, the rest folded together, then the time no
-    /// project claims.
     static func projectEntries(_ split: TimelineProjectAttribution.DaySplit, cap: Int = 4) -> [Entry] {
         var entries: [Entry] = []
         var otherSeconds: TimeInterval = 0
@@ -138,17 +117,13 @@ enum TimelineDayLegend {
     }
 }
 
-/// The day's actions on Timeline's page: the user's actions that a meeting of
-/// that day mentioned, done ones included.
 enum TimelineDayActions {
     enum Summary: Equatable {
         case open(Int)
         case allDone(Int)
-        /// Nothing is open, and some are deferred rather than done.
         case noneOpen(Int)
     }
 
-    /// Open work first, then the rest, each in the index's order.
     static func threads(_ all: [ActionThread], on day: Date, calendar: Calendar = .current) -> [ActionThread] {
         let ofDay = all.filter { thread in
             thread.references.contains { calendar.isDate($0.meetingStartedAt, inSameDayAs: day) }
@@ -164,12 +139,7 @@ enum TimelineDayActions {
     }
 }
 
-/// What the day menu's digest item is called.
 enum TimelineDigestPreview {
-    /// The catalog key of the menu item that writes the digest. It names what
-    /// choosing it will do: write the first digest, update one that has newer
-    /// activity, or rewrite a current one. Each is an explicit action; a
-    /// digest is never rewritten without being asked.
     static func menuTitle(isWriting: Bool, hasDigest: Bool, isStale: Bool) -> String {
         if isWriting { return "Writing digest…" }
         if !hasDigest { return "Write digest" }

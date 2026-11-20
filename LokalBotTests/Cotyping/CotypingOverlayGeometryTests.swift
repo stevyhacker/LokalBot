@@ -12,9 +12,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
             millisecondsSinceLastAcceptance: nil))
     }
 
-    /// The 2026-10-09 report: in Chrome and Viber the ghost kept overlapping
-    /// the letters just typed. A caret read a few points past the ghost's
-    /// start was held as "small drift", so the ghost stayed on those letters.
     func testAGhostThatCoversTypedTextAlwaysMoves() {
         let ghost = CGRect(x: 120, y: 500, width: 100, height: 16)
         XCTAssertFalse(CotypingOverlayGeometry.shouldHoldInlineReanchor(
@@ -25,13 +22,10 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertFalse(CotypingOverlayGeometry.shouldHoldInlineReanchor(
             currentFrame: ghost, targetFrame: ghost.offsetBy(dx: -4, dy: 0), millisecondsSinceLastAcceptance: 50,
             isRightToLeft: true))
-        // A ghost a few points ahead of the caret is held only while the app
-        // may still be moving its caret after an accept.
         XCTAssertTrue(CotypingOverlayGeometry.shouldHoldInlineReanchor(
             currentFrame: ghost, targetFrame: ghost.offsetBy(dx: -4, dy: 0), millisecondsSinceLastAcceptance: 50))
         XCTAssertFalse(CotypingOverlayGeometry.shouldHoldInlineReanchor(
             currentFrame: ghost, targetFrame: ghost.offsetBy(dx: -4, dy: 0), millisecondsSinceLastAcceptance: nil))
-        // Three points lower is another baseline.
         XCTAssertFalse(CotypingOverlayGeometry.shouldHoldInlineReanchor(
             currentFrame: ghost, targetFrame: ghost.offsetBy(dx: 0, dy: -3), millisecondsSinceLastAcceptance: nil))
     }
@@ -86,10 +80,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(nearBottom.minY, screen.minY)
     }
 
-    /// The 2026-10-05 report: a GitHub review box in Chrome gave no exact
-    /// caret, and the popup was drawn under a guess at the field's top-left
-    /// corner, across the first line of text. Cocoa coordinates; the guess is
-    /// the resolver's fallback, 4 pt in and 22 pt tall at the field's top.
     func testAnEstimatedCaretsPopupNeverCoversTheField() throws {
         let field = CGRect(x: 300, y: 400, width: 700, height: 130)
         let estimate = CGRect(x: field.minX + 4, y: field.maxY - 22, width: 1, height: 22)
@@ -100,14 +90,12 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertEqual(frame.maxY, field.minY - CotypingOverlayGeometry.gap, accuracy: 0.5)
         XCTAssertEqual(frame.minX, field.minX)
 
-        // No room below: just above the field instead.
         let low = CGRect(x: 300, y: 10, width: 700, height: 130)
         let above = try XCTUnwrap(CotypingOverlayGeometry.popupFrame(
             caret: estimate, caretIsExact: false, field: low, content: content, visible: screen))
         XCTAssertFalse(above.intersects(low))
         XCTAssertEqual(above.minY, low.maxY + CotypingOverlayGeometry.gap, accuracy: 0.5)
 
-        // A field that fills the screen has no outside: no popup at all.
         XCTAssertNil(CotypingOverlayGeometry.popupFrame(
             caret: estimate, caretIsExact: false, field: screen.insetBy(dx: 0, dy: 4), content: content,
             visible: screen))
@@ -187,8 +175,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertEqual(converted.height, 20)
     }
 
-    // MARK: - Inline layout
-
     private let helvetica = NSFont(name: "Helvetica", size: 12)!
 
     func testTheGhostStartsExactlyAtTheCaret() {
@@ -200,8 +186,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertEqual(layout.lines[0].origin.x, caret.maxX)
     }
 
-    /// AppKit text reports a caret one default line tall; the ghost sits on
-    /// that line's baseline, not on its center.
     func testAnAppKitCaretPutsTheGhostOnTheFieldBaseline() {
         let lineHeight = NSLayoutManager().defaultLineHeight(for: helvetica)
         let baselineOffset = NSLayoutManager().defaultBaselineOffset(for: helvetica)
@@ -211,7 +195,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
             caret.maxY - baselineOffset, accuracy: 0.01)
     }
 
-    /// Web engines report about the glyph box; its center is the line's center.
     func testAWebCaretCentersTheGlyphBox() {
         let font = NSFont.systemFont(ofSize: 15)
         let caret = CGRect(x: 200, y: 500, width: 1, height: 24)
@@ -262,7 +245,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         }
         let pitch = CotypingInlineGhostLayout.linePitch(caretRect: caret, font: helvetica)
         XCTAssertEqual(layout.lines[0].origin.y - layout.lines[1].origin.y, pitch, accuracy: 0.01)
-        // Every character is drawn once, in order.
         let drawn = layout.lines.map(\.text).joined(separator: " ")
         XCTAssertEqual(drawn, " the quick follow up on the renewal timing and the customer update")
     }
@@ -301,7 +283,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertEqual(layout.lines[1].origin.x, input.maxX - CotypingInlineGhostLayout.fieldInset)
     }
 
-    /// A top-up appends words; words already on screen keep their places.
     func testAppendingWordsNeverMovesWordsAlreadyShown() {
         let input = CGRect(x: 40, y: 480, width: 260, height: 60)
         let caret = CGRect(x: 200, y: 520, width: 0, height: 14)
@@ -324,14 +305,7 @@ final class CotypingOverlayGeometryTests: XCTestCase {
                              CotypingInlineGhostLayout.width(of: "up", font: helvetica))
     }
 
-    // MARK: - Never over text
-
-    /// A field tall enough for several lines, its text inset 8 pt: lines
-    /// run from x 48 to 232. A 12 pt Helvetica caret at y 499 puts the
-    /// baseline at 502 and the next line's at 488.
     private let roomyField = CGRect(x: 40, y: 400, width: 200, height: 120)
-    /// A chat box one line tall, as in Viber or a LinkedIn message box
-    /// before it grows.
     private let oneLineField = CGRect(x: 40, y: 497, width: 200, height: 18)
 
     private func caret(at x: CGFloat) -> CGRect {
@@ -354,10 +328,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
             linesBelowAreFree: true, wrapEdge: nil)
     }
 
-    /// The 2026-10-09 report: typing through a suggestion left the ghost
-    /// overlapping the letters typed. A typed space moved it by nothing,
-    /// because the ghost draws runs of spaces as one and measured a lone
-    /// space as no text at all, so every later letter landed on the ghost.
     func testTypingASpaceMovesTheGhostByASpace() throws {
         let start: CGFloat = 150
         for typed in [" ", ", ", "  ", " w"] {
@@ -369,8 +339,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertNil(caretAfterTyping("up\nnext", caretX: start), "a line break: wait for the app")
     }
 
-    /// An accepted word that does not fit after the caret is wrapped by the
-    /// app, so the caret goes to the start of the next line, after the word.
     func testAWordThatWrapsWhenAcceptedTakesTheCaretToTheNextLine() throws {
         let nearTheEnd: CGFloat = 210
         let moved = try XCTUnwrap(caretAfterTyping(" world", caretX: nearTheEnd))
@@ -378,17 +346,11 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertEqual(moved.maxX, textEdge + CotypingInlineGhostLayout.width(of: "world", font: helvetica),
                        accuracy: 0.01)
         XCTAssertEqual(moved.minY, caret(at: nearTheEnd).minY - 14, accuracy: 0.01, "one line down")
-        // The start of that word still fits, so the app keeps it on the line.
         let partial = try XCTUnwrap(caretAfterTyping(" w", caretX: nearTheEnd))
         XCTAssertEqual(partial.minY, caret(at: nearTheEnd).minY)
-        // The rest of a word the app is about to move along with its start.
         XCTAssertNil(caretAfterTyping("orld", caretX: 226, precedingLine: "Hello w"))
     }
 
-    /// The rest of the word at the caret, if it does not fit after it, has
-    /// no place on screen: the app will move the whole word down. It used to
-    /// be drawn at the start of the next line, right where that word lands
-    /// as soon as the next letter is typed.
     func testTheRestOfAWordThatDoesNotFitIsNotDrawn() {
         let cramped = layout("ld how are", caretX: 226, field: roomyField, precedingLine: "Hello wor")
         XCTAssertTrue(cramped.lines.isEmpty)
@@ -396,14 +358,11 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertNil(CotypingInlineGhostLayout.longestDrawable("ld how are", allowsPartial: true) {
             self.layout($0, caretX: 226, field: self.roomyField, precedingLine: "Hello wor")
         })
-        // With room for it, it is drawn after the caret as before.
         let roomy = layout("ld how are", caretX: 150, field: roomyField, precedingLine: "Hello wor")
         XCTAssertEqual(roomy.lines.first?.text, "ld how are")
         XCTAssertTrue(roomy.isComplete)
     }
 
-    /// A one-line chat box: wrapped lines would be drawn under it, over its
-    /// toolbar. Only the words that fit after the caret are shown.
     func testWrappedLinesStayInsideTheField() throws {
         let text = " world how are you"
         let whole = layout(text, caretX: 150, field: oneLineField)
@@ -416,17 +375,14 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         })
         XCTAssertEqual(fitted.text, " world how are")
         XCTAssertEqual(fitted.layout.lines.map(\.text), [" world how are"])
-        // An emoji or a calculation is shown whole or not at all.
         XCTAssertNil(CotypingInlineGhostLayout.longestDrawable(text, allowsPartial: false) {
             self.layout($0, caretX: 150, field: self.oneLineField)
         })
-        // In a taller field the rest wraps onto the free line below.
         let roomy = layout(text, caretX: 150, field: roomyField)
         XCTAssertTrue(roomy.isComplete)
         XCTAssertEqual(roomy.lines.map(\.text), [" world how are", "you"])
     }
 
-    /// Text after the caret's line fills the lines below it.
     func testNothingWrapsOverTextBelowTheCaret() {
         let text = " world how are you"
         let blocked = layout(text, caretX: 150, field: roomyField, linesBelowAreFree: false)
@@ -443,8 +399,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
         XCTAssertEqual(CotypingInlineGhostLayout.wordPrefixes(of: "   "), [])
     }
 
-    /// Chromium answered the caret query with the whole field for a
-    /// one-character message, and the ghost went to the line below.
     func testALineBoxIsNotTakenForTheCaret() {
         XCTAssertFalse(CotypingCaretGeometry.isCollapsedCaret(CGRect(x: 2402, y: 1368, width: 788, height: 23)))
         XCTAssertFalse(CotypingCaretGeometry.isCollapsedCaret(CGRect(x: 1558, y: 1377, width: 548, height: 26)))
@@ -454,7 +408,6 @@ final class CotypingOverlayGeometryTests: XCTestCase {
     }
 }
 
-/// Draws the ghost view offscreen and finds where its ink lands.
 @MainActor
 final class CotypingGhostTextViewTests: XCTestCase {
     private func inkRows(_ content: CotypingGhostTextView.Content, size: CGSize) throws -> (top: Int, bottom: Int, left: Int) {
@@ -462,7 +415,6 @@ final class CotypingGhostTextViewTests: XCTestCase {
         view.content = content
         let rep = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
         view.cacheDisplay(in: view.bounds, to: rep)
-        // Bitmap rows count down from the top; view points count up.
         let scale = Double(rep.pixelsHigh) / size.height
         var highest = Int.min, lowest = Int.max, left = Int.max
         for y in 0..<rep.pixelsHigh {
@@ -477,8 +429,6 @@ final class CotypingGhostTextViewTests: XCTestCase {
         return (highest, lowest, left)
     }
 
-    /// "HELLO" has no descenders, so its ink starts on the baseline and rises
-    /// to about the cap height, beginning at the line's origin.
     func testTheGhostIsDrawnOnTheRequestedBaseline() throws {
         let font = NSFont(name: "Helvetica", size: 20)!
         let content = CotypingGhostTextView.Content(

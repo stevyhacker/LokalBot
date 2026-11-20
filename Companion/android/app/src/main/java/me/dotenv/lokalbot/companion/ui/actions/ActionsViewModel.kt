@@ -22,7 +22,6 @@ import me.dotenv.lokalbot.companion.data.model.SyncNote
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.ui.common.LibraryViewModel
 
-/** Whose actions to show. */
 enum class OwnerFilter { Everyone, Mine, Others, Unclear }
 
 data class ActionFilters(val owner: OwnerFilter = OwnerFilter.Mine, val status: ActionStatus? = ActionStatus.Open) {

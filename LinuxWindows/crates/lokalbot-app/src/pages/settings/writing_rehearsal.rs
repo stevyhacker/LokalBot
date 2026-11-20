@@ -1,8 +1,3 @@
-//! What the practice editor's last request drew on, and why it brought no
-//! suggestion (`CotypingContextStatus.rehearsal`,
-//! `AutocompleteExperienceView.explanation`): a working model that suggested
-//! nothing shouldn't look like a broken one.
-
 use gpui_kit::component::v_flex;
 use gpui_kit::{App, Div, FontWeight, ParentElement as _, Styled as _, div, px};
 use lokalbot_ai::autocomplete::Suppression;
@@ -13,7 +8,6 @@ use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
-/// Why the model's answer isn't on screen.
 pub(super) fn explanation(reason: Suppression) -> &'static str {
     match reason {
         Suppression::EmptyGeneration | Suppression::NormalizedToEmpty => {
@@ -38,11 +32,8 @@ pub(super) fn explanation(reason: Suppression) -> &'static str {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Tone {
-    /// The source shaped this suggestion.
     Used,
-    /// On and working; it had nothing to add this time.
     Ready,
-    /// On but can't contribute.
     Attention,
     Off,
 }
@@ -54,8 +45,6 @@ pub(super) struct Status {
     pub tone: Tone,
 }
 
-/// The three optional sources, in the order Settings lists them. `used` is `None`
-/// until the practice editor has asked for a suggestion.
 pub(super) fn statuses(
     visible: &ContextState,
     meetings: &ContextState,
@@ -93,7 +82,6 @@ fn visible_text(state: &ContextState, used: Option<&AutocompleteRehearsal>) -> S
                 .to_string(),
             Tone::Ready,
         ),
-        // The practice editor still reads its own sample, so it says both.
         ContextState::Unavailable(reason) => {
             let elsewhere =
                 lokalbot_i18n::format("In other apps: {0}", &[("0", reason.to_string())]);
@@ -144,7 +132,6 @@ fn memory(
     }
 }
 
-/// "Context for this suggestion", with sources and states in columns.
 pub(super) fn render(statuses: &[Status], cx: &App) -> Div {
     let lb = cx.lb();
     v_flex()
@@ -202,8 +189,6 @@ pub(super) fn render(statuses: &[Status], cx: &App) -> Div {
         }))
 }
 
-/// The note under the practice editor when the model answered with nothing to
-/// show.
 pub(super) fn explanation_line(reason: Suppression, cx: &App) -> Div {
     let lb = cx.lb();
     h_flex()

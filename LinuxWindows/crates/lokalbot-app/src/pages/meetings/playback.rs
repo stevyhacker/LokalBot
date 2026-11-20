@@ -1,7 +1,3 @@
-//! Meeting playback through `lokalbot_audio::Player`: play/pause, seeking,
-//! speed, and a 10 Hz position poll while playing that drives the waveform
-//! playhead and the transcript highlight.
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -11,7 +7,6 @@ use lokalbot_audio::Player;
 use super::MeetingsPage;
 
 impl MeetingsPage {
-    /// Opens the selected meeting's tracks off the UI thread.
     pub(super) fn open_player(&mut self, cx: &mut Context<Self>) {
         self.stop_playback();
         let Some(doc) = self.doc.clone() else { return };
@@ -32,7 +27,6 @@ impl MeetingsPage {
                 match opened {
                     Ok(player) => {
                         player.set_speed(this.speed);
-                        // Back where this meeting's playback stood.
                         if let Some((position, _)) = this.playback_memory.get(&id)
                             && player.duration() > 0.
                         {
@@ -49,7 +43,6 @@ impl MeetingsPage {
         .detach();
     }
 
-    /// Pauses and forgets the current player (switching meetings).
     pub(super) fn stop_playback(&mut self) {
         if let Some(player) = self.player.take() {
             player.pause();
@@ -60,7 +53,6 @@ impl MeetingsPage {
         self.player_loading = false;
     }
 
-    /// Pauses without forgetting the position (leaving the page).
     pub(super) fn pause_playback(&mut self) {
         if let Some(player) = self.player.as_ref() {
             player.pause();
@@ -81,7 +73,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Plays from `seconds` (transcript timestamps).
     pub(super) fn play_from(&mut self, seconds: f64, cx: &mut Context<Self>) {
         let Some(player) = self.player.clone() else {
             return;
@@ -93,7 +84,6 @@ impl MeetingsPage {
         }
     }
 
-    /// Plays a short excerpt (speaker review "Listen").
     pub(super) fn play_excerpt(&mut self, start: f64, end: f64, cx: &mut Context<Self>) {
         let Some(player) = self.player.clone() else {
             return;
@@ -101,7 +91,6 @@ impl MeetingsPage {
         self.start(player.play_range(start, end), cx);
     }
 
-    /// Moves the playhead to `fraction` of the recording.
     pub(super) fn seek(&mut self, fraction: f32, cx: &mut Context<Self>) {
         let fraction = fraction.clamp(0., 1.);
         match self.player.clone() {
@@ -114,7 +103,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Moves by `seconds` (Left/Right arrows).
     pub(super) fn seek_by(&mut self, seconds: f64, cx: &mut Context<Self>) {
         let Some(player) = self.player.clone() else {
             return;
@@ -132,7 +120,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Seconds played and the recording's length, for the time label.
     pub(super) fn playback_times(&self, fallback_duration: f64) -> (f64, f64) {
         match self.player.as_ref() {
             Some(player) => (player.position(), player.duration()),
@@ -167,7 +154,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Mirrors the player's position; returns whether it is still playing.
     fn sync_player(&mut self, cx: &mut Context<Self>) -> bool {
         let Some(player) = self.player.clone() else {
             return false;
@@ -177,7 +163,6 @@ impl MeetingsPage {
         self.playhead = (position / duration).clamp(0., 1.) as f32;
         self.playing = player.is_playing();
         if self.playing {
-            // The playing segment is highlighted like cited evidence.
             self.focus_at = Some(position);
         } else {
             self.poll = None;

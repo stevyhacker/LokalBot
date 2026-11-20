@@ -1,6 +1,3 @@
-//! What the person chose to share (`CompanionSettings.swift`): captured from
-//! `Settings` and handed to the builders as a value.
-
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use lokalbot_core::Settings;
 use lokalbot_core::time::{local_day, local_day_bounds};
@@ -14,8 +11,6 @@ pub fn clamped_port(port: u16) -> u16 {
     port.max(LOWEST_PORT)
 }
 
-/// How far back the copy on paired devices reaches. The value is the number
-/// of days, 0 for all history, as records.md's `historyDays`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum HistoryWindow {
     #[default]
@@ -28,7 +23,6 @@ pub enum HistoryWindow {
 impl HistoryWindow {
     pub const ALL: [Self; 4] = [Self::All, Self::Days30, Self::Days90, Self::Days365];
 
-    /// An unknown value keeps the default, as the Mac's decoder does.
     pub fn from_days(days: u32) -> Self {
         match days {
             30 => Self::Days30,
@@ -47,7 +41,6 @@ impl HistoryWindow {
         }
     }
 
-    /// The first local day inside the window, or `None` for all history.
     pub fn first_day(self, today: NaiveDate) -> Option<NaiveDate> {
         (self != Self::All).then(|| today - chrono::Duration::days(i64::from(self.days()) - 1))
     }
@@ -67,7 +60,6 @@ impl HistoryWindow {
     }
 }
 
-/// The data classes in records.md's manifest, in its order.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DataClasses {
@@ -92,18 +84,14 @@ impl DataClasses {
         projects: true,
     };
 
-    /// A transcript belongs to its meeting: without the meeting record a
-    /// phone has nothing to open it from.
     pub fn shares_transcripts(self) -> bool {
         self.meetings && self.transcripts
     }
 
-    /// Window titles are part of the Timeline.
     pub fn shares_window_titles(self) -> bool {
         self.timeline && self.window_titles
     }
 
-    /// What devices actually receive, as the manifest reports it.
     pub fn effective(self) -> Self {
         Self {
             transcripts: self.shares_transcripts(),
@@ -113,8 +101,6 @@ impl DataClasses {
     }
 }
 
-/// What decides which records exist. Changing only these rebuilds the
-/// library; the port and advertising restart the listener instead.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct RecordScope {
     pub data_classes: DataClasses,
@@ -161,7 +147,6 @@ impl Sharing {
     }
 }
 
-/// `YYYY-MM-DD`, the day in this computer's time zone.
 pub fn day_key(day: NaiveDate) -> String {
     day.format("%Y-%m-%d").to_string()
 }
@@ -170,7 +155,6 @@ pub fn today() -> NaiveDate {
     Local::now().date_naive()
 }
 
-/// A canonical `YYYY-MM-DD` key (`AskDayScope.isCanonicalKey`).
 pub fn parse_day_key(key: &str) -> Option<NaiveDate> {
     let day = NaiveDate::parse_from_str(key, "%Y-%m-%d").ok()?;
     (day_key(day) == key).then_some(day)

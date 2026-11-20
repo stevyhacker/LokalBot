@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Today's one list of meetings, the next-meeting rule, the recap line and
-/// the small states the page is built from.
 final class TodayAgendaTests: XCTestCase {
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -10,7 +8,6 @@ final class TodayAgendaTests: XCTestCase {
         return calendar
     }
 
-    /// 10:48 on a day far from midnight in UTC.
     private var now: Date {
         calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 10, minute: 48))!
     }
@@ -36,8 +33,6 @@ final class TodayAgendaTests: XCTestCase {
             meetingURL: URL(string: "https://meet.google.com/abc-defg-hij"),
             sourceCalendarTitle: "Work", participantNames: ["Ana"])
     }
-
-    // MARK: The list
 
     func testRecordingsAndEventsMergeInTimeOrder() {
         let standup = recording("Standup", start: at(9))
@@ -76,7 +71,6 @@ final class TodayAgendaTests: XCTestCase {
         mergedSource.mergedIntoMeetingID = UUID()
 
         let entries = TodayAgenda.entries(
-            // The live meeting can be both the current recording and in the library.
             recordings: [live, live, yesterday, sample, mergedSource],
             events: [event("merged-event", start: at(9, 30))],
             liveMeetingID: live.id, now: now, calendar: calendar)
@@ -91,8 +85,6 @@ final class TodayAgendaTests: XCTestCase {
             liveMeetingID: nil, now: now, calendar: calendar)
         XCTAssertEqual(entries.map(\.title), ["Recorded", "event"])
     }
-
-    // MARK: The now line
 
     func testNowLineSitsBeforeTheFirstEntryStillAhead() {
         let entries = TodayAgenda.entries(
@@ -119,8 +111,6 @@ final class TodayAgendaTests: XCTestCase {
         XCTAssertEqual(TodayAgenda.rows(ahead, now: now).first, .now(now))
     }
 
-    // MARK: The next-meeting card
-
     func testNextMeetingAppearsWithinTheHourOnly() {
         XCTAssertEqual(TodayAgenda.nextMeetingWindow, 3_600)
         let inAnHour = event("edge", start: now.addingTimeInterval(TodayAgenda.nextMeetingWindow))
@@ -137,7 +127,6 @@ final class TodayAgendaTests: XCTestCase {
         let ended = event("ended", start: now.addingTimeInterval(-7_200), minutes: 30)
 
         XCTAssertEqual(TodayAgenda.nextMeeting(in: [ended, underWay, soon], now: now)?.externalID, "underway")
-        // The one being recorded, or already recorded, is not coming up again.
         XCTAssertEqual(
             TodayAgenda.nextMeeting(in: [ended, underWay, soon], now: now,
                                     recordedEventIDs: ["underway"])?.externalID, "soon")
@@ -154,8 +143,6 @@ final class TodayAgendaTests: XCTestCase {
         XCTAssertEqual(TodayAgenda.status(of: event("e", start: now.addingTimeInterval(-60)), now: now), .inProgress)
         XCTAssertEqual(TodayAgenda.status(of: event("e", start: now.addingTimeInterval(-7_200)), now: now), .ended)
     }
-
-    // MARK: Recap line
 
     func testRecapIsTheFirstLineOfTheSummaryOverview() {
         let prose = """
@@ -208,8 +195,6 @@ final class TodayAgendaTests: XCTestCase {
                        [summarized.id: "Index rebuild is blocked on the data team."])
     }
 
-    // MARK: Digest
-
     func testHighlightsAreTheDigestsAtAGlanceLines() {
         let digest = """
             ## Day summary
@@ -251,8 +236,6 @@ final class TodayAgendaTests: XCTestCase {
                        .writing, "A run in progress hides Update, so a second one cannot start")
     }
 
-    // MARK: Page
-
     func testGettingStartedIsThePageOnlyWhileThereIsNothingElse() {
         XCTAssertEqual(TodayPageLayout.layout(hasContent: false, gettingStartedDismissed: false), .gettingStarted)
         XCTAssertEqual(TodayPageLayout.layout(hasContent: false, gettingStartedDismissed: true), .placeholder)
@@ -261,8 +244,6 @@ final class TodayAgendaTests: XCTestCase {
         XCTAssertEqual(TodayPageLayout.layout(hasContent: true, gettingStartedDismissed: true),
                        .sections(gettingStartedBelow: false))
     }
-
-    // MARK: Before you join
 
     func testPreparationRowsTakeOneOfEachKindAndCountTheRest() {
         let prior = recording("Design review", start: at(11, dayOffset: -7))

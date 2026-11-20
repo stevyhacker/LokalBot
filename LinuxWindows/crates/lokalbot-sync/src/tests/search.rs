@@ -23,7 +23,6 @@ fn transcript_hits_carry_the_segment_start() {
         segment.snippet
     );
 
-    // The action, the summary and the day digest match too.
     assert!(
         hits.iter()
             .any(|hit| hit.kind == "meeting" && hit.key == DESIGN_REVIEW && hit.at.is_none())
@@ -32,7 +31,6 @@ fn transcript_hits_carry_the_segment_start() {
         .iter()
         .find(|hit| hit.kind == "day")
         .expect("a digest hit");
-    // That day's digest lists the task.
     assert_eq!(digest.key, review_day);
     assert_eq!(digest.date.as_deref(), Some(review_day.as_str()));
     assert_eq!(digest.title, review_day);
@@ -51,27 +49,20 @@ fn search_covers_titles_notes_decisions_and_questions() {
             .map(|hit| (hit.kind, hit.key))
             .collect()
     };
-    // Title (and other fields) of the Northwind call.
     assert!(kinds("Northwind").contains(&(
         "meeting".into(),
         "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e03".into()
     )));
-    // Notes only.
     assert_eq!(
         kinds("legal about"),
         [("meeting".to_owned(), DESIGN_REVIEW.to_owned())]
     );
-    // An open question.
     assert!(kinds("customers go first").contains(&("meeting".into(), DESIGN_REVIEW.into())));
-    // Prefix matching of the last term.
     assert!(!kinds("onboa").is_empty());
-    // Natural-language questions fall back to any content word.
     assert!(!kinds("what about the flag").is_empty());
     assert!(kinds("zebra").is_empty());
-    // Punctuation cannot break the query.
     assert!(!kinds("\"deck)").is_empty());
     assert!(kinds("").is_empty());
-    // Limits.
     assert_eq!(phone.client.search("the".into(), 2).unwrap().len(), 2);
 }
 
@@ -95,7 +86,6 @@ fn cjk_text_is_found_by_substring() {
     assert_eq!(hits[0].title, "设计评审");
     assert!(hits[0].snippet.contains("«对比度»"), "{}", hits[0].snippet);
 
-    // A Latin word glued to CJK text.
     let hits = phone.client.search("logo".into(), 10).unwrap();
     assert_eq!(
         hits.iter().map(|h| h.key.as_str()).collect::<Vec<_>>(),
@@ -103,7 +93,6 @@ fn cjk_text_is_found_by_substring() {
     );
     assert!(hits[0].snippet.contains("«logo»"));
 
-    // A longer spaceless question matches by two-character pieces.
     let hits = phone.client.search("下周四发布之前".into(), 10).unwrap();
     assert_eq!(hits.len(), 1);
 }

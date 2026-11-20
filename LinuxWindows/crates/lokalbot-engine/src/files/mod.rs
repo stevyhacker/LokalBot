@@ -1,17 +1,3 @@
-//! Files: the folders a person chooses, searched by what is in them
-//! (`FileSearchService`). Nothing is read until they turn it on after a notice
-//! and choose a folder.
-//!
-//! Indexing happens in passes: at launch, after the folders change, and a few
-//! seconds after a change in them that can alter the index (`ChangeFilter`). A
-//! pass reads only new and changed files, stops at the next file when a meeting starts recording, in battery
-//! saver, or when the computer is hot, and starts again when that ends. The image
-//! and audio model loads only while a pass has files to read.
-//!
-//! A big read (a folder's first pass, the rest of long files) is paced while the
-//! person uses the computer and, on battery, waits for a charger unless reading on
-//! battery is on. A few new files are read right away on any power source.
-
 pub mod documents;
 pub mod image_sizing;
 pub mod media;
@@ -42,17 +28,11 @@ use parking_lot::Mutex;
 use crate::models::{Models, RUNTIME_ID};
 use crate::{EngineEvent, Shared};
 
-/// New files a sync finds, up to this many, are read on any power source; more is
-/// a big read that waits for a charger on battery.
 pub const NEW_FILES_LIMIT: usize = 50;
-/// How long changes in the folders settle before a pass reads them.
 const CHANGE_DELAY: Duration = Duration::from_secs(5);
-/// How often power and heat are looked at while Files is on.
 const CONDITIONS_TICK: Duration = Duration::from_secs(30);
-/// How often vectors nothing searched for a while are let go.
 const RELEASE_TICK: Duration = Duration::from_secs(120);
 
-/// Why reading waits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PauseReason {
     Recording,
@@ -61,8 +41,6 @@ pub enum PauseReason {
 }
 
 impl PauseReason {
-    /// Why background model work should wait now. Files and picture vectors for
-    /// screens both use it.
     pub fn current(is_recording: bool) -> Option<Self> {
         if is_recording {
             return Some(Self::Recording);
@@ -75,7 +53,6 @@ impl PauseReason {
     }
 }
 
-/// What Files is doing now.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum FileSearchState {
     #[default]
@@ -90,7 +67,6 @@ pub enum FileSearchState {
         left: usize,
     },
     Paused(PauseReason),
-    /// On battery, a big read waits for a charger.
     WaitingForPower {
         left: usize,
     },
@@ -98,7 +74,6 @@ pub enum FileSearchState {
     Failed(String),
 }
 
-/// What the index holds.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FileSearchTotals {
     pub searchable: usize,
@@ -108,23 +83,19 @@ pub struct FileSearchTotals {
     pub index_bytes: u64,
 }
 
-/// What the last pass did, for Settings.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PassReport {
     pub files_read: usize,
     pub model_seconds: f64,
     pub wall_seconds: f64,
-    /// Of `wall_seconds`, how long reading rested while the person used the computer.
     pub rested_seconds: f64,
 }
 
-/// Published to the interface.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FileSearchStatus {
     pub state: FileSearchState,
     pub totals: FileSearchTotals,
     pub last_pass: Option<PassReport>,
-    /// About how long the pass reading now has left, at the pace so far.
     pub seconds_left: Option<f64>,
 }
 
@@ -159,14 +130,12 @@ enum Message {
     Shutdown,
 }
 
-/// The engine's handle on Files.
 #[derive(Clone)]
 pub struct FileSearch {
     sender: Sender<Message>,
 }
 
 impl FileSearch {
-    /// Starts the control thread, and applies the current settings.
     pub(crate) fn start(shared: Arc<Shared>, models: Models) -> Self {
         let (sender, receiver) = unbounded();
         let control = Control {
@@ -198,7 +167,6 @@ impl FileSearch {
             .send(Message::Settings(Box::new(settings.clone())));
     }
 
-    /// A recording started or stopped.
     pub(crate) fn conditions_changed(&self) {
         let _ = self.sender.send(Message::ConditionsChanged);
     }
@@ -215,7 +183,6 @@ struct Control {
     configuration: Configuration,
     status: Arc<Mutex<FileSearchStatus>>,
     stop: Arc<AtomicBool>,
-    /// These settings have been acted on since launch.
     applied: bool,
     pass_running: bool,
     pass_wanted: bool,
@@ -299,15 +266,12 @@ impl Control {
         PauseReason::current(self.shared.recording_active.load(Ordering::Relaxed))
     }
 
-    /// On battery with reading on battery off.
     fn big_reads_wait_for_power(&self) -> bool {
         !self.configuration.reads_on_battery && lokalbot_platform::power::current().on_battery
     }
 
-    /// Settings changed (or the app launched): start, re-read or stop.
     fn apply(&mut self, next: Configuration) {
         let previous = std::mem::replace(&mut self.configuration, next.clone());
-        // Who may search moves with the folders, whatever else happens.
         let folders = next.enabled.then_some(next.folders.as_slice());
         if let Err(err) = files::access::refresh(self.paths(), folders) {
             log::warn!("file search: the agents' folder list wasn't written: {err:#}");
@@ -333,15 +297,12 @@ impl Control {
             self.set_state(FileSearchState::NoFolders);
             return;
         }
-        // Reading on battery turned off: a big read going on battery stops at the
-        // next job, and the next pass waits for a charger.
         if previous.reads_on_battery && !next.reads_on_battery {
             self.stop.store(true, Ordering::Relaxed);
         }
         self.request_pass();
     }
 
-    /// A recording started or stopped, or the power or heat changed.
     fn conditions_changed(&mut self) {
         if !self.configuration.is_available() {
             return;
@@ -452,8 +413,6 @@ impl Control {
     }
 }
 
-/// Changes in the chosen folders. One that can't alter what a pass finds
-/// (`ChangeFilter`) goes no further; any other asks for a pass.
 fn start_watcher(
     folders: &[String],
     includes_media: bool,
@@ -475,7 +434,6 @@ fn start_watcher(
         let Ok(event) = event else {
             return;
         };
-        // Reading a file changes nothing.
         if matches!(event.kind, notify::EventKind::Access(_)) {
             return;
         }
@@ -502,11 +460,8 @@ fn start_watcher(
     Some(watcher)
 }
 
-/// How long what a burst of changes learned about folders is trusted.
 const ANSWERS_LAST: Duration = Duration::from_secs(2);
 
-/// What a watcher event says about a path. Where it doesn't say whether that's a
-/// folder, the path still can, unless it's gone.
 fn change_facts(event: &notify::Event) -> impl Fn(&Path) -> ChangeFacts + use<> {
     use notify::EventKind::{Create, Modify, Remove};
     use notify::event::{CreateKind, ModifyKind, RemoveKind};
@@ -526,7 +481,6 @@ fn change_facts(event: &notify::Event) -> impl Fn(&Path) -> ChangeFacts + use<> 
     }
 }
 
-/// One pass, on its own thread.
 struct PassRun {
     shared: Arc<Shared>,
     models: Models,
@@ -585,7 +539,6 @@ impl PassRun {
         };
         if let Err(err) = self.pass(&index, &root) {
             log::warn!("file search: pass stopped: {err:#}");
-            // The embedder went away: files stay pending for the next pass.
             self.set_state(FileSearchState::Failed(format!(
                 "Indexing stopped: {err:#}"
             )));
@@ -596,8 +549,6 @@ impl PassRun {
     fn pass(&self, index: &FileIndex, root: &Path) -> Result<()> {
         let started = Instant::now();
         let options = IndexOptions::for_settings(self.configuration.includes_media);
-        // Find what is new or changed first: an unchanged library never loads
-        // the model.
         let (waiting, fresh) = sync(index, &self.configuration.folders, &options)?;
         self.refresh_totals(index);
         if waiting == 0 {
@@ -608,8 +559,6 @@ impl PassRun {
             self.set_state(self.pause_state());
             return Ok(());
         }
-        // On battery only what this sync just found, if it is a few files; a
-        // folder's first pass waits for a charger.
         let reads_on_battery = self.configuration.reads_on_battery;
         let waits_for_power =
             move || !reads_on_battery && lokalbot_platform::power::current().on_battery;
@@ -622,7 +571,6 @@ impl PassRun {
             only = Some(fresh);
         }
 
-        // The model downloads once, as the notice said.
         let needs = [
             catalog::EMBEDDING_MODEL_ID.to_string(),
             catalog::PROJECTOR_ID.to_string(),
@@ -672,7 +620,6 @@ impl PassRun {
                 {
                     let mut status = self.status.lock();
                     status.state = FileSearchState::Indexing { done, total };
-                    // At the pace so far, once there is enough of it to go by.
                     if done >= 10 && total > done {
                         status.seconds_left = Some(
                             reading.elapsed().as_secs_f64() / done as f64 * (total - done) as f64,
@@ -748,15 +695,11 @@ impl PassRun {
     }
 }
 
-/// Brings the index in line with the folders and says how many files wait to be
-/// read, and which ones it just found, if they are a few (`FileSearchService.sync`).
 fn sync(
     index: &FileIndex,
     folders: &[String],
     options: &IndexOptions,
 ) -> Result<(usize, HashSet<i64>)> {
-    // Folders taken off the list leave the index; a folder that is missing (an
-    // unplugged drive) or refused keeps its files.
     index.prune(folders)?;
     let readable: Vec<String> = folders
         .iter()
@@ -775,8 +718,6 @@ fn sync(
     Ok((waiting, fresh))
 }
 
-/// The words in screenshots, for keyword search, with the OCR the person already
-/// has; Files never downloads it. It reads what screen text recognition reads.
 struct ScreenshotWords {
     paths: LibraryPaths,
     engine: Option<lokalbot_ai::ocr::OcrEngine>,
@@ -818,15 +759,12 @@ impl pass::ReadText for ScreenshotWords {
     }
 }
 
-/// Background work leaves the computer to the person.
 pub(crate) fn lower_this_threads_priority() {
     #[cfg(target_os = "linux")]
-    // SAFETY: a plain system call with no pointers; `who` 0 is this thread.
     unsafe {
         libc::setpriority(libc::PRIO_PROCESS, 0, 10);
     }
     #[cfg(windows)]
-    // SAFETY: both calls act on the current thread's pseudo-handle.
     unsafe {
         use windows_sys::Win32::System::Threading::{
             GetCurrentThread, SetThreadPriority, THREAD_PRIORITY_BELOW_NORMAL,
@@ -834,8 +772,6 @@ pub(crate) fn lower_this_threads_priority() {
         SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
     }
 }
-
-// --------------------------------------------------------------- estimating
 
 struct LiveMeasures;
 
@@ -849,10 +785,6 @@ impl Measures for LiveMeasures {
     }
 }
 
-/// What adding `folders` would read, before anything is read: files by kind, how
-/// long the first pass takes and how much room the index will take. Goes by
-/// metadata and headers alone; its costs are what indexing has measured here, or
-/// else the fixed ones. Files already under a chosen folder don't count.
 pub fn estimate(
     paths: &LibraryPaths,
     folders: &[String],
@@ -889,7 +821,6 @@ pub fn estimate(
     estimate
 }
 
-/// What indexing needs to download before it can start, in bytes.
 pub fn missing_download_bytes(paths: &LibraryPaths) -> u64 {
     [catalog::embedding_entry(), catalog::projector_entry()]
         .into_iter()
@@ -898,9 +829,6 @@ pub fn missing_download_bytes(paths: &LibraryPaths) -> u64 {
         .sum()
 }
 
-/// Documents, Desktop and Downloads, for one-click choices before any folder is
-/// chosen: the ones that exist and aren't chosen already. Nothing in them is
-/// opened until the person picks one.
 pub fn suggested_folders(chosen: &[String]) -> Vec<(String, String)> {
     let Some(dirs) = directories::UserDirs::new() else {
         return Vec::new();
@@ -922,7 +850,6 @@ pub fn suggested_folders(chosen: &[String]) -> Vec<(String, String)> {
     .collect()
 }
 
-/// Whether video frames can be read here: they need ffmpeg.
 pub fn reads_video_frames() -> bool {
     media::ffmpeg().is_some()
 }
@@ -948,7 +875,6 @@ mod tests {
             (removed.is_folder, removed.came_or_went),
             (Some(false), true)
         );
-        // Windows says only that something changed: ask the path.
         let written = facts(EventKind::Modify(ModifyKind::Any), &file);
         assert_eq!(
             (written.is_folder, written.came_or_went),
@@ -956,7 +882,6 @@ mod tests {
         );
         let folder = facts(EventKind::Modify(ModifyKind::Any), dir.path());
         assert_eq!(folder.is_folder, Some(true));
-        // Gone, and nothing says what it was.
         assert_eq!(
             facts(EventKind::Remove(RemoveKind::Any), &gone).is_folder,
             None
@@ -983,16 +908,13 @@ mod tests {
         let options = IndexOptions::default();
         let (waiting, fresh) = sync(&index, &folders, &options).unwrap();
         assert_eq!((waiting, fresh.len()), (3, 3));
-        // Nothing new: nothing fresh, the same files wait.
         let (waiting, fresh) = sync(&index, &folders, &options).unwrap();
         assert_eq!((waiting, fresh.len()), (3, 0));
-        // Past the limit it's a big read.
         for i in 0..(NEW_FILES_LIMIT + 1) {
             std::fs::write(root.join(format!("m{i}.txt")), "x").unwrap();
         }
         let (waiting, fresh) = sync(&index, &folders, &options).unwrap();
         assert_eq!((waiting, fresh.len()), (3 + NEW_FILES_LIMIT + 1, 0));
-        // A folder off the list leaves the index; a missing one keeps its files.
         let (waiting, _) = sync(&index, &[], &options).unwrap();
         assert_eq!(waiting, 0);
     }

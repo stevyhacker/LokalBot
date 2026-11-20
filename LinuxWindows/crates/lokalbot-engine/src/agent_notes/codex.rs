@@ -1,12 +1,3 @@
-//! Reads Codex's memories from `~/.codex/memories` (`CodexMemoryReader`).
-//!
-//! - `MEMORY.md`: one note per top-level heading (a task group).
-//! - `memory_summary.md`: one note per section.
-//! - `rollout_summaries/*.md`: one note per session summary.
-//!
-//! `raw_memories.md` repeats the session summaries and is not read. The
-//! `skills` and `extensions` folders hold procedures and tools, not notes.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
@@ -18,11 +9,9 @@ use super::text::{self, ReadFailure};
 use crate::coding_agents::text as agent_text;
 
 pub struct CodexNotesReader {
-    /// `~/.codex/memories`.
     pub root: PathBuf,
 }
 
-/// Notes parsed from one file, and how many sections exclusions left out.
 type Parsed = (Vec<AgentNote>, usize);
 
 fn name_of(path: &Path) -> String {
@@ -31,7 +20,6 @@ fn name_of(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// A second section with the same heading gets `#2`, so ids stay distinct.
 fn anchor(seen: &mut HashMap<String, usize>, base: &str) -> String {
     let count = seen.entry(base.to_string()).or_insert(0);
     *count += 1;
@@ -91,8 +79,6 @@ fn read(file: &Path, scan: &mut NoteScan, parse: impl FnOnce(&str, &Path) -> Par
     }
 }
 
-/// `MEMORY.md`: each `# Task Group: …` with its `scope:` line as the summary
-/// and the folder from `applies_to: cwd=…`.
 fn task_groups(contents: &str, file: &Path, exclusions: &Exclusions) -> Parsed {
     let modified = text::modification_date(file);
     let mut notes = Vec::new();
@@ -143,8 +129,6 @@ fn task_groups(contents: &str, file: &Path, exclusions: &Exclusions) -> Parsed {
     (notes, excluded)
 }
 
-/// `memory_summary.md`: one note per `##` or `###` section. A section headed
-/// by a folder path is about that folder.
 fn summary_sections(contents: &str, file: &Path, exclusions: &Exclusions) -> Parsed {
     let modified = text::modification_date(file);
     let mut notes = Vec::new();
@@ -195,8 +179,6 @@ fn summary_sections(contents: &str, file: &Path, exclusions: &Exclusions) -> Par
     (notes, excluded)
 }
 
-/// A session summary: `key: value` header lines (`cwd`, `updated_at`), a blank
-/// line, then the summary under its `#` title.
 fn rollout_summary(contents: &str, file: &Path, exclusions: &Exclusions) -> Parsed {
     let lines: Vec<&str> = contents.split('\n').collect();
     let mut working_directory: Option<String> = None;
@@ -249,7 +231,6 @@ fn rollout_summary(contents: &str, file: &Path, exclusions: &Exclusions) -> Pars
     (vec![note], 0)
 }
 
-/// The folder in `cwd=/path; reuse_rule=…`.
 fn cwd(applies_to: &str) -> Option<String> {
     let (_, rest) = applies_to.split_once("cwd=")?;
     let path = rest.split(';').next().unwrap_or("").trim();

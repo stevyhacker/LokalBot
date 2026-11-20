@@ -1,31 +1,3 @@
-//! The Autocomplete model on its llama-server (`LocalLlamaCotypingEngine`
-//! and `LlamaCotypingRuntime`, over HTTP).
-//!
-//! One `/completion` request per suggestion, with the raw prompt (no chat
-//! template) and `cache_prompt`, so the server reuses what it read of the
-//! previous prompt and only reads the newly typed tokens (macOS's
-//! `IncrementalPrefill`). The response is streamed and read token by token,
-//! with each token's probabilities (`n_probs`), to apply what the in-process
-//! macOS decode loop applies:
-//!
-//! - token healing: a grammar re-types the text cut from the prompt
-//!   ([`healing`](super::healing)), and only what follows is shown. When
-//!   the grammar's token-by-token path through a word fragment ("to", then
-//!   "mo", then "r…") is less likely than one token that spells the whole
-//!   fragment ("tomorrow"), the request is restarted from that token: the
-//!   case macOS's prefix search exists for;
-//! - the first-word confidence gate and its one-word fallback;
-//! - stop when the most likely next token ends the text, even if the
-//!   sampler picked another;
-//! - stop at a sentence end or a control token (`CotypingDecodeStopPolicy`),
-//!   and once a line is complete unless multi-line suggestions are on. A
-//!   reply that starts on a new line is kept: the normalizer joins it with a
-//!   space, as the in-process runtime's output is.
-//!
-//! Stopping drops the connection, which llama-server notices at its next
-//! token. A request still reading its prompt finishes that first, so the
-//! caller keeps one request in flight at a time.
-
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, anyhow};
@@ -39,48 +11,34 @@ use super::stop;
 use crate::error::AiError;
 use crate::http;
 
-/// Probabilities asked for per token. The gate sums boundary mass over
-/// these; healing a word fragment looks among them for a token that spells
-/// the whole fragment.
 const GATED_PROBABILITIES: u32 = 20;
 const FRAGMENT_PROBABILITIES: u32 = 40;
-/// A space before the first word is one constrained token more; a word
-/// fragment can take a few (`CotypingEngine.completionRequest`).
 const HEALED_SPACE_TOKENS: usize = 1;
 const HEALED_FRAGMENT_TOKENS: usize = 4;
-/// Inline suggestions must feel instant (`completionSession`).
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
 
-/// The request was superseded; nothing to show.
 #[derive(Debug, thiserror::Error)]
 #[error("superseded")]
 pub struct Cancelled;
 
-/// What one request produced, with the server's timings for diagnostics.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Completion {
     pub result: Normalized,
-    /// The text after the healed prefix, before normalization.
     pub raw: String,
-    /// The token budget ran out (the thought may go on).
     pub hit_limit: bool,
     pub timings: Timings,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Timings {
-    /// Milliseconds from the request to the first streamed token.
     pub first_token_ms: Option<f64>,
     pub total_ms: f64,
-    /// Prompt tokens the server read for this request (not reused).
     pub prompt_tokens: Option<u64>,
-    /// Prompt tokens reused from the previous request.
     pub cached_tokens: Option<u64>,
     pub prompt_ms: Option<f64>,
     pub predicted_tokens: Option<u64>,
 }
 
-/// A client for the Autocomplete role's llama-server.
 #[derive(Clone)]
 pub struct Completer {
     agent: ureq::Agent,
@@ -89,7 +47,6 @@ pub struct Completer {
 }
 
 impl Completer {
-    /// `root_url` is `http://127.0.0.1:<port>` (`Lease::root_url`).
     pub fn new(root_url: &str, token: &str) -> Self {
         Self {
             agent: http::agent(root_url, REQUEST_TIMEOUT),
@@ -102,9 +59,6 @@ impl Completer {
         format!("{}/completion", self.root_url)
     }
 
-    /// Reads `request`'s healed prompt into the server's cache without
-    /// generating, so the first keystroke in a newly focused field only adds
-    /// what was typed (`LocalLlamaCotypingEngine.prewarm(for:)`).
     pub fn prefill(&self, request: &Request) -> Result<()> {
         let healed = healing::healed_generation(
             &request.prompt,
@@ -124,8 +78,6 @@ impl Completer {
         Ok(())
     }
 
-    /// One suggestion. `cancelled` is polled between streamed tokens; when it
-    /// returns true the request is dropped and [`Cancelled`] returned.
     pub fn complete(&self, request: &Request, cancelled: &dyn Fn() -> bool) -> Result<Completion> {
         let started = Instant::now();
         let healed = healing::healed_generation(
@@ -139,8 +91,6 @@ impl Completer {
         let body = request_body(request, &healed, gated);
         self.drive(&body, &mut decoder, &mut timings, started, cancelled)?;
         if let Some(cover) = decoder.restart.take() {
-            // Go on from the token that spells the whole fragment, which the
-            // server now reads as part of the prompt.
             let mut continued = Decoder::new(request, "", gated);
             continued.start_from(&cover, healed.required_prefix.len());
             if !continued.stopped {
@@ -158,7 +108,6 @@ impl Completer {
         })
     }
 
-    /// Streams one request into `decoder` until it ends or the decoder stops.
     fn drive(
         &self,
         body: &Value,
@@ -230,8 +179,6 @@ fn read_timings(event: &Value, timings: &mut Timings) {
     timings.predicted_tokens = server.get("predicted_n").and_then(Value::as_u64);
 }
 
-/// The `/completion` body: the healed raw prompt, the macOS sampler, one
-/// line unless multi-line suggestions are on.
 pub fn request_body(request: &Request, healed: &healing::Split, gated: bool) -> Value {
     let prefix = &healed.required_prefix;
     let extra_tokens = if prefix.is_empty() {
@@ -255,8 +202,6 @@ pub fn request_body(request: &Request, healed: &healing::Split, gated: bool) -> 
         "repeat_last_n": sampling.repeat_last_n,
         "seed": sampling.seed,
         "n_probs": if gated { GATED_PROBABILITIES } else { FRAGMENT_PROBABILITIES },
-        // The prompt and generation counts arrive with every token, so they
-        // are known however early the stream is left.
         "timings_per_token": true,
     });
     if !prefix.is_empty() {
@@ -265,9 +210,6 @@ pub fn request_body(request: &Request, healed: &healing::Split, gated: bool) -> 
     body
 }
 
-/// The request that goes on after a whole-fragment token: the healed prompt
-/// with that token appended (llama-server takes text and token ids mixed),
-/// and no constraint left.
 fn cover_body(request: &Request, healed: &healing::Split, cover: &Cover, gated: bool) -> Value {
     let unconstrained = healing::Split {
         healed_prompt: healed.healed_prompt.clone(),
@@ -282,11 +224,9 @@ fn cover_body(request: &Request, healed: &healing::Split, cover: &Cover, gated: 
 enum Flow {
     Continue,
     Stop,
-    /// Start again from [`Decoder::restart`].
     Restart,
 }
 
-/// One candidate token of a step, as llama-server reports it.
 struct Candidate {
     id: Option<i64>,
     bytes: Vec<u8>,
@@ -294,7 +234,6 @@ struct Candidate {
     probability: f32,
 }
 
-/// A token that spells the whole word fragment at the caret.
 #[derive(Clone, Debug, PartialEq)]
 struct Cover {
     id: i64,
@@ -304,7 +243,6 @@ struct Cover {
 }
 
 impl Candidate {
-    /// Special tokens carry no text; at the end of a reply they end it.
     fn is_end(&self) -> bool {
         self.bytes.is_empty()
     }
@@ -332,11 +270,8 @@ fn candidate(value: &Value) -> Option<Candidate> {
     })
 }
 
-/// The streamed decode loop of `LlamaCotypingRuntime.generate`, fed with
-/// llama-server's per-token reports instead of logits.
 struct Decoder<'a> {
     request: &'a Request,
-    /// Required-prefix bytes still to be re-typed.
     remaining: Vec<u8>,
     utf8: Utf8Decoder,
     pub output: String,
@@ -346,9 +281,6 @@ struct Decoder<'a> {
     malformed: bool,
     stopped: bool,
     hit_limit: bool,
-    /// Healing a word fragment (`searchPrefixPath`): the log probability of
-    /// the grammar's path through it so far, whether its first token covered
-    /// only part of it, and the best first-step token that spells all of it.
     path_logprob: f64,
     constrained_steps: usize,
     partial_first: bool,
@@ -377,8 +309,6 @@ impl<'a> Decoder<'a> {
         }
     }
 
-    /// Starts after a whole-fragment token: its text past the fragment is
-    /// the first visible text.
     fn start_from(&mut self, cover: &Cover, fragment_len: usize) {
         let extra = cover.bytes.get(fragment_len..).unwrap_or_default().to_vec();
         if !extra.is_empty() && self.emit(&extra, cover.probability, &[]) != Flow::Continue {
@@ -408,8 +338,6 @@ impl<'a> Decoder<'a> {
                 Flow::Continue
             }
             _ => {
-                // Text without probabilities: weigh it as unknown (0), which
-                // keeps the gate closed rather than showing it unweighed.
                 let content = event.get("content").and_then(Value::as_str).unwrap_or("");
                 if content.is_empty() {
                     return Flow::Continue;
@@ -443,7 +371,6 @@ impl<'a> Decoder<'a> {
     }
 
     fn feed_token(&mut self, token: &Candidate, top: &[Candidate]) -> Flow {
-        // Constrained phase: the grammar re-types the cut text.
         if !self.remaining.is_empty() {
             if token.is_end() {
                 return Flow::Stop;
@@ -467,8 +394,6 @@ impl<'a> Decoder<'a> {
                         probability: c.probability,
                     });
             }
-            // Each further token only lowers the path's probability: once it
-            // is below a single whole-fragment token, that token wins.
             if self.partial_first
                 && let Some(cover) = &self.best_cover
                 && cover.logprob > self.path_logprob
@@ -491,8 +416,6 @@ impl<'a> Decoder<'a> {
                 }
             }
         }
-        // The most likely next token ends the text: stop here, whatever the
-        // sampler picked (`stopAtArgmaxEOG`).
         let argmax_ends = top.first().is_some_and(Candidate::is_end);
         if token.is_end() || argmax_ends {
             if self.gate.needs_eog_evaluation() {
@@ -514,15 +437,11 @@ impl<'a> Decoder<'a> {
         self.emit(&token.bytes.clone(), token.probability, top)
     }
 
-    /// One visible piece: weighed by the gate, appended, checked against the
-    /// stop policy.
     fn emit(&mut self, bytes: &[u8], probability: f32, top: &[Candidate]) -> Flow {
         let Some(text) = self.utf8.append(bytes) else {
             self.malformed = true;
             return Flow::Stop;
         };
-        // A token that ends inside a character still counts toward the
-        // first word's probability, as in the in-process runtime.
         if self.gate.needs_evaluation() {
             let boundary = self
                 .gate
@@ -541,8 +460,6 @@ impl<'a> Decoder<'a> {
         if stop::verdict(&self.output, self.tokens).is_some() {
             return Flow::Stop;
         }
-        // The normalizer keeps the first line (or paragraph); what follows a
-        // finished one is never shown.
         let shown = self.output.trim_start();
         let ended = if self.request.multi_line {
             shown.contains("\n\n")
@@ -563,7 +480,6 @@ impl<'a> Decoder<'a> {
             return Normalized::suppressed(Suppression::UnsafeToInsert);
         }
         if !self.remaining.is_empty() {
-            // The cut text was never re-typed: nothing may skip the fragment.
             return Normalized::suppressed(if self.output.is_empty() {
                 Suppression::EmptyGeneration
             } else {
@@ -579,7 +495,6 @@ impl<'a> Decoder<'a> {
     }
 }
 
-/// Whether a token spells all of the remaining fragment (and maybe more).
 fn covers(bytes: &[u8], remaining: &[u8]) -> bool {
     match healing::match_piece(bytes, remaining) {
         healing::PrefixMatch::Consumes(count) => count == remaining.len(),
@@ -588,8 +503,6 @@ fn covers(bytes: &[u8], remaining: &[u8]) -> bool {
     }
 }
 
-/// The probability that a new word starts or the text ends, summed over the
-/// reported candidates (`LlamaCotypingRuntime.boundaryMass`).
 fn boundary_mass(top: &[Candidate]) -> f32 {
     let total: f32 = top
         .iter()
@@ -599,8 +512,6 @@ fn boundary_mass(top: &[Candidate]) -> f32 {
     total.clamp(0.0, 1.0)
 }
 
-/// `CotypingUTF8TokenDecoder`: tokens are byte fragments; an unfinished
-/// character waits for the next token, and malformed bytes reject the reply.
 #[derive(Default)]
 struct Utf8Decoder {
     pending: Vec<u8>,
@@ -620,7 +531,6 @@ impl Utf8Decoder {
                 Some(text)
             }
             Err(err) if err.error_len().is_none() => {
-                // Incomplete at the end: keep the tail for the next token.
                 let valid = err.valid_up_to();
                 let text = String::from_utf8_lossy(&self.pending[..valid]).into_owned();
                 self.pending.drain(..valid);
@@ -657,7 +567,6 @@ mod tests {
         }
     }
 
-    /// A token id for tests: the same text, the same id.
     fn id(text: &str) -> u64 {
         text.bytes()
             .fold(7u64, |h, b| h.wrapping_mul(31).wrapping_add(u64::from(b)))
@@ -727,8 +636,6 @@ mod tests {
 
     #[test]
     fn a_whole_fragment_token_beats_an_unlikely_path_through_the_fragment() {
-        // The grammar takes " to", the most likely token compatible with
-        // " tomor", and must then force "mo": far less likely than " tomorrow".
         let first = vec![
             token(
                 " to",
@@ -760,7 +667,6 @@ mod tests {
         );
         assert!(continued.get("grammar").is_none());
         assert_eq!(continued["n_predict"], 6);
-        // A likely path through the fragment is kept.
         let kept = serve(vec![
             token(" fol", -0.3, &[(" fol", -0.3), (" follower", -6.0)]),
             token("low", -0.1, &[("low", -0.1)]),
@@ -774,7 +680,6 @@ mod tests {
 
     #[test]
     fn an_unsure_first_word_shows_nothing_and_a_fair_one_is_cut_to_one_word() {
-        // p(" maybe") = 0.05 < 0.1, and the boundary mass after it is small.
         let unsure = serve(vec![
             token(" maybe", (0.05f64).ln(), &[(" maybe", (0.05f64).ln())]),
             token(" later", -0.1, &[(" later", -0.1)]),
@@ -785,9 +690,6 @@ mod tests {
             complete(&unsure, &request).result,
             Normalized::suppressed(Suppression::LowConfidence)
         );
-        // p(" Thursday") = 0.6 passes; p(" or") = 0.1 drops the product to
-        // 0.06, under 0.1. A word boundary after "Thursday" (0.5 + 0.4) keeps
-        // the fallback at 0.54, so the suggestion is cut to that one word.
         let fallback = serve(vec![
             token(" Thursday", (0.6f64).ln(), &[(" Thursday", (0.6f64).ln())]),
             token(

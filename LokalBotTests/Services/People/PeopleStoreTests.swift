@@ -39,7 +39,6 @@ final class PeopleStoreTests: XCTestCase {
         let mode = try FileManager.default.attributesOfItem(atPath: file.path)[.posixPermissions] as? Int
         XCTAssertEqual(mode, 0o600)
 
-        // After the merge, the target carries the source's id.
         let merged = person("person-b", "Mila Novak", members: ["person-a"])
         XCTAssertEqual(reloaded.merges(into: merged).map(\.sourceName), ["Mila N"])
         XCTAssertTrue(reloaded.merges(into: novak).isEmpty)

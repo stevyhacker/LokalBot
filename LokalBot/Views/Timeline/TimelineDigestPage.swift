@@ -1,14 +1,8 @@
 import SwiftUI
 
-/// The day's page, Timeline's main area while nothing is chosen in the rail:
-/// Highlights, the actions from the day's meetings, the work summary and the
-/// decisions, each on its own panel. The tracked time, the hour strip and the
-/// sessions are in the rail beside it.
 struct TimelineDigestPage: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
-    /// Reflects every digest run for the day, a scheduled one included, so a
-    /// manual request cannot start a competing generation.
     @ObservedObject var lifecycle: DayDigestLifecycle
     let list: TimelineDayList
     let presentation: DayDigestPresentation?
@@ -32,7 +26,6 @@ struct TimelineDigestPage: View {
                     onWrite: { Task { await model.generateDigest(app: app) } })
                 TimelineDayActionsPanel(
                     threads: TimelineDayActions.threads(app.outcomeIndex.userActionThreads, on: model.day))
-                    // Each day starts with its own rows, shown or not.
                     .id(DreamDay.key(for: model.day))
                 if let presentation, presentation.hasBodyBelowHighlights {
                     DayDigestView(presentation, mode: .timeline)
@@ -40,20 +33,14 @@ struct TimelineDigestPage: View {
                         .environment(\.dayDigestTimeRangeAction, DayDigestTimeRangeAction { range in
                             list.workRow(inTimeRange: range, day: model.day).map { row in { onSelectRow(row.id) } }
                         })
-                        // No identifier here: when the digest's only section
-                        // is Work Summary, SwiftUI merges this group with that
-                        // panel and an identifier here replaces the panel's.
                 }
             }
         }
         .onChange(of: scheduledRun) { wasRunning, isRunning in
-            // Show the scheduled result as soon as it is saved.
             if wasRunning, !isRunning { model.refreshOverview(app: app) }
         }
     }
 
-    /// Project names of the day, by lowercased name, so a task's project tag
-    /// takes the colour its sessions have.
     private var projects: [String: String] {
         Dictionary(model.projectSplit.projects.map { ($0.project.lowercased(), $0.project) },
                    uniquingKeysWith: { first, _ in first })
@@ -61,25 +48,18 @@ struct TimelineDigestPage: View {
 }
 
 extension DayDigestPresentation {
-    /// Anything Timeline shows under the highlights and the day's actions.
     var hasBodyBelowHighlights: Bool {
         !blockers.isEmpty || !decisions.isEmpty || !focusBlocks.isEmpty || !followUps.isEmpty
     }
 }
 
-/// The digest's highlights as the page's first panel. Its footer says when
-/// the digest was written and offers Update once there is newer activity. A
-/// day without a digest, and one being written, say so here.
 struct TimelineHighlightsPanel: View {
     let state: TodayDigestLine
-    /// Empty before a digest is written, and for a digest without highlights.
     let highlights: String
     let hasDigest: Bool
     let day: Date
-    /// The digest is written on a schedule, so a missing one will come.
     let writesEachEvening: Bool
     var error: String?
-    /// Writes the first digest, or updates one with newer activity.
     let onWrite: () -> Void
 
     static var lead: AppFont { AppFont.scaledSystem(size: 15) }
@@ -100,7 +80,6 @@ struct TimelineHighlightsPanel: View {
     }
 
     var body: some View {
-        // A digest with no highlights and no date has nothing to say here.
         if showsContent || showsFooter {
             SectionPanel(
                 title: Text("Highlights"),
@@ -193,7 +172,6 @@ struct TimelineHighlightsPanel: View {
         }
     }
 
-    /// The time alone on the day itself; the date too once it was written later.
     private func written(_ date: Date) -> Text {
         let sameDay = Calendar.current.isDate(date, inSameDayAs: day)
         return Text("Digest written \(date.formatted(date: sameDay ? .omitted : .abbreviated, time: .shortened))")
@@ -205,13 +183,9 @@ struct TimelineHighlightsPanel: View {
     }
 }
 
-/// The user's actions from the day's meetings, as the shared action rows
-/// under a header that counts the open ones and leads to Actions. With none
-/// open the panel is its header, "All done".
 struct TimelineDayActionsPanel: View {
     @EnvironmentObject private var app: AppState
     let threads: [ActionThread]
-    /// An action was open while this day's page was showing.
     @State private var hadOpen = false
 
     var body: some View {
@@ -222,7 +196,6 @@ struct TimelineDayActionsPanel: View {
                 status: Self.pill(TimelineDayActions.pill(for: summary)),
                 identifier: "timeline.dayActions",
                 showsContent: TimelineDayActions.showsRows(summary, hadOpen: hadOpen),
-                // The longest panel title on the page, beside a badge and a link.
                 titleLineLimit: 2
             ) {
                 Button("All actions") { app.openActions() }

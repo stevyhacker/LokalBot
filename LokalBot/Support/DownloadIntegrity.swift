@@ -1,9 +1,5 @@
 import Foundation
 
-/// Integrity gate for large, pinned runtime assets. A sidecar records a
-/// successful full-file hash so later launches can validate the exact byte
-/// count without re-hashing gigabytes. A legacy download with no sidecar is
-/// hashed once before it is trusted.
 enum DownloadIntegrity {
     enum IntegrityError: LocalizedError {
         case mismatch(String)
@@ -24,8 +20,6 @@ enum DownloadIntegrity {
             expectedSHA256: expectedSHA256)) == true
     }
 
-    /// Throwing variant used by callers that must distinguish an unreadable
-    /// file from a verified digest mismatch before deciding whether to delete it.
     static func verifyExisting(at url: URL, expectedBytes: Int64,
                                expectedSHA256: String) async throws -> Bool {
         try Task.checkCancellation()
@@ -56,9 +50,6 @@ enum DownloadIntegrity {
         try? FileManager.default.removeItem(at: markerURL(for: url))
     }
 
-    /// Record a destination immediately after an already-verified file was
-    /// atomically moved there. Exact size is rechecked; the digest need not be
-    /// recomputed because a same-volume move preserves the verified bytes.
     static func markInstalled(at url: URL, expectedBytes: Int64,
                               expectedSHA256: String) throws {
         guard exactSize(of: url) == expectedBytes else {
@@ -73,8 +64,6 @@ enum DownloadIntegrity {
         return (attributes?[.size] as? NSNumber)?.int64Value
     }
 
-    /// Preserve filesystem errors so callers do not classify an unreadable
-    /// model as corrupt and attempt to delete it.
     private static func checkedSize(of url: URL) throws -> Int64? {
         let attributes = try FileManager.default.attributesOfItem(atPath: url.path)
         return (attributes[.size] as? NSNumber)?.int64Value

@@ -1,17 +1,11 @@
 import Foundation
 
 enum SpeakerVoiceMatcher {
-    /// Call audio arrives codec-compressed, so a single 3–10 s chunk varies too
-    /// much to compare on its own. A speaker's average over many turns is
-    /// stable: on real Google Meet standups the same person scored 0.77–0.94
-    /// across meetings and different people at most 0.57.
     enum Call {
         static let sampleLimit = 16
-        /// Median sample-to-average similarity. A label that mixes voices falls below it.
         static let minimumConsistency = 0.75
         static let suggestedScore = 0.60
         static let automaticScore = 0.70
-        /// Over the best remembered person with a different name.
         static let automaticMargin = 0.15
         static let policyVersion = "call-voiceprint-1"
     }
@@ -33,7 +27,6 @@ enum SpeakerVoiceMatcher {
         return zip(a, b).reduce(0) { $0 + Double($1.0) * Double($1.1) }
     }
 
-    /// The normalized average of `vectors` and how closely the vectors agree with it.
     static func voiceprint(_ vectors: [[Float]]) -> Voiceprint? {
         let unit = vectors.compactMap(normalized)
         guard !unit.isEmpty, unit.count == vectors.count else { return nil }
@@ -51,7 +44,6 @@ enum SpeakerVoiceMatcher {
         return voiceprint(samples.map(\.vector))
     }
 
-    /// A remembered person's call voice: each confirmed meeting counts once.
     static func callVoiceprint(_ profile: SpeakerVoiceProfile) -> Voiceprint? {
         guard profile.model == SpeakerVoiceSample.fingerprint else { return nil }
         let meetings = profile.contributions.compactMap { contribution -> [Float]? in
@@ -62,8 +54,6 @@ enum SpeakerVoiceMatcher {
         return voiceprint(meetings)
     }
 
-    /// Select at most one disjoint chunk from each independent, uncontaminated
-    /// speaking turn. Overlapping diarizer windows are never extra votes.
     static func eligible(_ samples: [SpeakerVoiceSample], turns: [SpeakerAudioTurn], speaker: String) -> [SpeakerVoiceSample] {
         if turns.first(where: { $0.speaker == speaker })?.resolvedSource == .system {
             return callEligible(samples, turns: turns, speaker: speaker)
@@ -90,15 +80,10 @@ enum SpeakerVoiceMatcher {
             }
             if selected.count == 8 { break }
         }
-        // A mixed cluster is unsafe to enroll, even if some of its samples agree.
         guard selected.allSatisfy({ a in selected.allSatisfy { cosine(a.vector, $0.vector) >= 0.75 } }) else { return [] }
         return selected
     }
 
-    /// Call speakers: the longest disjoint chunks that no other speaker
-    /// overlaps, wherever they fall. The diarizer splits call speech into short
-    /// turns, so one chunk per turn left most people with a single sample.
-    /// Their average is checked for a mixed voice instead of every pair.
     private static func callEligible(_ samples: [SpeakerVoiceSample], turns: [SpeakerAudioTurn], speaker: String) -> [SpeakerVoiceSample] {
         let others = turns.filter { $0.speaker != speaker && $0.resolvedSource == .system }
         let candidates = samples.filter { sample in
@@ -152,8 +137,7 @@ enum SpeakerVoiceMatcher {
         }
         scored.sort { $0.1 > $1.1 }
         return Array(scored.prefix(3)).compactMap { profile, mean, minimum in
-            guard mean >= 0.72, minimum >= 0.65 else { return nil } // unknown, including the single-profile case
-            // Microphone recognition requires its own held-out calibration.
+            guard mean >= 0.72, minimum >= 0.65 else { return nil }
             return SpeakerNameMatch(name: profile.name, participantReference: profile.id.uuidString,
                 tier: .suggested, source: .profile,
                 supportSeconds: samples.reduce(0) { $0 + $1.range.duration }, independentTurns: samples.count,
@@ -162,8 +146,6 @@ enum SpeakerVoiceMatcher {
         }
     }
 
-    /// One average per call speaker against each remembered person's average.
-    /// Remembered people who share a name never block each other.
     private static func callMatches(samples: [SpeakerVoiceSample], profiles: [SpeakerVoiceProfile]) -> [SpeakerNameMatch] {
         guard samples.count >= 2, let query = voiceprint(samples), query.consistency >= Call.minimumConsistency else { return [] }
         let scored = profiles.compactMap { profile -> (SpeakerVoiceProfile, Double)? in

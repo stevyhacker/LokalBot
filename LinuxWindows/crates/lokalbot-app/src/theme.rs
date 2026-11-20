@@ -1,10 +1,3 @@
-//! LokalBot design tokens, translated from the macOS app
-//! (`LokalBot/Support/DesignTokens.swift`, `Brand.swift`).
-//!
-//! Views read colors with `cx.lb()` and sizes from [`ty`] and [`metric`].
-//! GPUI Kit components (buttons, inputs, switches, menus) are themed from the
-//! same palette in [`apply`], so both layers agree.
-
 use gpui_kit::component::{Theme, ThemeMode};
 use gpui_kit::{
     App, FontFallbacks, Global, Hsla, Styled, Window, WindowAppearance, hsla, px, rgb, rgba,
@@ -12,43 +5,28 @@ use gpui_kit::{
 
 use lokalbot_core::settings::AppTheme;
 
-/// Colors for one appearance. Names follow the macOS tokens.
 #[derive(Clone, Debug)]
 pub struct Palette {
     pub dark: bool,
-    /// Content background.
     pub window: Hsla,
     pub sidebar: Hsla,
     pub sidebar_selection: Hsla,
     pub title_bar: Hsla,
-    /// Elevated surfaces: popovers, the Quick Recall panel, the composer.
     pub elevated: Hsla,
     pub text: Hsla,
     pub text_secondary: Hsla,
     pub text_tertiary: Hsla,
-    /// Grey used for metadata lines ("FaceTime · 10:57 AM · 2 min").
     pub supporting: Hsla,
     pub separator: Hsla,
-    /// Wells and the faint strips of a section panel: its footer and bands
-    /// (`groupFill`).
     pub group_fill: Hsla,
-    /// The edge of grouped wells and section panels (`groupStroke`).
     pub group_stroke: Hsla,
-    /// Chips and quiet wells (quaternary fill at about 50%).
     pub chip_fill: Hsla,
-    /// Count pills and the empty part of a bar on a panel: quiet, and still a
-    /// visible shape in both appearances (`quietFill`).
     pub quiet_fill: Hsla,
-    /// The page behind section panels (`windowBackgroundColor`), so each
-    /// panel reads as its own raised surface.
     pub page: Hsla,
-    /// A section panel's raised surface (`controlBackgroundColor`).
     pub panel: Hsla,
     pub hover: Hsla,
-    /// Filled buttons, selected rows in a focused list, switches. White text on it.
     pub accent_fill: Hsla,
     pub accent_fill_hover: Hsla,
-    /// Links, timestamps, sidebar symbols and evidence pills.
     pub accent_text: Hsla,
     pub accent_wash: Hsla,
     pub attention: Hsla,
@@ -57,11 +35,7 @@ pub struct Palette {
     pub success_text: Hsla,
     pub recording: Hsla,
     pub recording_text: Hsla,
-    /// Due text of open work whose day has passed: the recording red's text
-    /// colour. At least 4.5:1 on panels and pages in both appearances.
     pub overdue_text: Hsla,
-    /// Due text of open work due within the week: the attention amber's text
-    /// colour. At least 4.5:1 on panels and pages in both appearances.
     pub due_soon_text: Hsla,
     pub speakers: [Hsla; 8],
 }
@@ -157,12 +131,10 @@ impl Palette {
         }
     }
 
-    /// Speakers in order of first appearance; index 0 is always "You".
     pub fn speaker(&self, index: usize) -> Hsla {
         self.speakers[index % self.speakers.len()]
     }
 
-    /// A stable color per app name: djb2 hue, saturation 0.55, brightness 0.78.
     pub fn app_color(&self, app: &str) -> Hsla {
         let mut hash: u32 = 5381;
         for byte in app.bytes() {
@@ -171,7 +143,6 @@ impl Palette {
         hsv(f32::from((hash % 360) as u16) / 360.0, 0.55, 0.78)
     }
 
-    /// Status surfaces: the tint at 10% with a 28% stroke.
     pub fn status_fill(&self, tint: Hsla) -> Hsla {
         tint.opacity(0.10)
     }
@@ -191,7 +162,6 @@ fn hsv(h: f32, s: f32, v: f32) -> Hsla {
     hsla(h, sl, l, 1.0)
 }
 
-/// The active palette, stored as a GPUI global.
 pub struct LbTheme(pub Palette);
 
 impl Global for LbTheme {}
@@ -206,8 +176,6 @@ impl LbThemeExt for App {
     }
 }
 
-/// Type scale in logical pixels: the macOS sizes scaled by 14/13 for the
-/// larger default text on Linux and Windows.
 pub mod ty {
     use gpui_kit::{Pixels, px};
 
@@ -221,15 +189,11 @@ pub mod ty {
     pub const CAPTION: Pixels = px(12.);
     pub const SIDEBAR_SECTION: Pixels = px(12.);
     pub const SMALL: Pixels = px(11.);
-    /// A section panel's title: one step above the section heading.
     pub const PANEL_TITLE: Pixels = px(15.);
-    /// Count and status pills, band and group labels inside a panel.
     pub const PILL: Pixels = px(12.);
-    /// The toolbar's second line under the page title ("2 open", a date).
     pub const TOOLBAR_SUBTITLE: Pixels = px(12.);
 }
 
-/// Layout metrics (`LBTokens.Metric`).
 pub mod metric {
     use gpui_kit::{Pixels, px};
 
@@ -246,30 +210,18 @@ pub mod metric {
     pub const READING_MAX_WIDTH: Pixels = px(720.);
     pub const COMPOSER_RADIUS: Pixels = px(18.);
     pub const ACTION_TOGGLE: Pixels = px(18.);
-    /// Section panels (`SectionPanelMetric`): the inset between a panel's
-    /// edge and its text, and the heights of its strips.
     pub const PANEL_INSET: Pixels = px(16.);
     pub const PANEL_HEADER_HEIGHT: Pixels = px(46.);
     pub const PANEL_FOOTER_HEIGHT: Pixels = px(38.);
     pub const PANEL_BAND_HEIGHT: Pixels = px(30.);
-    /// Space between panels on a page.
     pub const PANEL_SPACING: Pixels = px(16.);
-    /// An action row's padding above and below (`rowVerticalPadding`).
     pub const ROW_VERTICAL_PADDING: Pixels = px(10.);
 }
 
-/// The interface font: Geist (Vercel with basement.studio, SIL OFL 1.1), the
-/// open family that Claude Desktop's Anthropic Sans credits ("BSPK x Geist x
-/// Anthropic"). Anthropic's own fonts have no license to ship.
-/// Geist draws the letters of every interface language but Hausa's hooked
-/// ɓ ɗ ƙ, so a Hausa interface stays on Inter.
 pub const FONT_FAMILY: &str = "Geist";
-/// What Geist lacks, such as Hausa's letters and the ⌘ ⌥ ⌃ key symbols.
 pub const FALLBACK_FONT_FAMILY: &str = "Inter";
-/// Code, paths, logs and commands.
 pub const MONO_FONT_FAMILY: &str = "Geist Mono";
 
-/// The interface font for the current interface language.
 pub fn font_family() -> &'static str {
     font_family_for(lokalbot_i18n::current().code)
 }
@@ -282,8 +234,6 @@ fn font_family_for(language: &str) -> &'static str {
     }
 }
 
-/// Sets a window's root to the interface font, with Inter for what it lacks.
-/// Everything inside inherits both.
 pub trait UiFont: Styled + Sized {
     fn ui_font(mut self) -> Self {
         let style = self.text_style();
@@ -297,13 +247,11 @@ pub trait UiFont: Styled + Sized {
 
 impl<T: Styled> UiFont for T {}
 
-/// Gives GPUI Kit's own components the fonts for the current language.
 pub fn apply_fonts(theme: &mut Theme) {
     theme.font_family = font_family().into();
     theme.mono_font_family = MONO_FONT_FAMILY.into();
 }
 
-/// Resolves the user's theme choice against the system appearance.
 pub fn is_dark(choice: AppTheme, appearance: WindowAppearance) -> bool {
     match choice {
         AppTheme::Light => false,
@@ -315,7 +263,6 @@ pub fn is_dark(choice: AppTheme, appearance: WindowAppearance) -> bool {
     }
 }
 
-/// Installs the palette and themes GPUI Kit's components to match.
 pub fn apply(dark: bool, text_scale: f32, window: Option<&mut Window>, cx: &mut App) {
     let palette = if dark {
         Palette::dark()
@@ -331,8 +278,6 @@ pub fn apply(dark: bool, text_scale: f32, window: Option<&mut Window>, cx: &mut 
         window,
         cx,
     );
-    // `Theme::update` reconciles the component tokens (buttons, tabs, sidebar)
-    // with these colors; editing through `global_mut` alone leaves them stale.
     Theme::update(cx, |theme| {
         apply_fonts(theme);
         theme.font_size = px(14. * text_scale);
@@ -411,7 +356,6 @@ pub fn apply(dark: bool, text_scale: f32, window: Option<&mut Window>, cx: &mut 
 mod tests {
     use super::*;
 
-    /// `color` drawn over the opaque `background`, as linear sRGB luminance.
     fn luminance(color: Hsla, background: Hsla) -> f32 {
         let top = gpui_kit::Rgba::from(color);
         let base = gpui_kit::Rgba::from(background);
@@ -436,7 +380,6 @@ mod tests {
         (a.max(b) + 0.05) / (a.min(b) + 0.05)
     }
 
-    /// Text on panels, their footer strips and the page stays readable.
     #[test]
     fn panel_text_colours_meet_four_and_a_half_to_one() {
         for palette in [Palette::light(), Palette::dark()] {
@@ -474,7 +417,6 @@ mod tests {
         }
     }
 
-    /// The page and its panels differ, so a panel reads as raised.
     #[test]
     fn panels_stand_apart_from_the_page() {
         for palette in [Palette::light(), Palette::dark()] {

@@ -1,9 +1,3 @@
-//! The rules behind what the Agent page shows (`AgentPresentation.swift`):
-//! where a step's file sits, which files a turn changed, how a conversation
-//! folds for reading, where a task stands, and how the task list groups.
-//! The words live with the page; these rules hold no text, so they are tested
-//! without a window.
-
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Datelike as _, Local, NaiveDate, Utc};
@@ -13,9 +7,6 @@ use crate::policy::{canonical_path, is_within, lexically_normalized};
 use crate::session::SessionState;
 use crate::transcript::{ToolStatus, TranscriptItem};
 
-// ------------------------------------------------------------------ files
-
-/// The fields of a tool call's arguments the page reads.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct StepArguments {
     pub path: Option<String>,
@@ -41,21 +32,15 @@ pub enum Place {
     Outside,
 }
 
-/// Where a file an agent step names sits, for the words beside it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FileTarget {
     pub path: PathBuf,
     pub name: String,
-    /// "Agent Workspace", "Agent Workspace/drafts" or "~/Desktop".
     pub folder: String,
     pub place: Place,
 }
 
 impl FileTarget {
-    /// Resolves a path the way the agent's file tools do: a leading `@` is
-    /// dropped, `~` is the home folder, and a relative path starts at the
-    /// working folder. Links are followed, so a link that leaves the working
-    /// folder is named for where it really points.
     pub fn resolve(path: &str, workspace: &Path, workspace_name: &str) -> FileTarget {
         let raw = resolve_tool_path(path, workspace);
         let resolved = canonical_path(&raw).unwrap_or_else(|| lexically_normalized(&raw));
@@ -90,8 +75,6 @@ impl FileTarget {
     }
 }
 
-/// The path a file tool would use: `@` dropped, `~` expanded, a relative
-/// path taken from the working folder.
 pub fn resolve_tool_path(path: &str, workspace: &Path) -> PathBuf {
     let text = path.trim();
     let text = text.strip_prefix('@').unwrap_or(text);
@@ -110,7 +93,6 @@ pub fn resolve_tool_path(path: &str, workspace: &Path) -> PathBuf {
     }
 }
 
-/// A folder with the home folder shown as `~`.
 fn abbreviated(folder: &Path) -> String {
     if let Some(home) = lokalbot_core::files::home_dir()
         && let Ok(inner) = folder.strip_prefix(&home)
@@ -127,31 +109,21 @@ fn abbreviated(folder: &Path) -> String {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Change {
-    /// The file did not exist before the agent wrote it.
     Created,
-    /// The agent wrote over a file that was there.
     Replaced,
-    /// The agent changed part of a file.
     Edited,
-    /// A write restored from saved history, where the earlier state is unknown.
     Written,
 }
 
-/// A file the agent wrote or edited in one turn.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ChangedFile {
     pub target: FileTarget,
     pub change: Change,
-    /// Lines of the text a write put in the file.
     pub line_count: Option<usize>,
-    /// The step that changed it last, for opening its result.
     pub step_id: String,
 }
 
 impl ChangedFile {
-    /// The files changed by the succeeded write and edit steps in `items`, in
-    /// the order they were first changed. `existed_before` says, for a write
-    /// step seen as it started, whether its file was already there.
     pub fn list(
         items: &[TranscriptItem],
         workspace: &Path,
@@ -193,7 +165,6 @@ impl ChangedFile {
                 Change::Edited
             };
             if let Some(file) = files.iter_mut().find(|f| f.target.path == target.path) {
-                // A file the agent made stays new however often it is touched again.
                 if file.change != Change::Created {
                     file.change = change;
                 }
@@ -221,15 +192,10 @@ impl ChangedFile {
     }
 }
 
-// ----------------------------------------------------------------- layout
-
-/// A run of tool steps shown as one line that opens to a row per step.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StepGroup {
     pub id: String,
-    /// The steps and, in a finished turn, what the agent said between them.
     pub entries: Vec<TranscriptItem>,
-    /// A finished turn folds all its work into one counted line.
     pub is_turn_summary: bool,
 }
 
@@ -255,21 +221,16 @@ impl StepGroup {
     }
 }
 
-/// What the conversation shows, top to bottom. It regroups the transcript
-/// for reading and never reorders or drops a message.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Block {
     User(TranscriptItem),
-    /// What the agent says while it works, shown in full.
     Said(TranscriptItem),
-    /// The last thing the agent said in a finished turn, with that turn's steps.
     Answer {
         item: TranscriptItem,
         steps: Vec<TranscriptItem>,
     },
     Notice(TranscriptItem),
     Steps(StepGroup),
-    /// The step in progress.
     Live(TranscriptItem),
 }
 
@@ -285,7 +246,6 @@ impl Block {
         }
     }
 
-    /// Everything a search of the task can match in this block.
     pub fn searchable_text(&self) -> String {
         match self {
             Block::User(item)
@@ -307,14 +267,10 @@ fn is_step(item: &TranscriptItem) -> bool {
     matches!(item, TranscriptItem::Tool { .. })
 }
 
-/// `is_working` says the last turn is still going: its words stay in full
-/// and each run of steps folds on its own. Every earlier turn, and the last
-/// one once it ends, folds its work into one line above its answer.
 pub fn layout(items: &[TranscriptItem], is_working: bool) -> Vec<Block> {
     let mut turns: Vec<Vec<TranscriptItem>> = Vec::new();
     for item in items {
         match item {
-            // The approval card above the composer owns these.
             TranscriptItem::Approval(_) => {}
             TranscriptItem::User { .. } => turns.push(vec![item.clone()]),
             _ => match turns.last_mut() {
@@ -338,7 +294,6 @@ fn layout_turn(turn: Vec<TranscriptItem>, finished: bool) -> Vec<Block> {
         blocks.push(Block::User(first.clone()));
         body = rest;
     }
-    // The answer is the last thing the agent said, when no step follows it.
     let last_said = body
         .iter()
         .rposition(|item| matches!(item, TranscriptItem::Assistant { .. }));
@@ -358,7 +313,6 @@ fn layout_turn(turn: Vec<TranscriptItem>, finished: bool) -> Vec<Block> {
                 blocks.extend(pending.drain(..).map(Block::Said));
             }
         };
-        // A notice (a denial, an error) is never folded away.
         for item in &body[..last_said] {
             if matches!(item, TranscriptItem::Notice { .. }) {
                 fold(&mut pending, &mut blocks);
@@ -414,22 +368,16 @@ fn layout_turn(turn: Vec<TranscriptItem>, finished: bool) -> Vec<Block> {
     blocks
 }
 
-// ----------------------------------------------------------------- status
-
-/// Where a task stands, for its list row and the toolbar.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TaskStatus {
     NotStarted,
-    /// A saved conversation with nothing going on.
     Saved,
     Starting,
     Working,
     NeedsApproval(usize),
     NeedsAttention,
     Stopped,
-    Done {
-        changed_files: usize,
-    },
+    Done { changed_files: usize },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -471,8 +419,6 @@ impl TaskStatus {
                 if was_stopped {
                     return TaskStatus::Stopped;
                 }
-                // A task is done while its agent is still open and its last
-                // turn ended with an answer.
                 let last = items
                     .iter()
                     .rev()
@@ -503,7 +449,6 @@ impl TaskStatus {
     }
 }
 
-/// The steps of the last turn: everything from the last message the user sent.
 pub fn last_turn(items: &[TranscriptItem]) -> &[TranscriptItem] {
     let start = items
         .iter()
@@ -512,19 +457,15 @@ pub fn last_turn(items: &[TranscriptItem]) -> &[TranscriptItem] {
     &items[start..]
 }
 
-// -------------------------------------------------------------- task list
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SectionKind {
     Pinned,
     Today,
     Yesterday,
     Day(NaiveDate),
-    /// Tasks from before task times were saved.
     Earlier,
 }
 
-/// One task as the list groups it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ListEntry {
     pub id: Uuid,
@@ -532,7 +473,6 @@ pub struct ListEntry {
     pub is_pinned: bool,
 }
 
-/// The task list's groups: pinned tasks, then one group per day, newest first.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct TaskListSection {
     pub kind: SectionKind,
@@ -540,7 +480,6 @@ pub struct TaskListSection {
 }
 
 impl TaskListSection {
-    /// Pinned entries keep the order they come in; the rest go newest first.
     pub fn make(entries: &[ListEntry], now: DateTime<Local>) -> Vec<TaskListSection> {
         let mut sections: Vec<TaskListSection> = Vec::new();
         let mut add =
@@ -700,7 +639,6 @@ mod tests {
         assert_eq!(ids(&running), ["u1", "steps.t1", "t2"]);
         let finished = layout(&[question(), read("t1", "a"), read("t2", "b")], true);
         assert_eq!(ids(&finished), ["u1", "steps.t1"]);
-        // The only step of a run shows live with no folded line above it.
         let alone = layout(
             &[
                 question(),
@@ -745,13 +683,11 @@ mod tests {
         };
         assert!(work.is_turn_summary);
         assert_eq!(step_ids(work), ["t1", "t2", "t3"]);
-        // What the agent said between steps stays inside the fold, in order.
         let entries: Vec<&str> = work.entries.iter().map(TranscriptItem::id).collect();
         assert_eq!(entries, ["t1", "a1", "t2", "t3"]);
         assert_eq!(item.id(), "a2");
         let answered: Vec<&str> = steps.iter().map(TranscriptItem::id).collect();
         assert_eq!(answered, ["t1", "t2", "t3"]);
-        // Nothing is dropped: every message is in exactly one block.
         assert!(
             blocks
                 .iter()
@@ -940,7 +876,6 @@ mod tests {
             status(Ready, 0, false, false, &answered, false, 1),
             TaskStatus::Done { changed_files: 1 }
         );
-        // A notice after the answer does not undo it.
         let with_notice = [
             question(),
             said("a", "Done."),
@@ -950,7 +885,6 @@ mod tests {
             status(Ready, 0, false, false, &with_notice, false, 0),
             TaskStatus::Done { changed_files: 0 }
         );
-        // A saved conversation that is only being read is not "done" again.
         assert_eq!(
             status(Idle, 0, false, false, &answered, true, 0),
             TaskStatus::Saved
@@ -1115,7 +1049,6 @@ mod tests {
         assert_eq!(files[1].change, Change::Edited);
         assert_eq!(files[1].line_count, Some(1));
         assert_eq!(files[2].target.place, Place::Outside);
-        // History does not say whether a written file was there before.
         assert_eq!(files[3].change, Change::Written);
         assert_eq!(files[3].line_count, Some(2));
         assert_eq!(ChangedFile::line_count(""), 0);

@@ -1,13 +1,3 @@
-//! Personal Context (`Services/PersonalModel/*`, `CLISupport/PersonalContextAccess.swift`):
-//! what the person told LokalBot about themselves, and what it learned from their
-//! own words. Saved claims are the person's; learned ones carry the source they
-//! came from and retract with it. Principles are never learned.
-//!
-//! `memory/personal-model.json.enc` is private by default. Ask and Quick Recall
-//! read it; external agents get only items marked for them, through the plaintext
-//! copy in `control/personal-context.json`, and only while that grant is on.
-//! Agent Mode, Autocomplete, notes, exports and diagnostics never read it.
-
 pub mod access;
 pub mod controller;
 pub mod dictation_log;
@@ -89,8 +79,6 @@ impl ClaimKind {
         }
     }
 
-    /// A starting kind for a statement typed in Ask. Only obvious English
-    /// openings are recognized; principles are never guessed.
     pub fn suggested(text: &str) -> Self {
         let lowered = text.to_lowercase();
         const PREFERENCE: [&str; 10] = [
@@ -124,34 +112,27 @@ impl ClaimKind {
     }
 }
 
-/// Where a claim came from. Swift encodes these as `{"case":{...}}`, with `{}`
-/// for a case without fields.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Origin {
-    /// "Remember …" typed in Ask or Quick Recall.
     Said {
         #[serde(rename = "conversationID", with = "uuid_upper_serde")]
         conversation_id: Uuid,
         #[serde(rename = "messageID", with = "uuid_upper_serde")]
         message_id: Uuid,
     },
-    /// Added in Settings → About you.
     Added {},
-    /// Picked up overnight from the person's own line in this meeting.
     Learned {
         #[serde(rename = "meetingID", with = "uuid_upper_serde")]
         meeting_id: Uuid,
         #[serde(rename = "dayKey")]
         day_key: String,
     },
-    /// Picked up overnight from something the person typed that day.
     Typed {
         source: TypedSource,
         #[serde(rename = "dayKey")]
         day_key: String,
     },
-    /// A goal or project the review kept for weeks; the day it was first seen.
     WorkMemory {
         #[serde(rename = "dayKey")]
         day_key: String,
@@ -161,46 +142,40 @@ pub enum Origin {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum TypedSource {
-    /// A request to Claude Code or Codex, saved by Read coding agent sessions.
-    CodingAgent { name: String },
-    /// A question asked in Ask or Quick Recall.
+    CodingAgent {
+        name: String,
+    },
     Ask {
         #[serde(rename = "conversationID", with = "uuid_upper_serde")]
         conversation_id: Uuid,
     },
-    /// Words dictated into another app, kept only until the night's pass.
-    Dictation { app: String },
+    Dictation {
+        app: String,
+    },
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Sharing {
-    /// Ask and Quick Recall only. The default for every claim.
     #[default]
     LokalBotOnly,
-    /// Also external agents, while the Personal context grant is on.
     Agents,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Status {
-    /// In use by Ask and, if shared, agents.
     #[default]
     Confirmed,
-    /// A learned suggestion waiting for review; never used.
     Proposed,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Authority {
-    /// The person stated it or kept it as their own statement.
     #[default]
     Stated,
-    /// Saved automatically from what the person said in a meeting.
     Learned,
-    /// Learned, then confirmed by the person in review.
     Confirmed,
 }
 
@@ -212,7 +187,6 @@ pub struct Claim {
     pub kind: ClaimKind,
     pub text: String,
     pub origin: Origin,
-    /// Included first in every eligible prompt, ahead of relevance ranking.
     #[serde(default)]
     pub always_use: bool,
     #[serde(default)]
@@ -221,10 +195,8 @@ pub struct Claim {
     pub status: Status,
     #[serde(default)]
     pub authority: Authority,
-    /// What a learned claim came from. `None` means no evidence dependency.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub evidence: Option<Provenance>,
-    /// The person's own line the claim was learned from, shown in review.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub quote: Option<String>,
     #[serde(with = "iso_seconds")]
@@ -258,7 +230,6 @@ impl Claim {
         }
     }
 
-    /// Learned automatically rather than stated.
     pub fn is_learned(&self) -> bool {
         matches!(
             self.origin,
@@ -266,7 +237,6 @@ impl Claim {
         )
     }
 
-    /// Dictated words are gone once read, so nothing can retract the item.
     pub fn has_removable_source(&self) -> bool {
         !matches!(
             self.origin,
@@ -277,7 +247,6 @@ impl Claim {
         )
     }
 
-    /// `PersonalContextSettings.keepLabel`.
     pub fn keep_label(&self) -> &'static str {
         match &self.origin {
             Origin::Learned { .. } => lokalbot_i18n::tr("Keep Even If the Meeting Is Deleted"),
@@ -289,7 +258,6 @@ impl Claim {
         }
     }
 
-    /// `PersonalContextProjection.Claim`'s source string.
     pub fn projection_source(&self) -> &'static str {
         let stated = self.authority == Authority::Stated;
         match &self.origin {
@@ -307,8 +275,6 @@ impl Claim {
     }
 }
 
-/// `PersonalContextSelection`'s view of an item, so the app (all claims) and the
-/// CLI (the shared copy) rank with the same rules.
 pub trait ContextItem {
     fn id(&self) -> Uuid;
     fn kind(&self) -> &str;
@@ -345,8 +311,6 @@ const STOPWORDS: &[&str] = &[
     "made", "want", "need", "tell", "know", "think", "remember", "please", "always", "never",
 ];
 
-/// Case- and diacritic-folded words of three or more letters, minus stopwords.
-/// Works for any script, so Serbian Latin and Cyrillic match themselves.
 pub fn content_words(text: &str) -> HashSet<String> {
     ids::fold(text)
         .split(|c: char| !c.is_alphanumeric() && c != '\'')
@@ -356,9 +320,6 @@ pub fn content_words(text: &str) -> HashSet<String> {
         .collect()
 }
 
-/// `PersonalContextSelection.ordered`: always-use items, then principles and
-/// preferences, then facts and goals sharing words with the query (most shared
-/// first), then the rest; newest first within each step.
 pub fn ordered<'a, Item: ContextItem>(
     items: &'a [Item],
     query: &str,
@@ -390,7 +351,6 @@ pub fn ordered<'a, Item: ContextItem>(
             out.push(item);
         }
     }
-    // A stable sort keeps newest first among ties.
     let mut matches: Vec<(&Item, usize)> = newest
         .iter()
         .filter(|i| !placed.contains(&i.id()))
@@ -416,8 +376,6 @@ pub fn ordered<'a, Item: ContextItem>(
     out
 }
 
-/// Why an item can't be kept. Over-long text is refused rather than cut: a cut
-/// sentence can drop a negation.
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum EditError {
     #[error("There's nothing to remember.")]
@@ -463,7 +421,6 @@ impl EditError {
     }
 }
 
-/// A forgotten learned claim or a dismissed suggestion, as a one-way hash.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Tombstone {
@@ -472,7 +429,6 @@ pub struct Tombstone {
     pub created_at: DateTime<Utc>,
 }
 
-/// When a work-memory item was first seen, as a hash of its text.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkSighting {
@@ -480,7 +436,6 @@ pub struct WorkSighting {
     pub first_day_key: String,
 }
 
-/// A day the learning pass read, and a hash of the lines it read.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct LearnedDay {
@@ -494,13 +449,9 @@ pub struct LearnedDay {
 pub struct LearningCandidate {
     pub kind: ClaimKind,
     pub text: String,
-    /// The person's own words it came from; `None` for work memory.
     pub quote: Option<String>,
     pub origin: Origin,
-    /// `None` only for Ask questions, which retract with their conversation.
     pub evidence: Option<Provenance>,
-    /// From typing, work memory, or grounded only by meaning across languages:
-    /// even a fact or goal waits for review.
     pub needs_review: bool,
 }
 
@@ -511,7 +462,6 @@ pub struct LearningOutcome {
     pub skipped: usize,
 }
 
-/// The person's claims plus the rules every edit goes through.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct PersonalModel {
@@ -534,7 +484,6 @@ impl Default for PersonalModel {
     }
 }
 
-/// Case-, width- and diacritic-insensitive key used to merge duplicates.
 pub fn duplicate_key(text: &str) -> String {
     let wide: String = text.nfkd().collect();
     let mut key = ids::fold(&wide);
@@ -548,7 +497,6 @@ pub fn tombstone_key(text: &str) -> String {
     sha256_hex(duplicate_key(text).as_bytes())
 }
 
-/// Prompt-safe text, or why it can't be kept.
 pub fn validated_text(raw: &str) -> Result<String, EditError> {
     let text = sanitize(raw, None);
     if text.is_empty() {
@@ -564,8 +512,6 @@ pub fn validated_text(raw: &str) -> Result<String, EditError> {
     Ok(text)
 }
 
-/// The same thing reworded: most content words of the shorter text appear in
-/// the other. Models restate known items despite being told not to.
 pub fn is_near_duplicate(lhs: &str, rhs: &str) -> bool {
     let left = content_words(lhs);
     let right = content_words(rhs);
@@ -592,8 +538,6 @@ impl PersonalModel {
         });
     }
 
-    /// Adds a claim, or refreshes the one with the same text. Saved claims are
-    /// never evicted to make room.
     pub fn add(
         &mut self,
         raw: &str,
@@ -608,7 +552,6 @@ impl PersonalModel {
             .iter_mut()
             .find(|c| duplicate_key(&c.text) == key)
         {
-            // Saying what LokalBot learned makes it the person's statement.
             if existing.is_learned() {
                 existing.status = Status::Confirmed;
                 existing.authority = Authority::Stated;
@@ -647,7 +590,6 @@ impl PersonalModel {
         if let Some(raw) = &edit.text {
             claim.text = validated_text(raw)?;
             let key = duplicate_key(&claim.text);
-            // Editing into another claim merges them: the edited one stays.
             self.claims
                 .retain(|c| c.id == id || duplicate_key(&c.text) != key);
         }
@@ -670,8 +612,6 @@ impl PersonalModel {
         Ok(claim)
     }
 
-    /// Forgetting a learned claim leaves a tombstone so tomorrow's review
-    /// doesn't learn it again; stated claims leave nothing behind.
     pub fn remove(&mut self, ids: &HashSet<Uuid>, now: DateTime<Utc>) {
         for claim in &self.claims {
             if ids.contains(&claim.id) && claim.is_learned() && claim.authority != Authority::Stated
@@ -685,14 +625,10 @@ impl PersonalModel {
         self.claims.retain(|c| !ids.contains(&c.id));
     }
 
-    /// Source deletion or correction: the claim goes, with no tombstone, so it
-    /// can be learned again from evidence that still exists.
     pub fn retract(&mut self, ids: &HashSet<Uuid>) {
         self.claims.retain(|c| !ids.contains(&c.id));
     }
 
-    /// Deleting an Ask conversation takes back what was learned from the
-    /// questions in it, unless the person kept it as their own statement.
     pub fn retract_learned_from_conversation(&mut self, conversation_id: Uuid) {
         self.claims.retain(|claim| {
             let from_it = matches!(
@@ -704,8 +640,6 @@ impl PersonalModel {
         });
     }
 
-    /// The source changed but still has the line a claim quotes: tie the claim
-    /// to the current revision instead of retracting it.
     pub fn refresh_evidence(&mut self, ids: &HashSet<Uuid>, revision: u64) {
         for claim in &mut self.claims {
             if ids.contains(&claim.id)
@@ -716,9 +650,6 @@ impl PersonalModel {
         }
     }
 
-    /// Facts and goals are saved and used at once; preferences, and items that
-    /// need review, wait; principles are never learned. Duplicates, forgotten or
-    /// dismissed text, invalid text and anything past the limits are skipped.
     pub fn learn(
         &mut self,
         candidates: &[LearningCandidate],
@@ -780,7 +711,6 @@ impl PersonalModel {
         outcome
     }
 
-    /// Review of a learned suggestion: keep it as confirmed.
     pub fn confirm(&mut self, id: Uuid, now: DateTime<Utc>) -> Result<Claim, EditError> {
         let claim = self
             .claims
@@ -793,7 +723,6 @@ impl PersonalModel {
         Ok(claim.clone())
     }
 
-    /// The person vouches for a learned claim: it no longer depends on its source.
     pub fn keep_as_statement(&mut self, id: Uuid, now: DateTime<Utc>) -> Result<Claim, EditError> {
         let claim = self
             .claims
@@ -807,7 +736,6 @@ impl PersonalModel {
         Ok(claim.clone())
     }
 
-    /// Drops suggestions nobody reviewed and old tombstones.
     pub fn prune(&mut self, now: DateTime<Utc>) {
         self.claims.retain(|c| {
             !(c.status == Status::Proposed
@@ -828,7 +756,6 @@ impl PersonalModel {
     }
 }
 
-/// What an edit changes; anything left `None` stays as it is.
 #[derive(Clone, Debug, Default)]
 pub struct ClaimEdit {
     pub text: Option<String>,
@@ -858,7 +785,6 @@ const REMEMBER_TRIGGERS: &[&str] = &[
     "запамти:",
     "запамти ",
 ];
-/// After these a question word means the message asks about the past.
 const QUESTION_CHECKED_TRIGGERS: &[&str] = &[
     "please remember ",
     "remember ",
@@ -909,9 +835,6 @@ const QUESTION_OPENINGS: &[&str] = &[
     "која",
 ];
 
-/// `RememberIntent.parse`: the statement to remember, or `None` when the message
-/// isn't a request to remember something (including every question about the
-/// past). Recognizes English and Serbian, Latin and Cyrillic.
 pub fn remember_statement(message: &str) -> Option<String> {
     let trimmed = message.trim();
     if trimmed.ends_with('?') {
@@ -945,7 +868,6 @@ pub const CONTEXT_BUDGET: usize = 2_000;
 const CONTEXT_HEADER: &str = "What LokalBot knows about the user. Items marked \"learned\" were picked up from what they said in meetings and may be out of date; the rest are their own statements. None of these are evidence:";
 const CONTEXT_FOOTER: &str = "Use these only when they bear on the question. They are not sources: never cite them as a meeting or screen source. If retrieved evidence contradicts one, say so. If two conflict, prefer the newer one and point out the conflict.";
 
-/// What one question gets from the personal model (`PersonalContextBuilder`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ContextSelection {
     pub claim_ids: Vec<Uuid>,
@@ -963,8 +885,6 @@ fn context_line(claim: &Claim) -> String {
     format!("- [{} · {learned}{day}] {text}", claim.kind.as_str())
 }
 
-/// The smallest useful slice, as a prompt block. Claims that don't fit the budget
-/// are skipped, not cut.
 pub fn select_context(
     claims: &[Claim],
     question: &str,

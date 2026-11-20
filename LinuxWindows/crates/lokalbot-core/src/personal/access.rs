@@ -1,9 +1,3 @@
-//! The Personal context grant (`PersonalContextAccessGate`,
-//! `PersonalContextAccessManager`): a marker under `control/` plus a plaintext
-//! copy of only the claims the person shared, so the CLI and MCP can answer
-//! without the app running and without reading the encrypted model. Every
-//! failure removes the shared copy rather than leaving a stale one.
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -83,8 +77,6 @@ fn one() -> u32 {
     1
 }
 
-/// The shared claims, or `None` when the grant is off or nothing readable was
-/// written.
 pub fn read_projection(paths: &LibraryPaths) -> Option<Projection> {
     if !personal_context_enabled(paths) {
         return None;
@@ -99,8 +91,6 @@ pub fn remove_projection(paths: &LibraryPaths) {
     let _ = std::fs::remove_file(paths.control_dir().join(PERSONAL_PROJECTION));
 }
 
-/// Turns the grant on (and leaves the copy to [`refresh`]) or off, which removes
-/// the shared copy too, so nothing lingers on disk.
 pub fn set_enabled(paths: &LibraryPaths, enabled: bool) -> std::io::Result<()> {
     if enabled {
         crate::access::ensure_private_dir(&paths.control_dir())?;
@@ -117,9 +107,6 @@ pub fn set_enabled(paths: &LibraryPaths, enabled: bool) -> std::io::Result<()> {
     }
 }
 
-/// Rewrites the shared copy from `current`; `None` means the personal model
-/// couldn't be read, so nothing is shared until it can be. Returns what went
-/// wrong, for Settings.
 pub fn refresh(paths: &LibraryPaths, current: Option<&[Claim]>) -> Option<String> {
     if !personal_context_enabled(paths) {
         remove_projection(paths);
@@ -139,7 +126,6 @@ pub fn refresh(paths: &LibraryPaths, current: Option<&[Claim]>) -> Option<String
         .filter(|claim| claim.sharing == Sharing::Agents)
         .map(SharedClaim::from)
         .collect();
-    // Answers stamp the last-used time, which agents never see.
     if read_projection(paths).is_some_and(|existing| existing.claims == shared) {
         return None;
     }

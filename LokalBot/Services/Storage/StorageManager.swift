@@ -1,21 +1,10 @@
 import Foundation
 
-/// Owns the on-disk layout (design doc §6):
-/// ~/Library/Application Support/me.dotenv.LokalBot/
-///   meetings/YYYY/MM/dd-slug/{mic.m4a, system.m4a, meta.json}
-///
-/// Rooted at the bundle id, NOT "LokalBot": an unrelated app may own
-/// ~/Library/Application Support/LokalBot/ on some machines, and its
-/// "Meetings" folder would collide with our "meetings" on the default
-/// case-insensitive filesystem.
 final class StorageManager {
 
     let rootURL: URL
 
     init(rootURL: URL = AppDirectories.libraryRoot) {
-        // UI-test isolation hook: when the env var points at a directory,
-        // every read/write goes there instead of the user's real library.
-        // Production launches never set it, so default behaviour is unchanged.
         self.rootURL = rootURL
         try? FileManager.default.createDirectory(at: rootURL.appendingPathComponent("meetings"),
                                                  withIntermediateDirectories: true)
@@ -30,10 +19,6 @@ final class StorageManager {
         return meeting
     }
 
-    /// Creates an empty, uniquely named folder for a meeting on `startedAt`'s
-    /// day and returns its library-relative path. The library lists only
-    /// folders that hold `meta.json`, so a caller can move finished files in
-    /// before the meeting appears.
     func reserveMeetingFolder(title: String, startedAt: Date) throws -> String {
         let cal = Calendar.current
         let y = cal.component(.year, from: startedAt)
@@ -43,7 +28,6 @@ final class StorageManager {
         let base = Self.folderSlug(title)
         var slug = "\(d)-\(base)"
         var relative = "meetings/\(y)/\(m)/\(slug)"
-        // De-dupe: second Zoom meeting the same day gets "-2", etc.
         var counter = 2
         while FileManager.default.fileExists(atPath: rootURL.appendingPathComponent(relative).path) {
             slug = "\(d)-\(base)-\(counter)"
@@ -64,9 +48,6 @@ final class StorageManager {
         try encoder.encode(meeting).write(to: url, options: .atomic)
     }
 
-    /// Scan the library for meta.json files. Fine for M1; replaced by the
-    /// SQLite index in M3. Source meetings folded into a merged record remain
-    /// on disk for provenance but are excluded from the normal library view.
     func loadMeetings(includeMergedSources: Bool = false) -> [Meeting] {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -77,12 +58,8 @@ final class StorageManager {
         for case let url as URL in enumerator where url.lastPathComponent == "meta.json" {
             if let data = try? Data(contentsOf: url),
                var meeting = try? decoder.decode(Meeting.self, from: data) {
-                // Orphan repair: app killed mid-recording leaves endedAt nil
-                // forever ("in progress"). Close it at the audio's last write.
                 if meeting.endedAt == nil {
                     let folder = url.deletingLastPathComponent()
-                    // Materialize independent checkpoints before inspecting an
-                    // orphan. This finalizes existing media, never new capture.
                     for track in MeetingAudioFiles.Track.allCases {
                         _ = try? AudioRecoveryJournal.recover(
                             previewURL: MeetingAudioFiles.recoveryURL(for: track, in: folder))
@@ -125,8 +102,6 @@ final class StorageManager {
                     try saveMeta(resolved[index])
                 }
             } catch {
-                // Keep the old marker if either SQLite or metadata repair
-                // failed. A later load retries instead of losing the journal.
                 AppLog.line("Meeting merge recovery failed: \(error.localizedDescription)")
             }
         }
@@ -136,8 +111,6 @@ final class StorageManager {
         return result.sorted { $0.startedAt > $1.startedAt }
     }
 
-    /// Only call after removing the generated parent. The on-disk source
-    /// marker is the recovery journal until both indexes have been reopened.
     func restoreMergedSource(_ source: Meeting) throws -> Meeting {
         guard let mergedID = source.mergedIntoMeetingID else { return source }
         try SearchIndex.restoreMergedSource(source.id, from: mergedID,
@@ -148,9 +121,6 @@ final class StorageManager {
         return restored
     }
 
-    /// Permanent deletion is different from Undo: remove every retained
-    /// descendant before its parent. A failed/interrupted delete therefore
-    /// leaves surviving sources folded, and retries skip already removed ones.
     func deletionOrder(for meeting: Meeting) throws -> [Meeting] {
         let all = try SessionLookup.loadAllMeetings(root: rootURL, includeMergedSources: true)
         let byID = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
@@ -177,18 +147,12 @@ final class StorageManager {
         return ordered
     }
 
-    /// Delete the durable meeting folder. Callers must only remove the meeting
-    /// from in-memory/UI state after this succeeds; swallowing the filesystem
-    /// error made failed deletions reappear on the next launch.
     func deleteMeeting(_ meeting: Meeting) throws {
         try DreamStore(root: rootURL).withMeetingEvidenceMutation(for: [meeting]) {
             try FileManager.default.removeItem(at: meeting.folderURL(in: self))
         }
     }
 
-    /// The slug, short enough for a folder name. APFS allows 255 bytes, which
-    /// about 85 CJK characters already fill, and a title a device sent can be
-    /// longer than that.
     static func folderSlug(_ title: String) -> String {
         var slug = slugify(title)
         while slug.utf8.count > 120 { slug.removeLast() }
@@ -204,10 +168,6 @@ final class StorageManager {
 }
 
 extension Meeting {
-    /// Resolve this meeting's on-disk folder against a `StorageManager`'s
-    /// root. Lives on `StorageManager.swift` (not `Meeting.swift`) so the
-    /// embedded `lokalbot-cli` — which doesn't compile `StorageManager` —
-    /// keeps the `Meeting` value type dependency-free.
     func folderURL(in storage: StorageManager) -> URL {
         storage.rootURL.appendingPathComponent(relativePath, isDirectory: true)
     }

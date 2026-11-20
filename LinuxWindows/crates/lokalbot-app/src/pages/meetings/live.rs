@@ -1,7 +1,3 @@
-//! The meeting being recorded right now (`LiveMeetingDetailView.swift`,
-//! `RecordingHealthStrip.swift`): recording pill, capture health with level
-//! meters, the live transcript preview and a notes pad.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::input::Textarea;
 use gpui_kit::component::{Sizable as _, v_flex};
@@ -186,8 +182,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// `LiveMeetingDetailView.transcriptColumn`: the opt-in preview, its
-    /// controls and the rolling, undiarized lines.
     fn render_live_transcript(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let preview = self.data.read(cx).live_preview.clone();
@@ -421,8 +415,6 @@ impl MeetingsPage {
         cx: &mut Context<Self>,
     ) -> impl IntoElement {
         let lb = cx.lb().clone();
-        // The engine reports each track's state; levels only fill in until
-        // its first update arrives.
         let statuses = self
             .data
             .read(cx)
@@ -507,7 +499,6 @@ impl MeetingsPage {
     }
 }
 
-/// 20 segments, 5×10 each: teal up to the level, faint grey after.
 fn level_meter(level: f32, on: Hsla, off: Hsla) -> impl IntoElement {
     let level = level.clamp(0., 1.);
     h_flex().gap(px(3.)).children((0..20).map(move |index| {
@@ -520,7 +511,6 @@ fn level_meter(level: f32, on: Hsla, off: Hsla) -> impl IntoElement {
     }))
 }
 
-/// Five small bars that move with the input level (`LiveWaveform`).
 pub(super) fn live_bars(level: f32, elapsed: f64, color: Hsla) -> impl IntoElement {
     let level = level.clamp(0.15, 1.);
     h_flex()
@@ -534,7 +524,6 @@ pub(super) fn live_bars(level: f32, elapsed: f64, color: Hsla) -> impl IntoEleme
         }))
 }
 
-/// "4:05", as the macOS preview stamps lines.
 fn clock(seconds: f64) -> String {
     let total = seconds.max(0.) as u64;
     format!("{}:{:02}", total / 60, total % 60)

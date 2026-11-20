@@ -1,10 +1,3 @@
-//! What the person dictated into other apps, kept only for the overnight learning
-//! pass (Learn from my dictation, off by default). Raw spoken words only, never
-//! Compose's drafts, with card numbers and IBANs redacted. Sealed with the
-//! `chat-key` in `memory/dictation-for-learning.json.enc`. Each entry goes once
-//! the pass has read its day and never lasts more than two days; turning the
-//! setting off deletes the file (`DictationLearningLog`).
-
 use std::fs;
 use std::path::PathBuf;
 
@@ -72,7 +65,6 @@ impl DictationLog<'_> {
         self.library.paths().root().join("memory").join(FILE_NAME)
     }
 
-    /// Adds one dictation, dropping expired entries and the oldest past the cap.
     pub fn append(&self, text: &str, app_name: &str) -> Result<()> {
         let clean = sanitize(&redact(text), Some(MAXIMUM_ENTRY_CHARACTERS));
         if clean.is_empty() {
@@ -89,7 +81,6 @@ impl DictationLog<'_> {
         self.save(&entries[start..])
     }
 
-    /// Unexpired entries dictated on `day`, oldest first.
     pub fn entries_on(&self, day: NaiveDate) -> Vec<Entry> {
         self.current()
             .into_iter()
@@ -97,7 +88,6 @@ impl DictationLog<'_> {
             .collect()
     }
 
-    /// After the learning pass for `day`: drops that day and everything before.
     pub fn remove_through(&self, day: NaiveDate) -> Result<()> {
         let (_, end) = local_day_bounds(day);
         let kept: Vec<Entry> = self
@@ -108,7 +98,6 @@ impl DictationLog<'_> {
         self.save(&kept)
     }
 
-    /// Drops expired entries; deletes the file when none remain.
     pub fn prune(&self) -> Result<()> {
         if !self.path().exists() {
             return Ok(());
@@ -124,8 +113,6 @@ impl DictationLog<'_> {
         }
     }
 
-    /// Unexpired entries. An unreadable file reads as empty: it is a short-lived
-    /// buffer, and the next save replaces it.
     fn current(&self) -> Vec<Entry> {
         let Some(contents) = fs::read(self.path()).ok().and_then(|bytes| {
             let key = self.library.chat_key(false).ok()?;

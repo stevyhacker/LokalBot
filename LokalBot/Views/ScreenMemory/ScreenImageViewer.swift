@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Full-resolution pixels live only in this sheet's memory. Closing releases
-/// the decoded image; no decrypted file is exported or written to disk.
 struct ScreenImageViewer: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss

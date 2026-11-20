@@ -227,11 +227,7 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(AppSettings().multiSpeakerDiarization)
     }
 
-    // MARK: - Decode-fallback audit
-
     func testAbsentKeysAreNotReportedAsCorruption() throws {
-        // An older build's blob simply lacks newer keys — that is the normal
-        // tolerant-decoding case and must stay silent.
         let data = #"{"autoTranscribe":true}"#.data(using: .utf8)!
         let settings = try JSONDecoder().decode(AppSettings.self, from: data)
 
@@ -239,7 +235,6 @@ final class AppSettingsTests: XCTestCase {
     }
 
     func testRetiredSpeakerSettingKeysDecodeSilentlyAndAreDropped() throws {
-        // Meet naming was removed; remembering speakers is always on.
         let data = #"{"identifySpeakersFromVisuals":true,"rememberSpeakersOnMac":false}"#.data(using: .utf8)!
         let settings = try JSONDecoder().decode(AppSettings.self, from: data)
 
@@ -250,9 +245,6 @@ final class AppSettingsTests: XCTestCase {
     }
 
     func testCorruptFieldFallsBackToDefaultAndIsReported() throws {
-        // Key present but the value is the wrong shape: the field resets to
-        // its default, and — because a silently flipped privacy setting is a
-        // real event — the reset is recorded by name.
         let data = #"{"screenContextCaptureMode":42,"autoTranscribe":"yes"}"#
             .data(using: .utf8)!
         let settings = try JSONDecoder().decode(AppSettings.self, from: data)
@@ -293,10 +285,8 @@ final class AppSettingsTests: XCTestCase {
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
         addTeardownBlock { defaults.removePersistentDomain(forName: suiteName) }
 
-        // No stored blob at all: a genuine first run, nothing to report.
         XCTAssertTrue(AppSettings.load(from: defaults).corruptedSettingsKeys.isEmpty)
 
-        // Unreadable blob: reset to defaults, but say so.
         defaults.set(Data("not json".utf8), forKey: AppSettings.key)
         let reset = AppSettings.load(from: defaults)
         XCTAssertEqual(reset.corruptedSettingsKeys,
@@ -344,9 +334,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.speechSpeed, AppSettings.maximumSpeechSpeed)
     }
 
-    /// Settings written before TranscriptionModelChoice raw values were
-    /// stabilized persisted the display strings — they must keep decoding so
-    /// an update never silently resets a user's model choice.
     func testDecodesLegacyTranscriptionModelDisplayString() throws {
         let data = #"{"transcriptionModel":"Parakeet TDT 0.6B v3 (multilingual)"}"#.data(using: .utf8)!
 
@@ -469,8 +456,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(settings.approvedRemoteInferenceOrigins.isEmpty)
     }
 
-    /// Legacy settings that predate the typed screen-context mode still map the
-    /// old screenshot switch to visual context.
     func testLegacyScreenshotChoiceMapsToVisualContext() throws {
         let data = #"{"trackingEnabled":true,"screenshotsEnabled":true}"#.data(using: .utf8)!
 
@@ -506,8 +491,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.memoryRoutineWeekday, 1)
     }
 
-    /// The default prunes OCR text on the same schedule as the pixels;
-    /// keeping it forever is the explicit opt-in.
     func testKeepOCRTextForeverDefaultsFalse() {
         XCTAssertFalse(AppSettings().keepOCRTextForever)
     }
@@ -531,8 +514,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertTrue(decoded.keepOCRTextForever)
     }
 
-    /// Fresh installs generate the evening digest without a click; 18:00
-    /// matches the daily memory export's default refresh hour.
     func testDayDigestDefaultsToAutomaticEveningGeneration() {
         let settings = AppSettings()
         XCTAssertTrue(settings.dayDigestAutoEnabled)
@@ -555,8 +536,6 @@ final class AppSettingsTests: XCTestCase {
                        "Focus on deep work; keep it under 10 bullets.")
     }
 
-    /// Settings blobs from builds without the day-digest keys decode to the
-    /// new defaults instead of failing or disabling the schedule.
     func testLegacySettingsDecodeWithDayDigestDefaults() throws {
         let decoded = try JSONDecoder().decode(
             AppSettings.self, from: Data("{}".utf8))
@@ -734,8 +713,6 @@ final class AppSettingsTests: XCTestCase {
         XCTAssertFalse(settings.autoTranscribe)
     }
 
-    /// Settings persisted by a build that predates the key keep working and
-    /// fall back to the menu-bar-only default rather than resetting everything.
     func testDecodesSettingsWithoutMenuBarOnlyKeyAsDefault() throws {
         let data = #"{"autoTranscribe":false}"#.data(using: .utf8)!
 

@@ -1,17 +1,8 @@
-//! Child processes that cannot outlive LokalBot, plus liveness checks for
-//! PID markers left by an earlier run.
-//!
-//! Linux: `PR_SET_PDEATHSIG` fires when the *thread* that forked the child
-//! exits, so every helper is spawned from one thread that lives as long as
-//! the process. Windows: helpers join a job object that kills them when the
-//! last handle to it (ours) closes.
-
 use std::io::{self, Read};
 use std::path::PathBuf;
 use std::process::{Child, Command, ExitStatus, Stdio};
 use std::time::{Duration, Instant};
 
-/// Spawns `command` so the child dies with this process.
 pub(crate) fn spawn_tied(command: Command) -> io::Result<Child> {
     #[cfg(target_os = "linux")]
     {
@@ -53,8 +44,6 @@ mod linux {
 
     pub fn spawn(mut command: Command) -> io::Result<Child> {
         let parent = std::process::id() as libc::pid_t;
-        // SAFETY: the hook runs between fork and exec and only calls the
-        // async-signal-safe prctl/getppid; it allocates nothing.
         unsafe {
             command.pre_exec(move || {
                 if libc::prctl(
@@ -67,7 +56,6 @@ mod linux {
                 {
                     return Err(io::Error::last_os_error());
                 }
-                // The parent may have died before prctl took effect.
                 if libc::getppid() != parent {
                     return Err(io::Error::from_raw_os_error(libc::ESRCH));
                 }
@@ -113,36 +101,30 @@ mod windows {
     };
 
     struct Job(HANDLE);
-    // SAFETY: a job handle is a process-wide kernel handle; it is only passed
-    // to thread-safe Win32 calls and never closed while the process runs.
     unsafe impl Send for Job {}
     unsafe impl Sync for Job {}
 
     static JOB: OnceLock<Option<Job>> = OnceLock::new();
 
     fn job() -> Option<HANDLE> {
-        JOB.get_or_init(|| {
-            // SAFETY: plain Win32 calls with valid arguments; the info struct
-            // is zero-initialized as the API allows and sized exactly.
-            unsafe {
-                let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
-                if handle.is_null() {
-                    log::warn!("could not create a job object for helper processes");
-                    return None;
-                }
-                let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
-                info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
-                let ok = SetInformationJobObject(
-                    handle,
-                    JobObjectExtendedLimitInformation,
-                    &info as *const _ as *const core::ffi::c_void,
-                    std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
-                );
-                if ok == 0 {
-                    log::warn!("could not configure the helper job object");
-                }
-                Some(Job(handle))
+        JOB.get_or_init(|| unsafe {
+            let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
+            if handle.is_null() {
+                log::warn!("could not create a job object for helper processes");
+                return None;
             }
+            let mut info: JOBOBJECT_EXTENDED_LIMIT_INFORMATION = std::mem::zeroed();
+            info.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+            let ok = SetInformationJobObject(
+                handle,
+                JobObjectExtendedLimitInformation,
+                &info as *const _ as *const core::ffi::c_void,
+                std::mem::size_of::<JOBOBJECT_EXTENDED_LIMIT_INFORMATION>() as u32,
+            );
+            if ok == 0 {
+                log::warn!("could not configure the helper job object");
+            }
+            Some(Job(handle))
         })
         .as_ref()
         .map(|job| job.0)
@@ -150,7 +132,6 @@ mod windows {
 
     pub fn assign_to_job(child: &Child) {
         if let Some(job) = job() {
-            // SAFETY: both handles are valid for the duration of the call.
             let ok = unsafe { AssignProcessToJobObject(job, child.as_raw_handle() as HANDLE) };
             if ok == 0 {
                 log::warn!(
@@ -162,14 +143,12 @@ mod windows {
     }
 }
 
-/// Whether a process with this PID exists (it may belong to another user).
 pub(crate) fn pid_alive(pid: u32) -> bool {
     if pid == 0 {
         return false;
     }
     #[cfg(unix)]
     {
-        // SAFETY: signal 0 only checks for existence and permission.
         let rc = unsafe { libc::kill(pid as libc::pid_t, 0) };
         rc == 0 || io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
     }
@@ -180,7 +159,6 @@ pub(crate) fn pid_alive(pid: u32) -> bool {
             GetExitCodeProcess, OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION,
         };
         const STILL_ACTIVE: u32 = 259;
-        // SAFETY: the handle is checked and closed; `code` is a valid out-pointer.
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {
@@ -194,7 +172,6 @@ pub(crate) fn pid_alive(pid: u32) -> bool {
     }
 }
 
-/// The executable of a running process.
 pub(crate) fn exe_path(pid: u32) -> Option<PathBuf> {
     #[cfg(target_os = "linux")]
     {
@@ -207,7 +184,6 @@ pub(crate) fn exe_path(pid: u32) -> Option<PathBuf> {
         use windows_sys::Win32::System::Threading::{
             OpenProcess, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
         };
-        // SAFETY: the handle is checked and closed; the buffer length is passed in and out.
         unsafe {
             let handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, 0, pid);
             if handle.is_null() {
@@ -228,15 +204,12 @@ pub(crate) fn exe_path(pid: u32) -> Option<PathBuf> {
     }
 }
 
-/// SIGTERM, then SIGKILL after `grace` (Windows terminates at once).
-/// Returns whether the process is gone.
 pub(crate) fn terminate(pid: u32, grace: Duration) -> bool {
     if !pid_alive(pid) {
         return true;
     }
     #[cfg(unix)]
     {
-        // SAFETY: plain signal delivery to a PID we verified belongs to a helper.
         unsafe { libc::kill(pid as libc::pid_t, libc::SIGTERM) };
         let deadline = Instant::now() + grace;
         while Instant::now() < deadline {
@@ -245,7 +218,6 @@ pub(crate) fn terminate(pid: u32, grace: Duration) -> bool {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        // SAFETY: as above.
         unsafe { libc::kill(pid as libc::pid_t, libc::SIGKILL) };
     }
     #[cfg(windows)]
@@ -254,7 +226,6 @@ pub(crate) fn terminate(pid: u32, grace: Duration) -> bool {
         use windows_sys::Win32::System::Threading::{
             OpenProcess, PROCESS_TERMINATE, TerminateProcess,
         };
-        // SAFETY: the handle is checked and closed.
         unsafe {
             let handle = OpenProcess(PROCESS_TERMINATE, 0, pid);
             if !handle.is_null() {
@@ -274,14 +245,12 @@ pub(crate) fn terminate(pid: u32, grace: Duration) -> bool {
     !pid_alive(pid)
 }
 
-/// Stops our own child: SIGTERM and up to `grace` to exit, then a hard kill.
 pub(crate) fn stop_child(child: &mut Child, grace: Duration) {
     if matches!(child.try_wait(), Ok(Some(_))) {
         return;
     }
     #[cfg(unix)]
     {
-        // SAFETY: signal delivery to our own, not yet reaped, child.
         unsafe { libc::kill(child.id() as libc::pid_t, libc::SIGTERM) };
         let deadline = Instant::now() + grace;
         while Instant::now() < deadline {
@@ -303,8 +272,6 @@ pub(crate) struct Captured {
     pub stderr: String,
 }
 
-/// Runs a short command with both pipes drained concurrently (a full pipe
-/// would block the child), killing it after `timeout`.
 pub(crate) fn run_capture(mut command: Command, timeout: Duration) -> io::Result<Captured> {
     command
         .stdin(Stdio::null())

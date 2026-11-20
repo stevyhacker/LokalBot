@@ -1,13 +1,3 @@
-//! Reads Codex rollouts from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` and
-//! `~/.codex/archived_sessions/` (`CodexSessionReader.swift`). Codex compresses
-//! rollouts it is done with to `*.jsonl.zst`, which are read too.
-//!
-//! A rollout stays in the folder of the day it started even when it is resumed
-//! weeks later, so files are selected by modification date rather than by
-//! folder. Subagent threads, including approval reviewers, are skipped: their
-//! parent session reports the work. Titles come from `session_index.jsonl`;
-//! credentials and the internal SQLite state are never opened.
-
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -20,7 +10,6 @@ use super::cache::{self, FileSummary, ParseCache, StoredEvent};
 use super::scanner::ReadResult;
 use super::text::{self, Line};
 
-/// Every file under `directory`, without entering hidden folders.
 fn walk(directory: &Path, into: &mut Vec<PathBuf>) {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return;
@@ -94,8 +83,6 @@ impl CodexReader {
     }
 }
 
-/// One file per rollout: a rollout kept both plain and compressed is read from
-/// the copy written last. Reading both would count its work twice.
 fn newest_copies(files: Vec<cache::CandidateFile>) -> Vec<cache::CandidateFile> {
     let mut chosen: HashMap<PathBuf, cache::CandidateFile> = HashMap::new();
     for file in files {
@@ -110,7 +97,6 @@ fn newest_copies(files: Vec<cache::CandidateFile>) -> Vec<cache::CandidateFile> 
     chosen.into_values().collect()
 }
 
-/// Thread names by id; later lines are renames and win.
 fn thread_titles(index: &Path, cache: Option<&ParseCache>) -> HashMap<String, String> {
     let (past, future) = (cache::distant_past(), DateTime::<Utc>::MAX_UTC);
     let Some(file) = cache::candidate_files([index.to_path_buf()], past, future, false)
@@ -144,7 +130,6 @@ impl FileSummary for ThreadTitles {
     fn trim(&mut self, _start: DateTime<Utc>) {}
 }
 
-/// Opening bytes of records that never carry evidence beyond their time.
 const TIMESTAMP_ONLY_MARKERS: &[&str] = &[
     r#""type":"function_call_output""#,
     r#""type":"custom_tool_call_output""#,
@@ -157,8 +142,6 @@ const TIMESTAMP_ONLY_MARKERS: &[&str] = &[
     r#""item":{"type":"ImageView""#,
 ];
 
-/// What the reader keeps of one rollout between scans: the session's id and
-/// labels, and its events with redundant activity compacted away.
 #[derive(Clone, Debug, Default)]
 pub struct CodexSummary {
     session_id: String,
@@ -197,8 +180,6 @@ impl FileSummary for CodexSummary {
         }
         let kind = record["type"].as_str();
         if kind == Some("session_meta") {
-            // A subagent's `source` is an object such as
-            // {"subagent":{"other":"guardian"}}; people start "vscode" or "cli".
             if payload["source"].get("subagent").is_some() {
                 self.is_subagent = true;
                 self.events.clear();
@@ -272,8 +253,6 @@ impl CodexSummary {
                 let Some(content) = payload["content"].as_array() else {
                     return;
                 };
-                // Codex sends injected instructions and context as separate
-                // items of the same user message; each is judged on its own.
                 let texts: Vec<&str> = content
                     .iter()
                     .filter(|item| {
@@ -319,7 +298,6 @@ impl CodexSummary {
     fn append_completed_item(&mut self, item: &Value, at: DateTime<Utc>) {
         match item["type"].as_str() {
             Some("CommandExecution") => {
-                // Only the command; `aggregated_output` and friends are never read.
                 let Some(command) = command_in_item(item) else {
                     return;
                 };
@@ -331,7 +309,6 @@ impl CodexSummary {
                 }
             }
             Some("FileChange") => {
-                // `changes` maps each path to its diff; only the keys are used.
                 let Some(changes) = item["changes"].as_object() else {
                     return;
                 };
@@ -372,8 +349,6 @@ impl CodexSummary {
         }
     }
 
-    /// The session's transcript inside the window, or `None` for a subagent
-    /// thread or a window holding no work.
     fn transcript(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Option<Transcript> {
         if self.is_subagent || self.session_id.is_empty() {
             return None;
@@ -399,8 +374,6 @@ impl CodexSummary {
     }
 }
 
-/// A completed command as the shell ran it. Codex records the argv as an array
-/// such as `["/bin/zsh", "-lc", "git push"]`; the script is last.
 fn command_in_item(item: &Value) -> Option<String> {
     string_array_last(&item["command"]).or_else(|| item["command"].as_str().map(str::to_string))
 }
@@ -413,7 +386,6 @@ fn string_array_last(value: &Value) -> Option<String> {
     items.last()?.as_str().map(str::to_string)
 }
 
-/// `apply_patch` names each file on a header line.
 fn patched_files(body: &str) -> Vec<String> {
     if !body.contains("*** ") {
         return Vec::new();
@@ -428,8 +400,6 @@ fn patched_files(body: &str) -> Vec<String> {
         .collect()
 }
 
-/// Shell tools pass JSON arguments with `cmd` (string) or `command` (string or
-/// argv).
 fn shell_command_in_arguments(body: &str) -> Option<String> {
     if !body.starts_with('{') {
         return None;

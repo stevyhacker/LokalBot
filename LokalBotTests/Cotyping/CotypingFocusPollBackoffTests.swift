@@ -20,8 +20,6 @@ private final class LockedTestBox<Value: Sendable>: @unchecked Sendable {
     }
 }
 
-// MARK: - Focus poll backoff
-
 final class CotypingFocusPollBackoffTests: XCTestCase {
     private func idledBackoff(captures count: Int) -> CotypingFocusPollBackoff {
         var backoff = CotypingFocusPollBackoff()

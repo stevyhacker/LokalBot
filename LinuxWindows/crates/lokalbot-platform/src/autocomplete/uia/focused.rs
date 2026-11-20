@@ -1,8 +1,3 @@
-//! One-shot reads of the focused element for dictation and selection actions,
-//! separate from the watcher: identity and privacy, the selection, the text
-//! before the caret, and the text above the field. Each call runs on a thread
-//! of its own, which joins the COM apartment only for that call.
-
 use std::time::Instant;
 
 use windows::Win32::System::Com::{
@@ -25,9 +20,7 @@ use super::super::visible;
 use super::super::{FieldSnapshot, Rect};
 use super::{UiaSource, bstr, caret_range, foreground_title, normalize_newlines, runtime_key};
 
-/// A stuck app costs one missed read.
 const PROVIDER_TIMEOUT_MS: u32 = 400;
-/// Counting characters to a selection's ends stops here.
 const MAX_OFFSET: i32 = 2_000_000;
 
 struct Session {
@@ -37,8 +30,6 @@ struct Session {
 
 impl Session {
     fn open() -> Option<Self> {
-        // SAFETY: COM is initialized for this thread by the caller; the
-        // objects stay on it.
         unsafe {
             let automation: IUIAutomation =
                 CoCreateInstance(&CUIAutomation8, None, CLSCTX_INPROC_SERVER).ok()?;
@@ -52,30 +43,23 @@ impl Session {
     }
 
     fn focused(&self) -> Option<IUIAutomationElement> {
-        // SAFETY: a COM call on this thread's object.
         unsafe { self.automation.GetFocusedElement() }.ok()
     }
 }
 
-/// Runs `read` with COM up on this thread and a UI Automation session.
 fn with_session<T>(read: impl FnOnce(&Session) -> Option<T>) -> Option<T> {
-    // SAFETY: balanced by the CoUninitialize below on this same thread.
     let initialized = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.is_ok();
     let result = Session::open().and_then(|session| read(&session));
     if initialized {
-        // SAFETY: matches the successful CoInitializeEx above.
         unsafe { CoUninitialize() };
     }
     result
 }
 
-/// A range's start and end as characters from the document's start, counted
-/// without reading any text.
 unsafe fn selection_offsets(
     pattern: &IUIAutomationTextPattern,
     range: &IUIAutomationTextRange,
 ) -> Option<(i32, i32)> {
-    // SAFETY: COM calls on the caller's thread.
     unsafe {
         if range
             .CompareEndpoints(
@@ -111,7 +95,6 @@ unsafe fn selection_offsets(
 }
 
 unsafe fn describe(element: &IUIAutomationElement, pid: u32) -> Field {
-    // SAFETY: COM calls on the caller's thread.
     unsafe {
         let password = element.CurrentIsPassword().is_ok_and(|b| b.as_bool());
         let name = bstr(element.CurrentName());
@@ -156,7 +139,6 @@ pub(in crate::autocomplete) fn read_field(pid: Option<u32>) -> FieldRead {
         let Some(element) = session.focused() else {
             return Some(FieldRead::NoFocus);
         };
-        // SAFETY: COM calls on this thread's objects.
         unsafe {
             let owner = element.CurrentProcessId().ok()? as u32;
             let _ = pid;
@@ -169,7 +151,6 @@ pub(in crate::autocomplete) fn read_field(pid: Option<u32>) -> FieldRead {
 pub(in crate::autocomplete) fn selected_text(pid: u32, max_characters: usize) -> SelectionRead {
     let read = with_session(|session| {
         let element = session.focused()?;
-        // SAFETY: COM calls on this thread's objects.
         unsafe {
             if element.CurrentProcessId().ok()? as u32 != pid {
                 return Some(SelectionRead::Unavailable);
@@ -178,7 +159,6 @@ pub(in crate::autocomplete) fn selected_text(pid: u32, max_characters: usize) ->
             if field.secure {
                 return Some(SelectionRead::Secure);
             }
-            // Web content keeps its selection on the document around the focus.
             let mut node = Some(element.clone());
             let mut text = None;
             for _ in 0..8 {
@@ -223,14 +203,12 @@ pub(in crate::autocomplete) fn selected_text(pid: u32, max_characters: usize) ->
     read.unwrap_or(SelectionRead::Unavailable)
 }
 
-/// The focused element, when it is still the bound field and not a secure one.
 unsafe fn bound_field(
     session: &Session,
     pid: u32,
     identity: &str,
 ) -> Option<(IUIAutomationElement, Field)> {
     let element = session.focused()?;
-    // SAFETY: COM calls on the caller's thread.
     unsafe {
         if element.CurrentProcessId().ok()? as u32 != pid {
             return None;
@@ -241,40 +219,34 @@ unsafe fn bound_field(
 }
 
 pub(in crate::autocomplete) fn text_before_caret(pid: u32, identity: &str) -> Option<String> {
-    with_session(|session| {
-        // SAFETY: COM calls on this thread's objects.
-        unsafe {
-            let (element, _) = bound_field(session, pid, identity)?;
-            let pattern = element
-                .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
-                .ok()?;
-            let range = caret_range(&pattern)?;
-            let before = range.Clone().ok()?;
-            before
-                .MoveEndpointByRange(
-                    TextPatternRangeEndpoint_End,
-                    &range,
-                    TextPatternRangeEndpoint_Start,
-                )
-                .ok()?;
-            before
-                .MoveEndpointByUnit(
-                    TextPatternRangeEndpoint_Start,
-                    TextUnit_Character,
-                    -(policy::MAX_BEFORE_UTF16 as i32),
-                )
-                .ok()?;
-            Some(normalize_newlines(&bstr(before.GetText(-1))))
-        }
+    with_session(|session| unsafe {
+        let (element, _) = bound_field(session, pid, identity)?;
+        let pattern = element
+            .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
+            .ok()?;
+        let range = caret_range(&pattern)?;
+        let before = range.Clone().ok()?;
+        before
+            .MoveEndpointByRange(
+                TextPatternRangeEndpoint_End,
+                &range,
+                TextPatternRangeEndpoint_Start,
+            )
+            .ok()?;
+        before
+            .MoveEndpointByUnit(
+                TextPatternRangeEndpoint_Start,
+                TextUnit_Character,
+                -(policy::MAX_BEFORE_UTF16 as i32),
+            )
+            .ok()?;
+        Some(normalize_newlines(&bstr(before.GetText(-1))))
     })
 }
 
-/// The page address of a browser: Chromium and Firefox report it as the value
-/// of the document around the field.
 unsafe fn document_url(session: &Session, element: &IUIAutomationElement) -> Option<String> {
     let mut node = element.clone();
     for _ in 0..40 {
-        // SAFETY: COM calls on the caller's thread.
         unsafe {
             if node.CurrentControlType().ok() == Some(UIA_DocumentControlTypeId)
                 && let Ok(value) =
@@ -292,7 +264,6 @@ unsafe fn document_url(session: &Session, element: &IUIAutomationElement) -> Opt
     None
 }
 
-/// Text above the bound field, under `policy`.
 pub(in crate::autocomplete) fn visible_text(
     pid: u32,
     identity: &str,
@@ -300,88 +271,84 @@ pub(in crate::autocomplete) fn visible_text(
     app_id: &str,
     policy: &ReadPolicy,
 ) -> Option<String> {
-    with_session(|session| {
-        // SAFETY: COM calls on this thread's objects.
-        unsafe {
-            let (element, before) = bound_field(session, pid, identity)?;
-            if before.selection.is_some() {
-                return None;
-            }
-            let field = FieldSnapshot {
-                app_name: app_name.to_string(),
-                app_id: app_id.to_string(),
-                pid,
-                window_title: foreground_title(pid).unwrap_or_default(),
-                url: document_url(session, &element),
-                ..FieldSnapshot::default()
-            };
-            if !policy.allows_visible_text(&field) {
-                return None;
-            }
-            let frame_of = |node: &IUIAutomationElement| {
-                node.CurrentBoundingRectangle().ok().map(|r| {
-                    Rect::new(
-                        r.left as f32,
-                        r.top as f32,
-                        (r.right - r.left) as f32,
-                        (r.bottom - r.top) as f32,
-                    )
-                })
-            };
-            let field_frame = frame_of(&element).filter(|r| r.width > 0.0 && r.height > 0.0)?;
-            let cache = session.automation.CreateCacheRequest().ok()?;
-            for property in [
-                UIA_ControlTypePropertyId,
-                UIA_BoundingRectanglePropertyId,
-                UIA_IsOffscreenPropertyId,
-                UIA_IsPasswordPropertyId,
-                UIA_NamePropertyId,
-            ] {
-                cache.AddProperty(property).ok()?;
-            }
-            let mut node = session.walker.GetParentElement(&element).ok()?;
-            let mut scope: Option<(IUIAutomationElement, Rect)> = None;
-            let mut window: Option<Rect> = None;
-            for _ in 0..40 {
-                let frame = frame_of(&node);
-                if scope.is_none()
-                    && let Some(frame) = frame
-                    && frame.contains_rect(&field_frame)
-                    && field_frame.y - frame.y >= 64.0
-                {
-                    scope = Some((node.clone(), frame));
-                }
-                if node.CurrentControlType().ok() == Some(UIA_WindowControlTypeId) {
-                    window = frame;
-                    break;
-                }
-                match session.walker.GetParentElement(&node) {
-                    Ok(parent) => node = parent,
-                    Err(_) => break,
-                }
-            }
-            let window_frame = window?;
-            let (scope, scope_frame) = scope?;
-            let scope = scope.BuildUpdatedCache(&cache).ok()?;
-            let mut source = UiaSource {
-                walker: &session.walker,
-                cache,
-                nodes: vec![scope],
-                started: Instant::now(),
-            };
-            let text = visible::capture(
-                &mut source,
-                &visible::Target {
-                    scope: 0,
-                    scope_frame,
-                    window_frame,
-                    field: usize::MAX,
-                    field_frame,
-                },
-            );
-            // Nothing read while focus moved is kept.
-            let (_, after) = bound_field(session, pid, identity)?;
-            (after == before).then_some(text).flatten()
+    with_session(|session| unsafe {
+        let (element, before) = bound_field(session, pid, identity)?;
+        if before.selection.is_some() {
+            return None;
         }
+        let field = FieldSnapshot {
+            app_name: app_name.to_string(),
+            app_id: app_id.to_string(),
+            pid,
+            window_title: foreground_title(pid).unwrap_or_default(),
+            url: document_url(session, &element),
+            ..FieldSnapshot::default()
+        };
+        if !policy.allows_visible_text(&field) {
+            return None;
+        }
+        let frame_of = |node: &IUIAutomationElement| {
+            node.CurrentBoundingRectangle().ok().map(|r| {
+                Rect::new(
+                    r.left as f32,
+                    r.top as f32,
+                    (r.right - r.left) as f32,
+                    (r.bottom - r.top) as f32,
+                )
+            })
+        };
+        let field_frame = frame_of(&element).filter(|r| r.width > 0.0 && r.height > 0.0)?;
+        let cache = session.automation.CreateCacheRequest().ok()?;
+        for property in [
+            UIA_ControlTypePropertyId,
+            UIA_BoundingRectanglePropertyId,
+            UIA_IsOffscreenPropertyId,
+            UIA_IsPasswordPropertyId,
+            UIA_NamePropertyId,
+        ] {
+            cache.AddProperty(property).ok()?;
+        }
+        let mut node = session.walker.GetParentElement(&element).ok()?;
+        let mut scope: Option<(IUIAutomationElement, Rect)> = None;
+        let mut window: Option<Rect> = None;
+        for _ in 0..40 {
+            let frame = frame_of(&node);
+            if scope.is_none()
+                && let Some(frame) = frame
+                && frame.contains_rect(&field_frame)
+                && field_frame.y - frame.y >= 64.0
+            {
+                scope = Some((node.clone(), frame));
+            }
+            if node.CurrentControlType().ok() == Some(UIA_WindowControlTypeId) {
+                window = frame;
+                break;
+            }
+            match session.walker.GetParentElement(&node) {
+                Ok(parent) => node = parent,
+                Err(_) => break,
+            }
+        }
+        let window_frame = window?;
+        let (scope, scope_frame) = scope?;
+        let scope = scope.BuildUpdatedCache(&cache).ok()?;
+        let mut source = UiaSource {
+            walker: &session.walker,
+            cache,
+            nodes: vec![scope],
+            started: Instant::now(),
+        };
+        let text = visible::capture(
+            &mut source,
+            &visible::Target {
+                scope: 0,
+                scope_frame,
+                window_frame,
+                field: usize::MAX,
+                field_frame,
+            },
+        );
+        let (_, after) = bound_field(session, pid, identity)?;
+        (after == before).then_some(text).flatten()
     })
 }

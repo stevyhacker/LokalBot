@@ -1,17 +1,8 @@
 import CryptoKit
 import Foundation
 
-/// Stateless client for HuggingFace's public model REST API. Holds one
-/// short-timeout, non-caching `URLSession` so the browse flow always shows a
-/// fresh model list and a stalled network can never hang the UI for long.
-///
-/// Decoupled from `ModelCatalog`/`ModelDownloadManager` on purpose: it returns
-/// plain value types and a directly-downloadable URL, leaving download policy
-/// (destination, naming, progress) to the existing download manager.
 struct HuggingFaceAPIClient {
 
-    /// Failure surfaced to the browse UI. `LocalizedError` so the search
-    /// service can publish `errorDescription` straight into `errorMessage`.
     enum APIError: LocalizedError {
         case invalidURL
         case rateLimited
@@ -41,8 +32,6 @@ struct HuggingFaceAPIClient {
         self.session = session
     }
 
-    /// Ephemeral + cache-defeating so model lists are never stale; the 20 s
-    /// request timeout keeps a slow network from wedging the browse sheet.
     static func defaultSession() -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.timeoutIntervalForRequest = 20
@@ -50,11 +39,6 @@ struct HuggingFaceAPIClient {
         return URLSession(configuration: configuration)
     }
 
-    /// Search GGUF model repositories, most-downloaded first.
-    ///
-    /// `direction=-1` is required: `sort=downloads` alone returns ascending
-    /// (least-popular) results, which is the opposite of what a "find a model"
-    /// browse wants — so popular repos would never surface without it.
     func searchModels(query: String, limit: Int = 20) async throws -> [HFModelSummary] {
         guard var components = URLComponents(string: "https://huggingface.co/api/models") else {
             throw APIError.invalidURL
@@ -70,19 +54,11 @@ struct HuggingFaceAPIClient {
         return try await fetch([HFModelSummary].self, from: url)
     }
 
-    /// List the `.gguf` files in a repository.
-    ///
-    /// Requests blob metadata so every downloadable file carries its immutable
-    /// LFS SHA-256 and can satisfy ModelDownloadManager's integrity policy.
-    /// Files are returned in natural filename order so quantization variants
-    /// group sensibly in the UI.
     func files(modelID: String) async throws -> [HFFile] {
         guard Self.validModelID(modelID) else { throw APIError.invalidURL }
         var components = URLComponents()
         components.scheme = "https"
         components.host = "huggingface.co"
-        // modelID is "owner/repo"; its slash is a real path separator, so set it
-        // via `path` (URLComponents percent-encodes only the unsafe characters).
         components.path = "/api/models/\(modelID)"
         components.queryItems = [URLQueryItem(name: "blobs", value: "true")]
         guard let url = components.url else { throw APIError.invalidURL }
@@ -101,8 +77,6 @@ struct HuggingFaceAPIClient {
             .sorted { $0.id.localizedStandardCompare($1.id) == .orderedAscending }
     }
 
-    // MARK: - Request plumbing
-
     private func fetch<T: Decodable>(_ type: T.Type, from url: URL) async throws -> T {
         var request = URLRequest(url: url)
         request.timeoutInterval = 20
@@ -114,8 +88,6 @@ struct HuggingFaceAPIClient {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            // URLError.cancelled lands here too; the caller distinguishes it via
-            // Task.isCancelled so a superseded request stays silent.
             throw APIError.transport(error)
         }
 
@@ -133,8 +105,6 @@ struct HuggingFaceAPIClient {
         }
     }
 
-    /// Identifies the app to HuggingFace so anonymous traffic is attributable
-    /// and less likely to hit shared rate limits.
     private static let userAgent = AppIdentifiers.bundleID
 
     private static func validModelID(_ id: String) -> Bool {
@@ -153,8 +123,6 @@ struct HuggingFaceAPIClient {
         return oid
     }
 
-    /// Wire shape of `GET /api/models/<id>` — only `siblings` is consumed; the
-    /// many other keys are ignored by `JSONDecoder`.
     private struct ModelRecord: Decodable {
         let sha: String?
         let siblings: [Sibling]
@@ -173,13 +141,7 @@ struct HuggingFaceAPIClient {
     }
 }
 
-// MARK: - Value types
-
-/// One repository from `GET /api/models?filter=gguf&search=…&sort=downloads`.
-/// `Decodable` maps the API's `id`/`downloads`/`likes` directly; a missing
-/// count decodes to 0 so one absent field never fails the whole list.
 struct HFModelSummary: Decodable, Identifiable, Hashable {
-    /// Canonical repository id, e.g. `unsloth/Qwen3.5-0.8B-GGUF`.
     let id: String
     let downloads: Int
     let likes: Int
@@ -202,18 +164,11 @@ struct HFModelSummary: Decodable, Identifiable, Hashable {
     }
 }
 
-/// One downloadable `.gguf` file inside a repository.
 struct HFFile: Identifiable, Hashable {
-    /// Repo-relative path (`rfilename`), e.g. `Qwen3.5-0.8B-Q4_K_M.gguf` — or
-    /// `gguf/model-Q4_K_M.gguf` when a repo nests files in a subfolder.
     let id: String
-    /// Owning repository id (`owner/repo`); needed to build the resolve URL.
     let modelID: String
-    /// Byte size reported by the blob-enabled model endpoint.
     let sizeBytes: Int?
-    /// Immutable repository commit returned by the model API.
     let revision: String
-    /// Hugging Face LFS object digest, when advertised by the API.
     let sha256: String?
 
     init(id: String, modelID: String, sizeBytes: Int?,
@@ -225,27 +180,15 @@ struct HFFile: Identifiable, Hashable {
         self.sha256 = sha256
     }
 
-    /// Direct download URL on HuggingFace's `resolve` endpoint. `URLSession`
-    /// follows the CDN redirect automatically, so this is usable as-is by a
-    /// `downloadTask`. Built via `URLComponents` so nested paths and unusual
-    /// characters are percent-encoded correctly.
     var downloadURL: URL {
         var components = URLComponents()
         components.scheme = "https"
         components.host = "huggingface.co"
         components.path = "/\(modelID)/resolve/\(revision)/\(id)"
-        // URL fragments are never sent to the server. ModelDownloadManager
-        // consumes this integrity hint before constructing its network URL,
-        // so existing UI plumbing carries the LFS digest without a parallel
-        // mutable lookup table.
         if let sha256 { components.fragment = "sha256=\(sha256)" }
-        // `url` is nil only for a malformed scheme/host, both constants here, so
-        // the literal fallback is unreachable in practice.
         return components.url ?? URL(string: "https://huggingface.co")!
     }
 
-    /// Leaf filename — repos sometimes nest files (e.g. `gguf/model.gguf`), and
-    /// downloads should land flat under `<storage>/models/`.
     var fileName: String {
         let leaf = (id as NSString).lastPathComponent
             .map { character -> Character in
@@ -257,7 +200,6 @@ struct HFFile: Identifiable, Hashable {
         return "hf-\(digest)-\(String(leaf).suffix(180))"
     }
 
-    /// Human-readable size, or nil when the endpoint didn't report one.
     var sizeLabel: String? {
         guard let sizeBytes else { return nil }
         return Int64(sizeBytes).formatted(.byteCount(style: .file))

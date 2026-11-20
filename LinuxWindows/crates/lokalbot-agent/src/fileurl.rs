@@ -1,16 +1,11 @@
-//! `file://` URLs as Swift's `JSONEncoder` writes `URL` values, so task
-//! metadata written by the Mac app reads here and the other way round.
-
 use std::path::{Path, PathBuf};
 
-/// `file:///home/me/Work%20Folder/` (directories end in `/`, like
-/// `URL(fileURLWithPath:)` for an existing folder).
 pub fn to_file_url(path: &Path, is_directory: bool) -> String {
     let text = path.to_string_lossy().replace('\\', "/");
     let mut encoded = String::with_capacity(text.len() + 8);
     encoded.push_str("file://");
     if !text.starts_with('/') {
-        encoded.push('/'); // `C:/…` on Windows
+        encoded.push('/');
     }
     for byte in text.bytes() {
         let keep = byte.is_ascii_alphanumeric() || b"-._~/!$&'()*+,;=:@".contains(&byte);
@@ -26,13 +21,11 @@ pub fn to_file_url(path: &Path, is_directory: bool) -> String {
     encoded
 }
 
-/// The path of a `file://` URL; a plain absolute path is accepted too.
 pub fn from_file_url(value: &str) -> Option<PathBuf> {
     let Some(rest) = value.strip_prefix("file://") else {
         let path = PathBuf::from(value);
         return path.is_absolute().then_some(path);
     };
-    // `file://localhost/…` is the same as `file:///…`.
     let rest = rest.strip_prefix("localhost").unwrap_or(rest);
     let decoded = percent_decode(rest)?;
     let mut text = decoded;
@@ -40,7 +33,6 @@ pub fn from_file_url(value: &str) -> Option<PathBuf> {
         text.pop();
     }
     if cfg!(windows) {
-        // `/C:/Users/…` → `C:\Users\…`
         let bytes = text.as_bytes();
         if bytes.len() >= 3 && bytes[0] == b'/' && bytes[2] == b':' {
             text.remove(0);

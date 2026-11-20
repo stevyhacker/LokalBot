@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Settings → Personal Context: learned items waiting for review, what
-/// LokalBot keeps about the person grouped by kind, the learning switches,
-/// and whether agents can read the shared items. Every item can be edited or
-/// forgotten here.
 struct PersonalContextSettings: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var personalModel: PersonalModelController
@@ -14,7 +10,6 @@ struct PersonalContextSettings: View {
     @State private var showsAllSuggestions = false
     @State private var error: String?
 
-    /// Suggestions shown before "Show N more", so kept items stay in view.
     static let collapsedSuggestionLimit = 5
 
     enum EditorTarget: Identifiable {
@@ -45,8 +40,6 @@ struct PersonalContextSettings: View {
         }
         .onAppear { personalModel.loadIfNeeded() }
     }
-
-    // MARK: - To review
 
     @ViewBuilder private var reviewSection: some View {
         let suggestions = personalModel.suggestions
@@ -139,8 +132,6 @@ struct PersonalContextSettings: View {
         .editorSheet(for: .edit(claim), editing: $editing, save: save)
         .accessibilityIdentifier("settings.personalContext.suggestion")
     }
-
-    // MARK: - Kept
 
     @ViewBuilder private var keptSection: some View {
         let claims = personalModel.orderedClaims.filter { $0.status == .confirmed }
@@ -246,8 +237,6 @@ struct PersonalContextSettings: View {
         }
     }
 
-    // MARK: - Learning and agents
-
     private var learningSection: some View {
         Section {
             Toggle(isOn: $app.settings.askMemoryEnabled) {
@@ -285,7 +274,6 @@ struct PersonalContextSettings: View {
         }
     }
 
-    /// The same grant as External Agents' box, so sharing is set up here.
     private var agentsSection: some View {
         let shared = personalModel.claims.filter { $0.sharing == .agents }.count
         return AgentKindAccessSection(
@@ -345,8 +333,6 @@ struct PersonalContextSettings: View {
             }
         }
     }
-
-    // MARK: - Shared row parts
 
     private func sectionHeader<Actions: View>(
         _ title: LocalizedStringKey, count: Int? = nil, subtitle: LocalizedStringKey? = nil,
@@ -426,9 +412,6 @@ struct PersonalContextSettings: View {
         .accessibilityLabel(Text(verbatim: "\(verb): \(quote)"))
     }
 
-    /// "Preference · From Claude Code · 22 Oct": the kind (in review only,
-    /// where kept items are grouped by kind instead), where it came from,
-    /// and the day, with the year only when it isn't this year.
     static func metaLine(for claim: PersonalClaim, showsKind: Bool, meetingTitle: String?,
                          now: Date = Date(), calendar: Calendar = .current) -> String {
         let source: String
@@ -455,7 +438,6 @@ struct PersonalContextSettings: View {
         return parts.joined(separator: " · ")
     }
 
-    /// Dictated words are gone once read, so nothing can retract the item.
     static func hasRemovableSource(_ claim: PersonalClaim) -> Bool {
         if case .typed(.dictation, _) = claim.origin { return false }
         return true
@@ -500,8 +482,6 @@ struct PersonalContextSettings: View {
 }
 
 private extension View {
-    /// The editor sheet hangs off the row or button that opens it: Form
-    /// rows load lazily, so a sheet on another row may not exist to present.
     func editorSheet(
         for target: PersonalContextSettings.EditorTarget,
         editing: Binding<PersonalContextSettings.EditorTarget?>,
@@ -519,8 +499,6 @@ private extension View {
     }
 }
 
-/// Add or edit one claim. Returns an error message from `onSave` to keep the
-/// sheet open; nil closes it.
 struct PersonalClaimEditor: View {
     @Environment(\.dismiss) private var dismiss
     let target: PersonalContextSettings.EditorTarget

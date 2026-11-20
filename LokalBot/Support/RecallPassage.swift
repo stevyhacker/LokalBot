@@ -1,11 +1,9 @@
 import Foundation
 
-/// Reading excerpts only; stored transcripts, summaries and export text remain lossless.
 enum RecallPassage {
     static func excerpt(_ source: String, query: String, limit: Int = 320) -> String? {
         let lines = source.components(separatedBy: "\n").compactMap { line -> String? in
             let line = line.trimmingCharacters(in: .whitespacesAndNewlines)
-            // Generated provenance is never useful as a search passage.
             if line.contains("**Duration:**") && line.contains("**Model:**") { return nil }
             if line.range(of: #"^#{1,6}\s"#, options: .regularExpression) != nil || line.hasPrefix("```") { return nil }
             let cleaned = line
@@ -20,7 +18,6 @@ enum RecallPassage {
         }
         guard !lines.isEmpty else { return nil }
         let terms = tokens(query).filter { !SearchIndex.stopWords.contains($0) }
-        // Prefer the line containing query terms, rather than the beginning of a summary.
         let ranked = lines.enumerated().max { lhs, rhs in
             let left = score(lhs.element, terms: terms), right = score(rhs.element, terms: terms)
             return left == right ? lhs.offset > rhs.offset : left < right

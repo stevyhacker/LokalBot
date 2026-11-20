@@ -2,15 +2,10 @@ import CoreAudio
 import XCTest
 @testable import LokalBot
 
-/// Calendar-assisted meeting detection: the conferencing-URL parser, event
-/// filtering, active-event selection, the browser-meeting decision (the Google
-/// Meet reliability fix), repeat-suppression cooldown, titling, and `Meeting`
-/// metadata round-tripping. All pure — no EventKit, no real calendar.
 final class CalendarDetectionTests: XCTestCase {
 
     func testCalendarCapabilityIsConfiguredForGeneratedBuilds() throws {
         let entitlementKey = "com.apple.security.personal-information.calendars"
-        // A copy of LokalBot/LokalBot.entitlements; see project.yml.
         let entitlementsURL = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "LokalBot", withExtension: "entitlements"))
         let data = try Data(contentsOf: entitlementsURL)
@@ -19,8 +14,6 @@ final class CalendarDetectionTests: XCTestCase {
                 as? [String: Any])
         XCTAssertEqual(properties[entitlementKey] as? Bool, true)
     }
-
-    // MARK: - ConferenceURLDetector
 
     func testDetectsGoogleMeetLink() {
         let url = ConferenceURLDetector.firstMeetingURL(in: "Join here: https://meet.google.com/abc-defg-hij")
@@ -55,7 +48,6 @@ final class CalendarDetectionTests: XCTestCase {
         }
         let invite = "腾讯会议：https://meeting.tencent.com/dm/AbCdEf12 会议号：123 456 789"
         XCTAssertEqual(ConferenceURLDetector.firstMeetingURL(in: invite)?.host, "meeting.tencent.com")
-        // Other Feishu and DingTalk pages are documents and downloads, not calls.
         XCTAssertFalse(ConferenceURLDetector.isMeetingURL(URL(string: "https://www.feishu.cn/docx/AbC")))
         XCTAssertFalse(ConferenceURLDetector.isMeetingURL(URL(string: "https://www.dingtalk.com/download")))
     }
@@ -70,8 +62,6 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertNil(ConferenceURLDetector.firstMeetingURL(in: ""))
         XCTAssertNil(ConferenceURLDetector.firstMeetingURL(in: "No links here, just a note."))
     }
-
-    // MARK: - CalendarEventFilter
 
     private func raw(title: String? = "Sprint Planning",
                      allDay: Bool = false,
@@ -101,7 +91,6 @@ final class CalendarDetectionTests: XCTestCase {
     }
 
     func testRejectsSoloFocusBlock() {
-        // Free time, no attendees, no meeting link → a focus/hold block.
         XCTAssertFalse(CalendarEventFilter.isRecordableMeeting(
             raw(free: true, attendees: false, meetingURL: false)))
     }
@@ -110,8 +99,6 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertTrue(CalendarEventFilter.isRecordableMeeting(raw(free: true, attendees: true, meetingURL: false)))
         XCTAssertTrue(CalendarEventFilter.isRecordableMeeting(raw(free: true, attendees: false, meetingURL: true)))
     }
-
-    // MARK: - Active-event selection
 
     private func candidate(id: String = "evt",
                            start: TimeInterval, end: TimeInterval,
@@ -125,21 +112,17 @@ final class CalendarDetectionTests: XCTestCase {
 
     func testIsActiveWindow() {
         let now = Date(timeIntervalSince1970: 10_000)
-        // In progress.
         XCTAssertTrue(candidate(start: 9_700, end: 10_600).isActive(at: now))
-        // Within the 1-minute early-join grace before start (a beat early).
         XCTAssertTrue(candidate(start: 10_030, end: 10_900).isActive(at: now))
-        // Beyond the grace — must NOT auto-record minutes ahead of the start.
-        XCTAssertFalse(candidate(start: 10_120, end: 11_000).isActive(at: now))  // 2 min out
-        XCTAssertFalse(candidate(start: 10_600, end: 11_000).isActive(at: now))  // 10 min out
-        // Already ended.
+        XCTAssertFalse(candidate(start: 10_120, end: 11_000).isActive(at: now))
+        XCTAssertFalse(candidate(start: 10_600, end: 11_000).isActive(at: now))
         XCTAssertFalse(candidate(start: 9_000, end: 9_900).isActive(at: now))
     }
 
     func testActiveCandidatePrefersInProgress() {
         let now = Date(timeIntervalSince1970: 10_000)
-        let upcoming = candidate(id: "soon", start: 10_030, end: 10_800)   // within early-join grace
-        let live = candidate(id: "live", start: 9_800, end: 10_500)        // in progress
+        let upcoming = candidate(id: "soon", start: 10_030, end: 10_800)
+        let live = candidate(id: "live", start: 9_800, end: 10_500)
         let result = [upcoming, live].activeCandidate(at: now)
         XCTAssertEqual(result?.externalID, "live")
     }
@@ -151,31 +134,24 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertNil([past, future].activeCandidate(at: now))
     }
 
-    // MARK: - Browser-meeting decision (the reliability fix)
-
-    /// A tab title cannot establish that the user joined the call.
     func testTitleMatchAloneDoesNotRecord() {
         XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: true, hasOutputAudio: false,
             calendarBacked: false, requireCalendarForBrowser: false))
     }
 
-    /// No title and no calendar → not a meeting (the pre-calendar fallback, and
-    /// why a random browser tab is never recorded).
     func testNoTitleNoCalendarDoesNotRecord() {
         XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: false, hasOutputAudio: true,
             calendarBacked: false, requireCalendarForBrowser: false))
     }
 
-    /// Calendar plus unrelated video output must never establish a call.
     func testCalendarBackedBrowserAudioDoesNotRecord() {
         XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: false, hasOutputAudio: true,
             calendarBacked: true, requireCalendarForBrowser: false))
     }
 
-    /// Calendar event alone, with no browser audio, never starts a recording.
     func testCalendarWithoutAudioDoesNotRecord() {
         XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: false, hasOutputAudio: false,
@@ -183,17 +159,13 @@ final class CalendarDetectionTests: XCTestCase {
     }
 
     func testStrictModeRequiresCalendar() {
-        // Title-only is rejected in strict mode...
         XCTAssertFalse(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: true, hasOutputAudio: true,
             calendarBacked: false, requireCalendarForBrowser: true))
-        // ...but a verified in-call session with calendar support is accepted.
         XCTAssertTrue(MeetingMatcher.browserCountsAsMeeting(
             titleMatchesMarker: false, hasOutputAudio: true,
             calendarBacked: true, requireCalendarForBrowser: true, verifiedSession: true))
     }
-
-    // MARK: - Repeat-suppression cooldown
 
     func testSuppressesSameEventWithinCooldown() {
         let now = Date(timeIntervalSince1970: 10_000)
@@ -217,8 +189,6 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertFalse(MeetingMatcher.shouldSuppressRepeat(
             eventID: "evt#1", lastEventID: nil, lastEndedAt: nil, now: now, cooldown: 300), "no prior recording")
     }
-
-    // MARK: - Back-to-back calendar handoff
 
     func testSplitsWhenActiveCalendarEventChanges() {
         XCTAssertTrue(MeetingMatcher.shouldSplitForCalendarHandoff(
@@ -250,8 +220,6 @@ final class CalendarDetectionTests: XCTestCase {
             reason: "meeting-app-handoff", ownsRecording: false, recordingActive: false), .ignore)
     }
 
-    // MARK: - Titling
-
     func testRecordingTitlePrefersCalendar() {
         XCTAssertEqual(MeetingMatcher.recordingTitle(
             calendarTitle: "Weekly Sync", useCalendarTitles: true, appName: "Google Chrome"), "Weekly Sync")
@@ -269,20 +237,12 @@ final class CalendarDetectionTests: XCTestCase {
             calendarTitle: nil, useCalendarTitles: true, appName: nil), "Manual recording")
     }
 
-    // MARK: - Confidence
-
     func testConfidence() {
         XCTAssertEqual(MeetingMatcher.confidence(hasApp: true, hasCalendar: true), .high)
         XCTAssertEqual(MeetingMatcher.confidence(hasApp: true, hasCalendar: false), .medium)
         XCTAssertEqual(MeetingMatcher.confidence(hasApp: false, hasCalendar: true), .low)
     }
 
-    // MARK: - In-meeting policy (start / continue / stop)
-
-    /// Regression: once recording starts, our own mic recorder keeps the global
-    /// "mic in use" flag true. The continue decision must ignore it and key off
-    /// the meeting app's OWN audio — otherwise the meeting never reads as ended
-    /// and recording never stops.
     func testRecordingMicDoesNotKeepMeetingAliveWhenAppAudioStops() {
         XCTAssertFalse(MeetingMatcher.isMeetingOngoing(
             hasActiveSession: true, hasRunningMeetingApp: true, hasContinuingApp: true,
@@ -339,22 +299,14 @@ final class CalendarDetectionTests: XCTestCase {
             bundleID: "us.zoom.xos", calendarBacked: false))
         XCTAssertFalse(MeetingDetector.requiresSustainedAudioForStart(
             bundleID: "com.microsoft.teams2", calendarBacked: true))
-        // Browsers carry their own title/calendar gate and never wait here.
         XCTAssertFalse(MeetingDetector.requiresSustainedAudioForStart(
             bundleID: "com.google.Chrome", calendarBacked: false))
     }
 
-    /// `detectRunningMeetingApp` requires fresh output audio, so a candidate
-    /// lost that signal entirely — not just its elapsed time — every time the
-    /// remote side paused to listen rather than talk. Real log, 2026-08-26: six
-    /// consecutive attempts on a live Teams call each failed after 4.2-12.7 s,
-    /// two of them past the 12 s window itself. A gap this short is
-    /// conversational rhythm, not the call ending, and must not restart the
-    /// window.
     func testABriefPauseInTheRemoteSideDoesNotAbandonTheWindow() {
         let firstSeen = Date()
         let lastAudioSeenAt = firstSeen.addingTimeInterval(3)
-        let now = lastAudioSeenAt.addingTimeInterval(4)  // a 4 s quiet turn
+        let now = lastAudioSeenAt.addingTimeInterval(4)
 
         XCTAssertEqual(
             MeetingMatcher.startConfirmationGapOutcome(
@@ -364,9 +316,6 @@ final class CalendarDetectionTests: XCTestCase {
             .stillWaiting)
     }
 
-    /// Silence past the gap tolerance is what `nativeAudioMinimumConfirmationDuration`
-    /// itself already guards against for a single blip — a candidate that never
-    /// recurs must still be abandoned, gap-tolerant or not.
     func testSilenceLongerThanTheGapToleranceAbandonsTheCandidate() {
         let firstSeen = Date()
         let lastAudioSeenAt = firstSeen.addingTimeInterval(1)
@@ -381,7 +330,6 @@ final class CalendarDetectionTests: XCTestCase {
             .abandoned)
     }
 
-    /// A short sound cannot coast past the minimum duration during silence.
     func testATotalSpanPastTheWindowWaitsForFreshAudio() {
         let firstSeen = Date()
         let lastAudioSeenAt = firstSeen.addingTimeInterval(11)
@@ -415,15 +363,9 @@ final class CalendarDetectionTests: XCTestCase {
         }
     }
 
-    /// The tolerance only ever bridges a gap in evidence that already exists;
-    /// it cannot manufacture evidence on its own. A single blip (a
-    /// notification ding) followed by real silence for the rest of the window
-    /// must still be abandoned — the exact case
-    /// `nativeAudioMinimumConfirmationDuration` was introduced to guard
-    /// against, and this tolerance must not reopen it.
     func testAnIsolatedBlipCannotCoastToConfirmationOnToleranceAlone() {
         let firstSeen = Date()
-        let lastAudioSeenAt = firstSeen.addingTimeInterval(0.5)  // one brief blip
+        let lastAudioSeenAt = firstSeen.addingTimeInterval(0.5)
         let now = firstSeen.addingTimeInterval(
             MeetingDetector.nativeAudioMinimumConfirmationDuration + 1)
 
@@ -435,8 +377,6 @@ final class CalendarDetectionTests: XCTestCase {
             .abandoned)
     }
 
-    /// The gap boundary is inclusive, matching `sustainedAudioConfirmed`'s own
-    /// inclusive boundary.
     func testGapToleranceBoundaryIsInclusive() {
         let firstSeen = Date()
         let lastAudioSeenAt = firstSeen
@@ -451,9 +391,6 @@ final class CalendarDetectionTests: XCTestCase {
             .abandoned)
     }
 
-    /// A fresh tick cannot revive a window whose last evidence is already past
-    /// tolerance. At this timestamp the old implementation saw a 12-second
-    /// total span and confirmed immediately instead of starting over.
     func testFreshAudioAfterExpiredGapStartsANewConfirmationWindow() throws {
         var state = MeetingMatcher.StartConfirmationState()
         let firstSeen = Date()
@@ -519,9 +456,6 @@ final class CalendarDetectionTests: XCTestCase {
             "another app's audio cannot inherit the candidate's lease")
     }
 
-    /// Canceling a submitted DispatchWorkItem is not the identity check: if an
-    /// obsolete callback is already queued, its captured generation must no
-    /// longer match the restarted window.
     func testRestartedConfirmationWindowRejectsStaleRecheck() throws {
         var state = MeetingMatcher.StartConfirmationState()
         let firstSeen = Date()
@@ -557,9 +491,6 @@ final class CalendarDetectionTests: XCTestCase {
             bundleID: "com.tinyspeck.slackmacgap", calendarBacked: true))
     }
 
-    /// Tencent Meeting and VooV are dedicated conferencing apps, like Zoom.
-    /// Feishu, Lark, DingTalk and WeCom also carry chat and voice messages, so
-    /// they wait out the same sustained-audio gate as Teams and Slack.
     func testChineseConferencingAppsStartLikeZoomAndChatAppsLikeTeams() {
         for dedicated in ["com.tencent.meeting", "com.tencent.tencentmeeting"] {
             XCTAssertTrue(MeetingDetector.shouldAutoRecordNativeAudioMonitor(
@@ -598,8 +529,6 @@ final class CalendarDetectionTests: XCTestCase {
             startAudioActive: false, appAudioActive: true, calendarBackedBrowserWithAudio: false))
     }
 
-    // MARK: - Provider access gating (denied → no candidates)
-
     func testProviderYieldsNothingWhenAccessDenied() {
         let now = Date(timeIntervalSince1970: 10_000)
         let live = candidate(start: 9_800, end: 10_500)
@@ -610,16 +539,12 @@ final class CalendarDetectionTests: XCTestCase {
             live.externalID)
     }
 
-    // MARK: - Meeting metadata persistence
-
     private func iso() -> (JSONEncoder, JSONDecoder) {
         let e = JSONEncoder(); e.dateEncodingStrategy = .iso8601
         let d = JSONDecoder(); d.dateDecodingStrategy = .iso8601
         return (e, d)
     }
 
-    /// A meta.json written before calendar support still decodes (calendar
-    /// fields default to nil).
     func testDecodesLegacyMeetingWithoutCalendarFields() throws {
         let json = #"""
         {"id":"7E57C0DE-0000-4000-8000-000000000001","title":"Standup","appName":"Zoom","startedAt":"2026-06-16T09:00:00Z","relativePath":"meetings/2026/06/16-standup","hasSystemTrack":true}
@@ -636,8 +561,6 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertNil(meeting.calendarParticipantIdentities)
     }
 
-    /// Calendar provenance round-trips through the same ISO-8601 codec
-    /// StorageManager uses for meta.json.
     func testCalendarFieldsRoundTrip() throws {
         var meeting = Meeting(
             id: UUID(), title: "Sprint Planning", appName: "Google Chrome",
@@ -663,8 +586,6 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertEqual(decoded, meeting)
     }
 
-    /// Manual recordings (no calendar) keep their old, calendar-free JSON shape:
-    /// nil optionals are omitted, never written as null keys.
     func testManualMeetingOmitsCalendarKeys() throws {
         let meeting = Meeting(
             id: UUID(), title: "Manual recording", appName: "Manual",
@@ -680,12 +601,6 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertNil(object["calendarParticipantIdentities"])
     }
 
-    // MARK: - Streams that are open for the app's whole lifetime
-
-    /// Measured with Teams launched and idle, 20 samples over 20 s: modulehost
-    /// reported isRunningOutput and isRunningInput true in 20/20 while every
-    /// helper reported false. A process in that state cannot be evidence of a
-    /// call, so the start decision must not read it.
     func testAlwaysOpenStreamsCarryNoMeetingSignal() {
         XCTAssertFalse(MeetingDetector.carriesMeetingSignal(
             bundleID: "com.microsoft.teams2.modulehost"))
@@ -695,13 +610,9 @@ final class CalendarDetectionTests: XCTestCase {
         XCTAssertTrue(MeetingDetector.carriesMeetingSignal(
             bundleID: "com.microsoft.teams2.helper"))
         XCTAssertTrue(MeetingDetector.carriesMeetingSignal(bundleID: "com.microsoft.teams2"))
-        // An unknown process is judged by the rest of the rules, not silently
-        // dropped here.
         XCTAssertTrue(MeetingDetector.carriesMeetingSignal(bundleID: nil))
     }
 
-    /// An always-open stream is not evidence that a meeting is running, but it
-    /// remains a valid capture target once another signal starts the recording.
     func testAlwaysOpenStreamIsDetectionOnlyButRemainsCaptureCandidate() {
         let moduleHost = AudioProcess(id: 500,
                                       name: "Microsoft Teams ModuleHost",
@@ -717,7 +628,6 @@ final class CalendarDetectionTests: XCTestCase {
             MeetingDetector.bestCaptureAudioProcess(for: app, in: [moduleHost])?.id,
             moduleHost.id)
 
-        // The host's own stream is still valid detection evidence.
         let host = AudioProcess(id: 501,
                                 name: "Microsoft Teams",
                                 bundleID: "com.microsoft.teams2",
@@ -728,8 +638,6 @@ final class CalendarDetectionTests: XCTestCase {
             host.id)
     }
 
-    /// Every measured short false start is below the inclusive confirmation
-    /// boundary; a real candidate confirms exactly at that boundary.
     func testConfirmationDurationRejectsObservedFalseStartsAndIsInclusive() {
         let minimumDuration = MeetingDetector.nativeAudioMinimumConfirmationDuration
         let start = Date(timeIntervalSince1970: 0)
@@ -754,8 +662,6 @@ final class CalendarDetectionTests: XCTestCase {
     }
 }
 
-/// In-memory `CalendarEventProviding` for the matching tests — canned status
-/// and candidates, no EventKit.
 private final class FakeCalendarProvider: CalendarEventProviding {
     let authorizationStatus: CalendarAuthorizationStatus
     private let candidates: [CalendarMeetingCandidate]

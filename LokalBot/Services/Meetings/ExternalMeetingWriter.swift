@@ -1,25 +1,14 @@
 import CryptoKit
 import Foundation
 
-/// Stores a meeting read from another app (`ExternalMeeting`) as a LokalBot
-/// meeting. The source's transcript becomes `transcript.json`, its notes
-/// `summary.md` (with an untouched copy in `imported-notes.md`), and a
-/// recording that came with it goes through `MeetingImportService`. The
-/// source files are only read. `meta.json` is written last, so the library
-/// never lists a half-made meeting.
 enum ExternalMeetingWriter {
-    /// Where the source's own notes are kept unchanged, so writing LokalBot
-    /// notes for the meeting later never loses them.
     static let importedNotesFileName = "imported-notes.md"
 
     struct Result: Equatable {
         var meeting: Meeting
-        /// A recording came without a transcript, so LokalBot transcribes it.
         var needsTranscription: Bool
     }
 
-    /// The same source meeting always gets the same LokalBot id, so an
-    /// import interrupted after its audio was saved is still recognized.
     static func meetingID(for external: ExternalMeeting) -> UUID {
         let digest = Array(SHA256.hash(data: Data("lokalbot-import/\(external.importKey)".utf8)))
         var bytes = Array(digest.prefix(16))
@@ -29,7 +18,6 @@ enum ExternalMeetingWriter {
                            bytes[8], bytes[9], bytes[10], bytes[11], bytes[12], bytes[13], bytes[14], bytes[15]))
     }
 
-    /// Whether `library` already holds this meeting from an earlier import.
     static func isAlreadyImported(_ external: ExternalMeeting, keys: Set<String>, ids: Set<UUID>) -> Bool {
         keys.contains(external.importKey) || ids.contains(meetingID(for: external))
     }
@@ -78,17 +66,12 @@ enum ExternalMeetingWriter {
             }
             try storage.saveMeta(meeting)
         } catch {
-            // A text-only meeting isn't listed until meta.json exists, so
-            // nothing half-made stays behind. A recording's meeting is kept:
-            // its audio is safe and its id still marks it imported.
             if external.audioURL == nil { try? FileManager.default.removeItem(at: folder) }
             throw error
         }
         return Result(meeting: meeting, needsTranscription: external.audioURL != nil && transcript == nil)
     }
 
-    /// Voice Memos are recorded on the person's own microphone, so "My
-    /// microphone is me" applies to them; other sources' recordings are calls.
     static func recordingTrack(for source: ExternalMeetingSource) -> MeetingAudioFiles.Track {
         source == .voiceMemos ? .mic : .system
     }
@@ -99,18 +82,12 @@ enum ExternalMeetingWriter {
         return cleaned.isEmpty ? "\(external.source.title) meeting" : cleaned
     }
 
-    /// When the source kept no start: the file's modification date, which an
-    /// export usually leaves at the meeting's day or later, never the future.
     private static func fallbackStart(for external: ExternalMeeting, now: Date) -> Date {
         let modified = (try? external.origin.resourceValues(forKeys: [.contentModificationDateKey]))?
             .contentModificationDate
         return min(modified ?? now, now)
     }
 
-    /// The source's lines as a LokalBot transcript. Each named speaker gets a
-    /// stable label ("them 1", "them 2", …) with their name as its alias; the
-    /// person's own microphone lines are "me". Lines the source kept without
-    /// times are laid out one after another at speaking pace, marked coarse.
     static func transcript(for external: ExternalMeeting) -> Transcript? {
         let lines = external.lines.compactMap { line -> ExternalMeeting.Line? in
             let text = line.text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -154,8 +131,6 @@ enum ExternalMeetingWriter {
         return Transcript(segments: segments, engine: "import-\(external.source.rawValue)", speakerAliases: aliases)
     }
 
-    /// The source's notes, with its action items listed after them unless
-    /// the notes already say them.
     static func notesMarkdown(for external: ExternalMeeting) -> String? {
         var text = (external.notes ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         let unlisted = external.actionItems.filter { item in

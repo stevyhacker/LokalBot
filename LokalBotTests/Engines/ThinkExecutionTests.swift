@@ -74,7 +74,6 @@ final class ThinkExecutionTests: XCTestCase {
 
         let engine = try await execution.makeTextEngine(
             settings, includingCredentials: false, priority: .pipeline, purpose: "meeting notes")
-        // External servers are wrapped in the shared per-origin request gate.
         let gated = try XCTUnwrap(engine as? GatedTextEngine)
         XCTAssertEqual(gated.origin, "https://openrouter.ai")
         XCTAssertEqual(gated.priority, .pipeline)
@@ -106,7 +105,6 @@ final class ThinkExecutionTests: XCTestCase {
             _ = try await execution.prepareAgentConnection(settings: settings, includingCredentials: false)
             XCTFail("Omitting credentials must not bypass the remote-origin policy")
         } catch is ThinkExecutionError {
-            // Expected: fixture transport isolation does not grant an origin.
         }
     }
 }

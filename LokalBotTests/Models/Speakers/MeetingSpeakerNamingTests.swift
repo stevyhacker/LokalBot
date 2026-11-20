@@ -90,7 +90,6 @@ final class MeetingSpeakerNamingTests: XCTestCase {
         draft.typeName(for: "them 3")
         draft.typedNames["them 3"] = "   "
         XCTAssertEqual(draft.choices(for: ["them 2", "them 3"]), [.init(speaker: "them 2", name: "Jovana Ilić")])
-        // Picking a chip afterwards leaves typing.
         draft.toggle(.init(id: "hint:ana", name: "Ana"), for: "them 2")
         XCTAssertFalse(draft.isTyping(for: "them 2"))
         XCTAssertEqual(draft.choices(for: ["them 2"]), [.init(speaker: "them 2", name: "Ana")])

@@ -1,20 +1,13 @@
 import Foundation
 import Observation
 
-// View models for the reading screens. Each loads from the session's store
-// and reloads when `CompanionSession.revision` changes.
-
-// MARK: - Today
-
 @MainActor @Observable
 public final class TodayModel {
     public static let attentionLimit = 4
 
-    /// The person's open actions, overdue first.
     public private(set) var attention: [ActionRow] = []
     public private(set) var openActionCount = 0
     public private(set) var todayRecord: DayRecord?
-    /// Today's digest, or the latest earlier one until today's is written.
     public private(set) var digestRecord: DayRecord?
     public private(set) var meetings: [Meeting] = []
     public private(set) var loaded = false
@@ -48,8 +41,6 @@ public final class TodayModel {
     }
 }
 
-// MARK: - Meetings
-
 public struct MeetingDayGroup: Identifiable, Hashable, Sendable {
     public let day: String
     public let meetings: [Meeting]
@@ -58,7 +49,6 @@ public struct MeetingDayGroup: Identifiable, Hashable, Sendable {
 
 @MainActor @Observable
 public final class MeetingsModel {
-    /// Meetings the list loads at a time.
     public static let pageSize = 1_000
 
     public private(set) var groups: [MeetingDayGroup] = []
@@ -66,10 +56,7 @@ public final class MeetingsModel {
     public private(set) var searchedQuery = ""
     public private(set) var loaded = false
     public var query = ""
-    /// How many meetings the list has asked for so far; it grows as the list
-    /// is scrolled to its end.
     public private(set) var listed = MeetingsModel.pageSize
-    /// Older meetings wait below the ones listed.
     public private(set) var hasMore = false
     private var loadingMore = false
 
@@ -83,7 +70,6 @@ public final class MeetingsModel {
         if !query.isEmpty { await search(session) }
     }
 
-    /// The end of the list came into view.
     public func showMore(_ session: CompanionSession) async {
         guard hasMore, !loadingMore else { return }
         loadingMore = true
@@ -92,8 +78,6 @@ public final class MeetingsModel {
         await load(session)
     }
 
-    /// Searches the device's copy: titles, summaries, notes, actions,
-    /// decisions, transcripts and digests.
     public func search(_ session: CompanionSession) async {
         let needle = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !needle.isEmpty else {
@@ -131,9 +115,7 @@ public final class MeetingDetailModel {
     public private(set) var pendingActionIDs: Set<String> = []
     public private(set) var loaded = false
     public var tab: Tab = .summary
-    /// The transcript line an evidence pill or citation pointed at.
     public var focusedSegment: Int?
-    /// The excerpt to show when the transcript isn't on this device.
     public var focusedExcerpt: Citation?
     public var actionError: String?
 
@@ -148,8 +130,6 @@ public final class MeetingDetailModel {
         loaded = true
     }
 
-    /// Opens the transcript at `offset`, or shows the quoted words when the
-    /// transcript isn't shared.
     public func focus(at offset: Double, citation: Citation? = nil) {
         if let transcript, let index = transcript.segmentIndex(at: offset) {
             focusedSegment = index
@@ -168,8 +148,6 @@ public final class MeetingDetailModel {
         }
     }
 }
-
-// MARK: - Actions
 
 @MainActor @Observable
 public final class ActionsModel {
@@ -211,11 +189,8 @@ public final class ActionsModel {
     }
 }
 
-// MARK: - Timeline
-
 @MainActor @Observable
 public final class TimelineModel {
-    /// Days that have a record, newest first.
     public private(set) var recordedDays: [String] = []
     public private(set) var day: DayKey
     public private(set) var record: DayRecord?
@@ -229,8 +204,6 @@ public final class TimelineModel {
         self.day = day ?? today
     }
 
-    /// Session times show in the Mac's zone that day when a meeting tells us
-    /// what it was; otherwise in this device's zone.
     public var timeZone: TimeZone { meetings.first?.timeZone ?? .current }
 
     public var canGoForward: Bool { day < today }
@@ -262,8 +235,6 @@ public final class TimelineModel {
             .sorted { $0.startedAt < $1.startedAt }
     }
 }
-
-// MARK: - People and projects
 
 @MainActor @Observable
 public final class PeopleModel {

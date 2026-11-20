@@ -8,11 +8,7 @@ private enum DayDigestTaskType {
     static var tag: AppFont { AppFont.scaled(.subheadline) }
 }
 
-/// Opens the work session a task's time range covers. Timeline sets it, so
-/// "09:00–10:30" in an older digest leads to that session.
 struct DayDigestTimeRangeAction {
-    /// The action for a range such as "09:00–10:30", or nil when no session
-    /// of the day falls inside it.
     let action: (String) -> (() -> Void)?
 }
 
@@ -25,8 +21,6 @@ private struct DayDigestTimeRangeActionKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// The day's project names by lowercased name. A task tag that names one
-    /// takes that project's colour.
     var dayDigestProjects: [String: String] {
         get { self[DayDigestProjectsKey.self] }
         set { self[DayDigestProjectsKey.self] = newValue }
@@ -38,15 +32,9 @@ extension EnvironmentValues {
     }
 }
 
-/// Human-first rendering of the lossless Markdown day journal. Summary and
-/// focus stay visible; the forensic activity/evidence trail is available on
-/// demand without making every captured moment compete for attention.
 struct DayDigestView: View {
     enum Mode: Equatable {
         case standalone
-        /// Timeline's day page shows the highlights and the day's actions
-        /// itself, and this view under them: the work as one panel, with
-        /// its tasks by status, then the decisions as another.
         case timeline
 
         var showsHighlights: Bool { self == .standalone }
@@ -108,8 +96,6 @@ struct DayDigestView: View {
                             .accessibilityIdentifier("dayDigest.tasks")
                     }
                     .foregroundStyle(.primary)
-                    // Every task stays visible as one scannable line; only
-                    // the description of what was done opens on demand.
                     taskList
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -182,7 +168,6 @@ struct DayDigestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Blockers lead the digest: they are what stops the day's open work.
     private var blockersCallout: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label(presentation.blockers.count == 1 ? "Blocker" : "Blockers",
@@ -201,7 +186,6 @@ struct DayDigestView: View {
         .accessibilityIdentifier("dayDigest.blockers")
     }
 
-    /// Open work first, then finished work, each task on its own line.
     private var taskList: some View {
         let groups = presentation.taskGroups
         return VStack(alignment: .leading, spacing: 14) {
@@ -221,8 +205,6 @@ struct DayDigestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: Timeline: the work and the decisions as panels
-
     private var timelinePanels: some View {
         VStack(alignment: .leading, spacing: TimelinePageMetric.panelGap) {
             if !presentation.focusBlocks.isEmpty || !presentation.blockers.isEmpty
@@ -236,10 +218,6 @@ struct DayDigestView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// One panel for the day's work. A digest that gives its tasks a status
-    /// groups them: Blocked and In progress in full where a task has a next
-    /// step, the rest of the open work as one-line rows, and finished work
-    /// folded into a single Done line. An older digest lists its entries.
     private var workSummaryPanel: some View {
         let groups = presentation.taskGroups
         let hasBlockers = !presentation.blockers.isEmpty
@@ -461,18 +439,13 @@ struct DayDigestView: View {
     }
 }
 
-/// One task at a glance: status, title, and its next step. What was done
-/// opens in place, so a day of tasks reads as a short list.
 private struct DayDigestTaskRow: View {
-    /// Status column width plus spacing; details and dividers align to it.
     static let textInset: CGFloat = 26
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dayDigestTimeRangeAction) private var timeRangeAction
     let block: DayDigestPresentation.FocusBlock
-    /// See `DayDigestPresentation.collapsesDetails(of:)`.
     let collapsesDetails: Bool
-    /// Timeline shows a title's trailing "(Project)" as a tag.
     var showsTag = false
     @State private var expanded = false
 
@@ -603,8 +576,6 @@ private struct DayDigestTaskRow: View {
     }
 }
 
-/// A project or pull request split off a task title. A project of the day
-/// carries its colour, the one its sessions have in the list and the strip.
 private struct DayDigestTaskTag: View {
     @Environment(\.dayDigestProjects) private var projects
     let text: String
@@ -627,7 +598,6 @@ private struct DayDigestTaskTag: View {
     }
 }
 
-/// One line for a task without a next step. What was done opens in place.
 private struct DayDigestBriefTaskRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let block: DayDigestPresentation.FocusBlock
@@ -714,17 +684,13 @@ private struct DayDigestBriefTaskRow: View {
     }
 }
 
-/// One-line rows for open tasks without a next step. A long list shows its
-/// first rows until asked for the rest.
 private struct DayDigestBriefTaskList: View {
     let blocks: [DayDigestPresentation.FocusBlock]
-    /// Below full rows, a heading says what these rows are.
     let followsFullRows: Bool
     var visibleLimit = 8
     @State private var showsAll = false
 
     var body: some View {
-        // Hiding a single row would cost as much room as showing it.
         let folds = blocks.count > visibleLimit + 1
         let visible = folds && !showsAll ? Array(blocks.prefix(visibleLimit)) : blocks
         VStack(alignment: .leading, spacing: 0) {
@@ -752,13 +718,10 @@ private struct DayDigestBriefTaskList: View {
     }
 }
 
-/// Finished tasks fold into one line across the panel that names them;
-/// opening it lists each.
 private struct DayDigestDoneSection: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.appTextScale) private var textScale
     let blocks: [DayDigestPresentation.FocusBlock]
-    /// Nothing follows in the panel, so the closed line takes its bottom corners.
     let closesPanel: Bool
     @State private var expanded = false
 
@@ -805,7 +768,6 @@ private struct DayDigestDoneSection: View {
                 .padding(.leading, SectionPanelMetric.inset)
                 .padding(.trailing, SectionPanelMetric.inset - 2)
                 .frame(maxWidth: .infinity, minHeight: 38 * textScale, alignment: .leading)
-                // The footer strip's fill: the supporting colour stays above 4.5:1 on it.
                 .background(
                     LBTokens.Palette.groupFill,
                     in: UnevenRoundedRectangle(
@@ -834,8 +796,6 @@ private struct DayDigestDoneSection: View {
     }
 }
 
-/// Screen moments a legacy journal cited for a task. A moment that is no
-/// longer kept gets no line: a link appears only when there is a source.
 private struct DayDigestSourceLinks: View {
     @EnvironmentObject private var app: AppState
     let ids: [Int64]

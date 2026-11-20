@@ -1,10 +1,6 @@
 import AppKit
 import Foundation
 
-/// The setup half of the control socket: what an agent needs to take the
-/// person from a new install to a working LokalBot. Permission prompts,
-/// launch at login, and restarts act only in the interactive app, where the
-/// person can see them.
 extension AppControlHandler {
     func setupResponse(
         _ method: AppControlProtocol.Method, _ params: [String: JSONValue], peer: AppControlPeer, in app: AppState
@@ -54,7 +50,6 @@ extension AppControlHandler {
             guard !app.isRecording, !app.dictation.state.isRecording else {
                 throw AppControlError(code: "busy", message: "LokalBot is recording. Restart it after the recording stops.")
             }
-            // Reply first; the relaunch quits this copy.
             Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 500_000_000)
                 PermissionManager.relaunch()
@@ -66,8 +61,6 @@ extension AppControlHandler {
             throw AppControlError.unknownMethod(method.rawValue)
         }
     }
-
-    // MARK: Plans and models
 
     static func setupPlan(_ params: [String: JSONValue], in app: AppState) throws -> JSONValue {
         let suggestion = suggestedPreset()
@@ -102,9 +95,6 @@ extension AppControlHandler {
         return status
     }
 
-    /// The balanced models when their Think and autocomplete models, plus
-    /// room for transcription, fit comfortably in memory; otherwise the
-    /// lightweight ones.
     static func suggestedPreset(
         capability: HardwareCapability = HardwareCapabilityProbe.current()
     ) -> (preset: ModelStackPreset, reason: String) {
@@ -128,10 +118,6 @@ extension AppControlHandler {
         return preset
     }
 
-    // MARK: Permissions
-
-    /// Each permission, whether it is granted, and which enabled features
-    /// need it. Mirrors the Permissions row in Memory Health.
     static func permissions(in app: AppState) -> JSONValue {
         .array(permissionNeeds(in: app).map { need in
             [
@@ -186,8 +172,6 @@ extension AppControlHandler {
         }
     }
 
-    /// Shows the macOS prompt, or System Settings with LokalBot's guidance.
-    /// The person still decides.
     private static func requestPermission(_ name: String, in app: AppState) throws {
         if name == "calendar" {
             if app.calendar.authorizationStatus == .notDetermined {
@@ -210,9 +194,6 @@ extension AppControlHandler {
         }
     }
 
-    // MARK: Doctor
-
-    /// Readiness and the next steps, for the features the person turned on.
     static func doctor(in app: AppState) -> JSONValue {
         var checks: [JSONValue] = []
         var steps: [String] = []

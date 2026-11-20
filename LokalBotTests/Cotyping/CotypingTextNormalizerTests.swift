@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Text normalizer
-
 final class CotypingTextNormalizerTests: XCTestCase {
     private func request(
         prefix: String,
@@ -18,8 +16,6 @@ final class CotypingTextNormalizerTests: XCTestCase {
             repeatPenalty: 1.05, seed: 0, generation: 0)
     }
 
-    /// "Hi team," followed by a completion the model put on a new line used
-    /// to come out as "Hi team,I'm working".
     func testACompletionThatBeganOnANewLineKeepsOneSeparatingSpace() {
         XCTAssertEqual(
             CotypingTextNormalizer.normalize("\n\nI'm working on it", for: request(prefix: "Hi team,")),
@@ -27,11 +23,9 @@ final class CotypingTextNormalizerTests: XCTestCase {
         XCTAssertEqual(
             CotypingTextNormalizer.normalize("\ndelicious", for: request(prefix: "The food was")),
             " delicious")
-        // A space the typed text already ends with is not doubled.
         XCTAssertEqual(
             CotypingTextNormalizer.normalize("\nI'm working on it", for: request(prefix: "Hi team, ")),
             "I'm working on it")
-        // Completions that did not start on a new line are untouched.
         XCTAssertEqual(
             CotypingTextNormalizer.normalize(" up on that", for: request(prefix: "I wanted to follow")),
             " up on that")
@@ -342,8 +336,6 @@ final class CotypingTextNormalizerTests: XCTestCase {
     }
 
     func testSuppressesWhitespaceLeadingCompletionAfterInvalidFragment() {
-        // "follo" is not a standalone word; " up on that" would insert
-        // "follo up on that" — broken text the guard must reject.
         let detailed = CotypingTextNormalizer.normalizeDetailed(
             " up on that",
             for: wordPrefixRequest(prefix: "I wanted to follo", wordPrefix: "follo", isValidWord: false))
@@ -360,8 +352,6 @@ final class CotypingTextNormalizerTests: XCTestCase {
     }
 
     func testValidWordFragmentMayBeFollowedBySpace() {
-        // "the" is a complete word in its own right — the model may legitimately
-        // treat it as finished and continue with a new word.
         let detailed = CotypingTextNormalizer.normalizeDetailed(
             " meeting",
             for: wordPrefixRequest(prefix: "I will attend the", wordPrefix: "the", isValidWord: true))
@@ -378,8 +368,6 @@ final class CotypingTextNormalizerTests: XCTestCase {
     }
 
     func testForceWordContinuationPathUnchangedByWordPrefixFields() {
-        // Strictly inside a word the force path already strips the leading
-        // space and validates the tail; the new guard must stay out of its way.
         let detailed = CotypingTextNormalizer.normalizeDetailed(
             " ord",
             for: wordPrefixRequest(
@@ -388,8 +376,6 @@ final class CotypingTextNormalizerTests: XCTestCase {
         XCTAssertNil(detailed.suppression)
     }
 }
-
-// MARK: - Trailing duplication filter
 
 final class CotypingTrailingDuplicationFilterTests: XCTestCase {
     func testCompletionIsPrefixOfTrailing() {

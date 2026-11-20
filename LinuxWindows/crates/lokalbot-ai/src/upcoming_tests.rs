@@ -1,5 +1,3 @@
-//! Ported from `UpcomingMeetingPreparationTests.swift`.
-
 use chrono::TimeZone as _;
 use lokalbot_core::model::{ActionItem, CalendarParticipantIdentity, Decision, MeetingOutcomes};
 use lokalbot_core::{ActionCorrection, LibraryPaths};
@@ -494,8 +492,6 @@ fn a_project_from_a_meeting_goes_when_that_meeting_changes() {
         ]),
     );
     assert_eq!(read_projects(&library).len(), 1);
-    // Deleting or correcting the meeting advances the evidence, and work memory
-    // built from it stops counting even before anything rewrites the file.
     lokalbot_core::evidence::with_meeting_mutation(library.paths().root(), &[&source], || Ok(()))
         .unwrap();
     assert!(read_projects(&library).is_empty());

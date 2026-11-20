@@ -1,7 +1,3 @@
-//! A captured screen at full size (`ScreenImageViewer.swift`). The decrypted
-//! pixels live only in this window's memory: nothing is exported or written
-//! to disk, and closing the window releases them.
-
 use std::sync::Arc;
 
 use crate::i18n::h_flex;
@@ -20,11 +16,9 @@ use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, UiFont as _, ty};
 use crate::ui::{self, Ico};
 
-/// What a moment's image file gave.
 #[derive(Clone)]
 pub enum ScreenImage {
     Ready(Arc<RenderImage>),
-    /// Why there is no image, for the placeholder.
     Unavailable(&'static str),
 }
 
@@ -32,8 +26,6 @@ pub const MISSING: &str =
     "Pixels may have expired or could not be read. Retained text remains in the moment inspector.";
 pub const OTHER_KEY: &str = "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.";
 
-/// Decrypts and decodes a moment's image, at most `max` pixels on its
-/// longest side (0 keeps the full size). Runs off the UI thread.
 pub fn load(library: &Library, moment: &ScreenMoment, max: u32) -> ScreenImage {
     let Some(path) = library.screen_image_file(&moment.path) else {
         return ScreenImage::Unavailable(MISSING);
@@ -60,14 +52,12 @@ pub fn load(library: &Library, moment: &ScreenMoment, max: u32) -> ScreenImage {
         decoded
     };
     let mut rgba = decoded.into_rgba8();
-    // GPUI draws BGRA.
     for pixel in rgba.as_chunks_mut::<4>().0 {
         pixel.swap(0, 2);
     }
     ScreenImage::Ready(Arc::new(RenderImage::new(vec![image::Frame::new(rgba)])))
 }
 
-/// Opens the viewer for `moment`, replacing an earlier one.
 pub fn open(moment: ScreenMoment, cx: &mut gpui_kit::App) {
     if let Some(handle) = super::secondary(cx).screen_image.take() {
         let _ = handle.update(cx, |_, window, _| window.remove_window());

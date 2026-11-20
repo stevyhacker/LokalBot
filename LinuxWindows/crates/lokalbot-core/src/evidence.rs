@@ -1,17 +1,3 @@
-//! Withdrawing overnight memory when the meetings it came from change
-//! (`DreamStore.swift`, `DreamEvidenceMutation.swift`, `DreamModels.swift`).
-//!
-//! `memory/evidence-revisions.json` holds a revision counter and the revision
-//! at which each day and meeting last changed. Dream reports and work memory
-//! record the revision they were built at, and both apps drop anything built
-//! from a source that changed since when they read it. Under the shared
-//! `.dream-store.lock`, a writer records the change, withdraws what depended on
-//! it (`dream::store`), and only then changes the source.
-//!
-//! A person deleting a source also withdraws that day's unedited generated
-//! journal (`DayDigestLifecycle.retractGeneratedJournals`). Scheduled retention
-//! goes through none of this: long-term memory outlives the screen window.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs::{self, File, OpenOptions};
 use std::path::Path;
@@ -28,11 +14,8 @@ use crate::model::Meeting;
 pub const EVIDENCE_FILE: &str = "memory/evidence-revisions.json";
 pub const LOCK_FILE: &str = ".dream-store.lock";
 pub const MEMORY_FILE: &str = "memory/memory.json";
-/// Present while a macOS revocation is unfinished; memory must not be used.
 pub const PENDING_FILE: &str = ".dream-revocation-pending.json";
 
-/// Swift's synthesized decoder needs `revision` and `invalidatedDays` present,
-/// so both are always written.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EvidenceState {
@@ -50,7 +33,6 @@ pub struct EvidenceState {
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
 
-/// `DreamEvidenceProvenance`: what a memory item or report was built from.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Provenance {
@@ -65,16 +47,12 @@ pub struct Provenance {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Source {
-    /// `meeting`, `screenDay` or `digest`.
     pub kind: String,
-    /// The full meeting UUID, or the day key for day-level evidence.
     pub id: String,
     pub day_key: String,
 }
 
 impl EvidenceState {
-    /// `DreamStore.isInvalidated`: without provenance an item cannot be traced
-    /// to an unaffected source, so the first change withdraws it.
     pub fn invalidates(&self, provenance: Option<&Provenance>) -> bool {
         if self.revision == 0 {
             return false;
@@ -112,8 +90,6 @@ impl EvidenceState {
     }
 }
 
-/// The library's evidence state, or `None` while overnight memory must not be
-/// read: a macOS revocation is unfinished, or the state is unreadable.
 pub fn read_state(root: &Path) -> Option<EvidenceState> {
     if root.join(PENDING_FILE).exists() || crate::dream::store::is_blocked(root) {
         return None;
@@ -125,9 +101,6 @@ pub fn read_state(root: &Path) -> Option<EvidenceState> {
     }
 }
 
-/// `memory/memory.json` without the items built from evidence that changed
-/// since (`DreamMemory.retractingEvidence`), or `None` while overnight memory
-/// must not be read.
 pub fn read_work_memory(root: &Path) -> Option<Vec<u8>> {
     let state = read_state(root)?;
     let bytes = fs::read(root.join(MEMORY_FILE)).ok()?;
@@ -158,8 +131,6 @@ pub fn read_work_memory(root: &Path) -> Option<Vec<u8>> {
     serde_json::to_vec(&memory).ok()
 }
 
-/// `DreamEvidenceInvalidation.sourceDayKeys`: each meeting's UTC day and the
-/// two days either side, so a time-zone change can't hide a dependent report.
 pub fn source_day_keys(dates: impl IntoIterator<Item = DateTime<Utc>>) -> BTreeSet<String> {
     dates
         .into_iter()
@@ -173,20 +144,12 @@ pub fn source_day_keys(dates: impl IntoIterator<Item = DateTime<Utc>>) -> BTreeS
         .collect()
 }
 
-/// What a source write means for that day's generated digest
-/// (`AppState.EvidenceChange`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EvidenceChange {
-    /// Reprocessing, corrections, outcome edits and saved moments. The digest
-    /// stays, marked out of date, until it is regenerated.
     Revision,
-    /// The person deleted the source: its unedited generated digest goes too.
     Removal,
 }
 
-/// Advances the evidence state for `meetings`, then runs `mutation` while still
-/// holding the lock (`DreamStore.withMeetingEvidenceMutation`). If the state
-/// can't be written, the meetings are left unchanged.
 pub fn with_meeting_mutation<T>(
     root: &Path,
     meetings: &[&Meeting],
@@ -195,7 +158,6 @@ pub fn with_meeting_mutation<T>(
     meeting_change(root, meetings, EvidenceChange::Revision, mutation)
 }
 
-/// [`with_meeting_mutation`] for a meeting, or part of one, the person removed.
 pub fn with_meeting_removal<T>(
     root: &Path,
     meetings: &[&Meeting],
@@ -239,8 +201,6 @@ fn meeting_change<T>(
     result
 }
 
-/// The reports a change on `dates` withdraws: each day and, for meetings, the
-/// comparison windows after it (`withSourceEvidenceMutation`).
 fn dependent_reports(dates: &[DateTime<Utc>], window_days: i64) -> BTreeSet<String> {
     report_day_keys(
         dates.iter().map(|at| crate::time::local_day(*at)),
@@ -249,9 +209,6 @@ fn dependent_reports(dates: &[DateTime<Utc>], window_days: i64) -> BTreeSet<Stri
     )
 }
 
-/// Screen, activity and coding-agent evidence is read only for the day it
-/// belongs to, so it withdraws what was built from those days and leaves
-/// meeting-derived facts alone (`DreamStore.withScreenEvidenceMutation`).
 pub fn with_screen_mutation<T>(
     root: &Path,
     dates: &[DateTime<Utc>],
@@ -283,11 +240,6 @@ pub fn with_screen_mutation<T>(
     result
 }
 
-// ------------------------------------------------------- generated journals
-
-/// Removes each day's journal while it is still the generated copy of its
-/// evidence, with its sidecars. Edited and unsigned journals are the person's
-/// and stay (`DayDigestLifecycle.retractGeneratedJournals`).
 pub fn retract_generated_journals(
     root: &Path,
     days: impl IntoIterator<Item = NaiveDate>,
@@ -316,8 +268,6 @@ pub fn retract_generated_journals(
     Ok(())
 }
 
-/// `DayDigestGenerationMetadataStore.load` and `journalMatches`, including an
-/// interrupted Mac write, whose record still says who owns the journal.
 pub fn journal_is_generated(journal: &Path) -> bool {
     let Ok(bytes) = fs::read(journal) else {
         return false;
@@ -355,8 +305,6 @@ pub fn journal_is_generated(journal: &Path) -> bool {
             let _ = fs::remove_file(&transaction);
             return true;
         } else if pending["expectedJournalDigest"] == pending["journalDigest"] {
-            // A rewrite of byte-identical content that may never have landed:
-            // the person's earlier ownership wins.
             let _ = fs::remove_file(&transaction);
         } else {
             return true;
@@ -370,15 +318,10 @@ pub fn journal_is_generated(journal: &Path) -> bool {
     })
 }
 
-// ------------------------------------------------------------- change hooks
-
 type Observer = Box<dyn Fn(&Path, &[DateTime<Utc>]) + Send + Sync>;
 
 static OBSERVERS: parking_lot::RwLock<Vec<Observer>> = parking_lot::RwLock::new(Vec::new());
 
-/// Runs `observer` after every source change in this process, with the
-/// library's root and the changed dates (`AppState.primaryEvidenceDidChange`):
-/// exports, routines and cached digest answers follow what changed.
 pub fn observe(observer: impl Fn(&Path, &[DateTime<Utc>]) + Send + Sync + 'static) {
     OBSERVERS.write().push(Box::new(observer));
 }
@@ -389,10 +332,6 @@ fn notify(root: &Path, dates: &[DateTime<Utc>]) {
     }
 }
 
-/// The advisory lock macOS takes around every revision check and commit.
-/// `File::lock` is `flock` on Unix, so it excludes the Mac app on a shared
-/// folder as well as other processes here. `flock` doesn't exclude a second
-/// handle in this process, hence the mutex too.
 pub(crate) struct StoreLock {
     file: File,
     _process: parking_lot::MutexGuard<'static, ()>,
@@ -546,7 +485,6 @@ mod tests {
             4,
             vec![source("meeting", "abc", "2026-09-01")]
         ))));
-        // Activity-only changes leave meeting sources alone.
         assert!(!state.invalidates(Some(&built(4, vec![source("meeting", "y", "2026-10-20")]))));
         assert!(state.invalidates(Some(&built(
             4,
@@ -667,14 +605,12 @@ mod tests {
         let day = crate::time::local_day(at);
         library.save_digest(day, "the digest", &meta).unwrap();
 
-        // Reprocessing revises the source: the digest stays, marked out of date.
         with_meeting_mutation(dir.path(), &[&meeting], || Ok(())).unwrap();
         assert!(library.journal_path(day).exists());
 
         library.delete_meeting(&meeting).unwrap();
         assert!(!library.journal_path(day).exists());
 
-        // A journal the person edited is theirs and stays.
         library.save_digest(day, "the digest", &meta).unwrap();
         fs::write(library.journal_path(day), "my own words").unwrap();
         let other = library.create_meeting("Other", "Zoom", at).unwrap();
@@ -706,7 +642,6 @@ mod tests {
         assert!(!root.join("journal/2026-10-01.md").exists());
         assert!(!root.join("journal/2026-10-01.write.json").exists());
 
-        // Rewriting identical bytes that may never have landed stays the person's.
         write_journal(root, "2026-10-02", "generated", None);
         let pending = serde_json::json!({
             "version": 1,

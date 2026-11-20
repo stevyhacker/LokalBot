@@ -1,5 +1,3 @@
-//! Linux: the capture backend for this session, and whether it is locked.
-
 use std::sync::OnceLock;
 use std::time::Duration;
 
@@ -32,8 +30,6 @@ pub(super) fn window_capture() -> Box<dyn WindowCapture> {
     }
 }
 
-/// The lock screen is up: logind's `LockedHint` for this session, or an
-/// active screen saver.
 pub(super) fn session_locked() -> bool {
     logind_locked() || screensaver_active()
 }
@@ -90,7 +86,6 @@ fn screensaver_active() -> bool {
     ]
     .iter()
     .any(|(name, path, interface)| {
-        // Asking an unowned name could start a screen saver service.
         let owned = zbus::names::BusName::try_from(*name)
             .ok()
             .and_then(|bus_name| dbus.name_has_owner(bus_name).ok())

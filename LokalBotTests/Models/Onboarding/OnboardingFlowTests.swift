@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Setup's three steps: the choices and their defaults, which permissions a
-/// choice needs and what each row shows, resuming after a restart, and the
-/// download step's sizes, phases and time estimate.
 @MainActor
 final class OnboardingFlowTests: XCTestCase {
     private var suiteName: String!
@@ -19,8 +16,6 @@ final class OnboardingFlowTests: XCTestCase {
         defaults.removePersistentDomain(forName: suiteName)
         super.tearDown()
     }
-
-    // MARK: Choices
 
     func testSetupStartsFromTheAppsOwnDefaultsAndApplyingThemChangesNothing() {
         let fresh = AppSettings()
@@ -57,8 +52,6 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(draft.meetingMode, AppSettings().autoRecordMode)
         XCTAssertEqual(CaptureSetupDraft.detectedCallModes, [.automatic, .ask])
     }
-
-    // MARK: Permissions
 
     private func draft(dayMemory: Bool, mode: AppSettings.ScreenContextCaptureMode) -> CaptureSetupDraft {
         var draft = CaptureSetupDraft(settings: AppSettings())
@@ -138,8 +131,6 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertTrue(AppPermission.accessibility.needsRelaunchAfterGrant)
     }
 
-    // MARK: Resuming
-
     private func resumeState(step: OnboardingStep = .access, settings: AppSettings = AppSettings(),
                              reopens: Bool = false) -> OnboardingResumeState {
         var draft = CaptureSetupDraft(settings: settings)
@@ -156,7 +147,6 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertNil(store.load(for: AppSettings()))
         let saved = resumeState(reopens: true)
         store.save(saved)
-        // A second store on the same preferences is what the next launch sees.
         let restored = OnboardingResumeStore(defaults: defaults).load(for: AppSettings())
         XCTAssertEqual(restored, saved)
         XCTAssertEqual(restored?.step, .access)
@@ -187,14 +177,11 @@ final class OnboardingFlowTests: XCTestCase {
 
     func testLaunchReopensAnInterruptedSetup() {
         let resume = resumeState()
-        // A new install: setup opens unless every core permission is granted.
         XCTAssertEqual(OnboardingLaunch.decision(finished: false, coreGranted: false, resume: nil, agentSetupPending: false), .open)
         XCTAssertEqual(OnboardingLaunch.decision(finished: false, coreGranted: true, resume: nil, agentSetupPending: false), .markFinished)
         XCTAssertEqual(OnboardingLaunch.decision(finished: false, coreGranted: false, resume: nil, agentSetupPending: true),
                        .stayClosed(clearsResume: false))
-        // The microphone was granted in setup and LokalBot restarted for Accessibility.
         XCTAssertEqual(OnboardingLaunch.decision(finished: false, coreGranted: true, resume: resume, agentSetupPending: false), .open)
-        // Setup reopened later from the menu bar: only its own Restart now brings it back.
         XCTAssertEqual(OnboardingLaunch.decision(finished: true, coreGranted: true, resume: nil, agentSetupPending: false),
                        .stayClosed(clearsResume: false))
         XCTAssertEqual(OnboardingLaunch.decision(finished: true, coreGranted: true, resume: resume, agentSetupPending: false),
@@ -210,8 +197,6 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(OnboardingStep.download.previous, .access)
         XCTAssertNil(OnboardingStep.download.next)
     }
-
-    // MARK: Download
 
     private func plan(_ statuses: [ModelRole: ModelRoleStatus] = [:], settings: AppSettings = AppSettings(),
                       autocomplete: Bool = false, started: Bool = false, readyBefore: Set<ModelRole> = [],
@@ -356,14 +341,11 @@ final class OnboardingFlowTests: XCTestCase {
         app.openSampleMeetingWhenReady()
         XCTAssertTrue(app.sampleMeetingWaitsForModels, "nothing is added before the models are here")
         XCTAssertNil(app.sampleMeeting)
-        // A readiness change that is not the models arriving keeps it waiting.
         app.openWaitingSampleMeeting()
         XCTAssertTrue(app.sampleMeetingWaitsForModels)
         XCTAssertNil(app.sampleMeeting)
         XCTAssertFalse(app.showsSampleSetup, "setup's choice never opens the download sheet")
     }
-
-    // MARK: Time left
 
     func testTimeLeftWaitsForASteadySpeed() {
         let start = Date(timeIntervalSinceReferenceDate: 1_000)
@@ -373,7 +355,6 @@ final class OnboardingFlowTests: XCTestCase {
         estimator.record(downloadedBytes: 40_000_000, at: start.addingTimeInterval(2))
         XCTAssertNil(estimator.secondsLeft(totalBytes: 6_000_000_000), "two seconds is too little to judge")
         estimator.record(downloadedBytes: 200_000_000, at: start.addingTimeInterval(10))
-        // 20 MB/s with 5.8 GB to go.
         XCTAssertEqual(estimator.secondsLeft(totalBytes: 6_000_000_000) ?? 0, 290, accuracy: 0.5)
         XCTAssertEqual(estimator.minutesLeft(totalBytes: 6_000_000_000), 5)
         XCTAssertEqual(estimator.minutesLeft(totalBytes: 210_000_000), 1, "never less than a minute")
@@ -385,14 +366,11 @@ final class OnboardingFlowTests: XCTestCase {
         var estimator = DownloadTimeEstimator()
         estimator.record(downloadedBytes: 0, at: start)
         estimator.record(downloadedBytes: 1_000_000_000, at: start.addingTimeInterval(10))
-        // The connection slows to 1 MB/s; after the window only the new speed counts.
         estimator.record(downloadedBytes: 1_020_000_000, at: start.addingTimeInterval(30))
         estimator.record(downloadedBytes: 1_050_000_000, at: start.addingTimeInterval(60))
         XCTAssertEqual(estimator.secondsLeft(totalBytes: 1_110_000_000) ?? 0, 60, accuracy: 0.5)
-        // No bytes for half a minute: no estimate.
         estimator.record(downloadedBytes: 1_050_000_000, at: start.addingTimeInterval(95))
         XCTAssertNil(estimator.secondsLeft(totalBytes: 1_110_000_000))
-        // A retried model starts over, so the total drops and earlier speeds no longer apply.
         estimator.record(downloadedBytes: 400_000_000, at: start.addingTimeInterval(96))
         XCTAssertNil(estimator.secondsLeft(totalBytes: 1_110_000_000))
         estimator.reset()

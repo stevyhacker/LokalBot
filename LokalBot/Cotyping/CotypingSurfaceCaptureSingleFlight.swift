@@ -1,10 +1,5 @@
 import Foundation
 
-/// Thread-safe one-entry surface cache with one active resolver. The resolver
-/// runs outside the cache lock, so a slow cross-process AX call cannot block
-/// unrelated cache/state readers. Same-key callers share the active result;
-/// different-key callers wait outside the lock and retry against the one-entry
-/// cache, keeping capture concurrency bounded to one.
 final class CotypingSurfaceCaptureSingleFlight: @unchecked Sendable {
     private final class Flight {
         let key: String
@@ -88,10 +83,6 @@ final class CotypingSurfaceCaptureSingleFlight: @unchecked Sendable {
         }
     }
 
-    /// Clears cached authorization context without blocking an in-flight AX
-    /// read. A read that began before invalidation may finish its original
-    /// caller, but its result cannot repopulate the cache or satisfy a newer
-    /// caller.
     func removeAll() {
         lock.withLock {
             generation &+= 1

@@ -1,8 +1,3 @@
-//! Settings → About you (`PersonalContextSettings`): learned items waiting
-//! for review, what LokalBot keeps about the person grouped by kind, the learning
-//! switches, and whether agents can read the shared items. Every item can be
-//! edited or forgotten here. Nothing reads the saved file until this page opens.
-
 use std::collections::HashSet;
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -27,10 +22,8 @@ use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// Suggestions shown before "Show N more", so kept items stay in view.
 const COLLAPSED_SUGGESTION_LIMIT: usize = 5;
 
-/// What the page read, off the main thread.
 #[derive(Default)]
 struct Loaded {
     load_error: Option<LoadError>,
@@ -48,13 +41,11 @@ pub(super) struct PersonalState {
     show_all_suggestions: bool,
     confirming_dismiss_all: bool,
     confirming_forget_all: bool,
-    /// The grant's marker, also read for Privacy & Data.
     pub(super) access_on: bool,
 }
 
 fn load(library: &Library) -> Loaded {
     let personal = library.personal();
-    // A key that has only just become available opens what was unreadable.
     if personal.load_error().is_some() {
         personal.reload();
     }
@@ -76,7 +67,6 @@ fn kind_icon(kind: ClaimKind) -> Ico {
     }
 }
 
-/// `PersonalContextSettings.agentSummary`.
 fn agent_summary(shared: usize, access_enabled: bool) -> String {
     if access_enabled {
         return match shared {
@@ -105,8 +95,6 @@ fn agent_summary(shared: usize, access_enabled: bool) -> String {
     }
 }
 
-/// "Preference · From Claude Code · Oct 22": the kind (in review only, where kept
-/// items aren't grouped), where it came from, and the day.
 fn meta_line(claim: &Claim, shows_kind: bool, meeting_title: Option<&str>) -> String {
     let mut parts: Vec<String> = Vec::new();
     if shows_kind {
@@ -135,14 +123,12 @@ fn quote_verb(claim: &Claim) -> &'static str {
 }
 
 impl SettingsPage {
-    /// Items waiting for review and items kept, once read; for the Overview.
     pub(super) fn personal_counts(&self) -> (usize, usize) {
         self.personal.loaded.as_ref().map_or((0, 0), |loaded| {
             (loaded.suggestions.len(), loaded.kept.len())
         })
     }
 
-    /// How many items are marked Share with Agents.
     pub(super) fn shared_personal_items(&self) -> usize {
         self.personal.loaded.as_ref().map_or(0, |loaded| {
             loaded
@@ -172,7 +158,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// Runs one edit off the main thread and reports it.
     fn personal_edit(
         &mut self,
         edit: impl FnOnce(&Library) -> Result<(), EditError> + Send + 'static,
@@ -660,7 +645,6 @@ impl SettingsPage {
             sections.push(section);
         }
 
-        // Kept, grouped by kind.
         let add_data = self.data.clone();
         let unavailable = loaded.load_error.is_some();
         let mut kept = Section::new(lokalbot_i18n::tr("Kept")).row(
@@ -715,7 +699,6 @@ impl SettingsPage {
         }
         sections.push(kept);
 
-        // Learning.
         let learning = settings.personal_learning_enabled && settings.ask_memory_enabled;
         let mut learn = Section::new(lokalbot_i18n::tr("Learning"))
             .row(
@@ -777,7 +760,6 @@ impl SettingsPage {
         }
         sections.push(learn);
 
-        // Agents.
         let shared = loaded
             .kept
             .iter()
@@ -792,7 +774,6 @@ impl SettingsPage {
             self.personal_access_row(detail, cx),
         ));
 
-        // How it works, and forgetting everything.
         let mut details = Section::new(None).row(
             "settings.personalContext.details",
             self.details(
@@ -816,8 +797,6 @@ impl SettingsPage {
         sections
     }
 
-    /// The Personal context grant, separate from meeting and screen access. Agents
-    /// also need each item marked Share with Agents.
     pub(super) fn personal_access_row(
         &self,
         detail: Option<String>,
@@ -869,7 +848,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// A switch that is off and unavailable while what it depends on is off.
     #[allow(clippy::too_many_arguments)]
     fn gated_toggle(
         &self,
@@ -940,7 +918,6 @@ impl SettingsPage {
                                 page.personal.confirming_forget_all = false;
                                 page.personal_edit(
                                     |library| {
-                                        // Dictation not yet read goes too.
                                         if let Err(err) = library.dictation_log().delete_all() {
                                             log::warn!(
                                                 "dictation learning log delete failed: {err:#}"
@@ -972,8 +949,6 @@ impl SettingsPage {
     }
 }
 
-/// Add or edit one claim (`PersonalClaimEditor`). The dialog stays open with the
-/// reason when it can't be saved.
 pub(crate) struct ClaimEditor {
     data: Entity<AppData>,
     claim: Option<Claim>,

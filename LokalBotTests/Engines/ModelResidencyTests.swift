@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The model-memory governor: pure LRU eviction policy, and the ledger's
-/// register/touch/evict behavior with recorded unload hooks.
 @MainActor
 final class ModelResidencyTests: XCTestCase {
 
@@ -10,8 +8,6 @@ final class ModelResidencyTests: XCTestCase {
         .init(id: id, bytes: gb * 1_073_741_824,
               lastUsed: Date(timeIntervalSince1970: 1_000_000 - age))
     }
-
-    // MARK: - Policy
 
     func testNoEvictionWhenEverythingFits() {
         let victims = ModelResidencyPolicy.evictions(
@@ -28,7 +24,6 @@ final class ModelResidencyTests: XCTestCase {
                         entry("middle", gb: 2, age: 100)],
             incomingID: "incoming", incomingBytes: 5 * 1_073_741_824,
             budgetBytes: 10 * 1_073_741_824)
-        // 3+6+2+5 = 16 GB against 10: dropping "oldest" (6) reaches 10 exactly.
         XCTAssertEqual(victims, ["oldest"])
     }
 
@@ -42,8 +37,6 @@ final class ModelResidencyTests: XCTestCase {
     }
 
     func testIncomingIDIsNeverAVictim() {
-        // A model swap on the same runtime replaces in place: its old row must
-        // not be evicted (the runtime restart handles the old weights).
         let victims = ModelResidencyPolicy.evictions(
             residents: [entry("server", gb: 8, age: 300), entry("other", gb: 4, age: 10)],
             incomingID: "server", incomingBytes: 9 * 1_073_741_824,
@@ -110,8 +103,6 @@ final class ModelResidencyTests: XCTestCase {
         XCTAssertEqual(overflow, ["small"])
     }
 
-    // MARK: - Ledger
-
     func testRegisterUpsertsTouchAndUnregister() {
         let residency = ModelResidency(budgetBytes: .max)
         residency.register(id: "a", label: "model-a", bytes: 100,
@@ -148,7 +139,6 @@ final class ModelResidencyTests: XCTestCase {
         XCTAssertEqual(unloads.ids, ["old"])
         XCTAssertEqual(residency.residents.map(\.id), ["new"])
 
-        // The incoming runtime registers itself after its load completes.
         residency.register(id: "incoming", label: "incoming", bytes: 5, unload: {})
         XCTAssertEqual(residency.totalBytes, 8)
     }

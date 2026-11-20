@@ -1,12 +1,3 @@
-//! Task metadata (`AgentTaskStore.swift`): titles, drafts, attachments,
-//! queued follow-ups, pins and archive state, kept apart from pi's
-//! append-only conversation. Archiving never deletes history, and browsing a
-//! task never needs a running process.
-//!
-//! `tasks.json` sits next to pi's session files in `<library>/agent/sessions`
-//! and uses the macOS encoding: uppercase UUID strings, `file://` URLs and
-//! dates as seconds since 2001-01-01.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result, bail};
@@ -27,8 +18,6 @@ pub enum AttachmentKind {
     Moment,
 }
 
-/// A reference to source material. The text is re-read with current
-/// permissions when a message is sent; only references are stored.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Attachment {
     pub id: String,
@@ -71,7 +60,6 @@ impl Attachment {
     }
 }
 
-/// A follow-up kept in the host queue until delivery.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueuedPrompt {
     #[serde(with = "swift_uuid")]
@@ -144,7 +132,6 @@ fn distant_past() -> DateTime<Utc> {
     DateTime::<Utc>::MIN_UTC
 }
 
-/// `tasks.json` in the sessions folder.
 #[derive(Clone, Debug)]
 pub struct TaskStore {
     pub directory: PathBuf,
@@ -163,8 +150,6 @@ impl TaskStore {
         self.directory.join("tasks.json")
     }
 
-    /// Records with duplicate ids dropped. A symlinked or oversized file is
-    /// an error, so the caller keeps it untouched instead of overwriting it.
     pub fn load(&self) -> Result<Vec<TaskRecord>> {
         let file = self.file();
         let metadata = match std::fs::symlink_metadata(&file) {
@@ -200,8 +185,6 @@ impl TaskStore {
     }
 }
 
-// ------------------------------------------------------------ presentation
-
 fn file_name(path: &str) -> String {
     path.rsplit(['/', '\\'])
         .find(|part| !part.is_empty())
@@ -209,7 +192,6 @@ fn file_name(path: &str) -> String {
         .to_string()
 }
 
-/// What the results panel shows for a tool result or source (`AgentResultPreview`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ResultPreview {
     pub id: String,
@@ -241,7 +223,6 @@ impl ResultPreview {
             ToolStatus::Failed => "Failed",
             ToolStatus::Running => "In progress",
         };
-        // pi's edit tool sends `edits: [{oldText, newText}]`; older calls a single pair.
         let first_edit = object
             .get("edits")
             .and_then(|e| e.as_array())
@@ -272,8 +253,6 @@ impl ResultPreview {
     }
 }
 
-/// The result a `file://` link in an answer points at (`AgentSessionView`'s
-/// `openURL`): a tool call on that file, its path taken against the task's folder.
 pub fn result_for_file_link(
     url: &str,
     results: &[ResultPreview],
@@ -296,9 +275,6 @@ pub fn result_for_file_link(
         .cloned()
 }
 
-// --------------------------------------------------------------- encoding
-
-/// Swift encodes `UUID` as an uppercase hyphenated string.
 mod swift_uuid {
     use super::*;
 

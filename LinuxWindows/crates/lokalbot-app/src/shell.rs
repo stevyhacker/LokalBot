@@ -1,8 +1,3 @@
-//! The main window: sidebar, toolbar (which doubles as the title bar) and the
-//! current page. Mirrors `MainWindowView.swift`: Today and Actions lead,
-//! Remember and Assistant group the rest, and Settings with the privacy line
-//! sits in the sidebar's foot. Settings opens its own window.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::popover::Popover;
@@ -41,7 +36,6 @@ impl Workspace {
     pub fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
         let subscriptions = vec![cx.observe(&data, |_, data, cx| {
-            // The Actions row's count follows the library.
             data.update(cx, |data, cx| data.refresh_open_action_count(cx));
             cx.notify();
         })];
@@ -96,9 +90,6 @@ impl Workspace {
         }
     }
 
-    /// Today and Actions lead; Remember holds what was captured; Assistant
-    /// holds the two places you ask for work. Settings and the privacy line
-    /// sit in the footer, outside the destinations (`MainWindowView.sidebar`).
     fn render_sidebar(&self, section: Section, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let open_actions = self
@@ -174,8 +165,6 @@ impl Workspace {
             .child(self.render_sidebar_footer(cx))
     }
 
-    /// The app mark at the top of the sidebar; also a window drag handle.
-    /// The Mac has its window buttons here instead.
     fn render_brand(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         drag_region(
@@ -208,8 +197,6 @@ impl Workspace {
         )
     }
 
-    /// The sidebar's foot: what is running now, then Settings, then where
-    /// the library and the AI are (`SidebarFooter`).
     fn render_sidebar_footer(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let data = self.data.read(cx);
         let lb = cx.lb().clone();
@@ -344,10 +331,6 @@ impl Workspace {
             .child(
                 v_flex()
                     .gap(px(2.))
-                    // Settings is a place you visit rarely, so it sits at the
-                    // foot and not among the destinations. It opens the
-                    // Settings window and is never selected: the main window
-                    // stays where it was (`SidebarSettingsRow`).
                     .child(
                         sidebar_row(
                             "sidebar-settings",
@@ -382,7 +365,6 @@ impl Workspace {
             .bg(lb.title_bar)
             .border_color(lb.separator);
         let title_bar = match title_control {
-            // The control takes clicks; the rest of the bar still drags the window.
             Some(control) => title_bar.child(
                 div()
                     .pl(px(12.))
@@ -426,7 +408,6 @@ impl Workspace {
     }
 }
 
-/// What the shell takes from the current page.
 struct PageParts {
     title: SharedString,
     subtitle: Option<SharedString>,
@@ -435,8 +416,6 @@ struct PageParts {
     page: AnyElement,
 }
 
-/// A row in the sidebar's style: icon, title, then whatever the caller adds
-/// (a count). The selected row gets the selection fill.
 fn sidebar_row(
     id: impl Into<gpui_kit::ElementId>,
     icon: Ico,
@@ -469,8 +448,6 @@ fn sidebar_row(
         )
 }
 
-/// Where the library and the AI are, under Settings (`SidebarPrivacyLine`),
-/// with the paired devices line while sharing is on.
 fn privacy_line(
     privacy: &PrivacyLine,
     companion_line: Option<String>,
@@ -523,8 +500,6 @@ fn privacy_line(
         )
 }
 
-/// The latest message or error, at the foot of a window (`ErrorToast`). The
-/// main window and the Settings window both show it.
 pub fn toast(data: &Entity<AppData>, cx: &App) -> Option<AnyElement> {
     let toast = data.read(cx).toast.clone()?;
     let lb = cx.lb().clone();
@@ -609,8 +584,6 @@ impl Render for Workspace {
     }
 }
 
-/// One piece of background work; a click opens the screen that owns it
-/// (`BackgroundActivityButton`).
 fn background_row(
     id: impl Into<gpui_kit::ElementId>,
     item: &BackgroundItem,
@@ -676,7 +649,6 @@ enum BackgroundDestination {
     Models,
 }
 
-/// The screen that owns a piece of work (`BackgroundActivity.destination`).
 fn background_destination(
     item: &BackgroundItem,
     digest_day: Option<chrono::NaiveDate>,
@@ -737,7 +709,6 @@ fn progress_line(progress: f32, fill: Hsla, track: Hsla) -> impl IntoElement {
         )
 }
 
-/// Lets an element move the window, like the title bar does.
 pub fn drag_region<
     E: gpui_kit::StatefulInteractiveElement + gpui_kit::InteractiveElement + IntoElement,
 >(
@@ -751,8 +722,6 @@ pub fn drag_region<
     }
 }
 
-/// What the privacy line says about paired phones and tablets
-/// (`SidebarCompanionLine`).
 fn companion_line(devices: usize) -> String {
     match devices {
         0 => lokalbot_i18n::tr("Phones & tablets: none paired").to_string(),

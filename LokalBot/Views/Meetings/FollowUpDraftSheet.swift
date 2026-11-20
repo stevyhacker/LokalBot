@@ -1,8 +1,6 @@
 import SwiftUI
 import AppKit
 
-/// Review, rewrite with the on-device Think model, copy, or save a
-/// meeting's follow-up. LokalBot never sends it.
 struct FollowUpDraftSheet: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss

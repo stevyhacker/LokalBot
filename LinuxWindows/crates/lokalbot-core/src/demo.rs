@@ -1,8 +1,3 @@
-//! A fictional demo library for screenshots, UI development and tests
-//! (`Scripts/test/seed_demo_library.py --profile studio`, adapted to Linux and
-//! Windows apps): a small video studio's meetings, actions, day memory,
-//! digest, Ask conversations, people and projects, placed relative to `now`.
-
 use std::fs;
 
 use anyhow::{Context as _, Result, bail};
@@ -13,31 +8,25 @@ use crate::library::{Library, write_json};
 use crate::model::*;
 use crate::paths::LibraryPaths;
 
-/// Marks a directory this module created, so it may be reseeded.
 pub const DEMO_MARKER: &str = ".lokalbot-demo-library";
 
 pub const STUDIO_SHOOT: Uuid = Uuid::from_u128(0x55555555_5555_4555_8555_555555555555);
 pub const STUDIO_PODCAST: Uuid = Uuid::from_u128(0x66666666_6666_4666_8666_666666666666);
 const ENGINE: &str = "on-device demo";
 
-/// `mid(n)` of the Python seeder: `{n:08}-0000-4000-8000-{n:012}`.
 fn mid(n: u32) -> Uuid {
     Uuid::parse_str(&format!("{n:08}-0000-4000-8000-{n:012}")).unwrap_or_default()
 }
 
-/// When a demo meeting starts.
 #[derive(Clone, Copy)]
 enum When {
-    /// Minutes before the anchor (today).
     Ago(i64),
-    /// Local `hour:minute` on the day `days` before today.
     Day(i64, u32, u32),
 }
 
 struct Action {
     segment: usize,
     text: &'static str,
-    /// `None`: the speaker of the cited segment decides (me → Me).
     owner: Option<&'static str>,
     due: Option<&'static str>,
     status: Option<ActionStatus>,
@@ -963,7 +952,6 @@ fn meetings() -> Vec<Demo> {
     ]
 }
 
-/// Today's activity, in minutes before the anchor: (app, window title, from, to).
 const TODAY_BLOCKS: &[(&str, &str, i64, i64)] = &[
     (
         "LibreOffice Impress",
@@ -1007,7 +995,6 @@ const TODAY_BLOCKS: &[(&str, &str, i64, i64)] = &[
     ("DaVinci Resolve", "Northwind holiday cut", 27, 4),
 ];
 
-/// Earlier days: (days ago, app, title, from "HH:MM", to "HH:MM") in local time.
 const EARLIER_BLOCKS: &[(i64, &str, &str, &str, &str)] = &[
     (1, "Figma", "Holiday shot list – Figma", "09:00", "09:55"),
     (
@@ -1186,8 +1173,6 @@ struct Clock {
 }
 
 impl Clock {
-    /// Today's items sit just before `now`; very early in the morning they
-    /// move to 04:30 so Today is still populated.
     fn new(now: DateTime<Utc>) -> Self {
         let local = now.with_timezone(&Local);
         let earliest = local_time(local.date_naive(), 4, 30);
@@ -1224,10 +1209,6 @@ fn whole_seconds(value: DateTime<Utc>) -> DateTime<Utc> {
     DateTime::from_timestamp(value.timestamp(), 0).unwrap_or(value)
 }
 
-/// Seeds the demo library at `paths`, relative to `now`.
-///
-/// Refuses a non-empty directory unless an earlier seed created it (marked
-/// with [`DEMO_MARKER`]); such a library is replaced.
 pub fn seed(paths: &LibraryPaths, now: DateTime<Utc>) -> Result<()> {
     let root = paths.root();
     if root.exists() {
@@ -1254,8 +1235,6 @@ pub fn seed(paths: &LibraryPaths, now: DateTime<Utc>) -> Result<()> {
     }
     fs::create_dir_all(root)?;
     fs::write(root.join(DEMO_MARKER), "LokalBot synthetic demo library\n")?;
-    // Only this, so everything else keeps following the app's defaults: the
-    // setup wizard would cover the library this exists to show.
     fs::write(paths.settings_file(), r#"{"onboardingCompleted":true}"#)?;
 
     let library = Library::open(paths.clone())?;
@@ -1779,7 +1758,6 @@ fn seed_journals(
     Ok(())
 }
 
-/// The journal layout `DayDigestEvidence.renderDocument` writes.
 fn render_journal(
     library: &Library,
     day: chrono::NaiveDate,
@@ -1809,7 +1787,6 @@ fn render_journal(
                         .map(|rest| rest.split("\n## ").next().unwrap_or("").to_string())
                 })
                 .unwrap_or_default();
-            // The recap's claims without bullets, speakers or stamps.
             let tldr = tldr
                 .lines()
                 .filter_map(|line| {
@@ -1916,7 +1893,6 @@ fn render_journal(
     Ok(sections.join("\n\n") + "\n")
 }
 
-/// "2h 5m", "25m", "<1m" (`DayDigestEvidence.duration`).
 fn journal_duration(seconds: f64) -> String {
     let minutes = (seconds.round() as i64 / 60).max(0);
     if minutes == 0 {
@@ -1958,7 +1934,6 @@ mod tests {
         seed(&paths, Utc::now()).unwrap();
         let settings = crate::Settings::load(&paths.settings_file());
         assert!(settings.onboarding_completed);
-        // Nothing else was chosen for the person.
         let defaults = crate::Settings {
             onboarding_completed: true,
             ..crate::Settings::default()

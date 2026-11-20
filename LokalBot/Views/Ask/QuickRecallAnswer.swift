@@ -1,22 +1,13 @@
 import AppKit
 import SwiftUI
 
-/// The sources under an answer in the Quick Recall window: a row per
-/// citation, numbered as in the answer, laid out like that window's results.
-/// A meeting's row carries the time it jumps to; the second line quotes the
-/// passage with the question's words marked. Opening a row shows the source
-/// in the main window.
 struct QuickRecallAnswerSources: View {
     @EnvironmentObject private var app: AppState
     let citations: [ChatCitation]
     var claimIDs: [UUID] = []
     var personalModel: PersonalModelController?
-    /// The question this answer replied to.
     var question = ""
-    /// Called after a source was opened.
     var onOpen: ((ChatCitation.Kind) -> Void)?
-    /// What each citation points at, by its number. Read from what is
-    /// already stored on this Mac.
     @State private var sources: [Int: Source] = [:]
 
     private struct Source {
@@ -94,8 +85,6 @@ struct QuickRecallAnswerSources: View {
         }
     }
 
-    /// Files and agent notes are read only while their own settings are on,
-    /// as on the Ask screen.
     private func load() async {
         var found: [Int: Source] = [:]
         var transcripts: [UUID: [CitationPassage.Line]] = [:]
@@ -155,8 +144,6 @@ struct QuickRecallAnswerSources: View {
     }
 }
 
-/// The foot of an answer: where it was answered and what it read, Copy, and
-/// the way into the full Ask screen.
 struct QuickRecallAnswerFoot: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -168,7 +155,6 @@ struct QuickRecallAnswerFoot: View {
         let inference = InferencePresentation(settings: app.settings)
         let answer = latestAnswer
         HStack(spacing: 8) {
-            // A "Remember …" receipt was saved here without any model.
             if model.messages.last?.rememberReceipt == nil {
                 Image(systemName: inference == .onDevice ? "lock" : inference.icon)
                     .font(.system(size: 11))
@@ -207,7 +193,6 @@ struct QuickRecallAnswerFoot: View {
         .frame(minHeight: 46)
     }
 
-    /// The text of the answer that ends the conversation, once it is written.
     private var latestAnswer: String? {
         guard let message = model.messages.last, message.role == .assistant,
               !message.isPending, !message.isError, message.rememberReceipt == nil else { return nil }
@@ -216,9 +201,6 @@ struct QuickRecallAnswerFoot: View {
         return text.isEmpty ? nil : text
     }
 
-    /// What the last question was limited to, in the words the Ask screen's
-    /// sources menu uses: "All sources", one meeting's title, or how many
-    /// meetings and screen moments.
     private var scopeLabel: String? {
         guard let question = model.messages.last(where: { $0.role == .user }) else { return nil }
         let summary = AskScopeSummary.make(

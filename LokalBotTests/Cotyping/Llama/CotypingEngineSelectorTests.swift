@@ -117,15 +117,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         XCTAssertEqual(server.unloadCalls, 1)
     }
 
-    // MARK: - Route-away unload (Fix 1) + decode-failure fallback (Fix 2)
-
-    /// FIX 1: when the runtime flag flips OFF the selector must drop its cached
-    /// in-process engine (and unload its model); flipping it back ON rebuilds a
-    /// fresh engine. We prove the cache is dropped by counting `makeLocal` calls
-    /// through the injectable seam: build → drop → rebuild ⇒ exactly two builds.
-    ///
-    /// These selector paths only run on Apple Silicon (`isAppleSilicon`), so the
-    /// test is skipped on Intel where `localIfEligible()` always returns nil.
     func testRouteAwayDropsCacheAndRebuildOnReenable() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon,
                           "Selector routes to local only on Apple Silicon.")
@@ -155,13 +146,11 @@ final class CotypingEngineSelectorTests: XCTestCase {
             },
             storage: env.storage)
 
-        // Flag ON + model resolves → first build, routes local (HTTP untouched).
         let r1 = makeMinimalRequestExpectingNoServer()
         _ = try? awaitGenerate(selector, r1)
         XCTAssertEqual(counter.value, 1, "flag ON should build the local engine once")
         XCTAssertEqual(selector.debounceProfile, .inProcess)
 
-        // Flag OFF → ineligible branch calls dropLocalEngine(), routes to HTTP.
         flagOn = false
         events.removeAll()
         let httpBefore = http.generateCalls
@@ -174,7 +163,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
                        "the old local model must finish unloading before HTTP starts")
         XCTAssertEqual(selector.debounceProfile, .modelServer)
 
-        // Flag ON again → cache was dropped, so a FRESH engine is rebuilt.
         flagOn = true
         _ = try? awaitGenerate(selector, r1)
         XCTAssertEqual(counter.value, 2,
@@ -228,9 +216,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         XCTAssertEqual(selector.debounceProfile, .modelServer)
     }
 
-    /// Changing the selected GGUF used to overwrite the cached local engine
-    /// without unloading it. Prove replacement is ordered: old local unload,
-    /// stale HTTP stop, then the new local generation.
     func testModelChangeUnloadsOldLocalBeforeBuildingReplacement() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon,
                           "Selector routes to local only on Apple Silicon.")
@@ -287,15 +272,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         ])
     }
 
-    /// FIX 2 (selector half): a `LlamaRuntimeError` thrown by the local engine must
-    /// reach the selector's `catch let error as LlamaRuntimeError` and route the
-    /// completion to HTTP. This injects a `ThrowingLocalEngine` fake (enabled by the
-    /// `CotypingCompleting` seam on `makeLocal`), so it proves the selector's
-    /// fallback wiring — NOT that `LlamaCotypingRuntime.generate` actually throws on
-    /// a failed `llama_decode`. That runtime half is locked by compilation (the
-    /// `try await` propagation in `LlamaCotypingRuntimeTests`); a genuine
-    /// `llama_decode == 0` fault (KV exhaustion / OOM) can't be provoked
-    /// deterministically in a unit test.
     func testLocalRuntimeErrorRoutesToHTTPFallback() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon,
                           "Selector routes to local only on Apple Silicon.")
@@ -318,13 +294,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
                        "a local failure must immediately restore server debounce")
     }
 
-    /// The HTTP fallback runs the SAME GGUF in its own llama-server process, so
-    /// a failed in-process engine must not stay loaded beside it (two model
-    /// copies resident). A failure must (1) unload the local engine's weights
-    /// BEFORE the HTTP fallback starts (the failure is likely memory pressure,
-    /// so the copies must never overlap), (2) route to HTTP without rebuilding
-    /// local for `localRetryCooldown`, and (3) rebuild + retry local once the
-    /// cooldown passes.
     func testLocalFailureFreesModelAndCoolsDownBeforeRetry() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon,
                           "Selector routes to local only on Apple Silicon.")
@@ -350,7 +319,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
 
         let request = makeMinimalRequestExpectingNoServer()
 
-        // Failure → HTTP fallback + the failed engine's weights are freed.
         _ = try awaitGenerate(selector, request)
         XCTAssertEqual(locals.count, 1)
         XCTAssertEqual(http.generateCalls, 1, "the failed completion must land on HTTP")
@@ -359,13 +327,11 @@ final class CotypingEngineSelectorTests: XCTestCase {
         XCTAssertEqual(events, ["unload", "http"],
                        "the local weights must be freed before the HTTP fallback starts")
 
-        // Inside the cooldown: straight to HTTP, no local rebuild (no reload thrash).
         clock += CotypingEngineSelector.localRetryCooldown - 1
         _ = try awaitGenerate(selector, request)
         XCTAssertEqual(locals.count, 1, "no rebuild while the failure cooldown is active")
         XCTAssertEqual(http.generateCalls, 2)
 
-        // Past the cooldown: rebuild a fresh local engine and retry it.
         clock += 2
         _ = try awaitGenerate(selector, request)
         XCTAssertEqual(locals.count, 2, "cooldown expiry must rebuild and retry the local engine")
@@ -404,9 +370,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         XCTAssertEqual(locals.count, 2, "next eligible completion should rebuild after explicit unload")
     }
 
-    /// Model verification suspends outside the main actor. An older generate
-    /// and prewarm must not resume after an explicit unload and resurrect the
-    /// in-process runtime that shutdown just released.
     func testExplicitUnloadInvalidatesSuspendedLocalResolution() throws {
         try XCTSkipUnless(CotypingEngineSelector.isAppleSilicon,
                           "Selector routes to local only on Apple Silicon.")
@@ -497,12 +460,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         XCTAssertEqual(RecordingHTTPEngine().debounceProfile, .modelServer)
     }
 
-    // MARK: - Helpers
-
-    /// Builds a temp StorageManager rooted at a throwaway dir with a GGUF-magic
-    /// file and a matching custom catalog entry, so `resolvedModelURL` resolves
-    /// without a real multi-gigabyte model. `looksLikeGGUF` only checks the first 4
-    /// bytes are the ASCII magic "GGUF".
     private struct GGUFFixture {
         let storage: StorageManager
         let settings: AppSettings
@@ -516,10 +473,8 @@ final class CotypingEngineSelectorTests: XCTestCase {
 
             let fileName = "selector-fixture.gguf"
             let modelFile = modelsDir.appendingPathComponent(fileName)
-            try Data("GGUF".utf8).write(to: modelFile)   // magic-only stub; not loaded
+            try Data("GGUF".utf8).write(to: modelFile)
 
-            // Inject the fixture root directly: a suite-wide storage environment
-            // override takes priority over UserDefaults and otherwise hides this model.
             storage = StorageManager(rootURL: tempRoot)
 
             let custom = ModelCatalog.Entry(
@@ -537,9 +492,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
         }
     }
 
-    /// A request whose generation never reaches a real server: the fakes above
-    /// short-circuit before any network/model call, so the prompt content is
-    /// irrelevant — we only need a valid `CotypingRequest`.
     private func makeMinimalRequestExpectingNoServer() -> CotypingRequest {
         let field = CotypingField(
             appName: "Mail", bundleID: "com.apple.mail", processID: 0, role: "AXTextArea",
@@ -574,7 +526,6 @@ final class CotypingEngineSelectorTests: XCTestCase {
     }
 }
 
-/// Thread-safe build counter for the `makeLocal` seam.
 private final class BuildCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var count = 0
@@ -605,7 +556,6 @@ private final class SuspendedModelVerifier {
     }
 }
 
-/// Stands in for the autocomplete server route.
 @MainActor
 private final class RecordingServerEngine: CotypingCompleting {
     static let sentinel = "SERVER"
@@ -618,8 +568,6 @@ private final class RecordingServerEngine: CotypingCompleting {
     func unload() async { unloadCalls += 1 }
 }
 
-/// Stands in for the HTTP `CotypingCompleting` and records that it was invoked,
-/// returning a sentinel result so the caller can assert the fallback path ran.
 @MainActor
 private final class RecordingHTTPEngine: CotypingCompleting {
     static let sentinel = "HTTP-FALLBACK"
@@ -661,9 +609,6 @@ private final class RecordingLocalEngine: CotypingCompleting {
     }
 }
 
-/// A local-engine fake that always throws a `LlamaRuntimeError`, used to prove
-/// the selector's HTTP fallback fires on a decode failure (Fix 2). Records
-/// unloads so tests can assert the failed engine's weights were freed.
 @MainActor
 private final class ThrowingLocalEngine: CotypingCompleting {
     let error: LlamaRuntimeError

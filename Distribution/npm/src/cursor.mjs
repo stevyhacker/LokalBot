@@ -1,14 +1,3 @@
-// Reads Cursor agent sessions from two local stores without double-counting:
-//   1. Cursor's global SQLite store (`state.vscdb`, `cursorDiskKV` table) via
-//      Node.js's built-in `node:sqlite` (Node 22.5+) — holds composer sessions,
-//      exact bubble timestamps, models, subagents, tool calls, and token counts.
-//   2. `~/.cursor/projects/<encoded-cwd>/agent-transcripts/<id>/<id>.jsonl` —
-//      catches Cursor Agent CLI / transcripts not in `state.vscdb`, and serves
-//      as a fallback when running on Node.js < 22.5.
-//
-// No prompt or reply text is kept; only counts, timestamps, tool names, git
-// actions, models, and token totals.
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -43,11 +32,6 @@ export function cursorRoots(env, home) {
   return { projectsDir, stateDb };
 }
 
-/**
- * `source` is either `{ projectsDir, stateDb }` (default) or a string folder
- * from `--cursor-dir` (looks for `state.vscdb` and/or `projects/` inside, or
- * treats the folder itself as `projects/`).
- */
 export async function readCursor(source, collector, onProgress = () => {}) {
   if (!source) return;
   let projectsDir = null;
@@ -118,7 +102,6 @@ async function readStateDb(dbPath, collector, seenIds, onProgress) {
       if (!id) continue;
       const created = num(data.createdAt);
       const updated = num(data.lastUpdatedAt) || created;
-      // Keep composers whose lifetime overlaps the requested year window.
       if (updated > 0 && updated < collector.start) continue;
       if (created > 0 && created >= collector.end) continue;
       const parentId = nonEmpty(data.subagentInfo?.rootParentConversationId)
@@ -243,7 +226,6 @@ async function readStateDb(dbPath, collector, seenIds, onProgress) {
     try {
       db.close();
     } catch {
-      // Ignore close error.
     }
   }
 }
@@ -299,8 +281,6 @@ function readTranscriptJsonls(projectsDir, collector, seenIds, onProgress) {
 }
 
 function readJsonlTranscript({ file, id, projectSlug, born, mtime }, collector) {
-  // Cursor JSONL files omit per-line timestamps; anchor conservatively on file
-  // creation/modification time within the year so hours are never inflated.
   const times = [];
   if (collector.inWindow(mtime)) {
     if (collector.inWindow(born) && born < mtime && mtime - born <= INACTIVITY_GAP) {
@@ -412,7 +392,6 @@ function folderFromCreatedFiles(files) {
   return null;
 }
 
-/** `Users-alice-Documents-GitHub-LokalBot` -> `/Users/alice/Documents/GitHub/LokalBot` (best-effort leaf). */
 function decodeCursorProjectSlug(slug) {
   if (typeof slug !== 'string' || slug.length === 0) return null;
   const match = /(?:GitHub|github|repos|repositories|projects|code|dev|workspace|workspaces)-(.+)$/.exec(slug);

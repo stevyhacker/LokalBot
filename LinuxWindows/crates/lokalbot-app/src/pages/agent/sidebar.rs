@@ -1,8 +1,3 @@
-//! The task list (`AgentTaskSidebar.swift`): search and New on top, tasks
-//! grouped by day with their status and time, and Archived at the bottom.
-//! Refresh, saved sessions, the runtime check and clearing history are in
-//! the … menu beside Archived.
-
 use crate::i18n::h_flex;
 use chrono::{DateTime, Local};
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
@@ -28,7 +23,6 @@ use crate::ui::{self, Ico};
 
 pub(super) const SIDEBAR_WIDTH: f32 = 272.;
 
-/// One row as shown.
 struct Row {
     id: Uuid,
     title: String,
@@ -54,7 +48,6 @@ impl AgentPage {
         let selected = self.selected_id(cx);
         let query = self.task_query.trim().to_string();
 
-        // A search field and New; the list below needs no heading.
         let header = h_flex()
             .gap(px(8.))
             .items_center()
@@ -151,7 +144,6 @@ impl AgentPage {
             .child(self.render_sidebar_footer(cx))
     }
 
-    /// Archived and its count, and the task options.
     fn render_sidebar_footer(&mut self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let tasks = self.model(cx).and_then(|m| m.tasks.as_ref());
@@ -259,7 +251,6 @@ impl AgentPage {
             .child(menu)
     }
 
-    /// The rows in view and how they group.
     fn task_rows(&self, now: DateTime<Local>, cx: &App) -> (Vec<Row>, Vec<TaskListSection>) {
         let Some(tasks) = self.model(cx).and_then(|m| m.tasks.as_ref()) else {
             return (Vec::new(), Vec::new());
@@ -297,7 +288,6 @@ impl AgentPage {
                 let status = super::task_status(tab);
                 let tone = status.tone();
                 let quiet_archive = tab.record.is_archived && tone == Tone::Quiet;
-                // The status, or for a task that is doing nothing, where it works.
                 let line = if quiet_archive {
                     lokalbot_i18n::tr("Archived").to_string()
                 } else {
@@ -457,7 +447,6 @@ impl AgentPage {
     }
 }
 
-/// `AgentTaskStatus.symbol`.
 pub(super) fn status_icon(status: TaskStatus) -> Ico {
     match status {
         TaskStatus::NotStarted | TaskStatus::Saved | TaskStatus::Stopped => Ico::MessageSquareText,

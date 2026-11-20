@@ -1,8 +1,3 @@
-//! The selection actions panel (`SelectionActionsView.swift`): the selected
-//! text and where it came from, the actions that fit it, and the streamed
-//! result with ways to use it. A 620×460 window; everything it shows comes from
-//! the engine and is forgotten when it closes.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::checkbox::Checkbox;
@@ -31,7 +26,6 @@ fn send(command: SelectionCommand, cx: &mut App) {
     crate::bridge::send(Command::Selection(command), cx);
 }
 
-/// Opens the panel, or brings the open one forward.
 pub fn open(cx: &mut App) {
     let existing = super::secondary(cx).selection_actions;
     if super::activate(existing, cx) {
@@ -60,8 +54,6 @@ pub fn open(cx: &mut App) {
         window_decorations: Some(gpui_kit::WindowDecorations::Client),
         ..Default::default()
     };
-    // Windows takes a borderless, topmost tool window; X11 only gives
-    // keyboard focus to managed windows, so Linux uses a normal one.
     let window_kind = || {
         if cfg!(target_os = "windows") {
             WindowKind::PopUp
@@ -107,8 +99,6 @@ pub struct SelectionActions {
     input: Entity<InputState>,
     query: String,
     selection: usize,
-    /// Typed instructions read matching meetings and work memory unless this
-    /// is turned off.
     instruction_uses_memory: bool,
     focus: FocusHandle,
     scroll: ScrollHandle,
@@ -145,7 +135,6 @@ impl SelectionActions {
             ),
             cx.observe_in(&data, window, |this, _, window, cx| {
                 let choosing = this.data.read(cx).selection_actions.is_choosing();
-                // A new press with the panel still open starts over.
                 if this.data.read(cx).selection_actions.phase == SelectionPhase::Capturing
                     && !this.query.is_empty()
                 {
@@ -160,7 +149,6 @@ impl SelectionActions {
                 }
                 cx.notify();
             }),
-            // However the window goes away, the selection goes with it.
             cx.on_release(|_, cx| send(SelectionCommand::PanelClosed, cx)),
         ];
         Self {
@@ -180,8 +168,6 @@ impl SelectionActions {
         self.data.read(cx).selection_actions.clone()
     }
 
-    /// The input while choosing; the panel itself takes Enter and the
-    /// shortcuts while a result shows.
     fn focus_for_phase(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.view(cx).is_choosing() {
             let placeholder = if self.view(cx).has_selection() {
@@ -276,7 +262,6 @@ impl SelectionActions {
         self.close(window, cx);
     }
 
-    /// Whether the replace button is the default one (`resultButtons`).
     fn replaces_by_default(view: &SelectionView) -> bool {
         view.can_insert
             && view
@@ -285,7 +270,6 @@ impl SelectionActions {
                 .is_some_and(|action| action.result == ActionResult::Replacement)
     }
 
-    /// Enter and the panel's shortcuts while a result shows.
     fn on_key(&mut self, event: &KeyDownEvent, window: &mut Window, cx: &mut Context<Self>) {
         let view = self.view(cx);
         let keystroke = &event.keystroke;
@@ -718,7 +702,6 @@ impl SelectionActions {
     }
 }
 
-/// Built-in titles are interface text; a typed instruction is the user's.
 fn action_title(action: &Action) -> String {
     if action.is_custom() {
         action.title.clone()
@@ -742,7 +725,6 @@ fn action_icon(action: &Action) -> Ico {
     }
 }
 
-/// Where the text came from and what can happen to the result.
 fn source_line(view: &SelectionView) -> String {
     let app = view
         .source
@@ -799,7 +781,6 @@ fn loading_text(view: &SelectionView) -> String {
     }
 }
 
-/// "Design review · 2 Nov".
 fn source_label(source: &MemorySource, _now: chrono::DateTime<chrono::Local>) -> String {
     match source.date {
         Some(date) => format!(

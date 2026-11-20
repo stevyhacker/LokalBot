@@ -26,8 +26,6 @@ class ScenarioTests(unittest.TestCase):
         self.assertTrue({markers["digestFocus"], markers["digestAggregate"], markers["notes"]} <= catch_alls)
 
     def test_only_real_asr_answers_notes_repairs(self):
-        # Nightly 2026-10-01: real Parakeet wording missed a recorded quote,
-        # the app asked for a repair, and the stub had no rule (HTTP 500).
         root = SOURCE / "LokalBotTests/Fixtures/model-recordings"
         marker = json.loads((root / "purpose-markers.json").read_text())["notesRepair"]
         golden = scenario.build(root, "z-ai/glm-5.3-flash")
@@ -49,8 +47,6 @@ class AssertionTests(unittest.TestCase):
         self.assertTrue(assertions.health_problems(report))
 
     def test_owned_action(self):
-        # outcomes.json as MeetingOutcomes encodes it: actionItems with the
-        # resolved owner ("Me") and isForUser.
         with tempfile.TemporaryDirectory() as folder:
             outcomes = Path(folder, "outcomes.json")
             outcomes.write_text(json.dumps({"actionItems": [{"text": "Draft", "owner": "Ana", "isForUser": False}]}))
@@ -96,9 +92,6 @@ class AssertionTests(unittest.TestCase):
         self.assertEqual(assertions.word_edits(["clean", "up"], ["cleanups"]), 2)
 
     def test_day_rate_pools_meetings_so_one_short_meeting_cannot_decide_the_run(self):
-        # Nightly 2026-10-01: Parakeet heard the 14-word sprint planning as
-        # "...i'll pare on the tombstone clean up tomorrow" (21.4% per meeting
-        # before compounds were ignored) and the design review exactly.
         fixtures = SOURCE / "LokalBotTests/Fixtures/day-in-the-life/golden-transcripts"
         heard = {
             "design-review": json.loads((fixtures / "design-review/mic.json").read_text())["segments"]

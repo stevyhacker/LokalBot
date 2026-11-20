@@ -1,11 +1,6 @@
 import Foundation
 
-/// Runs one `gemini -p ""` headless request. Tests replace the child process.
 protocol GeminiCLIRunning: Sendable {
-    /// `files` are written into a fresh private working directory, which
-    /// `arguments` and environment variables (`GEMINI_SYSTEM_MD`,
-    /// `GEMINI_CLI_SYSTEM_SETTINGS_PATH`) reference; the folder is removed
-    /// afterwards.
     func run(arguments: [String], input: Data, files: [String: Data],
              onLine: (@Sendable (String) -> Void)?) async throws -> PlanCLIProcess.Output
 }
@@ -40,16 +35,6 @@ struct LiveGeminiCLIRunner: GeminiCLIRunning {
     }
 }
 
-/// Think on the user's Google AI / Gemini plan, through their own signed-in
-/// Gemini CLI (`gemini -p ""`).
-///
-/// Every request runs in an empty private temporary directory with:
-/// - `--admin-policy deny-all.toml` (tier-5 policy denying every tool call),
-/// - `GEMINI_CLI_SYSTEM_SETTINGS_PATH` overriding tools, MCP servers, hooks,
-///   skills, and usage statistics off while preserving the user's own auth,
-/// - `--extensions none` disabling all CLI extensions,
-/// - `GEMINI_SYSTEM_MD` loading the system prompt from a private file, and
-/// - prompt and context piped over stdin (never in command-line arguments).
 struct GeminiPlanEngine: TextEngine {
     var model: String
     var runner: GeminiCLIRunning = LiveGeminiCLIRunner()
@@ -129,10 +114,6 @@ struct GeminiPlanEngine: TextEngine {
         return result
     }
 
-    // MARK: Arguments & Input
-
-    /// Pure argument construction, covered offline. Neither user content nor
-    /// schema contents ever appear in command-line arguments.
     func arguments(streaming: Bool) -> [String] {
         var arguments = [
             "-p", "",
@@ -167,8 +148,6 @@ struct GeminiPlanEngine: TextEngine {
         """
         return Data(full.utf8)
     }
-
-    // MARK: Parsing
 
     struct Reply: Equatable {
         var text: String
@@ -320,8 +299,6 @@ struct GeminiPlanEngine: TextEngine {
             "Gemini CLI exited without a result (status \(output.status)). Sign in with gemini in Terminal or update Gemini CLI and try again.")
     }
 
-    /// Plan limits and missing sign-in stop without retrying; transient server
-    /// errors keep a retryable status for `GatedTextEngine`.
     static func failure(message: String, statusCode: Int?) -> Error {
         let lowered = message.lowercased()
         if lowered.contains("cloudaicompanion.licenses.selfassign")
@@ -359,8 +336,6 @@ struct GeminiPlanEngine: TextEngine {
         let detail = message.isEmpty ? "the request failed" : String(message.prefix(600))
         return TextEngineError.badResponse("Gemini CLI: \(detail)")
     }
-
-    // MARK: Run
 
     private func request(
         system: String,
@@ -415,7 +390,6 @@ struct GeminiPlanEngine: TextEngine {
         }
     }
 
-    /// Forwards streamed text deltas to the UI, at most about 30 times a second.
     private final class PartialForwarder: @unchecked Sendable {
         private let onPartial: @MainActor (String) -> Void
         private let lock = NSLock()

@@ -1,9 +1,3 @@
-//! The matches for what is typed in Ask (`AskMatchesList`, `AskMatchesHeader`):
-//! a row per meeting, screen moment, file or saved agent note, each with the
-//! lines that matched. The same rows sit under the field on a new question,
-//! in the tray above the field inside a conversation, and under an answer
-//! that failed. Clicking a title or a line opens it.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::{ContextMenuExt as _, PopupMenuItem};
@@ -24,31 +18,22 @@ use super::search::{self, Facet, Hit, MeetingGroup, ScreenResult};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, result_row, screen_thumbnail};
 
-/// Where a list of matches is drawn.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum ListStyle {
-    /// Under the field or an answer: wider rows, a column for each line's kind.
     Card,
-    /// Inside the tray above a docked field.
     Tray,
 }
 
-/// How many matching lines a meeting lists before folding the rest.
 const FOLDED_LINES: usize = 3;
-/// Wide enough for "0:35 · Other speaker" beside the matched words.
 const KIND_COLUMN: f32 = 148.;
-/// The tray never covers more of the conversation than this.
 pub(super) const TRAY_MAX_HEIGHT: f32 = 320.;
 const CARD_RADIUS: f32 = 12.;
 
-/// One row of the list; its frame (card, segment or tray) is the caller's.
 pub(super) struct MatchRow {
     pub element: AnyElement,
 }
 
 impl AskPage {
-    /// "Matches · 3 in 1 meeting", the search in progress, and the keys that act
-    /// on the matches.
     pub(super) fn render_matches_header(&self, hints: &[(&str, &str)], cx: &App) -> Div {
         let lb = cx.lb();
         let found = &self.results.found;
@@ -132,8 +117,6 @@ impl AskPage {
         row
     }
 
-    /// The rows of `found`, in list order: meetings, screen moments, files and
-    /// agent notes. `selected` is the row the arrow keys are on.
     pub(super) fn match_rows(
         &self,
         found: &search::Results,
@@ -163,7 +146,6 @@ impl AskPage {
         rows
     }
 
-    /// The matches as one white card, for an answer that failed.
     pub(super) fn match_card(
         &self,
         found: &search::Results,
@@ -188,8 +170,6 @@ impl AskPage {
         card
     }
 
-    /// A new question: the matches sit under the field. Each row is its own
-    /// child of the scrolling column, so the arrow keys can bring one into view.
     pub(super) fn render_matches_under_field(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let lb = cx.lb().clone();
         let mut children = vec![
@@ -237,8 +217,6 @@ impl AskPage {
         children
     }
 
-    /// "No matches for “…”", or what Activity alone can do, and the way out of
-    /// the filters that hid them.
     fn render_no_matches(&self, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let offered = self.offered(cx);
@@ -276,8 +254,6 @@ impl AskPage {
             })
     }
 
-    /// Inside a conversation: the matches rise above the docked field and the
-    /// thread stays where it is. Nothing to list means no tray.
     pub(super) fn render_matches_tray(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let phase = self.ask_phase(cx);
         let found = self.results.found.clone();
@@ -366,8 +342,6 @@ impl AskPage {
                 .into_any_element(),
         )
     }
-
-    // ---------------------------------------------------------------- rows
 
     fn meeting_row(
         &self,
@@ -602,8 +576,6 @@ impl AskPage {
         }
     }
 
-    /// A note a coding agent saved for itself: its title, the agent and
-    /// project, then the matched words. It opens the agent's own file.
     fn note_row(
         &self,
         hit: &lokalbot_core::agent_notes::NoteHit,
@@ -667,9 +639,6 @@ impl AskPage {
         }
     }
 
-    // ------------------------------------------------------------- anatomy
-
-    /// A source's name, which opens it, and its date or place on the right.
     fn row_title(
         &self,
         id: ElementId,
@@ -710,7 +679,6 @@ impl AskPage {
             })
     }
 
-    /// One matching line: what kind it is, then the words, matched ones bold.
     #[allow(clippy::too_many_arguments)]
     fn row_line(
         &self,
@@ -762,8 +730,6 @@ impl AskPage {
                 )
             })
             .child({
-                // Matched words keep their own direction in a right-to-left
-                // interface, so a cut line loses its end, not its start.
                 let plain = model::plain_snippet(snippet);
                 div()
                     .flex_1()
@@ -809,7 +775,6 @@ impl AskPage {
     }
 }
 
-/// "3 in 1 meeting", or how many sources matched.
 pub(super) fn count_label(found: &search::Results) -> String {
     model::matches_count_label(
         found.meetings.len(),
@@ -819,7 +784,6 @@ pub(super) fn count_label(found: &search::Results) -> String {
     )
 }
 
-/// Every row's frame: a leading tile or picture, then the title and lines.
 fn row_shell(
     index: usize,
     selected: Option<usize>,
@@ -841,8 +805,6 @@ fn row_shell(
         .child(v_flex().flex_1().min_w_0().gap(px(3.)).children(content))
 }
 
-/// `AskSourceTile`: the small rounded tile that leads a row here and in an
-/// answer's sources list.
 pub(super) fn source_tile(
     icon: Ico,
     width: gpui_kit::Pixels,
@@ -868,7 +830,6 @@ fn inset_divider(lb: &crate::theme::Palette) -> Div {
     div().ml(px(14.)).h(px(1.)).bg(lb.separator)
 }
 
-/// What a meeting line is: "▶ 0:35 · Other speaker", "Summary", "Outcome".
 fn meeting_kind(hit: &Hit, lb: &crate::theme::Palette) -> AnyElement {
     match hit.kind {
         DocKind::Segment => {

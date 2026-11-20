@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Benchmark word-completion pass criteria (Cotypist parity)
-
 final class CotypingBenchmarkCriteriaTests: XCTestCase {
     private func scenario(
         allowedSuppressions: [CotypingSuppressionReason] = [],
@@ -43,8 +41,6 @@ final class CotypingBenchmarkCriteriaTests: XCTestCase {
 
     @MainActor
     func testWhitespaceLeadingTextFailsWordCompletion() {
-        // " up" after "follo" would insert "follo up" — the exact bug class the
-        // criterion exists to catch.
         let result = evaluate(scenario(), text: " up")
         XCTAssertFalse(result.passedSafety)
         XCTAssertFalse(result.wordCompletionHit)
@@ -59,7 +55,6 @@ final class CotypingBenchmarkCriteriaTests: XCTestCase {
         XCTAssertTrue(allowed.passedSafety)
         XCTAssertFalse(allowed.wordCompletionHit)
 
-        // The confidence gate staying quiet is a missed suggestion, not harm.
         let gated = evaluate(scenario(), text: "", suppression: .lowConfidence)
         XCTAssertEqual(gated.outcome, .withheld)
         XCTAssertTrue(gated.passedSafety)
@@ -72,13 +67,11 @@ final class CotypingBenchmarkCriteriaTests: XCTestCase {
         XCTAssertEqual(accepted.outcome, .shown)
         XCTAssertTrue(accepted.wordCompletionHit)
 
-        // A word tail the scenario does not accept is a miss at the end of a word...
         let wrong = evaluate(scenario(expectedCompletionPrefixes: ["w"]), text: "xup")
         XCTAssertEqual(wrong.outcome, .wrongCompletion)
         XCTAssertTrue(wrong.passedSafety)
         XCTAssertFalse(wrong.wordCompletionHit)
 
-        // ...but corrupts the word when letters follow the caret.
         let inside = evaluate(scenario(expectedCompletionPrefixes: ["w"], trailing: "w up"), text: "xup")
         XCTAssertEqual(inside.outcome, .unsafe)
         XCTAssertFalse(inside.passedSafety)
@@ -96,8 +89,6 @@ final class CotypingBenchmarkCriteriaTests: XCTestCase {
 
     @MainActor
     func testJSONReportCarriesWordCompletionCounters() throws {
-        // side_by_side.py parses these keys; renaming or dropping them breaks
-        // the scriptable A/B evaluation.
         let summary = CotypingBenchmarkSummary(results: [
             evaluate(scenario(), text: "w up"),
             evaluate(scenario(), text: " up"),
@@ -143,8 +134,6 @@ final class CotypingBenchmarkCriteriaTests: XCTestCase {
     }
 
     func testDefaultScenariosKeepCotypistParityIds() {
-        // External tooling filters on these ids; the parity suite must retain a
-        // word-completion scenario and the mid-word safety scenario.
         let ids = Set(CotypingBenchmarkScenario.defaults.map(\.id))
         XCTAssertTrue(ids.contains("wc-follow"))
         XCTAssertTrue(ids.contains("mid-word"))

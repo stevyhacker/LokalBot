@@ -4,18 +4,9 @@ import Foundation
 import ScreenCaptureKit
 import Vision
 
-/// Captures the focused window and reads its text on device for
-/// `CotypingWindowText`. Never on the keystroke path: the first request in a
-/// field starts a read and goes without it; later requests use the result,
-/// which is reread in the background every few seconds while the field keeps
-/// focus. A reread with new text waits for a pause in typing before it is
-/// used, because the text starts the prompt and changing it makes the model
-/// read the whole prompt again. One read runs at a time. The image is dropped
-/// as soon as it is read, and the text is held for the focused field only.
 final class CotypingWindowTextCapture: @unchecked Sendable {
     static let shared = CotypingWindowTextCapture()
 
-    /// Everything a read needs, resolved through Accessibility when it starts.
     struct Request: Sendable {
         var key: String
         var processID: pid_t
@@ -24,17 +15,12 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
 
     typealias Reader = @Sendable (Request) async -> [CotypingWindowText.Line]?
 
-    /// A read costs about 150–250 ms of background work on a full window.
     static let refreshInterval: TimeInterval = 4
-    /// New text from a reread is used once typing has stopped this long. Used
-    /// mid-typing, it made the next keystroke reread a ~500-token prompt:
-    /// 268 ms instead of 41 (measured 2026-10-16).
     static let typingPause: TimeInterval = 1
 
     private struct Entry {
         var key: String
         var snapshot: CotypingVisibleContext.Snapshot?
-        /// A newer read with new text, held until typing pauses.
         var pending: CotypingVisibleContext.Snapshot?
         var startedAt: TimeInterval
         var adoptedAt: TimeInterval
@@ -61,22 +47,15 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         self.sleep = sleep
     }
 
-    /// Called after a read changes the text in use, so the model can read the
-    /// new prompt before the next keystroke needs it.
     func setUpdateHandler(_ handler: (@Sendable () -> Void)?) {
         lock.withLock { updateHandler = handler }
     }
 
-    /// The window text for `key`, or nil until the first read finishes. A
-    /// missing or old read starts one in the background; `request` runs there
-    /// too, never on the keystroke, and returning nil (not permitted, no
-    /// window) skips the read.
     func snapshot(forKey key: String,
                   request: @escaping @Sendable () -> Request?) -> CotypingVisibleContext.Snapshot? {
         let now = clock()
         lock.lock()
         if let entry, entry.key != key {
-            // Another field, window or document: forget the old text.
             self.entry = nil
             generation &+= 1
             Self.recognized.clear()
@@ -88,7 +67,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
             return snapshot
         }
         reading = true
-        // Counted from the start, so a read that fails is not retried per keystroke.
         if entry == nil {
             entry = Entry(key: key, snapshot: nil, startedAt: now, adoptedAt: now)
         } else {
@@ -111,15 +89,11 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         return snapshot
     }
 
-    /// A key that changes the text was pressed. New window text waits until
-    /// typing pauses for `typingPause`.
     func noteTyping() {
         let now = clock()
         lock.withLock { lastTypingAt = now }
     }
 
-    /// Uses the held text if typing has paused long enough. Runs on its own
-    /// once the pause comes; tests call it to step the clock.
     func adoptPendingIfQuiet() {
         let handler: (@Sendable () -> Void)? = lock.withLock {
             guard var current = entry, let pending = current.pending else { return nil }
@@ -138,8 +112,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         }
     }
 
-    /// Waits for the pause that lets held text be used. One wait at a time;
-    /// it ends when the text is used, dropped, or belongs to another field.
     private func scheduleAdoption(generation: UInt64) {
         let start = lock.withLock { () -> Bool in
             guard !adoptionScheduled else { return false }
@@ -168,7 +140,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         }
     }
 
-    /// Forgets the text in use. A read already running cannot put its result back.
     func removeAll() {
         lock.withLock {
             entry = nil
@@ -177,10 +148,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         Self.recognized.clear()
     }
 
-    /// Forgets the text in use unless it can be for the field that now has
-    /// focus. Asking for a read is what forgets another field's text, and
-    /// focus that moves on without typing never asks, so the window just
-    /// left stayed in memory.
     func forget(unlessForProcess processID: pid_t, role: String, fieldFrame: CGRect?) {
         let forgot = lock.withLock { () -> Bool in
             guard let key = entry?.key,
@@ -193,15 +160,12 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         if forgot { Self.recognized.clear() }
     }
 
-    /// The text in use without starting a read. For tests.
     func cachedSnapshot() -> CotypingVisibleContext.Snapshot? {
         lock.withLock { entry?.snapshot }
     }
 
     private func finish(_ request: Request, lines: [CotypingWindowText.Line]?, generation: UInt64,
                         milliseconds: Int64 = 0) {
-        // Filtering runs a few expressions per line; keep it outside the lock
-        // that a keystroke takes.
         let target = request.target
         let snapshot = lines.map {
             CotypingVisibleContext.Snapshot(
@@ -219,7 +183,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
             let now = clock()
             guard CotypingWindowText.shouldReplace(
                 current.snapshot, with: snapshot, heldFor: now - current.adoptedAt) else {
-                // The text in use is still right, so anything held is out of date.
                 current.pending = nil
                 entry = current
                 return nil
@@ -247,13 +210,9 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         handler?()
     }
 
-    // MARK: - Diagnostics
-
     private static let logLock = NSLock()
     private nonisolated(unsafe) static var lastLogged: String?
 
-    /// One debug-log line per change of outcome, with counts only: window
-    /// text never reaches the log.
     static func log(_ message: String) {
         let changed = logLock.withLock {
             defer { lastLogged = message }
@@ -262,19 +221,12 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         if changed { lokalbotLog("cotyping window text: \(message)") }
     }
 
-    // MARK: - Reading the screen
-
     private struct Image: @unchecked Sendable {
         let image: CGImage
     }
 
-    /// How long a read waits for its lines. Of 22,000 reads in one Mac's log,
-    /// 99.9% took under 5 s with the capture included.
     static let recognitionLimit: TimeInterval = 10
 
-    /// The last lines recognized for the field in use, outside the field, with
-    /// the fingerprint of the image they came from. Held and cleared with the
-    /// text in use, so it keeps no text the field's prompt could not.
     final class RecognizedLines: @unchecked Sendable {
         private let lock = NSLock()
         private var entry: (key: String, fingerprint: Data, lines: [CotypingWindowText.Line])?
@@ -286,7 +238,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
             lock.withLock { entry.flatMap { $0.key == key && $0.fingerprint == fingerprint ? $0.lines : nil } }
         }
 
-        /// Dropped when the text was forgotten while recognition ran.
         func store(_ lines: [CotypingWindowText.Line], forKey key: String, fingerprint: Data,
                    ifGeneration generation: UInt64) {
             lock.withLock {
@@ -305,8 +256,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
 
     static let recognized = RecognizedLines()
 
-    /// Captures only the focused window, while its app is still in front.
-    /// Never asks for Screen Recording: without it there is no window text.
     static func read(_ request: Request) async -> [CotypingWindowText.Line]? {
         guard CGPreflightScreenCaptureAccess() else { return nil }
         do {
@@ -347,7 +296,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
                 return nil
             }
             if let fingerprint {
-                // The draft is never prompt context, so it is not kept either.
                 let field = request.target.fieldFrame.insetBy(
                     dx: -CotypingWindowText.fieldMargin, dy: -CotypingWindowText.fieldMargin)
                 recognized.store(lines.filter { !$0.frame.intersects(field) }, forKey: request.key,
@@ -360,7 +308,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         }
     }
 
-    /// The window's lines, or nil when recognition gave no answer in time.
     static func recognizeLines(in image: CGImage, windowFrame: CGRect) async -> [CotypingWindowText.Line]? {
         let input = Image(image: image)
         return await TextRecognitionQueue.shared.run(
@@ -370,8 +317,6 @@ final class CotypingWindowTextCapture: @unchecked Sendable {
         }
     }
 
-    /// The same recognizer as screen memory and Compose: `.fast` drops every
-    /// accent and all Cyrillic, and the en-US default cannot read CJK.
     private static func recognize(_ input: Image, windowFrame: CGRect) -> [CotypingWindowText.Line] {
         let request = VNRecognizeTextRequest()
         request.recognitionLevel = .accurate

@@ -1,20 +1,11 @@
-//! Which windows screen context may keep (`ScreenContextPrivacy.permitsContent`,
-//! `ScreenAccessibilityReader.pageAddress`/`settledFocus`). App and site rules,
-//! password managers and redaction are shared with activity tracking in
-//! [`crate::privacy`].
-
 use crate::privacy::{is_browser, is_excluded_app, is_excluded_url, sanitized_url};
 
-/// What is known about the focused window when deciding whether to keep it
-/// (`ScreenContextPrivacy.Observation`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Observation {
     pub app_name: String,
-    /// Executable or desktop id, for app rules and the browser check.
     pub app_id: String,
     pub window_title: Option<String>,
     pub source_url: Option<String>,
-    /// `None` when the focused element is unknown.
     pub focused_secure_field: Option<bool>,
     pub has_web_content: bool,
     pub contains_secure_field: bool,
@@ -22,7 +13,6 @@ pub struct Observation {
     pub has_unattributed_web_content: bool,
 }
 
-/// `CotypingSecureFieldDetector.sensitiveMarkers`.
 const SENSITIVE_MARKERS: [&str; 13] = [
     "secure",
     "password",
@@ -39,9 +29,6 @@ const SENSITIVE_MARKERS: [&str; 13] = [
     "credit card",
 ];
 
-/// Whether an element's name, description or help text names a secret
-/// (`CotypingSecureFieldDetector.isSecure`): such an element is treated as
-/// a secure field and its text is never read.
 pub(crate) fn names_a_secret(label: &str) -> bool {
     let label = label.to_lowercase();
     SENSITIVE_MARKERS
@@ -49,8 +36,6 @@ pub(crate) fn names_a_secret(label: &str) -> bool {
         .any(|marker| label.contains(marker))
 }
 
-/// Whether the focus state allows a capture. Apps that never report keyboard
-/// focus (Chrome) are captured only while no password field is visible.
 pub fn focus_permits_capture(
     focused_secure_field: Option<bool>,
     contains_secure_field: bool,
@@ -62,9 +47,6 @@ pub fn focus_permits_capture(
     }
 }
 
-/// Whether the window's text and pixels may be kept. `allows_unknown_focus`
-/// is for screen capture only; consumers that act on the focused field
-/// require a known, non-secure focus.
 pub fn permits_content(
     observation: &Observation,
     excluded_apps: &[String],
@@ -87,8 +69,6 @@ pub fn permits_content(
     if !focus_allows {
         return false;
     }
-    // Framed pages are captured with the window, so an excluded site keeps
-    // the whole window out wherever it appears.
     if is_excluded_url(observation.source_url.as_deref(), excluded_domains)
         || observation
             .framed_urls
@@ -97,8 +77,6 @@ pub fn permits_content(
     {
         return false;
     }
-    // A browser whose address (or a framed page's) cannot be read cannot be
-    // shown to be outside a configured site exclusion.
     let has_domain_rules = excluded_domains.iter().any(|rule| !rule.trim().is_empty());
     if has_domain_rules
         && (observation.has_web_content || is_browser(&observation.app_name, &observation.app_id))
@@ -110,9 +88,6 @@ pub fn permits_content(
     true
 }
 
-/// The focus state across one read (`ScreenAccessibilityReader.settledFocus`).
-/// An unknown focus that turns out to be a plain field keeps the read; any
-/// other change discards it. Returns whether the read stands and its focus.
 pub fn settled_focus(before: Option<bool>, after: Option<bool>) -> (bool, Option<bool>) {
     if before == after {
         return (true, before);
@@ -123,14 +98,10 @@ pub fn settled_focus(before: Option<bool>, after: Option<bool>) -> (bool, Option
     (false, before)
 }
 
-/// At least 80 visible characters: enough that OCR adds little
-/// (`ScreenContextPrivacy.hasRichAccessibleText`).
 pub fn has_rich_accessible_text(text: &str) -> bool {
     text.chars().filter(|c| !c.is_whitespace()).count() >= 80
 }
 
-/// The file name of a document, never its folder; web addresses are not
-/// document names (`ScreenContextPrivacy.sanitizedDocumentName`).
 pub fn sanitized_document_name(raw: Option<&str>) -> Option<String> {
     let raw = raw?.trim();
     if raw.is_empty() {
@@ -153,8 +124,6 @@ pub fn sanitized_document_name(raw: Option<&str>) -> Option<String> {
     (!name.is_empty()).then(|| name.chars().take(300).collect())
 }
 
-/// A window's page address and the other pages framed in it
-/// (`ScreenAccessibilityReader.PageAddress`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct PageAddress {
     pub source_url: Option<String>,
@@ -162,10 +131,6 @@ pub struct PageAddress {
     pub has_unattributed_web_content: bool,
 }
 
-/// Browsers expose every frame as its own web document: the page,
-/// `about:blank` editors and other sites' embeds. The window's document,
-/// else the outermost web area, is the page; other addresses are kept for
-/// site rules. `web_area_urls` lists web areas outermost first.
 pub fn page_address(document: Option<&str>, web_area_urls: &[Option<String>]) -> PageAddress {
     let mut page: Option<String> = document
         .filter(|d| sanitized_url(Some(d)).is_some())
@@ -181,12 +146,9 @@ pub fn page_address(document: Option<&str>, web_area_urls: &[Option<String>]) ->
             .split_once(':')
             .map(|(scheme, _)| scheme.to_ascii_lowercase())
             .unwrap_or_default();
-        // about:blank/about:srcdoc take their embedder's origin; data: holds
-        // content the embedder supplied.
         if scheme == "about" || scheme == "data" {
             continue;
         }
-        // A blob: address carries the origin that created it.
         let address = if scheme == "blob" { &raw[5..] } else { raw };
         let Some(sanitized) = sanitized_url(Some(address)) else {
             unattributed = true;
@@ -312,7 +274,6 @@ mod tests {
             ..browser
         };
         assert!(!permits_content(&unattributed, &[], &domains, true));
-        // A native app needs no address.
         assert!(permits_content(&observation(), &[], &domains, true));
     }
 

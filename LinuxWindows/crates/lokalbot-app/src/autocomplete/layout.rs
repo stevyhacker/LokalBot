@@ -3,12 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! From a suggestion and the field it is for to the ghost window's frame and
-//! lines (`CotypingOverlayController.show`): inline right after the caret in
-//! the field's own font when the caret is exact and ends its line, else a
-//! pill under the caret's line. Geometry is the platform crate's pure math;
-//! this adds GPUI text measurement and colors.
-
 use gpui_kit::{App, Hsla, SharedString, font, px};
 use lokalbot_platform::autocomplete::geometry::{
     self, EMPHASIS_OPACITY, FontMetrics, InlineInput, InlineLayout, Paint, RenderMode,
@@ -17,13 +11,10 @@ use lokalbot_platform::autocomplete::{FieldSnapshot, Rect, policy};
 
 use super::overlay::{Chrome, GhostContent, GhostLine};
 
-/// Room around the glyphs so antialiased edges are never clipped.
 const INLINE_PADDING: f32 = 2.0;
 const PILL_PADDING: (f32, f32) = (8.0, 4.0);
-/// The pill's font, 11–17 pt on macOS.
 const PILL_FONT_PX: (f32, f32) = (14.5, 22.5);
 
-/// Colors and the fallback font, from the app's theme.
 #[derive(Clone, Debug)]
 pub struct Appearance {
     pub dark: bool,
@@ -34,21 +25,14 @@ pub struct Appearance {
     pub pill_emphasis: Hsla,
 }
 
-/// Where the ghost goes and what it draws.
 #[derive(Clone, Debug)]
 pub struct Placement {
-    /// Screen pixels.
     pub frame: Rect,
     pub content: GhostContent,
-    /// The part of the suggestion on screen: an inline ghost leaves out what
-    /// has no room, and an accept never takes words the user could not see.
     pub shown: String,
     pub mode: RenderMode,
 }
 
-/// Lays out `text` for `field`. `caret` overrides the field's caret, for a
-/// ghost moved ahead of the app after an accept. `None` when it has no
-/// place on screen that covers no text; the suggestion is then dropped.
 #[allow(clippy::too_many_arguments)]
 pub fn place(
     text: &str,
@@ -107,9 +91,6 @@ pub fn place(
                 .bounds()?
                 .inset(-INLINE_PADDING, -INLINE_PADDING)
                 .integral();
-            // Room past the measured end, so a glyph wider than measured (or
-            // rounding at another scale) is never cut off; the window is
-            // transparent there.
             let slack = (size * 0.5).ceil().max(2.0);
             let bounds = Rect::new(drawn.x, drawn.y, drawn.width + slack, drawn.height);
             let paint = geometry::ghost_paint(style, appearance.dark, sampled_luminance);
@@ -197,7 +178,6 @@ pub fn place(
                         border: appearance.pill_border,
                     }),
                 },
-                // A pill shows the whole suggestion, or what fits of it.
                 shown: text.to_string(),
                 mode,
             }
@@ -214,10 +194,6 @@ pub fn place(
     })
 }
 
-/// A string's width in `family` at `size` logical pixels, from GPUI's text
-/// system: the font's advances (so no layout cache grows with every
-/// suggestion), and for a character the font lacks (an emoji, another
-/// script) the width it is drawn at from a fallback font.
 pub fn measurer(cx: &App, family: &SharedString, size: f32) -> impl Fn(&str) -> f32 + use<> {
     let text_system = cx.text_system().clone();
     let font_id = text_system.resolve_font(&font(family.clone()));

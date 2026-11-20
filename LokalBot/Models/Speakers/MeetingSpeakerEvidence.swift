@@ -1,6 +1,5 @@
 import Foundation
 
-// Private sidecar models. Deliberately excluded from Transcript and the CLI.
 struct SpeakerTurnAnchor: Codable, Equatable, Sendable {
     var start: Double
     var end: Double
@@ -21,7 +20,6 @@ struct SpeakerAudioTurn: Codable, Equatable, Sendable {
     }
 }
 
-/// Speaker display-name rules shared by assignments, profiles and suppression.
 enum ParticipantObservation {
     static func safeName(_ raw: String) -> String? {
         let name = raw.replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
@@ -41,7 +39,6 @@ enum ParticipantObservation {
 
 struct SpeakerNameMatch: Codable, Equatable, Identifiable, Sendable {
     enum Tier: String, Codable, Sendable { case automatic, suggested }
-    /// `visual` came from the retired Google Meet naming; saved meetings still decode it.
     enum Source: String, Codable, Sendable { case visual, profile }
     var id: String { source.rawValue + ":" + (profileID?.uuidString ?? participantReference) }
     var name: String
@@ -83,7 +80,6 @@ struct SpeakerIdentityAssignment: Codable, Equatable, Identifiable, Sendable {
     var match: SpeakerNameMatch?
     var supportingMatches: [SpeakerNameMatch]?
     var profileID: UUID?
-    /// Independent of a display alias, including an alias spelled "Me".
     var isLocalUser: Bool?
     var source: SpeakerAttribution.Source?
 
@@ -123,6 +119,5 @@ struct MeetingSpeakerIdentityState: Codable, Sendable {
     var analyzedAt = Date()
     var voiceSamples: [SpeakerVoiceSample] = []
     var microphoneSampleDiagnostics: [String: Int]?
-    /// Set once call voices were analyzed; meetings processed before that are revisited once.
     var callVoicesAnalyzed: Int?
 }

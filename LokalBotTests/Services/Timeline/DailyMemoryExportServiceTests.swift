@@ -234,7 +234,6 @@ final class DailyMemoryExportServiceTests: XCTestCase {
 
         XCTAssertEqual(try service.export(day: day, configuration: configuration, pass: .catchUp), .skipped)
         XCTAssertFalse(FileManager.default.fileExists(atPath: root.path))
-        // Today's note is still written when nothing happened.
         _ = try writtenURL(try service.export(day: day, configuration: configuration))
     }
 
@@ -269,9 +268,6 @@ final class DailyMemoryExportServiceTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
     }
 
-    /// A freshly booted install has a `lokalbotv3.sqlite` file whose tables
-    /// are created lazily — a read-only snapshot taken in that window (the
-    /// headless `--dream` case) must see an empty day, not throw.
     func testSnapshotToleratesDatabaseFileWithoutSchema() throws {
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         FileManager.default.createFile(

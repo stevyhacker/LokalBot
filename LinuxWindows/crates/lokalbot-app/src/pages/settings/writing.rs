@@ -1,15 +1,3 @@
-//! Settings › Autocomplete (the port's "Writing" category,
-//! `AutocompleteSettingsPage.swift`, `AutocompleteExperienceView.swift`):
-//! under the shared header, the settings in groups, then rows that open the
-//! writing profile, the apps and sites to skip and the usage numbers. The
-//! practice editor is the header's "Try it…" sheet (`try_sheet`). The
-//! writing profile is also what Compose dictation writes as.
-//!
-//! The practice editor goes through the same engine path as a field in
-//! another app: its text is sent as a field context, the suggestion is drawn
-//! after its caret, the accept keys take the next word or phrase or the rest,
-//! and Esc dismisses.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{
@@ -44,7 +32,6 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 use lokalbot_i18n::fill;
 
-/// What the practice editor starts with (`AutocompleteExperienceView.openingText`).
 pub const PRACTICE_OPENING: &str = "Hi Sarah, thanks for the update. I wanted to follow";
 
 pub fn granularity_label(granularity: AcceptGranularity) -> &'static str {
@@ -78,7 +65,6 @@ pub fn escape_label(behavior: CotypingEscapeBehavior) -> &'static str {
     }
 }
 
-/// One line saying what the accept keys do (`CotypingAcceptHint`).
 pub fn accept_hint(settings: &Settings) -> String {
     let key = accept_key_label(settings.cotyping_accept_key).to_string();
     let first = if settings.cotyping_accept_granularity == AcceptGranularity::Word {
@@ -87,7 +73,6 @@ pub fn accept_hint(settings: &Settings) -> String {
         lokalbot_i18n::format("{0} accepts the next phrase", &[("0", key)])
     };
     let mut parts = vec![first];
-    // The primary key wins when both are bound to the same key.
     let keys = AcceptKeys::from_settings(settings);
     if keys.full.is_some() {
         parts.push(lokalbot_i18n::format(
@@ -102,11 +87,8 @@ pub fn accept_hint(settings: &Settings) -> String {
     parts.join(" · ")
 }
 
-/// How long a saved-memory count stays good before Settings reads it again.
 const INVENTORY_LIFETIME: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// What is saved and readable, counted without reading any text into the UI
-/// (`CotypingContextAvailability.Inventory`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct Inventory {
     recent_meetings: usize,
@@ -115,8 +97,6 @@ struct Inventory {
     mixed_facts: usize,
 }
 
-/// What an optional context source can contribute right now, shown under its
-/// switch, so a grant that is on but cannot take effect says why.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum ContextState {
     Off,
@@ -216,7 +196,6 @@ fn screen_memory_state(settings: &Settings, inventory: &Inventory) -> ContextSta
     if !settings.cotyping_use_screen_memory {
         return ContextState::Off;
     }
-    // A fact built from meetings and screen activity needs both grants.
     let blocked = if settings.cotyping_use_meeting_memory {
         0
     } else {
@@ -257,13 +236,11 @@ fn screen_memory_state(settings: &Settings, inventory: &Inventory) -> ContextSta
     })
 }
 
-/// Autocomplete's editors and view state in Settings → Autocomplete.
 pub struct WritingState {
     languages: Entity<InputState>,
     notes: Entity<TextareaState>,
     pub(super) server: writing_server::ServerDraft,
     pub(super) range: UsageRange,
-    /// The chart shows words rather than the share of suggestions used.
     pub(super) chart_words: bool,
     inventory: Option<(std::time::Instant, Inventory)>,
 }
@@ -341,8 +318,6 @@ impl WritingState {
 }
 
 impl SettingsPage {
-    /// Sends the practice editor's text around its caret to the engine when
-    /// it changed.
     pub(super) fn practice_sync(&mut self, cx: &mut Context<Self>) {
         let (before, after) = {
             let state = self.practice.read(cx);
@@ -356,8 +331,6 @@ impl SettingsPage {
             return;
         }
         self.practice_text = (before.clone(), after.clone());
-        // The ghost is placed from the caret the editor drew last, which is
-        // the old one until the editor has laid out the new text.
         cx.spawn(async move |this, cx| {
             smol::Timer::after(std::time::Duration::from_millis(32)).await;
             let _ = this.update(cx, |_, cx| cx.notify());
@@ -370,8 +343,6 @@ impl SettingsPage {
         }
     }
 
-    /// A key in the practice editor, by the same rules as a live field: the
-    /// primary key wins when both are the same. True when it took the key.
     fn practice_key(
         &mut self,
         key: InterceptedKey,
@@ -385,7 +356,6 @@ impl SettingsPage {
         }
     }
 
-    /// One accept, or "Insert suggestion" with `whole`. True when it took the key.
     fn practice_accept(
         &mut self,
         whole: bool,
@@ -405,8 +375,6 @@ impl SettingsPage {
                 state.insert(edit.text, window, cx);
                 return;
             }
-            // Replace the `:shortcode` an emoji stands for, or the rest of
-            // the word the caret is inside of.
             let value = state.value();
             let cursor = state.cursor().min(value.len());
             let (before, after) = value.split_at(cursor);
@@ -424,8 +392,6 @@ impl SettingsPage {
         })
     }
 
-    /// Settings › Autocomplete under its header, or the page one of its rows
-    /// opened (`AutocompleteSettingsSections`).
     pub(super) fn writing_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         match self.open_subpage(SettingsCategory::Writing) {
             Some(Subpage::AutocompleteProfile) => vec![self.autocomplete_profile_section(cx)],
@@ -438,9 +404,6 @@ impl SettingsPage {
         }
     }
 
-    /// What autocomplete runs on, why a server can't be used, and what this
-    /// desktop allows: the page's notices (`AutocompleteNotices`), plus the
-    /// port's input-method steps and limits. Nothing when all is well.
     fn autocomplete_notices(&mut self, cx: &mut Context<Self>) -> Option<Section> {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -458,7 +421,6 @@ impl SettingsPage {
         let route = server::route(&settings, None);
         let uses_server = settings.cotyping_backend != CotypingBackend::OnDevice;
         let mut section = Section::new(None);
-        // A model chosen with Change… below is prepared before the switch.
         if let Some(feedback) = self.model_setup_feedback(cx) {
             section = section.row("settings-model-switch", feedback);
         }
@@ -479,8 +441,6 @@ impl SettingsPage {
                     ),
                 );
             }
-            // Why the selected server's last request brought no suggestion,
-            // shown only for the server it belongs to.
             Route::Server(endpoint) => {
                 if let Some(failure) = server_problem
                     .as_ref()
@@ -500,8 +460,6 @@ impl SettingsPage {
             }
             _ => {}
         }
-        // Where autocomplete reaches other apps as an input method, say what
-        // that means on this desktop, before it is turned on too.
         if let Some(steps) = lokalbot_platform::autocomplete::input_source_steps() {
             let mut content = v_flex().w_full().gap(px(6.)).child(notice(
                 Ico::Info,
@@ -549,8 +507,6 @@ impl SettingsPage {
                 settings_row::content_row("settings.autocompleteInputSource", content, false, cx),
             );
         }
-        // Where autocomplete can't follow the user into other apps the
-        // header says so; a partial limit is said here while it is on.
         if support == Support::Available
             && let Some(limitation) = limitation.filter(|_| settings.cotyping_enabled)
         {
@@ -593,7 +549,6 @@ impl SettingsPage {
         let data = self.data.clone();
         let mut sections: Vec<Section> = self.autocomplete_notices(cx).into_iter().collect();
 
-        // Suggestions.
         let words = settings.cotyping_max_words.clamp(2, 50);
         let words_data = data.clone();
         let suggestions = Section::new(lokalbot_i18n::tr("Suggestions"))
@@ -684,7 +639,6 @@ impl SettingsPage {
                     cx,
                 ),
             )
-            // Port-only: a second key takes the whole suggestion.
             .row(
                 "settings.cotypingFullAcceptKey",
                 self.choice(
@@ -714,7 +668,6 @@ impl SettingsPage {
                     cx,
                 ),
             )
-            // Port-only.
             .row(
                 "settings.cotypingAddSpaceAfterAccept",
                 self.toggle(
@@ -753,7 +706,6 @@ impl SettingsPage {
             );
         sections.push(suggestions);
 
-        // What it can read.
         let inventory = self.context_inventory(cx);
         let visible_state = visible_text_state(&settings, other_apps);
         let window_state = window_text_state(&settings, other_apps, ocr_ready);
@@ -877,8 +829,6 @@ impl SettingsPage {
                 ),
             );
         }
-        // A server receives what is turned on here; only this computer can
-        // promise that nothing it reads is kept.
         let footer = match server::configured_host(&settings)
             .filter(|_| server::leaves_this_computer(&settings))
         {
@@ -904,7 +854,6 @@ impl SettingsPage {
         );
         sections.push(context);
 
-        // Extras.
         sections.push(
             Section::new(lokalbot_i18n::tr("Extras"))
                 .row(
@@ -959,7 +908,6 @@ impl SettingsPage {
                 ),
         );
 
-        // More: the model, then rows that open their pages.
         let page = cx.entity();
         let open = move |sub: Subpage| {
             let page = page.clone();
@@ -1040,8 +988,6 @@ impl SettingsPage {
         sections
     }
 
-    /// Writing profile (`profileSection`): who autocomplete and Compose write
-    /// as, and what is learned from accepted text.
     fn autocomplete_profile_section(&mut self, cx: &mut Context<Self>) -> Section {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -1151,9 +1097,6 @@ impl SettingsPage {
             )
     }
 
-    /// The writing profile's fields, which Autocomplete and Dictation's
-    /// Compose share (`WritingProfileFields`): both pages show them, bound to
-    /// the same settings. Notes for autocomplete is the port's own field.
     pub(super) fn writing_profile_fields(
         &self,
         section: Section,
@@ -1214,7 +1157,6 @@ impl SettingsPage {
             )
     }
 
-    /// Apps and sites to skip (`exclusionsSection`).
     fn autocomplete_exclusions_section(&mut self, cx: &mut Context<Self>) -> Section {
         let settings = self.data.read(cx).settings.clone();
         Section::new(None)
@@ -1261,8 +1203,6 @@ impl SettingsPage {
             )
     }
 
-    /// Usage (`usageSections`): the statistics, then how quickly suggestions
-    /// arrive.
     fn autocomplete_usage_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let statistics = self.statistics_section(cx).unwrap_or_else(|| {
             let id = "settings.autocompleteStatistics";
@@ -1291,9 +1231,6 @@ impl SettingsPage {
         ]
     }
 
-    /// "Try it…" (`AutocompleteTrySheet`): the practice editor, over the page.
-    /// It goes through the same engine path as a field in another app, with
-    /// the page's settings; nothing is turned on by opening it.
     pub(super) fn autocomplete_try(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let (settings, model_ready, downloads, installed) = {
             let data = self.data.read(cx);
@@ -1334,7 +1271,6 @@ impl SettingsPage {
         if let Some(problem) = problem {
             body = body.child(notice(Ico::TriangleAlert, problem, lb.attention_text, cx));
         } else if !model_ready && !uses_server {
-            // Download it here to try it.
             let missing: Vec<String> = models::autocomplete_needs(&settings)
                 .into_iter()
                 .filter(|id| !installed.contains(id))
@@ -1431,8 +1367,6 @@ impl SettingsPage {
             .capture_action(cx.listener(|this, _: &IndentInline, window, cx| {
                 let taken = this.practice_key(InterceptedKey::Tab, window, cx);
                 log::debug!("autocomplete: practice Tab, accepted: {taken}");
-                // Without a ghost to accept, this short editor follows the
-                // window's focus order instead of inserting indentation.
                 if !taken {
                     window.focus_next(cx);
                 }
@@ -1446,8 +1380,6 @@ impl SettingsPage {
                 if this.practice_key(InterceptedKey::RightArrow, window, cx) {
                     cx.stop_propagation();
                 } else if let Some(autocomplete) = crate::autocomplete::global(cx) {
-                    // Like the live monitor, an arrow drops the suggestion even
-                    // when the caret has nowhere further to go.
                     autocomplete.update(cx, |autocomplete, cx| autocomplete.practice_drop(cx));
                 }
             }))
@@ -1463,7 +1395,6 @@ impl SettingsPage {
                     cx.stop_propagation();
                 }
             }))
-            // Esc takes a suggestion away; with none showing it closes the sheet.
             .capture_action(cx.listener(|this, _: &InputEscape, _, cx| {
                 let taken = this.practice_dismiss(cx);
                 log::debug!("autocomplete: practice Esc, dismissed: {taken}");
@@ -1473,7 +1404,6 @@ impl SettingsPage {
             }))
             .child(Textarea::new(&self.practice).h(px(96.)).text_size(ty::BODY))
             .child({
-                // Where the editor is on screen, for placing the ghost in it.
                 let origin = self.practice_origin.clone();
                 canvas(
                     move |bounds, _, _| origin.set(Some(bounds.origin)),
@@ -1534,8 +1464,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// What typing in the try-out sends, for the sheet's line under its
-    /// title. A server receives it as it receives typing in other apps.
     pub(super) fn autocomplete_try_explanation(&self, cx: &App) -> String {
         let settings = &self.data.read(cx).settings;
         match server::configured_host(settings).filter(|_| server::leaves_this_computer(settings)) {
@@ -1550,7 +1478,6 @@ impl SettingsPage {
         }
     }
 
-    /// Counted once in a while, not per redraw: facts come from a file.
     fn context_inventory(&mut self, cx: &mut Context<Self>) -> Inventory {
         if let Some((at, inventory)) = self.writing.inventory
             && at.elapsed() < INVENTORY_LIFETIME
@@ -1589,8 +1516,6 @@ impl SettingsPage {
         inventory
     }
 
-    /// The window text grant's state, with the download it needs: never
-    /// started on its own.
     fn window_text_row(
         &self,
         state: &ContextState,
@@ -1642,9 +1567,6 @@ impl SettingsPage {
         settings_row::content_row(id, row, false, cx).into_any_element()
     }
 
-    /// The practice suggestion after the editor's caret: inline at the end
-    /// of a line, else under the caret's line, as in other apps. Placed in
-    /// the editor from the caret it drew last, so scrolling clips it.
     fn practice_ghost(&self, ghost: Option<(String, usize)>, cx: &App) -> Option<AnyElement> {
         let (text, emphasis) = ghost?;
         let (caret, line_height) = self.practice.read(cx).cursor_layout()?;
@@ -1692,7 +1614,6 @@ impl SettingsPage {
     }
 }
 
-/// A context source's effective state, under its switch; nothing while it is off.
 fn with_state(section: Section, id: &'static str, state: &ContextState, cx: &mut App) -> Section {
     if *state == ContextState::Off {
         return section;
@@ -1717,7 +1638,6 @@ fn context_state_line(state: &ContextState, cx: &App) -> gpui_kit::Div {
     }
 }
 
-/// A warning or note under the summary.
 fn notice(
     icon: Ico,
     text: impl Into<SharedString>,
@@ -1739,7 +1659,6 @@ fn notice(
         )
 }
 
-/// "Model ready" in green or "Model needed" in amber (`MemoryHealthStatus`).
 pub fn status_pill(label: &'static str, good: bool, cx: &App) -> gpui_kit::Div {
     status_pill_text(label, good, cx)
 }
@@ -1782,7 +1701,6 @@ mod tests {
             accept_hint(&settings),
             "Tab accepts the next phrase · Esc dismisses"
         );
-        // The primary key wins when both are the same key.
         settings.cotyping_accept_key = CotypingAcceptKey::RightArrow;
         settings.cotyping_full_accept_key = CotypingFullAcceptKey::RightArrow;
         assert_eq!(

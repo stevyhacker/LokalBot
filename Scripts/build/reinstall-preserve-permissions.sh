@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# Rebuild and reinstall LokalBot without changing the permission-bearing app
-# identity. This intentionally updates the existing /Applications bundle in
-# place instead of deleting it first, so macOS TCC grants keep pointing at the
-# same signed app identity.
-#
-# Xcode's Developer ID export writes its own form of the designated
-# requirement. When that text differs from the installed app's but the build
-# still satisfies the installed requirement, the outer bundle is re-signed with
-# the installed requirement so the identity TCC checks stays the same.
-#
-# Usage:
-#   Scripts/build/reinstall-preserve-permissions.sh
-#   Scripts/build/reinstall-preserve-permissions.sh --no-relaunch
-#   CONFIGURATION=Release Scripts/build/reinstall-preserve-permissions.sh
 set -euo pipefail
 
 cd "$(dirname "$0")/../.."
@@ -149,7 +135,6 @@ satisfies_requirement() {
   /usr/bin/codesign --verify --test-requirement="=$2" "$1" >/dev/null 2>&1
 }
 
-# Re-signs only the outer bundle; nested code keeps the export's signatures.
 resign_with_requirement() {
   local app_path="$1"
   local requirement="$2"
@@ -164,8 +149,6 @@ resign_with_requirement() {
     "$app_path"
 }
 
-# Only the installed copy: Release replays and benchmarks run other copies
-# under the same process name and must keep running.
 installed_app_pids() {
   /bin/ps -axo pid=,command= | /usr/bin/awk -v exe="$INSTALLED_EXECUTABLE" '
     { pid = $1; sub(/^ *[0-9]+ +/, "") }
@@ -223,7 +206,6 @@ note "signing identity: $SIGNING_IDENTITY"
 note "installed signed time: ${installed_signed_time:-unknown}"
 
 log "Regenerating Xcode project"
-# XcodeGen needs these paths before the first build fetches the runtimes.
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
 Scripts/build/build-sync-xcframework.sh
 xcodegen generate >/dev/null

@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Every fixture is synthetic: folders and files laid out the way the Zoom
-/// app and web portal name them, written to a temporary folder.
 final class ZoomMeetingReaderTests: XCTestCase {
     private static let namedTranscript = """
         WEBVTT
@@ -74,7 +72,6 @@ final class ZoomMeetingReaderTests: XCTestCase {
         try data.write(to: url)
     }
 
-    /// Stand-in bytes: the reader never opens recordings, only names them.
     private func writeMedia(_ url: URL) throws {
         try writeData(Data("synthetic media".utf8), to: url)
     }
@@ -97,8 +94,6 @@ final class ZoomMeetingReaderTests: XCTestCase {
         try write("#EXTM3U\nzoom_0.mp4\n", to: file(folder, "playback.m3u"))
         try write(Self.chat, to: file(folder, "chat.txt"))
         try writeMedia(file(folder, "Audio Record", "audioAnaPetrovic11234567.m4a"))
-        // A cue file inside a recording's folder belongs to that folder,
-        // whatever its name says.
         try write(Self.namedTranscript, to: file(folder, "GMT20260304-091500.vtt"))
         let personalRoom = file(root, "2026-03-05 16.00.00 Ana Petrović's Personal Meeting Room 4155550123")
         try writeMedia(file(personalRoom, "video98796876.mp4"))

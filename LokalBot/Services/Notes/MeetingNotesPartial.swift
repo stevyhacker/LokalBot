@@ -1,7 +1,5 @@
 import Foundation
 
-/// A coherent, revision-checked snapshot for the meeting detail view. Partial
-/// work never enters the completed outcome index or replaces final artifacts.
 struct MeetingNotesPartial: Codable {
     static let fileName = "notes.partial.json"
     var version = 1
@@ -26,8 +24,6 @@ struct MeetingNotesPartial: Codable {
             snapshot = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Self.self, from: $0) }
             updatedAt = modified(url)
         } else {
-            // Show progress saved by the previous app version as soon as the
-            // fixed app opens, without rewriting the user's meeting library.
             snapshot = legacy(in: folder, transcript: transcript, template: template)
             updatedAt = modified(folder.appendingPathComponent("summary.partial.md"))
         }
@@ -35,8 +31,6 @@ struct MeetingNotesPartial: Codable {
               snapshot.transcriptRevision == transcript.evidenceRevision,
               snapshot.outcomes.transcriptRevision == transcript.evidenceRevision,
               snapshot.totalParts > 0, (0...snapshot.totalParts).contains(snapshot.completedParts) else { return nil }
-        // A successfully published result supersedes an earlier checkpoint,
-        // including if cleanup was interrupted after the final write.
         if MeetingOutcomes.load(from: folder) != nil,
            modified(folder.appendingPathComponent("summary.md")) >= updatedAt { return nil }
         return snapshot
@@ -62,8 +56,6 @@ struct MeetingNotesPartial: Codable {
               let range = firstLine.range(of: #"\d+/\d+"#, options: .regularExpression) else { return nil }
         let counts = firstLine[range].split(separator: "/").compactMap { Int($0) }
         guard counts.count == 2 else { return nil }
-        // Render from revision-checked evidence rather than trusting a Markdown
-        // file that could be left behind by an interrupted multi-file save.
         let overview = MeetingNotesGenerator.overviewClaims(claims.claims, outcomes: outcomes)
             .map { claim in var copy = claim; copy.section = "TL;DR"; return copy }
         let body = MeetingSummaryOutcomeSynchronizer.synchronize(

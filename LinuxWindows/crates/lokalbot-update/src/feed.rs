@@ -1,34 +1,9 @@
-//! The per-platform update feed (`linux-x86_64.json`, `windows-x86_64.json`),
-//! the counterpart of Sparkle's `appcast.xml`. Each release attaches one per
-//! platform; installed copies read the one attached to the latest release.
-//!
-//! ```json
-//! {
-//!   "platform": "linux-x86_64",
-//!   "version": "0.10.11",
-//!   "minimumVersion": "0.10.10",
-//!   "url": "https://github.com/stevyhacker/lokalbot/releases/download/v0.10.11/LokalBot-0.10.11-linux-x86_64.tar.gz",
-//!   "size": 41234567,
-//!   "sha256": "…64 hex digits…",
-//!   "signature": "…base64 Ed25519 signature of the archive bytes…",
-//!   "releaseNotesUrl": "https://github.com/stevyhacker/lokalbot/releases/tag/v0.10.11"
-//! }
-//! ```
-//!
-//! `minimumVersion` is the oldest installed version that may install this
-//! update itself (Sparkle's `minimumAutoupdateVersion`); older copies are
-//! sent to the release page instead. The signature covers the archive, and
-//! the archive's top folder names its version, so a feed cannot pass an old
-//! signed archive off as a newer one.
-
 use serde::{Deserialize, Serialize};
 
 use crate::signature;
 use crate::version::Version;
 
-/// Feeds are small; anything larger is not a feed.
 pub const MAX_FEED_BYTES: u64 = 64 * 1024;
-/// Archives are tens of megabytes.
 pub const MAX_ARCHIVE_BYTES: u64 = 1024 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -54,22 +29,13 @@ pub enum FeedError {
     Field(&'static str),
 }
 
-/// What a valid feed offers this copy.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Offer {
     UpToDate,
-    /// `installable` is false when this copy is older than the feed's
-    /// minimum version and must be replaced by hand.
-    Newer {
-        version: Version,
-        installable: bool,
-    },
+    Newer { version: Version, installable: bool },
 }
 
 impl Feed {
-    /// Parses and validates a feed for `platform`. Plain `http://` URLs are
-    /// accepted only when `allow_loopback_http` is set and they stay on this
-    /// computer (a dry-run feed).
     pub fn parse(
         json: &[u8],
         platform: &str,
@@ -118,7 +84,6 @@ impl Feed {
         Ok(())
     }
 
-    /// The validated version. Call only on a parsed feed.
     pub fn version(&self) -> Version {
         self.version.parse().expect("validated feed")
     }
@@ -127,12 +92,10 @@ impl Feed {
         self.minimum_version.parse().expect("validated feed")
     }
 
-    /// `LokalBot-0.10.11-linux-x86_64`: the archive's top folder.
     pub fn folder_name(&self) -> String {
         folder_name(&self.version, &self.platform)
     }
 
-    /// `LokalBot-0.10.11-linux-x86_64.tar.gz` (`.zip` on Windows).
     pub fn archive_name(&self) -> String {
         archive_name(&self.version, &self.platform)
     }
@@ -163,7 +126,6 @@ pub fn archive_name(version: &str, platform: &str) -> String {
     format!("{}.{extension}", folder_name(version, platform))
 }
 
-/// HTTPS anywhere, or plain HTTP to this computer for a dry run.
 pub fn allowed_url(url: &str, allow_loopback_http: bool) -> bool {
     let lower = url.to_ascii_lowercase();
     if let Some(rest) = lower.strip_prefix("https://") {
@@ -281,7 +243,6 @@ mod tests {
                 "url",
                 Box::new(|f| f.url = "file:///tmp/LokalBot-0.10.11-linux-x86_64.tar.gz".into()),
             ),
-            // The URL must name this version's archive.
             (
                 "url",
                 Box::new(|f| f.url = f.url.replace("0.10.11-linux", "0.10.10-linux")),

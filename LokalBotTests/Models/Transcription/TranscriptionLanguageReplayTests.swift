@@ -1,34 +1,23 @@
 import XCTest
 @testable import LokalBot
 
-/// Opt-in replay of track transcription on a saved recording, for checking
-/// how each engine handles the meeting's language and silent stretches.
-/// Runs the steps processing runs for one track (speaker separation,
-/// attributed transcription, cleanup) on copies of the tracks, once per
-/// engine and language condition. Nothing leaves this Mac.
 final class TranscriptionLanguageReplayTests: XCTestCase {
     private struct Manifest: Decodable {
         struct Track: Decodable {
             var name: String
             var path: String
-            /// "microphone" or "system".
             var source: String
         }
 
         struct Condition: Decodable {
-            /// "whisper", "qwen-1.7b" or "qwen-0.6b".
             var engine: String
-            /// A transcription language code, or nil for auto-detect.
             var language: String?
         }
 
         var tracks: [Track]
         var conditions: [Condition]
-        /// A meeting's saved `transcription-vocabulary.json`, if any.
         var vocabulary: String?
-        /// The meeting's content range in seconds, as saved in meta.json.
         var contentRange: [Double]?
-        /// Report folder; keep it outside the repository.
         var output: String
     }
 
@@ -65,8 +54,6 @@ final class TranscriptionLanguageReplayTests: XCTestCase {
                 default: QwenASREngine.accuracy
                 }
                 let started = Date()
-                // The two halves of `ProcessingPipeline.transcribedTrack`, so
-                // the report holds the transcript before and after cleanup.
                 let speech = await ProcessingPipeline.speechRanges(in: url)
                 let raw = try await AttributedTrackTranscriber.transcribe(
                     url: url, duration: duration, diarization: diarization.segments, source: source,

@@ -303,9 +303,6 @@ run_prompt() {
   validate_prompt_artifacts "$slug"
 }
 
-# Prompts come from the shared manifest so Cotypist and LokalBot are driven by
-# the exact same inputs the in-app benchmark mirrors. Tab-separated:
-# slug<TAB>kind<TAB>prompt. Override with COTYPING_COMPARE_PROMPTS.
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 manifest="${COTYPING_COMPARE_PROMPTS:-$script_dir/../../Benchmarks/autocomplete/Cotyping/prompts.tsv}"
 if [[ ! -f "$manifest" ]]; then

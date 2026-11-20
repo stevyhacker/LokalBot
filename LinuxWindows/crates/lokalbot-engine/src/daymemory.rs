@@ -1,6 +1,3 @@
-//! Day memory: samples the focused app and window every five seconds and
-//! stores contiguous stretches as activity blocks (`ActivityTracker.swift`).
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -13,9 +10,7 @@ use lokalbot_platform::{MeetingDetector, SampleDisposition};
 use crate::{EngineEvent, Shared};
 
 const SAMPLE_INTERVAL: Duration = Duration::from_secs(5);
-/// Inactivity that closes the current block.
 const IDLE_SECONDS: f64 = 180.0;
-/// Blocks shorter than this are never stored.
 const MIN_BLOCK_SECONDS: i64 = 5;
 
 pub struct DayMemory {
@@ -34,8 +29,6 @@ struct Current {
 }
 
 impl DayMemory {
-    /// `on_boundary(app_changed)` runs when a new activity block begins
-    /// (`ActivitySampler.onActivityBoundary`); screen context captures there.
     pub fn start(
         shared: Arc<Shared>,
         detector: Arc<Mutex<MeetingDetector>>,
@@ -58,7 +51,6 @@ impl DayMemory {
         memory
     }
 
-    /// The pause switch, shared with screen context.
     pub fn paused_flag(&self) -> Arc<AtomicBool> {
         self.paused.clone()
     }
@@ -76,7 +68,6 @@ impl DayMemory {
         self.stop.store(true, Ordering::Relaxed);
     }
 
-    /// Closes the current block and opens the activity source afresh.
     pub fn restart(&self) {
         self.restart.store(true, Ordering::Relaxed);
     }
@@ -125,7 +116,6 @@ fn run(
                 continue;
             }
         };
-        // Browser meeting detection needs window titles (Google Meet tabs).
         detector
             .lock()
             .observe_window(&sample.app_id, &sample.title);
@@ -157,7 +147,6 @@ fn run(
     close(&shared, &mut current);
 }
 
-/// Writes the block once it is long enough, then keeps extending it.
 fn persist(shared: &Shared, block: &mut Current) {
     let library = &shared.library;
     match block.id {

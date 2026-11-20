@@ -1,22 +1,14 @@
 import Foundation
 
-/// Anthropic's API, reached through the connected-provider Think connection
-/// when its URL names `api.anthropic.com`. Think then speaks the native
-/// Messages API: Anthropic's OpenAI compatibility layer rejects LokalBot's
-/// notes schemas (`maxItems`, seen 2026-10-08) and has no prompt caching.
 enum AnthropicAPI {
     static let host = "api.anthropic.com"
     static let version = "2023-06-01"
-    /// Gates `fallbacks: "default"`: a safety decline is retried server-side
-    /// on the model Anthropic recommends for the decline's category.
     static let serverFallbackBeta = "server-side-fallback-2026-07-01"
 
     static func isAnthropic(_ url: URL) -> Bool {
         url.host?.lowercased() == host
     }
 
-    /// `https://api.anthropic.com` and `…/v1` name the same API, so every
-    /// request is built from the origin.
     static func versionedRoot(_ baseURL: URL) -> URL {
         var components = URLComponents()
         components.scheme = baseURL.scheme
@@ -42,17 +34,10 @@ enum AnthropicAPI {
     }
 }
 
-/// What LokalBot relies on for one Claude model id, from Anthropic's model
-/// documentation (2026-10). Ids it cannot parse (aliases, Claude 3) get no
-/// effort control; unknown newer generations are treated like Claude 5.
 struct AnthropicModelTraits: Equatable, Sendable {
-    /// `output_config.effort` values, least first. Empty: send no effort.
     let effortLevels: [ThinkReasoningLevel]
     let defaultEffort: ThinkReasoningLevel?
-    /// Leaving `thinking` unset runs adaptive thinking, whose tokens count
-    /// toward `max_tokens`.
     let thinksByDefault: Bool
-    /// Accepts `fallbacks: "default"`.
     let serverFallback: Bool
     let contextTokens: Int?
 
@@ -74,7 +59,6 @@ struct AnthropicModelTraits: Equatable, Sendable {
             contextTokens = nil
             return
         }
-        // A dated snapshot ("claude-sonnet-4-20250514") has no minor version.
         let minor = parts.count > 3 && parts[3].count <= 2 ? Int(parts[3]) ?? 0 : 0
         let current = family == "fable" || family == "mythos" || major >= 5
         if current || (major == 4 && minor >= 7) {
@@ -86,7 +70,6 @@ struct AnthropicModelTraits: Equatable, Sendable {
         } else {
             effortLevels = []
         }
-        // Claude Opus 5.5 and Claude Haiku 5.5 default to medium effort.
         let mediumDefault = major == 5 && minor == 5 && (family == "opus" || family == "haiku")
         defaultEffort = effortLevels.isEmpty ? nil : mediumDefault ? .medium : .high
         thinksByDefault = current
@@ -99,15 +82,10 @@ struct AnthropicModelTraits: Equatable, Sendable {
     }
 }
 
-/// Anthropic structured outputs accept a JSON Schema subset. Like the
-/// official SDKs, move each unsupported constraint into the field's
-/// description, where the model still reads it, instead of failing the request
-/// with a 400. LokalBot's parsers keep enforcing the real limits.
 enum AnthropicSchema {
     static let formats: Set<String> = [
         "date-time", "time", "date", "duration", "email", "hostname", "uri", "ipv4", "ipv6", "uuid",
     ]
-    /// Documented as unsupported. `minItems` above 1 is lowered to 1 instead.
     static let unsupportedKeywords: Set<String> = [
         "minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf",
         "minLength", "maxLength", "maxItems", "uniqueItems", "minProperties", "maxProperties",
@@ -159,18 +137,9 @@ enum AnthropicSchema {
     }
 }
 
-/// Claude through Anthropic's Messages API (`POST /v1/messages`).
-///
-/// Prompt caching: the system prompt and the shared context (a meeting's
-/// transcript, a chat's history) carry cache breakpoints, and the varying
-/// instruction comes last, so the next request over the same material reads
-/// the prefix from Anthropic's 5-minute prompt cache instead of paying the
-/// full input price again.
 struct AnthropicEngine: TextEngine {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    /// Request fields a model may reject. A 400 naming one retries once
-    /// without it; generation never started.
     enum OptionalField: String, Hashable, Sendable {
         case effort, fallbacks
     }
@@ -180,12 +149,9 @@ struct AnthropicEngine: TextEngine {
     var apiKey: String?
     var reasoningLevel: ThinkReasoningLevel = .automatic
     var displayNameOverride: String?
-    /// Tests replace the network; nil uses the shared inference session.
     var transport: Transport?
 
     static let defaultAnswerTokens = 8_192
-    /// A whole reply must arrive within the shared session's 15-minute
-    /// resource timeout even at about 25 tokens per second.
     static let maximumWholeResponseTokens = 20_000
     static let maximumStreamedTokens = 64_000
 
@@ -193,8 +159,6 @@ struct AnthropicEngine: TextEngine {
     var displayName: String { displayNameOverride ?? "Anthropic — \(model)" }
     var checkpointIdentity: String { "\(displayName)|\(baseURL.host ?? "")|messages" }
     var accountsForGenerationRequests: Bool { true }
-    /// Anthropic publishes no enum limit, only that oversized schemas fail to
-    /// compile; keep the ceiling used for other hosted servers.
     var structuredOutputEnumLimit: Int? { 500 }
 
     func generate(system: String, prompt: String, context: [String]) async throws -> String {
@@ -217,14 +181,6 @@ struct AnthropicEngine: TextEngine {
         try await message(system: system, prompt: prompt, context: context, schema: schema, options: options)
     }
 
-    // MARK: Request
-
-    /// The effort for one request. A chosen level is capped by the task's
-    /// budget, as on other servers. On Automatic, a model that thinks by
-    /// default gets the level its task budget implies, so notes and digests
-    /// (budget 0) run at the lowest effort instead of spending their output
-    /// allowance on thinking. Temperature is never sent: current Claude
-    /// models reject non-default sampling.
     func effort(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         let support = traits.reasoningSupport
         let budget = options?.reasoningBudgetTokens
@@ -233,8 +189,6 @@ struct AnthropicEngine: TextEngine {
         return support.clamp(.ceiling(forTaskBudget: budget))
     }
 
-    /// Thinking shares `max_tokens` with the answer, so a model that thinks
-    /// by default gets room for both.
     func maxTokens(requested: Int?, effort: ThinkReasoningLevel?, streaming: Bool) -> Int {
         let answer = max(1, requested ?? Self.defaultAnswerTokens)
         let thinking = traits.thinksByDefault ? Self.thinkingAllowance(effort ?? traits.defaultEffort) : 0
@@ -256,7 +210,6 @@ struct AnthropicEngine: TextEngine {
         return fields
     }
 
-    /// Pure request construction, covered offline without credentials.
     func makeRequest(system: String, prompt: String, context: [String],
                      schema: [String: Any]?, options: TextGenerationOptions?,
                      streaming: Bool = false,
@@ -287,16 +240,12 @@ struct AnthropicEngine: TextEngine {
             request.setValue(AnthropicAPI.serverFallbackBeta, forHTTPHeaderField: "anthropic-beta")
         }
         if streaming { body["stream"] = true }
-        // Sorted keys keep the schema's bytes stable across launches, so its
-        // compiled grammar and the cached prompt prefix stay reusable.
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys])
         return request
     }
 
     static var cacheBreakpoint: [String: Any] { ["type": "ephemeral"] }
 
-    /// Shared material first with a breakpoint after it, the varying
-    /// instruction last. Blank blocks are dropped; the API rejects them.
     static func userContent(prompt: String, context: [String]) -> [[String: Any]] {
         var blocks: [[String: Any]] = []
         for text in context where !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -311,7 +260,6 @@ struct AnthropicEngine: TextEngine {
         return blocks
     }
 
-    /// The optional fields a 400 names, limited to those the request sent.
     static func rejectedFields(in error: Error, sent: Set<OptionalField>) -> Set<OptionalField> {
         guard case .httpStatus(let code, let detail, _) = error as? TextEngineError,
               code == 400 else { return [] }
@@ -321,15 +269,12 @@ struct AnthropicEngine: TextEngine {
         return rejected.intersection(sent)
     }
 
-    // MARK: Response
-
     struct Usage: Equatable, Sendable {
         var inputTokens = 0
         var cacheWriteTokens = 0
         var cacheReadTokens = 0
         var outputTokens: Int?
 
-        /// The whole prompt, cached or not, as other engines report it.
         var promptTokens: Int { inputTokens + cacheWriteTokens + cacheReadTokens }
 
         init(inputTokens: Int = 0, cacheWriteTokens: Int = 0, cacheReadTokens: Int = 0, outputTokens: Int? = nil) {
@@ -343,7 +288,6 @@ struct AnthropicEngine: TextEngine {
             merge(json)
         }
 
-        /// A streamed `message_delta` carries only the counts that changed.
         mutating func merge(_ json: [String: Any]) {
             if let value = json["input_tokens"] as? Int { inputTokens = value }
             if let value = json["cache_creation_input_tokens"] as? Int { cacheWriteTokens = value }
@@ -358,9 +302,6 @@ struct AnthropicEngine: TextEngine {
         var usage: Usage?
     }
 
-    /// Text blocks joined in order; thinking and fallback marker blocks are
-    /// not part of the answer. A server-side fallback's text continues the
-    /// declined partial, so joining keeps the whole reply.
     static func parseMessage(_ data: Data) throws -> Reply {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let content = json["content"] as? [[String: Any]] else {
@@ -397,8 +338,6 @@ struct AnthropicEngine: TextEngine {
         case failure(String)
     }
 
-    /// One `data:` line of a Messages stream. `event:` lines repeat the
-    /// payload's `type` and are skipped, as are pings and block boundaries.
     static func parseStreamLine(_ line: String) -> StreamEvent? {
         guard line.hasPrefix("data:") else { return nil }
         let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
@@ -426,8 +365,6 @@ struct AnthropicEngine: TextEngine {
             return nil
         }
     }
-
-    // MARK: Transport
 
     private func message(system: String, prompt: String, context: [String],
                          schema: [String: Any]?, options: TextGenerationOptions?) async throws -> String {
@@ -467,7 +404,6 @@ struct AnthropicEngine: TextEngine {
             let httpResponse = response as? HTTPURLResponse
             guard let status = httpResponse?.statusCode, (200...299).contains(status) else {
                 if let status = httpResponse?.statusCode, (400...499).contains(status) {
-                    // Anthropic validates and rate-limits before generating.
                     metric.outcome = "rejected"
                     metric.outputTokens = 0
                 }
@@ -496,8 +432,6 @@ struct AnthropicEngine: TextEngine {
         }
     }
 
-    /// Streams answer text only. Structured generation inside a notes budget
-    /// keeps the accounted whole-response path.
     func generateStreaming(system: String, prompt: String, context: [String],
                            options: TextGenerationOptions,
                            onPartial: @escaping @MainActor (String) -> Void) async throws -> String {

@@ -15,10 +15,6 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.shadows.ShadowSystemClock
 
-/**
- * The app lock when the activity comes back from its saved state: at once, as
- * on rotation, and long after, as when Android ended the process meanwhile.
- */
 @RunWith(AndroidJUnit4::class)
 class AppLockTest {
     @get:Rule
@@ -32,7 +28,6 @@ class AppLockTest {
 
     private fun waitFor(text: String) = compose.waitUntil(10_000) { shows(text) }
 
-    /** Opens the app, turns the lock on while it's unlocked, leaves, and comes back from the saved state [after] that long. */
     private fun leaveAndComeBack(after: Duration) {
         val first = Robolectric.buildActivity(MainActivity::class.java).setup()
         waitFor(welcome)

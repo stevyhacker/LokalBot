@@ -1,7 +1,3 @@
-//! A synthetic library (`CompanionFixtureLibrary.swift`) that deliberately
-//! holds every kind of private data that must never reach a phone, and the
-//! host run end to end against the protocol's own client, on loopback only.
-
 use std::collections::{BTreeMap, HashMap};
 use std::path::Path;
 use std::sync::Arc;
@@ -52,7 +48,6 @@ const DREAM_SECRET: &str = "DREAM-MEMORY-SECRET project goal";
 const PERSONAL_CONTEXT_SECRET: &str = "PERSONAL-CONTEXT-SECRET likes";
 const REVIEW_NOTE_SECRET: &str = "OVERNIGHT-REVIEW-NOTE-SECRET";
 
-/// Strings that must never appear in any record body.
 const SECRETS: [&str; 17] = [
     OCR_SECRET,
     "account 4417",
@@ -79,7 +74,6 @@ struct Fixture {
     _dir: tempfile::TempDir,
     library: Library,
     now: DateTime<Utc>,
-    /// The day of the main meeting, at local noon.
     day: DateTime<Utc>,
     design_review: Meeting,
     older: Meeting,
@@ -117,7 +111,6 @@ fn fixture() -> Fixture {
         .with_timezone(&Utc);
     let day = now - chrono::Duration::days(2) - chrono::Duration::hours(6);
 
-    // The main meeting: calendar attendees with emails, an agenda, a link.
     let start = day - chrono::Duration::hours(1);
     let mut design = library
         .create_meeting("Design review — onboarding", "Zoom", start)
@@ -216,12 +209,10 @@ fn fixture() -> Fixture {
             lokalbot_core::model::ActionStatus::Deferred,
         )
         .unwrap();
-    // Private speaker evidence beside the meeting; never read by builders.
     let evidence = library.meeting_dir(&design).join("speaker-evidence");
     std::fs::create_dir_all(&evidence).unwrap();
     std::fs::write(evidence.join("assignments.sealed"), VOICE_PROFILE_SECRET).unwrap();
 
-    // An older meeting, outside a 30-day window.
     let older_day = day - chrono::Duration::days(45);
     let mut older = library
         .create_meeting("Pricing workshop", "Google Meet", older_day)
@@ -229,7 +220,6 @@ fn fixture() -> Fixture {
     older.ended_at = Some(older_day + chrono::Duration::seconds(1800));
     library.save_meeting(&older).unwrap();
 
-    // A merge: the source is folded into the parent and never shared.
     let source_start = day - chrono::Duration::hours(2);
     let mut merged_parent = library
         .create_meeting("Standup", "Zoom", source_start)
@@ -244,7 +234,6 @@ fn fixture() -> Fixture {
     library.save_meeting(&merged_source).unwrap();
     library.save_meeting(&merged_parent).unwrap();
 
-    // LokalBot's bundled sample meeting is made up and never shared.
     let sample_start = day - chrono::Duration::hours(3);
     let mut sample = library
         .create_meeting("Orders API sample", "Sample", sample_start)
@@ -253,7 +242,6 @@ fn fixture() -> Fixture {
     sample.sample_id = Some("orders-api/en".into());
     library.save_meeting(&sample).unwrap();
 
-    // A meeting still being recorded.
     let live = library
         .create_meeting(
             "Still recording",
@@ -262,8 +250,6 @@ fn fixture() -> Fixture {
         )
         .unwrap();
 
-    // Activity: window titles, a screen moment with a path and text, a saved
-    // moment, and a coding-agent burst.
     let block_start = day + chrono::Duration::minutes(30);
     library
         .append_activity(
@@ -318,7 +304,6 @@ fn fixture() -> Fixture {
         }])
         .unwrap();
 
-    // The day's digest, with the evidence log LokalBot renders from capture.
     let journal = library.journal_path(lokalbot_core::time::local_day(day));
     std::fs::create_dir_all(journal.parent().unwrap()).unwrap();
     std::fs::write(
@@ -329,8 +314,6 @@ fn fixture() -> Fixture {
     )
     .unwrap();
 
-    // A tracked project with a "Where it stands" note; one point came from
-    // overnight review notes, which stay on this computer.
     let project_id = Uuid::parse_str(PROJECT_ID).unwrap();
     library
         .save_project_curation(&ProjectCuration {
@@ -371,7 +354,6 @@ fn fixture() -> Fixture {
         })
         .unwrap();
 
-    // Dream memory and Personal Context files: never read.
     let memory = library.paths().root().join("memory");
     std::fs::create_dir_all(&memory).unwrap();
     std::fs::write(
@@ -450,11 +432,6 @@ fn has(records: &[Record], kind: RecordKind, key: &str) -> bool {
         .any(|record| record.kind == kind && record.key == key)
 }
 
-// ------------------------------------------------------------------ privacy
-
-/// The exclusion contract: no record carries attendee emails, speaker
-/// evidence, calendar identity links, screenshot paths, screen text, agenda
-/// or meeting links, Dream memory, or Personal Context.
 #[test]
 fn no_record_contains_excluded_data() {
     let fixture = fixture();
@@ -470,14 +447,12 @@ fn no_record_contains_excluded_data() {
             );
         }
     }
-    // The window title is shared while that class is on…
     assert!(
         records
             .iter()
             .any(|record| record.body_json.contains(WINDOW_TITLE_SECRET)),
         "the fixture must exercise window titles"
     );
-    // …and appears nowhere once it is off.
     let mut no_titles = sharing();
     no_titles.data_classes.window_titles = false;
     for record in fixture.records(&no_titles) {
@@ -506,7 +481,6 @@ fn manifest_reports_what_devices_receive() {
     assert_eq!(manifest["askEnabled"], false);
     assert_eq!(manifest["recordingsEnabled"], false);
     assert_eq!(manifest["dataClasses"]["meetings"], false);
-    // A transcript needs its meeting.
     assert_eq!(manifest["dataClasses"]["transcripts"], false);
     assert_eq!(manifest["dataClasses"]["windowTitles"], true);
     assert!(!json.contains(":null"), "optional fields are omitted");
@@ -515,8 +489,6 @@ fn manifest_reports_what_devices_receive() {
     let manifest: Value = serde_json::from_str(&json).unwrap();
     assert_eq!(manifest["recordingsEnabled"], true);
 }
-
-// ----------------------------------------------------------------- meetings
 
 #[test]
 fn meeting_record_carries_corrected_outcomes_and_display_names() {
@@ -600,7 +572,6 @@ fn transcript_uses_display_names_and_stable_colors() {
     assert_eq!(segments[2]["speaker"], "Speaker 2");
     assert_eq!(segments[2]["colorIndex"], 2);
     assert_eq!(transcript["meetingId"], key(&fixture.design_review));
-    // Identity evidence stays home.
     assert!(segments[0].get("attribution").is_none());
 }
 
@@ -690,7 +661,6 @@ fn history_window_leaves_older_records_out() {
         RecordKind::Day,
         &day_key(lokalbot_core::time::local_day(fixture.older.started_at))
     ));
-    // People and projects reach no further than the meetings they may see.
     for record in records.iter().filter(|r| r.kind != RecordKind::Meeting) {
         assert!(
             !record.body_json.contains(&key(&fixture.older)),
@@ -726,8 +696,6 @@ fn history_window_starts_on_local_days() {
     assert_eq!(HistoryWindow::from_days(365), HistoryWindow::Days365);
     assert_eq!(HistoryWindow::from_days(7), HistoryWindow::All);
 }
-
-// --------------------------------------------------------------------- days
 
 #[test]
 fn day_record_has_digest_sections_timeline_and_screen_times() {
@@ -869,8 +837,6 @@ fn summary_loses_its_title_and_provenance_only() {
     );
 }
 
-// ------------------------------------------------------- people and projects
-
 #[test]
 fn people_and_projects_carry_names_work_and_meetings() {
     let fixture = fixture();
@@ -903,8 +869,6 @@ fn people_and_projects_carry_names_work_and_meetings() {
     );
 }
 
-// ----------------------------------------------------- format compatibility
-
 fn numbers_as_floats(value: &mut Value) {
     match value {
         Value::Number(number) => *value = json!(number.as_f64().unwrap_or_default()),
@@ -923,9 +887,6 @@ fn round_trips<T: serde::de::DeserializeOwned + serde::Serialize>(body: &Value) 
     assert_eq!(before, after, "the schema's fields round trip");
 }
 
-/// Every record of the sample library the phones and the protocol test
-/// against reads and writes back unchanged: same keys, nesting, optional
-/// fields and types as the Mac's `Codable` bodies.
 #[test]
 fn the_protocols_sample_library_round_trips_through_these_types() {
     let library: Vec<Value> = serde_json::from_str(include_str!(
@@ -947,7 +908,6 @@ fn the_protocols_sample_library_round_trips_through_these_types() {
     }
 }
 
-/// What this computer builds, the phones' store accepts.
 #[test]
 fn built_records_are_accepted_by_the_sync_host() {
     let fixture = fixture();
@@ -1041,8 +1001,6 @@ fn sharing_is_off_by_default_with_generous_classes() {
     assert!(sharing.advertises);
 }
 
-// ---------------------------------------------------------------------- ops
-
 fn set_status(meeting: &Meeting, action: &str, text: Option<&str>, status: &str) -> String {
     json!({
         "type": "action.setStatus", "opId": "op", "meetingId": key(meeting),
@@ -1074,7 +1032,6 @@ fn set_status_by_id() {
     assert_eq!(outcome.result.status, "applied");
     assert_eq!(outcome.meeting_id, Some(meeting.id));
     assert_eq!(action_status(&fixture.library, meeting, "act-deck"), "done");
-    // Saved where the Actions list reads it.
     let state: OutcomeState = serde_json::from_slice(
         &std::fs::read(
             fixture
@@ -1168,8 +1125,6 @@ fn matcher_needs_an_unambiguous_text() {
     );
 }
 
-// ---------------------------------------------------------------------- ask
-
 #[test]
 fn meeting_markers_become_numbered_citations() {
     let fixture = fixture();
@@ -1196,7 +1151,6 @@ fn meeting_markers_become_numbered_citations() {
             .label
             .starts_with("Design review — onboarding · ")
     );
-    // Short ids work when they name one meeting.
     let short = fixture.design_review.short_id();
     let (_, citations) = ask::map_citations(&format!("[meeting:{short}]"), &meetings);
     assert_eq!(
@@ -1287,13 +1241,11 @@ impl RecordingOutput {
     }
 }
 
-/// Stands in for the model, recording what it was allowed to read.
 #[derive(Default)]
 struct FakeEngine {
     calls: AtomicUsize,
     scope: Mutex<Option<AskScope>>,
     history: Mutex<Vec<ChatMessage>>,
-    /// The answer holds here, after its first words, until released.
     gate: Mutex<Option<Receiver<()>>>,
     reply: Mutex<String>,
     is_remote: AtomicBool,
@@ -1445,7 +1397,6 @@ fn out_of_window_scope_is_refused() {
     asking(&fixture, engine.clone()).answer(&question(scope), window, output.clone());
     assert!(output.wait().unwrap_err().contains("not shared"));
 
-    // The sample is never shared, even with all history.
     let output = Arc::new(RecordingOutput::default());
     let scope = json!({"scope": {"meetingId": key(&fixture.sample)}});
     asking(&fixture, engine.clone()).answer(&question(scope), sharing(), output.clone());
@@ -1466,7 +1417,6 @@ fn the_window_limits_what_the_agent_may_read_and_the_day_only_focuses_it() {
     assert!(!scope.meeting_ids.contains(&fixture.older.id));
     assert_eq!(scope.since, window.history.start(Utc::now()));
     assert_eq!(scope.until, None);
-    // The model is told the window is the limit, not a date to remove.
     let limit = scope.limit.unwrap();
     assert_eq!(
         limit.words,
@@ -1480,9 +1430,6 @@ fn the_window_limits_what_the_agent_may_read_and_the_day_only_focuses_it() {
     asking(&fixture, engine.clone()).answer(&question(chosen), window, output.clone());
     output.wait().unwrap();
     let scope = engine.scope.lock().clone().unwrap();
-    // "Ask About Today" on a tablet once held the question to that day and
-    // answered "the library has only one meeting": the day and the meeting
-    // are where the answer starts, and only the window limits it.
     assert!(scope.meeting_ids.len() > 1, "{:?}", scope.meeting_ids);
     assert!(scope.meeting_ids.contains(&fixture.design_review.id));
     assert_eq!(scope.since, window.history.start(Utc::now()));
@@ -1502,7 +1449,6 @@ fn the_window_limits_what_the_agent_may_read_and_the_day_only_focuses_it() {
     assert!(!scope.limit.unwrap().removable_dates);
 }
 
-/// To Ask an empty list means every meeting, and to a device it must mean none.
 #[test]
 fn no_shared_meetings_reach_no_meetings() {
     let dir = tempfile::tempdir().unwrap();
@@ -1539,8 +1485,6 @@ fn turning_sharing_off_cancels_an_answer() {
     responder.cancel_all();
     assert!(output.wait().unwrap_err().contains("stopped answering"));
 }
-
-// ---------------------------------------------------------------- publisher
 
 #[derive(Default)]
 struct MemorySink {
@@ -1696,8 +1640,6 @@ fn a_deleted_meeting_is_withdrawn() {
     );
 }
 
-/// A write with no evidence hook, such as a finished recording or a summary,
-/// is found by comparing the library with what was built.
 #[test]
 fn a_rescan_finds_what_changed_without_a_hook() {
     let fixture = fixture();
@@ -1727,7 +1669,6 @@ fn a_rescan_finds_what_changed_without_a_hook() {
     );
 }
 
-/// Notes saved from the meeting page reach no hook.
 #[test]
 fn the_periodic_check_finds_a_write_no_hook_reports() {
     let fixture = fixture();
@@ -1817,8 +1758,6 @@ fn the_digest_hook_rebuilds_its_day() {
     );
 }
 
-// ---------------------------------------------------- small pieces of the UI
-
 #[test]
 fn tailscale_addresses_are_recognized() {
     use CompanionNetwork::*;
@@ -1864,7 +1803,6 @@ fn advertised_name_and_txt_record_are_neutral() {
         advertise::txt_value("ab12cd34ef56ab78ffff"),
         "ab12cd34ef56ab78"
     );
-    // Building the announcement opens nothing.
     let info = advertise::service_info(
         17890,
         "ab12cd34ef56ab78",
@@ -1919,7 +1857,6 @@ fn computer_name_prefers_the_pretty_hostname() {
     assert!(!host::computer_name().is_empty());
 }
 
-/// Tools and examples start the engine too; only the app's Enable listens.
 #[test]
 fn nothing_follows_the_setting_until_the_app_enables_it() {
     let (sender, receiver) = unbounded();
@@ -1934,10 +1871,6 @@ fn nothing_follows_the_setting_until_the_app_enables_it() {
     companion.command(CompanionCommand::Enable, &settings);
     assert!(matches!(receiver.try_recv(), Ok(HostMessage::Apply(s)) if s.enabled));
 }
-
-// ------------------------------------------------------------- the host, end
-// to end, against the protocol's client. Loopback only: the environment asks
-// for it, and the only advertiser here records calls.
 
 #[derive(Clone, Default)]
 struct AdvertiserLog(Arc<Mutex<Vec<String>>>);
@@ -2118,7 +2051,6 @@ impl Harness {
         .unwrap()
     }
 
-    /// Scans the code on a phone and answers the prompt.
     fn pair(&mut self, phone: &Arc<SyncClient>, allow: bool) -> Result<(), SyncError> {
         self.send(CompanionCommand::BeginPairing);
         let code = self
@@ -2173,7 +2105,6 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
     assert_eq!(snapshot.devices[0].name, "pixel");
     assert!(snapshot.pairing.is_none(), "pairing consumes the offer");
 
-    // The publisher's first pass runs after its debounce.
     let design = key(&harness.fixture.design_review);
     let deadline = Instant::now() + Duration::from_secs(30);
     loop {
@@ -2197,7 +2128,6 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
     assert!(phone.transcript(design.clone()).unwrap().is_some());
     assert!(phone.day(harness.fixture.day_key()).unwrap().is_some());
     assert!(phone.project(PROJECT_ID.into()).unwrap().is_some());
-    // The sample never left this computer, and neither did what's excluded.
     assert!(
         phone
             .meeting(key(&harness.fixture.sample))
@@ -2214,7 +2144,6 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
             .all(|hit| { !hit.snippet.contains(OCR_SECRET) })
     );
 
-    // A status change on the phone lands in the library and comes back.
     phone
         .set_action_status(design.clone(), "act-deck".into(), "done".into())
         .unwrap();
@@ -2239,7 +2168,6 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
         .clone();
     assert_eq!(deck["status"], "done");
 
-    // A question is answered by this computer, with its citation mapped.
     let upper = lokalbot_core::ids::uuid_upper(&harness.fixture.design_review.id);
     *harness.engine.reply.lock() = format!("Three steps [meeting:{upper}@00:12:04].");
     let streamed = Arc::new(Mutex::new(String::new()));
@@ -2259,7 +2187,6 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
     assert_eq!(result["citations"][0]["meetingId"], design);
     assert_eq!(result["location"], "mac");
 
-    // Removing it refuses its next connection, and its copy is erased.
     let device = harness.latest.devices[0].id.clone();
     harness.send(CompanionCommand::RemoveDevice(device));
     harness.wait(|s| s.devices.is_empty());
@@ -2270,7 +2197,6 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
     );
     assert!(phone.meeting(design).unwrap().is_none());
 
-    // Turning sharing off closes the port.
     let mut off = chosen;
     off.enabled = false;
     harness.apply(off);
@@ -2279,11 +2205,8 @@ fn a_phone_pairs_syncs_changes_status_asks_and_is_removed() {
     harness.finish();
 }
 
-// --------------------------------------------------------------- recordings
-
 const ADTS_TONE: &[u8] = include_bytes!("../../../lokalbot-audio/tests/data/tone-440-adts.aac");
 
-/// A recording as the sync host describes it, with `changes` on top.
 fn recording_json(id: Uuid, changes: Value) -> String {
     let mut recording = json!({
         "id": id.to_string(), "title": "Hallway chat", "format": "aac-adts",
@@ -2297,7 +2220,6 @@ fn recording_json(id: Uuid, changes: Value) -> String {
     recording.to_string()
 }
 
-/// A host nobody is connected to, for what its delegate answers.
 fn idle_host(fixture: &Fixture) -> (Host, Arc<TestEnvironment>) {
     let environment = TestEnvironment::new();
     let (messages, _) = unbounded();
@@ -2311,7 +2233,6 @@ fn idle_host(fixture: &Fixture) -> (Host, Arc<TestEnvironment>) {
     (host, environment)
 }
 
-/// An upload, as the sync host keeps it.
 struct UploadedFile(tempfile::TempDir);
 
 impl UploadedFile {
@@ -2360,7 +2281,6 @@ fn a_recording_becomes_a_meeting_and_is_queued_once() {
         "the file belongs to the sync host"
     );
 
-    // The device never heard: it sends it again, and asks for nothing new.
     let again = delegate.receive_recording(recording_json(id, json!({})), file.path());
     assert_eq!(again, outcome);
     assert_eq!(*environment.recordings_stored.lock(), vec![id]);
@@ -2434,7 +2354,6 @@ fn a_recording_that_cant_be_used_is_rejected() {
 fn trouble_on_this_computer_defers_a_recording() {
     let dir = tempfile::tempdir().unwrap();
     let library = Library::open(LibraryPaths::new(dir.path().join("library"))).unwrap();
-    // No meeting folder can be made under a file.
     let meetings = library.paths().meetings_dir();
     std::fs::remove_dir_all(&meetings).ok();
     std::fs::write(&meetings, b"").unwrap();
@@ -2483,7 +2402,6 @@ fn recordings_wait_while_sharing_or_the_setting_is_off() {
         assert!(message.contains(says), "{message}");
     };
 
-    // The listener isn't up yet.
     assert!(!delegate.accepts_recordings());
     waits(send(), "turned off");
 
@@ -2516,8 +2434,6 @@ fn recordings_wait_while_sharing_or_the_setting_is_off() {
     waits(send(), "turned off");
 }
 
-/// Queued like a recording finished on this computer, which waits for missing
-/// models, and the Meetings list and the publisher hear of it from the one event.
 #[test]
 fn a_stored_recording_is_queued_like_a_finished_one_and_shown() {
     use crate::{EngineEvent, Stage};
@@ -2537,7 +2453,6 @@ fn a_stored_recording_is_queued_like_a_finished_one_and_shown() {
         });
         let models = crate::models::Models::new(shared.clone());
         let pipeline = crate::pipeline::Pipeline::start(shared.clone(), models);
-        // Running the job isn't what this test is about.
         pipeline.stop();
         let environment = host::LiveEnvironment {
             shared,
@@ -2597,7 +2512,6 @@ fn a_phone_sends_a_recording_and_gets_its_meeting_back() {
             .unwrap()
     };
 
-    // Turned off, the phone keeps it and says why.
     harness
         .environment
         .settings
@@ -2628,7 +2542,6 @@ fn a_phone_sends_a_recording_and_gets_its_meeting_back() {
         "the phone deleted its copy"
     );
 
-    // The next sync brings the meeting, and the phone's row makes way for it.
     phone.sync(vec![address(port)]).unwrap();
     let synced: Value =
         serde_json::from_str(&phone.meeting(records::id(id)).unwrap().unwrap()).unwrap();
@@ -2653,7 +2566,6 @@ fn a_refused_device_gets_nothing() {
     harness.finish();
 }
 
-/// With no answer the prompt goes away and the device is refused.
 #[test]
 fn stopping_refuses_a_waiting_device() {
     let mut harness = Harness::start();
@@ -2676,9 +2588,6 @@ fn stopping_refuses_a_waiting_device() {
     harness.finish();
 }
 
-/// A device that asks again with the same id attaches to the answer this
-/// computer is still writing: the model runs once and both get the result.
-/// `lokalbot-sync`'s own tests cover a device that dropped its connection.
 #[test]
 fn an_answer_outlives_the_connection_that_asked() {
     let mut harness = Harness::start();
@@ -2749,7 +2658,6 @@ fn a_missing_credential_store_says_why_and_listens_for_nothing() {
     };
     assert!(message.contains("credential store"), "{message}");
     assert!(harness.environment.advertisements.entries().is_empty());
-    // The key never reached a file.
     assert!(
         !harness
             .fixture
@@ -2780,7 +2688,6 @@ fn a_port_already_in_use_is_reported() {
     harness.finish();
 }
 
-/// Sharing off: no key is read, nothing is announced, no database is created.
 #[test]
 fn sharing_off_builds_and_announces_nothing() {
     let mut harness = Harness::start();
@@ -2825,12 +2732,10 @@ fn the_announcement_follows_the_setting_and_the_listener() {
     assert!(first[0].starts_with(&format!("start {port} ")), "{first:?}");
     assert!(first[0].ends_with(" 127.0.0.1"), "{first:?}");
 
-    // Reapplying the same settings doesn't announce twice.
     harness.apply(sharing());
     std::thread::sleep(Duration::from_millis(100));
     assert_eq!(log.entries().len(), 1);
 
-    // Off in Settings: withdrawn while the listener stays up.
     let mut quiet = sharing();
     quiet.advertises = false;
     harness.apply(quiet);
@@ -2841,7 +2746,6 @@ fn the_announcement_follows_the_setting_and_the_listener() {
     }
     assert_eq!(harness.listening_port(), port, "the same listener");
 
-    // Sharing off stops it for good.
     harness.apply(sharing());
     let deadline = Instant::now() + Duration::from_secs(5);
     while log
@@ -2862,8 +2766,6 @@ fn the_announcement_follows_the_setting_and_the_listener() {
     harness.finish();
 }
 
-/// The addresses a code carries are read when it's made, so a new network or
-/// Tailscale coming up reaches the next device.
 #[test]
 fn a_code_carries_the_current_addresses() {
     let mut harness = Harness::start();

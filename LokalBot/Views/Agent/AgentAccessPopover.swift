@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// The access chip's list: the levels the app has, each with what the agent
-/// does on its own and what still asks, then the model and reasoning. The
-/// level is one remembered choice for every task.
 struct AgentAccessPopover: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var controller: AgentSessionController
@@ -59,8 +56,6 @@ struct AgentAccessPopover: View {
         .accessibilityIdentifier("agent.access.\(mode.rawValue)")
     }
 
-    // MARK: - Model and reasoning
-
     static func destinationLabel(_ destination: InferencePresentation, localize: (String) -> String) -> String {
         switch destination {
         case .onDevice: localize("On this Mac")
@@ -102,13 +97,10 @@ struct AgentAccessPopover: View {
         }
     }
 
-    /// The launched model's levels, or the selected model's before launch.
     private var reasoningSupport: ReasoningSupport {
         controller.reasoningSupport ?? resolvedReasoning?.support(for: app.settings) ?? .known(for: app.settings)
     }
 
-    /// Agent Mode's own level, or the Think level from Settings → Models,
-    /// offering only the levels the model accepts.
     private var reasoningMenu: some View {
         let support = reasoningSupport
         let chosen = app.settings.agentReasoningLevel

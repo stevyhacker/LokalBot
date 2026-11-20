@@ -1,9 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// A day's digest as the Mac lays it out: blockers lead, then highlights,
-/// decisions, tasks and follow-ups. Falls back to the Markdown when the Mac
-/// sent no sections.
 struct DayDigestView: View {
     let digest: DayDigest
 
@@ -61,8 +58,6 @@ struct DayDigestView: View {
     }
 }
 
-/// A day's activity at a glance: tracked time, apps, meetings, moments, and
-/// the share of time by project.
 struct DayOverview: View {
     let timeline: DayTimeline
     var meetingCount: Int
@@ -89,7 +84,6 @@ struct DayOverview: View {
     }
 }
 
-/// A meeting in a list: title, then time, length and app in the Mac's zone.
 struct MeetingRowView: View {
     let meeting: Meeting
     var showsDay = false
@@ -120,7 +114,6 @@ struct MeetingRowView: View {
     }
 }
 
-/// Page padding and the readable width the Mac uses for glanceable pages.
 struct PageColumn: ViewModifier {
     var maxWidth: CGFloat = 956
 

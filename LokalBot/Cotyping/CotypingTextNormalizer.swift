@@ -5,15 +5,6 @@
 
 import Foundation
 
-// Turns raw model output into clean inline ghost text. Ported from Cotabby's
-// `SuggestionTextNormalizer` + `TrailingDuplicationFilter` + `ControlTokenMarkers`
-// + `InsertionSafetyGate` — the backend-agnostic, load-bearing cleanup that
-// makes a small local model's completion safe to show and insert.
-//
-// Pure: the same `(raw, request)` always yields the same result, which makes it
-// directly unit-testable without a model.
-
-/// Why a raw completion was reduced to empty ghost text (diagnostics only).
 enum CotypingSuppressionReason: String, Sendable, Equatable {
     case emptyGeneration
     case normalizedToEmpty
@@ -22,13 +13,8 @@ enum CotypingSuppressionReason: String, Sendable, Equatable {
     case placeholderText
     case questionContinuation
     case unsafeToInsert
-    /// The model began echoing the hidden conditioning preface or one of its
-    /// structural labels. Suppressed before it can become visible or learnable.
     case promptContextLeak
-    /// Caret sits at the end of a non-word fragment and the completion began
-    /// with whitespace instead of extending it ("follo" + " up on that").
     case wordCompletionMismatch
-    /// The model was unsure of the first word (`CotypingFirstWordConfidence`).
     case lowConfidence
 }
 
@@ -38,15 +24,10 @@ struct CotypingNormalizationResult: Equatable, Sendable {
 }
 
 enum CotypingTextNormalizer {
-    /// Ghost text only.
     static func normalize(_ raw: String, for request: CotypingRequest) -> String {
         normalizeDetailed(raw, for: request).text
     }
 
-    /// Full pipeline. Mirrors Cotabby's ordering exactly: control-token strip →
-    /// think-block strip → prompt/prefix echo strip → leading scaffolding-label
-    /// strip → single/multi-line collapse → trailing-duplication → echo-prefix
-    /// strip → deterministic space management → safety gate.
     static func normalizeDetailed(_ raw: String, for request: CotypingRequest) -> CotypingNormalizationResult {
         let rawHadContent = !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         var normalized = raw.replacingOccurrences(of: "\r", with: "")
@@ -62,22 +43,13 @@ enum CotypingTextNormalizer {
             normalized.removeFirst(request.prefixText.count)
         }
 
-        // The model put a line break between the typed text and its completion.
-        // The break is dropped below; one space takes its place further down.
         let beganOnNewLine = normalized.prefix(while: \.isWhitespace).contains(where: \.isNewline)
         normalized = normalized.trimmingCharacters(in: .controlCharacters.union(.newlines))
-        // Drop leading formatting-only newlines before collapsing to one line, so
-        // "\ndelicious" is not misread as an empty first line.
         normalized = normalized.trimmingCharacters(in: .newlines)
         normalized = stripLeadingScaffoldingLabels(normalized)
         normalized = stripBenignInlineMarkup(normalized)
         normalized = normalized.trimmingCharacters(in: .newlines)
 
-        // Instruction-tuned models used as raw continuers occasionally restart
-        // from the hidden prompt head. Compare with the exact rendered preface
-        // before line collapsing so both full echoes and streaming prefixes are
-        // suppressed. A valid continuation following an exact whole-prompt echo
-        // has already had that prompt removed above and remains eligible.
         if CotypingPromptLeakGuard.detectsLeak(
             in: normalized,
             conditioningPreface: request.conditioningPreface) {
@@ -93,11 +65,6 @@ enum CotypingTextNormalizer {
             normalized = String(firstLine)
         }
 
-        // Mid-word: don't re-type the partial word the caret sits in, and (when
-        // strictly inside a word — Cotabby's forceWordContinuation) don't begin
-        // with whitespace, so the suggestion continues the current word instead
-        // of restarting or space-breaking it. The HTTP backend can't mask the
-        // first token like Cotabby's in-process runtime, so it's reproduced here.
         let partialWord = CotypingMidWord.currentPartialWord(in: request.prefixText)
         if partialWord.count >= 2, normalized.count > partialWord.count,
            normalized.lowercased().hasPrefix(partialWord.lowercased()) {
@@ -109,11 +76,6 @@ enum CotypingTextNormalizer {
                 return CotypingNormalizationResult(text: "", suppression: .unsafeToInsert)
             }
         }
-        // Caret at the end of a partial word (nothing word-like after it): when
-        // the fragment is not a valid standalone word, a whitespace-leading
-        // continuation would leave broken text ("follo" + " up on that") — reject
-        // it. The in-process runtime's required-prefix decode can't produce this;
-        // the HTTP fallback and misbehaving models can.
         if !request.forceWordContinuation,
            request.wordPrefixAtCaret.count >= 2,
            !request.wordPrefixIsValidWord,
@@ -132,13 +94,9 @@ enum CotypingTextNormalizer {
 
         normalized = strippingStylisticEllipses(from: normalized)
 
-        // Space management AFTER echo stripping (which can expose a leading space).
         if request.precedingEndsWithWhitespace {
             normalized = String(normalized.drop(while: { $0.isWhitespace }))
         }
-        // Without its line break the completion would be glued to the typed
-        // text: two words run together, or a comma loses its space
-        // ("Hi team," + "I'm working").
         let extendsFragment = request.wordPrefixAtCaret.count >= 2 && !request.wordPrefixIsValidWord
         if beganOnNewLine, !request.forceWordContinuation, !extendsFragment,
            !request.precedingEndsWithWhitespace, !request.prefixText.isEmpty,
@@ -563,8 +521,6 @@ enum CotypingTextNormalizer {
         return result
     }
 
-    /// Strips leading words that repeat the tail of the preceding text. Tries
-    /// every word offset; returns "" if the whole suggestion is an echo.
     private static func stripEchoPrefix(_ suggestion: String, precedingText: String) -> String {
         let suggestionWords = suggestion.split(whereSeparator: { $0.isWhitespace })
         guard !suggestionWords.isEmpty else { return suggestion }
@@ -588,7 +544,6 @@ enum CotypingTextNormalizer {
         return String(suggestion[lastEchoedWord.endIndex...])
     }
 
-    /// Prompt section-header labels small instruct models tend to parrot.
     private static let scaffoldingLabels: [String] = [
         "Text before the caret:", "Text before caret:",
         "Text after the caret:", "Text after caret:",
@@ -611,12 +566,6 @@ enum CotypingTextNormalizer {
     }
 }
 
-/// Structural output guard for cotyping's hidden conditioning preface.
-///
-/// Matching is punctuation-, case-, and diacritic-insensitive. The exact
-/// preface carried by the request is authoritative; marker stems are activated
-/// only when that kind of line was really present, which catches paraphrased
-/// values without maintaining a second copy of the full prompt.
 enum CotypingPromptLeakGuard {
     private static let rendererMarkerStems = [
         "an email being written in",
@@ -635,9 +584,6 @@ enum CotypingPromptLeakGuard {
         "on the clipboard",
     ].map(canonicalize)
 
-    /// Older prompt layouts can survive in a learned example or model prior.
-    /// These phrases are specific enough to reject as scaffolding, unlike broad
-    /// labels such as "Task" or "Application".
     private static let legacyMarkerStems = [
         "text before the caret",
         "text before caret",
@@ -677,8 +623,6 @@ enum CotypingPromptLeakGuard {
             return true
         }
 
-        // Catch a renderer label whose value was altered or omitted by the
-        // model, but only when that label is active in this request's preface.
         let activeMarkers = rendererMarkerStems.filter { marker in
             protectedLines.contains { line in
                 line == marker || line.hasPrefix(marker + " ")
@@ -695,9 +639,6 @@ enum CotypingPromptLeakGuard {
         }
     }
 
-    /// Context-free defense for persisted learning examples and benchmark
-    /// assertions. Partial markers require enough material to avoid classifying
-    /// ordinary one-word completions such as "the" as prompt scaffolding.
     static func looksLikePromptScaffolding(_ text: String) -> Bool {
         let candidate = canonicalize(text)
         guard !candidate.isEmpty else { return false }
@@ -708,10 +649,6 @@ enum CotypingPromptLeakGuard {
         }
     }
 
-    /// Preface lines a suggestion must not repeat. The focused window's own
-    /// lines are left out: continuing with a name or phrase that is on screen
-    /// is what that context is for. Its label stays protected, and the block
-    /// ends at the blank line the renderer puts after it.
     private static func protectedPrefaceLines(_ preface: String) -> [String] {
         var lines: [String] = []
         var inWindow = false
@@ -750,8 +687,6 @@ enum CotypingPromptLeakGuard {
     }
 }
 
-/// Removes chat/instruct control tokens an instruct model can leak as literal
-/// text, and truncates anything after an end-of-turn marker.
 enum CotypingControlTokens {
     private static let roleHeaderBlockPattern = "<\\|start_header_id\\|>.*?<\\|end_header_id\\|>"
 
@@ -759,7 +694,6 @@ enum CotypingControlTokens {
         "<|im_start|>", "<start_of_turn>", "<|user|>", "<|assistant|>",
         "<|system|>", "<|start_header_id|>", "<|end_header_id|>", "[INST]", "[/INST]",
     ]
-    /// `</s>` is excluded on purpose (it is also the HTML `<s>` closing tag).
     static let stopMarkers: [String] = [
         "<|im_end|>", "<|endoftext|>", "<|end|>", "<end_of_turn>", "<|eot_id|>",
     ]
@@ -786,7 +720,6 @@ enum CotypingControlTokens {
     }
 }
 
-/// Decides whether a completion would mostly retype text after the caret.
 enum CotypingTrailingDuplicationFilter {
     static let minimumFoldedOverlap = 3
 
@@ -820,8 +753,6 @@ enum CotypingTrailingDuplicationFilter {
     }
 }
 
-/// Rejects completions that are non-empty but would insert junk (control chars,
-/// replacement glyphs, whitespace-only).
 enum CotypingInsertionSafety {
     static func isSafeToInsert(_ completion: String) -> Bool {
         guard !completion.isEmpty else { return false }

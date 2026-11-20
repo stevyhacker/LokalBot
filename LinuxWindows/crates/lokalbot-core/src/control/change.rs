@@ -1,7 +1,3 @@
-//! Reading a typed value, mapping it to what `Settings` stores, and deciding how
-//! a change is authorized (`SettingChange.swift`, `SettingsSnapshot.swift`,
-//! `SettingsChangeApplier.swift`). Pure, so the app and the tests share it.
-
 use chrono::{DateTime, Local, Utc};
 use serde_json::{Map, Value, json};
 
@@ -11,8 +7,6 @@ use super::{encoded, json_eq, optional_json_eq, redact_url};
 use crate::model::activity::ScreenContextMode;
 use crate::settings::{Settings, split_list};
 
-/// How one requested change is authorized. Only `Preference` and `Narrowing`
-/// changes apply directly; `Widening` needs the person's approval in the app.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChangeClass {
     Unchanged,
@@ -39,9 +33,6 @@ impl SettingSpec {
         ControlError::invalid_value(self.key, message)
     }
 
-    /// Reads a value typed on the command line into the form `config get`
-    /// prints: tokens for choices, numbers, booleans, lists. Lists and
-    /// structured values also accept JSON.
     pub fn parse(&self, text: &str) -> Result<Value, ControlError> {
         let trimmed = text.trim();
         match self.kind {
@@ -83,8 +74,6 @@ impl SettingSpec {
         serde_json::from_str(text).map_err(|_| self.invalid("is not valid JSON"))
     }
 
-    /// The value `Settings` stores for a presented value, after type, range,
-    /// and choice checks. The app's decoder still has the last word.
     pub fn stored_from_presented(&self, value: &Value) -> Result<Value, ControlError> {
         match self.kind {
             SettingKind::Bool => {
@@ -164,9 +153,6 @@ impl SettingSpec {
         }
     }
 
-    /// Whether a change from `old` to `new` (both stored values) can apply
-    /// directly. A consent setting widens when it captures, reads, records,
-    /// keeps, or sends more; narrowing it is always allowed.
     pub fn classify(&self, old: Option<&Value>, new: &Value) -> ChangeClass {
         if old.is_some_and(|old| json_eq(old, new)) {
             return ChangeClass::Unchanged;
@@ -186,10 +172,7 @@ impl SettingSpec {
 
     fn widens(&self, old: Option<&Value>, new: &Value) -> bool {
         match self.key {
-            // Requiring a calendar match narrows auto-recording; dropping it widens.
             "requireCalendarForBrowser" => return *new == json!(false),
-            // Longer retention keeps more; shorter deletes, which goes through
-            // the reviewed cleanup. Either way the person decides.
             "retentionDays" | "keepOCRTextForever" => return true,
             "autoRecordMode" => return self.choice_stored("automatic").as_ref() == Some(new),
             "screenContextCaptureMode" => {
@@ -198,27 +181,19 @@ impl SettingSpec {
             "openRouterDataPolicy" => {
                 return self.choice_stored("accountPolicy").as_ref() == Some(new);
             }
-            // Each later source puts another third-party host ahead of the
-            // earlier ones (ModelScope, then HF-Mirror, then Hugging Face), so
-            // only moving back toward Hugging Face narrows.
             "modelDownloadSource" => return self.choice_rank(Some(new)) > self.choice_rank(old),
-            // Choices run from the shortest window to all history, so a later
-            // choice shares more with paired devices.
             "companionHistory" => return self.choice_rank(Some(new)) > self.choice_rank(old),
             _ => {}
         }
         match self.kind {
             SettingKind::Bool => *new == json!(true),
             SettingKind::Text(TextFormat::CommaSeparated) => {
-                // Exclusions: removing an entry captures or suggests in more places.
                 let before = list_entries(old.and_then(Value::as_str).unwrap_or(""));
                 let after = list_entries(new.as_str().unwrap_or(""));
                 !before.is_subset(&after)
             }
-            // A new export or routine folder writes outside the library.
             SettingKind::Text(TextFormat::Path) => !new.as_str().unwrap_or("").is_empty(),
             SettingKind::TextList => {
-                // Approved origins: adding one sends data to a new place.
                 let before = lowered_strings(old);
                 let after = lowered_strings(Some(new));
                 !after.is_subset(&before)
@@ -249,7 +224,6 @@ impl SettingSpec {
             .unwrap_or(0)
     }
 
-    /// A stored value as `config list` and approval replies show it.
     pub fn presented_redacted(&self, stored: Option<&Value>) -> Value {
         let Some(stored) = stored else {
             return Value::Null;
@@ -309,8 +283,6 @@ fn lowered_strings(value: Option<&Value>) -> std::collections::HashSet<String> {
         .unwrap_or_default()
 }
 
-/// A `settings.set` request: values as `config get` prints them, keys to reset
-/// to their defaults, and whether to only report what would happen.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChangeRequest {
     pub changes: Map<String, Value>,
@@ -375,8 +347,6 @@ impl ChangeRequest {
     }
 }
 
-/// One change in a plan. `stored: None` removes the key, for an optional
-/// setting reset to its default.
 #[derive(Clone, Debug, PartialEq)]
 pub struct PlanItem {
     pub spec: SettingSpec,
@@ -385,8 +355,6 @@ pub struct PlanItem {
     pub change: ChangeClass,
 }
 
-/// What a `settings.set` request would do to the current settings: the stored
-/// value each key gets and how each change is authorized.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ChangePlan {
     pub items: Vec<PlanItem>,
@@ -412,8 +380,6 @@ impl ChangePlan {
             .collect()
     }
 
-    /// Applicable and widening items together, in order: everything the
-    /// person is asked about or that applies with it.
     pub fn changed(&self) -> Vec<PlanItem> {
         self.items
             .iter()
@@ -438,8 +404,6 @@ impl ChangePlan {
                 return Err(ControlError::unknown_key(key));
             };
             let mut stored = spec.stored_from_presented(value)?;
-            // `config list` and `export` show URLs without user info or query.
-            // Writing that form back must not strip them from the real value.
             if matches!(spec.kind, SettingKind::Text(TextFormat::Url))
                 && let Some(existing) = current.get(key).and_then(Value::as_str)
                 && stored.as_str() == Some(redact_url(existing).as_str())
@@ -480,8 +444,6 @@ impl ChangePlan {
         Ok(Self { items })
     }
 
-    /// Reviewed items again, from the settings as they are now: the same keys
-    /// and values, each classified from its current value.
     pub fn rebasing(items: &[PlanItem], current: &Map<String, Value>) -> Self {
         Self {
             items: items
@@ -507,8 +469,6 @@ impl ChangePlan {
         }
     }
 
-    /// Whether this plan widens something `reviewed` did not show: a widening
-    /// change that was not on it, or one that now starts from another value.
     pub fn widens_beyond(&self, reviewed: &[PlanItem]) -> bool {
         self.widening().iter().any(|item| {
             let Some(shown) = reviewed.iter().find(|r| r.spec.key == item.spec.key) else {
@@ -519,7 +479,6 @@ impl ChangePlan {
         })
     }
 
-    /// The report each item gets in a `settings.set` reply.
     pub fn entries(&self) -> Vec<Value> {
         self.items.iter().map(plan_entry).collect()
     }
@@ -536,8 +495,6 @@ pub fn plan_entry(item: &PlanItem) -> Value {
     })
 }
 
-/// What the approval card says a change does, in full. Lists name every entry
-/// added and removed; other values show before and after.
 pub fn change_lines(spec: &SettingSpec, old: Option<&Value>, new: Option<&Value>) -> Vec<String> {
     use lokalbot_i18n::tr;
     if let (Some(before), Some(after)) =
@@ -578,7 +535,6 @@ pub fn change_lines(spec: &SettingSpec, old: Option<&Value>, new: Option<&Value>
     let after = display_text(spec, new);
     let line = format!("{before} → {after}");
     if before == after && !optional_json_eq(old, new) {
-        // A URL's user info or query, or a structured value, changed.
         return vec![
             line,
             tr("Changes details that are hidden here, such as a URL's password or query.")
@@ -588,8 +544,6 @@ pub fn change_lines(spec: &SettingSpec, old: Option<&Value>, new: Option<&Value>
     vec![line]
 }
 
-/// A setting's whole value as the person reads it. URLs leave out user info and
-/// query.
 pub fn display_text(spec: &SettingSpec, value: Option<&Value>) -> String {
     use lokalbot_i18n::tr;
     let Some(value) = value else {
@@ -608,7 +562,6 @@ pub fn display_text(spec: &SettingSpec, value: Option<&Value>) -> String {
             if text.is_empty() {
                 return tr("Not set").to_string();
             }
-            // Choices stored as display names read better than tokens.
             if matches!(spec.kind, SettingKind::Choice(_)) {
                 return tr(text).to_string();
             }
@@ -629,7 +582,6 @@ pub fn display_text(spec: &SettingSpec, value: Option<&Value>) -> String {
     }
 }
 
-/// The entries of a list setting, or `None` for other settings.
 fn card_list_entries(spec: &SettingSpec, value: Option<&Value>) -> Option<Vec<String>> {
     match spec.kind {
         SettingKind::TextList | SettingKind::ChoiceList(_) => match value {
@@ -649,8 +601,6 @@ fn card_list_entries(spec: &SettingSpec, value: Option<&Value>) -> Option<Vec<St
     }
 }
 
-/// What `config list` and `config get` report: registry keys only, choice
-/// values as tokens, URLs without user info or query.
 pub fn snapshot_entries(settings: &Settings, specs: &[&SettingSpec]) -> Vec<Value> {
     let current = encoded(settings);
     let defaults = encoded(&Settings::default());
@@ -674,7 +624,6 @@ pub fn snapshot_entries(settings: &Settings, specs: &[&SettingSpec]) -> Vec<Valu
         .collect()
 }
 
-/// The specs a `settings.list` request asks for, in registry order.
 pub fn specs_for_category(
     category: Option<&str>,
 ) -> Result<Vec<&'static SettingSpec>, ControlError> {
@@ -694,8 +643,6 @@ pub fn specs_for_category(
         .collect())
 }
 
-/// The rules the Settings controls apply alongside a change, so a change made
-/// anywhere leaves the same settings (`AppState.coupledSettings`).
 pub fn coupled_settings(mut new: Settings, old: &Settings, now: DateTime<Utc>) -> Settings {
     if old.tracking_enabled && !new.tracking_enabled {
         new.screen_context_capture_mode = ScreenContextMode::ActivityOnly;
@@ -708,7 +655,6 @@ pub fn coupled_settings(mut new: Settings, old: &Settings, now: DateTime<Utc>) -
     if new.dreaming_enabled != old.dreaming_enabled {
         const KEY: &str = "dreamingFirstEligibleDayKey";
         if new.dreaming_enabled {
-            // The Mac's key: the overnight review starts from the day before.
             let yesterday = now.with_timezone(&Local).date_naive() - chrono::Duration::days(1);
             new.other
                 .insert(KEY.into(), json!(yesterday.format("%Y-%m-%d").to_string()));
@@ -719,9 +665,6 @@ pub fn coupled_settings(mut new: Settings, old: &Settings, now: DateTime<Utc>) -
     new
 }
 
-/// Applies checked plan items through the real decoder, so a value the app
-/// would reject or adjust is reported instead of silently stored as something
-/// else, then applies the couplings Settings enforces.
 pub fn apply_items(
     items: &[PlanItem],
     settings: &Settings,
@@ -736,8 +679,6 @@ pub fn apply_items(
         match &item.stored {
             Some(value) => {
                 object.insert(item.spec.key.to_string(), value.clone());
-                // Turning this on from an approved card or Undo is the person's
-                // own choice, which is what reading depends on.
                 if item.spec.key == "codingAgentEvidenceEnabled" && *value == json!(true) {
                     object.insert("codingAgentEvidenceConfirmed".into(), json!(true));
                 }
@@ -750,7 +691,6 @@ pub fn apply_items(
     let decoded: Settings = match serde_json::from_value(Value::Object(object)) {
         Ok(decoded) => decoded,
         Err(err) => {
-            // Name the value at fault when one can be singled out.
             for item in items {
                 if !accepted_alone(item, settings) {
                     return Err(ControlError::invalid_value(
@@ -952,7 +892,6 @@ mod tests {
             ),
             Widening
         );
-        // Lists here may also be separated by newlines.
         assert_eq!(
             class(
                 "excludedApps",
@@ -1054,8 +993,6 @@ mod tests {
 
     #[test]
     fn every_consent_setting_has_a_direction() {
-        // A consent setting with no rule would treat every change as widening,
-        // including turning it off. Check each one can be narrowed.
         let defaults = encoded(&Settings::default());
         for spec in registry::all() {
             if spec.tier != SettingTier::Consent {
@@ -1136,7 +1073,6 @@ mod tests {
         assert_eq!(plan.items[2].stored, Some(json!(18)));
         assert_eq!(plan.applicable().len(), 3);
 
-        // `config export` shows the URL redacted; importing it back is a no-op.
         let url = ChangePlan::make(
             &ChangeRequest {
                 changes: map(json!({"openAIBaseURL": "https://host.example/v1"})),
@@ -1151,7 +1087,6 @@ mod tests {
             url.items[0].stored,
             Some(json!("https://user:secret@host.example/v1?key=1"))
         );
-        // The URL in a reply never shows its secret parts.
         assert_eq!(url.entries()[0]["value"], "https://host.example/v1");
 
         for key in [
@@ -1190,11 +1125,9 @@ mod tests {
             &before,
         )
         .unwrap();
-        // Unchanged: the person already turned it on, so it is not widening.
         let same = ChangePlan::rebasing(&plan.items, &map(json!({"trackingEnabled": true})));
         assert_eq!(same.items[0].change, ChangeClass::Unchanged);
         assert!(!same.widens_beyond(&plan.items));
-        // An origin list that gained an entry the card did not show.
         let list = spec("approvedRemoteInferenceOrigins");
         let shown = vec![PlanItem {
             spec: *list,
@@ -1218,7 +1151,6 @@ mod tests {
             stored: Some(stored),
             change,
         };
-        // Turning tracking off drops screen context too.
         let off = apply_items(
             &[item(
                 "trackingEnabled",
@@ -1233,7 +1165,6 @@ mod tests {
             off.screen_context_capture_mode,
             ScreenContextMode::ActivityOnly
         );
-        // Screen context turns tracking back on.
         let on = apply_items(
             &[item(
                 "screenContextCaptureMode",
@@ -1245,7 +1176,6 @@ mod tests {
         )
         .unwrap();
         assert!(on.tracking_enabled);
-        // A decoder that rejects the value names it.
         let rejected = apply_items(
             &[item("retentionDays", json!(-3), ChangeClass::Widening)],
             &settings,
@@ -1253,7 +1183,6 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(rejected.code, "invalid_value");
-        // Dreaming keeps its first day in step, under the Mac's key.
         let dreaming = apply_items(
             &[item(
                 "dreamingEnabled",
@@ -1276,7 +1205,6 @@ mod tests {
         )
         .unwrap();
         assert!(back.other.contains_key("dreamingFirstEligibleDayKey"));
-        // The person approving this is what lets sessions be read.
         let reading = apply_items(
             &[item(
                 "codingAgentEvidenceEnabled",
@@ -1288,7 +1216,6 @@ mod tests {
         )
         .unwrap();
         assert!(reading.coding_agent_evidence_confirmed);
-        // Other changes leave an install that never chose exactly as it was.
         let unrelated = apply_items(
             &[item("appTheme", json!("dark"), ChangeClass::Preference)],
             &Settings::default(),
@@ -1321,7 +1248,6 @@ mod tests {
             ),
             ["Off → On"]
         );
-        // Hidden parts of a URL don't pass unnoticed.
         let lines = change_lines(
             spec("openAIBaseURL"),
             Some(&json!("https://host/v1")),

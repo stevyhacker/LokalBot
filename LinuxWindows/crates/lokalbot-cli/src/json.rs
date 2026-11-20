@@ -1,12 +1,6 @@
-//! JSON exactly as the macOS helper prints it: sorted keys, two-space
-//! indentation, `"key" : value`, whole numbers without a fraction and, unless
-//! asked otherwise, `/` escaped as `\/` (Swift's `JSONEncoder`).
-
 use serde::Serialize;
 use serde_json::Value;
 
-/// Pretty JSON with Swift's separators. `escape_slashes` mirrors encoders
-/// without `.withoutEscapingSlashes`.
 pub fn pretty<T: Serialize>(value: &T, escape_slashes: bool) -> String {
     let value = normalize(serde_json::to_value(value).unwrap_or(Value::Null));
     let mut out = Vec::new();
@@ -23,12 +17,10 @@ pub fn pretty<T: Serialize>(value: &T, escape_slashes: bool) -> String {
     }
 }
 
-/// Compact JSON with sorted keys and unescaped slashes (MCP wire format).
 pub fn compact(value: &Value) -> String {
     serde_json::to_string(&normalize(value.clone())).unwrap_or_else(|_| "null".into())
 }
 
-/// Sorts object keys and turns whole floating-point numbers into integers.
 pub fn normalize(value: Value) -> Value {
     match value {
         Value::Object(map) => {

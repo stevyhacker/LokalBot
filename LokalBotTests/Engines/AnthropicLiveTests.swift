@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Sends synthetic text to Anthropic's API. Runs only when `ANTHROPIC_API_KEY`
-/// is set (pass `TEST_RUNNER_ANTHROPIC_API_KEY` through xcodebuild);
-/// `LOKALBOT_ANTHROPIC_MODEL` overrides `claude-sonnet-5-5`.
 final class AnthropicLiveTests: XCTestCase {
     private func liveEngine() throws -> AnthropicEngine {
         let environment = ProcessInfo.processInfo.environment

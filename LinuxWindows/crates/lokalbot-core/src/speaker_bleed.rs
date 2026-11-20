@@ -1,8 +1,3 @@
-//! Speaker bleed in a transcript (`SpeakerBleedFilter.swift`): a microphone
-//! row that repeats a remote row. Words alone only mark uncertainty, because a
-//! genuine repetition can have identical words and timing. Removing a row also
-//! takes waveform evidence, which the speech crate measures from the tracks.
-
 use std::collections::HashSet;
 
 use crate::model::{
@@ -10,25 +5,17 @@ use crate::model::{
     TimingPrecision, Transcript,
 };
 
-/// Longer blocks may be whole-track or fixed-window fallbacks, so their words
-/// could be far apart inside the block.
 const MAX_COMPARABLE_SPAN: f64 = 15.0;
-/// Independent passes place the same utterance's boundaries slightly apart.
 const MAX_BOUNDARY_DRIFT: f64 = 0.75;
 const MIN_ALIGNED_COVERAGE: f64 = 0.85;
-/// A few generic words are plausible simultaneous speech, not proof of echo.
 const MIN_WORD_TOKENS: usize = 4;
-/// Ideographic tokens are characters and carry less evidence than words.
 const MIN_IDEOGRAPHIC_TOKENS: usize = 8;
 const MAX_TEXT_BYTES: usize = 4_096;
 const MAX_TOKENS: usize = 256;
 const MAX_CANDIDATES: usize = 8;
-/// Share of a row's words that must appear in one overlapping remote row for
-/// notes evidence to treat it as possible echo.
 const MIN_ECHO_WORD_COVERAGE: f64 = 0.8;
 const MAX_ECHO_TIME_GAP: f64 = 2.0;
 
-/// The attribution a row keeps while it may be echo.
 pub fn suspected_echo() -> SpeakerAttribution {
     SpeakerAttribution {
         source: AttributionSource::Microphone,
@@ -60,8 +47,6 @@ fn canonical(speaker: &str) -> String {
     speaker.trim().to_lowercase()
 }
 
-/// Confirmation or a remembered voice decided who this is. A microphone's
-/// default identity is not such a decision.
 pub fn has_identity_decision(attribution: &SpeakerAttribution) -> bool {
     matches!(
         attribution.method,
@@ -98,19 +83,17 @@ fn spans_are_aligned(lhs: &Segment, rhs: &Segment) -> bool {
 fn is_ideographic(c: char) -> bool {
     matches!(
         c as u32,
-        0x3040..=0x30FF     // Hiragana and Katakana
-        | 0x31F0..=0x31FF   // Katakana phonetic extensions
-        | 0x3400..=0x4DBF   // CJK Unified Ideographs Extension A
-        | 0x4E00..=0x9FFF   // CJK Unified Ideographs
-        | 0xF900..=0xFAFF   // CJK Compatibility Ideographs
-        | 0xFF66..=0xFF9D   // Halfwidth Katakana
-        | 0x20000..=0x2FA1F // Extensions B-F/I + compatibility supplement
-        | 0x30000..=0x323AF // Extensions G and H
+        0x3040..=0x30FF
+        | 0x31F0..=0x31FF
+        | 0x3400..=0x4DBF
+        | 0x4E00..=0x9FFF
+        | 0xF900..=0xFAFF
+        | 0xFF66..=0xFF9D
+        | 0x20000..=0x2FA1F
+        | 0x30000..=0x323AF
     )
 }
 
-/// Case- and punctuation-insensitive tokens. Apostrophes inside a word stay
-/// inside it, so short contractions can't manufacture enough tokens.
 fn comparison_tokens(text: &str) -> Option<Vec<Token>> {
     if text.len() > MAX_TEXT_BYTES {
         return None;
@@ -210,7 +193,6 @@ fn has_matching_remote(segment: &Segment, tokens: &[Token], remote: &[Remote<'_>
         .take_while(|r| r.segment.start <= segment.start + MAX_BOUNDARY_DRIFT)
         .enumerate()
     {
-        // Crowded timing is ambiguous; stop before work can grow with it.
         if scanned >= MAX_CANDIDATES {
             return false;
         }
@@ -221,8 +203,6 @@ fn has_matching_remote(segment: &Segment, tokens: &[Token], remote: &[Remote<'_>
     found
 }
 
-/// Microphone rows that match a remote row and could be removed if the audio
-/// agrees (`acousticCandidateIndices`).
 pub fn acoustic_candidates(segments: &[Segment]) -> HashSet<usize> {
     let remote = remote_rows(segments);
     if remote.is_empty() {
@@ -242,9 +222,6 @@ pub fn acoustic_candidates(segments: &[Segment]) -> HashSet<usize> {
         .collect()
 }
 
-/// Removes a row only when a precisely timed remote row carries the same words
-/// at the same time and `verified` says the waveform agrees. A row that matches
-/// without that keeps its words and loses the microphone's default identity.
 pub fn filter_bleed(segments: &mut Vec<Segment>, verified: &HashSet<usize>) -> BleedReport {
     let mut report = BleedReport::default();
     let matches: HashSet<usize> = {
@@ -286,10 +263,6 @@ pub fn filter_bleed(segments: &mut Vec<Segment>, verified: &HashSet<usize>) -> B
     report
 }
 
-/// Microphone rows that mostly repeat simultaneous remote speech. This needs
-/// no exact span or token equality and never deletes text; callers only
-/// withhold the microphone's default identity, so a remote participant's words
-/// can't become the user's evidence (`nearDuplicateEchoIndices`).
 pub fn near_duplicate_echo_indices(segments: &[Segment]) -> HashSet<usize> {
     let mut remote: Vec<(f64, f64, HashSet<String>)> = segments
         .iter()
@@ -328,8 +301,6 @@ pub fn near_duplicate_echo_indices(segments: &[Segment]) -> HashSet<usize> {
         let Some(tokens) = evidence_tokens(&segment.text) else {
             continue;
         };
-        // Remote spans are bounded by fixed transcription windows, so a
-        // generous look-back plus a candidate cap keeps this linear.
         let first = remote.partition_point(|r| r.0 < segment.start - 60.0);
         let echoed = remote[first..]
             .iter()
@@ -348,8 +319,6 @@ pub fn near_duplicate_echo_indices(segments: &[Segment]) -> HashSet<usize> {
 }
 
 impl Transcript {
-    /// Likely microphone echo keeps its words and row ids but loses the
-    /// microphone's default identity (`markingSuspectedEcho`).
     pub fn marking_suspected_echo(&self) -> Transcript {
         let indices = near_duplicate_echo_indices(&self.segments);
         let mut result = self.clone();
@@ -429,11 +398,8 @@ mod tests {
     fn similar_words_or_another_time_are_not_a_match() {
         let mut rows = vec![
             remote(10.0, 14.0, WORDS),
-            // A paraphrase while the other side spoke.
             mic(10.2, 14.1, "We should move the launch to Friday"),
-            // The same words a minute later, as someone repeating them.
             mic(70.0, 74.0, WORDS),
-            // Too few words to be proof of anything.
             mic(10.2, 14.1, "Yes okay sure"),
         ];
         let report = filter_bleed(&mut rows, &HashSet::from([1, 2, 3]));
@@ -481,7 +447,6 @@ mod tests {
         );
         assert_eq!(words("rock' n"), ["rock", "n"]);
         assert_eq!(words("会議abc"), ["会", "議", "abc"]);
-        // Few ideographs carry less evidence than the same count of words.
         assert!(evidence_tokens("会議を始め").is_none());
         assert!(evidence_tokens("今日の会議を始めます").is_some());
         assert!(evidence_tokens("three short words").is_none());

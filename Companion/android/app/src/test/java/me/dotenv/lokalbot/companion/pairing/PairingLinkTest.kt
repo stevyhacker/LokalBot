@@ -43,7 +43,6 @@ class PairingLinkTest {
         assertThat(PairingLink.parse(link(version = 2), now)).isEqualTo(PairingLinkResult.Unsupported)
     }
 
-    /** The sync core allows 120 s past the expiry on this device's clock and leaves the rest to the computer. */
     @Test
     fun `a code just past its expiry still goes to the computer`() {
         assertThat(PairingLink.parse(link(exp = now.epochSecond - 1), now)).isInstanceOf(PairingLinkResult.Valid::class.java)

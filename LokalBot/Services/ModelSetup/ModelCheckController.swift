@@ -1,8 +1,6 @@
 import Foundation
 import CryptoKit
 
-/// Identifies just the configuration exercised by a role's check. Unrelated
-/// writing or appearance changes must not invalidate transcription results.
 struct ModelCheckIdentity: Equatable {
     let parts: [String]
 
@@ -73,9 +71,7 @@ final class ModelCheckController: ObservableObject {
     @Published private(set) var testingRole: ModelRole?
     private var task: Task<Void, Never>?
     private var generation = UUID()
-    /// Roles to check once the running checks finish.
     private var queued: [ModelRole] = []
-    /// Notices which downloads made in this launch have just finished.
     private var autoCheck = ModelAutoCheckTracker()
 
     var isTesting: Bool { task != nil }
@@ -90,13 +86,8 @@ final class ModelCheckController: ObservableObject {
         results = results.filter { role, result in
             result.identity == ModelCheckIdentity(role: role, settings: settings, apiKey: key)
         }
-        // A running check compares its own identity again before publishing.
     }
 
-    /// Checks a model that has just finished downloading, without being
-    /// asked, when it runs on this Mac. Never while a meeting is recording,
-    /// and never for a model on a server: that check sends a sample there,
-    /// which only the Check sheet's own button does.
     func readinessChanged(app: AppState) {
         let finished = autoCheck.observe(app.modelRoles.snapshot.statuses, settings: app.settings)
         guard !finished.isEmpty, !AppState.isUnitTesting, !UITestRuntime.isEnabled,

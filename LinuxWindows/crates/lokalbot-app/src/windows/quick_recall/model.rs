@@ -1,8 +1,3 @@
-//! What the Quick Recall window lists and where its keyboard is
-//! (`QuickRecallResults.swift`): results grouped by kind and capped, the
-//! recent items shown before typing, the selection, and what an answer asked
-//! from the window reads. Nothing here searches, stores or sends anything.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, Local, Utc};
@@ -15,15 +10,10 @@ use crate::pages::ask::scope::{self, DateScope, Evidence, Offered, Sources};
 use crate::pages::ask::search::Facet;
 use crate::state::AskScope;
 
-/// Rows of one kind listed before "Show all". A large number of screen
-/// matches used to push every meeting out of view.
 pub const ROWS_PER_KIND: usize = 3;
-/// Recent items listed before anything is typed.
 pub const RECENT_LIMIT: usize = 5;
-/// Saved moments read for the recent list and to mark saved matches.
 pub const SAVED_MOMENTS: usize = 200;
 
-/// The kind of a group of rows, in the order the window lists them.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum GroupKind {
     Recent,
@@ -32,12 +22,10 @@ pub enum GroupKind {
     Screens,
     Files,
     AgentNotes,
-    /// Commands that only hold the typed words inside a word: listed last.
     LooseCommands,
 }
 
 impl GroupKind {
-    /// The heading, as a catalog key.
     pub fn title_key(self) -> &'static str {
         match self {
             GroupKind::Recent => "Recent",
@@ -49,9 +37,6 @@ impl GroupKind {
         }
     }
 
-    /// The Ask source a "Show all" link narrows the Ask page to
-    /// (`QuickRecallGroup.Kind.askSource`). Commands are listed in place
-    /// instead, and recent items are never cut.
     pub fn ask_source(self) -> Option<AskSourceScope> {
         match self {
             GroupKind::Recent | GroupKind::Commands | GroupKind::LooseCommands => None,
@@ -67,26 +52,19 @@ impl GroupKind {
     }
 }
 
-/// One group of rows under a heading (`QuickRecallGroup`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Group<R> {
     pub kind: GroupKind,
-    /// The rows shown.
     pub rows: Vec<R>,
-    /// How many the search listed for this kind.
     pub total: usize,
-    /// The search stopped at its own limit, so `total` is a floor.
     pub capped: bool,
 }
 
 impl<R> Group<R> {
-    /// More were found than are shown, so the heading offers "Show all".
     pub fn has_more(&self) -> bool {
         self.total > self.rows.len() || self.capped
     }
 
-    /// "7", or "40+" when the search stopped at its limit: never a count that
-    /// reads as exact when it is not.
     pub fn total_label(&self) -> String {
         let total = lokalbot_i18n::number(self.total);
         if self.capped {
@@ -97,24 +75,16 @@ impl<R> Group<R> {
     }
 }
 
-/// Everything one search found, each kind in its ranked order.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Found<R> {
     pub commands: Vec<R>,
-    /// Commands that only hold the typed words somewhere. They are listed
-    /// last, so a search word that happens to sit inside a command's name
-    /// does not put that command under Return.
     pub loose_commands: Vec<R>,
     pub meetings: Vec<R>,
     pub screens: Vec<R>,
     pub files: Vec<R>,
     pub agent_notes: Vec<R>,
-    /// The search listed fewer than it found.
     pub truncated: bool,
-    /// Screen sources the search listed. Saved moments can fold two of them
-    /// into one row, so the rows alone can hide that the list was cut.
     pub screen_source_count: usize,
-    /// The most the search lists of one kind.
     pub search_limit: usize,
 }
 
@@ -134,11 +104,6 @@ impl<R> Default for Found<R> {
     }
 }
 
-/// The groups for a typed search, in a fixed order: commands (only when the
-/// typed words start words of one), meetings, screens, files, agent notes
-/// while that source is on, then commands that only hold the words. Empty
-/// groups are left out. `expanded` lists the kinds whose heading was asked to
-/// show everything in place.
 pub fn groups<R>(
     found: Found<R>,
     expanded: &HashSet<GroupKind>,
@@ -163,7 +128,6 @@ pub fn groups<R>(
         .into_iter()
         .filter(|(_, rows, _)| !rows.is_empty())
         .map(|(kind, mut rows, listed)| {
-            // Commands are counted here, never cut by a search limit.
             let capped = !kind.is_commands() && found.truncated && listed >= found.search_limit;
             let total = rows.len();
             if !expanded.contains(&kind) {
@@ -179,10 +143,6 @@ pub fn groups<R>(
         .collect()
 }
 
-/// The rows Return may land on as a list appears: every row but the commands
-/// that only hold the typed words inside a word. Those come last, and when
-/// nothing else is listed none is selected, so Return never runs one ("cord"
-/// must not start a recording); the arrow keys still reach them.
 pub fn selectable_rows<R>(groups: &[Group<R>]) -> usize {
     groups
         .iter()
@@ -191,7 +151,6 @@ pub fn selectable_rows<R>(groups: &[Group<R>]) -> usize {
         .sum()
 }
 
-/// Before anything is typed: recent items, then every command.
 pub fn idle<R>(recent: Vec<R>, commands: Vec<R>) -> Vec<Group<R>> {
     [(GroupKind::Recent, recent), (GroupKind::Commands, commands)]
         .into_iter()
@@ -205,9 +164,6 @@ pub fn idle<R>(recent: Vec<R>, commands: Vec<R>) -> Vec<Group<R>> {
         .collect()
 }
 
-/// Recent meetings and saved screen moments as one list, newest first
-/// (`QuickRecallRecent.rows`). A meeting and a moment of the same instant list
-/// the meeting first.
 pub fn recent<R>(
     meetings: Vec<(DateTime<Utc>, R)>,
     saved_moments: Vec<(DateTime<Utc>, R)>,
@@ -226,14 +182,8 @@ pub fn recent<R>(
         .collect()
 }
 
-/// Where the keyboard is in the list: on a row, or on the Ask row pinned
-/// under the results (`QuickRecallCursor`). Return opens a row and asks on
-/// the Ask row; Ctrl+Return asks from anywhere.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Cursor {
-    /// The selected position: rows first, then the Ask row. `None` when
-    /// nothing is selected, so Return does nothing instead of asking by
-    /// surprise.
     index: Option<usize>,
 }
 
@@ -244,13 +194,10 @@ pub enum Target {
 }
 
 impl Cursor {
-    /// The first row is selected when there is one. With no rows nothing is,
-    /// and the Ask row waits for an arrow key or Ctrl+Return.
     pub fn reset(&mut self, row_count: usize) {
         self.index = (row_count > 0).then_some(0);
     }
 
-    /// Arrow keys go round the rows and the Ask row.
     pub fn move_by(&mut self, offset: isize, row_count: usize, has_ask: bool) {
         let count = row_count + usize::from(has_ask);
         if count == 0 {
@@ -277,7 +224,6 @@ impl Cursor {
         }
     }
 
-    /// Keeps the Ask row selected when the rows above it change.
     pub fn select(&mut self, target: Target, row_count: usize) {
         self.index = Some(match target {
             Target::Row(row) => row.min(row_count.saturating_sub(1)),
@@ -286,14 +232,6 @@ impl Cursor {
     }
 }
 
-// ------------------------------------------------------------------ asking
-
-/// What an answer asked from Quick Recall reads (`QuickRecallAskScope`). A
-/// word or a short phrase is a search the person then asks about: the answer
-/// is limited to the listed meetings and screen moments. A full question
-/// reads everything in every source; so does a "Remember …" statement, and a
-/// search that listed no meeting or screen moment to limit it to. Which is
-/// which is Ask's own rule (`AnswerScope`), so both decide alike.
 pub fn ask_scope(
     query: &str,
     meeting_ids: Vec<Uuid>,
@@ -305,8 +243,6 @@ pub fn ask_scope(
         AnswerScope::ChosenSources => {
             scope::ask_scope(Sources::default(), DateScope::AnyTime, &Evidence::default())
         }
-        // The same narrowing as Ask's handed-over matches (`selectEvidence`):
-        // only meetings and screens, each to the listed ones.
         AnswerScope::ListedMatches => scope::ask_scope(
             Sources::default(),
             DateScope::AnyTime,
@@ -319,9 +255,6 @@ pub fn ask_scope(
     }
 }
 
-/// Whether the Ask row should say the answer comes from the listed matches.
-/// While a word's matches are still being found it does: the question waits
-/// for them.
 pub fn reads_listed_matches(
     query: &str,
     has_matches: bool,
@@ -332,7 +265,6 @@ pub fn reads_listed_matches(
         == AnswerScope::ListedMatches
 }
 
-/// Where answers are written (`InferencePresentation`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
     OnDevice,
@@ -340,13 +272,10 @@ pub enum Place {
     Blocked,
 }
 
-/// Where Think answers, as the Ask composer says it (`composer::inference`),
-/// with the remote host named.
 pub fn place(settings: &lokalbot_core::Settings) -> Place {
     use lokalbot_core::access;
     use lokalbot_core::settings::SummarizerBackend;
     if let Some(plan) = settings.think_plan() {
-        // A plan has its own approval entry, never a URL origin.
         return if plan.is_approved(settings) {
             Place::Remote(plan.destination_host().to_string())
         } else {
@@ -374,8 +303,6 @@ pub fn place(settings: &lokalbot_core::Settings) -> Place {
     Place::Remote(host)
 }
 
-/// The Ask row's grey line: what the answer will read, and where it is
-/// written. A remote model is named, so nothing is sent by surprise.
 pub fn ask_row_detail(place: &Place, reads_listed_matches: bool) -> String {
     match place {
         Place::OnDevice => lokalbot_i18n::tr(if reads_listed_matches {
@@ -396,8 +323,6 @@ pub fn ask_row_detail(place: &Place, reads_listed_matches: bool) -> String {
     }
 }
 
-/// The foot of an answer: where it was answered, then what it read ("All
-/// sources", a meeting's title, "Meetings, Screen").
 pub fn answer_foot_label(place: &Place, answered: bool, scope: Option<&str>) -> String {
     let place = match place {
         Place::OnDevice => lokalbot_i18n::tr(if answered {
@@ -422,10 +347,6 @@ pub fn answer_foot_label(place: &Place, answered: bool, scope: Option<&str>) -> 
     }
 }
 
-/// What a question was limited to, in the words the Ask screen's sources menu
-/// uses: "All sources" or the sources by name; when it was bound to matches,
-/// one meeting's title or how many meetings and screen moments
-/// (`AskScopeSummary.narrowedTo ?? title`, with no filter).
 pub fn scope_label(
     saved: &QuestionScope,
     offered: Offered,
@@ -448,10 +369,6 @@ pub fn scope_label(
     summary.narrowed_to.unwrap_or(summary.title)
 }
 
-// ------------------------------------------------------------------ quotes
-
-/// Words the search index ignores (`SearchIndex.stopWords`), so a quote never
-/// marks them.
 const STOP_WORDS: &[&str] = &[
     "a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "for", "with",
     "about", "as", "by", "from", "into", "is", "are", "was", "were", "be", "been", "being", "do",
@@ -461,8 +378,6 @@ const STOP_WORDS: &[&str] = &[
     "may", "might", "must", "any", "some", "there",
 ];
 
-/// The words of a question worth marking in a source's quote: three letters
-/// or more, each once (`QuickRecallQuote.terms`).
 pub fn quote_terms(question: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     question
@@ -474,8 +389,6 @@ pub fn quote_terms(question: &str) -> Vec<String> {
         .collect()
 }
 
-/// `text` with each word that starts with one of `terms` between « and », so
-/// a source's quote reads like a search result (`QuickRecallQuote.marked`).
 pub fn marked(text: &str, terms: &[String]) -> String {
     if terms.is_empty() {
         return text.to_string();
@@ -508,8 +421,6 @@ pub fn marked(text: &str, terms: &[String]) -> String {
     out
 }
 
-/// A source's line under an answer: `text` around the question's words, cut
-/// to `limit` characters, with those words marked (`QuickRecallQuote.line`).
 pub fn quote_line(text: &str, question: &str, limit: usize) -> Option<String> {
     let plain = text.split_whitespace().collect::<Vec<_>>().join(" ");
     if plain.is_empty() {
@@ -520,7 +431,6 @@ pub fn quote_line(text: &str, question: &str, limit: usize) -> Option<String> {
     if chars.len() <= limit {
         return Some(marked(&plain, &terms));
     }
-    // Start a little before the first word of the question, at a word break.
     let lowered = plain.to_lowercase();
     let first = terms
         .iter()
@@ -544,10 +454,6 @@ pub fn quote_line(text: &str, question: &str, limit: usize) -> Option<String> {
     Some(marked(&excerpt, &terms))
 }
 
-// ------------------------------------------------------------------- dates
-
-/// "Today 10:43 AM", "Yesterday 4:00 PM", "Wed 11:47 AM" within a week, else
-/// "Sep 25" (or "Sep 25, 2025" in another year): `QuickRecallDateLabel`.
 pub fn date_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     let local = at.with_timezone(&Local);
     let locale = lokalbot_i18n::date_locale();
@@ -605,7 +511,6 @@ mod tests {
                 GroupKind::LooseCommands,
             ]
         );
-        // Agent notes are a source only while their own setting is on.
         let without_notes = super::groups(found, &HashSet::new(), false);
         assert!(!kinds(&without_notes).contains(&GroupKind::AgentNotes));
     }
@@ -638,7 +543,6 @@ mod tests {
             GroupKind::AgentNotes.ask_source(),
             Some(AskSourceScope::AgentNotes)
         );
-        // Commands list in place; recent items are never cut.
         for kind in [
             GroupKind::Recent,
             GroupKind::Commands,
@@ -663,11 +567,9 @@ mod tests {
         found.truncated = true;
         found.screen_source_count = 40;
         let groups = groups(found, &HashSet::new(), false);
-        // Commands are never cut by the search limit.
         assert!(!groups[0].capped);
         assert!(groups[1].capped);
         assert_eq!(groups[1].total_label(), "40+");
-        // Saved moments folded two sources into one row: still capped.
         assert!(groups[2].capped);
         assert!(groups[2].has_more());
     }
@@ -683,7 +585,6 @@ mod tests {
         let mut cursor = Cursor::default();
         cursor.reset(selectable_rows(&groups));
         assert_eq!(cursor.target(1, true), None);
-        // The arrow keys still reach it.
         cursor.move_by(1, 1, true);
         assert_eq!(cursor.target(1, true), Some(Target::Row(0)));
         let mut with_meeting = found(0, 1, 0);
@@ -727,12 +628,10 @@ mod tests {
         assert_eq!(cursor.target(3, true), Some(Target::Ask));
         cursor.move_by(1, 3, true);
         assert_eq!(cursor.target(3, true), Some(Target::Row(0)));
-        // No rows: nothing is selected until an arrow key reaches the Ask row.
         cursor.reset(0);
         assert_eq!(cursor.target(0, true), None);
         cursor.move_by(1, 0, true);
         assert_eq!(cursor.target(0, true), Some(Target::Ask));
-        // The Ask row stays selected as the rows above it change.
         cursor.select(Target::Ask, 5);
         assert_eq!(cursor.target(5, true), Some(Target::Ask));
         cursor.select(Target::Row(9), 5);
@@ -747,10 +646,8 @@ mod tests {
         assert_eq!(scope.screen_ids, [42]);
         assert!(scope.include_meetings && scope.include_screen);
         assert!(!scope.include_activity && !scope.include_files && !scope.include_agent_notes);
-        // Only screens listed: meetings are not read at all.
         let screens_only = ask_scope("captions", Vec::new(), vec![42], false);
         assert!(!screens_only.include_meetings && screens_only.include_screen);
-        // A full question reads every source.
         let open = ask_scope(
             "what did we decide about captions?",
             vec![meeting],

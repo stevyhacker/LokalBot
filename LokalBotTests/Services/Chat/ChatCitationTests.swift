@@ -2,9 +2,6 @@ import XCTest
 import SwiftUI
 @testable import LokalBot
 
-/// Citation-marker parsing: meeting and screen markers the assistant emits are
-/// replaced with stable inline numbers and surfaced as deep-linkable sources, while
-/// ordinary bracketed text passes through untouched.
 final class ChatCitationTests: XCTestCase {
     func testLinkedPresentationPreservesStableNumbersAndPlainCopy() {
         let text = "A [screen:42]. B [meeting:aabbccdd@0:12]. C [screen:42]. Plain [3]."
@@ -119,7 +116,7 @@ final class ChatCitationTests: XCTestCase {
     }
 
     func testMalformedMarkersAreLeftInPlace() {
-        let text = "Odd [meeting:ab] and [meeting:] stay."      // id too short / missing
+        let text = "Odd [meeting:ab] and [meeting:] stay."
         let (display, citations) = ChatCitationParser.extract(text)
         XCTAssertEqual(display, text)
         XCTAssertTrue(citations.isEmpty)
@@ -131,8 +128,6 @@ final class ChatCitationTests: XCTestCase {
         XCTAssertEqual(ChatCitationParser.seconds(from: "2:00:05"), 7_205)
         XCTAssertNil(ChatCitationParser.seconds(from: "1:99"))
         XCTAssertNil(ChatCitationParser.seconds(from: "12"))
-        // A leading field too large to count in seconds is refused. It used
-        // to overflow and stop the app: a model's `get_meeting` call sets it.
         XCTAssertNil(ChatCitationParser.seconds(from: "3000000000000000:00:00"))
         XCTAssertNil(ChatCitationParser.seconds(from: "\(Int.max):59"))
     }
@@ -168,8 +163,6 @@ final class ChatCitationTests: XCTestCase {
             AttributedString.Index(citation.upperBound, within: rendered))
         let citationRun = try XCTUnwrap(rendered[lowerBound..<upperBound].runs.first)
 
-        // Citations follow LokalBot's text size, which the test host shares
-        // with the app (Default is one point above the system size).
         XCTAssertEqual(citationRun.font, AppFont.scaled(.callout).weight(.semibold).currentFont)
         XCTAssertEqual(citationRun.foregroundColor, Brand.teal)
     }

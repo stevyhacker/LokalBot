@@ -1,11 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// Matching the coming week's calendar events to people: by the address the
-/// directory registered, then by name, and never without Calendar access.
-/// Names and addresses are synthetic.
 final class PeopleUpcomingMeetingsTests: XCTestCase {
-    private let now = Date(timeIntervalSince1970: 1_794_312_000) // 2026-11-10 12:00 UTC
+    private let now = Date(timeIntervalSince1970: 1_794_312_000)
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
@@ -49,8 +46,6 @@ final class PeopleUpcomingMeetingsTests: XCTestCase {
     private func id(_ name: String, in people: [PersonProfile]) throws -> String {
         try XCTUnwrap(people.first { $0.name == name }?.id, "No person named \(name)")
     }
-
-    // MARK: - The cases the page depends on
 
     func testAPersonWithAnEventGetsItAndAPersonWithoutGetsNone() throws {
         let people = people([
@@ -110,8 +105,6 @@ final class PeopleUpcomingMeetingsTests: XCTestCase {
         XCTAssertEqual(match(read, people).count, 1)
     }
 
-    // MARK: - Which event
-
     func testTheSoonestEventWinsAndEndedRecordedOrDistantEventsAreLeftOut() throws {
         let people = people([pastMeeting("Standup", daysAgo: 1, attendees: [("Ana Petrović", "ana@example.com")])])
         let ana: [(String?, String?)] = [("Ana Petrović", "ana@example.com")]
@@ -132,8 +125,6 @@ final class PeopleUpcomingMeetingsTests: XCTestCase {
         XCTAssertTrue(current.isInProgress(at: now))
     }
 
-    // MARK: - Who it is
-
     func testAnAddressFindsThePersonUnderAnyNameAndAfterAMerge() throws {
         let first = pastMeeting("Roadmap", daysAgo: 3, attendees: [("Ana Petrović", "ana@example.com")])
         let second = pastMeeting("Pricing", daysAgo: 2, attendees: [("Anna P.", "anna.p@example.org")])
@@ -150,8 +141,6 @@ final class PeopleUpcomingMeetingsTests: XCTestCase {
     }
 
     func testANameFindsOnlyTheOnePersonWhoCarriesIt() throws {
-        // Two people share a full name under different addresses; a third is
-        // known only by a name the user gave a speaker.
         let roadmap = pastMeeting("Roadmap", daysAgo: 3, attendees: [("Ana Petrović", "ana@example.com")])
         let pricing = pastMeeting("Pricing", daysAgo: 2, attendees: [("Ana Petrović", "ana@elsewhere.example")])
         let chat = pastMeeting("Chat", daysAgo: 1, attendees: [])
@@ -159,12 +148,9 @@ final class PeopleUpcomingMeetingsTests: XCTestCase {
         XCTAssertEqual(people.filter { $0.name == "Ana Petrović" }.count, 2)
         let dragan = try id("Dragan Ilić", in: people)
 
-        // A new address under a shared name is nobody People knows.
         XCTAssertEqual(match([event("Kickoff", inHours: 4, attendees: [("Ana Petrović", "ana@third.example")])],
                              people), [:])
-        // A name-only invitation cannot choose between the two either.
         XCTAssertEqual(match([event("Kickoff", inHours: 4, legacyNames: ["Ana Petrović"])], people), [:])
-        // Someone known only by name takes an address, a bare name, or a lone first name.
         XCTAssertEqual(match([event("1:1", inHours: 4, attendees: [("Dragan Ilić", "dragan@example.com")])],
                              people)[dragan]?.title, "1:1")
         XCTAssertEqual(match([event("1:1", inHours: 4, legacyNames: ["dragan ilic"])], people)[dragan]?.title, "1:1")

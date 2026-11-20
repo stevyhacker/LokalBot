@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Chat models often leave out the space before a new word. The replies here
-/// are what OpenRouter returned on 2026-10-15 for the rehearsal text.
 @MainActor
 final class CotypingChatReplySpacingTests: XCTestCase {
     private final class ChatReply: TextEngine, @unchecked Sendable {

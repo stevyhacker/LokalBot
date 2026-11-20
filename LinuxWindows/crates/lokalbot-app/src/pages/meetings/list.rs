@@ -1,5 +1,3 @@
-//! The meeting list column: header with Record, search, and day groups.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::input::Input;
@@ -21,7 +19,6 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
 impl MeetingsPage {
-    /// Rebuilds the grouped rows when the library, query or recording changed.
     pub(super) fn rebuild_entries(&mut self, cx: &mut Context<Self>) {
         let data = self.data.read(cx);
         let live = data.recording.meeting().cloned();
@@ -159,8 +156,6 @@ impl MeetingsPage {
             .on_click(move |_, _, cx| choose_recordings(data_entity.clone(), cx))
         };
 
-        // `.bordered` Record: the red mark carries the colour, the words stay
-        // plain.
         let record_button = {
             let red = lb.recording;
             let hover = lb.hover;
@@ -219,8 +214,6 @@ impl MeetingsPage {
                 })
         };
 
-        // The header is the search field and Record (`MeetingListView`).
-        // Importing has no File menu here, so its button stays beside Record.
         let header = v_flex()
             .flex_none()
             .p(metric::PANEL_PADDING)
@@ -360,8 +353,6 @@ impl MeetingsPage {
         let merge_bar = (selection.len() > 1).then(|| {
             let page = cx.entity().downgrade();
             let meetings = selection.clone();
-            // The column is narrow: the action shares the title row and the
-            // explanation gets the full width below it.
             v_flex()
                 .flex_none()
                 .mx(px(10.))
@@ -551,7 +542,6 @@ impl MeetingsPage {
                     .context_menu({
                         let data = self.data.clone();
                         let page = cx.entity().downgrade();
-                        // A menu on a selected row acts on the whole selection.
                         let group: Vec<Meeting> = {
                             let selection = self.selected_meetings(cx);
                             if selection.len() > 1 && selection.iter().any(|m| m.id == id) {
@@ -637,7 +627,6 @@ impl MeetingsPage {
     }
 }
 
-/// "Import Recording…": an open dialog for one or more audio or video files.
 pub(crate) fn choose_recordings(data: gpui_kit::Entity<AppData>, cx: &mut gpui_kit::App) {
     let receiver = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
         files: true,
@@ -662,7 +651,6 @@ pub(crate) fn choose_recordings(data: gpui_kit::Entity<AppData>, cx: &mut gpui_k
     .detach();
 }
 
-/// Processing status at the trailing edge of a row.
 fn stage_badge(
     stage: &ProcessingStage,
     meeting_id: uuid::Uuid,
@@ -736,7 +724,6 @@ fn stage_badge(
     }
 }
 
-/// `ProcessingPipeline.Stage.rowLabel`.
 fn row_stage_label(stage: &ProcessingStage) -> String {
     match stage {
         ProcessingStage::Queued => lokalbot_i18n::tr("Queued").into(),

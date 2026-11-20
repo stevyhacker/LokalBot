@@ -1,7 +1,3 @@
-//! Speech regions (`SpeechActivity` + `SpeechActivitySpans.swift`): Silero VAD
-//! finds speech, regions are capped in length on the time axis, and each span
-//! is decoded on its own so it keeps real start and end times.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, anyhow};
@@ -9,14 +5,10 @@ use lokalbot_core::TimingPrecision;
 use sherpa_onnx::{SileroVadModelConfig, VadModelConfig, VoiceActivityDetector};
 
 pub const SAMPLE_RATE: usize = 16_000;
-/// Silero processes 512-sample windows at 16 kHz.
 const WINDOW: usize = 512;
-/// Longest region the detector emits (`SpeechActivity`: at most 14 s).
 const MAX_SPEECH_SECONDS: f32 = 14.0;
-/// Audio kept around each region so word onsets and endings are not clipped.
 const PADDING_SECONDS: f64 = 0.15;
 
-/// A run of speech on the track timeline.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Span {
     pub start: f64,
@@ -42,7 +34,6 @@ pub struct Vad {
 }
 
 impl Vad {
-    /// `model` is `silero_vad.onnx`; `None` uses an energy detector instead.
     pub fn new(model: Option<&Path>, threads: usize) -> Self {
         Self {
             model: model.map(Path::to_path_buf),
@@ -50,7 +41,6 @@ impl Vad {
         }
     }
 
-    /// Speech regions of 16 kHz `samples`, padded slightly, in seconds.
     pub fn speech(&self, samples: &[f32]) -> Result<Vec<Span>> {
         let raw = match &self.model {
             Some(model) => silero_regions(model, self.threads, samples)?,
@@ -105,8 +95,6 @@ fn silero_regions(model: &Path, threads: i32, samples: &[f32]) -> Result<Vec<(f6
     Ok(regions)
 }
 
-/// Fallback when the VAD model is missing: 30 ms frames above an adaptive
-/// noise floor, joined across pauses shorter than 0.4 s.
 fn energy_regions(samples: &[f32]) -> Vec<(f64, f64)> {
     const FRAME: usize = SAMPLE_RATE * 30 / 1000;
     let energies: Vec<f32> = samples
@@ -138,7 +126,6 @@ fn energy_regions(samples: &[f32]) -> Vec<(f64, f64)> {
     regions
 }
 
-/// Widens each region by [`PADDING_SECONDS`] without crossing its neighbours.
 fn pad(regions: &[(f64, f64)], duration: f64) -> Vec<Span> {
     let mut spans = Vec::with_capacity(regions.len());
     for (i, &(start, end)) in regions.iter().enumerate() {
@@ -163,12 +150,10 @@ fn pad(regions: &[(f64, f64)], duration: f64) -> Vec<Span> {
     spans
 }
 
-/// Total speech, in seconds.
 pub fn speech_seconds(spans: &[Span]) -> f64 {
     spans.iter().map(Span::duration).sum()
 }
 
-/// `SpeechActivity.split`: cuts every span into pieces of at most `max` seconds.
 pub fn split(spans: &[Span], max: f64) -> Vec<Span> {
     let max = max.max(1.0 / SAMPLE_RATE as f64);
     let mut out = Vec::new();

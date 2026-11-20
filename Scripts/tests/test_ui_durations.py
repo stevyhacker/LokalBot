@@ -37,8 +37,6 @@ class CheckedInTimingTests(unittest.TestCase):
                          'remove timings of deleted, renamed or moved tests')
 
     def test_most_functional_tests_have_a_timing(self):
-        # A new test may wait for its first hosted run; a suite planned mostly
-        # on the 30 s guess left the two shards two minutes apart.
         untimed = [test for test in self.functional if test not in self.timings]
         self.assertLessEqual(len(untimed), len(self.functional) // 10,
                              f'refresh Scripts/ci/ui-durations.json (ui-shards.py timings): {untimed}')

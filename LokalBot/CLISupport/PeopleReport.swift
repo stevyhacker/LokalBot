@@ -1,8 +1,5 @@
 import Foundation
 
-/// Read-only People directory for the CLI and MCP server, built with the
-/// same rules as the app. Only names appear; attendee email addresses are
-/// used as private join keys and never leave the directory builder.
 enum PeopleReport {
     static let maximumEntries = 200
 
@@ -34,7 +31,6 @@ enum PeopleReport {
     }
 
     static func people(meetings allMeetings: [Meeting], root: URL, now: Date = Date()) -> [PersonProfile] {
-        // The sample meeting's people are made up.
         let meetings = allMeetings.filter(\.isOwnWork)
         let projections = meetings.compactMap { MeetingOutcomeProjection.load(for: $0, root: root) }
         return PeopleDirectory.build(.init(
@@ -43,7 +39,6 @@ enum PeopleReport {
             curation: PeopleCuration.load(libraryRoot: root) ?? PeopleCuration()), now: now)
     }
 
-    /// Opaque id, exact name, then a unique case-insensitive substring match.
     static func find(_ needle: String, in people: [PersonProfile]) -> PersonProfile? {
         let trimmed = needle.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }

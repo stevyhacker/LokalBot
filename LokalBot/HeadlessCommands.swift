@@ -2,13 +2,6 @@ import Foundation
 import AVFoundation
 import AppKit
 
-/// A `LokalBot --flag` subcommand. Parsed once, in `LokalBotMain.main()`,
-/// before SwiftUI launches — so argument handling never lives inside
-/// `AppState`, and the parse itself is a pure, testable function.
-///
-/// The commands still execute inside the normal app launch (they need the
-/// main run loop for audio, timers, and screen capture); each schedules its
-/// work and calls `exit()` when done.
 enum HeadlessCommand: Equatable {
     case process(folder: URL, transcribe: Bool, summarize: Bool)
     case search(query: String)
@@ -19,16 +12,9 @@ enum HeadlessCommand: Equatable {
     case chat(question: String)
     case agent(prompt: String)
     case cotypingBench
-    /// `--cotyping-bench --model-path <gguf> [--passes N]`: the benchmark on the
-    /// production autocomplete runtime and that model. Runs before SwiftUI
-    /// launches, with no settings, library or window.
     case cotypingEngineBench(model: URL, passes: Int)
     case cotypingReplay(input: URL, engine: CotypingQualityReplay.Engine)
-    /// Print the saved autocomplete counters and typing measurements and exit.
-    /// Runs before SwiftUI launches and reads one preferences value.
     case cotypingMeasurements
-    /// Print the keyboard and mouse hooks installed on this Mac, by app, and
-    /// exit. Runs before SwiftUI launches and reads no library.
     case eventTaps
     case dictationReplay(input: URL, endpoint: URL)
     case exportDiagnostics(destination: URL)
@@ -38,12 +24,8 @@ enum HeadlessCommand: Equatable {
     case setBoundaries(folder: URL, start: TimeInterval, end: TimeInterval)
     case searchScreen(query: String)
 #endif
-    /// Print a day's coding-agent evidence and exit. Runs before SwiftUI
-    /// launches: it reads transcripts only, so it needs no window, library
-    /// lock, or app subsystem.
     case agentSessions(dayKey: String?)
 
-    /// Set by `LokalBotMain.main()`; consumed by `AppState.init`.
     @MainActor static var requested: HeadlessCommand?
 
     static func parse(_ args: [String]) -> HeadlessCommand? {
@@ -122,10 +104,6 @@ enum HeadlessCommand: Equatable {
         return nil
     }
 
-    /// Resolve the CLI's optional day without allowing a current/future day
-    /// to advance the durable memory watermark past days that have not yet
-    /// happened. Requiring the canonical key also rejects normalized dates
-    /// such as 2026-02-30 and ambiguous shorthand such as 2026-7-2.
     static func validatedDreamTarget(
         dayKey: String?,
         now: Date = Date(),
@@ -177,9 +155,6 @@ enum DayDigestCLIOutput {
     }
 }
 
-/// `LokalBot --agent-sessions [yyyy-MM-dd]`: the evidence the day digest
-/// would receive from local Claude Code and Codex sessions, for inspecting
-/// the transcript readers against real data. Read-only; nothing is stored.
 enum CodingAgentSessionsCLI {
     static func run(dayKey: String?, now: Date = Date()) -> Int32 {
         let day: Date
@@ -215,9 +190,6 @@ enum CodingAgentSessionsCLI {
     }
 }
 
-/// Executes headless subcommands against the app's real subsystems (pipeline,
-/// indexes, recorder). Test hooks for CI and `Scripts/test/e2e.sh` — the same code
-/// paths as the UI, no window required.
 @MainActor
 struct HeadlessCommandRunner {
     static let recordSystemAudioPolicy: RecordingSystemAudioPolicy = .microphoneOnly
@@ -249,17 +221,12 @@ struct HeadlessCommandRunner {
         case .setBoundaries(let folder, let start, let end): runSetBoundaries(folder: folder, start: start, end: end)
         case .searchScreen(let query): runSearchScreen(query: query)
 #endif
-        // Normally handled before launch by `LokalBotMain`.
         case .agentSessions(let dayKey): exit(CodingAgentSessionsCLI.run(dayKey: dayKey))
         case .cotypingMeasurements: exit(CotypingStatsStore.printSaved())
         case .eventTaps: exit(EventTapAudit.printCurrent())
         }
     }
 
-    /// `LokalBot --process <meeting folder>`: run the pipeline headless and
-    /// exit. Add `--summary-only` to keep the current transcript, matching the
-    /// Re-summarize button. Lets the pipeline be exercised (and CI-tested)
-    /// without the UI.
     private func runProcess(folder: URL, transcribe: Bool, summarize: Bool) {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .iso8601
@@ -272,8 +239,6 @@ struct HeadlessCommandRunner {
         waitForPipeline(decoded.id, label: "--process", folder: folder)
     }
 
-    /// Polls the pipeline until the job leaves the stage table, then exits
-    /// 0 when it finished or 1 when it failed.
     private func waitForPipeline(_ id: Meeting.ID, label: String, folder: URL) {
         Task { @MainActor in
             while true {
@@ -295,8 +260,6 @@ struct HeadlessCommandRunner {
     }
 
 #if LOKALBOT_TEST_HOOKS
-    /// Test hook: apply a reviewed meeting boundary exactly as the review UI
-    /// does, then wait for the re-transcription and summary to finish.
     private func runSetBoundaries(folder: URL, start: TimeInterval, end: TimeInterval) {
         guard let meeting = app.meetings.first(where: { $0.folderURL(in: app.storage).standardizedFileURL == folder.standardizedFileURL }) else {
             print("LokalBot --set-boundaries: no meeting at \(folder.path)")
@@ -312,9 +275,6 @@ struct HeadlessCommandRunner {
     }
 #endif
 
-    /// `LokalBot --health [--day yyyy-MM-dd] [--json]`: evaluate one day
-    /// (default: yesterday), write the report, print it. Exit 0 pass/warn,
-    /// 1 fail, 2 invalid day.
     private func runHealth(dayKey: String?, json: Bool) {
         let day: Date
         if let dayKey {
@@ -344,10 +304,6 @@ struct HeadlessCommandRunner {
         exit(report.status == .fail ? 1 : 0)
     }
 
-    /// `LokalBot --record-capture <seconds> [--scenario name]` (Debug only):
-    /// runs tracking, screen capture, and meeting detection with the
-    /// recording environment, then writes a scrubbed trace. Use a throwaway
-    /// `LOKALBOT_STORAGE_ROOT`: captures land in that library.
     private func runRecordCapture(seconds: Int, scenario: String) {
 #if DEBUG
         guard let recorder = CaptureTraceRecorder.active else {
@@ -374,7 +330,6 @@ struct HeadlessCommandRunner {
 #endif
     }
 
-    /// `LokalBot --export-diagnostics <zip>`: the Settings export, headless.
     private func runExportDiagnostics(to destination: URL) {
         do {
             let manifest = try app.exportDiagnostics(to: destination)
@@ -387,7 +342,6 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --record <seconds>`: manual mic recording, no pipeline.
     private func runRecord(seconds: Int) {
         guard AVCaptureDevice.authorizationStatus(for: .audio) == .authorized else {
             print("LokalBot --record: SKIP (microphone not granted)")
@@ -410,7 +364,6 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --shot-test`: one screenshot capture, exit 0 ok / 3 skip / 1 fail.
     private func runShotTest() {
         Task { @MainActor in
             guard CGPreflightScreenCaptureAccess() else {
@@ -438,9 +391,6 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --digest [yyyy-MM-dd]`: generate a journal digest and exit.
-    /// `LOKALBOT_DIGEST_MODEL_ID` is a headless-only evaluation override; it
-    /// never changes the persisted model selection.
     private func runDigest(dayKey: String?) {
         Task { @MainActor in
             do {
@@ -477,10 +427,6 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --dream [yyyy-MM-dd]`: dream one day (default: yesterday) and
-    /// exit. Bypasses the scheduler's hour/downtime/power gates like "Dream
-    /// now" — the caller explicitly asked. Test hook for the dreaming
-    /// pipeline, same spirit as --digest.
     private func runDream(dayKey: String?) {
         let calendar = Calendar.current
         let target: DreamScheduler.Target
@@ -518,9 +464,6 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --chat "<question>"`: run the meeting chat agent once against
-    /// the real engine + tools and print the answer. Test hook for the chat
-    /// assistant, same spirit as --search / --digest.
     private func runChat(question: String) {
         Task { @MainActor in
             do {
@@ -565,12 +508,6 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --agent "<prompt>"`: one Agent Mode turn against the real
-    /// runtime + Main LLM engine, auto-approving file changes (read-only
-    /// library lookups run unasked with a model on this Mac, as in every task) and declining other
-    /// privacy-sensitive shell/external-read requests, then printing each transcript
-    /// item. Exit 0 ok / 3 skip (runtime not installed) / 1 fail. Test hook
-    /// for Agent Mode, same spirit as --chat.
     private func runAgent(prompt: String) {
         Task { @MainActor in
             guard AgentRuntimeLayout.isInstalled() else {
@@ -585,16 +522,11 @@ struct HeadlessCommandRunner {
                 exit(1)
             }
             await controller.send(prompt: prompt)
-            // send() returns after the prompt is accepted; work streams in as
-            // events. Immediately after send() the state may still read .ready
-            // (agent_start hasn't arrived yet), so first wait for .running,
-            // THEN wait for it to leave .running. Otherwise the settle loop
-            // exits before any work happened.
-            for _ in 0..<100 where controller.state != .running {   // 10s to start
+            for _ in 0..<100 where controller.state != .running {
                 await controller.denyAllPendingApprovals()
                 try? await Task.sleep(for: .milliseconds(100))
             }
-            for _ in 0..<600 where controller.state == .running {   // 60s to settle
+            for _ in 0..<600 where controller.state == .running {
                 await controller.denyAllPendingApprovals()
                 try? await Task.sleep(for: .milliseconds(100))
             }
@@ -603,7 +535,7 @@ struct HeadlessCommandRunner {
                 case .user(_, let text): print("LokalBot --agent: > \(text)")
                 case .assistant(_, let text, _): print("LokalBot --agent: \(text)")
                 case .tool(_, let name, _, _, let status): print("LokalBot --agent: tool \(name) [\(status)]")
-                case .approval: break   // handled by the unattended-run policy above
+                case .approval: break
                 case .notice(_, let text, let isError): print("LokalBot --agent: \(isError ? "ERROR" : "note") \(text)")
                 }
             }
@@ -624,15 +556,8 @@ struct HeadlessCommandRunner {
         }
     }
 
-    /// `LokalBot --cotyping-bench`: run the cotyping quality benchmark headless
-    /// against the real engine and print one JSON document — the scriptable
-    /// face of the in-app "Run cotyping check" (same scenarios, same criteria),
-    /// excluding learned writing history so fixture runs need no Keychain access.
-    /// Exit 0 when every scenario passes its safety contract, 1 otherwise.
     private func runCotypingBench() {
         Task { @MainActor in
-            // Synthetic engine measurements must not initialize the live
-            // coordinator's learning store (or ask for its Keychain key).
             let settings = app.settings
             var config = CotypingConfiguration.standard
             config.maxResponseTokens = settings.cotypingMaxResponseTokens
@@ -649,8 +574,6 @@ struct HeadlessCommandRunner {
     }
 
 #if LOKALBOT_TEST_HOOKS
-    /// Test hook: `LokalBot --search-screen <query>` prints screen-text hits
-    /// from the FTS search the Recall view uses; exit 1 when there are none.
     private func runSearchScreen(query: String) {
         let hits = app.activityStore.searchOCR(query)
         print("LokalBot --search-screen: \(hits.count) screen hit(s)")
@@ -661,8 +584,6 @@ struct HeadlessCommandRunner {
     }
 #endif
 
-    /// `LokalBot --search <query>`: print index hits and exit. Test hook
-    /// for the FTS5 index, same spirit as --process.
     private func runSearch(query: String) {
         let hits = app.searchIndex.search(query)
         print("LokalBot --search: \(hits.count) keyword hit(s)")

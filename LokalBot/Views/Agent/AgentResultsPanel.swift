@@ -2,9 +2,6 @@ import SwiftUI
 import AppKit
 import UniformTypeIdentifiers
 
-/// Beside the conversation: the files the task changed, its steps, the
-/// sources it was given, and a preview of whichever one is chosen. Opening a
-/// preview never runs a tool.
 struct AgentResultsPanel: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var controller: AgentSessionController
@@ -129,7 +126,6 @@ struct AgentResultsPanel: View {
         }.buttonStyle(.plain)
     }
 
-    /// A step's preview is headed by its plain label; other previews keep their own title.
     private func selectedPreview(_ selected: AgentResultPreview) -> some View {
         let step = steps.first { $0.id == selected.id }
         let file = changedFiles.first { $0.stepID == selected.id }

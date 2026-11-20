@@ -1,6 +1,3 @@
-//! `AgentMemoryReaderTests.swift`, and the background reader's part of
-//! `AgentNotesTests.swift`.
-
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -20,8 +17,6 @@ fn scan_home(home: &Path, excluded: &[&str]) -> NoteScan {
     scan(home, &CodingAgentKind::ALL, &excluded)
 }
 
-/// A Claude Code project folder with notes, and optionally one session file
-/// that names the project's real path.
 fn write_claude_project(home: &Path, cwd: &str, session: bool, notes: &[(&str, &str)]) -> PathBuf {
     let project = home
         .join(".claude")
@@ -44,8 +39,6 @@ fn write_codex(home: &Path, relative_path: &str, contents: &str) {
     fs::create_dir_all(file.parent().unwrap()).unwrap();
     fs::write(file, contents).unwrap();
 }
-
-// ------------------------------------------------------------ Claude Code
 
 #[test]
 fn claude_notes_carry_title_description_type_and_project() {
@@ -123,7 +116,6 @@ fn a_claude_note_without_header_or_index_falls_back_to_heading_then_file_name() 
             ("notes.txt", "not markdown"),
         ],
     );
-    // Instruction files beside the notes folder are never read.
     let project = home
         .path()
         .join(".claude/projects")
@@ -243,7 +235,6 @@ fn the_working_directory_is_taken_only_from_a_session_that_matches_the_project_f
         false,
         &[("a.md", "Note.")],
     );
-    // A session that later moved elsewhere still names its start folder first.
     fs::write(
         project.join("S1.jsonl"),
         "{\"type\":\"user\",\"cwd\":\"/Users/me/Other\"}\n{\"type\":\"user\",\"cwd\":\"/Users/me/GitHub/app\"}",
@@ -255,8 +246,6 @@ fn the_working_directory_is_taken_only_from_a_session_that_matches_the_project_f
         Some("/Users/me/GitHub/app")
     );
 }
-
-// ------------------------------------------------------------------ Codex
 
 #[test]
 fn codex_task_groups_become_notes_with_scope_and_folder() {
@@ -297,7 +286,6 @@ fn codex_summary_sections_and_session_summaries() {
         "memory_summary.md",
         "v1\n\n## User preferences\n\nPrefers short status notes.\n\n## What's in Memory\n\n### /Users/me/GitHub/app\n\nRelease checks and build recipes.\n\n### /Users/me/GitHub/secret / 2026-10-01\n\nHidden work.\n",
     );
-    // Written on Windows, with its line endings.
     write_codex(
         home.path(),
         "rollout_summaries/2026-11-10T10-29-23-o6E8-release_checks.md",
@@ -313,7 +301,6 @@ fn codex_summary_sections_and_session_summaries() {
         "raw_memories.md",
         "# Raw Memories\n\n## Thread `x`\n\nDuplicate of the summaries.\n",
     );
-    // Instructions and skills are not notes.
     fs::write(home.path().join(".codex/AGENTS.md"), "Global instructions.").unwrap();
     write_codex(
         home.path(),
@@ -409,8 +396,6 @@ fn a_file_too_large_to_be_a_note_is_skipped_without_blocking_deletions() {
     assert_eq!(scan.notes.len(), 1);
     assert!(scan.unreadable_files.is_empty());
 }
-
-// ------------------------------------------------------- Background reader
 
 fn library(dir: &Path) -> Library {
     Library::open(LibraryPaths::new(dir.join("library"))).unwrap()
@@ -528,7 +513,6 @@ fn a_scan_that_outlives_its_setting_is_not_kept() {
         ..Default::default()
     };
 
-    // Turned off while the files were being read.
     let changed = ingestor.refresh_with(
         &library,
         || settings.read().clone(),
@@ -540,7 +524,6 @@ fn a_scan_that_outlives_its_setting_is_not_kept() {
     assert!(!changed);
     assert!(!index.exists());
 
-    // An exclusion added during the read waits for the next one.
     settings.write().coding_agent_notes_enabled = true;
     let changed = ingestor.refresh_with(
         &library,

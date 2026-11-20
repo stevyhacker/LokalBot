@@ -1,7 +1,5 @@
 import Foundation
 
-/// Clock label for an hour-of-day setting, following the Mac's 12- or 24-hour
-/// preference so settings read like times elsewhere in the app.
 enum HourLabel {
     static func format(_ hour: Int, locale: Locale = .current, timeZone: TimeZone = .current) -> String {
         var calendar = Calendar(identifier: .gregorian)

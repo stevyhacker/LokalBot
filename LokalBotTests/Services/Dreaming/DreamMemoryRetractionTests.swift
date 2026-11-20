@@ -77,8 +77,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
         var original = memory(day)
         original.activeProjects[0].provenance?.sources = [.init(kind: .meeting, id: id.uuidString, dayKey: day)]
         try store.save(original)
-        // A different time zone can put the same meeting on another local day.
-        // Full UUID provenance must still match even if day keys no longer do.
         try store.invalidateEvidence(affectedDayKeys: ["2026-08-04"], affectedMeetingIDs: [id], reportDayKeys: [])
         XCTAssertTrue(try XCTUnwrap(store.loadMemory()).activeProjects.isEmpty)
     }
@@ -91,8 +89,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
                                       evidenceProvenance: provenance(day), narrative: "Revoked")
         try store.save(staleMemory)
         try store.invalidateEvidence(affectedDayKeys: [day], reportDayKeys: [])
-        // A new instance models a separate generation completion which did not
-        // observe scheduler cancellation, including one resumed after restart.
         let reopened = DreamStore(root: store.root)
         XCTAssertThrowsError(try reopened.saveGenerated(report: staleReport, memory: staleMemory,
                                                        basedOnRevision: revision)) {
@@ -147,8 +143,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
         let oldMemoryBytes = try Data(contentsOf: memoryURL)
         let oldReportBytes = try Data(contentsOf: reportURL)
         try store.invalidateEvidence(affectedDayKeys: [day], reportDayKeys: [])
-        // Recreate the on-disk state after revision persistence but before
-        // cleanup, without relying on permission failures when tests run root.
         try oldMemoryBytes.write(to: memoryURL)
         try oldReportBytes.write(to: reportURL)
         XCTAssertTrue(try XCTUnwrap(DreamStore(root: store.root).loadMemory()).isEmpty)
@@ -184,15 +178,11 @@ final class DreamMemoryRetractionTests: XCTestCase {
         try FileManager.default.createDirectory(at: stateURL, withIntermediateDirectories: true)
         XCTAssertThrowsError(try store.invalidateEvidence(affectedDayKeys: [day], reportDayKeys: []))
 
-        // Copy the actual persisted files to an unseen root. No static block
-        // exists for that root, reproducing a reader in a fresh process.
         let restored = try temporaryStore()
         try FileManager.default.copyItem(at: store.memoryDirectory, to: restored.memoryDirectory)
         let intentName = ".dream-revocation-pending.json"
         try FileManager.default.copyItem(at: store.root.appendingPathComponent(intentName),
                                         to: restored.root.appendingPathComponent(intentName))
-        // The failing journal is gone on restart, but its absence must not
-        // restore the unchanged old memory file.
         try FileManager.default.removeItem(at: restored.memoryDirectory.appendingPathComponent("evidence-revisions.json"))
         XCTAssertNil(try restored.loadMemory())
         XCTAssertEqual(try restored.evidenceRevision(), 1, "A ready intent can retry cleanup after storage recovers")
@@ -237,8 +227,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
         try store.save(memory(day))
         let source = store.root.appendingPathComponent("synthetic-source")
         try Data("original".utf8).write(to: source)
-        // Intent creation still succeeds, but the subsequent revision journal
-        // cannot be decoded or replaced. The source must remain unchanged.
         try FileManager.default.createDirectory(
             at: store.memoryDirectory.appendingPathComponent("evidence-revisions.json"),
             withIntermediateDirectories: true)
@@ -257,8 +245,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
         let source = store.root.appendingPathComponent("synthetic-source")
         let result = try store.withEvidenceMutation(affectedDayKeys: [day]) {
             try Data("saved".utf8).write(to: source)
-            // Simulate Dream storage becoming unavailable after source success.
-            // A directory at the journal path fails even on privileged runners.
             let journal = store.memoryDirectory.appendingPathComponent("evidence-revisions.json")
             if FileManager.default.fileExists(atPath: journal.path) {
                 try FileManager.default.removeItem(at: journal)
@@ -338,8 +324,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
         evidence.sources += provenance(day).sources
         let capturedEvidence = evidence
         let engine = RetractionEngine {
-            // Deliberately return a successful model reply after the mutation,
-            // without cancelling this task. The store must still reject it.
             try store.invalidateEvidence(affectedDayKeys: [self.day], reportDayKeys: [])
         }
         let service = DreamService(storageRoot: store.root,
@@ -349,7 +333,6 @@ final class DreamMemoryRetractionTests: XCTestCase {
             _ = try await service.dream(target: target)
             XCTFail("A stale synthesis was committed")
         } catch is CancellationError {
-            // Expected: the persisted source revision changed during generation.
         }
         XCTAssertTrue(try XCTUnwrap(store.loadMemory()).isEmpty)
         XCTAssertFalse(store.hasReport(forDayKey: otherDay))

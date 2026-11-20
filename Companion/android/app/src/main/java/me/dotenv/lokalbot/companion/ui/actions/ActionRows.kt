@@ -34,11 +34,6 @@ import me.dotenv.lokalbot.companion.ui.components.rowSelection
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/**
- * One action item: the round toggle, the text, and a quiet line with the
- * owner, the due date (red when overdue), the meeting and any change that
- * is still waiting for the Mac, or that the Mac didn't make.
- */
 @Composable
 fun ActionItemRow(
     action: MeetingAction,
@@ -104,7 +99,6 @@ fun ActionMetaLine(action: MeetingAction, today: LocalDate, meetingTitle: String
                 Text(stringResource(R.string.action_waiting_for_mac), style = LokalBotType.secondary, color = palette.attentionText)
             }
         } else if (note != null) {
-            // Without this the change made here just disappears at the next sync.
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                 Icon(Icons.Outlined.ErrorOutline, null, tint = palette.attentionText, modifier = Modifier.size(14.dp))
                 Text(stringResource(R.string.action_not_changed), style = LokalBotType.secondary, color = palette.attentionText)

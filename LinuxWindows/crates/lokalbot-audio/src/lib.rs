@@ -1,12 +1,3 @@
-//! Audio capture and playback for LokalBot on Linux and Windows.
-//!
-//! A meeting is two time-aligned tracks in its folder, `mic.wav` ("Me") and
-//! `system.wav` ("Them"), both 16 kHz mono 16-bit PCM — the format the speech
-//! models read, so no conversion happens before transcription. The macOS app
-//! records AAC `.m4a` files instead; [`TrackReader`] reads those (and FLAC) as
-//! the same 16 kHz stream, so playback, waveforms and transcription work on a
-//! library from either platform.
-
 mod app_audio;
 mod capture;
 pub mod cue;

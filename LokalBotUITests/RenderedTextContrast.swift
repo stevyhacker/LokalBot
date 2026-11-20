@@ -1,21 +1,6 @@
 import AppKit
 
-/// Measures the contrast of text in a capture of one accessibility element, for
-/// the labels the system's contrast audit flags.
 enum RenderedTextContrast {
-    /// The dominant color is the background. Anti-aliasing spreads thin glyphs
-    /// over many edge shades, so the glyph color is the contrast reached by the
-    /// most contrasting tenth of glyph pixels rather than one repeated color.
-    /// Returns nil without a uniform background or enough glyph pixels, which
-    /// rejects blank captures and isolated dark pixels.
-    ///
-    /// Two things in a capture are neither background nor glyph. Text drawn
-    /// over a material leaves a faint halo one or two levels off the
-    /// background (macOS 26 does this to small captions), which still counts
-    /// as background when deciding whether it is uniform. And an element such
-    /// as a toolbar title can span its whole bar, so the capture includes the
-    /// window's edge highlight and the bar's separator: a line of one color
-    /// across the capture is a rule, not text, and is left out.
     static func ratio(of bitmap: NSBitmapImageRep) -> Double? {
         let width = bitmap.pixelsWide, height = bitmap.pixelsHigh
         let pixels = width * height
@@ -42,7 +27,6 @@ enum RenderedTextContrast {
                 && abs(((rgb >> 8) & 255) - ((background >> 8) & 255)) <= haloTolerance
                 && abs((rgb & 255) - (background & 255)) <= haloTolerance
         }
-        /// True when one color that is not the background fills the line.
         func isRule(length: Int, _ colorAt: (Int) -> Int) -> Bool {
             var line: [Int: Int] = [:]
             for index in 0..<length { line[colorAt(index), default: 0] += 1 }
@@ -81,14 +65,10 @@ enum RenderedTextContrast {
             let foreground = luminance(rgb)
             let ratio = (max(foreground, backgroundLuminance) + 0.05)
                 / (min(foreground, backgroundLuminance) + 0.05)
-            // Edge shades barely distinct from the background are not glyph.
             guard ratio >= 1.25 else { continue }
             glyph.append((ratio, count))
             glyphPixels += count
         }
-        // A lone digit at 1x is a few pixels wide: the "1" beside a section
-        // title has 16 glyph pixels in an 8 by 15 capture. A small capture
-        // needs a tenth of its pixels to be glyph, and never fewer than ten.
         guard glyphPixels >= min(20, max(10, measured / 10)) else { return nil }
         var covered = 0
         for entry in glyph.sorted(by: { $0.ratio > $1.ratio }) {
@@ -98,6 +78,5 @@ enum RenderedTextContrast {
         return nil
     }
 
-    /// How far, per 8-bit channel, a halo pixel may sit from the background.
     private static let haloTolerance = 4
 }

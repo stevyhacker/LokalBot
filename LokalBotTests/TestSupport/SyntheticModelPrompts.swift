@@ -1,8 +1,6 @@
 import Foundation
 @testable import LokalBot
 
-/// Fixed, synthetic inputs sent to real models by the recorder. Nothing here
-/// comes from a real library; changing it invalidates committed recordings.
 enum SyntheticModelPrompts {
     static let askQuestion = "What did we decide about the caching layer, and who owns the next step?"
 
@@ -42,9 +40,6 @@ enum SyntheticModelPrompts {
         }, engine: "synthetic")
     }
 
-    /// A standup the way it is actually transcribed: little punctuation,
-    /// stumbled words, and one speaker's sentence cut across rows. The user
-    /// commits to two things mid-sentence; neither starts with "I'll".
     static func runOnStandupTranscript() -> Transcript {
         let lines: [(TimeInterval, TimeInterval, String, String)] = [
             (0, 6, "them", "okay who wants to go next"),

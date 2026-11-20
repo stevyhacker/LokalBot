@@ -1,13 +1,10 @@
 import SwiftUI
 
-/// Yesterday's overnight brief on Today, as a panel: what happened, the
-/// priorities it leaves, and a footer saying how it was written.
 struct YesterdayBriefPanel: View {
     @EnvironmentObject private var app: AppState
     let report: DreamReport
     let day: Date
 
-    /// "Yesterday", or the day an older brief covers.
     private var title: Text {
         if TodayDreamSelection.isCurrent(report, referenceDate: day) { return Text("Yesterday") }
         return Text(verbatim: reportDay?.formatted(date: .abbreviated, time: .omitted) ?? report.day)
@@ -65,15 +62,11 @@ struct YesterdayBriefPanel: View {
             .padding(.horizontal, SectionPanelMetric.inset)
             .padding(.vertical, 14)
         } footer: {
-            // The report's own account of which model wrote it and where.
             Text(report.provenanceDescription)
                 .sectionPanelFooterText()
         }
     }
 
-    /// The brief's top actions, in its order. One taken from the recorded
-    /// candidates is the real thread: it can be checked off here and stays in
-    /// sync. The rest are numbered advice.
     private var priorities: some View {
         VStack(alignment: .leading, spacing: 6) {
             SectionPanelLabel(text: prioritiesLabel)

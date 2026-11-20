@@ -1,13 +1,3 @@
-//! Serves paired phones and tablets (`Services/Companion/`). Everything below
-//! the switch exists only while Settings → Phones & tablets is on: with sharing
-//! off nothing listens, nothing is announced and no record is built.
-//!
-//! `lokalbot-sync` holds the listener, Noise sessions and pairing. This module
-//! decides what is shared: `builder` turns the library into allowlisted
-//! records, `publisher` keeps them current, `ask` answers questions, `ops`
-//! applies action changes and `recordings` makes meetings of what devices send.
-//! `host` runs the lifecycle.
-
 mod advertise;
 mod ask;
 mod builder;
@@ -41,20 +31,13 @@ use sharing::Sharing;
 
 use host::{Host, HostMessage};
 
-/// What Settings asks of the host.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CompanionCommand {
-    /// The interactive app is running: follow the setting from now on. Tools
-    /// and examples that start the engine never listen.
     Enable,
     BeginPairing,
     CancelPairing,
     RemoveDevice(String),
-    /// The person's answer to a pairing request.
-    AnswerPairing {
-        id: u64,
-        allow: bool,
-    },
+    AnswerPairing { id: u64, allow: bool },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -78,8 +61,6 @@ pub struct CompanionDevice {
     pub last_address: Option<String>,
 }
 
-/// An open pairing offer. The code holds a one-time secret, so it never
-/// reaches a log.
 #[derive(Clone, PartialEq, Eq)]
 pub struct CompanionPairing {
     pub qr_payload: String,
@@ -94,7 +75,6 @@ impl std::fmt::Debug for CompanionPairing {
     }
 }
 
-/// A device that scanned the code and is waiting to be allowed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PairingRequest {
     pub id: u64,
@@ -102,7 +82,6 @@ pub struct PairingRequest {
     pub platform: String,
 }
 
-/// What Settings shows.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CompanionSnapshot {
     pub status: CompanionStatus,
@@ -111,14 +90,10 @@ pub struct CompanionSnapshot {
     pub pairing: Option<CompanionPairing>,
     pub approval: Option<PairingRequest>,
     pub action_error: Option<String>,
-    /// Why the local network announcement isn't running, when it should be.
     pub discovery_error: Option<String>,
-    /// The addresses a new device would be given. Empty means nothing on a
-    /// private network or Tailscale can reach this computer.
     pub addresses: Vec<String>,
 }
 
-/// A device chooses its own name; show a bounded, single-line version.
 pub fn device_display_name(raw: &str) -> String {
     let line: String = raw.chars().filter(|c| !c.is_control()).collect();
     let line = line.trim();
@@ -133,7 +108,6 @@ pub fn device_display_name(raw: &str) -> String {
     line.to_string()
 }
 
-/// How a paired device last reached this computer, for the device list.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum CompanionNetwork {
     Tailscale,
@@ -141,7 +115,6 @@ pub enum CompanionNetwork {
 }
 
 impl CompanionNetwork {
-    /// Tailscale hands out `100.64.0.0/10` and `fd7a:115c:a1e0::/48`.
     pub fn classify(address: &str) -> Option<Self> {
         let mut host = address.trim();
         if host.is_empty() {
@@ -173,7 +146,6 @@ impl CompanionNetwork {
     }
 }
 
-/// The engine's handle on the host thread. Calls only queue work.
 #[derive(Default)]
 pub struct Companion {
     sender: Mutex<Option<Sender<HostMessage>>>,
@@ -204,12 +176,10 @@ impl Companion {
         }
     }
 
-    /// Source changes on these days, from the one route every change takes.
     pub fn evidence_changed(&self, days: &[NaiveDate]) {
         self.send(HostMessage::EvidenceChanged(days.to_vec()));
     }
 
-    /// Files in the library changed.
     pub fn library_changed(&self) {
         self.send(HostMessage::LibraryChanged);
     }
@@ -218,7 +188,6 @@ impl Companion {
         self.send(HostMessage::DayChanged(day));
     }
 
-    /// Stops listening and waits for the host thread.
     pub fn stop(&self) {
         self.send(HostMessage::Stop);
         self.sender.lock().take();
@@ -228,7 +197,6 @@ impl Companion {
     }
 }
 
-/// Starts the host thread, idle until `CompanionCommand::Enable`.
 pub(crate) fn start(shared: Arc<Shared>, models: Models, pipeline: Pipeline) {
     let (sender, receiver) = unbounded();
     let environment = Arc::new(host::LiveEnvironment {

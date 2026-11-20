@@ -1,18 +1,4 @@
 #!/bin/bash
-# Films the after-meeting agent handoff on a Mac with a Debug LokalBot.app:
-# a call ends, LokalBot transcribes and summarizes it, and each action the
-# person took on starts as its own Agent Mode task.
-#
-#   LOKALBOT_APP=<Debug LokalBot.app> OPENROUTER_API_KEY=<key> \
-#     Scripts/media/agent-handoff-demo/film.sh <out-dir>
-#
-# Transcription runs on this Mac (Parakeet); the summary and the agents use
-# an OpenRouter model (DEMO_MODELS, first that answers with private routing).
-# The library, settings suite and keychain are throwaway; the key is only
-# written to that keychain. The window is recorded with screencapture, so the
-# shell running this needs Screen Recording (hosted runners have it). Writes
-# the cut (agent-handoff.mp4/.gif, stills) and evidence (logs, the meeting's
-# notes, what the agents wrote) to <out-dir>.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../../.." && pwd)
 HERE="$ROOT/Scripts/media/agent-handoff-demo"
@@ -45,7 +31,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Runs "$@" for at most $1 seconds; macOS has no timeout(1).
 run_for() {
   local seconds=$1; shift
   "$@" &
@@ -93,8 +78,6 @@ WARM_MEETING=$(python3 "$HERE/stage.py" warmup "$WARM")
 export LOKALBOT_DEFAULTS_SUITE="$SUITE"
 
 echo "== warm up transcription =="
-# A user-initiated --process downloads Parakeet when the cache missed;
-# the filmed call is then processed automatically, as after a recording.
 if run_for 900 env LOKALBOT_STORAGE_ROOT="$WARM" "$BIN" --process "$WARM_MEETING" --no-summary \
     > "$OUT/logs/warmup.log" 2>&1 && [[ -f "$WARM_MEETING/transcript.json" ]]; then
   python3 -c 'import json,sys; [print(s.get("speaker"), s.get("text")) for s in json.load(open(sys.argv[1]))["segments"]]' \
@@ -124,7 +107,6 @@ waited=0
 until [[ -f "$FILM/done" ]]; do
   if ! kill -0 "$APP_PID" 2>/dev/null; then echo "LokalBot exited before the film finished"; break; fi
   if (( waited >= 1800 )); then echo "the film did not finish in 30 minutes"; break; fi
-  # The whole screen once a minute, when this runner may record it.
   (( waited % 60 == 0 )) && screencapture -x "$OUT/logs/screen/$(printf %04d "$waited").png" 2>/dev/null || true
   sleep 5; waited=$((waited + 5))
 done
@@ -149,7 +131,6 @@ cp "$LIB/debug.log" "$OUT/logs/debug.log" 2>/dev/null || true
 if [[ -s "$FILM/frames.jsonl" ]]; then
   "$PY" "$HERE/edit.py" "$FILM" "$OUT"
 fi
-# Nothing written here may carry the key.
 if grep -rqF "$OPENROUTER_API_KEY" "$OUT"; then
   echo "the key turned up in the output; removing it"; rm -rf "$OUT"; exit 1
 fi

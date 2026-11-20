@@ -1,11 +1,3 @@
-//! Agents changing settings from the terminal, shared by the app and
-//! `lokalbot-cli` (`AppControl*.swift`, `Setting*.swift`, `AgentSetup.swift`).
-//!
-//! Every read and write goes through the running app over a private local
-//! socket that exists only while the person allows it. Changes that widen what
-//! LokalBot captures, reads, records or sends wait for the person in the app;
-//! nothing here or on the socket can approve one.
-
 pub mod approvals;
 pub mod audit;
 pub mod change;
@@ -19,9 +11,6 @@ use serde_json::{Map, Value};
 
 use crate::settings::Settings;
 
-/// A URL without its user, password, query and fragment, as `config list`,
-/// `config export` and the approval card show it. Anything that doesn't parse
-/// as a scheme and host stays as it is.
 pub fn redact_url(value: &str) -> String {
     let Some((scheme, rest)) = value.split_once("://") else {
         return value.to_string();
@@ -48,9 +37,6 @@ pub fn redact_url(value: &str) -> String {
     format!("{scheme}://{host}{path}")
 }
 
-/// Settings as the terminal sees them. `codingAgentEvidenceEnabled` reads as
-/// what actually happens: the stored default is on, but nothing is read until
-/// the person has chosen, so an agent turning it on has to ask.
 pub fn encoded(settings: &Settings) -> Map<String, Value> {
     let Value::Object(mut object) = serde_json::to_value(settings).unwrap_or(Value::Null) else {
         return Map::new();
@@ -62,7 +48,6 @@ pub fn encoded(settings: &Settings) -> Map<String, Value> {
     object
 }
 
-/// True when numbers are equal whichever way serde stored them.
 pub fn json_eq(a: &Value, b: &Value) -> bool {
     match (a, b) {
         (Value::Number(a), Value::Number(b)) => a == b || a.as_f64() == b.as_f64(),
@@ -78,7 +63,6 @@ pub fn json_eq(a: &Value, b: &Value) -> bool {
     }
 }
 
-/// [`json_eq`] with a missing value counting as different from any value.
 pub fn optional_json_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
     match (a, b) {
         (Some(a), Some(b)) => json_eq(a, b),
@@ -87,7 +71,6 @@ pub fn optional_json_eq(a: Option<&Value>, b: Option<&Value>) -> bool {
     }
 }
 
-/// `2026-10-17T12:00:00Z`, what Swift's `.iso8601` strategy reads and writes.
 pub mod iso8601 {
     use chrono::{DateTime, SecondsFormat, Utc};
     use serde::{Deserialize, Deserializer, Serializer};

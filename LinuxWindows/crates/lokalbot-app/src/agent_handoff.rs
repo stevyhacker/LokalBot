@@ -1,9 +1,3 @@
-//! Handing an action or a meeting to a coding agent installed on this
-//! computer (`ActionAgentHandoff.swift`, `ExternalAgentHandoff.swift`). Every
-//! route leaves the prompt unsent: a deep link fills the agent's input box,
-//! and an agent with no link starts in a new terminal with the prompt on the
-//! clipboard to paste. Nothing leaves this computer until the user sends it.
-
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,7 +13,6 @@ use crate::state::AppData;
 pub(crate) enum Target {
     ClaudeCode,
     Codex,
-    /// The Claude desktop app, for a meeting's notes.
     Claude,
 }
 
@@ -32,8 +25,6 @@ impl Target {
         }
     }
 
-    /// Documented deep links, most capable first: a scheme, what comes
-    /// before the encoded prompt, and how long a prompt it can carry.
     fn links(self) -> &'static [(&'static str, &'static str, usize)] {
         const SHORT: usize = prompts::ACTION_PROMPT_LIMIT;
         const LONG: usize = prompts::MEETING_PROMPT_LIMIT;
@@ -60,15 +51,8 @@ impl Target {
 
 #[derive(Clone, Debug, PartialEq)]
 enum Route {
-    Link {
-        prefix: &'static str,
-        limit: usize,
-    },
-    /// The Codex CLI has no documented way to fill a prompt without sending
-    /// it, and a prompt on a command line could be read as more than text.
-    Terminal {
-        program: PathBuf,
-    },
+    Link { prefix: &'static str, limit: usize },
+    Terminal { program: PathBuf },
 }
 
 impl Route {
@@ -81,8 +65,6 @@ impl Route {
     }
 }
 
-/// The first route something on this computer handles, or `None`. A deep
-/// link wins over a terminal.
 fn pick_route(
     target: Target,
     handles_scheme: impl Fn(&str) -> bool,
@@ -108,12 +90,8 @@ fn lock_cache() -> std::sync::MutexGuard<'static, Option<Cache>> {
     CACHE.lock().unwrap_or_else(|e| e.into_inner())
 }
 
-/// A menu has asked for agents, which is reason enough to run the login shell.
 static MENU_OPENED: AtomicBool = AtomicBool::new(false);
 
-/// Looks for agents off the UI thread, at most once a minute: menus rebuild
-/// on every open, and Claude Code registers its link handler only after its
-/// first interactive prompt.
 pub(crate) fn refresh_in_background() {
     refresh(false);
 }
@@ -148,7 +126,6 @@ fn refresh(force: bool) {
 }
 
 fn route_for(target: Target) -> Option<Route> {
-    // The first menu looks again, this time through the login shell too.
     refresh(!MENU_OPENED.swap(true, Ordering::Relaxed));
     lock_cache()
         .as_ref()?
@@ -158,7 +135,6 @@ fn route_for(target: Target) -> Option<Route> {
         .map(|(_, route)| route.clone())
 }
 
-/// Agents to offer on an action.
 pub(crate) fn for_actions() -> Vec<Target> {
     [Target::ClaudeCode, Target::Codex]
         .into_iter()
@@ -166,7 +142,6 @@ pub(crate) fn for_actions() -> Vec<Target> {
         .collect()
 }
 
-/// Agents to offer on a meeting's notes.
 pub(crate) fn for_meetings() -> Vec<Target> {
     [Target::Claude, Target::Codex]
         .into_iter()
@@ -199,10 +174,6 @@ fn is_program(path: &Path) -> bool {
     path.is_file()
 }
 
-/// `command` on PATH, or where Claude Code's and Codex's installers put it.
-/// A desktop session from a launcher can have a minimal PATH, so once a menu
-/// has asked, one under a Node version manager is found through the login
-/// shell, at most once per launch.
 fn locate_command(command: &str) -> Option<PathBuf> {
     let names = executable_names(command);
     let on_path: Vec<PathBuf> = std::env::var_os("PATH")
@@ -276,8 +247,6 @@ fn login_shell_lookup(_: &str) -> Option<PathBuf> {
     None
 }
 
-/// Opens `target` with the prompt `build` writes for its length limit, and
-/// says so whichever way it goes.
 fn hand_off(
     data: &Entity<AppData>,
     target: Target,
@@ -324,7 +293,6 @@ fn hand_off(
             }
             Err(err) => {
                 log::warn!("handoff to {name} failed: {err:#}");
-                // The prompt stays available.
                 cx.write_to_clipboard(ClipboardItem::new_string(prompt));
                 let message = lokalbot_i18n::format(
                     "Couldn't open {target}: {err}. Its prompt is on the clipboard.",
@@ -340,7 +308,6 @@ fn hand_off(
     .detach();
 }
 
-/// The same from a meeting's page, which has the action's id.
 pub(crate) fn hand_off_meeting_action(
     data: &Entity<AppData>,
     meeting: &Meeting,
@@ -365,7 +332,6 @@ pub(crate) fn hand_off_meeting_action(
     );
 }
 
-/// The same for an action thread, with every meeting it came up in.
 pub(crate) fn hand_off_thread(
     data: &Entity<AppData>,
     thread: &ActionThread,
@@ -385,7 +351,6 @@ pub(crate) fn hand_off_thread(
     );
 }
 
-/// "Open in Claude" and "Open in Codex" on a meeting's notes.
 pub(crate) fn hand_off_meeting(
     data: &Entity<AppData>,
     meeting: &Meeting,

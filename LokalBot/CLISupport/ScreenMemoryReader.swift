@@ -59,8 +59,6 @@ struct ScreenMemoryActivityBlock: Codable, Equatable, Sendable {
     }
 }
 
-/// Full retained text for one capture. This lives in CLISupport so the shared
-/// read-only database layer does not depend on app-only digest model types.
 struct ScreenMemoryTextContext: Equatable, Sendable {
     var snapshotID: Int64
     var capturedAt: Date
@@ -104,8 +102,6 @@ struct ScreenMemoryTimeline: Codable, Equatable {
     var end: Date
     var activity: [ScreenMemoryActivityBlock]
     var screenshots: [ScreenMemoryScreenshotSummary]
-    /// True when that list stopped at the request's limit. Both lists are
-    /// oldest first, so the rest of the interval follows their last item.
     var activityTruncated: Bool?
     var screenshotsTruncated: Bool?
 
@@ -116,15 +112,11 @@ struct ScreenMemoryTimeline: Codable, Equatable {
     }
 }
 
-/// One saved coding-agent burst, reduced to what an agent briefing shows:
-/// where the work happened and what came out of it, never the prompts,
-/// replies, or file contents.
 struct ScreenMemoryAgentSession: Equatable, Sendable {
     var agent: String
     var project: String
     var title: String
     var start: Date
-    /// One coding-agent session is stored as several activity bursts.
     var sessionID: String
     var pullRequests: [String]
     var actionCount: Int
@@ -216,10 +208,7 @@ struct ScreenMemoryDaySummary: Codable, Equatable, Sendable {
     }
 }
 
-/// Read-only query seam shared by MCP and the canonical daily evidence loader.
 protocol ScreenMemoryReading {
-    /// Saved Claude Code and Codex bursts that began in the interval,
-    /// newest first.
     func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession]
     func search(_ request: ScreenMemorySearchRequest) throws -> [ScreenMemorySearchHit]
     func timeline(from start: Date, to end: Date, limit: Int) throws -> ScreenMemoryTimeline
@@ -236,9 +225,6 @@ protocol ScreenMemoryReading {
     func latestEvidenceAt(from start: Date, to end: Date) throws -> Date?
 }
 
-/// Opens LokalBot's SQLite store in `SQLITE_OPEN_READONLY` mode for every
-/// request. It never creates or migrates schema and never exposes screenshot
-/// file paths or decrypted pixels.
 extension ScreenMemoryReading {
     func agentSessions(from start: Date, to end: Date, limit: Int) throws -> [ScreenMemoryAgentSession] { [] }
 }
@@ -260,8 +246,6 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
                 guard let payload = try? JSONSerialization.jsonObject(
                     with: Data(Self.text(row, 1).utf8)) as? [String: Any],
                       let rawAgent = payload["agent"] as? String else { return nil }
-                // Runs started by a schedule, not the person (as in
-                // `CodingAgentBurst.isScheduledRun`), aren't their recent work.
                 let prompts = payload["prompts"] as? [String] ?? []
                 if !prompts.isEmpty && prompts.allSatisfy({
                     $0.hasPrefix("Scheduled automation:") || $0.hasPrefix("Scheduled task:")
@@ -290,19 +274,14 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
     }
 
     func search(_ request: ScreenMemorySearchRequest) throws -> [ScreenMemorySearchHit] {
-        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
         if CJKSearch.containsCJK(request.query) {
             return try substringSearch(request, cjkRowsOnly: false)
         }
         let hits = try ftsSearch(request)
         guard hits.isEmpty else { return hits }
-        // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
         return try substringSearch(request, cjkRowsOnly: true)
     }
 
-    /// Substring counterpart of `ftsSearch`: any term in the text or window
-    /// title, ranked by how many terms matched and then by recency, with
-    /// snippets built from the stored text.
     private func substringSearch(_ request: ScreenMemorySearchRequest,
                                  cjkRowsOnly: Bool) throws -> [ScreenMemorySearchHit] {
         let terms = CJKSearch.terms(from: request.query)
@@ -402,7 +381,6 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
     func timeline(from start: Date, to end: Date, limit: Int) throws
         -> ScreenMemoryTimeline {
         try withConnection { connection in
-            // One row past the limit tells a cut list from a complete one.
             let intervalBindings: [SQLiteReadValue] = [
                 .double(start.timeIntervalSince1970),
                 .double(end.timeIntervalSince1970),
@@ -705,8 +683,6 @@ struct SQLiteScreenMemoryReader: ScreenMemoryReading {
 
     func daySummary(from start: Date, to end: Date) throws -> ScreenMemoryDaySummary {
         try withConnection { connection in
-            // Tables are created lazily by their writers, so a fresh install's
-            // database can legitimately have none of them yet.
             let activity: (Double, Int, Int)
             if try connection.tableExists("activity_blocks") {
                 activity = try connection.query("""
@@ -776,8 +752,6 @@ private enum SQLiteReadValue {
     case text(String)
 }
 
-/// Minimal query-only SQLite wrapper. Keeping it private prevents other CLI
-/// code from accidentally growing a write path to the user's screen history.
 private final class ReadOnlySQLiteConnection {
     private let handle: OpaquePointer
 
@@ -843,7 +817,6 @@ private final class ReadOnlySQLiteConnection {
     }
 
     func columnExists(_ column: String, in table: String) throws -> Bool {
-        // Table and column names are internal constants at every call site.
         try query("PRAGMA table_info(\(table))") { statement in
             Self.text(statement, 1)
         }.contains(column)

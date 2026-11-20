@@ -3,9 +3,6 @@ import CryptoKit
 import SQLite3
 @testable import LokalBot
 
-/// Migration from old LokalBot identities. Exercises the data-loss-prone
-/// filesystem/settings halves with injected dirs/suites (the Keychain half talks
-/// to the real login keychain, so it's verified on install, not here).
 final class DataMigrationTests: XCTestCase {
     private final class TestSecretStore {
         enum Failure: Error { case transientRead }
@@ -152,8 +149,6 @@ final class DataMigrationTests: XCTestCase {
         }
     }
 
-    // MARK: - Data directory
-
     func testMigrateDataDirMovesLibraryAndVersionRenamesDatabase() throws {
         let fm = FileManager.default
         let oldDir = tmp.appendingPathComponent("com.dotenv.LokalBotV2", isDirectory: true)
@@ -161,7 +156,6 @@ final class DataMigrationTests: XCTestCase {
         let meetings = oldDir.appendingPathComponent("meetings/2026/06", isDirectory: true)
         try fm.createDirectory(at: meetings, withIntermediateDirectories: true)
         try Data("meta".utf8).write(to: meetings.appendingPathComponent("meta.json"))
-        // DB + its WAL/SHM sidecars carry the old version in the filename.
         for name in ["lokalbotv2.sqlite", "lokalbotv2.sqlite-wal", "lokalbotv2.sqlite-shm"] {
             try Data("db".utf8).write(to: oldDir.appendingPathComponent(name))
         }
@@ -169,13 +163,10 @@ final class DataMigrationTests: XCTestCase {
         XCTAssertTrue(DataMigration.migrateDataDir(from: oldDir, to: newDir))
 
         XCTAssertFalse(fm.fileExists(atPath: oldDir.path), "V2 dir should be moved, not left behind")
-        // Library content survives the move.
         XCTAssertTrue(fm.fileExists(atPath: newDir.appendingPathComponent("meetings/2026/06/meta.json").path))
-        // DB + sidecars are renamed to the V3 filename the app opens.
         for name in ["lokalbotv3.sqlite", "lokalbotv3.sqlite-wal", "lokalbotv3.sqlite-shm"] {
             XCTAssertTrue(fm.fileExists(atPath: newDir.appendingPathComponent(name).path), "\(name) missing")
         }
-        // No stale V2-named DB lingers in the migrated dir.
         XCTAssertFalse(fm.fileExists(atPath: newDir.appendingPathComponent("lokalbotv2.sqlite").path))
     }
 
@@ -739,12 +730,10 @@ final class DataMigrationTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: newDir.path))
     }
 
-    // MARK: - Settings / UserDefaults
-
     func testMigrateSettingsCopiesBlobAndOnboardingFlag() throws {
         let old = freshSuite(), new = freshSuite()
         var settings = AppSettings()
-        settings.retentionDays = 99          // a clearly non-default value to track
+        settings.retentionDays = 99
         settings.menuBarOnly = false
         old.set(try JSONEncoder().encode(settings), forKey: "lokalbotv2.settings")
         old.set(true, forKey: "lokalbotv2.onboarding.shown")
@@ -787,8 +776,6 @@ final class DataMigrationTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(AppSettings.self, from: data).retentionDays, 42)
         XCTAssertTrue(new.bool(forKey: AppState.onboardingShownKey))
     }
-
-    // MARK: - Legacy chat encryption key recovery
 
     func testLegacyEncryptedChatsAreAtomicallyResealedWithCurrentKey() throws {
         let chats = tmp.appendingPathComponent("chats", isDirectory: true)
@@ -850,12 +837,7 @@ final class DataMigrationTests: XCTestCase {
                        "preflight must leave recoverable chats untouched when any envelope is unknown")
     }
 
-    // MARK: - Test-host guard (regression: `xcodebuild test` must not move real data)
-
     func testRunIfNeededIsNoOpUnderXCTestHost() {
-        // Running the app as a unit-test host executes main() and thus
-        // runIfNeeded; the XCTestConfigurationFilePath guard must make it bail
-        // before it marks itself done or touches the real user library.
         let defaults = freshSuite()
         DataMigration.runIfNeeded(
             environment: ["XCTestConfigurationFilePath": "/tmp/x.xctestconfiguration"],

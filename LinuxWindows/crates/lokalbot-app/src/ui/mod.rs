@@ -1,15 +1,3 @@
-//! LokalBot's building blocks, matching `DesignSystem.swift`:
-//! grouped surfaces, section cards, chips, status dots, icon tiles, evidence
-//! pills and the proportion bar. GPUI Kit supplies inputs, buttons, switches
-//! and menus; these helpers cover what it does not.
-//!
-//! Page code should compose these instead of restyling raw `div`s so every
-//! page keeps the same radii, paddings and colors.
-//!
-//! The redesign's shared parts: [`section_panel`] (a section of a page on its
-//! own raised surface, with its pills, bands and lead variant) and
-//! [`action_row`] (the action row every page draws).
-
 pub mod action_row;
 pub mod answer_text;
 pub mod citations;
@@ -38,12 +26,10 @@ use gpui_kit::{
 
 use crate::theme::{LbThemeExt as _, metric, ty};
 
-/// A Lucide icon at `size`, tinted `color`.
 pub fn icon(name: Ico, size: Pixels, color: Hsla) -> Icon {
     Icon::new(name).size(size).text_color(color)
 }
 
-/// The rounded well behind Recap, Action Items, Decisions and settings groups.
 pub fn grouped_surface(cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -53,12 +39,10 @@ pub fn grouped_surface(cx: &App) -> Div {
         .border_color(lb.group_stroke)
 }
 
-/// A grouped surface with the standard 14px padding.
 pub fn panel(cx: &App) -> Div {
     grouped_surface(cx).p(metric::PANEL_PADDING)
 }
 
-/// A tinted status surface: 10% fill, 28% stroke (recording, attention).
 pub fn status_surface(tint: Hsla, cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -68,7 +52,6 @@ pub fn status_surface(tint: Hsla, cx: &App) -> Div {
         .border_color(lb.status_stroke(tint))
 }
 
-/// `StatTile`: icon + bold value + label, in a chip ("3h 50m tracked").
 pub fn stat_chip(
     icon_name: Ico,
     value: impl Into<SharedString>,
@@ -94,12 +77,10 @@ pub fn stat_chip(
         .child(div().text_color(lb.text_secondary).child(label.into()))
 }
 
-/// A filled circle, 8px by default.
 pub fn status_dot(color: Hsla, size: Pixels) -> Div {
     div().size(size).flex_none().rounded_full().bg(color)
 }
 
-/// Rounded square with a tinted fill and a centered symbol (`IconTile`).
 pub fn icon_tile(name: Ico, tint: Hsla, size: Pixels) -> Div {
     div()
         .size(size)
@@ -112,7 +93,6 @@ pub fn icon_tile(name: Ico, tint: Hsla, size: Pixels) -> Div {
         .child(icon(name, size * 0.5, tint))
 }
 
-/// Empty states: a quiet symbol, a title and an explanation, centered.
 pub fn empty_state(
     icon_name: Ico,
     title: impl Into<SharedString>,
@@ -143,12 +123,10 @@ pub fn empty_state(
         )
 }
 
-/// Hairline separator.
 pub fn divider(cx: &App) -> Div {
     div().h(px(1.)).w_full().bg(cx.lb().separator)
 }
 
-/// A clickable text link in the accent color.
 pub fn link(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
@@ -165,7 +143,6 @@ pub fn link(
         .on_click(move |_, window, cx| on_click(window, cx))
 }
 
-/// Initials avatar tinted from the speaker palette.
 pub fn avatar(initials: impl Into<SharedString>, tint: Hsla, size: Pixels) -> Div {
     div()
         .size(size)

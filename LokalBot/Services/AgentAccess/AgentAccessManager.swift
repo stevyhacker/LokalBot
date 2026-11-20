@@ -1,7 +1,6 @@
 import Combine
 import Foundation
 
-/// App-side owner of the external-agent marker and local-model wake watcher.
 @MainActor
 final class AgentAccessManager: ObservableObject {
     @Published private(set) var isEnabled = false
@@ -9,19 +8,11 @@ final class AgentAccessManager: ObservableObject {
     private let gate: AgentAccessGate
     private let storage: StorageManager
     private let settings: () -> AppSettings
-    /// Surfaces enable failures to the user (feeds `AppState.lastError`); a
-    /// silently-off Privacy toggle would read as a broken switch.
     private let onError: (String) -> Void
-    /// Test seam. When nil (production), wakes go through `wakeMainLLM`,
-    /// which holds a TTL lease on the broker.
     private let startEngine: ((AppSettings, StorageManager) async -> String?)?
     private let broker: InferenceBroker
-    /// The lease behind the most recent ask_library wake. Replaced (not
-    /// stacked) on every wake; released on disable; expires on its own TTL.
     private var agentLease: InferenceLease?
 
-    /// One external question rarely comes alone: the TTL keeps the model
-    /// warm for follow-ups, then returns the RAM ten minutes after the last.
     static let agentLeaseTTL: TimeInterval = 600
 
     private var watcher: DispatchSourceFileSystemObject?
@@ -101,8 +92,6 @@ final class AgentAccessManager: ObservableObject {
                 failure = await wakeMainLLM(settings: settings(), storage: storage)
             }
             guard isEnabled else {
-                // Disable may race a suspended ensure and run before the fresh
-                // lease is assigned. Release again after the wake completes.
                 releaseAgentLease()
                 handlingWake = false
                 return
@@ -122,8 +111,6 @@ final class AgentAccessManager: ObservableObject {
         case failure(String)
     }
 
-    /// Pure resolution half of the wake path. The failure strings are the
-    /// exact messages the CLI relays to external agents — keep them verbatim.
     static func resolveBuiltInModelURL(
         settings: AppSettings,
         storage: StorageManager
@@ -150,8 +137,6 @@ final class AgentAccessManager: ObservableObject {
         }
     }
 
-    /// Default wake handler: resolve the built-in model, then hold a TTL
-    /// lease on the Main LLM.
     func wakeMainLLM(settings: AppSettings, storage: StorageManager) async -> String? {
         switch await Self.resolveBuiltInModelURL(settings: settings, storage: storage) {
         case .failure(let reason):
@@ -161,11 +146,6 @@ final class AgentAccessManager: ObservableObject {
         }
     }
 
-    /// Acquires a fresh TTL lease, then releases the previous one — in that
-    /// order, so the lease count never dips to zero and starts a linger.
-    /// Re-acquiring instead of renewing means the broker's ensure runs on
-    /// every wake: a llama-server that crashed since the last question is
-    /// revived instead of trusted.
     func acquireOrRenewAgentLease(modelURL: URL) async -> String? {
         do {
             let fresh = try await broker.lease(.mainLLM, model: modelURL,

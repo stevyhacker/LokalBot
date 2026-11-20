@@ -3,20 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Linux: the focused field through AT-SPI2, the accessibility bus GTK,
-//! Qt, Firefox, Chromium and Electron apps publish to (`CotypingAXHelper`,
-//! `CotypingFocusTracker`).
-//!
-//! The watcher registers for focus, caret and text-change events, reads the
-//! focused object when one arrives (coalesced, so a burst of typing costs one
-//! read), and polls the last field with Cotabby's backoff for toolkits that
-//! miss events. Exclusions are checked from the owning process before any
-//! text is requested; secure fields are recognized from their role and
-//! labels and never read.
-//!
-//! Some toolkits (GTK 4) report "screen" coordinates relative to their
-//! window; those are moved by the window's position on the X screen.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -47,22 +33,15 @@ const DOCUMENT: &str = "org.a11y.atspi.Document";
 const COLLECTION: &str = "org.a11y.atspi.Collection";
 const APPLICATION: &str = "org.a11y.atspi.Application";
 
-/// Every call gives up after this, so a stuck app costs one missed read.
 const CALL_TIMEOUT: Duration = Duration::from_millis(250);
-/// Poll cadence before backoff (`CotypingFocusTracker.defaultIntervalMs`).
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
-/// Events arriving this close together are read once.
 const COALESCE: Duration = Duration::from_millis(8);
-/// Time for the walk that finds the text above a field.
 const VISIBLE_BUDGET: Duration = Duration::from_millis(120);
 
-/// `ATSPI_COORD_TYPE_SCREEN`.
 const COORD_SCREEN: u32 = 0;
-/// `ATSPI_COORD_TYPE_WINDOW`.
 const COORD_WINDOW: u32 = 1;
 
 mod role {
-    //! `AtspiRole` values used here.
     pub const COMBO_BOX: u32 = 11;
     pub const DIALOG: u32 = 16;
     pub const FILE_CHOOSER: u32 = 19;
@@ -92,7 +71,6 @@ mod role {
 }
 
 mod state {
-    //! `AtspiStateType` bits.
     pub const EDITABLE: u32 = 7;
     pub const FOCUSED: u32 = 12;
     pub const MULTI_LINE: u32 = 17;
@@ -106,7 +84,6 @@ mod state {
     }
 }
 
-/// An accessible object: its owner's bus name and its path.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Obj {
     bus: String,
@@ -131,7 +108,6 @@ impl Obj {
     }
 }
 
-/// The accessibility bus.
 #[derive(Clone)]
 struct Bus {
     conn: Connection,
@@ -281,7 +257,6 @@ impl Bus {
         rect(x, y, w, h)
     }
 
-    /// The toolkit's major version ("GTK", 4), from the application object.
     fn toolkit(&self, app: &Obj) -> Option<(String, u32)> {
         let name = self.string_property(app, APPLICATION, "ToolkitName")?;
         let version = self.string_property(app, APPLICATION, "Version")?;
@@ -321,9 +296,6 @@ impl Bus {
     }
 }
 
-/// The coordinate type to ask for and how to bring the answer to the
-/// screen: window coordinates plus the window's content origin for GTK 4,
-/// else screen coordinates as they are.
 fn placement(window_origin: Option<(f32, f32)>) -> (u32, impl Fn(Rect) -> Rect + Copy) {
     let coords = if window_origin.is_some() {
         COORD_WINDOW
@@ -337,7 +309,6 @@ fn placement(window_origin: Option<(f32, f32)>) -> (u32, impl Fn(Rect) -> Rect +
     (coords, place)
 }
 
-/// AT-SPI reports a missing rect as zeros or -1s.
 fn rect(x: i32, y: i32, w: i32, h: i32) -> Option<Rect> {
     if w < 0 || h <= 0 || (x == 0 && y == 0 && w == 0 && h == 0) || x == i32::MIN || y == i32::MIN {
         return None;
@@ -345,8 +316,6 @@ fn rect(x: i32, y: i32, w: i32, h: i32) -> Option<Rect> {
     Some(Rect::new(x as f32, y as f32, w as f32, h as f32))
 }
 
-/// Event subscriptions the registry forwards to apps: without one, toolkits
-/// do not send the event at all.
 const EVENTS: [&str; 5] = [
     "object:state-changed:focused",
     "object:text-caret-moved",
@@ -378,17 +347,11 @@ enum Command {
 
 #[derive(Debug)]
 enum AtspiEvent {
-    /// An object gained (true) or lost focus.
     Focus(Obj, bool),
-    /// The caret moved or the text changed in an object.
     Edit(Obj),
-    /// A window came forward.
     Window,
 }
 
-/// Parses one event signal: member, sender, path and the `detail`/`detail1`
-/// fields, whichever body layout the toolkit uses (`siiva{sv}` or Qt's
-/// `siiv(so)`).
 fn parse_event(message: &zbus::Message) -> Option<AtspiEvent> {
     let header = message.header();
     let member = header.member()?.as_str().to_string();
@@ -428,8 +391,6 @@ impl Watcher {
         register_events(&bus, true);
         let (commands, receiver) = unbounded();
         let stopped = Arc::new(AtomicBool::new(false));
-        // Events arrive on a connection of their own so a slow read never
-        // backs up the signal stream.
         let listener = Bus::connect()?.conn;
         for interface in [
             "org.a11y.atspi.Event.Object",
@@ -500,14 +461,12 @@ impl Drop for Watcher {
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
         }
-        // Ends the event threads, which are blocked reading this connection.
         if let Some(listener) = self.listener.take() {
             let _ = listener.close();
         }
     }
 }
 
-/// What is read once per focused object.
 #[derive(Clone, Debug)]
 struct Fixed {
     pid: u32,
@@ -515,15 +474,11 @@ struct Fixed {
     app_id: String,
     window_title: String,
     url: Option<String>,
-    /// The object has `EditableText`.
     editable: bool,
     single_line: bool,
     is_integrated_terminal: bool,
-    /// Where the window's content is on screen, when the toolkit can only
-    /// report coordinates within its window (GTK 4).
     window_relative: Option<(f32, f32)>,
     style: Option<FieldStyle>,
-    /// Why this object gets no suggestion, decided from metadata alone.
     refusal: Option<Refusal>,
 }
 
@@ -573,7 +528,6 @@ impl Reader {
     }
 
     fn run(&mut self, receiver: Receiver<Command>, handler: FocusHandler) {
-        // A field focused before the watcher started has sent no event yet.
         self.discover_focus();
         self.deliver(&handler);
         loop {
@@ -584,7 +538,6 @@ impl Reader {
                     let Some(mut dirty) = self.handle(command) else {
                         break;
                     };
-                    // Read once for a burst of events.
                     let until = Instant::now() + COALESCE;
                     while let Ok(command) = receiver.recv_deadline(until) {
                         let Some(changed) = self.handle(command) else {
@@ -611,8 +564,6 @@ impl Reader {
         }
     }
 
-    /// Applies one command. `None` to stop; otherwise whether the field
-    /// needs reading again.
     fn handle(&mut self, command: Command) -> Option<bool> {
         let dirty = match command {
             Command::Stop => return None,
@@ -649,11 +600,9 @@ impl Reader {
                         .states(&obj)
                         .is_some_and(|s| state::has(s, state::FOCUSED))
                 {
-                    // An editing object whose focus event came before we did.
                     self.set_current(Some(obj));
                     true
                 } else {
-                    // Output in another app, such as a terminal: not ours.
                     false
                 }
             }
@@ -670,13 +619,10 @@ impl Reader {
         if self.current != obj {
             self.current = obj;
             self.fixed = None;
-            // Text read from around a field is forgotten when focus leaves it.
             self.visible = None;
         }
     }
 
-    /// Finds the focused object of the active window's app when no event
-    /// said: at startup and after an app switch.
     fn discover_focus(&mut self) {
         let Some(pid) = self.x11.active_window().and_then(|w| w.pid) else {
             return;
@@ -705,8 +651,6 @@ impl Reader {
                 break;
             }
         }
-        // Apps that keep their text from accessibility tools cannot get
-        // suggestions; say which, so it does not look broken.
         let mut limitation = self.limitation.lock();
         if published {
             *limitation = None;
@@ -718,10 +662,7 @@ impl Reader {
         }
     }
 
-    /// The focused descendant of an app: one `Collection` query when the
-    /// toolkit supports it, else a short walk through showing objects.
     fn find_focused(&self, app: &Obj) -> Option<Obj> {
-        // (states, match, attributes, match, roles, match, interfaces, match, invert)
         let focused: Vec<i32> = vec![1 << state::FOCUSED, 0];
         let rule = (
             focused,
@@ -772,7 +713,6 @@ impl Reader {
         Some(pid)
     }
 
-    /// Reads and delivers the focus when it changed. Returns whether it did.
     fn deliver(&mut self, handler: &FocusHandler) -> bool {
         let snapshot = self.read();
         if !self.gate.apply(&snapshot) {
@@ -839,8 +779,6 @@ impl Reader {
         }
     }
 
-    /// Identity, privacy and the field's kind, from metadata only. `None`
-    /// when the object is gone.
     fn read_fixed(&mut self, obj: &Obj) -> Option<Fixed> {
         let pid = self.pid_of(&obj.bus)?;
         let mut fixed = Fixed {
@@ -857,8 +795,6 @@ impl Reader {
             refusal: None,
         };
         if pid == self.own_pid {
-            // LokalBot's own windows: its practice editor feeds the engine
-            // itself, and nothing else of LokalBot is read.
             fixed.app_name = "LokalBot".into();
             fixed.app_id = crate::privacy::SELF_APP_ID.into();
             fixed.refusal = Some(Refusal::Unsupported("Off in LokalBot."));
@@ -883,7 +819,6 @@ impl Reader {
         let name = self.bus.name(obj);
         let description = self.bus.description(obj);
         let attributes = self.bus.attributes(obj);
-        // Secure fields: never read, judged before any text is touched.
         if role == role::PASSWORD_TEXT
             || policy::is_secure_field([
                 role_name.as_str(),
@@ -916,8 +851,6 @@ impl Reader {
             fixed.refusal = Some(Refusal::Unsupported(reasons::SEARCH));
             return Some(fixed);
         }
-        // Verification codes, PINs and one-time passwords, judged from the
-        // field's names before its text is read. Chromium reports the DOM id.
         if policy::is_code_field([
             name.as_str(),
             description.as_str(),
@@ -932,10 +865,8 @@ impl Reader {
         fixed.single_line = state::has(states, state::SINGLE_LINE)
             || (matches!(role, role::ENTRY | role::COMBO_BOX)
                 && !state::has(states, state::MULTI_LINE));
-        // Chromium reports the DOM's class list as an object attribute.
         fixed.is_integrated_terminal =
             policy::is_integrated_terminal(attributes.get("class").map_or("", String::as_str));
-        // Window title, file dialogs and the page address from the ancestors.
         let mut cursor = self.bus.parent(obj);
         let mut depth = 0;
         let mut frame: Option<Obj> = None;
@@ -967,8 +898,6 @@ impl Reader {
         Some(fixed)
     }
 
-    /// The app's name and id by day memory's rules, with its window's
-    /// `WM_CLASS` when that window is in front.
     fn app_identity(&mut self, pid: u32, obj: &Obj) -> (String, String) {
         if let Some(found) = self.names.get(&pid) {
             return found.clone();
@@ -1007,11 +936,6 @@ impl Reader {
             .find_map(|key| attributes.get(*key).filter(|v| !v.is_empty()).cloned())
     }
 
-    /// GTK 4 cannot know where its window is: its "screen" extents are
-    /// relative to the parent, and only window extents are right, measured
-    /// from the window's content (inside the shadow it draws itself). Its
-    /// fields are placed from window extents and where the X window's
-    /// content is; `None` for toolkits that report screen coordinates.
     fn window_origin(&mut self, obj: &Obj, pid: u32) -> Option<(f32, f32)> {
         let app = self.bus.application(obj)?;
         let (toolkit, major) = self.bus.toolkit(&app)?;
@@ -1044,7 +968,6 @@ impl Reader {
         (style != FieldStyle::default()).then_some(style)
     }
 
-    /// The live text and caret. Fails with why there is no suggestion.
     fn read_text(&self, obj: &Obj, fixed: &Fixed) -> Result<FieldSnapshot, Refusal> {
         let caret = self
             .bus
@@ -1070,7 +993,6 @@ impl Reader {
         } else {
             String::new()
         };
-        // Web content marks embedded objects with U+FFFC.
         let raw_before = raw_before.replace('\u{fffc}', "");
         let raw_after = raw_after.replace('\u{fffc}', "");
         let (before, before_truncated) = policy::bounded_before(&raw_before, start > 0);
@@ -1092,7 +1014,6 @@ impl Reader {
             match policy::choose_caret(empty_range, previous, field_frame, rtl) {
                 Some(rect) => (rect, true),
                 None => match field_frame {
-                    // A thin caret at the field's leading edge, as macOS estimates.
                     Some(frame) => (
                         Rect::new(frame.x + 4.0, frame.y, 1.0, frame.height.clamp(8.0, 22.0)),
                         false,
@@ -1125,7 +1046,6 @@ impl Reader {
         })
     }
 
-    /// The text above the field, read once per field and only when allowed.
     fn visible_text(&mut self, obj: &Obj, field: &FieldSnapshot) -> Option<String> {
         if !self.policy.allows_visible_text(field) {
             return None;
@@ -1147,7 +1067,6 @@ impl Reader {
             .as_ref()
             .and_then(|(_, fixed)| fixed.window_relative);
         let (coords, place) = placement(offset);
-        // The window, and the nearest container with room above the field.
         let mut cursor = self.bus.parent(obj);
         let mut scope: Option<(Obj, Rect)> = None;
         let mut window: Option<(Obj, Rect)> = None;
@@ -1188,7 +1107,6 @@ impl Reader {
     }
 }
 
-/// The visible-context walk over AT-SPI.
 struct AtspiSource<'a> {
     bus: &'a Bus,
     offset: Option<(f32, f32)>,
@@ -1252,15 +1170,9 @@ impl VisibleSource for AtspiSource<'_> {
     }
 }
 
-/// What a toolkit counts in `EditableText` and `Text` calls. AT-SPI says
-/// characters; these are what GTK 3.24, GTK 4.14, Qt 5.15 and Qt 6.4 fields
-/// did when driven live. A toolkit not checked that way keeps characters.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Counting {
-    /// Offsets in characters; `InsertText`'s length in UTF-8 bytes (a GTK 4
-    /// entry ignores the length).
     Gtk,
-    /// Everything in UTF-16 units, the index of Qt's strings.
     Qt,
     Characters,
 }
@@ -1274,7 +1186,6 @@ impl Counting {
         }
     }
 
-    /// How far `text` moves an offset.
     fn offsets(self, text: &str) -> usize {
         match self {
             Counting::Qt => text.encode_utf16().count(),
@@ -1282,8 +1193,6 @@ impl Counting {
         }
     }
 
-    /// `InsertText`'s length for `text`. Too small cuts the text short; too
-    /// large makes Qt pad it with NUL characters.
     fn insert_length(self, text: &str) -> usize {
         match self {
             Counting::Gtk => text.len(),
@@ -1291,8 +1200,6 @@ impl Counting {
         }
     }
 
-    /// Offsets taken by the last `graphemes` grapheme clusters of `text`, or
-    /// the first ones when `from_start`.
     fn offsets_in_graphemes(self, text: &str, graphemes: usize, from_start: bool) -> usize {
         let offsets = |cluster: &str| self.offsets(cluster);
         if from_start {
@@ -1307,9 +1214,6 @@ impl Counting {
     }
 }
 
-/// Types an accepted chunk at the caret: `EditableText` when the field has
-/// it, else XTest keystrokes into the window in front, which must belong to
-/// the field's app.
 pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     if let Some((bus_name, path)) = &field.target.editable {
         match insert_editable(&Obj::new(bus_name.clone(), path.clone()), edit) {
@@ -1323,12 +1227,10 @@ pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
         front.is_none_or(|pid| pid == field.target.pid),
         "the field's app is no longer in front"
     );
-    // The grabbed Tab must be up, or the keystrokes would come back to us.
     super::x11::wait_for_grabbed_key_release(Duration::from_millis(400));
     super::x11::tap_keys(super::x11::XK_BACKSPACE, edit.backward)?;
     super::x11::tap_keys(super::x11::XK_DELETE, edit.forward)?;
     if !edit.text.is_empty() {
-        // Tabs would be taken by our own grab; a suggestion never needs one.
         let text = edit.text.replace('\t', " ");
         anyhow::ensure!(
             crate::insert::type_keystrokes(&text)?,
@@ -1380,8 +1282,6 @@ fn insert_editable(obj: &Obj, edit: &Edit) -> anyhow::Result<()> {
         ),
     )?;
     anyhow::ensure!(inserted, "the field refused the text");
-    // Some toolkits leave the caret before text inserted at it, and a Qt
-    // line edit sends it to the end of the field.
     let wanted = caret + counting.offsets(&edit.text) as i32;
     let now = bus.caret_offset(obj);
     if now == Some(caret) || (counting == Counting::Qt && now != Some(wanted)) {
@@ -1405,7 +1305,6 @@ mod tests {
     fn grapheme_counts_become_character_counts() {
         let characters = Counting::Characters;
         assert_eq!(characters.offsets_in_graphemes("abc", 2, false), 2);
-        // "é" as e + combining acute is one grapheme of two characters.
         assert_eq!(
             characters.offsets_in_graphemes("caf\u{65}\u{301}", 1, false),
             2
@@ -1419,18 +1318,14 @@ mod tests {
     #[test]
     fn each_toolkit_is_counted_the_way_it_counts() {
         let toolkit = |name: &str, major| Counting::of(Some((name.to_string(), major)));
-        // The ATK bridge of GTK 3 reports "gtk", GTK 4 "GTK".
         assert_eq!(toolkit("gtk", 3), Counting::Gtk);
         assert_eq!(toolkit("GTK", 4), Counting::Gtk);
         assert_eq!(toolkit("Qt", 5), Counting::Qt);
         assert_eq!(toolkit("Qt", 6), Counting::Qt);
-        // Not checked against a live field, so left as they were.
         assert_eq!(toolkit("gtk", 2), Counting::Characters);
         assert_eq!(toolkit("Chromium", 1), Counting::Characters);
         assert_eq!(Counting::of(None), Counting::Characters);
 
-        // 13 characters, 15 bytes; with a skin-toned emoji, 10 characters,
-        // 16 bytes and 12 UTF-16 units.
         for (text, characters, bytes, units) in
             [("će doći sutra", 13, 15, 13), ("ok 👍🏽 done", 10, 16, 12)]
         {
@@ -1441,7 +1336,6 @@ mod tests {
             assert_eq!(Counting::Characters.insert_length(text), characters);
             assert_eq!(Counting::Characters.offsets(text), characters);
         }
-        // One emoji before the caret is one grapheme: two offsets in Qt.
         assert_eq!(Counting::Qt.offsets_in_graphemes("x👍", 1, false), 2);
         assert_eq!(Counting::Gtk.offsets_in_graphemes("x👍", 1, false), 1);
     }

@@ -1,7 +1,5 @@
 import Foundation
 
-/// What one reader found for a day. Unreadable files are reported, never
-/// fatal: an agent update that changes its format must not stop the digest.
 struct CodingAgentReadResult: Sendable {
     var transcripts: [CodingAgentTranscript] = []
     var filesRead = 0
@@ -11,10 +9,7 @@ struct CodingAgentReadResult: Sendable {
 
 protocol CodingAgentSessionReader: Sendable {
     var agent: CodingAgentKind { get }
-    /// Sessions with activity inside `interval`, their events clipped to it.
     func transcripts(in interval: DateInterval) -> CodingAgentReadResult
-    /// The same, reusing what earlier scans parsed: only bytes appended to
-    /// a transcript since it was last read are parsed again.
     func transcripts(in interval: DateInterval, cache: CodingAgentParseCache?) -> CodingAgentReadResult
 }
 
@@ -23,10 +18,6 @@ extension CodingAgentSessionReader {
         transcripts(in: interval)
     }
 
-    /// Transcript files that may hold activity inside `interval`: written
-    /// since it began, and created before it ended. Skipping by metadata
-    /// keeps multi-gigabyte archives out of every scan. `compressedRollouts`
-    /// also takes Codex's compressed rollouts, `*.jsonl.zst`.
     static func candidateFiles(
         _ urls: [URL], in interval: DateInterval, compressedRollouts: Bool = false
     ) -> [CodingAgentCandidateFile] {
@@ -39,7 +30,6 @@ extension CodingAgentSessionReader {
                   values.isRegularFile == true,
                   let modified = values.contentModificationDate, modified >= interval.start
             else { return nil }
-            // A compressed file was created when it was compressed, after its session began.
             let created = compressed
                 ? min(CodingAgentCompressedTranscript.startBound(of: url), modified)
                 : values.creationDate ?? modified
@@ -58,13 +48,6 @@ struct CodingAgentCandidateFile: Sendable {
 }
 
 
-/// Reads Claude Code sessions from `~/.claude/projects/<cwd-slug>/<id>.jsonl`.
-///
-/// Only user prompts, the agent's text replies, tool names and inputs for
-/// file edits and shell commands, titles, and PR links are read. Tool
-/// results are recognised from their opening bytes and contribute only a
-/// timestamp. Subagent sidechains, meta records, and compaction summaries
-/// are skipped.
 struct ClaudeCodeSessionReader: CodingAgentSessionReader {
     var agent: CodingAgentKind { .claudeCode }
     var root: URL
@@ -82,8 +65,6 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
         var result = CodingAgentReadResult()
         let projectFolders = (try? FileManager.default.contentsOfDirectory(
             at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])) ?? []
-        // Top level of each project folder only: subagent transcripts live
-        // in per-session subfolders and are not the person's sessions.
         let files = projectFolders.flatMap { folder in
             (try? FileManager.default.contentsOfDirectory(
                 at: folder,
@@ -92,9 +73,6 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
                 ],
                 options: [.skipsHiddenFiles])) ?? []
         }
-        // A fork or resumed session copies earlier records under their
-        // original ids. Reading older files first credits that history to
-        // the session where it happened.
         let candidates = Self.candidateFiles(files, in: interval).sorted {
             $0.created == $1.created ? $0.url.path < $1.url.path : $0.created < $1.created
         }
@@ -115,13 +93,10 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
                 result.unreadableFiles.append(candidate.url.path)
                 continue
             }
-            // De-duplication against other files depends on the whole scan,
-            // so it happens here rather than in the cached summary.
             guard var window = summary.transcript(
                 sessionID: candidate.url.deletingPathExtension().lastPathComponent, in: interval)
             else { continue }
             window.transcript.events.removeAll { event in event.recordKey.map(seenRecords.contains) == true }
-            // A file whose window holds only copies claims nothing.
             guard window.transcript.events.contains(where: { !$0.isAnnotation }) else { continue }
             seenRecords.formUnion(window.recordKeys)
             result.transcripts.append(window.transcript)
@@ -131,22 +106,13 @@ struct ClaudeCodeSessionReader: CodingAgentSessionReader {
     }
 }
 
-/// What the Claude Code reader keeps of one session file between scans:
-/// each timed record's time, id, and labels, the events those records hold
-/// with redundant activity compacted away, and the file's titles. A
-/// window's transcript is built from it when a scan reads it.
 struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
     struct Record: Sendable {
         var at: Date
-        /// The hashed record id, for dropping copies a fork or resumed
-        /// session carries. Hashes are per process and never persisted.
         var key: Int?
-        /// Index into `labels`, or `-1` for a record naming neither.
         var label: Int32
     }
 
-    /// A folder and branch records ran in. Records naming the same pair
-    /// share one copy, so a long session holds each path once.
     struct Label: Equatable, Sendable {
         var workingDirectory: String?
         var branch: String?
@@ -155,8 +121,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
     private(set) var records: [Record] = []
     private(set) var labels: [Label] = []
     private(set) var events: [CodingAgentStoredEvent] = []
-    /// Checked across the whole file, not just the window: text read from
-    /// the library earlier can still be restated in today's replies.
     private(set) var consultedLokalBot = false
     private(set) var title: String?
     private var titles: [String: String] = [:]
@@ -164,8 +128,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
     private static let editTools: Set<String> = ["Edit", "MultiEdit", "Write", "NotebookEdit"]
 
     mutating func consume(_ lines: CodingAgentJSONLines, retainingFrom start: Date) {
-        // A record the file already holds is a copy, with the same time; it
-        // counts where it first appears.
         var held = Set(records.lazy.compactMap(\.key))
         func admit(_ id: String?) -> (admitted: Bool, key: Int?) {
             guard let key = id.map(CodingAgentParseCache.recordKey) else { return (true, nil) }
@@ -173,7 +135,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
         }
 
         lines.forEach { line in
-            // Tool results carry most of the bytes; read only their time.
             if line.prefix(768, contains: #""type":"tool_result""#) {
                 guard !line.prefix(768, contains: #""isSidechain":true"#),
                       let at = CodingAgentTimestamp.date(line.stringValue(forKey: "timestamp")),
@@ -208,8 +169,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
                       at >= start else { return }
                 let admitted = admit(record["uuid"] as? String)
                 guard admitted.admitted else { return }
-                // Each record names the folder and branch it ran in; its
-                // events keep them, so a burst is labeled by its own work.
                 let workingDirectory = record["cwd"] as? String
                 let branch = (record["gitBranch"] as? String).flatMap { $0.isEmpty || $0 == "HEAD" ? nil : $0 }
                 let index = appendRecord(at: at, key: admitted.key, label: labelIndex(workingDirectory, branch))
@@ -247,8 +206,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
         }
     }
 
-    /// The session's transcript inside `interval` and the ids of the records
-    /// it holds there, or `nil` when the window holds no work.
     func transcript(
         sessionID: String, in interval: DateInterval
     ) -> (transcript: CodingAgentTranscript, recordKeys: Set<Int>)? {
@@ -256,8 +213,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
             agent: .claudeCode, sessionID: sessionID, title: title, consultedLokalBot: consultedLokalBot,
             events: [])
         var recordKeys: Set<Int> = []
-        // The session is labeled by the first record naming a folder. Files a
-        // record without one edited are named relative to it, once it is known.
         var labeledBy = Int32.max
         for (index, record) in records.enumerated() where interval.contains(record.at) {
             if let key = record.key { recordKeys.insert(key) }
@@ -321,8 +276,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
         } else {
             append(.activity, at: at, record: record)
         }
-        // A command the person ran in the agent's terminal mode is theirs,
-        // and still work in this session.
         if let command = CodingAgentText.terminalCommand(in: raw) {
             for action in CodingAgentText.actions(inCommand: command) {
                 append(.action(action), at: at, record: record)
@@ -330,8 +283,6 @@ struct ClaudeCodeSessionSummary: CodingAgentFileSummary {
         }
     }
 
-    /// An edited file is named relative to the record's folder. A record
-    /// without one keeps the path as written, named when a window is read.
     private mutating func appendAssistant(
         _ content: Any?, at: Date, record: Int32, workingDirectory: String?
     ) {

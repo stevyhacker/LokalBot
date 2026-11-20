@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The overnight Dream re-dreamed the same seven days about eight times on
-/// 2026-10-01 and never kept a memory: every retention pass, digest refresh,
-/// and unrelated meeting edit discarded or revoked reports, and a rate limit
-/// was recorded as a finished evidence-only day.
 final class DreamLoopTests: XCTestCase {
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -39,13 +35,9 @@ final class DreamLoopTests: XCTestCase {
         ], revision: revision)
     }
 
-    // MARK: - Retention and screen changes
-
     func testScreenDeletionKeepsRecentReportsAndMeetingDerivedMemory() throws {
         let store = try temporaryStore()
         let meetingID = UUID()
-        // A recent report whose comparison window reaches a meeting held the
-        // day after the captures that are now expiring.
         let recent = provenance(reportDay: dayKey(2), meetingID: meetingID, meetingDay: dayKey(15))
         let report = DreamReport(day: dayKey(2), generatedAt: Date(), engineName: "test",
                                  evidenceProvenance: recent, narrative: "Recent day")
@@ -54,7 +46,6 @@ final class DreamLoopTests: XCTestCase {
             activeProjects: [.init(name: "Atlas", status: "in review", lastActiveDay: dayKey(2),
                                    provenance: recent)])
         try store.save(report: report, memory: memory)
-        // The deleted day's own report read that day's screens.
         let expiring = DreamReport(
             day: dayKey(16), generatedAt: Date(), engineName: "test",
             evidenceProvenance: provenance(reportDay: dayKey(16), meetingID: UUID(), meetingDay: dayKey(16)),
@@ -146,8 +137,6 @@ final class DreamLoopTests: XCTestCase {
         XCTAssertEqual(try store.loadMemory()?.activeProjects, [])
     }
 
-    // MARK: - Commit-time staleness
-
     func testUnrelatedChangeWhileTheModelRunsDoesNotDiscardTheDream() throws {
         let store = try temporaryStore()
         let revision = try store.evidenceRevision()
@@ -158,7 +147,6 @@ final class DreamLoopTests: XCTestCase {
                                            meetingDay: dayKey(1), revision: revision),
             narrative: "Yesterday")
 
-        // Tonight's meeting finished processing while yesterday was dreamed.
         try store.invalidateEvidence(affectedDayKeys: [dayKey(0)], affectedMeetingIDs: [UUID()],
                                      reportDayKeys: [dayKey(0)])
 
@@ -184,8 +172,6 @@ final class DreamLoopTests: XCTestCase {
         }
         XCTAssertFalse(store.hasReport(forDayKey: dayKey(1)))
     }
-
-    // MARK: - Service
 
     func testRateLimitedAutomaticDreamIsDeferredInsteadOfFinishedAsEvidenceOnly() async throws {
         let store = try temporaryStore()
@@ -228,8 +214,6 @@ final class DreamLoopTests: XCTestCase {
         XCTAssertEqual(options.reasoningBudgetTokens, DreamService.reasoningBudgetTokens)
     }
 
-    // MARK: - Scheduler
-
     @MainActor
     func testSchedulerRetriesADeferredDayQuietlyAndCountsAttempts() async throws {
         var current = try date("2026-07-19T05:00:00Z")
@@ -254,8 +238,6 @@ final class DreamLoopTests: XCTestCase {
         XCTAssertEqual(seen, [0, 1])
         scheduler.stop()
     }
-
-    // MARK: - Helpers
 
     private func date(_ value: String) throws -> Date {
         let formatter = ISO8601DateFormatter()
@@ -321,7 +303,6 @@ final class DreamLoopTests: XCTestCase {
 }
 
 extension DreamLoopTests {
-    /// The 19:07 dream was thrown away because one advice bullet was blank.
     func testBlankAdviceBulletDoesNotDiscardTheNight() throws {
         let synthesis = try XCTUnwrap(DreamPrompts.parse("""
         {"narrative": "Release prep moved forward.", "attention": ["  ", "Signing broke twice"],

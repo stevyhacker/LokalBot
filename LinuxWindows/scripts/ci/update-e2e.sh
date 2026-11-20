@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# End-to-end update from a dry-run feed on this computer. Installs the packaged
-# archive the way a user does (install.sh into a scratch home), serves an
-# update over plain HTTP on 127.0.0.1 signed with a throwaway key, and has the
-# installed LokalBot check, download, verify, install and relaunch itself.
-#
-#   update-e2e.sh <installed-archive> <update-archive> <lokalbot-update-feed> <work-dir>
-#
-# The two archives may be the same file: the installed copy then pretends to
-# be 0.0.1 (LOKALBOT_UPDATE_CURRENT_VERSION), which the relaunched copy does
-# not inherit. Needs python3, openssl, and DISPLAY or Xvfb (on a free display
-# number). Never touches the real home folder or library, and stops only the
-# LokalBot it installed.
 set -euo pipefail
 trap 'echo "update-e2e.sh: line $LINENO failed: $BASH_COMMAND" >&2' ERR
 
@@ -37,7 +25,6 @@ LOG="$WORK/library/logs/lokalbot.log"
 tar -xzf "$INSTALLED_ARCHIVE" -C "$WORK"
 "$WORK/$(name_of "$INSTALLED_ARCHIVE")/install.sh" >/dev/null
 
-# The update, signed with a key made for this run only.
 cp "$UPDATE_ARCHIVE" "$WORK/serve/"
 (umask 077 && openssl rand -base64 32 > "$WORK/key")
 PUBLIC="$("$TOOL" public-key --key-file "$WORK/key")"
@@ -48,7 +35,6 @@ PORT="$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1", 0)); 
   --output "$WORK/serve/linux-x86_64.json"
 python3 -m http.server "$PORT" --bind 127.0.0.1 --directory "$WORK/serve" >"$WORK/http.log" 2>&1 &
 HTTP=$!
-# LokalBot reads the feed as soon as it starts; wait until the server answers.
 FEED="http://127.0.0.1:$PORT/linux-x86_64.json"
 for attempt in $(seq 120); do
   if python3 -c 'import sys, urllib.request; urllib.request.urlopen(sys.argv[1], timeout=2)' "$FEED" 2>/dev/null; then
@@ -69,13 +55,11 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Marks that tell the copies apart: the binary's inode and a missing icon.
 OLD_INODE="$(stat -c %i "$BIN/lokalbot")"
 rm "$ICON"
 printf '{"onboardingCompleted": true, "checkForUpdates": true}\n' > "$WORK/library/settings.json"
 
 if [ -z "${DISPLAY:-}" ]; then
-  # A display number nobody else on this machine uses.
   for number in $(seq 160 199); do
     if [ ! -e "/tmp/.X11-unix/X$number" ] && [ ! -e "/tmp/.X$number-lock" ]; then
       break
@@ -87,7 +71,7 @@ if [ -z "${DISPLAY:-}" ]; then
   sleep 1
 fi
 
-wait_for() { # pattern seconds
+wait_for() {
   local deadline=$((SECONDS + $2))
   until grep -q -- "$1" "$LOG" 2>/dev/null; do
     if ((SECONDS > deadline)); then
@@ -105,7 +89,6 @@ export LOKALBOT_UPDATE_PUBLIC_KEY="$PUBLIC"
 if [ "$OLD_VERSION" = "$NEW_VERSION" ]; then
   export LOKALBOT_UPDATE_CURRENT_VERSION=0.0.1
 fi
-# `install-update` is the command form of Install and Relaunch.
 "$BIN/lokalbot" install-update >"$WORK/first.out" 2>&1 &
 FIRST=$!
 wait_for "updates: installed LokalBot $NEW_VERSION" 240
@@ -115,7 +98,6 @@ if kill -0 "$FIRST" 2>/dev/null; then
   echo "The old copy did not quit" >&2
   exit 1
 fi
-# The relaunched copy checks the same feed and finds nothing newer.
 wait_for "updates: up to date at $NEW_VERSION" 120
 
 NEW_INODE="$(stat -c %i "$BIN/lokalbot")"

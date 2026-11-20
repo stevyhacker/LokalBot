@@ -9,7 +9,6 @@ Website/generator/assistant_roundup.py.
 
 from assistant_roundup import ROUNDUP
 
-# Head and structured-data copy for Website/public/guides.html.
 GUIDES_INDEX = {
     "title": "LokalBot Guides — Private AI Meeting Notes on Your Computer",
     "description": "Practical guides to local AI meeting notes, offline transcription, bot-free recording, open-source privacy, model choice, system requirements, and comparisons.",
@@ -892,9 +891,6 @@ lokalbot-cli list <span class="c-op">\\</span>
     ROUNDUP,
 ]
 
-# Hand-written reference pages (Website/public/about.html, Website/public/benchmarks.html). The
-# renderer lists them on /guides and in the sitemap but does not generate them,
-# so bump "updated" here whenever you edit one of those pages.
 REFERENCES = [
     {
         "slug": "about",

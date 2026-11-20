@@ -1,8 +1,3 @@
-//! The passage a citation points at, read in place (`CitationPassagePopover`):
-//! the source, its time and speaker, the quote, then a button to play from
-//! there or show the file, and one to open the source. Nothing leaves Ask
-//! until one of those is used. Everything shown is already stored here.
-
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -26,7 +21,6 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::citations::{self, CitationSource};
 use crate::ui::{self, Ico, screen_thumbnail};
 
-/// What a passage shows once its source is read.
 pub(super) enum PassageContent {
     Loading,
     Meeting {
@@ -42,14 +36,10 @@ pub(super) enum PassageContent {
     Unavailable,
 }
 
-/// Which citation's passage is showing, and where it was opened.
 pub(super) struct OpenPassage {
-    /// The answer whose number was clicked.
     pub answer: Uuid,
-    /// 1-based, as the answer shows it.
     pub number: usize,
     pub citation: CitationSource,
-    /// Where the number was clicked, in window coordinates.
     pub at: Point<Pixels>,
     pub content: PassageContent,
     player: Option<Arc<Player>>,
@@ -58,12 +48,9 @@ pub(super) struct OpenPassage {
 }
 
 const WIDTH: f32 = 372.;
-/// A screen moment's text is quoted shorter than a transcript line.
 const SHORT_QUOTE: usize = 280;
 
 impl AskPage {
-    /// Shows the passage behind citation `number` of `answer`, or hides it when
-    /// it is the one showing.
     pub(super) fn toggle_passage(
         &mut self,
         answer: Uuid,
@@ -76,7 +63,6 @@ impl AskPage {
             .passage
             .as_ref()
             .is_some_and(|open| open.answer == answer && open.number == number);
-        // The press that reached this number already closed its passage.
         let just_closed = self.passage_dismissed.take().is_some_and(|(at, key)| {
             key == (answer, number) && at.elapsed() < Duration::from_millis(600)
         });
@@ -185,8 +171,6 @@ impl AskPage {
                                 None => (PassageContent::Unavailable, None),
                             }
                         }
-                        // Files and notes are read only while they are on, as on
-                        // the rest of the page.
                         CitationSource::File { id } => {
                             let hit = files_on
                                 .then(|| {
@@ -238,7 +222,6 @@ impl AskPage {
         .detach();
     }
 
-    /// "Play from 0:12" / "Pause" (`player.playExcerpt`).
     fn toggle_passage_audio(&mut self, cx: &mut Context<Self>) {
         let Some(open) = self.passage.as_mut() else {
             return;
@@ -292,7 +275,6 @@ impl AskPage {
         cx.notify();
     }
 
-    /// The open passage, drawn above everything at the clicked number.
     pub(super) fn render_passage(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let open = self.passage.as_ref()?;
         let lb = cx.lb().clone();
@@ -520,8 +502,6 @@ impl AskPage {
         )
     }
 
-    /// "Open in meeting", "Show in Timeline" or "Open": closes the passage,
-    /// then opens the source.
     fn open_link(
         &self,
         key: &'static str,

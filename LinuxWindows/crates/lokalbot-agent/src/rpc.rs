@@ -1,11 +1,3 @@
-//! Request/response correlation over pi's JSONL stream (`PiRPCClient.swift`).
-//!
-//! The process reader feeds every stdout record to [`RpcClient::handle_line`].
-//! A `response` whose id matches a pending request completes it; everything
-//! else is forwarded as an event. Results are delivered to the session's
-//! sink, never awaited, so one slow acknowledgement (pi's `abort` waits for
-//! idle) can never stop approvals or other events from being handled.
-
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::{Duration, Instant};
@@ -30,12 +22,10 @@ pub enum RpcError {
     Send(String),
 }
 
-/// Where the client writes command lines (the pi process, or a test fake).
 pub trait LineTransport: Send + Sync {
     fn send_line(&self, line: &str) -> Result<(), String>;
 }
 
-/// What the client reports to its session.
 #[derive(Debug)]
 pub enum ClientMessage<T> {
     Event(PiEvent),
@@ -43,7 +33,6 @@ pub enum ClientMessage<T> {
         tag: T,
         result: Result<PiResponse, RpcError>,
     },
-    /// The stream ended; every pending request already failed.
     Closed {
         stderr_tail: Vec<String>,
     },
@@ -69,7 +58,6 @@ struct Inner<T> {
     timeout: Duration,
 }
 
-/// Cheap to clone; every clone is the same client.
 pub struct RpcClient<T: Send + 'static> {
     inner: Arc<Inner<T>>,
 }
@@ -103,13 +91,10 @@ impl<T: Send + 'static> RpcClient<T> {
         client
     }
 
-    /// Set once the process is running (the reader may already be feeding lines).
     pub fn attach(&self, transport: Arc<dyn LineTransport>) {
         *self.inner.transport.lock() = Some(transport);
     }
 
-    /// Sends `command`; its acknowledgement (or failure) arrives at the sink
-    /// as a `Response` carrying `tag`.
     pub fn request(&self, command: PiCommand, tag: T) {
         let Some(id) = command.id().map(str::to_string) else {
             (self.inner.sink)(ClientMessage::Response {
@@ -150,7 +135,6 @@ impl<T: Send + 'static> RpcClient<T> {
         }
     }
 
-    /// For lines pi never acknowledges (`extension_ui_response`).
     pub fn send(&self, command: &PiCommand) -> Result<(), RpcError> {
         if let Some(terminal) = self.inner.state.lock().terminal.clone() {
             return Err(terminal);
@@ -176,7 +160,6 @@ impl<T: Send + 'static> RpcClient<T> {
         }
     }
 
-    /// One stdout record.
     pub fn handle_line(&self, line: &str) {
         let Some(event) = PiEvent::decode(line) else {
             (self.inner.sink)(ClientMessage::Event(PiEvent::ExtensionError {
@@ -199,7 +182,6 @@ impl<T: Send + 'static> RpcClient<T> {
         (self.inner.sink)(ClientMessage::Event(event));
     }
 
-    /// The stream ended: fail what is pending and report the close once.
     pub fn handle_close(&self, stderr_tail: Vec<String>) {
         let pending = {
             let mut state = self.inner.state.lock();
@@ -275,7 +257,6 @@ fn watch_timeouts<T: Send + 'static>(weak: Weak<Inner<T>>) {
 pub(crate) mod tests {
     use super::*;
 
-    /// Records every line written.
     #[derive(Default)]
     pub struct RecordingTransport {
         pub lines: Mutex<Vec<String>>,
@@ -321,7 +302,6 @@ pub(crate) mod tests {
             rx.recv_blocking().unwrap(),
             ClientMessage::Event(PiEvent::AgentStart)
         ));
-        // An unmatched response is an event, never stolen by another request.
         assert!(matches!(
             rx.recv_blocking().unwrap(),
             ClientMessage::Event(PiEvent::Response(_))

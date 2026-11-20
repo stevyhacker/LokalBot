@@ -127,7 +127,6 @@ final class SubscriptionPlanSettingsTests: XCTestCase {
         XCTAssertEqual(decoded.approvedRemoteInferenceOrigins, [SubscriptionPlan.antigravity.consentKey])
         XCTAssertTrue(decoded.corruptedSettingsKeys.isEmpty)
 
-        // A blob from a build before plans keeps every default silently.
         var legacy = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(AppSettings())) as? [String: Any])
         legacy.removeValue(forKey: "chatGPTPlanModel")
         legacy.removeValue(forKey: "claudePlanModel")

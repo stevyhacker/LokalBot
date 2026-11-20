@@ -1,6 +1,3 @@
-//! Interface copy only. Never apply translation lookup to user content, model
-//! prompts, serialized values, paths, or protocol identifiers.
-
 use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[rustfmt::skip]
@@ -18,8 +15,6 @@ pub struct Language {
 static CURRENT: AtomicUsize = AtomicUsize::new(0);
 static FOLLOW_SYSTEM: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
-/// Same matching rules as AppLanguage.swift, including script/region aliases.
-/// Explicit `ar-EG` is Egyptian Arabic; a system `ar-EG` is standard Arabic.
 pub fn resolve(preference: &str, preferred: &[impl AsRef<str>]) -> &'static Language {
     if preference != "system"
         && let Some(language) = LANGUAGES.iter().find(|l| l.code == preference)
@@ -60,8 +55,6 @@ pub fn resolve(preference: &str, preferred: &[impl AsRef<str>]) -> &'static Lang
     &LANGUAGES[0]
 }
 
-/// GNU message locale precedence. C/POSIX explicitly selects English, even
-/// when LANGUAGE contains another language. Windows uses the OS preference list.
 pub fn unix_preferences(get: impl Fn(&str) -> Option<String>) -> Vec<String> {
     let effective = ["LC_ALL", "LC_MESSAGES", "LANG"]
         .iter()
@@ -120,8 +113,6 @@ pub fn tr(key: &str) -> &str {
     translate(current().code, key)
 }
 
-/// Replaces named/numbered fields once, after translation. Argument text is
-/// never looked up or interpreted as another template (including braces).
 pub fn format_in(locale: &str, key: &str, arguments: &[(&str, String)]) -> String {
     let template = translate(locale, key);
     let mut result = String::with_capacity(template.len());
@@ -207,8 +198,6 @@ pub fn first_weekday() -> chrono::Weekday {
 
 pub fn first_weekday_in(locale: chrono::Locale) -> chrono::Weekday {
     use chrono::Datelike as _;
-    // GNU locale data defines FIRST_WEEKDAY as a one-based offset from the
-    // reference date in WEEK (normally 1997-11-30, a Sunday).
     let reference = pure_rust_locales::locale_match!(locale => LC_TIME::WEEK)
         .and_then(|week| week.get(1))
         .copied()
@@ -223,16 +212,11 @@ pub fn first_weekday_in(locale: chrono::Locale) -> chrono::Weekday {
     (base + chrono::Days::new((offset.clamp(1, 7) - 1) as u64)).weekday()
 }
 
-/// Locale date/time order and 12/24-hour conventions, not a hard-coded US
-/// layout. Storage timestamps, filenames and media timecodes never call this.
 pub fn date_pattern(pattern: &str) -> &str {
     date_pattern_in(pattern, date_locale())
 }
 
 pub fn date_pattern_in(pattern: &str, locale: chrono::Locale) -> &str {
-    // Retain the existing English presentation, while using the regional
-    // date order and clock convention for other locales. Compact UI clocks
-    // must not acquire seconds just because %X includes them.
     if locale == chrono::Locale::en_US {
         return pattern;
     }
@@ -274,8 +258,6 @@ pub fn date_pattern_in(pattern: &str, locale: chrono::Locale) -> &str {
     }
 }
 
-/// Content direction comes from its own first strong character, independently
-/// of interface chrome. URLs/code/media controls can opt into LTR explicitly.
 pub fn content_is_rtl(text: &str) -> bool {
     use unicode_bidi::{BidiClass, bidi_class};
     text.chars()
@@ -287,11 +269,6 @@ pub fn content_is_rtl(text: &str) -> bool {
         .unwrap_or(false)
 }
 
-/// A phrase drawn as one shaped line, starting with the right-to-left mark
-/// when its own text reads right to left. GPUI drops a number that starts such
-/// a line ("39م" shows as "م", "3ح 57م" as "ح 57م"); the mark keeps it. It is
-/// for shaping only and invisible. Text that reads left to right, which is all
-/// of it in a left-to-right interface, is returned as it is.
 pub fn directional(text: impl Into<String>) -> String {
     let text = text.into();
     if content_is_rtl(&text) && !text.starts_with(RIGHT_TO_LEFT_MARK) {
@@ -301,12 +278,8 @@ pub fn directional(text: impl Into<String>) -> String {
     }
 }
 
-/// U+200F, which [`directional`] puts in front of right-to-left phrases.
 pub const RIGHT_TO_LEFT_MARK: char = '\u{200f}';
 
-/// Like [`directional`], but by the interface rather than the text: in a
-/// right-to-left interface every phrase gets the mark, a bare count too.
-/// Text in a left-to-right interface is returned as it is.
 pub fn interface_directional(text: &str) -> String {
     if current().rtl && !text.starts_with(RIGHT_TO_LEFT_MARK) {
         format!("{RIGHT_TO_LEFT_MARK}{text}")
@@ -315,8 +288,6 @@ pub fn interface_directional(text: &str) -> String {
     }
 }
 
-/// "Nov 10", with the year once it is not `today`'s year
-/// (`AskDateLabel.day`). Both are local days.
 pub fn short_date(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
     use chrono::Datelike as _;
     let pattern = if date.year() == today.year() {
@@ -328,8 +299,6 @@ pub fn short_date(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
         .to_string()
 }
 
-/// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
-/// [`short_date`] (`ActionListWording.day`). Both are local days.
 pub fn day_label(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
     match (today - date).num_days() {
         0 => tr("Today").to_string(),
@@ -341,8 +310,6 @@ pub fn day_label(date: chrono::NaiveDate, today: chrono::NaiveDate) -> String {
     }
 }
 
-/// Complete count phrases are translated together; never append an English
-/// plural suffix to a translated noun.
 pub fn count(n: usize, noun: &str) -> String {
     let (one, many) = match noun {
         "meeting" => ("{count} meeting", "{count} meetings"),
@@ -365,7 +332,6 @@ pub fn count(n: usize, noun: &str) -> String {
     format(if n == 1 { one } else { many }, &[("count", number(n))])
 }
 
-/// A count with the locale's digit grouping: "12,345", "12.345", "12 345".
 pub fn number(n: usize) -> String {
     number_in(date_locale(), n)
 }
@@ -376,8 +342,6 @@ pub fn number_in(locale: chrono::Locale, n: usize) -> String {
     if separator.is_empty() {
         return digits;
     }
-    // POSIX grouping: group sizes from the right, the last one repeating,
-    // until a size of -1 (or none) leaves the rest whole.
     let grouping = pure_rust_locales::locale_match!(locale => LC_NUMERIC::GROUPING);
     let mut sizes = grouping.iter();
     let mut size = 0;
@@ -402,10 +366,6 @@ pub fn number_in(locale: chrono::Locale, n: usize) -> String {
     groups.join(separator)
 }
 
-/// Fills a Mac catalog string's fields (`%lld`, `%@`, `%d`, or numbered
-/// `%1$lld`, `%2$@`) with `values`, in order unless numbered. The lookup
-/// itself is the caller's [`tr`], so the key stays a literal the catalog
-/// checks can see.
 pub fn fill(template: &str, values: &[&str]) -> String {
     let mut out = String::with_capacity(template.len());
     let mut rest = template;
@@ -413,7 +373,6 @@ pub fn fill(template: &str, values: &[&str]) -> String {
     while let Some(start) = rest.find('%') {
         out.push_str(&rest[..start]);
         let after = &rest[start + 1..];
-        // "%%" is a literal percent sign.
         if let Some(tail) = after.strip_prefix('%') {
             out.push('%');
             rest = tail;
@@ -448,14 +407,10 @@ pub fn fill(template: &str, values: &[&str]) -> String {
     out
 }
 
-/// [`fill`] with the Mac catalog key looked up first: `mac("Only %@",
-/// &[name])`.
 pub fn mac(key: &str, values: &[&str]) -> String {
     fill(tr(key), values)
 }
 
-/// A count phrase from the Mac catalog, "%lld meeting" or "%lld meetings",
-/// with the count in the locale's digits.
 pub fn mac_count(count: usize, one: &str, many: &str) -> String {
     mac(if count == 1 { one } else { many }, &[&number(count)])
 }
@@ -468,7 +423,6 @@ mod tests {
     fn right_to_left_phrases_keep_a_leading_number() {
         assert_eq!(directional("39م"), "\u{200f}39م");
         assert_eq!(directional("3ح 57م"), "\u{200f}3ح 57م");
-        // Once only, and never on text that reads left to right.
         assert_eq!(directional("\u{200f}39م"), "\u{200f}39م");
         assert_eq!(directional("39m"), "39m");
         assert_eq!(directional("11:23 · Zoom"), "11:23 · Zoom");
@@ -476,12 +430,10 @@ mod tests {
 
     #[test]
     fn right_to_left_marks_by_content_never_touch_left_to_right_phrases() {
-        // From Today and People, where these lived before.
         assert_eq!(directional("2 متأخرة"), "\u{200f}2 متأخرة");
         assert_eq!(directional("\u{200f}2 متأخرة"), "\u{200f}2 متأخرة");
         assert_eq!(directional("2 overdue"), "2 overdue");
         assert_eq!(directional("10:48"), "10:48");
-        // The tests run in the English interface.
         assert_eq!(interface_directional("3"), "3");
     }
 
@@ -495,7 +447,6 @@ mod tests {
         assert_eq!(fill("%2$@ before %1$@", &["a", "b"]), "b before a");
         assert_eq!(fill("100%% sure, %d", &["3"]), "100% sure, 3");
         assert_eq!(fill("Odd %q stays", &[]), "Odd %q stays");
-        // From Today, People, Ask and Timeline, where copies lived before.
         assert_eq!(fill("Now · %@", &["10:48 AM"]), "Now · 10:48 AM");
         assert_eq!(fill("No fields", &["x"]), "No fields");
         assert_eq!(fill("You owe %lld", &["2"]), "You owe 2");
@@ -509,7 +460,6 @@ mod tests {
         assert_eq!(fill("100% %@", &["done"]), "100% done");
         assert_eq!(fill("%lld open", &["2"]), "2 open");
         assert_eq!(fill("Away %@", &["1h 5m"]), "Away 1h 5m");
-        // A value is never read as another template.
         assert_eq!(fill("%1$@ and %2$@", &["%2$@", "b"]), "%2$@ and b");
     }
 

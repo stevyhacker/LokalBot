@@ -38,7 +38,6 @@ test('the terminal card states the year in plain text', () => {
   assert.match(card, /Busiest day: Oct \d+/);
   assert.match(card, /Most hours: harbor-app/);
   assert.match(card, /Nothing was uploaded\./);
-  // Eight rows of the day under a row of months, each one column per week.
   const rows = card.split('\n').filter((line) => /^ {2}(12a| 3a| 6a| 9a|12p| 3p| 6p| 9p) {2}/.test(line));
   assert.equal(rows.length, 8);
   assert.ok(rows.every((row) => [...row].length === rows[0].length && [...row].length <= 62));
@@ -108,10 +107,8 @@ test('days whose logs are gone are drawn and explained', () => {
   assert.ok(renderTerminal(result).includes('▪'));
   assert.ok(renderCard(result).includes('The marks under the year are 48 earlier days'));
 
-  // Logs that begin late with no earlier count still explain why.
   result.stats.coverage.earlier = null;
   assert.match(coverageNote(result.stats).join(' '), /deletes session logs after 30 days/);
-  // A year of Codex alone has nothing to explain: Codex keeps its logs.
   result.stats.agents = result.stats.agents.filter((agent) => agent.id === 'codex');
   assert.deepEqual(coverageNote(result.stats), []);
 });
@@ -127,14 +124,12 @@ test('the page is one file that loads nothing', () => {
   assert.ok(page.includes('Wide 16:9'));
   assert.ok(page.includes('Give Claude Code &amp; Codex memory of your meetings.'));
   assert.ok(page.includes('agent-wrapped-2026.png'));
-  // No script, style sheet, image or font is fetched from anywhere.
   assert.equal(/<(script|img|link|iframe)[^>]+(src|href)=/.test(page), false);
   assert.equal(/url\(|@import|fetch\(|XMLHttpRequest/.test(page), false);
 });
 
 test('short logged windows auto-zoom so 30-day Claude logs look full', () => {
   const result = demoYear(2026);
-  // Keep only 20 days of activity to mirror Claude Code's 30-day default retention.
   const startDay = 290;
   for (let day = 0; day < result.calendar.days; day += 1) {
     if (day < startDay || day > startDay + 19) {

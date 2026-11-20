@@ -1,20 +1,9 @@
 import EventKit
 import Foundation
 
-/// `CalendarEventProviding` backed by the system calendar via EventKit. Reads
-/// only — no Google/Microsoft OAuth (v1): anything synced into Apple Calendar
-/// (Google, Exchange, iCloud) is visible here all the same.
-///
-/// `ObservableObject` so the settings UI reflects permission changes; the data
-/// methods stay non-isolated so the (non-`@MainActor`) detector can read them
-/// straight from its tick on the main thread.
 final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProviding {
-    /// Look-around window: a meeting you joined up to 15 min late still matches,
-    /// and one starting within 90 min is visible for early detection.
     static let lookBehind: TimeInterval = 15 * 60
     static let lookAhead: TimeInterval = 90 * 60
-    /// Re-fetch at most this often — EventKit ticks (mic toggles, audio blips)
-    /// shouldn't hammer the store; meetings don't change on a 30 s scale.
     static let cacheTTL: TimeInterval = 30
 
     @Published private(set) var authorizationStatus: CalendarAuthorizationStatus
@@ -52,8 +41,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         }
     }
 
-    /// Re-reads the TCC state (it can change in System Settings with no
-    /// notification) and republishes only on a real change.
     func refreshAuthorizationStatus() {
         let latest = Self.map(EKEventStore.authorizationStatus(for: .event))
         if latest != authorizationStatus {
@@ -64,9 +51,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         }
     }
 
-    /// The detector intentionally keeps its narrow look-around window. Today
-    /// uses ``meetingCandidates(on:calendar:)`` instead so a distant afternoon
-    /// meeting cannot disappear from the day's schedule.
     func meetingCandidates(now: Date) -> [CalendarMeetingCandidate] {
         guard authorizationStatus == .fullAccess else { return [] }
         if let detectionCache,
@@ -81,9 +65,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         return candidates
     }
 
-    /// Every recordable meeting overlapping the supplied local calendar day.
-    /// This cache is independent from detector polling so widening Today does
-    /// not widen automatic recording's confidence window.
     func meetingCandidates(on date: Date,
                            calendar: Calendar = .current) -> [CalendarMeetingCandidate] {
         guard authorizationStatus == .fullAccess,
@@ -100,9 +81,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         return candidates
     }
 
-    /// Recordable meetings from `now` through the next `days` days, for
-    /// People's "Coming up". The same events Today reads, over a longer
-    /// window, with a cache of its own so the detector and Today keep theirs.
     func meetingCandidates(from now: Date, days: Int,
                            calendar: Calendar = .current) -> [CalendarMeetingCandidate] {
         guard authorizationStatus == .fullAccess, days > 0,
@@ -119,8 +97,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
         return candidates
     }
 
-    /// Attendee addresses of meetings between `start` and `end`, for
-    /// deciding which email threads involve people the user meets.
     func attendeeAddresses(from start: Date, to end: Date) -> Set<String> {
         guard authorizationStatus == .fullAccess, start < end else { return [] }
         var addresses: Set<String> = []
@@ -142,11 +118,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
             .sorted { $0.startDate < $1.startDate }
     }
 
-    // MARK: - Mapping
-
-    /// Map an `EKEvent` to a recordable candidate, applying ``CalendarEventFilter``.
-    /// Nil for non-meetings (all-day, cancelled, declined, OOO, focus blocks,
-    /// untitled) or events missing a start/end.
     static func candidate(from event: EKEvent) -> CalendarMeetingCandidate? {
         let meetingURL = ConferenceURLDetector.firstMeetingURL(in: event.url?.absoluteString)
             ?? ConferenceURLDetector.firstMeetingURL(in: event.location)
@@ -178,8 +149,6 @@ final class EventKitCalendarEventProvider: ObservableObject, CalendarEventProvid
             agenda: CalendarAgenda.sanitize(event.notes))
     }
 
-    /// Per-occurrence id: the event id alone is shared across a recurring
-    /// series, so fold in the occurrence start to keep occurrences distinct.
     private static func occurrenceID(_ event: EKEvent, start: Date) -> String {
         let base = event.eventIdentifier ?? event.calendarItemIdentifier
         return "\(base)#\(Int(start.timeIntervalSince1970))"

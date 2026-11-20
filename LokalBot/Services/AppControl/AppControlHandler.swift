@@ -1,8 +1,5 @@
 import Foundation
 
-/// Answers control-socket requests on the main actor, against the live
-/// `AppState`. Every request re-checks the Privacy marker, so revoking the
-/// grant takes effect even for a connection already accepted.
 @MainActor
 final class AppControlHandler {
     private weak var app: AppState?
@@ -107,9 +104,6 @@ final class AppControlHandler {
         return object
     }
 
-    /// Applies preference and narrowing changes, all or none. A change that
-    /// widens what LokalBot captures, reads, records, or sends waits, with the
-    /// rest of its request, until the person approves it in the app.
     private func setSettings(_ request: SettingsChangeRequest, caller: String, in app: AppState) throws -> JSONValue {
         let redact = DiagnosticsSettingsSanitizer.redactURL
         let plan = try SettingsChangePlan.make(
@@ -118,8 +112,6 @@ final class AppControlHandler {
             defaults: Self.encoded(AppSettings()),
             redactURL: redact)
         let entries = plan.entries(redactURL: redact)
-        // Validate everything that would apply, even for a dry run, and
-        // before asking the person about a value LokalBot would reject.
         _ = try SettingsChangeApplier.apply(plan.applicable + plan.widening, to: app.settings)
         if request.dryRun {
             return ["applied": false, "dryRun": true, "changes": .array(entries)]
@@ -145,8 +137,6 @@ final class AppControlHandler {
         return ["applied": true, "changes": .array(entries), "warnings": .array(warnings)]
     }
 
-    /// A new API key always waits for the person. The key itself is held in
-    /// memory until the request is answered and never appears in a reply.
     private func setSecret(_ params: [String: JSONValue], caller: String, in app: AppState) throws -> AppControlError {
         let secret = try Self.secret(params)
         let value = (params["value"]?.stringValue ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -166,9 +156,6 @@ final class AppControlHandler {
         return AppControlError.needsApproval(pending.json, asking: pending.headline)
     }
 
-    /// Imports another app's meetings, after the person approves. The app
-    /// reads the files itself; the CLI only names them. A dry run, or a plan
-    /// with nothing new, returns the counts without asking anyone.
     private func importMeetings(_ params: [String: JSONValue], caller: String, in app: AppState) async throws -> JSONValue {
         guard let name = params["source"]?.stringValue, let source = ExternalMeetingSource(rawValue: name) else {
             throw AppControlError.invalidRequest("Name the app in \"source\": "
@@ -251,8 +238,6 @@ final class AppControlHandler {
         }
     }
 
-    /// Opens Settings at one setting or section, for what only the person can
-    /// do there: permissions, sign-in, or a change they want to make themselves.
     private func openSettings(_ params: [String: JSONValue], in app: AppState) throws {
         guard params["target"]?.stringValue == "settings" else {
             throw AppControlError.invalidRequest("open supports the \"settings\" target.")

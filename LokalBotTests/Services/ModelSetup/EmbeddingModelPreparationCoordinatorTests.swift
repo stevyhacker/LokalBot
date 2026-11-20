@@ -52,7 +52,6 @@ final class EmbeddingPreparationTests: XCTestCase {
             _ = try await first.value
             XCTFail("the canceled waiter should return without canceling shared work")
         } catch is CancellationError {
-            // expected
         }
         let waitersAfterCancellation = await coordinator.waiterCount(for: key)
         XCTAssertEqual(waitersAfterCancellation, 0)

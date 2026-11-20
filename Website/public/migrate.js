@@ -1,6 +1,3 @@
-/* Zero-dependency, 100% client-side meeting export to Obsidian Markdown converter.
- * Makes zero network requests. Works offline in any modern browser and can be imported in Node tests.
- */
 (function (root, factory) {
   const api = factory();
   if (typeof module === "object" && module.exports) {
@@ -156,7 +153,6 @@
     let detectedSource = "";
     let startIdx = 0;
 
-    // Detect Granola copied transcript header ("Meeting Title:", "Date:", "Meeting participants:", "Transcript:")
     const transcriptMarkerIdx = lines.findIndex(function (l) { return l.trim() === "Transcript:"; });
     if (transcriptMarkerIdx !== -1 && transcriptMarkerIdx <= 8) {
       for (let h = 0; h < transcriptMarkerIdx; h++) {
@@ -172,7 +168,6 @@
       detectedSource = "Granola";
       startIdx = transcriptMarkerIdx + 1;
     } else {
-      // Detect Otter.ai preamble lines (Title + Date before first "Speaker  0:04" header)
       const firstOtterIdx = lines.findIndex(function (l) { return otterHeader.test(l.trim()); });
       if (firstOtterIdx > 0 && firstOtterIdx <= 6) {
         for (let h = 0; h < firstOtterIdx; h++) {
@@ -489,7 +484,6 @@
         }
         if (results.length > 0) return results;
       } catch (_e) {
-        // Fall through to text parser if not valid JSON.
       }
     }
 
@@ -609,7 +603,6 @@
     };
   }
 
-  /* Pure-JS ZIP builder (store method, CRC32, UTF-8 names) — zero external libraries. */
   const CRC_TABLE = (function () {
     const table = new Uint32Array(256);
     for (let n = 0; n < 256; n++) {
@@ -678,7 +671,7 @@
       const central = new Uint8Array(46 + nameBytes.length);
       const cv = new DataView(central.buffer);
       cv.setUint32(0, 0x02014b50, true);
-      cv.setUint16(4, 0x0314, true); // Unix (3) + ZIP 2.0 (20) so UTF-8 flag is honored by Info-ZIP/macOS
+      cv.setUint16(4, 0x0314, true);
       cv.setUint16(6, 20, true);
       cv.setUint16(8, 0x0800, true);
       cv.setUint16(10, 0, true);
@@ -688,7 +681,7 @@
       cv.setUint32(20, dataBytes.length, true);
       cv.setUint32(24, dataBytes.length, true);
       cv.setUint16(28, nameBytes.length, true);
-      cv.setUint32(38, 0x81a40000, true); // regular file rw-r--r--
+      cv.setUint32(38, 0x81a40000, true);
       cv.setUint32(42, offset, true);
       central.set(nameBytes, 46);
       centralParts.push(central);

@@ -1,6 +1,5 @@
 import Foundation
 
-/// A local review projection, never an identity guess or an inference input.
 struct MeetingSpeakerReviewItem: Identifiable {
     let id: String
     let name: String
@@ -36,7 +35,6 @@ struct MeetingSpeakerReviewItem: Identifiable {
 
     private static func sampleScore(_ segment: Transcript.Segment) -> Double {
         let words = segment.text.split(whereSeparator: { $0.isWhitespace })
-        // Prefer enough speech to recognize a voice, without rewarding long monologues.
         return Double(min(words.count, 25)) + min(segment.end - segment.start, 12)
     }
 

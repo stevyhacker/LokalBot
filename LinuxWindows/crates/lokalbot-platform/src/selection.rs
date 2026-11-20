@@ -1,21 +1,9 @@
-//! Reads the text selected in the frontmost app, once, on an explicit shortcut
-//! press (`SelectionCapture.swift`). Accessibility comes first. On X11 the
-//! primary selection follows, only when its owner is the frontmost app. Apps
-//! that share neither get a synthetic Ctrl+C whose result is read and the
-//! previous clipboard put back, never in a terminal, where Ctrl+C is an
-//! interrupt.
-//!
-//! The primary selection is not read on Wayland: its owner cannot be checked
-//! there, so a stale one could come from an excluded app. The text lives only
-//! in memory for the panel's lifetime.
-
 use std::time::{Duration, Instant};
 
 use crate::autocomplete::focused::{self, SelectionRead};
 use crate::autocomplete::policy;
 use crate::focus::{self, DeliveryTarget, FocusRead, FocusSnapshot, FrontApp, Frontmost};
 
-/// Longest selection kept in memory; the prompt uses less.
 pub const MAX_CHARACTERS: usize = 50_000;
 const FOCUS_DEADLINE: Duration = Duration::from_millis(300);
 const READ_DEADLINE: Duration = Duration::from_millis(400);
@@ -24,25 +12,17 @@ const COPY_POLL: Duration = Duration::from_millis(15);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SelectionIssue {
-    /// The app is on the exclusion list; nothing was read.
     ExcludedApp,
-    /// A password or other secure field has focus; nothing was read.
     SecureField,
-    /// Focus changed or could not be verified; no selection is accepted.
     FocusChanged,
 }
 
-/// What the shortcut found in the frontmost app.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SelectionCapture {
     pub source: Option<FrontApp>,
     pub text: String,
-    /// The editable field the selection sits in, where a result can replace
-    /// it or go in at the caret. `None` for read-only text, or when the app
-    /// shares no accessibility.
     pub target: Option<DeliveryTarget>,
     pub issue: Option<SelectionIssue>,
-    /// LokalBot copied it with a keystroke and restored the clipboard.
     pub read_through_clipboard: bool,
 }
 
@@ -51,21 +31,16 @@ impl SelectionCapture {
         !self.text.trim().is_empty()
     }
 
-    /// A result can go back into the source app's field.
     pub fn can_insert(&self) -> bool {
         self.target.is_some() && self.issue.is_none()
     }
 }
 
-/// What the capture needs from the desktop, so its order of checks can be
-/// tested without one.
 pub trait CaptureHost {
     fn source(&mut self) -> Option<FrontApp>;
     fn focus(&mut self) -> FocusRead;
     fn read(&mut self, source: &FrontApp) -> SelectionRead;
-    /// The primary selection, when its owner is `source` (X11).
     fn primary(&mut self, source: &FrontApp) -> Option<String>;
-    /// Copies with a keystroke and restores the clipboard.
     fn copy(&mut self, source: &FrontApp) -> Option<String>;
 }
 
@@ -86,8 +61,6 @@ fn clipped(text: String) -> String {
     }
 }
 
-/// The order of checks in `SelectionCapture.capture`. The source is re-read
-/// after every step that can take time.
 pub fn capture_with(host: &mut dyn CaptureHost, excluded: &[String]) -> SelectionCapture {
     let Some(source) = host.source() else {
         return SelectionCapture::default();
@@ -124,13 +97,9 @@ pub fn capture_with(host: &mut dyn CaptureHost, excluded: &[String]) -> Selectio
         result.issue = Some(SelectionIssue::SecureField);
         return result;
     }
-    // Only an editable field has an identity; read-only text cannot take a
-    // replacement.
     if snapshot.identity.as_deref().is_some_and(|k| !k.is_empty()) {
         result.target = DeliveryTarget::captured(&snapshot);
     }
-    // A Wayland desktop may name the app but not its process; accessibility
-    // knows which one has the field.
     let acting = FrontApp {
         pid: snapshot.pid(),
         ..source.clone()
@@ -156,8 +125,6 @@ pub fn capture_with(host: &mut dyn CaptureHost, excluded: &[String]) -> Selectio
             result.issue = Some(SelectionIssue::SecureField);
             return result;
         }
-        // An editable field with nothing selected: an older selection in the
-        // same app would be stale.
         SelectionRead::Empty => stale_primary = true,
         SelectionRead::Unavailable => {}
     }
@@ -185,7 +152,6 @@ pub fn capture_with(host: &mut dyn CaptureHost, excluded: &[String]) -> Selectio
     result
 }
 
-/// The capture on this desktop. Blocking: call from a background thread.
 pub fn capture(excluded: &[String]) -> SelectionCapture {
     capture_with(&mut LiveHost, excluded)
 }
@@ -222,7 +188,6 @@ impl CaptureHost for LiveHost {
     }
 }
 
-/// The app in front, unless it is LokalBot.
 fn live_source() -> Option<FrontApp> {
     match focus::frontmost(FOCUS_DEADLINE)? {
         Frontmost::App(app) if !app.is_self() => Some(app),
@@ -230,7 +195,6 @@ fn live_source() -> Option<FrontApp> {
     }
 }
 
-/// What this desktop cannot do, worded for Settings.
 pub fn limitation() -> Option<&'static str> {
     #[cfg(target_os = "linux")]
     if crate::session::is_wayland() {
@@ -241,7 +205,6 @@ pub fn limitation() -> Option<&'static str> {
     None
 }
 
-/// True when LokalBot itself is the frontmost app, so a press keeps its panel.
 pub fn lokalbot_is_frontmost() -> bool {
     matches!(
         focus::frontmost(FOCUS_DEADLINE),
@@ -249,18 +212,12 @@ pub fn lokalbot_is_frontmost() -> bool {
     )
 }
 
-/// What the keystroke copy needs, so it can be tested without a clipboard.
 pub trait CopyHost {
-    /// The app is in front and its focused field is not a secure one.
     fn is_allowed(&mut self, source: &FrontApp) -> bool;
-    /// Saves the clipboard and starts watching it.
     fn begin(&mut self);
-    /// `Ok(false)`: the keystroke could not be sent.
     fn post_copy(&mut self, source: &FrontApp) -> bool;
     fn changed(&mut self) -> bool;
-    /// The clipboard's text, unless it is marked concealed.
     fn read_text(&mut self) -> Option<String>;
-    /// Puts back what `begin` saved.
     fn restore(&mut self);
     fn wait(&mut self, duration: Duration);
     fn now(&mut self) -> Instant {
@@ -268,9 +225,6 @@ pub trait CopyHost {
     }
 }
 
-/// The copy from `SelectionClipboardCopy`. The app's own copy may be recorded
-/// by a clipboard manager, as any copy the person makes would be. A newer
-/// clipboard change is not ours to restore.
 pub fn copy_selection(source: &FrontApp, host: &mut dyn CopyHost) -> Option<String> {
     if !host.is_allowed(source) {
         return None;
@@ -288,12 +242,9 @@ pub fn copy_selection(source: &FrontApp, host: &mut dyn CopyHost) -> Option<Stri
         }
         host.wait(COPY_POLL);
     }
-    // Nothing selected: the app copied nothing and the clipboard is untouched.
     if !changed {
         return None;
     }
-    // Re-checked after the app handled Copy: a changed app or secure field is
-    // never read.
     let text = if host.is_allowed(source) {
         host.read_text()
     } else {
@@ -305,14 +256,12 @@ pub fn copy_selection(source: &FrontApp, host: &mut dyn CopyHost) -> Option<Stri
     text
 }
 
-/// One copy at a time: a second press waits for the first to restore.
 static COPY_QUEUE: parking_lot::Mutex<()> = parking_lot::Mutex::new(());
 
 #[derive(Default)]
 struct LiveCopy {
     saved: Option<crate::insert::ClipboardSnapshot>,
     watch: Option<crate::screen::ClipboardWatch>,
-    /// Without a watch (Wayland): the text the clipboard held before.
     before: Option<String>,
 }
 
@@ -370,7 +319,6 @@ impl CopyHost for LiveCopy {
     }
 }
 
-/// A password manager's copy carries a marker; such an item is never read.
 fn clipboard_is_concealed() -> bool {
     #[cfg(windows)]
     {
@@ -378,7 +326,6 @@ fn clipboard_is_concealed() -> bool {
             IsClipboardFormatAvailable, RegisterClipboardFormatW,
         };
         use windows::core::w;
-        // SAFETY: a constant, NUL-terminated format name; no clipboard is opened.
         unsafe {
             let format =
                 RegisterClipboardFormatW(w!("ExcludeClipboardContentFromMonitorProcessing"));
@@ -395,7 +342,6 @@ fn clipboard_is_concealed() -> bool {
     }
 }
 
-/// The primary selection, when `pid` owns it. X11 only.
 fn primary_owned_by(pid: u32) -> Option<String> {
     #[cfg(target_os = "linux")]
     {
@@ -420,7 +366,6 @@ mod linux {
     };
     use x11rb::rust_connection::RustConnection;
 
-    /// KeePassXC and others mark what they copy with this target.
     const CONCEALED: &[u8] = b"x-kde-passwordManagerHint";
     const TARGETS_WAIT: Duration = Duration::from_millis(150);
 
@@ -457,8 +402,6 @@ mod linux {
             .and_then(|id| id.value.first().copied())
     }
 
-    /// Whether a selection's owner offers the concealed target. An owner that
-    /// does not answer in time offers nothing we know of.
     fn offers_concealed(conn: &RustConnection, root: u32, selection: Atom) -> Option<bool> {
         let concealed = conn.intern_atom(true, CONCEALED).ok()?.reply().ok()?.atom;
         if concealed == x11rb::NONE {
@@ -524,7 +467,6 @@ mod linux {
             return None;
         }
         let text = crate::insert::primary_text()?;
-        // It must still be that app's selection once the text is in hand.
         (owner_pid(&conn, primary) == Some(pid)).then_some(text)
     }
 
@@ -540,7 +482,6 @@ mod linux {
             };
             return offers_concealed(&conn, root, clipboard).unwrap_or(false);
         }
-        // Wayland: wl-clipboard can list what the source offers.
         let Some(program) = crate::process::find_program("wl-paste") else {
             return false;
         };
@@ -745,7 +686,6 @@ mod tests {
         assert_eq!(result.text, "");
         assert!(!host.calls.contains(&"copy"));
 
-        // A terminal widget in an app that is not itself a terminal.
         let front = app("ide");
         let mut host = Fake::new(&front, None);
         let mut snapshot = field(&front, None);

@@ -1,13 +1,9 @@
 import SwiftUI
 
-/// One sheet to name a meeting's unnamed voices: play a sample, read what
-/// that voice said, then pick an invited name or type one. Names are saved
-/// together; a voice left alone stays unnamed.
 struct MeetingSpeakerNamingSheet: View {
     let voices: [MeetingSpeakerNamingVoice]
     let known: [MeetingSpeakerNamingKnown]
     let suggestions: [MeetingSpeakerSuggestion]
-    /// Guests already assigned to a voice in this meeting.
     let assignedCalendarIdentityIDs: Set<String>
     let canPlay: Bool
     let busy: Bool
@@ -67,8 +63,6 @@ struct MeetingSpeakerNamingSheet: View {
                 }
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { listHeight = $0 }
             }
-            // A sheet sizes to its content, and a scroll view has no height of
-            // its own: show every voice until the list would outgrow the window.
             .frame(height: min(max(listHeight, 60), 420))
             HStack(spacing: 8) {
                 Group {
@@ -143,8 +137,6 @@ struct MeetingSpeakerNamingSheet: View {
                 }
                 MeetingWrappingRow(spacing: 6, lineSpacing: 6) {
                     let named = suggestions.filter { $0.name != nil }
-                    // A recognized voice that is also a guest is that guest's
-                    // chip, already picked; otherwise it gets a chip of its own.
                     if let recognized = voice.recognizedName {
                         let pick = MeetingSpeakerNamingDraft.recognizedPick(
                             recognized, for: voice.id, among: suggestions)
@@ -211,7 +203,6 @@ struct MeetingSpeakerNamingSheet: View {
         .padding(.vertical, 12)
     }
 
-    /// "12 min of speech · 2 actions"
     private func speechSummary(_ voice: MeetingSpeakerNamingVoice) -> Text {
         let speech = Text("\(MeetingDetailPresentation.speechMinutes(voice.speechSeconds)) min of speech")
         guard voice.actionCount > 0 else { return speech }
@@ -228,7 +219,6 @@ struct MeetingSpeakerNamingSheet: View {
             .accessibilityIdentifier(identifier)
     }
 
-    /// Dimmed, and still a choice: the guest already names another voice.
     private func isUsed(_ suggestion: MeetingSpeakerSuggestion, by voice: MeetingSpeakerNamingVoice) -> Bool {
         if draft.isTakenElsewhere(suggestion.id, for: voice.id) { return true }
         guard let id = suggestion.calendar?.id else { return false }
@@ -241,8 +231,6 @@ struct MeetingSpeakerNamingSheet: View {
     }
 }
 
-/// Names the view a sheet is hosted in. Assistive tools see that host as a
-/// group around the sheet's content, and it has no name of its own.
 private struct SheetContainerName: NSViewRepresentable {
     let name: String
 
@@ -265,8 +253,6 @@ private struct SheetContainerName: NSViewRepresentable {
             apply()
         }
 
-        /// Only an unnamed host is named, so a window that says what it is
-        /// keeps its own words.
         func apply() {
             guard let host = window?.contentView, host !== self,
                   (host.accessibilityLabel() ?? "").isEmpty || host.accessibilityLabel() == name else { return }
@@ -275,14 +261,11 @@ private struct SheetContainerName: NSViewRepresentable {
     }
 }
 
-/// A rounded name choice: outlined, filled with the accent once picked.
 private struct MeetingNameChipStyle: ButtonStyle {
     let selected: Bool
     @Environment(\.colorSchemeContrast) private var contrast
 
     func makeBody(configuration: Configuration) -> some View {
-        // A rounded rectangle, not a capsule: a capsule's inset border drew
-        // stray marks at its ends at this size.
         let shape = RoundedRectangle(cornerRadius: 10, style: .continuous)
         return configuration.label
             .font(AppFont.scaled(.callout).weight(selected ? .semibold : .regular))

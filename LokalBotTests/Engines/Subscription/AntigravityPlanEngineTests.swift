@@ -59,8 +59,6 @@ final class AntigravityPlanEngineTests: XCTestCase {
         arguments.firstIndex(of: flag).flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
     }
 
-    // MARK: Arguments & Isolation
-
     func testArgumentsEnforceIsolatedHeadlessStreamMode() {
         let engine = AntigravityPlanEngine(model: "gemini-4-neon")
         let arguments = engine.arguments(structured: false, options: nil)
@@ -84,12 +82,10 @@ final class AntigravityPlanEngineTests: XCTestCase {
         XCTAssertEqual(base.effort(for: .init(reasoningBudgetTokens: 4_096)), .medium)
         XCTAssertEqual(base.effort(for: .init(reasoningBudgetTokens: 0)), .low)
 
-        // Notes on Automatic with zero reasoning budget drop to low effort.
         let automatic = AntigravityPlanEngine(model: "gemini-3.8-flash", reasoningLevel: .automatic)
         XCTAssertEqual(automatic.effort(for: .init(reasoningBudgetTokens: 0)), .low)
         XCTAssertNil(automatic.effort(for: nil))
 
-        // Slugs with a baked-in effort suffix must never send --effort.
         let pinned = AntigravityPlanEngine(model: "gemini-4-neon-high", reasoningLevel: .low)
         XCTAssertFalse(pinned.traits.support.isAdjustable)
         XCTAssertNil(pinned.effort(for: nil))
@@ -131,8 +127,6 @@ final class AntigravityPlanEngineTests: XCTestCase {
             JSONSerialization.jsonObject(with: AntigravityPlanEngine.hooksJSON) as? [String: Any])
         XCTAssertNotNil(hooks["lokalbot-deny-tools"])
     }
-
-    // MARK: Requests & Structured Output
 
     func testRequestSendsContentOnStdinAndSchemaInPrivateFile() async throws {
         let runner = FakeRunner { _ in
@@ -207,8 +201,6 @@ final class AntigravityPlanEngineTests: XCTestCase {
         XCTAssertEqual(partials.last, "Hello")
     }
 
-    // MARK: Failures
-
     func testErrorClassificationAndNoRetryOnUsageLimit() async throws {
         XCTAssertEqual(
             AntigravityPlanEngine.failure(message: "authentication failed or timed out") as? AntigravityPlanError,
@@ -239,8 +231,6 @@ final class AntigravityPlanEngineTests: XCTestCase {
         }
         XCTAssertEqual(runner.calls.count, 1)
     }
-
-    // MARK: Discovery & Model Parsing
 
     func testLocateAndEnvironmentScrubNestedVariables() {
         let home = "/Users/test"
@@ -291,7 +281,6 @@ final class AntigravityPlanEngineTests: XCTestCase {
             .init(slug: "gpt-oss-120b-medium", displayName: "GPT-OSS 120B (Medium)", effortLevels: []),
         ])
 
-        // Non-TTY stdout from `agy models` separates slug and display name with a single tab.
         let piped = """
         Fetching available models...
         gemini-4-neon-high\tGemini 4 Neon (High)

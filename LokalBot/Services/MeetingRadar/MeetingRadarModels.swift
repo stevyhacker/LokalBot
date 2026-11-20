@@ -1,8 +1,5 @@
 import Foundation
 
-/// Something Live Radar caught while a meeting was recorded: a promise, a
-/// decision, a question nobody has answered yet, or a conflict with an
-/// earlier meeting. Every item quotes the live line it came from.
 struct RadarItem: Codable, Identifiable, Equatable, Sendable {
     enum Kind: String, Codable, CaseIterable, Sendable {
         case commitment, decision, question, contradiction
@@ -38,25 +35,16 @@ struct RadarItem: Codable, Identifiable, Equatable, Sendable {
     var id: String
     var kind: Kind
     var text: String
-    /// "Me", a name said in the meeting, or "Others". Nil when unknown.
     var owner: String?
-    /// The deadline as it was said.
     var due: String?
     var quote: String
-    /// Seconds into the recording of the quoted line.
     var time: TimeInterval
-    /// The live track label of the quoted line ("local" or "them").
     var speaker: String
-    /// What a contradiction conflicts with.
     var earlier: RadarEvidence?
     var foundAt: Date
     var model: String
-    /// A later line answered this question.
     var answered = false
-    /// What an earlier screen capture says about this question, when screen
-    /// answers are on and Muse found the answer there.
     var screenAnswer: RadarScreenAnswer?
-    /// The answer live answers found in the person's work, with its sources.
     var answer: RadarAnswer?
 
     var isUserCommitment: Bool {
@@ -64,8 +52,6 @@ struct RadarItem: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
-/// A passage from an earlier meeting (or earlier in this one) that a radar
-/// pass showed the model, so a contradiction can point at it.
 struct RadarEvidence: Codable, Equatable, Sendable {
     var meetingID: UUID
     var meetingTitle: String
@@ -73,11 +59,9 @@ struct RadarEvidence: Codable, Equatable, Sendable {
     var time: TimeInterval?
     var speaker: String?
     var text: String
-    /// True when the passage is from the meeting being recorded.
     var isCurrentMeeting = false
 }
 
-/// Timing, size, and cost of one radar request.
 struct RadarPass: Codable, Equatable, Sendable {
     var at: Date
     var seconds: Double
@@ -88,11 +72,9 @@ struct RadarPass: Codable, Equatable, Sendable {
     var reasoningTokens: Int
     var cost: Double
     var added: Int
-    /// Items the model returned that failed the quote or evidence check.
     var rejected: Int
 }
 
-/// `radar.json` in the meeting folder. Deleted with the meeting.
 struct MeetingRadarRecord: Codable, Equatable, Sendable {
     static let fileName = "radar.json"
     static let currentSchemaVersion = 1
@@ -101,9 +83,7 @@ struct MeetingRadarRecord: Codable, Equatable, Sendable {
     var model: String
     var items: [RadarItem] = []
     var passes: [RadarPass] = []
-    /// Screen-answer requests, one per question that local search matched.
     var screenAnswerRequests: [RadarPass]?
-    /// Live answers, one per question or problem it looked up.
     var answerRequests: [RadarPass]?
 
     var cost: Double {

@@ -1,7 +1,3 @@
-//! Speaker separation within one track: pyannote segmentation 3.0 finds who
-//! speaks when, speaker embeddings tell the voices apart, and clustering
-//! numbers them. Replaces macOS's Nemotron/Pyannote CoreML diarizers.
-
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
@@ -13,11 +9,7 @@ use sherpa_onnx::{
 
 use crate::attribution::Turn;
 
-/// Clustering threshold for TitaNet-small embeddings; lower keeps more voices
-/// apart. 0.7–0.8 separated 2 and 4 synthetic voices correctly where 0.5
-/// split one voice in two.
 pub const CLUSTER_THRESHOLD: f32 = 0.75;
-/// Tracks shorter than this are not worth separating.
 const MIN_SECONDS: f64 = 2.0;
 
 pub struct Diarizer {
@@ -61,7 +53,6 @@ impl Diarizer {
         Ok(Self { inner })
     }
 
-    /// Speaker turns of 16 kHz mono `samples`, sorted by start.
     pub fn turns(&self, samples: &[f32]) -> Result<Vec<Turn>> {
         if (samples.len() as f64) < MIN_SECONDS * 16_000.0 {
             return Ok(Vec::new());

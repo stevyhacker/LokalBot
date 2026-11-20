@@ -88,9 +88,6 @@ final class ModelDownloadManagerCancellationTests: XCTestCase {
         }
     }
 
-    /// A custom model saved before Hugging Face pinning can never download, so
-    /// preparation must fail as not retryable instead of offering a Retry
-    /// that repeats the same refusal.
     func testEnsureAvailableReportsUnpinnedSourceAsNotRetryable() async {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("unpinned-source-\(UUID().uuidString)", isDirectory: true)

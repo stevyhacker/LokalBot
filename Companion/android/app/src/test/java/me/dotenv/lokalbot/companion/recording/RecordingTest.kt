@@ -191,7 +191,6 @@ class RecordingTest {
         assertThat(meterLevel(32767)).isEqualTo(1f)
         assertThat(meterLevel(40000)).isEqualTo(1f)
         assertThat(meterLevel(1036)).isWithin(0.01f).of(0.5f)
-        // Below the floor it reads as silence.
         assertThat(meterLevel(1)).isEqualTo(0f)
         val recorder = recorder()
         assertThat(recorder.level()).isEqualTo(0f)
@@ -208,7 +207,6 @@ class RecordingTest {
         assertThat(recordingStatus(recording(RecordingState.Waiting, message = "Update it"), null, false))
             .isEqualTo(RecordingStatus.Waiting("Update it"))
         assertThat(recordingStatus(recording(RecordingState.Waiting), progress, false)).isEqualTo(RecordingStatus.Sending(42))
-        // Only the one being sent shows it.
         assertThat(recordingStatus(recording(RecordingState.Waiting, id = "b"), progress, false)).isEqualTo(RecordingStatus.Waiting(null))
         assertThat(recordingStatus(recording(RecordingState.Uploaded), progress, false)).isEqualTo(RecordingStatus.Processing)
         assertThat(recordingStatus(recording(RecordingState.Failed, message = "No audio"), null, false))
@@ -222,7 +220,6 @@ class RecordingTest {
         assertThat(sentPercent(2, 3)).isEqualTo(66)
         assertThat(sentPercent(3, 3)).isEqualTo(100)
         assertThat(sentPercent(4, 3)).isEqualTo(100)
-        // A long recording's bytes don't overflow.
         assertThat(sentPercent(5_000_000_000, 10_000_000_000)).isEqualTo(50)
     }
 
@@ -283,10 +280,8 @@ class RecordingTest {
     fun `the worker retries until nothing waits`() {
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Finished(uploaded = 0, waiting = 0, failed = 0))).isFalse()
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Finished(uploaded = 2, waiting = 0, failed = 1))).isFalse()
-        // A computer that deferred it, or a pass that left one behind.
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Finished(uploaded = 1, waiting = 1, failed = 0))).isTrue()
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Failed(SyncFailure.Unreachable, "gone"))).isTrue()
-        // An older computer: the rows say to update it, and the next try may find it updated.
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Failed(SyncFailure.Other, "update"))).isTrue()
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Failed(SyncFailure.Revoked, "removed"))).isFalse()
         assertThat(UploadWorker.shouldRetry(UploadOutcome.Failed(SyncFailure.NotPaired, "no"))).isFalse()

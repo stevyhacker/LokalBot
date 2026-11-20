@@ -1,12 +1,8 @@
-//! Small helpers for running desktop tools (`pactl`, `wtype`, `ydotool`,
-//! `gdbus`) without ever hanging the caller.
-
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
 use std::time::{Duration, Instant};
 
-/// Finds an executable on `PATH`.
 pub(crate) fn find_program(name: &str) -> Option<PathBuf> {
     let path = std::env::var_os("PATH")?;
     std::env::split_paths(&path)
@@ -20,8 +16,6 @@ fn is_executable(path: &Path) -> bool {
         .is_ok_and(|meta| meta.is_file() && meta.permissions().mode() & 0o111 != 0)
 }
 
-/// Runs `command` with no stdin, collecting stdout and stderr, and kills it
-/// after `timeout`.
 pub(crate) fn output_with_timeout(
     mut command: Command,
     timeout: Duration,
@@ -31,8 +25,6 @@ pub(crate) fn output_with_timeout(
         .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()?;
-    // Read both pipes on their own threads so a chatty tool cannot block
-    // on a full pipe while we wait for it.
     let mut stdout = child.stdout.take();
     let mut stderr = child.stderr.take();
     let out = std::thread::spawn(move || {

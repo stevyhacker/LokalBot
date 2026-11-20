@@ -1,12 +1,6 @@
 import Foundation
 
-/// Header and body text helpers shared by every mail provider.
 enum EmailText {
-    // MARK: Addresses
-
-    /// Parses an address-list header (`To`, `Cc`, `From`): display names in
-    /// quotes may contain commas, and groups (`team: a@x, b@y;`) are
-    /// flattened. Entries without an `@` are dropped.
     static func addresses(_ header: String) -> [EmailAddress] {
         var results: [EmailAddress] = []
         for entry in splitAddressList(header) {
@@ -17,7 +11,6 @@ enum EmailText {
 
     static func address(_ entry: String) -> EmailAddress? {
         var text = entry.trimmingCharacters(in: .whitespacesAndNewlines)
-        // A group label ends at an unquoted colon: "Team: ana@x.com".
         if let colon = unquotedIndex(of: ":", in: text), !text[..<colon].contains("@") {
             text = String(text[text.index(after: colon)...]).trimmingCharacters(in: .whitespaces)
         }
@@ -52,7 +45,6 @@ enum EmailText {
         return name.isEmpty ? nil : name
     }
 
-    /// Splits at commas outside quotes and angle brackets.
     private static func splitAddressList(_ header: String) -> [String] {
         var parts: [String] = []
         var current = ""
@@ -102,11 +94,6 @@ enum EmailText {
         return nil
     }
 
-    // MARK: Encoded words (RFC 2047)
-
-    /// Decodes `=?charset?B?…?=` and `=?charset?Q?…?=` words. Whitespace
-    /// between two adjacent encoded words is dropped, as the RFC requires.
-    /// Text without encoded words is returned unchanged.
     static func decodeEncodedWords(_ text: String) -> String {
         guard text.contains("=?") else { return text }
         let pattern = #"=\?([^?\s]+)\?([BbQq])\?([^?\s]*)\?="#
@@ -169,11 +156,6 @@ enum EmailText {
         return Data(bytes)
     }
 
-    // MARK: Charsets
-
-    /// Decodes body or header bytes in their declared charset (Serbian mail
-    /// still arrives as Windows-1250 or ISO-8859-2), then UTF-8, then Latin-1
-    /// so text is never lost.
     static func decode(_ data: Data, charset: String?) -> String {
         if let charset, let encoding = stringEncoding(charset),
            let text = String(data: data, encoding: encoding) {
@@ -191,7 +173,6 @@ enum EmailText {
         return String.Encoding(rawValue: CFStringConvertEncodingToNSStringEncoding(cfEncoding))
     }
 
-    /// The `charset` parameter of a `Content-Type` header value.
     static func charset(fromContentType contentType: String?) -> String? {
         parameter("charset", in: contentType)
     }
@@ -208,10 +189,6 @@ enum EmailText {
         return nil
     }
 
-    // MARK: New text in a message
-
-    /// Lines that start the quoted history of a reply: Gmail, Apple Mail and
-    /// Outlook headers in the languages LokalBot's users write in most.
     private static let replyHeaderPatterns: [NSRegularExpression] = [
         #"^On .{4,240} wrote:$"#,
         #"^Am .{4,240} schrieb .{0,120}:$"#,
@@ -230,10 +207,6 @@ enum EmailText {
         #"^Get Outlook for .{2,20}$"#,
     ].compactMap { try? NSRegularExpression(pattern: $0, options: [.caseInsensitive]) }
 
-    /// What the sender wrote in this message: the text above the quoted
-    /// history, without `>` lines, the signature after `-- `, or mobile
-    /// sign-offs. The whole body is kept on disk; this is only for display
-    /// and prompts.
     static func conversationText(_ body: String) -> String {
         let lines = body.replacingOccurrences(of: "\r\n", with: "\n").components(separatedBy: "\n")
         var kept: [String] = []
@@ -242,12 +215,10 @@ enum EmailText {
             let line = lines[index].trimmingCharacters(in: .whitespaces)
             if line == "--" || line == "-- " || lines[index] == "-- " { break }
             if matches(line, replyHeaderPatterns) { break }
-            // Gmail wraps a long "On … wrote:" header onto a second line.
             if line.hasPrefix("On "), index + 1 < lines.count,
                matches(line + " " + lines[index + 1].trimmingCharacters(in: .whitespaces), replyHeaderPatterns) {
                 break
             }
-            // Outlook: "From: …" followed within a few lines by "Sent:" or "Date:".
             if line.hasPrefix("From: "),
                lines[(index + 1)..<min(lines.count, index + 5)].contains(where: {
                    let next = $0.trimmingCharacters(in: .whitespaces)
@@ -268,22 +239,14 @@ enum EmailText {
         return patterns.contains { $0.firstMatch(in: line, range: range) != nil }
     }
 
-    // MARK: HTML
-
     private static let skippedElements: Set<String> = ["script", "style", "head", "title", "noscript", "template"]
-    /// Elements that start a new line.
     private static let lineElements: Set<String> = [
         "div", "tr", "li", "blockquote", "section", "article", "header", "footer",
     ]
-    /// Elements that also leave a blank line around them.
     private static let paragraphElements: Set<String> = [
         "p", "ul", "ol", "table", "h1", "h2", "h3", "h4", "h5", "h6", "hr", "pre",
     ]
 
-    /// Readable text from an HTML body. It is a tokenizer, not a renderer:
-    /// nothing is fetched, no image or tracking pixel loads, and links keep
-    /// only their text. Quoted history inside `<blockquote>` keeps a `> `
-    /// prefix so later passes can tell it from new text.
     static func plainText(fromHTML html: String) -> String {
         var lines: [String] = []
         var line = ""
@@ -301,7 +264,6 @@ enum EmailText {
             lineDepth = quoteDepth
         }
 
-        /// One blank line, never two in a row.
         func blankLine() {
             endLine()
             if lines.last?.isEmpty == false { lines.append("") }
@@ -331,7 +293,6 @@ enum EmailText {
                     continue
                 }
                 if name == "br" {
-                    // A second <br> in a row is a paragraph break.
                     if collapseSpaces(line).isEmpty { blankLine() } else { endLine() }
                 } else if paragraphElements.contains(name) {
                     blankLine()

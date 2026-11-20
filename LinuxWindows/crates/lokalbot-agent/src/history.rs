@@ -1,7 +1,3 @@
-//! Saved pi sessions (`AgentSessionHistory.swift`): list metadata streamed
-//! from each JSONL file in the sessions folder, without keeping prompts or
-//! responses in memory. Conversation contents load only when opened.
-
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
@@ -14,7 +10,6 @@ const MAX_LINE_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SavedSession {
-    /// The file path, which identifies a saved session.
     pub id: String,
     pub session_id: String,
     pub file: PathBuf,
@@ -41,7 +36,6 @@ impl SavedSession {
     }
 }
 
-/// Every readable saved session, most recently active first.
 pub fn load(directory: &Path) -> Result<Vec<SavedSession>> {
     let metadata = match std::fs::metadata(directory) {
         Ok(metadata) => metadata,
@@ -61,7 +55,7 @@ pub fn load(directory: &Path) -> Result<Vec<SavedSession>> {
             }
             let metadata = std::fs::symlink_metadata(&path).ok()?;
             if !metadata.file_type().is_file() {
-                return None; // Symlinks and folders are never listed.
+                return None;
             }
             parse(&path, &metadata)
         })
@@ -74,7 +68,6 @@ pub fn load(directory: &Path) -> Result<Vec<SavedSession>> {
     Ok(sessions)
 }
 
-/// One session file of `directory` (for a task that knows its file).
 pub fn load_file(file: &Path, directory: &Path) -> Option<SavedSession> {
     let expected = dunce::canonicalize(directory).ok()?;
     let parent = dunce::canonicalize(file.parent()?).ok()?;
@@ -88,8 +81,6 @@ pub fn load_file(file: &Path, directory: &Path) -> Option<SavedSession> {
     parse(file, &metadata)
 }
 
-/// Re-reads the file just before opening, so a stale list entry, a replaced
-/// file or a symlink cannot redirect an exact-session launch.
 pub fn validated(session: &SavedSession, directory: &Path) -> Option<SavedSession> {
     let expected = dunce::canonicalize(directory).ok()?;
     let parent = dunce::canonicalize(session.file.parent()?).ok()?;
@@ -277,7 +268,6 @@ impl MetadataParser {
     }
 }
 
-/// Milliseconds since 1970, or an ISO 8601 string.
 fn date(value: Option<&Value>) -> Option<DateTime<Utc>> {
     match value? {
         Value::Number(number) => {
@@ -291,7 +281,6 @@ fn date(value: Option<&Value>) -> Option<DateTime<Utc>> {
     }
 }
 
-/// The first line, whitespace collapsed, cut at a word near 80 characters.
 pub fn display_title(text: &str) -> String {
     let first_line = text.lines().next().unwrap_or(text);
     let collapsed = first_line.split_whitespace().collect::<Vec<_>>().join(" ");

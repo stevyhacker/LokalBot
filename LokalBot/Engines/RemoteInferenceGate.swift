@@ -1,20 +1,5 @@
 import Foundation
 
-/// Pure bookkeeping for one remote origin's request slots. The gate actor owns
-/// one per origin; keeping the arithmetic here (no clocks, no tasks) makes the
-/// admission policy unit-testable the same way `LeaseBook` is.
-///
-/// Policy:
-/// - processing work (meeting notes, digests, Dream, briefs) runs at most
-///   `maximumConcurrent` requests at once;
-/// - background work may hold at most `maximumBackground` of them, so meeting
-///   notes always find a slot that scheduled digests or Dream cannot take;
-/// - someone waiting on the answer (chat, dictation, an agent) is never queued
-///   behind processing work;
-/// - waiters are admitted in priority order, first come first served within a
-///   priority, and a blocked background waiter never holds back a waiter that
-///   could start;
-/// - after a rate limit nothing starts until the origin's cooldown has passed.
 struct RemoteRequestQueue {
     struct Limits: Equatable, Sendable {
         var maximumConcurrent = 2
@@ -31,7 +16,6 @@ struct RemoteRequestQueue {
     private(set) var inFlight: [UUID: InferencePriority] = [:]
     private(set) var waiters: [Waiter] = []
     private(set) var cooldownUntil: TimeInterval = 0
-    /// Consecutive rate-limited answers; resets on the first success.
     private(set) var consecutiveRateLimits = 0
     private var nextOrder: UInt64 = 0
 
@@ -56,8 +40,6 @@ struct RemoteRequestQueue {
         waiters.removeAll { $0.id == id }
     }
 
-    /// Waiters that may start now, in the order they should be resumed. They
-    /// are moved from `waiters` to `inFlight`.
     mutating func admit(now: TimeInterval) -> [UUID] {
         guard now >= cooldownUntil else { return [] }
         var admitted: [UUID] = []
@@ -79,9 +61,6 @@ struct RemoteRequestQueue {
         return admitted
     }
 
-    /// Frees a slot. A rate-limited answer starts (or extends) the origin's
-    /// cooldown: the server's `Retry-After` when given, otherwise an
-    /// exponential pause that grows with consecutive rate limits.
     mutating func finish(id: UUID, rateLimited: Bool, retryAfter: TimeInterval?, now: TimeInterval) {
         inFlight[id] = nil
         guard rateLimited else {
@@ -102,9 +81,6 @@ struct RemoteRequestQueue {
     }
 }
 
-/// One shared admission gate for every external Think server (OpenAI-compatible
-/// and Ollama), keyed by origin. The managed built-in runtime is scheduled by
-/// `InferenceBroker` instead and never passes through here.
 actor RemoteInferenceGate {
     static let shared = RemoteInferenceGate()
 
@@ -140,8 +116,6 @@ actor RemoteInferenceGate {
         let id = UUID()
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                // A cancellation that fired before this closure ran found no
-                // waiter to remove; never park a cancelled task.
                 guard !Task.isCancelled else {
                     continuation.resume(throwing: CancellationError())
                     return
@@ -202,10 +176,6 @@ actor RemoteInferenceGate {
     }
 }
 
-/// How patiently each kind of caller retries a transient remote failure. The
-/// gate's shared cooldown already paces rate limits, so these counts bound the
-/// total attempts rather than the wait. Meeting notes are worth waiting for;
-/// a person watching chat would rather see the error quickly.
 enum RemoteRetryPolicy {
     static func maximumAttempts(for priority: InferencePriority) -> Int {
         switch priority {
@@ -215,8 +185,6 @@ enum RemoteRetryPolicy {
         }
     }
 
-    /// Pause before a replay that did not fail with a rate limit (5xx, dropped
-    /// connection). Rate limits wait on the gate's cooldown instead.
     static func backoff(attempt: Int, retryAfter: TimeInterval?,
                         jitter: TimeInterval = Double.random(in: 0...0.5)) -> TimeInterval {
         if let retryAfter { return min(RemoteRequestQueue.maximumCooldown, max(0, retryAfter)) }
@@ -224,12 +192,6 @@ enum RemoteRetryPolicy {
     }
 }
 
-/// A `TextEngine` decorator for external Think servers. Every request waits for
-/// a slot on the origin's shared gate, so background digests and Dream cannot
-/// starve meeting notes, and a rate limit pauses every caller of that origin
-/// instead of each one hammering it again a second later. Replayable requests
-/// are retried here, so callers must not add their own replay on top
-/// (`handlesTransientRetries`).
 struct GatedTextEngine: TextEngine {
     let base: TextEngine
     let origin: String
@@ -279,7 +241,6 @@ struct GatedTextEngine: TextEngine {
     func generateStreaming(system: String, prompt: String, context: [String],
                            options: TextGenerationOptions,
                            onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
-        // Streaming stays single-shot: a replay could repeat text already shown.
         try await once {
             try await base.generateStreaming(system: system, prompt: prompt, context: context,
                                              options: options, onPartial: onPartial)
@@ -331,7 +292,6 @@ struct GatedTextEngine: TextEngine {
                     "remote inference retry purpose=\(purpose) priority=\(priority.label) "
                         + "attempt=\(attempt + 1)/\(attempts) rateLimited=\(rateLimited) "
                         + "error=\(error.localizedDescription)")
-                // A rate limit waits on the origin's cooldown inside acquire().
                 if !rateLimited {
                     try await sleep(RemoteRetryPolicy.backoff(
                         attempt: attempt - 1, retryAfter: engineError?.retryAfter))

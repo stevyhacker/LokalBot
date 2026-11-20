@@ -1,8 +1,6 @@
 import Foundation
 
 enum SpeakerIdentityResolver {
-    /// Match by retained turns in the SAME audio revision. A clean split can
-    /// inherit; a merge of different people or any ambiguous overlap cannot.
     static func remap(_ previous: [SpeakerIdentityAssignment], turns: [SpeakerAudioTurn], audioRevision: String) -> [SpeakerIdentityAssignment] {
         var output: [SpeakerIdentityAssignment] = []
         for (label, newTurns) in Dictionary(grouping: turns, by: \.speaker) {
@@ -41,7 +39,6 @@ enum SpeakerIdentityResolver {
         let winner = conflict ? nil : allowed.first { $0.tier == .automatic }
         if let existing = assignment.name, let winner,
            ParticipantObservation.nameKey(existing) != ParticipantObservation.nameKey(winner.name) {
-            // Withdraw into review; never silently replace one displayed person with another.
             assignment.name = nil
             assignment.match = nil
             assignment.supportingMatches = nil

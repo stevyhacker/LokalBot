@@ -1,7 +1,3 @@
-//! "Export audio": a meeting's tracks mixed into one file to keep or share
-//! (`MeetingAudioAsset.exportMixedRecording`). The Mac writes AAC with its
-//! system exporter; there is no AAC encoder here, so this writes a 16 kHz WAV.
-
 use std::io;
 use std::path::Path;
 
@@ -30,7 +26,6 @@ impl Track {
         })
     }
 
-    /// Reads until at least `frames` samples wait, or the track ends.
     fn fill(&mut self, frames: usize) -> io::Result<()> {
         let mut block = Vec::new();
         while self.pending.len() < frames && !self.finished {
@@ -51,8 +46,6 @@ impl Track {
     }
 }
 
-/// Writes `mic` and `system` summed onto one timeline, reading in blocks so a
-/// long meeting never sits in memory. Returns the length in seconds.
 pub fn export_mixed(
     mic: Option<&Path>,
     system: Option<&Path>,

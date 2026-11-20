@@ -1,7 +1,3 @@
-//! Prompts for handing work to a coding agent (`ActionAgentHandoff.swift`,
-//! `ExternalAgentHandoff.swift`). Nothing here sends anything: every route
-//! only fills the agent's input, and the user sends it there.
-
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Local, NaiveDate, Utc};
@@ -9,36 +5,28 @@ use chrono::{DateTime, Local, NaiveDate, Utc};
 use crate::library::{Library, NOTES_FILE, SUMMARY_FILE, TRANSCRIPT_MD_FILE};
 use crate::model::{ActionReference, ActionThread, Meeting};
 
-/// Claude Code's limit for a deep link's `q`. Codex documents no limit; it
-/// gets the same budget.
 pub const ACTION_PROMPT_LIMIT: usize = 5_000;
-/// Claude cuts `q` at about 14,000 characters; both apps open with the same notes.
 pub const MEETING_PROMPT_LIMIT: usize = 12_000;
 const MAXIMUM_SOURCES: usize = 5;
 const MAXIMUM_TEXT_CHARACTERS: usize = 1_000;
 const CUT_SHORT: &str = "\n\n[Cut short to fit.]";
 
-/// A file an agent can read, labeled as the prompt names it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceFile {
     pub label: &'static str,
     pub path: PathBuf,
 }
 
-/// One meeting an action came up in.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Source {
     pub title: String,
     pub started_at: DateTime<Utc>,
-    /// The short ID the CLI and MCP tools accept.
     pub meeting_id: String,
-    /// Where the action's first cited passage starts in the recording.
     pub evidence_at: Option<f64>,
     pub folder: PathBuf,
     pub files: Vec<SourceFile>,
 }
 
-/// What a handoff prompt says about one action (`ActionHandoffBrief`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActionBrief {
     pub text: String,
@@ -48,17 +36,13 @@ pub struct ActionBrief {
     pub due_date: Option<NaiveDate>,
     pub due_said_on: Option<DateTime<Utc>>,
     pub status: String,
-    /// Latest first.
     pub sources: Vec<Source>,
 }
 
-/// Rows show "You" only for an owner named "Me" on the user's own work.
 fn is_user_owner(owner: Option<&str>, is_for_user: bool) -> bool {
     is_for_user && owner.is_some_and(|o| o.trim().eq_ignore_ascii_case("me"))
 }
 
-/// A speaker label as a person reads it. Prompts stay in English, like the
-/// Mac's, whatever language the app shows.
 fn owner_label(owner: &str) -> String {
     let trimmed = owner.trim();
     match trimmed.to_lowercase().as_str() {
@@ -96,7 +80,6 @@ impl ActionBrief {
     }
 }
 
-/// One source per meeting, latest first; files that don't exist yet are left out.
 pub fn sources(
     library: &Library,
     meetings: &[Meeting],
@@ -150,8 +133,6 @@ fn sources_in(
         .collect()
 }
 
-/// A prompt the user can send as is. Older meetings are left out first when
-/// the prompt would pass `limit` (`ActionAgentHandoff.prompt`).
 pub fn action_prompt(brief: &ActionBrief, limit: usize) -> String {
     let mut count = brief.sources.len().min(MAXIMUM_SOURCES);
     loop {
@@ -274,10 +255,6 @@ fn render(brief: &ActionBrief, sources: &[Source]) -> String {
     lines.join("\n")
 }
 
-/// A meeting's notes for "Open in Claude" and "Open in Codex"
-/// (`ExternalAgentHandoff.prompt`). `notes(None)` renders the notes without a
-/// transcript and `notes(Some(n))` adds up to n characters of it; the
-/// transcript gets whatever room the notes leave.
 pub fn meeting_prompt(
     meeting_id: &str,
     limit: usize,
@@ -287,7 +264,6 @@ pub fn meeting_prompt(
         "Here are my notes from a meeting recorded in LokalBot (meeting ID {meeting_id}).\n\n"
     );
     let without_transcript = notes(None);
-    // Leave room for the transcript heading and its "continues" pointer.
     let room = limit as i64
         - intro.chars().count() as i64
         - without_transcript.chars().count() as i64
@@ -305,8 +281,6 @@ pub fn meeting_prompt(
     }
 }
 
-/// Keeps every character the apps would otherwise read as a space or a new
-/// parameter out of a link's query (`encodeQueryValue`).
 pub fn encode_query_value(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for byte in value.bytes() {
@@ -320,17 +294,14 @@ pub fn encode_query_value(value: &str) -> String {
     out
 }
 
-/// "Open in Agent" for one action.
 pub fn agent_prompt_for_action(reference: &ActionReference) -> String {
     agent_prompt_from_meeting(&reference.meeting_title, &reference.text)
 }
 
-/// "Open in Agent" for an action of a meeting.
 pub fn agent_prompt_from_meeting(meeting_title: &str, text: &str) -> String {
     format!("Help me complete this action from {meeting_title}: {text}")
 }
 
-/// "Open in Agent" for an action thread.
 pub fn agent_prompt_for_thread(thread: &ActionThread) -> String {
     let source_note = if thread.meeting_count() == 1 {
         thread.latest().meeting_title.clone()
@@ -343,7 +314,6 @@ pub fn agent_prompt_for_thread(thread: &ActionThread) -> String {
     )
 }
 
-/// Today's "Plan in Agent…": at most eight open threads.
 pub fn agent_prompt_for_plan(threads: &[ActionThread]) -> String {
     let lines: Vec<String> = threads
         .iter()
@@ -408,7 +378,6 @@ mod tests {
             .unwrap()
             .with_timezone(&Local)
             .format("%a %Y-%m-%d %H:%M");
-        // Each platform's own separator, as the agent will need to open them.
         let folder = std::path::Path::new("/lib/a");
         let summary = folder.join("summary.md");
         let summary = summary.display();
@@ -471,10 +440,8 @@ mod tests {
         ));
         assert!(prompt.contains("ttt"));
         assert!(prompt.chars().count() <= 2_000);
-        // Too little room leaves the transcript out.
         let small = meeting_prompt("AB12", 1_000, notes);
         assert!(!small.contains("ttt"));
-        // Notes alone over the limit are cut.
         let cut = meeting_prompt("AB12", 40, notes);
         assert_eq!(cut.chars().count(), 40);
         assert!(cut.ends_with("[Cut short to fit.]"));

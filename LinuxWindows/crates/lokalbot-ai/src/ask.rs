@@ -1,13 +1,3 @@
-//! Ask: answers from the user's meetings and screen memory with citations
-//! (`Services/Chat/ChatAgent.swift`, `ChatCitation.swift`, `CLISupport/AskLibrary*`).
-//!
-//! The macOS agent lets the model call tools in a loop. Small local models
-//! follow that protocol unreliably, so here the app retrieves first (keyword
-//! search, meaning search when embeddings exist, title matches and the
-//! scoped meetings), hands the model numbered sources with their citation
-//! markers, streams one answer, and verifies every marker afterwards: a
-//! marker for a source it was not given becomes "(source not verified)".
-
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
 use std::sync::atomic::AtomicBool;
@@ -27,62 +17,35 @@ use crate::embeddings::semantic_meeting_hits;
 use crate::think::{ChatRequest, ThinkClient};
 use crate::{prompts, sanitize};
 
-/// What an answer may draw on.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AskScope {
-    /// Only these meetings (empty: all).
     pub meeting_ids: Vec<Uuid>,
     pub since: Option<DateTime<Utc>>,
-    /// Exclusive.
     pub until: Option<DateTime<Utc>>,
     pub include_meetings: bool,
     pub include_screen: bool,
-    /// Time spent in apps (the tool loop's `activity_summary`).
     pub include_activity: bool,
-    /// What Personal Context gives this question; empty when none applies.
     pub personal_context: String,
-    /// The overnight review's work memory; empty for restricted questions.
     pub work_memory: String,
-    /// Search by meaning is on: vectors take part. Off, it's words alone.
     pub search_by_meaning: bool,
-    /// The folders chosen under Files, searched through `search_files`.
     pub include_files: bool,
-    /// Those folders; empty while Files is off, and then the tool isn't offered.
     pub file_folders: Vec<String>,
-    /// The notes the person's coding agents saved for themselves, searched
-    /// through `search_agent_notes`. False while Read coding agent notes is off
-    /// or nothing is saved, and then the tool isn't offered.
     pub include_agent_notes: bool,
-    /// Screens this question is bound to (attached or from the results).
     pub screen_ids: Vec<i64>,
-    /// Limit screen search to one app.
     pub screen_app: Option<String>,
-    /// Screens the person attached, as primary evidence for the model
-    /// (`ScreenAskContext.prompt`); the conversation shows only their question.
     pub attached_context: Option<String>,
-    /// The words at a file's matched moment, when transcription is available.
     pub moments: MomentWords,
-    /// What `meeting_ids`, `since` and `until` hold, for the model; `None`
-    /// when the question may look at everything.
     pub limit: Option<QuestionLimit>,
-    /// The day or meeting a device's question was asked about: where the
-    /// answer starts, never a limit.
     pub focus: Option<QuestionFocus>,
 }
 
-/// Where a question asked from a day or a meeting starts. "Ask About Today"
-/// on a tablet once held the question to that day, and the answer said the
-/// library had only one meeting.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct QuestionFocus {
-    /// "the day 4 Nov 2026", "the meeting “Standup” [1a2b3c4d] on 4 Nov 2026".
     pub subject: String,
-    /// The meetings it names, which the single-turn answer reads first.
     pub meeting_ids: Vec<Uuid>,
 }
 
 impl QuestionFocus {
-    /// Its part of the Question scope section (`ChatPrompt.questionFocus`).
     pub fn prompt(&self) -> String {
         format!(
             "The user started this conversation from {}, so a question that names no other time, meeting or topic is about that. It is a starting point, not a limit: the tools reach the rest of the library too. Use them whenever the user asks about anything else, and never describe it as everything the user has.",
@@ -91,20 +54,13 @@ impl QuestionFocus {
     }
 }
 
-/// What a limited question can see, in words for the model
-/// (`ScopedChatToolRunner.limit`). Without it, the one meeting a question
-/// limited to today could find read as the whole library.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct QuestionLimit {
-    /// Completes "limited to", e.g. "what happened on 4 Nov 2026".
     pub words: String,
-    /// The person chose the date limit, and can remove it.
     pub removable_dates: bool,
 }
 
 impl QuestionLimit {
-    /// The dates from `since` to `until` (exclusive) as local days, and the
-    /// meetings the question was held to; `None` when neither applies.
     pub fn new(
         since: Option<DateTime<Utc>>,
         until: Option<DateTime<Utc>>,
@@ -123,7 +79,6 @@ impl QuestionLimit {
         })
     }
 
-    /// "the one meeting chosen for it", "the 3 meetings chosen for it".
     pub fn chosen_meetings(count: usize) -> String {
         match count {
             0 => "no meetings".into(),
@@ -132,8 +87,6 @@ impl QuestionLimit {
         }
     }
 
-    /// The Question scope section of the system prompt
-    /// (`ChatPrompt.questionScope`).
     pub fn prompt(&self) -> String {
         let limit = &self.words;
         format!(
@@ -146,7 +99,6 @@ impl QuestionLimit {
         )
     }
 
-    /// The first line of a meeting list held to this limit.
     pub fn note(&self) -> String {
         format!(
             "Limited to {} for this question; nothing outside that limit is shown.",
@@ -155,8 +107,6 @@ impl QuestionLimit {
     }
 }
 
-/// "on 4 Nov 2026", "from 1 Sep 2026 to 7 Sep 2026", "since 6 Oct 2026",
-/// "before 1 Sep 2026", in local days; `until` is exclusive.
 fn dates_phrase(since: Option<DateTime<Utc>>, until: Option<DateTime<Utc>>) -> Option<String> {
     let day = |at: DateTime<Utc>| at.with_timezone(&Local).format("%-d %b %Y").to_string();
     let last = until.map(|until| until - chrono::Duration::seconds(1));
@@ -169,10 +119,8 @@ fn dates_phrase(since: Option<DateTime<Utc>>, until: Option<DateTime<Utc>>) -> O
     }
 }
 
-/// The words at a matched moment, or `None` when they can't be had.
 pub type HearMoment = std::sync::Arc<dyn Fn(&FileHit) -> Option<String> + Send + Sync>;
 
-/// Transcribes a recording's or video's matched moment, for the assistant to read.
 #[derive(Clone, Default)]
 pub struct MomentWords(pub Option<HearMoment>);
 
@@ -217,7 +165,6 @@ impl Default for AskScope {
     }
 }
 
-/// `ChatPrompt`'s ambient blocks, for the end of the system prompt.
 pub(crate) fn ambient_block(scope: &AskScope) -> String {
     let mut block = String::new();
     let notes: Vec<String> = [
@@ -244,17 +191,11 @@ pub(crate) fn ambient_block(scope: &AskScope) -> String {
     block
 }
 
-/// Progress of one answer, for the conversation view.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AskEvent {
-    /// Visible answer text as it streams.
     Delta(String),
-    /// The whole visible answer so far, replacing earlier text (the tool loop
-    /// re-checks citations as it streams, so text can change).
     Answer(String),
-    /// A finished step: "searched meetings for “X”", "read “Title”".
     Activity(String),
-    /// What is happening now: "Searching…", "Writing the answer…".
     Status(String),
 }
 
@@ -269,7 +210,6 @@ const MOMENT_CHARACTERS: usize = 400;
 const HISTORY_MESSAGES: usize = 8;
 const HISTORY_CHARACTERS: usize = 4_000;
 
-/// `HH:MM:SS`, the stamp the Mac chat prompt asks for.
 fn marker_time(seconds: f64) -> String {
     let total = seconds.max(0.0) as u64;
     format!(
@@ -287,20 +227,14 @@ pub(crate) fn meeting_marker(id: &Uuid, at: Option<f64>) -> String {
     }
 }
 
-/// The sources one answer was given: meeting moments and screen moments
-/// (`ChatEvidence`). Only these may be cited.
 #[derive(Clone, Default)]
 pub(crate) struct Sources {
     pub(crate) text: String,
     pub(crate) meetings: Vec<(Uuid, String)>,
-    /// Whole seconds of every moment marker handed to the model, per meeting.
     pub(crate) moments: HashMap<Uuid, BTreeSet<u64>>,
     pub(crate) screens: BTreeSet<i64>,
-    /// Passages from the folders chosen under Files.
     pub(crate) files: BTreeSet<i64>,
-    /// Saved coding-agent notes, by their lowercase hex ids.
     pub(crate) notes: BTreeSet<String>,
-    /// Source labels ("M1", "S2") and the markers they stand for.
     pub(crate) labels: HashMap<String, String>,
 }
 
@@ -351,7 +285,6 @@ fn segment_at(transcript: &Transcript, start: f64) -> Option<usize> {
 }
 
 fn retrieval_text(question: &str, history: &[ChatMessage]) -> String {
-    // A short follow-up ("and the second one?") searches with the question before it.
     if question.split_whitespace().count() <= 8
         && let Some(previous) = history.iter().rev().find(|m| m.role == ChatRole::User)
     {
@@ -360,8 +293,6 @@ fn retrieval_text(question: &str, history: &[ChatMessage]) -> String {
     question.to_string()
 }
 
-/// Attached screens are citable while they exist and fall inside the question's
-/// dates (`attachedScreenEvidence`).
 pub(crate) fn attached_screen_sources(library: &Library, scope: &AskScope) -> Sources {
     let mut evidence = Sources::default();
     if scope.include_screen {
@@ -379,9 +310,6 @@ pub(crate) fn attached_screen_sources(library: &Library, scope: &AskScope) -> So
     evidence
 }
 
-/// Keyword hits and, with search by meaning, the screen's text and picture vectors
-/// ranked with them, within the question's dates, app and attached screens
-/// (`ScreenSearch`). With no vectors yet the keyword results stay.
 pub(crate) fn scoped_screen_hits(
     library: &Library,
     embedder: Option<&crate::think::EmbeddingClient>,
@@ -666,7 +594,6 @@ fn gather(
         }
     }
     if scope.include_activity {
-        // Time in apps needs no search: the chosen dates, or today.
         let now = Utc::now();
         let (since, until) = match (scope.since, scope.until) {
             (Some(since), Some(until)) => (since, until),
@@ -773,9 +700,6 @@ fn record(
     });
 }
 
-/// The Mac chat system prompt (`ChatAgent.systemPrompt`) without its tool
-/// catalogue: sources are retrieved up front and supplied in the user
-/// message, so one model turn answers.
 fn system_prompt(
     think: &ThinkClient,
     include_screen: bool,
@@ -821,10 +745,6 @@ static LABEL: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(&format!(r"\[({one}(?:\s*[,;]\s*{one})*)\]")).expect("valid regex")
 });
 
-/// Small models often cite a source by its label ("[M1]", "[M1@00:00:43]")
-/// rather than its marker; turns labels into the markers they stand for.
-/// `[meetings:A, B]` or `[meeting:A; B@00:01:10]`: several meetings in one
-/// marker, which small models write despite the prompt.
 static GROUPED: LazyLock<Regex> = LazyLock::new(|| {
     let one = r"(?:meeting:)?[A-Za-z0-9_-]{1,64}(?:@\d{1,2}(?::\d{2}){1,2})?";
     Regex::new(&format!(
@@ -833,8 +753,6 @@ static GROUPED: LazyLock<Regex> = LazyLock::new(|| {
     .expect("valid regex")
 });
 
-/// Splits grouped meeting markers into one `[meeting:…]` per meeting, so each
-/// is verified on its own.
 fn split_grouped(text: &str) -> String {
     GROUPED
         .replace_all(text, |caps: &regex::Captures| {
@@ -877,8 +795,6 @@ fn expand_labels(text: &str, sources: &Sources) -> String {
         .into_owned()
 }
 
-/// `verified` for a partial answer: a marker still being written is held
-/// back rather than shown and then retracted.
 pub(crate) fn verified_partial(text: &str, sources: &Sources) -> String {
     let mut text = text;
     if let Some(bracket) = text.rfind('[')
@@ -899,8 +815,6 @@ pub(crate) fn verified_partial(text: &str, sources: &Sources) -> String {
     verified(text, sources)
 }
 
-/// Rewrites markers to the canonical `[meeting:<UUID>@HH:MM:SS]` form, keeping
-/// only those the answer was given (`ChatEvidence`).
 pub(crate) fn verified(text: &str, sources: &Sources) -> String {
     let text = expand_labels(&split_grouped(text), sources);
     CITATION
@@ -923,7 +837,6 @@ pub(crate) fn verified(text: &str, sources: &Sources) -> String {
                 };
             }
             if &caps[1] == "note" {
-                // Twelve hex characters, never with a time.
                 let note = id.to_lowercase();
                 return if caps.get(3).is_none() && sources.notes.contains(&note) {
                     format!("[note:{note}]")
@@ -989,9 +902,6 @@ pub(crate) fn assistant(text: String, activity: Vec<ChatActivity>) -> ChatMessag
     }
 }
 
-/// Answers `question` from the library within `scope`, streaming deltas
-/// through `on_event`. When `cancel` is set the answer stops promptly and
-/// keeps what arrived.
 pub fn answer(
     think: &ThinkClient,
     library: &Library,
@@ -1059,7 +969,6 @@ pub fn answer(
     Ok(assistant(text, activity))
 }
 
-/// The IANA zone name when the environment names one, else the UTC offset.
 pub(crate) fn time_zone_name() -> String {
     if let Ok(zone) = std::env::var("TZ")
         && !zone.trim().is_empty()
@@ -1075,8 +984,6 @@ pub(crate) fn time_zone_name() -> String {
     }
     Local::now().format("UTC%:z").to_string()
 }
-
-// ----------------------------------------------------------- ask_library
 
 const LIBRARY_STOPWORDS: [&str; 82] = [
     "a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "by", "for", "with",
@@ -1109,9 +1016,6 @@ fn truncated_utf8(value: &str, max_bytes: usize, marker: &str) -> String {
     }
 }
 
-/// `ask_library` served by the app (the CLI talks to the app's server itself;
-/// see `lokalbot-cli`): title-matched summaries, then keyword snippets, one
-/// answer, and a `Sources:` list.
 pub fn ask_library(think: &ThinkClient, library: &Library, question: &str) -> Result<String> {
     let meetings = library.list_meetings()?;
     if meetings.is_empty() {

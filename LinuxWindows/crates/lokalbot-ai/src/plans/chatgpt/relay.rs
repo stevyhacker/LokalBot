@@ -1,15 +1,3 @@
-//! Agent Mode on the ChatGPT plan (`ChatGPTPlanRelay.swift`). pi speaks the
-//! Responses API to this relay on 127.0.0.1 with a key issued for one task.
-//! The relay checks that key, shapes the body to the plan route's rules, adds
-//! the current Sign in with ChatGPT access token ([`Account`] refreshes it),
-//! and streams OpenAI's reply back unchanged. Only `POST /v1/responses` is
-//! relayed, so pi and the commands it runs never hold the plan's tokens.
-//!
-//! Blocking sockets, one thread per connection. A hang-up or [`Relay::stop`]
-//! closes pi's connection at once. ureq's read of OpenAI's stream can't be
-//! interrupted from another thread, so that upstream connection is dropped
-//! when its next event arrives.
-
 use std::collections::HashMap;
 use std::io::{ErrorKind, Read, Write};
 use std::net::{Ipv4Addr, Shutdown, SocketAddrV4, TcpListener, TcpStream};
@@ -25,21 +13,12 @@ use super::{Account, PlanError, REQUEST_TIMEOUT, error_object, plan_error_for, r
 use crate::http;
 
 pub const PATH: &str = "/v1/responses";
-/// Room for a full agent context with long tool results.
 pub const MAXIMUM_REQUEST_BYTES: usize = 32 << 20;
 pub const MAXIMUM_HEAD_BYTES: usize = 64 << 10;
-/// An error reply is short JSON; anything longer is cut.
 pub const MAXIMUM_ERROR_BYTES: usize = 1 << 20;
-/// pi writes a request at once and reads its reply as it streams; a
-/// connection stalled either way is dropped.
 const STALL_TIMEOUT: Duration = Duration::from_secs(60);
-/// How often an open request looks for pi hanging up.
 const HANG_UP_POLL: Duration = Duration::from_millis(250);
 
-/// The plan route's request rules (developers.openai.com/siwc/token-sharing-open-source,
-/// "Preview limitations", 2026-10): fields it rejects, server-side
-/// conversation state it can't use over HTTP, and pi-ai fields that have no
-/// meaning on plan usage.
 pub const UNSUPPORTED_FIELDS: [&str; 18] = [
     "background",
     "conversation",
@@ -61,9 +40,7 @@ pub const UNSUPPORTED_FIELDS: [&str; 18] = [
     "user",
 ];
 
-/// Where the relay's access tokens come from.
 pub trait TokenSource: Send + Sync {
-    /// The current access token, or a fresh one after `rejected` was refused.
     fn token(&self, rejected: Option<&str>) -> Result<String>;
 }
 
@@ -76,14 +53,12 @@ impl TokenSource for Account {
     }
 }
 
-/// One task's relay. Dropping it stops it.
 pub struct Relay {
     port: u16,
     shared: Arc<Shared>,
 }
 
 struct Shared {
-    /// The bearer key pi presents. Random per relay and never stored.
     key: String,
     upstream: String,
     agent: ureq::Agent,
@@ -93,20 +68,17 @@ struct Shared {
     open: Mutex<HashMap<u64, Exchange>>,
 }
 
-/// One connection from pi, as [`Relay::stop`] needs it.
 struct Exchange {
     stream: TcpStream,
     cancelled: Arc<AtomicBool>,
 }
 
 impl Relay {
-    /// Listens on a free loopback port for `account`'s plan.
     pub fn start(account: Arc<Account>) -> Result<Self> {
         let upstream = format!("{}/responses", account.endpoints().resource);
         Self::start_with(account, upstream)
     }
 
-    /// `upstream` is the Responses URL requests go to.
     pub fn start_with(tokens: Arc<dyn TokenSource>, upstream: String) -> Result<Self> {
         let couldnt_listen = |err: std::io::Error| {
             anyhow::anyhow!(
@@ -137,17 +109,14 @@ impl Relay {
         self.port
     }
 
-    /// The bearer key pi must present.
     pub fn key(&self) -> &str {
         &self.shared.key
     }
 
-    /// The base URL pi's provider uses (`…/v1`).
     pub fn base_url(&self) -> String {
         format!("http://127.0.0.1:{}/v1", self.port)
     }
 
-    /// Stops listening and ends every open request.
     pub fn stop(&self) {
         let open: Vec<Exchange> = {
             let mut open = self.shared.open.lock();
@@ -156,7 +125,6 @@ impl Relay {
             }
             open.drain().map(|(_, exchange)| exchange).collect()
         };
-        // Wakes the accept loop, which then sees `stopped` and closes.
         let _ = TcpStream::connect_timeout(
             &SocketAddrV4::new(Ipv4Addr::LOCALHOST, self.port).into(),
             Duration::from_secs(1),
@@ -187,7 +155,6 @@ impl Shared {
                 break;
             }
             let Ok(stream) = stream else {
-                // Out of descriptors, say; don't spin.
                 std::thread::sleep(Duration::from_millis(50));
                 continue;
             };
@@ -310,7 +277,6 @@ impl Shared {
                 return;
             }
             let status = response.status().as_u16();
-            // A token can be revoked or rotated early; refresh it once.
             if status == 401 && attempt == 0 {
                 rejected = Some(token);
                 continue;
@@ -325,9 +291,6 @@ impl Shared {
     }
 }
 
-/// pi closes its socket to abort a request. Notice that even while the model
-/// is still thinking and nothing is being written. The socket's short read
-/// timeout lets this thread end with the request on every platform.
 fn watch_for_hang_up(stream: &TcpStream, cancelled: Arc<AtomicBool>) {
     let Ok(mut watched) = stream.try_clone() else {
         return;
@@ -390,7 +353,6 @@ fn relay_stream(
             if cancelled.load(Ordering::SeqCst) {
                 return Err(ErrorKind::ConnectionAborted.into());
             }
-            // Returns as soon as OpenAI sends anything, so events pass at once.
             let read = reader.read(&mut chunk)?;
             if read == 0 {
                 break;
@@ -412,7 +374,6 @@ fn relay_stream(
             "chatgpt plan relay status={status} bytes={bytes} seconds={:.1}",
             started.elapsed().as_secs_f64()
         ),
-        // pi hung up, or OpenAI's stream broke; pi sees the cut stream.
         Err(_) => log::info!(
             "chatgpt plan relay stream ended early bytes={bytes} cancelled={}",
             cancelled.load(Ordering::SeqCst)
@@ -448,8 +409,6 @@ fn relay_error(response: ureq::http::Response<ureq::Body>, stream: &mut TcpStrea
     send(stream, status, headers, &body);
 }
 
-/// An error the relay itself answers, shaped like OpenAI's so pi shows the
-/// message. `retry` `None` keeps pi's own retry rules for the status.
 fn reply(stream: &mut TcpStream, status: u16, message: &str, retry: Option<bool>) {
     let body = json!({"error": {"message": message, "type": "lokalbot_chatgpt_plan_relay"}});
     let mut headers = vec![("Content-Type", "application/json".to_string())];
@@ -478,8 +437,6 @@ fn send(stream: &mut TcpStream, status: u16, mut headers: Vec<(&str, String)>, b
     let _ = stream.flush();
 }
 
-/// The relay's reading of one HTTP/1.1 request from pi. The key is checked
-/// as soon as the head arrives, before a body is buffered.
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Request<'a> {
     Incomplete,
@@ -540,7 +497,6 @@ pub(crate) fn read_request<'a>(buffer: &'a [u8], key: &str) -> Request<'a> {
             message: "Only POST /v1/responses is relayed.".into(),
         };
     }
-    // Browsers always send Origin; pi never does.
     if headers.contains_key("origin") {
         return Request::Rejected {
             status: 403,
@@ -591,9 +547,6 @@ pub(crate) fn constant_time_eq(presented: &[u8], expected: &[u8]) -> bool {
         == 0
 }
 
-/// pi's body with [`UNSUPPORTED_FIELDS`] removed, `store: false` and
-/// `stream: true` set, and system messages sent as developer messages.
-/// `None` for anything that isn't a Responses request.
 pub(crate) fn upstream_body(data: &[u8]) -> Option<Vec<u8>> {
     let Ok(Value::Object(mut body)) = serde_json::from_slice::<Value>(data) else {
         return None;
@@ -620,9 +573,6 @@ pub(crate) fn upstream_body(data: &[u8]) -> Option<Vec<u8>> {
     serde_json::to_vec(&body).ok()
 }
 
-/// pi retries 408, 409, 429 and 5xx by default. Plan limits, eligibility and
-/// request errors don't change on a retry; temporary plan outages do. `None`
-/// leaves pi's default for the status.
 pub(crate) fn should_retry(
     code: Option<&str>,
     message: Option<&str>,

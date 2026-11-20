@@ -1,8 +1,3 @@
-//! Wayland has no common way to see the focused window, so each compositor
-//! is asked through its own interface: Hyprland's IPC socket, Sway's i3 IPC,
-//! a short KWin script on KDE Plasma, and on GNOME the "Window Calls" or
-//! "Focused Window D-Bus" Shell extension when installed.
-
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -40,10 +35,6 @@ fn unix_request(path: &PathBuf, request: &[u8]) -> anyhow::Result<UnixStream> {
     Ok(stream)
 }
 
-// ------------------------------------------------------------- Hyprland
-
-/// `j/activewindow` on `$XDG_RUNTIME_DIR/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket.sock`
-/// (`/tmp/hypr/…` before Hyprland 0.40).
 pub(super) struct Hyprland {
     socket: PathBuf,
 }
@@ -88,7 +79,6 @@ impl Hyprland {
     }
 }
 
-/// Class and title of every Hyprland window (`j/clients`).
 pub(super) fn hyprland_windows() -> anyhow::Result<Vec<(String, String)>> {
     let reply = hyprland_request(&hyprland_socket()?, b"j/clients")?;
     let value: Value = serde_json::from_str(&reply).context("unexpected Hyprland reply")?;
@@ -129,9 +119,6 @@ fn parse_hyprland(reply: &str) -> anyhow::Result<Option<FocusedWindow>> {
     }))
 }
 
-// ------------------------------------------------------------- Sway
-
-/// i3 IPC `GET_TREE` on `$SWAYSOCK`.
 pub(super) struct Sway {
     socket: PathBuf,
 }
@@ -175,7 +162,6 @@ fn sway_socket() -> anyhow::Result<PathBuf> {
         .context("SWAYSOCK is not set")
 }
 
-/// Class (app id) and title of every Sway window.
 pub(super) fn sway_windows() -> anyhow::Result<Vec<(String, String)>> {
     fn collect(node: &Value, out: &mut Vec<(String, String)>) {
         let kind = node.get("type").and_then(Value::as_str).unwrap_or("");
@@ -230,7 +216,6 @@ fn parse_sway_tree(tree: &Value) -> Option<FocusedWindow> {
     let node = find_focused(tree)?;
     let kind = node.get("type").and_then(Value::as_str).unwrap_or("");
     if kind != "con" && kind != "floating_con" {
-        // An empty workspace or an output has the focus.
         return None;
     }
     let properties = node.get("window_properties");
@@ -245,10 +230,6 @@ fn parse_sway_tree(tree: &Value) -> Option<FocusedWindow> {
     })
 }
 
-// ------------------------------------------------------------- KDE Plasma
-
-/// Loads a one-shot KWin script that reports the active window back over
-/// D-Bus, the way kdotool does; works with Plasma 5 and 6.
 pub(super) struct Kwin {
     bus: zbus::blocking::Connection,
     reports: crossbeam_channel::Receiver<(String, String)>,
@@ -346,7 +327,6 @@ impl Kwin {
                 zbus::blocking::Proxy::new(&self.bus, "org.kde.KWin", path, "org.kde.kwin.Script")?;
             script.call("run", &())
         };
-        // Plasma 6 path first, then Plasma 5.
         run(format!("/Scripting/Script{id}")).or_else(|_| run(format!("/{id}")))?;
         Ok(())
     }
@@ -414,20 +394,14 @@ fn parse_kwin(payload: &str) -> anyhow::Result<Option<FocusedWindow>> {
     }))
 }
 
-// ------------------------------------------------------------- GNOME
-
 pub(super) const GNOME_HINT: &str = "GNOME on Wayland does not tell apps which window is in front. Install the “Window Calls” GNOME Shell extension (extensions.gnome.org/extension/4724/window-calls) so day memory can record apps and window titles; until then it records nothing.";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum GnomeExtension {
-    /// `org.gnome.Shell.Extensions.Windows` ("Window Calls").
     WindowCalls,
-    /// `org.gnome.shell.extensions.FocusedWindow` ("Focused Window D-Bus").
     FocusedWindow,
 }
 
-/// Looks for a supported extension again every minute, so installing one
-/// starts tracking without a restart.
 pub(super) struct Gnome {
     bus: zbus::blocking::Connection,
     extension: Option<GnomeExtension>,
@@ -469,7 +443,6 @@ impl Gnome {
             .into_iter()
             .find(|extension| match extension {
                 GnomeExtension::WindowCalls => self.window_calls_list().is_ok(),
-                // Fails while nothing is focused, so only "unknown" counts.
                 GnomeExtension::FocusedWindow => match self.focused_window_get() {
                     Ok(_) => true,
                     Err(err) => {
@@ -522,7 +495,6 @@ impl Gnome {
             }
             GnomeExtension::FocusedWindow => match self.focused_window_get() {
                 Ok(json) => Ok(parse_gnome_window(&serde_json::from_str(&json)?)),
-                // Raised while nothing has focus.
                 Err(_) => Ok(None),
             },
         }
@@ -540,7 +512,6 @@ impl WindowProbe for Gnome {
         match self.read(extension) {
             Ok(window) => Ok(window),
             Err(err) => {
-                // Disabled or removed since: look again later.
                 log::info!("activity: GNOME extension stopped answering: {err:#}");
                 self.extension = None;
                 Ok(None)
@@ -572,7 +543,6 @@ fn parse_gnome_window(value: &Value) -> Option<FocusedWindow> {
     })
 }
 
-/// The focused entry of Window Calls' `List`, with its id for `GetTitle`.
 fn parse_window_calls(list: &str) -> anyhow::Result<Option<(Option<u32>, FocusedWindow)>> {
     let value: Value = serde_json::from_str(list).context("unexpected Window Calls reply")?;
     let Some(entries) = value.as_array() else {

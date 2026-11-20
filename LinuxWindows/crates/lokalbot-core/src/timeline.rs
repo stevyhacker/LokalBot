@@ -1,8 +1,3 @@
-//! Day memory reads and writes: activity blocks, screen moments, work
-//! sessions and Timeline's session rail (`TimelineWorkSession.swift`), and
-//! the per-day projection Today and Timeline share
-//! (`DayActivityProjection.swift`).
-
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Result, bail};
@@ -16,26 +11,18 @@ use crate::library::Library;
 use crate::model::*;
 use crate::time::{from_epoch, to_epoch};
 
-/// Consecutive blocks at most this far apart belong to one session.
 pub const SESSION_MAXIMUM_GAP_SECONDS: f64 = 5.0 * 60.0;
-/// A session this long starts a new one at the next non-overlapping block.
 pub const SESSION_MAXIMUM_DURATION_SECONDS: f64 = 45.0 * 60.0;
-/// Work that moves to another project for this long starts a session.
 const PROJECT_SWITCH_SECONDS: f64 = 10.0 * 60.0;
-/// A project names the session once it holds this share of its time.
 const PROJECT_TITLE_SHARE: f64 = 0.2;
-/// A burst that overlaps no session joins the nearest one this close.
 const BURST_ATTACH_SECONDS: f64 = 15.0 * 60.0;
 
-/// Shell, lock-screen and login processes that are never "work". The first
-/// five are the macOS list; the rest are their Linux and Windows equivalents.
 const SYSTEM_APPS: &[&str] = &[
     "loginwindow",
     "windowserver",
     "systemuiserver",
     "controlcenter",
     "notificationcenter",
-    // Windows
     "lockapp",
     "logonui",
     "shellexperiencehost",
@@ -47,7 +34,6 @@ const SYSTEM_APPS: &[&str] = &[
     "windows default lock screen",
     "task switching",
     "task view",
-    // Linux
     "gnome-shell",
     "plasmashell",
     "kwin",
@@ -75,7 +61,6 @@ const GENERIC_TITLES: &[&str] = &[
     "unknown",
 ];
 
-/// Trailing title segments that are browser chrome, not page content.
 const BROWSER_CHROME_MARKERS: &[&str] = &[
     "google chrome",
     "google chrome beta",
@@ -101,7 +86,6 @@ const BROWSER_CHROME_MARKERS: &[&str] = &[
     "usb device connected",
 ];
 
-/// Whether `app` is a shell/system process rather than user work.
 pub fn is_system_app(app: &str) -> bool {
     let normalized = app.trim().to_lowercase();
     SYSTEM_APPS.contains(&normalized.as_str())
@@ -112,7 +96,6 @@ fn is_browser_chrome_segment(segment: &str) -> bool {
     BROWSER_CHROME_MARKERS.contains(&lowered.as_str()) || lowered.starts_with("part of group ")
 }
 
-/// "Page - Audio playing - Google Chrome" → "Page"; "Page — Mozilla Firefox" → "Page".
 pub fn strip_browser_chrome(title: &str) -> String {
     for separator in [" - ", " — "] {
         let parts: Vec<&str> = title.split(separator).collect();
@@ -128,9 +111,6 @@ pub fn strip_browser_chrome(title: &str) -> String {
     title.to_string()
 }
 
-/// "Brief.odt - LibreOffice Writer" → "Brief.odt" when the app is
-/// "LibreOffice Writer". Linux and Windows window titles usually end with the
-/// app's name, which macOS titles do not.
 pub fn strip_app_suffix(title: &str, app: &str) -> String {
     let app = app.trim();
     if app.is_empty() {
@@ -147,7 +127,6 @@ pub fn strip_app_suffix(title: &str, app: &str) -> String {
     title.to_string()
 }
 
-/// The grouping title of a block, or `None` for generic or app-named titles.
 pub fn cleaned_title(raw: &str, app: &str) -> Option<String> {
     let compact = raw
         .replace('\n', " ")
@@ -162,7 +141,6 @@ pub fn cleaned_title(raw: &str, app: &str) -> Option<String> {
     Some(compact)
 }
 
-/// Union length of the blocks' intervals, in seconds.
 pub fn merged_duration(blocks: &[&ActivityBlock]) -> f64 {
     let mut ordered: Vec<&&ActivityBlock> = blocks.iter().collect();
     ordered.sort_by_key(|b| b.start);
@@ -191,27 +169,19 @@ fn seconds(delta: chrono::Duration) -> f64 {
 struct Titled<'a> {
     block: &'a ActivityBlock,
     title: Option<String>,
-    /// The block's time per project, empty without agent evidence.
     shares: Vec<Share>,
 }
 
 impl Titled<'_> {
-    /// The project that holds most of the block's time.
     fn project(&self) -> Option<&str> {
         self.shares.first().map(|share| share.project.as_str())
     }
 }
 
-/// App activity grouped into human-scale sessions (`TimelineWorkSession.sessions`):
-/// system apps dropped, gaps of at most 5 minutes merged, a new session after
-/// 45 minutes or when a sustained unseen title appears after 10 minutes.
 pub fn activity_sessions(source: &[ActivityBlock]) -> Vec<WorkSession> {
     attributed_sessions(source, None)
 }
 
-/// With coding-agent evidence, sessions end where the work moves to another
-/// project instead of at a fixed length, and take their names from the project
-/// and its agents' tasks.
 pub fn attributed_sessions(
     source: &[ActivityBlock],
     attribution: Option<&Attribution>,
@@ -238,7 +208,6 @@ pub fn attributed_sessions(
     let groups = if attribution.is_empty() {
         app_groups(titled.iter().collect())
     } else {
-        // Ranked shares, so each block's first share is its project.
         let shares = attribution.shares_of(&blocks);
         for (observed, shares) in titled.iter_mut().zip(shares) {
             observed.shares = shares;
@@ -249,8 +218,6 @@ pub fn attributed_sessions(
     assign_agent_work(&attribution.bursts, sessions)
 }
 
-/// Cuts at gaps, after 45 minutes, and where a new document holds attention
-/// for a while.
 fn app_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>>> {
     let Some(first) = titled.first().copied() else {
         return Vec::new();
@@ -264,8 +231,6 @@ fn app_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>>> {
         let block = observed.block;
         let title = observed.title.as_ref().map(|t| t.to_lowercase());
         let elapsed = seconds(block.start - current[0].block.start);
-        // Short tool switches stay together; a sustained, unseen document
-        // after ten minutes is a boundary. Overlapping blocks never split.
         let sustained_change = elapsed >= 600.0
             && block.duration_seconds() >= 180.0
             && title.as_ref().is_some_and(|t| !seen.contains(t));
@@ -288,11 +253,6 @@ fn app_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>>> {
     groups
 }
 
-/// Cuts at gaps and where the work moves to another project for at least ten
-/// minutes. A brief look elsewhere stays inside the session, and a project
-/// session has no length limit. A stretch too short to stand on its own joins
-/// the work that follows it. Stretches no project claims, such as reading or
-/// chat, fall back to the app rules.
 fn project_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>>> {
     let Some(first) = titled.first().copied() else {
         return Vec::new();
@@ -302,8 +262,6 @@ fn project_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>
     let mut current_project = first.project().map(str::to_string);
     let mut current_seconds = first.block.duration_seconds();
     let mut current_end = first.block.end;
-    // Time each other project (or none) has held since the current one was
-    // last seen, and the index where that run began.
     let mut pending: HashMap<Option<String>, (usize, f64)> = HashMap::new();
     for observed in titled.iter().skip(1).copied() {
         let block = observed.block;
@@ -334,7 +292,6 @@ fn project_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>
             continue;
         }
         if current_seconds >= PROJECT_SWITCH_SECONDS {
-            // Wait for an edge no earlier block still runs across.
             let Some(cut) = cut_index(&current, run_index) else {
                 continue;
             };
@@ -344,7 +301,6 @@ fn project_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>
                 std::mem::replace(&mut current, rest),
             ));
         }
-        // A stretch too short to stand alone joins the new project's.
         current_project = project;
         current_seconds = total;
         pending.clear();
@@ -362,8 +318,6 @@ fn project_groups<'a, 'b>(titled: Vec<&'a Titled<'b>>) -> Vec<Vec<&'a Titled<'b>
     groups
 }
 
-/// The first index at or after `from` where no earlier block is still running,
-/// so a cut never splits overlapping activity.
 fn cut_index(blocks: &[&Titled], from: usize) -> Option<usize> {
     if from == 0 || from >= blocks.len() {
         return None;
@@ -378,9 +332,6 @@ fn cut_index(blocks: &[&Titled], from: usize) -> Option<usize> {
     None
 }
 
-/// Lists each burst under the session it overlaps most, or the nearest one when
-/// the agent worked between sessions, then names project sessions after the
-/// task their agents worked on.
 fn assign_agent_work(
     bursts: &[CodingAgentBurst],
     mut sessions: Vec<WorkSession>,
@@ -412,10 +363,6 @@ fn assign_agent_work(
     sessions
 }
 
-/// "bizstats · Rehearse the audit runbook on staging": the busiest project,
-/// then the task of its burst that overlaps the session most. A second project
-/// that also holds a fair share is named too, as in "bizstats, alpha · …", so a
-/// review in the browser beside agent work is not lost.
 fn name_after_project(session: &mut WorkSession, bursts: &[CodingAgentBurst]) {
     let threshold = (session.active_seconds * PROJECT_TITLE_SHARE).max(60.0);
     let Some(top) = session.project_shares.first().cloned() else {
@@ -458,7 +405,6 @@ fn name_after_project(session: &mut WorkSession, bursts: &[CodingAgentBurst]) {
     session.title_names_project = true;
 }
 
-/// The session's time per project, busiest first.
 fn project_shares(group: &[&Titled]) -> Vec<Share> {
     let mut seconds: HashMap<&str, f64> = HashMap::new();
     for observed in group {
@@ -501,7 +447,6 @@ fn make_session(group: &[&Titled]) -> Option<WorkSession> {
     });
     let active = merged_duration(&blocks);
 
-    // Titles ranked by their own active time; ties keep first appearance.
     let mut by_title: HashMap<String, (String, usize, Vec<&ActivityBlock>)> = HashMap::new();
     for (index, observed) in group.iter().enumerate() {
         let Some(title) = &observed.title else {
@@ -527,8 +472,6 @@ fn make_session(group: &[&Titled]) -> Option<WorkSession> {
         .filter(|(_, _, duration)| *duration >= active * 0.2)
         .map(|(title, _, _)| title.as_str())
         .collect();
-    // Apps glanced at for seconds (a password prompt, a notification) stay in
-    // `apps` but don't inflate the title's count.
     let used_apps: Vec<&str> = apps
         .iter()
         .copied()
@@ -580,8 +523,6 @@ fn make_session(group: &[&Titled]) -> Option<WorkSession> {
     })
 }
 
-/// "Claude", "Claude, Firefox" or "Claude, Firefox +2": the two busiest
-/// apps, then how many more (`TimelineWorkSession.appSummary`).
 pub fn app_summary(apps: &[impl AsRef<str>]) -> String {
     let named = apps
         .iter()
@@ -596,12 +537,8 @@ pub fn app_summary(apps: &[impl AsRef<str>]) -> String {
     }
 }
 
-/// Stretches with nothing recorded at least this long get an "Away" row.
 pub const AWAY_MINIMUM_GAP_SECONDS: f64 = 30.0 * 60.0;
 
-/// A row of Timeline's session rail (`TimelineRailRow`): a session or
-/// meeting by its index in the day's sessions, or a long stretch with no
-/// recorded activity between them.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RailRow {
     Session(usize),
@@ -611,10 +548,6 @@ pub enum RailRow {
     },
 }
 
-/// The rail for `sessions`, ordered by start as `work_sessions` returns
-/// them, with an away row wherever nothing was recorded for at least
-/// `minimum_gap_seconds`. Sessions overlap (a meeting runs over the work
-/// beside it), so a gap starts at the latest end seen so far.
 pub fn rail_rows(sessions: &[WorkSession], minimum_gap_seconds: f64) -> Vec<RailRow> {
     let mut rows = Vec::with_capacity(sessions.len());
     let mut latest_end: Option<DateTime<Utc>> = None;
@@ -633,7 +566,6 @@ pub fn rail_rows(sessions: &[WorkSession], minimum_gap_seconds: f64) -> Vec<Rail
     rows
 }
 
-/// When a meeting item ends on the timeline (`CaptureTrackItem.meetingEnd`).
 pub fn meeting_end(meeting: &Meeting, now: DateTime<Utc>) -> DateTime<Utc> {
     if let Some(ended) = meeting.ended_at {
         return ended;
@@ -644,7 +576,6 @@ pub fn meeting_end(meeting: &Meeting, now: DateTime<Utc>) -> DateTime<Utc> {
     now.max(meeting.started_at + chrono::Duration::seconds(60))
 }
 
-/// A recorded meeting as a timeline session.
 pub fn meeting_session(meeting: &Meeting, now: DateTime<Utc>) -> WorkSession {
     let end = meeting_end(meeting, now);
     WorkSession {
@@ -666,8 +597,6 @@ pub fn meeting_session(meeting: &Meeting, now: DateTime<Utc>) -> WorkSession {
     }
 }
 
-/// Work sessions from `blocks` interleaved with `meetings`, by start
-/// (`TimelineDayItem.items`). Meeting sessions have `meeting_id` set.
 pub fn work_sessions(blocks: &[ActivityBlock], meetings: &[Meeting]) -> Vec<WorkSession> {
     interleaved_sessions(blocks, meetings, None)
 }
@@ -684,7 +613,6 @@ fn interleaved_sessions(
     sessions
 }
 
-/// Blocks clipped to `[start, end)`, system apps removed.
 pub fn clip_blocks(
     blocks: &[ActivityBlock],
     start: DateTime<Utc>,
@@ -707,7 +635,6 @@ pub fn clip_blocks(
         .collect()
 }
 
-/// Per-app union time, longest first.
 pub fn app_usage(blocks: &[ActivityBlock]) -> Vec<AppUsage> {
     let mut by_app: HashMap<&str, Vec<&ActivityBlock>> = HashMap::new();
     for block in blocks {
@@ -729,9 +656,6 @@ pub fn app_usage(blocks: &[ActivityBlock]) -> Vec<AppUsage> {
     usage
 }
 
-/// Columns for `screen_moment_from_row`. The text comes through the
-/// `ocr_metadata` index when present, else by scanning `ocr_fts` (libraries
-/// opened read-only before the app ever migrated them).
 pub(crate) fn screen_columns(db: &rusqlite::Connection) -> Result<String> {
     let text = if table_exists(db, "ocr_metadata")? {
         "(SELECT ocr.text FROM ocr_metadata AS meta JOIN ocr_fts AS ocr ON ocr.rowid = meta.rowid \
@@ -742,7 +666,6 @@ pub(crate) fn screen_columns(db: &rusqlite::Connection) -> Result<String> {
     } else {
         "NULL"
     };
-    // Libraries opened read-only may predate the column.
     let has_group: i64 = db.query_row(
         "SELECT COUNT(*) FROM pragma_table_info('screenshots') WHERE name = 'similarity_group'",
         [],
@@ -780,9 +703,6 @@ pub(crate) fn screen_moment_from_row(row: &rusqlite::Row) -> rusqlite::Result<Sc
     })
 }
 
-/// Oldest-first visual scenes (`ScreenRewindSequence.frames`): adjacent
-/// captures in one persisted similarity group collapse into one, and the
-/// newest of them stands for the scene.
 pub fn rewind_frames(moments: &[ScreenMoment]) -> Vec<Vec<&ScreenMoment>> {
     let mut sorted: Vec<&ScreenMoment> = moments.iter().collect();
     sorted.sort_by_key(|m| m.ts);
@@ -802,8 +722,6 @@ pub fn rewind_frames(moments: &[ScreenMoment]) -> Vec<Vec<&ScreenMoment>> {
     frames
 }
 
-/// At most `limit` items, spaced evenly and always keeping the first and last
-/// (`CaptureModel.representativeFrames`).
 pub fn representative<T: Clone>(items: &[T], limit: usize) -> Vec<T> {
     if limit == 0 || items.len() <= limit {
         return items.to_vec();
@@ -819,9 +737,6 @@ pub fn representative<T: Clone>(items: &[T], limit: usize) -> Vec<T> {
         .collect()
 }
 
-/// A session's moments that match an app and a query, which looks in the
-/// window title, the document name and any retained text
-/// (`SessionMomentBrowser.filtered`).
 pub fn moments_matching<'a>(
     moments: &[&'a ScreenMoment],
     app: Option<&str>,
@@ -843,19 +758,14 @@ pub fn moments_matching<'a>(
         .collect()
 }
 
-/// A screen moment to store (`ActivityStore.insertScreenshot`). `path` is
-/// empty for text-only captures; `text` empty when none was kept.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct NewScreenMoment {
     pub ts: DateTime<Utc>,
     pub app: String,
     pub window_title: String,
-    /// `app_switch`, `window_change`, `click`, `typing_pause`, `scroll_settled`,
-    /// `clipboard_change`, `interval` or `manual`.
     pub trigger: String,
     pub path: String,
     pub text: String,
-    /// `accessibility`, `ocr` or `hybrid`, with `_redacted` when redacted.
     pub text_source: String,
     pub source_url: String,
     pub document_name: String,
@@ -864,7 +774,6 @@ pub struct NewScreenMoment {
 }
 
 impl Library {
-    /// Inserts a finished (or growing) activity block and returns its id.
     pub fn append_activity(
         &self,
         app: &str,
@@ -884,7 +793,6 @@ impl Library {
         })
     }
 
-    /// Stores a screen moment and its searchable text; returns its id.
     pub fn record_screen_moment(&self, moment: &NewScreenMoment) -> Result<i64> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -931,8 +839,6 @@ impl Library {
         })
     }
 
-    /// Saves (or re-notes) a moment; saving again keeps its creation time.
-    /// Saved moments are exempt from retention.
     pub fn save_moment(&self, id: i64, note: &str) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -949,7 +855,6 @@ impl Library {
         })
     }
 
-    /// Removes a saved moment's bookmark (the capture itself stays).
     pub fn unsave_moment(&self, id: i64) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -962,7 +867,6 @@ impl Library {
         })
     }
 
-    /// Saved moments are evidence: a digest stays but is marked out of date.
     fn with_moment_revision(&self, id: i64, change: impl FnOnce() -> Result<()>) -> Result<()> {
         let ts: Option<f64> = self.with_db(|db| {
             Ok(db
@@ -980,7 +884,6 @@ impl Library {
         )
     }
 
-    /// Moves the end of a growing block forward.
     pub fn extend_activity(&self, id: i64, end: DateTime<Utc>) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -994,7 +897,6 @@ impl Library {
         })
     }
 
-    /// Blocks overlapping `[start, end)`, oldest first, unclipped.
     pub fn activity_blocks(
         &self,
         start: DateTime<Utc>,
@@ -1021,8 +923,6 @@ impl Library {
         })
     }
 
-    /// Captured screen moments in `[start, end)`, oldest first, with their
-    /// text (when kept) and saved note.
     pub fn screen_moments(
         &self,
         start: DateTime<Utc>,
@@ -1046,8 +946,6 @@ impl Library {
         })
     }
 
-    /// `screen_moment` for many ids, one query per 400 of them. An id with no
-    /// capture (retention, a delete) has no entry.
     pub fn screen_moments_by_id(&self, ids: &[i64]) -> Result<HashMap<i64, ScreenMoment>> {
         let wanted: Vec<i64> = ids
             .iter()
@@ -1087,7 +985,6 @@ impl Library {
         })
     }
 
-    /// One screen moment by id.
     pub fn screen_moment(&self, id: i64) -> Result<Option<ScreenMoment>> {
         self.with_db(|db| {
             if !table_exists(db, "screenshots")? {
@@ -1102,7 +999,6 @@ impl Library {
         })
     }
 
-    /// Everything Today and Timeline show for one local day.
     pub fn day_activity(&self, day: NaiveDate) -> Result<DayActivity> {
         let (start, end) = crate::time::local_day_bounds(day);
         let blocks = clip_blocks(&self.activity_blocks(start, end)?, start, end);
@@ -1147,7 +1043,6 @@ impl Library {
         })
     }
 
-    /// The newest activity end, if any (`ActivityStore.latestActivityEnd`).
     pub fn latest_activity_end(&self) -> Result<Option<DateTime<Utc>>> {
         self.with_db(|db| {
             if !table_exists(db, "activity_blocks")? {
@@ -1161,7 +1056,6 @@ impl Library {
 }
 
 impl Library {
-    /// The oldest activity start (`ActivityStore.earliestActivityStart`).
     pub fn earliest_activity_start(&self) -> Result<Option<DateTime<Utc>>> {
         self.with_db(|db| {
             if !table_exists(db, "activity_blocks")? {
@@ -1175,7 +1069,6 @@ impl Library {
         })
     }
 
-    /// Whether any activity block overlaps `[start, end)` (`hasActivity(in:)`).
     pub fn has_activity(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<bool> {
         self.with_db(|db| {
             if !table_exists(db, "activity_blocks")? {
@@ -1391,13 +1284,11 @@ mod tests {
             untitled_block(4, "Spotify", 1_100, 1_150),
         ]);
         assert_eq!(sessions.len(), 1);
-        // Spotify's 50 seconds don't count toward "+1".
         assert_eq!(sessions[0].title, "Claude, Google Chrome +1");
         assert_eq!(sessions[0].apps.len(), 4);
         assert!(sessions[0].title_names_apps);
         assert_eq!(app_summary(&["Claude"]), "Claude");
 
-        // Only seconds of a second app: it stays evidence, not part of the title.
         let brief = activity_sessions(&[
             untitled_block(1, "Terminal", 0, 2_400),
             untitled_block(2, "Firefox", 2_400, 2_408),
@@ -1406,8 +1297,6 @@ mod tests {
         assert_eq!(brief[0].apps, ["Terminal", "Firefox"]);
     }
 
-    /// The rail marks a long stretch with nothing recorded. A meeting that
-    /// runs past the next session must not open a gap that never happened.
     #[test]
     fn rail_marks_long_gaps_from_the_latest_end_so_far() {
         let titled = |id: i64, title: &str, start: i64, end: i64| ActivityBlock {
@@ -1443,8 +1332,6 @@ mod tests {
                 RailRow::Session(_) => None,
             })
             .collect();
-        // 600 → 3,000 is 40 minutes away. 3,300 → 4,000 is under 30 minutes,
-        // and the meeting covers c.rs and ends 1,000 s before d.rs.
         assert_eq!(gaps, [(at_second(600), at_second(3_000))]);
         assert_eq!(rows.len(), sessions.len() + 1);
         assert_eq!(rows[0], RailRow::Session(0));

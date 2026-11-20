@@ -1,7 +1,3 @@
-//! Windows evidence: processes with an active WASAPI capture session on any
-//! active microphone (`IAudioSessionManager2`), their executable and parent
-//! names from a ToolHelp snapshot, and browser window titles.
-
 use std::collections::{HashMap, HashSet};
 
 use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, S_OK};
@@ -52,8 +48,6 @@ impl EvidenceSource for WasapiEvidence {
         } else {
             Vec::new()
         };
-        // Render sessions can identify a muted call without turning UI
-        // Automation on for idle browsers.
         let rendering = active_session_pids(eRender)
             .unwrap_or_default()
             .into_iter()
@@ -79,16 +73,12 @@ impl EvidenceSource for WasapiEvidence {
     }
 }
 
-/// Balances `CoInitializeEx` on this thread. A thread already in another
-/// apartment keeps it; COM works there too.
 struct ComScope {
     initialized: bool,
 }
 
 impl ComScope {
     fn enter() -> Self {
-        // SAFETY: plain COM initialization for the calling thread; balanced
-        // in `drop` when it succeeded.
         let result = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         Self {
             initialized: result.is_ok(),
@@ -99,13 +89,11 @@ impl ComScope {
 impl Drop for ComScope {
     fn drop(&mut self) {
         if self.initialized {
-            // SAFETY: matches the successful CoInitializeEx above.
             unsafe { CoUninitialize() };
         }
     }
 }
 
-/// Executable name and parent of every process.
 pub(crate) struct ProcessInfo {
     pub name: String,
     pub parent: u32,
@@ -113,8 +101,6 @@ pub(crate) struct ProcessInfo {
 
 pub(crate) fn process_table() -> HashMap<u32, ProcessInfo> {
     let mut table = HashMap::new();
-    // SAFETY: the snapshot handle is closed below; `entry` has dwSize set as
-    // Process32FirstW requires.
     unsafe {
         let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
             return table;
@@ -155,7 +141,6 @@ fn stream_for(pid: u32, processes: &HashMap<u32, ProcessInfo>) -> CaptureStream 
     let mut ancestors = Vec::new();
     let mut ancestor_pids = Vec::new();
     let mut current = processes.get(&pid).map(|info| info.parent);
-    // WebView2 and Electron helpers sit a few levels below the app.
     while let Some(parent) = current
         && ancestors.len() < 6
         && parent != 0
@@ -177,12 +162,8 @@ fn stream_for(pid: u32, processes: &HashMap<u32, ProcessInfo>) -> CaptureStream 
     }
 }
 
-/// Processes with an active (not merely open) session on any active
-/// endpoint of `flow`, excluding the system-sounds session.
 pub(crate) fn active_session_pids(flow: EDataFlow) -> anyhow::Result<Vec<u32>> {
     let mut pids = Vec::new();
-    // SAFETY: COM calls on interfaces this function owns; COM is initialized
-    // by the caller's `ComScope`.
     unsafe {
         let enumerator: IMMDeviceEnumerator =
             CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL)?;
@@ -228,10 +209,7 @@ struct WindowSearch<'a> {
 }
 
 unsafe extern "system" fn visit_window(window: HWND, lparam: LPARAM) -> BOOL {
-    // SAFETY: `lparam` is the `WindowSearch` that `browser_windows` keeps
-    // alive for the whole enumeration.
     let search = unsafe { &mut *(lparam.0 as *mut WindowSearch<'_>) };
-    // SAFETY: plain queries on a window handle supplied by EnumWindows.
     unsafe {
         if !IsWindowVisible(window).as_bool() {
             return BOOL(1);
@@ -258,13 +236,11 @@ unsafe extern "system" fn visit_window(window: HWND, lparam: LPARAM) -> BOOL {
     BOOL(1)
 }
 
-/// Titles of visible browser windows (each shows its active tab).
 fn browser_windows(processes: &HashMap<u32, ProcessInfo>) -> Vec<WindowTitle> {
     let mut search = WindowSearch {
         processes,
         found: Vec::new(),
     };
-    // SAFETY: the callback only runs during this call, while `search` lives.
     unsafe {
         let _ = EnumWindows(
             Some(visit_window),
@@ -279,8 +255,6 @@ mod tests {
     use super::*;
     use windows::Win32::Media::Audio::eRender;
 
-    /// Reports what this machine's audio stack shows; over SSH there may be
-    /// no audio session at all, which is fine.
     #[test]
     fn enumerates_audio_sessions() {
         let _com = ComScope::enter();

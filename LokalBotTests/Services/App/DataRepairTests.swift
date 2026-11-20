@@ -44,8 +44,6 @@ final class DataRepairTests: XCTestCase {
             .write(to: folder.appendingPathComponent("merge-manifest.json"))
     }
 
-    // MARK: - Missing transcripts
-
     func testFinishedRecordingWithoutTranscriptNeedsTranscription() throws {
         let folder = try temporaryFolder()
         try writeAudio(in: folder, seconds: 6)
@@ -83,8 +81,6 @@ final class DataRepairTests: XCTestCase {
         XCTAssertNil(MissingTranscription.reason(for: meeting(seconds: 60), folder: folder))
     }
 
-    // MARK: - Search tombstones
-
     func testStaleTombstonesAreClearedOnlyForLiveMeetings() throws {
         let root = try temporaryFolder()
         let databaseURL = root.appendingPathComponent("lokalbotv3.sqlite")
@@ -113,8 +109,6 @@ final class DataRepairTests: XCTestCase {
         XCTAssertFalse(database.hasRow("SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1",
                                        bind: [meetingID.uuidString]))
     }
-
-    // MARK: - One app per library
 
     func testLibraryLockAdmitsOneHolderAtATime() throws {
         let root = try temporaryFolder()

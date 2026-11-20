@@ -1,8 +1,3 @@
-//! Read side of the saved coding-agent notes (`AgentNotesIndex`):
-//! `agent-notes.sqlite` in the library, written only by the app
-//! ([`super::store`]). Every call opens the file read-only and closes it, so
-//! the CLI and the app can both search while the app replaces notes.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -15,28 +10,21 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension as _, Row, params, param
 use super::cjk;
 use crate::time::from_epoch;
 
-/// Column weights for title, summary and text.
 const RANK: &str = "bm25(notes_fts, 10.0, 4.0, 1.0)";
 const SNIPPET: &str = "snippet(notes_fts, 2, '«', '»', '…', 18)";
 const COLUMNS: &str =
     "n.id, n.agent, n.title, n.summary, n.category, n.working_directory, n.path, n.modified";
 
-/// One saved coding-agent note as a search returns it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NoteHit {
-    /// Stable id of the note, cited as `[note:id]`.
     pub id: String,
-    /// `claude-code` or `codex`.
     pub agent: String,
     pub title: String,
     pub summary: Option<String>,
-    /// Claude Code's own label: user, feedback, project, or reference.
     pub category: Option<String>,
     pub working_directory: Option<String>,
-    /// The agent's file the note was read from.
     pub path: String,
     pub modified: DateTime<Utc>,
-    /// A passage around the match, the matched words between « and ».
     pub snippet: String,
 }
 
@@ -49,7 +37,6 @@ impl NoteHit {
         super::project_name(self.working_directory.as_deref())
     }
 
-    /// "Claude Code · LokalBot", for a row's second line.
     pub fn source_label(&self) -> String {
         match self.project_name() {
             Some(project) => format!("{} · {project}", self.agent_name()),
@@ -66,7 +53,6 @@ pub fn agent_name(agent: &str) -> String {
     }
 }
 
-/// `CharacterSet.alphanumerics`: letters, marks and numbers.
 fn is_word_character(c: char) -> bool {
     c.is_alphanumeric() || unicode_normalization::char::is_combining_mark(c)
 }
@@ -105,7 +91,6 @@ impl NotesIndex {
         self.database.is_file()
     }
 
-    /// Query-only, so nothing here can grow a write path to the notes.
     fn connection(&self) -> Result<Connection> {
         let db = Connection::open_with_flags(
             &self.database,
@@ -116,14 +101,10 @@ impl NotesIndex {
         Ok(db)
     }
 
-    /// Notes matching every word of `query`, best first; when none has every
-    /// word, notes matching any. The last word also matches as a prefix, so
-    /// results appear while it is typed.
     pub fn search(&self, query: &str, agent: Option<&str>, limit: usize) -> Result<Vec<NoteHit>> {
         if limit == 0 || !self.exists() {
             return Ok(Vec::new());
         }
-        // FTS5 cannot see words inside a run of CJK text.
         if cjk::contains_cjk(query) {
             return self.substring_search(query, agent, limit);
         }
@@ -153,7 +134,6 @@ impl NotesIndex {
         self.fts_search(&quoted.join(" OR "), agent, limit)
     }
 
-    /// The note with this id, its snippet the opening of its text.
     pub fn hit(&self, id: &str) -> Result<Option<NoteHit>> {
         if !self.exists() {
             return Ok(None);
@@ -181,7 +161,6 @@ impl NotesIndex {
             .optional()?)
     }
 
-    /// How many notes are saved per agent.
     pub fn counts(&self) -> Result<BTreeMap<String, usize>> {
         if !self.exists() {
             return Ok(BTreeMap::new());
@@ -199,7 +178,6 @@ impl NotesIndex {
         Ok(counts)
     }
 
-    /// Every saved note, counted.
     pub fn total(&self) -> usize {
         self.counts()
             .map(|counts| counts.values().sum())

@@ -95,9 +95,7 @@ final class SpeakerBleedFilterTests: XCTestCase {
         let remote = phrase + " while we review the remaining engineering and legal risks"
         let mic = segment("me", 18, 22, phrase)
         let input = transcript([
-            // The shared phrase is at the beginning of this long remote span.
             segment("them", 0, 20, remote),
-            // The local speaker genuinely repeats it near the end.
             mic,
         ])
 
@@ -234,8 +232,6 @@ final class SpeakerBleedFilterTests: XCTestCase {
         XCTAssertEqual(result.transcript.segments, input.segments)
     }
 
-    // MARK: - Unicode and work bounds
-
     func testTokenizesUnspacedScriptsPerCharacterAndCoversModernRanges() {
         let mandarin = SpeakerBleedFilter.comparisonTokens(in: "我们下周开会")
         XCTAssertEqual(mandarin?.count, 6)
@@ -244,8 +240,8 @@ final class SpeakerBleedFilterTests: XCTestCase {
         let japanese = SpeakerBleedFilter.comparisonTokens(in: "会議は月曜日です")
         XCTAssertEqual(japanese?.count, 8)
 
-        XCTAssertTrue(SpeakerBleedFilter.isIdeographic("𰀀")) // Extension G
-        XCTAssertTrue(SpeakerBleedFilter.isIdeographic("ｶ")) // Halfwidth Katakana
+        XCTAssertTrue(SpeakerBleedFilter.isIdeographic("𰀀"))
+        XCTAssertTrue(SpeakerBleedFilter.isIdeographic("ｶ"))
     }
 
     func testRemovesCompleteCotimedMandarinEcho() {
@@ -325,8 +321,6 @@ final class SpeakerBleedFilterTests: XCTestCase {
         XCTAssertFalse(result.changed)
         XCTAssertEqual(result.transcript.segments.last, mic)
     }
-
-    // MARK: - Persistence compatibility
 
     func testLegacySegmentWithoutTimingMetadataDecodesAsUnknown() throws {
         let data = Data(

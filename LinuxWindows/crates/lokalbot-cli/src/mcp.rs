@@ -1,8 +1,3 @@
-//! The stdio MCP server (`MCPProtocol.swift`, `MCPDispatcher.swift`,
-//! `FileLibraryToolProvider.swift`): newline-delimited JSON-RPC 2.0. The
-//! handshake and `tools/list` always work; meeting tools need the meeting
-//! grant, screen tools the separate screen grant.
-
 use std::io::{BufRead as _, Write as _};
 
 use chrono::{DateTime, Utc};
@@ -65,7 +60,6 @@ impl ToolErrorCode {
     }
 }
 
-/// A `tools/call` result in MCP content form.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToolResult {
     pub text: String,
@@ -80,7 +74,6 @@ impl ToolResult {
         }
     }
 
-    /// `[<code>] <message>`.
     pub fn error(code: ToolErrorCode, message: &str) -> Self {
         Self {
             text: format!("[{}] {message}", code.raw()),
@@ -93,7 +86,6 @@ impl ToolResult {
     }
 }
 
-/// Tools in `tools/list` order with their descriptions and schemas.
 pub fn tools() -> Vec<Value> {
     let tool = |name: &str, description: &str, schema: Value| json!({"name": name, "description": description, "inputSchema": schema});
     vec![
@@ -255,7 +247,6 @@ const SCREEN_TOOLS: &[&str] = &[
     "get_screenshot_detail",
 ];
 
-/// JSON numbers that are exact integers.
 fn int_value(value: &Value) -> Option<i64> {
     if let Some(i) = value.as_i64() {
         return Some(i);
@@ -292,14 +283,12 @@ fn screen_failure(err: anyhow::Error) -> ToolResult {
     )
 }
 
-/// Pretty, sorted, unescaped slashes, ISO dates (screen-memory encoder).
 fn screen_json<T: serde::Serialize>(value: &T) -> String {
     swift_json::pretty(value, false)
 }
 
 pub struct Provider {
     pub session: Session,
-    /// Fixed clock for tests.
     pub now: Option<DateTime<Utc>>,
 }
 
@@ -453,8 +442,6 @@ impl Provider {
             let start = day_bounds(day).0;
             meetings.retain(|m| m.started_at >= start);
         }
-        // As `list --until`: without it, one earlier week could not be asked
-        // for, and newer meetings used up the limit first.
         if let Some(raw) = arguments.get("until").filter(|v| !v.is_null()) {
             let text = raw.as_str().unwrap_or_default();
             let Some(day) = local_day(text) else {
@@ -509,8 +496,6 @@ impl Provider {
                     .split(',')
                     .map(|p| p.trim().to_string())
                     .collect();
-                // As `get --include` and list_meetings do: a misspelt part
-                // must not come back as a meeting without that section.
                 let unknown: std::collections::BTreeSet<&str> = parts
                     .iter()
                     .map(String::as_str)
@@ -845,8 +830,6 @@ impl Provider {
         Ok(ToolResult::text(&screen_json(&detail)))
     }
 
-    /// Independent of meeting and screen access, and of Agent Mode capabilities:
-    /// only the Files marker and its folder list.
     fn search_files(&self, arguments: &Value) -> Result<ToolResult, ToolResult> {
         let paths = &self.session.paths;
         if !lokalbot_core::files::access::is_enabled(paths) {
@@ -918,8 +901,6 @@ impl Provider {
         }
     }
 
-    /// Independent of every other grant: only the Agent notes marker, and the
-    /// notes LokalBot saved while Read coding agent notes is on.
     fn search_agent_notes(&self, arguments: &Value) -> Result<ToolResult, ToolResult> {
         let paths = &self.session.paths;
         if !lokalbot_core::agent_notes::access::is_enabled(paths) {
@@ -1034,9 +1015,6 @@ impl Provider {
     }
 }
 
-// ---------------------------------------------------------------- JSON-RPC
-
-/// A JSON-RPC request ID; `None` marks a notification.
 #[derive(Clone, Debug, PartialEq)]
 pub enum RequestId {
     Number(i64),
@@ -1066,7 +1044,6 @@ pub fn failure(id: Option<&RequestId>, code: i64, message: &str) -> String {
     }))
 }
 
-/// One line in, at most one line out (`MCPDispatcher.handle(line:)`).
 pub fn handle_line(provider: &Provider, line: &str, server_version: &str) -> Option<String> {
     if line.len() > MAXIMUM_RECORD_BYTES {
         return Some(failure(None, -32600, "Request exceeds the 1 MiB limit"));
@@ -1128,8 +1105,6 @@ pub fn handle_line(provider: &Provider, line: &str, server_version: &str) -> Opt
     })
 }
 
-/// Serves stdin/stdout until EOF. Lines over 1 MiB are rejected without
-/// buffering them whole.
 pub fn serve(provider: &Provider, server_version: &str) -> anyhow::Result<()> {
     eprintln!(
         "lokalbot-cli mcp: serving on stdio (library: {})",

@@ -5,22 +5,8 @@
 
 import Foundation
 
-/// Inline `/macro` autocomplete. A faithful port of Cotabby's macro subsystem
-/// (`MacroEngine` + the arithmetic / date / random / unit / currency families),
-/// folded into one self-contained file and driven from the focused field's AX
-/// text instead of Cotabby's stateful capture.
-///
-/// Trigger: a `/` only opens a query at a word boundary (start of field or after
-/// whitespace), so `http://`, `and/or`, and file paths typed mid-sentence never
-/// fire. Crucially the macro is **evaluate-or-nothing**: the ghost only shows
-/// when the typed `/query` actually computes to a result, so a stale `/` run or
-/// arbitrary text never surfaces junk. Examples:
-/// `/5+5` → `= 10`, `/10km->mi` → `6.214 mi`, `/today` → `Jun 23, 2026`,
-/// `/100usd to eur` → `€92.00`, `/d20` → a roll, `/uuid` → a UUID.
 enum CotypingMacro {
 
-    /// A computed result: what to preview under the caret, and what to insert on
-    /// accept. The two differ for arithmetic (`= 10` preview, `10` insertion).
     struct Result: Equatable {
         let preview: String
         let insertion: String
@@ -28,10 +14,6 @@ enum CotypingMacro {
         init(_ value: String) { preview = value; insertion = value }
     }
 
-    // MARK: - Trigger scan
-
-    /// Best macro for the trailing `/query` at the caret, or nil. Uses the live
-    /// clock/RNG by default; tests inject a deterministic `Engine`.
     static func match(
         trailing precedingText: String,
         engine: Engine = .standard
@@ -40,13 +22,10 @@ enum CotypingMacro {
         return (result, token.tokenLength, token.query)
     }
 
-    /// Length of the trailing `/query` run (`/` + query), regardless of whether it
-    /// evaluates — used to delete it on accept.
     static func trailingTokenLength(in precedingText: String) -> Int? {
         scanToken(in: precedingText)?.tokenLength
     }
 
-    /// The raw query after a boundary `/` at the caret (testable scan), or nil.
     static func trailingQuery(in precedingText: String) -> String? {
         scanToken(in: precedingText)?.query
     }
@@ -56,9 +35,6 @@ enum CotypingMacro {
     private static let sigil: Character = "/"
     private static let maxQueryLength = 48
 
-    /// Walks back from the caret collecting the query until a boundary `/` (the
-    /// sigil). An internal `/` preceded by a non-space (division, `5/2`) stays in
-    /// the query; a newline or an over-long run aborts.
     private static func scanToken(in text: String) -> Token? {
         let chars = Array(text)
         guard !chars.isEmpty else { return nil }
@@ -79,12 +55,6 @@ enum CotypingMacro {
         return nil
     }
 
-    // MARK: - Engine
-
-    /// Aggregates the macro families and tries them in priority order (date and
-    /// random are keyword-specific; unit and currency both key off the conversion
-    /// separator but reject each other's tokens; arithmetic is the catch-all).
-    /// The clock, RNG, and rate table are injected so the engine is deterministic.
     struct Engine {
         var now: () -> Date = Date.init
         var calendar: Calendar = .current
@@ -95,7 +65,6 @@ enum CotypingMacro {
 
         static let standard = Engine()
 
-        /// Result for the typed `/query` (without the `/`), or nil.
         func evaluate(_ rawQuery: String) -> Result? {
             let query = rawQuery.trimmingCharacters(in: .whitespaces)
             guard !query.isEmpty else { return nil }
@@ -105,8 +74,6 @@ enum CotypingMacro {
                 ?? evaluateCurrency(query)
                 ?? Engine.evaluateArithmetic(query)
         }
-
-        // MARK: Date / time
 
         private func evaluateDate(_ query: String) -> Result? {
             let lower = query.lowercased()
@@ -147,7 +114,6 @@ enum CotypingMacro {
             calendar.date(bySettingHour: hour, minute: 0, second: 0, of: now())
         }
 
-        /// Relative offsets like `+3d`, `-5d`, `+2w`, `+1mo`, `+1y`.
         private func relativeDate(_ base: String) -> Date? {
             guard let sign = base.first, sign == "+" || sign == "-" else { return nil }
             let rest = base.dropFirst()
@@ -164,8 +130,6 @@ enum CotypingMacro {
             }
         }
 
-        /// `next-<weekday>` (strictly after today), `this-<weekday>` (incl. today),
-        /// `last-<weekday>` (strictly before today).
         private func weekdayDate(_ base: String) -> Date? {
             let parts = base.split(separator: "-", maxSplits: 1).map(String.init)
             guard parts.count == 2, let target = Engine.weekdays[parts[1]] else { return nil }
@@ -246,7 +210,6 @@ enum CotypingMacro {
             return (base, argument.isEmpty ? nil : argument)
         }
 
-        /// Short forms / misspellings mapped to a canonical keyword.
         private static let baseAliases: [String: String] = [
             "tdy": "today", "tod": "today", "tody": "today", "2day": "today",
             "tmr": "tomorrow", "tmrw": "tomorrow", "tmw": "tomorrow", "tom": "tomorrow", "tomo": "tomorrow",
@@ -257,8 +220,6 @@ enum CotypingMacro {
             "dt": "datetime",
         ]
 
-        /// Applies `baseAliases`, then rewrites a `next`/`this`/`last` weekday prefix
-        /// written with a space or no separator into the dash form (`next-fri`).
         private static func canonicalBase(_ base: String) -> String {
             if let alias = baseAliases[base] { return alias }
             for prefix in ["next", "this", "last"] where base.hasPrefix(prefix) && base.count > prefix.count {
@@ -273,8 +234,6 @@ enum CotypingMacro {
             "wed": 4, "weds": 4, "wednesday": 4, "thu": 5, "thur": 5, "thurs": 5, "thursday": 5,
             "fri": 6, "friday": 6, "sat": 7, "saturday": 7,
         ]
-
-        // MARK: Random
 
         private func evaluateRandom(_ query: String) -> Result? {
             let lower = query.lowercased()
@@ -312,8 +271,6 @@ enum CotypingMacro {
                 return nil
             }
         }
-
-        // MARK: Unit conversion (offline, Foundation Measurement)
 
         private enum Quantity {
             case length(UnitLength), mass(UnitMass), temperature(UnitTemperature), volume(UnitVolume)
@@ -378,8 +335,6 @@ enum CotypingMacro {
             "qt": .volume(.quarts), "quart": .volume(.quarts), "quarts": .volume(.quarts),
         ]
 
-        // MARK: Currency (bundled offline rates — never touches the network)
-
         private func evaluateCurrency(_ query: String) -> Result? {
             guard let (lhsRaw, rhsRaw) = Engine.splitConversion(query),
                   let (amount, fromToken) = Engine.parseAmount(lhsRaw),
@@ -442,8 +397,6 @@ enum CotypingMacro {
             return formatter.string(from: NSNumber(value: value)) ?? "\(value) \(code)"
         }
 
-        // MARK: Arithmetic (hand-written parser — no NSExpression injection risk)
-
         private static func evaluateArithmetic(_ query: String) -> Result? {
             let literal = query.hasSuffix("=") ? String(query.dropLast()) : query
             guard !literal.isEmpty else { return nil }
@@ -458,15 +411,12 @@ enum CotypingMacro {
             return Result(preview: "= \(resultText)", insertion: resultText)
         }
 
-        /// Integers print without a point; others print up to 10 significant digits.
         static func formatNumber(_ value: Double) -> String? {
             guard value.isFinite else { return nil }
             if value == value.rounded(), value.magnitude < 1e15 { return String(Int64(value)) }
             return String(format: "%.10g", value)
         }
 
-        /// Splits a conversion query (`<value><from> <sep> <to>`) on `->`, `→`, or
-        /// ` to `. Shared by the unit and currency families.
         private static func splitConversion(_ query: String) -> (left: String, right: String)? {
             for token in ["->", "→"] where query.contains(token) {
                 if let range = query.range(of: token) {
@@ -522,7 +472,7 @@ enum CotypingMacro {
                 let base = parseUnary()
                 if peek() == "^" {
                     advance(); usedOperator = true
-                    return pow(base, parsePower())   // right associative
+                    return pow(base, parsePower())
                 }
                 return base
             }
@@ -563,8 +513,6 @@ enum CotypingMacro {
         }
     }
 
-    /// Bundled, offline, approximate exchange rates (units per USD). Never reaches
-    /// the network — in keeping with LokalBot's strictly-local posture.
     struct CurrencyRateTable {
         let asOf: String
         private let ratesPerUSD: [String: Double]

@@ -1,18 +1,3 @@
-//! The Gemini plan through the user's own Gemini CLI (`gemini -p ""`)
-//! (`GeminiCLI.swift`, `GeminiPlanEngine.swift`).
-//!
-//! The user signs in to Gemini CLI through Google's own flow (`gemini` in a
-//! terminal); LokalBot never reads, stores, or forwards Google credentials or
-//! `~/.gemini/` files, and never offers a Gemini login of its own. Every
-//! request runs `gemini -p ""` in a fresh private temporary directory with:
-//! - `--skip-trust` and `GEMINI_CLI_TRUST_WORKSPACE=true`
-//! - `--admin-policy deny-all.toml` (tier-5 policy denying every tool call)
-//! - `--extensions none` disabling all CLI extensions
-//! - `GEMINI_CLI_SYSTEM_SETTINGS_PATH` overriding tools, MCP servers, hooks,
-//!   skills, and telemetry off while keeping the user's own auth settings
-//! - `GEMINI_SYSTEM_MD` loading the system prompt from a private file
-//! - prompt and context piped over stdin, never on the command line.
-
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -245,8 +230,6 @@ pub fn version(executable: &Path) -> Option<String> {
     let text = output.stdout.trim();
     (!text.is_empty()).then(|| text.chars().take(80).collect())
 }
-
-// ----------------------------------------------------------------- engine
 
 pub fn arguments(model: &str, streaming: bool) -> Vec<String> {
     let mut arguments: Vec<String> = vec![

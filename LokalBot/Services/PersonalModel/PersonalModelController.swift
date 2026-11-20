@@ -1,13 +1,6 @@
 import Combine
 import Foundation
 
-/// The app's single owner of the personal model. Ask reads and adds claims
-/// through it; Settings → Personal Context edits them; the overnight
-/// review adds learned ones. Loads lazily on first use so launch never
-/// touches the Keychain for it. If the saved file can't be read, every edit
-/// is refused instead of overwriting it. Learned claims are checked against
-/// the Dream evidence revisions on every use: a deleted or corrected meeting
-/// retracts them, and while a revocation is pending they are withheld.
 @MainActor
 final class PersonalModelController: ObservableObject {
     @Published private(set) var claims: [PersonalClaim] = []
@@ -16,16 +9,11 @@ final class PersonalModelController: ObservableObject {
     private let store: PersonalModelStore
     private let now: () -> Date
     private let evidenceCheck: () -> ((DreamEvidenceProvenance) -> Bool)?
-    /// Whether a learned claim's source still has the line it quotes, and
-    /// the evidence revision to tie it to if so. Nil revision: can't tell,
-    /// so a changed source retracts the claim as before.
     private let sourceStillQuotes: (PersonalClaim) -> Bool
     private let currentRevision: () -> UInt64?
     private var model = PersonalModel()
     private var loaded = false
     private var writable = false
-    /// Called after every saved change, forget-all and reload, so the
-    /// agent-facing projection never lags behind (nil claims: unreadable).
     var onChange: ((_ claims: [PersonalClaim]?) -> Void)?
 
     init(store: PersonalModelStore, now: @escaping () -> Date = Date.init,
@@ -39,29 +27,21 @@ final class PersonalModelController: ObservableObject {
         self.currentRevision = currentRevision
     }
 
-    /// Newest first, the order Settings shows.
     var orderedClaims: [PersonalClaim] {
         loadIfNeeded()
         return claims.sorted { $0.updatedAt > $1.updatedAt }
     }
 
-    /// Everything stored, suggestions included.
     func currentClaims() -> [PersonalClaim] {
         loadIfNeeded()
         return claims
     }
 
-    /// Learned suggestions waiting for review, newest first.
     var suggestions: [PersonalClaim] {
         loadIfNeeded()
         return claims.filter { $0.status == .proposed }.sorted { $0.createdAt > $1.createdAt }
     }
 
-    /// Confirmed claims safe to put in a prompt now. Scoped Ask questions pass
-    /// `includeEvidenceBacked: false` and get only what the person stated:
-    /// like work memory, learned claims would carry meeting content past the
-    /// question's source boundary. A claim learned from an Ask question or a
-    /// dictation has no evidence to depend on, but it is learned all the same.
     func usableClaims(includeEvidenceBacked: Bool = true) -> [PersonalClaim] {
         loadIfNeeded()
         let evidenceUsable = includeEvidenceBacked && retractInvalidated()
@@ -72,8 +52,6 @@ final class PersonalModelController: ObservableObject {
         }
     }
 
-    /// The claims agents may be offered, or nil when the saved file couldn't
-    /// be read. Agent access fails closed on nil instead of "nothing shared".
     func readableClaims() -> [PersonalClaim]? {
         loadIfNeeded()
         guard writable else { return nil }
@@ -81,13 +59,6 @@ final class PersonalModelController: ObservableObject {
         return agentEligibleClaims()
     }
 
-    /// Learned claims whose source changed since they were learned keep their
-    /// place while that source still has the line they quote (a rebuilt
-    /// review, a re-read agent session, an unrelated edit to the meeting) and
-    /// are retracted once it doesn't (the meeting or session deleted, the
-    /// line corrected or no longer the person's). False when evidence can't
-    /// be checked (a revocation is pending), so callers withhold
-    /// evidence-backed claims meanwhile.
     @discardableResult
     func retractInvalidated() -> Bool {
         loadIfNeeded()
@@ -110,8 +81,6 @@ final class PersonalModelController: ObservableObject {
         return true
     }
 
-    /// After a meeting is deleted or corrected. Skips an unloaded model:
-    /// every read checks evidence anyway, so there is nothing to clean yet.
     func retractIfLoaded() {
         guard loaded else { return }
         retractInvalidated()
@@ -179,9 +148,6 @@ final class PersonalModelController: ObservableObject {
         }
     }
 
-    /// The overnight review's findings: facts and goals are saved, preferences
-    /// become suggestions. Expired suggestions and tombstones are pruned. With
-    /// a day and fingerprint, the day is recorded as read.
     @discardableResult
     func learn(_ candidates: [PersonalModel.LearningCandidate], dayKey: String? = nil,
                fingerprint: String? = nil) -> PersonalModel.LearningOutcome {
@@ -195,13 +161,11 @@ final class PersonalModelController: ObservableObject {
         return outcome
     }
 
-    /// True when the pass already read exactly these lines for this day.
     func hasLearned(dayKey: String, fingerprint: String) -> Bool {
         loadIfNeeded()
         return model.hasLearned(dayKey: dayKey, fingerprint: fingerprint)
     }
 
-    /// Suggests goals and projects the overnight review has kept for weeks.
     @discardableResult
     func promoteWorkMemory(_ memory: DreamMemory, dayKey: String,
                            calendar: Calendar = .current) -> PersonalModel.LearningOutcome {
@@ -216,7 +180,6 @@ final class PersonalModelController: ObservableObject {
         return outcome
     }
 
-    /// Deleting an Ask conversation takes back what was learned from it.
     func retractLearned(fromConversation conversationID: UUID) {
         _ = mutate { model, _ in
             model.retract(learnedFromConversation: conversationID)
@@ -229,7 +192,6 @@ final class PersonalModelController: ObservableObject {
         mutate { model, date in model.confirm(id: id, now: date) }
     }
 
-    /// Keep All in review: every listed suggestion in one save.
     @discardableResult
     func confirm(_ ids: Set<UUID>) -> Result<Void, PersonalModel.EditError> {
         mutate { model, date in
@@ -270,8 +232,6 @@ final class PersonalModelController: ObservableObject {
         return .success(())
     }
 
-    /// Stamps claims that went into an answer. Best effort: a failed write
-    /// only loses the timestamp.
     func markUsed(_ ids: Set<UUID>) {
         guard !ids.isEmpty else { return }
         _ = mutate { model, date in

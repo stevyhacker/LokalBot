@@ -53,7 +53,6 @@ class ActionOrderingTest {
         assertThat(ids(ActionFilter(ownerUnclearOnly = true))).containsExactly("act-91b0d3f5")
         assertThat(ids(ActionFilter(status = ActionStatus.Done))).containsExactly("act-0e5d77c3", "act-58ab2e19", "act-6b3d0f44").inOrder()
         assertThat(ids(ActionFilter(status = ActionStatus.Deferred))).isEmpty()
-        // Due before the Northwind follow-up: the overdue deck, the export PR, the pricing tiers.
         assertThat(ids(ActionFilter(status = null, dueBefore = TestLibrary.dueDate("act-4d2c9e07"))))
             .containsExactly("act-1f2e3d4c", "act-7c1e40a2", "act-a3f61b28").inOrder()
     }

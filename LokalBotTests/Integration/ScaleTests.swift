@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Nightly only (`LOKALBOT_SCALE_LIBRARY` points at a copy of the `large`
-/// seed profile). Budgets reflect what a user notices at launch.
 @MainActor
 final class ScaleTests: XCTestCase {
     private func library() throws -> URL {

@@ -1,26 +1,15 @@
-//! Meeting tracks on disk: 16 kHz mono 16-bit PCM WAV.
-//!
-//! The writer rewrites the RIFF and data sizes every couple of seconds, so a
-//! crash or power loss leaves a playable file missing at most that much audio;
-//! [`repair_wav`] recovers the rest of an interrupted file.
-
 use std::fs::{File, OpenOptions};
 use std::io::{self, BufReader, BufWriter, Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use crate::resample::Resampler;
 
-/// Sample rate of every track LokalBot writes and of every buffer it hands to
-/// speech models.
 pub const SAMPLE_RATE: u32 = 16_000;
 
 const HEADER_LEN: u64 = 44;
-/// Header refresh interval in bytes of audio (about 2 s at 16 kHz mono 16-bit).
 const HEADER_REFRESH_BYTES: u64 = 2 * SAMPLE_RATE as u64 * 2;
-/// Largest data chunk a RIFF header can describe.
 const MAX_DATA_BYTES: u64 = u32::MAX as u64 - 36;
 
-/// Streaming writer for one track.
 pub struct WavWriter {
     file: BufWriter<File>,
     path: PathBuf,
@@ -46,7 +35,6 @@ impl WavWriter {
         &self.path
     }
 
-    /// Frames written so far.
     pub fn frames(&self) -> u64 {
         self.data_bytes / 2
     }
@@ -90,7 +78,6 @@ impl WavWriter {
         Ok(())
     }
 
-    /// Writes the current sizes into the header so the file plays as is.
     pub fn update_header(&mut self) -> io::Result<()> {
         self.file.flush()?;
         let file = self.file.get_mut();
@@ -100,7 +87,6 @@ impl WavWriter {
         Ok(())
     }
 
-    /// Final header and fsync. Returns the number of frames in the file.
     pub fn finish(mut self) -> io::Result<u64> {
         self.update_header()?;
         self.file.get_ref().sync_all()?;
@@ -122,11 +108,11 @@ fn header(sample_rate: u32, data_bytes: u32) -> [u8; HEADER_LEN as usize] {
     h[8..12].copy_from_slice(b"WAVE");
     h[12..16].copy_from_slice(b"fmt ");
     h[16..20].copy_from_slice(&16u32.to_le_bytes());
-    h[20..22].copy_from_slice(&1u16.to_le_bytes()); // PCM
-    h[22..24].copy_from_slice(&1u16.to_le_bytes()); // mono
+    h[20..22].copy_from_slice(&1u16.to_le_bytes());
+    h[22..24].copy_from_slice(&1u16.to_le_bytes());
     h[24..28].copy_from_slice(&sample_rate.to_le_bytes());
     h[28..32].copy_from_slice(&(sample_rate * 2).to_le_bytes());
-    h[32..34].copy_from_slice(&2u16.to_le_bytes()); // block align
+    h[32..34].copy_from_slice(&2u16.to_le_bytes());
     h[34..36].copy_from_slice(&16u16.to_le_bytes());
     h[36..40].copy_from_slice(b"data");
     h[40..44].copy_from_slice(&data_bytes.to_le_bytes());
@@ -142,7 +128,6 @@ fn write_sizes(file: &mut File, data_bytes: u64) -> io::Result<()> {
     Ok(())
 }
 
-/// Writes `samples` (16 kHz mono) to a new WAV file in one go.
 pub fn write_wav_16k(path: &Path, samples: &[f32]) -> io::Result<()> {
     let mut writer = WavWriter::create(path)?;
     writer.write_samples(samples)?;
@@ -150,8 +135,6 @@ pub fn write_wav_16k(path: &Path, samples: &[f32]) -> io::Result<()> {
     Ok(())
 }
 
-/// Writes mono `samples` at any rate as 16-bit PCM (spoken summaries, 24 kHz).
-/// A file that can't be finished is removed.
 pub fn write_wav(path: &Path, samples: &[f32], sample_rate: u32) -> io::Result<()> {
     let write = || -> io::Result<()> {
         let mut file = BufWriter::new(File::create(path)?);
@@ -170,7 +153,6 @@ pub fn write_wav(path: &Path, samples: &[f32], sample_rate: u32) -> io::Result<(
     result
 }
 
-/// Mono `samples` as a 16-bit PCM WAV in memory, for a transcription server.
 pub fn wav_bytes(samples: &[f32], sample_rate: u32) -> Vec<u8> {
     let data_bytes = samples.len().saturating_mul(2).min(MAX_DATA_BYTES as usize);
     let mut bytes = Vec::with_capacity(HEADER_LEN as usize + data_bytes);
@@ -187,7 +169,6 @@ pub enum SampleEncoding {
     Float,
 }
 
-/// Layout of a WAV file's audio data.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WavInfo {
     pub sample_rate: u32,
@@ -195,11 +176,8 @@ pub struct WavInfo {
     pub bits_per_sample: u16,
     pub encoding: SampleEncoding,
     pub block_align: u16,
-    /// Byte offset of the first sample.
     pub data_offset: u64,
-    /// Bytes of audio, limited to what the file holds.
     pub data_len: u64,
-    /// Data size the header declares (an interrupted file declares less).
     pub declared_data_len: u64,
 }
 
@@ -220,8 +198,6 @@ fn invalid(message: &str) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, message.to_string())
 }
 
-/// Parses the RIFF chunks of a WAV file. Accepts PCM (8–32 bit), IEEE float
-/// (32/64 bit) and WAVE_FORMAT_EXTENSIBLE.
 pub fn read_info(path: &Path) -> io::Result<WavInfo> {
     let mut file = File::open(path)?;
     let file_len = file.metadata()?.len();
@@ -256,7 +232,6 @@ fn parse_info<R: Read + Seek>(reader: &mut R, file_len: u64) -> io::Result<WavIn
                 let block_align = u16::from_le_bytes([fmt[12], fmt[13]]);
                 let bits = u16::from_le_bytes([fmt[14], fmt[15]]);
                 if tag == 0xFFFE && fmt.len() >= 26 {
-                    // WAVE_FORMAT_EXTENSIBLE: the sub-format GUID starts with the real tag.
                     tag = u16::from_le_bytes([fmt[24], fmt[25]]);
                 }
                 format = Some((tag, channels, rate, block_align, bits));
@@ -281,7 +256,6 @@ fn parse_info<R: Read + Seek>(reader: &mut R, file_len: u64) -> io::Result<WavIn
                     block_align
                 };
                 let available = file_len.saturating_sub(position);
-                // 0 and 0xFFFFFFFF are what streaming writers leave before they know the size.
                 let declared = if size == 0 || size == u32::MAX as u64 {
                     available
                 } else {
@@ -308,7 +282,6 @@ fn parse_info<R: Read + Seek>(reader: &mut R, file_len: u64) -> io::Result<WavIn
     }
 }
 
-/// Reads frames as mono `f32` (channels averaged), in blocks.
 pub struct WavReader {
     reader: BufReader<File>,
     info: WavInfo,
@@ -332,7 +305,6 @@ impl WavReader {
         &self.info
     }
 
-    /// Moves to `frame` (clamped to the end).
     pub fn seek_frame(&mut self, frame: u64) -> io::Result<()> {
         let frame = frame.min(self.info.frames());
         let offset = self.info.data_offset + frame * self.info.block_align as u64;
@@ -341,7 +313,6 @@ impl WavReader {
         Ok(())
     }
 
-    /// Appends up to `max_frames` mono frames to `out`; returns how many were read.
     pub fn read_mono(&mut self, max_frames: usize, out: &mut Vec<f32>) -> io::Result<usize> {
         let frames = (max_frames as u64).min(self.frames_left) as usize;
         if frames == 0 {
@@ -391,8 +362,6 @@ fn decode_sample(bytes: &[u8], encoding: SampleEncoding) -> f32 {
     }
 }
 
-/// A whole track as 16 kHz mono `f32`, in any format the library selects,
-/// resampled when the file uses another rate.
 pub fn read_mono_16k(path: &Path) -> io::Result<Vec<f32>> {
     let mut reader = crate::decode::TrackReader::open(path)?;
     let rate = reader.sample_rate();
@@ -408,20 +377,14 @@ pub fn read_mono_16k(path: &Path) -> io::Result<Vec<f32>> {
     Ok(out)
 }
 
-/// Seconds of audio in a track, in any format the library selects.
 pub fn duration_seconds(path: &Path) -> io::Result<f64> {
     Ok(crate::decode::TrackReader::open(path)?.duration_seconds())
 }
 
-/// Fixes the header of a WAV file whose writer stopped before updating it (a
-/// crash or power loss): the data chunk is extended to the end of the file and
-/// a trailing partial frame is dropped. Returns whether anything changed.
 pub fn repair_wav(path: &Path) -> io::Result<bool> {
     let file_len = std::fs::metadata(path)?.len();
     let mut file = OpenOptions::new().read(true).write(true).open(path)?;
     let mut probe = file.try_clone()?;
-    // Ignore the declared size: everything after the data chunk header is audio
-    // for files LokalBot wrote (it never appends chunks after `data`).
     let info = parse_info(&mut probe, file_len)?;
     let block = info.block_align as u64;
     let available = file_len.saturating_sub(info.data_offset);
@@ -482,7 +445,6 @@ mod tests {
         let path = dir.path().join("live.wav");
         let mut writer = WavWriter::create(&path).unwrap();
         writer.write_samples(&vec![0.1; 16_000 * 3]).unwrap();
-        // Without finishing, the header already covers at least the first 2 s.
         let info = read_info(&path).unwrap();
         assert!(info.declared_data_len >= 2 * 32_000, "{info:?}");
         drop(writer);
@@ -493,7 +455,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("crash.wav");
         let mut bytes = header(16_000, 3200).to_vec();
-        bytes.extend(std::iter::repeat_n(0x11u8, 3200 + 6401)); // more data and half a frame
+        bytes.extend(std::iter::repeat_n(0x11u8, 3200 + 6401));
         std::fs::write(&path, &bytes).unwrap();
         assert_eq!(read_info(&path).unwrap().frames(), 1600);
         assert!(repair_wav(&path).unwrap());
@@ -522,7 +484,7 @@ mod tests {
         bytes.extend_from_slice(&32u16.to_le_bytes());
         bytes.extend_from_slice(b"LIST");
         bytes.extend_from_slice(&3u32.to_le_bytes());
-        bytes.extend_from_slice(&[1, 2, 3, 0]); // odd chunk with its pad byte
+        bytes.extend_from_slice(&[1, 2, 3, 0]);
         bytes.extend_from_slice(b"data");
         bytes.extend_from_slice(&(frames as u32 * 8).to_le_bytes());
         for sample in sine(frames, 1000.0, 48_000) {

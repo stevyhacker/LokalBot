@@ -1,12 +1,3 @@
-//! Linux: visible text and secure-field state through AT-SPI, the counterpart
-//! of `ScreenAccessibilityReader.resolve`.
-//!
-//! The reader asks the session bus where the accessibility bus is
-//! (`org.a11y.Bus.GetAddress`), finds the app that owns the focused window by
-//! its process and walks that window breadth-first. It never changes
-//! accessibility settings (`org.a11y.Status`), so apps that build their tree
-//! only for a running screen reader (Chromium, Qt) usually report nothing.
-
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::{Duration, Instant};
 
@@ -20,12 +11,8 @@ use super::{
 };
 use crate::meeting::browser::{self, BrowserDocument, DocumentLabels, QuietWindows};
 
-/// Each call gives up after this long, so a wedged app costs one timeout.
 const CALL_TIMEOUT: Duration = Duration::from_millis(250);
-/// Whole text is read only from small, fully visible elements whose visible
-/// range cannot be computed.
 const MAX_WHOLE_TEXT: i32 = 2_000;
-/// `ScreenAccessibilityReader.visibleText` caps a visible range.
 const MAX_RANGE: i32 = 24_000;
 
 const ROOT: &str = "/org/a11y/atspi/accessible/root";
@@ -37,11 +24,9 @@ const COMPONENT: &str = "org.a11y.atspi.Component";
 const TEXT: &str = "org.a11y.atspi.Text";
 const DOCUMENT: &str = "org.a11y.atspi.Document";
 
-/// `AtspiCoordType`.
 const COORD_SCREEN: u32 = 0;
 const COORD_WINDOW: u32 = 1;
 
-/// `AtspiRole` values from at-spi2-core's `atspi-constants.h` (2.52).
 mod role {
     pub const ALERT: u32 = 2;
     pub const CHECK_BOX: u32 = 7;
@@ -95,8 +80,6 @@ mod role {
     pub const PUSH_BUTTON_MENU: u32 = 129;
 }
 
-/// `AtspiStateType` bits from `atspi-constants.h`; `GetState` returns them as
-/// two 32-bit words.
 mod state {
     pub const ACTIVE: u32 = 1;
     pub const DEFUNCT: u32 = 6;
@@ -114,8 +97,6 @@ fn has_state(words: &[u32], state: u32) -> bool {
         .is_some_and(|word| word & (1 << (state % 32)) != 0)
 }
 
-/// Text views and fields whose visible character range is read
-/// (`kAXVisibleCharacterRangeAttribute`). Password fields are never read.
 fn is_text_view(role: u32) -> bool {
     matches!(
         role,
@@ -136,8 +117,6 @@ fn is_text_view(role: u32) -> bool {
     )
 }
 
-/// Labels and controls that show their name, read only when fully visible
-/// (`ScreenVisibleTextPolicy` labels).
 fn is_label(role: u32) -> bool {
     is_window(role)
         || matches!(
@@ -173,7 +152,6 @@ fn is_window(role: u32) -> bool {
     )
 }
 
-/// `ScreenAccessibilityReader.isTextEntry`: only an input can hold a secret.
 fn is_text_entry(role: u32) -> bool {
     matches!(
         role,
@@ -199,7 +177,6 @@ fn is_document(role: u32) -> bool {
     )
 }
 
-/// Containers that clip their descendants (`clipsChildren`).
 fn clips_children(role: u32) -> bool {
     is_window(role)
         || matches!(
@@ -212,10 +189,6 @@ fn clips_children(role: u32) -> bool {
         )
 }
 
-/// `CotypingSecureFieldDetector.isSecure`: a password field, or an element
-/// whose name or description names a secret. Labels such as "Password" match
-/// too, which keeps their text out; only text entries make the window count
-/// as showing a secure field.
 fn is_secure(role: u32, labels: &[Option<&str>]) -> bool {
     role == role::PASSWORD_TEXT
         || labels
@@ -224,24 +197,13 @@ fn is_secure(role: u32, labels: &[Option<&str>]) -> bool {
             .any(|label| super::privacy::names_a_secret(label))
 }
 
-/// How an app's toolkit answers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Toolkit {
-    /// Coordinate type for extents and points.
     coords: u32,
-    /// Whether `Text.GetOffsetAtPoint` is worth asking.
     offsets: bool,
-    /// Entries that hide their text (a `GtkEntry` without visibility) still
-    /// report it in full and as plain text, so no entry is known not to be a
-    /// password field.
     reveals_hidden_entries: bool,
 }
 
-/// GTK 4 places every element at the origin in screen coordinates, never
-/// answers `GetOffsetAtPoint` before 4.16 and returns hidden entry text
-/// before 4.20; Chromium answers `GetOffsetAtPoint` only in screen
-/// coordinates. So GTK 4 is read in window coordinates, the rest in screen
-/// coordinates.
 fn toolkit_for(name: &str, version: &str) -> Toolkit {
     let mut numbers = version
         .split('.')
@@ -264,8 +226,6 @@ fn toolkit_for(name: &str, version: &str) -> Toolkit {
     }
 }
 
-/// The focus state of the focused elements: any secure one makes it secure,
-/// any unknown one unknown.
 fn combined_focus(elements: impl IntoIterator<Item = Option<bool>>) -> Option<bool> {
     let mut focus = None;
     for secure in elements {
@@ -280,8 +240,6 @@ fn combined_focus(elements: impl IntoIterator<Item = Option<bool>>) -> Option<bo
     focus.flatten()
 }
 
-/// Extents as a rectangle, when they describe one: GTK reports `G_MININT`
-/// coordinates for widgets that are not shown, applications report -1 sizes.
 fn rect((x, y, width, height): (i32, i32, i32, i32)) -> Option<WindowRect> {
     const LIMIT: i32 = 1 << 24;
     let position = -LIMIT..LIMIT;
@@ -298,9 +256,6 @@ fn rect((x, y, width, height): (i32, i32, i32, i32)) -> Option<WindowRect> {
     })
 }
 
-/// The part of the window a container's children can show: clipping
-/// containers narrow it to their own extents (`clipsChildren`). Unknown
-/// extents leave nothing visible below them.
 fn child_viewport(
     role: u32,
     frame: Option<WindowRect>,
@@ -312,7 +267,6 @@ fn child_viewport(
     viewport?.intersection(&frame?)
 }
 
-/// Points just inside the corners of `rect`.
 fn corners(rect: &WindowRect) -> [(i32, i32); 4] {
     let right = rect.x + rect.width as i32 - 1;
     let bottom = rect.y + rect.height as i32 - 1;
@@ -324,9 +278,6 @@ fn corners(rect: &WindowRect) -> [(i32, i32); 4] {
     ]
 }
 
-/// The characters between the offsets found at the corners of the visible
-/// rectangle. Toolkits answer -1 where there is no character (GTK past the
-/// end of a line, Chromium in padding); a single answer is no range.
 fn visible_range(offsets: [i32; 4], count: i32) -> Option<(i32, i32)> {
     let mut valid = offsets
         .into_iter()
@@ -338,8 +289,6 @@ fn visible_range(offsets: [i32; 4], count: i32) -> Option<(i32, i32)> {
     (last > start).then(|| (start, (last + 1).min(count).min(start + MAX_RANGE)))
 }
 
-/// Text from the Text interface: embedded objects (links, images, frames)
-/// appear as U+FFFC and are read as children instead.
 fn without_objects(text: String) -> String {
     if text.contains('\u{FFFC}') {
         text.replace('\u{FFFC}', "")
@@ -358,11 +307,8 @@ fn describe(focus: Option<bool>) -> &'static str {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum CallError {
-    /// The app did not answer within `CALL_TIMEOUT`.
     TimedOut,
-    /// The connection to the accessibility bus broke.
     Disconnected,
-    /// The element is gone or does not support the call.
     Failed,
 }
 
@@ -383,7 +329,6 @@ impl From<zbus::Error> for CallError {
     }
 }
 
-/// A failure that only means the element lacks what was asked.
 fn optional<T>(result: Result<T, CallError>) -> Result<Option<T>, CallError> {
     match result {
         Ok(value) => Ok(Some(value)),
@@ -411,7 +356,6 @@ where
         .map_err(|_| CallError::Failed)
 }
 
-/// An accessible object: its app's bus name and its object path.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct Node {
     bus: String,
@@ -464,9 +408,6 @@ impl Node {
         Ok(rect(self.call(bus, COMPONENT, "GetExtents", &coords)?))
     }
 
-    /// Children to visit, at most `MAX_CHILDREN`. Containers that manage
-    /// their descendants (large tables) build children on demand, so only
-    /// the first ones are asked for.
     fn children(
         &self,
         bus: &Connection,
@@ -492,17 +433,12 @@ impl Node {
     }
 }
 
-/// One element waiting to be read.
 struct Pending {
     node: Node,
-    /// The part of the window this element can show, `None` when unknown.
     viewport: Option<WindowRect>,
-    /// The parent's text was read through the Text interface, which already
-    /// holds the text of its static-text children (Chromium).
     parent_text: bool,
 }
 
-/// What one walk of a window gathers.
 struct Walk {
     bus: Connection,
     toolkit: Toolkit,
@@ -510,19 +446,14 @@ struct Walk {
     parts: Vec<String>,
     seen: HashSet<String>,
     total: usize,
-    /// Web documents' addresses in walk order, outermost first.
     web_urls: Vec<Option<String>>,
     document_name: Option<String>,
     has_web_content: bool,
     contains_secure_field: bool,
-    /// Elements with keyboard focus, and whether each is secure (`None` when
-    /// that cannot be known).
     focused: Vec<(Node, Option<bool>)>,
 }
 
 impl Walk {
-    /// Reads one element and returns its children. The window itself (`root`)
-    /// is its own viewport and is always entered.
     fn visit(&mut self, pending: &Pending, root: bool) -> Result<Vec<Pending>, CallError> {
         let node = &pending.node;
         let role: u32 = node.call(&self.bus, ACCESSIBLE, "GetRole", &())?;
@@ -533,8 +464,6 @@ impl Walk {
         let showing = has_state(&states, state::SHOWING);
         let focused = has_state(&states, state::FOCUSED);
         let entry = is_text_entry(role);
-        // Nothing below an element outside the visible part of the window
-        // can show text.
         let in_view = self.include_text && showing && pending.viewport.is_some();
         let reads_text = in_view
             && (is_text_view(role) || is_label(role))
@@ -553,8 +482,6 @@ impl Walk {
             && matches!(role, role::TEXT | role::ENTRY)
             && has_state(&states, state::EDITABLE)
             && !has_state(&states, state::MULTI_LINE);
-        // `secureFieldStatus`: text is read only from elements known not to
-        // be secure.
         let secure = if is_secure(role, &[name.as_deref(), description.as_deref()]) {
             Some(true)
         } else if hides_text {
@@ -562,8 +489,6 @@ impl Walk {
         } else {
             Some(false)
         };
-        // An entry that may be hiding a password counts as one: with the
-        // focus unknown, such a window is not captured (`focusPermitsCapture`).
         if secure != Some(false) && entry {
             self.contains_secure_field = true;
         }
@@ -609,8 +534,6 @@ impl Walk {
                 );
             }
         }
-        // A menu's items open in a popup of their own; walking them would
-        // spend the node budget on hidden entries (LibreOffice has hundreds).
         if (!showing || role == role::MENU) && !root {
             return Ok(Vec::new());
         }
@@ -626,8 +549,6 @@ impl Walk {
             .collect())
     }
 
-    /// Web documents give the page address and frames; a document's local
-    /// file gives the document name.
     fn document(&mut self, node: &Node, role: u32) -> Result<(), CallError> {
         let url = self.document_url(node)?;
         if self.document_name.is_none()
@@ -646,9 +567,6 @@ impl Walk {
         document_url(&self.bus, node)
     }
 
-    /// `ScreenAccessibilityReader.visibleText`: the characters between the
-    /// corners of the element's visible part, else the whole text of a small
-    /// element that is fully visible. Whole values can hold hidden documents.
     fn visible_text(
         &mut self,
         node: &Node,
@@ -673,7 +591,6 @@ impl Walk {
                     &(x, y, self.toolkit.coords),
                 ) {
                     Ok(found) => *offset = found,
-                    // An app that never answers is not asked again.
                     Err(CallError::TimedOut) => {
                         self.toolkit.offsets = false;
                         break;
@@ -692,8 +609,6 @@ impl Walk {
         Ok(None)
     }
 
-    /// The text of a fully visible label whose name is empty (Chromium list
-    /// items and table cells).
     fn whole_text(&self, node: &Node) -> Result<Option<String>, CallError> {
         match optional(node.property::<i32>(&self.bus, TEXT, "CharacterCount"))? {
             Some(count) if count > 0 && count <= MAX_WHOLE_TEXT => {
@@ -708,13 +623,10 @@ impl Walk {
         Ok(without_objects(text))
     }
 
-    /// The focus state the walk saw.
     fn focus(&self) -> Option<bool> {
         combined_focus(self.focused.iter().map(|(_, secure)| *secure))
     }
 
-    /// The focus state now: unknown once an element the walk saw focused has
-    /// lost focus.
     fn focus_now(&self) -> Result<Option<bool>, CallError> {
         for (node, _) in &self.focused {
             let states = optional(node.states(&self.bus))?;
@@ -726,7 +638,6 @@ impl Walk {
     }
 }
 
-/// The window in front, as found among its app's top-level windows.
 struct Found {
     app: Node,
     window: Node,
@@ -735,8 +646,6 @@ struct Found {
 
 pub(super) struct AtspiReader {
     bus: Option<Connection>,
-    /// The process of each app on the accessibility bus. Unique bus names
-    /// are never reused, so an entry stays right until its app leaves.
     pids: HashMap<String, u32>,
     toolkits: HashMap<String, Toolkit>,
 }
@@ -750,7 +659,6 @@ impl AtspiReader {
         }
     }
 
-    /// The accessibility bus, connected on first use and again after errors.
     fn bus(&mut self) -> Result<Connection, String> {
         if let Some(bus) = &self.bus {
             return Ok(bus.clone());
@@ -770,7 +678,6 @@ impl AtspiReader {
         self.bus = None;
     }
 
-    /// The root objects of the registered apps that belong to `pid`.
     fn apps(&mut self, bus: &Connection, pid: u32) -> Result<Vec<Node>, CallError> {
         let registered: Vec<(String, OwnedObjectPath)> =
             call(bus, REGISTRY, ROOT, ACCESSIBLE, "GetChildren", &())?;
@@ -804,9 +711,6 @@ impl AtspiReader {
         Ok(apps)
     }
 
-    /// The top-level window that is in front: the one with the ACTIVE state,
-    /// else the only one titled like the focused window (GTK 4 marks no
-    /// window active).
     fn find_window(
         bus: &Connection,
         apps: &[Node],
@@ -953,8 +857,6 @@ impl AtspiReader {
             self.toolkits.insert(found.app.bus.clone(), walk.toolkit);
         }
 
-        // Calls race the app: never attach one window's text to another
-        // window or to a different focus (`resolve`'s final checks).
         let Some(states) = optional(found.window.states(&bus))? else {
             return Ok(TextRead::Changed("window closed during read".into()));
         };
@@ -1006,8 +908,6 @@ impl AtspiReader {
     }
 }
 
-/// `org.a11y.Bus.GetAddress`, asked only while the bus launcher runs: asking
-/// an unowned name would start it.
 fn accessibility_bus_address(session: &Connection) -> Result<String, String> {
     let owned: bool = call(
         session,
@@ -1037,7 +937,6 @@ impl TextReader for AtspiReader {
         let Some(pid) = window.pid else {
             return TextRead::Unavailable("the window's process is not known".into());
         };
-        // LokalBot never records its own windows.
         if pid == std::process::id() {
             return TextRead::Unavailable("LokalBot's own window".into());
         }
@@ -1058,14 +957,8 @@ impl TextReader for AtspiReader {
     }
 }
 
-/// A pathological background page must not cost the Meet document its budget.
-/// macOS gives a window 250 ms, but fetches a node's attributes at once where
-/// AT-SPI asks one question per call.
 const CALL_WINDOW_BUDGET: Duration = Duration::from_millis(750);
 
-/// Meet documents in browsers' windows, for meeting detection
-/// (`BrowserMeetingSession.window`). This never turns accessibility on; a
-/// browser with no tree answers nothing and the window title decides.
 pub(crate) struct BrowserCallReader {
     reader: AtspiReader,
     quiet: QuietWindows,
@@ -1079,8 +972,6 @@ impl BrowserCallReader {
         }
     }
 
-    /// Reads the windows of `families`' apps. `family_of` names a process's
-    /// browser. An incomplete read of a window says nothing about it.
     pub(crate) fn read(
         &mut self,
         families: &[&'static str],
@@ -1165,8 +1056,6 @@ impl BrowserCallReader {
     }
 }
 
-/// The Meet documents of one window with their labels, or `None` when the
-/// window couldn't be read completely.
 fn walk_call_window(
     bus: &Connection,
     window: &Node,
@@ -1174,7 +1063,6 @@ fn walk_call_window(
 ) -> Result<Option<Vec<DocumentLabels>>, CallError> {
     let until = deadline.min(Instant::now() + CALL_WINDOW_BUDGET);
     let mut found: Vec<DocumentLabels> = Vec::new();
-    // Depth first, in reading order. The bool says a Meet document holds it.
     let mut stack = vec![(window.clone(), 0usize, false)];
     let mut visited = 0;
     while let Some((node, depth, inside)) = stack.pop() {
@@ -1203,7 +1091,6 @@ fn walk_call_window(
         if in_document && let Some(labels) = found.last_mut() {
             match role {
                 role::PUSH_BUTTON | role::TOGGLE_BUTTON | role::PUSH_BUTTON_MENU | role::LINK => {
-                    // Post-call actions may be links rather than buttons.
                     labels.add_button(optional(node.name(bus))?);
                     labels.add_button(optional(node.property(bus, ACCESSIBLE, "Description"))?);
                 }
@@ -1230,7 +1117,6 @@ fn walk_call_window(
     Ok(Some(found))
 }
 
-/// `DocURL` (Firefox, WebKitGTK), else `URI` (Chromium).
 fn document_url(bus: &Connection, node: &Node) -> Result<Option<String>, CallError> {
     for attribute in ["DocURL", "URI"] {
         let value: Option<String> =
@@ -1257,7 +1143,6 @@ mod tests {
 
     #[test]
     fn state_bits_span_both_words() {
-        // GTK 4's focused, read-only text view: [1124210688, 3072].
         let words = [1_124_210_688, 3_072];
         assert!(has_state(&words, state::FOCUSED));
         assert!(has_state(&words, state::SHOWING));
@@ -1382,7 +1267,6 @@ mod tests {
             child_viewport(role::VIEWPORT, Some(rect_at(900, 0, 10, 10)), window),
             None
         );
-        // A row cut by the pane is not fully visible, so its label stays out.
         let viewport = viewport.expect("the pane is inside the window");
         assert!(viewport.contains(&rect_at(5, 366, 700, 19)));
         assert!(!viewport.contains(&rect_at(5, 404, 700, 19)));
@@ -1403,11 +1287,8 @@ mod tests {
 
     #[test]
     fn visible_ranges_come_from_the_corners() {
-        // A scrolled GTK 3 text view: lines 1 to 8 of 200.
         assert_eq!(visible_range([0, 34, 245, 279], 6_999), Some((0, 280)));
-        // A GTK 3 entry or label answers -1 right of its text: no range.
         assert_eq!(visible_range([0, -1, 0, -1], 16), None);
-        // A Chromium static text, every corner on a glyph.
         assert_eq!(visible_range([0, 18, 0, 18], 19), Some((0, 19)));
         assert_eq!(visible_range([-1; 4], 19), None);
         assert_eq!(
@@ -1451,15 +1332,6 @@ mod tests {
         assert_eq!(without_objects("plain".into()), "plain");
     }
 
-    /// Reads the window in front of a desktop session, for example a GTK
-    /// window with known text, or a password dialog with a typed password:
-    ///
-    /// ```text
-    /// LOKALBOT_ATSPI_EXPECT="Visible label alpha" \
-    ///   cargo test -p lokalbot-platform atspi -- --ignored --nocapture
-    /// LOKALBOT_ATSPI_SECRET="hunter2" \
-    ///   cargo test -p lokalbot-platform atspi -- --ignored --nocapture
-    /// ```
     #[test]
     #[ignore = "needs a desktop session with an accessible window in front"]
     fn reads_the_window_in_front() {
@@ -1478,8 +1350,6 @@ mod tests {
         if let Ok(expected) = std::env::var("LOKALBOT_ATSPI_EXPECT") {
             assert!(snapshot.text.contains(&expected), "missing {expected:?}");
         }
-        // A password typed into the window: never in the text, and the window
-        // shows a secure field or its focus is not known to be plain.
         if let Ok(secret) = std::env::var("LOKALBOT_ATSPI_SECRET") {
             assert!(!snapshot.text.contains(&secret), "read a password");
             assert!(snapshot.contains_secure_field || snapshot.focused_secure_field != Some(false));

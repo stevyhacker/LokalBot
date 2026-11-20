@@ -1,7 +1,3 @@
-//! Action items and people for the CLI and MCP (`ActionItemsReport.swift`,
-//! `PeopleReport.swift`). Owners and names only; email addresses never
-//! appear.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, Utc};
@@ -139,7 +135,6 @@ pub fn action_entries(
         .iter()
         .filter(|m| match filter.meeting_id {
             Some(id) => m.id == id,
-            // The sample meeting's actions are made up: only listed when asked for by id.
             None => m.is_own_work() && m.started_at >= cutoff,
         })
         .flat_map(|m| session.library.meeting_actions(m).unwrap_or_default())
@@ -225,8 +220,6 @@ pub fn actions_table(entries: &[ActionEntry]) -> String {
     render_table(&["Status", "Due", "Owner", "Action", "Meeting"], &rows)
 }
 
-// ------------------------------------------------------------------ people
-
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct PersonSummary {
     pub id: String,
@@ -258,7 +251,6 @@ pub struct PersonDetail {
     pub meetings: Vec<MeetingRefEntry>,
 }
 
-/// Person ID, exact name, then a unique case-insensitive substring.
 pub fn find_person<'a>(needle: &str, people: &'a [PersonProfile]) -> Option<&'a PersonProfile> {
     let trimmed = needle.trim();
     if trimmed.is_empty() {

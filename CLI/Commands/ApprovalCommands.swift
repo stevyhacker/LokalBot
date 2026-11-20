@@ -1,8 +1,6 @@
 import ArgumentParser
 import Foundation
 
-/// Exit codes for requests that need the person, so a script can tell a
-/// request still waiting from one they declined or nobody answered.
 enum ApprovalExit {
     static let waiting = ExitCode(3)
     static let denied = ExitCode(4)
@@ -17,9 +15,6 @@ struct ApprovalWaitOptions: ParsableArguments {
 }
 
 extension ControlOutput {
-    /// Sends a request that may need the person and prints the reply. A
-    /// request left waiting prints as JSON and exits 3, or, with --wait, is
-    /// followed until the person answers: 0 approved, 4 denied, 5 expired.
     static func sendForApproval(
         _ method: AppControlProtocol.Method,
         params: [String: JSONValue],
@@ -50,8 +45,6 @@ extension ControlOutput {
         }
     }
 
-    /// Polls the running app until the request is answered or `seconds` pass.
-    /// Never starts LokalBot: a request lives only in the copy that took it.
     static func waitForAnswer(id: String, seconds: Double, launchTimeout: Double) throws {
         try report(poll(id: id, seconds: seconds, launchTimeout: launchTimeout))
     }
@@ -68,13 +61,11 @@ extension ControlOutput {
         return request
     }
 
-    /// Prints a request and exits with the code its state maps to.
     static func report(_ request: JSONValue) throws {
         print(json(request))
         if let exit = exitCode(for: request["state"]?.stringValue) { throw exit }
     }
 
-    /// Nil for approved; otherwise the exit code, with the reason on stderr.
     static func exitCode(for state: String?) -> ExitCode? {
         switch SettingsRequestState(rawValue: state ?? "") {
         case .approved:

@@ -1,6 +1,3 @@
-//! Settings → Files (`FileSearchSettings.swift`). Nothing is read until the person
-//! turns Files on after a notice and chooses a folder.
-
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -27,13 +24,11 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
 const PRIVACY_POLICY: &str = "https://www.lokalbot.com/privacy#files";
-/// A desktop has no battery to ask about.
 static HAS_BATTERY: LazyLock<bool> =
     LazyLock::new(|| lokalbot_platform::power::current().has_battery);
 
 const READING_DETAILS: &str = "LokalBot reads only the folders listed here: pictures and screenshots, PDFs page by page for their words (a scanned page as its picture), and documents such as txt, md, rtf, docx, odt, xlsx, pptx and html. It skips hidden folders, app bundles, caches, code projects (except their screenshots), folders that look like datasets, and files held in the cloud that are not downloaded. Scanned PDF pages stored as JBIG2, CCITT or JPEG 2000 and legacy .doc files aren't read on this computer yet, and screenshots and scanned pages are read for their words only if screen text recognition is already downloaded. With recordings and video included, sound is read 30 seconds at a time; video frames also need ffmpeg installed. The index keeps each file's path, its text, and a vector of what it says, shows or sounds like, in the LokalBot library. The image and text model downloads once and runs only while new or changed files are read. Reading pauses while a meeting records, while saving power, and while the computer is hot. While you use the computer, a folder's first read goes at about a third of full speed, and at full speed once you step away. On battery it waits for a charger unless Read big folders on battery is on.";
 
-/// "25 min", "2 hr, 10 min": the precision an estimate deserves.
 pub fn duration_label(seconds: f64) -> String {
     let (hours, minutes) = estimate_duration(seconds);
     match (hours, minutes) {
@@ -46,7 +41,6 @@ pub fn duration_label(seconds: f64) -> String {
     }
 }
 
-/// "12 MB": the way files are sized for people.
 pub fn bytes_label(bytes: f64) -> String {
     const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
     let mut value = bytes / 1000.0;
@@ -146,9 +140,6 @@ fn confirm_off(data: Entity<AppData>, window: &mut Window, cx: &mut App) {
     });
 }
 
-/// Before a folder is added: what it holds and how long its first read takes,
-/// counted from metadata while the sheet is open. Nothing is read until the person
-/// adds it, and adding doesn't wait for the count.
 struct AddFolderSheet {
     data: Entity<AppData>,
     folders: Vec<String>,
@@ -190,7 +181,6 @@ impl AddFolderSheet {
                 });
             })
             .detach();
-            // The count moves while the walk runs.
             cx.spawn(async move |this, cx| {
                 loop {
                     cx.background_executor()
@@ -684,7 +674,6 @@ impl SettingsPage {
         )
     }
 
-    /// What Files is doing now, and what the index holds.
     fn files_status(&self, cx: &mut Context<Self>) -> gpui_kit::Div {
         let lb = cx.lb().clone();
         let data = self.data.read(cx);

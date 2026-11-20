@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Quality benchmark
-
 @MainActor
 private final class StaticCotypingEngine: CotypingCompleting {
     var output: String
@@ -57,9 +55,6 @@ final class CotypingBenchmarkTests: XCTestCase {
         XCTAssertTrue(result.passedSafety)
         XCTAssertTrue(result.metLatencyTarget)
         XCTAssertTrue(result.passed)
-        // Mid-word is a word-completion scenario since the Cotypist-parity
-        // work: an allowed suppression still passes safety, but does not
-        // count as a completion hit.
         XCTAssertTrue(result.expectedWordCompletion)
         XCTAssertFalse(result.wordCompletionHit)
         XCTAssertTrue(result.allowedSuppression)

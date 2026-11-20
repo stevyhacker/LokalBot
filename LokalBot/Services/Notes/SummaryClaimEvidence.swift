@@ -1,10 +1,6 @@
 import Foundation
 
-/// The model selects and paraphrases claims; the app resolves their speaker.
-/// Source identity never comes from the model's prose or a display alias.
 enum SummaryClaimEvidence {
-    /// Safe to log or send as repair feedback: never contains model output,
-    /// transcript text, speaker aliases, or other meeting content.
     struct ValidationError: LocalizedError, Equatable {
         enum Reason: String {
             case invalidJSON, tooManyClaims, unknownSource, sourceOutsidePart
@@ -134,8 +130,6 @@ enum SummaryClaimEvidence {
                 let suffix = person.identity == .unresolved ? " (identity unconfirmed)"
                     : person.identity == .other && person.name.caseInsensitiveCompare("Me") == .orderedSame ? " (other speaker)" : ""
                 let name = person.identity == .user ? "You" : person.name
-                // Every narrative claim remains explicitly reported speech.
-                // First-person prose cannot silently become the reader's words.
                 return "- **\(escaped(name + suffix)):** \(escaped(claim.text)) — [\(Transcript.stamp(segment.start))]"
             }
             return "## \(escaped(section))\n\n" + (lines.isEmpty ? "None" : lines.joined(separator: "\n"))

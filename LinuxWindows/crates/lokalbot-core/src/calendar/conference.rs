@@ -1,12 +1,7 @@
-//! Conferencing links in free text (`ConferenceURLDetector.swift`): they mark
-//! an event as an online meeting and let a browser call count as calendar
-//! backed when its window title says nothing.
-
 use std::sync::LazyLock;
 
 use regex::Regex;
 
-/// Known conferencing hosts. Subdomains match too.
 pub const CONFERENCE_HOSTS: [&str; 18] = [
     "meet.google.com",
     "zoom.us",
@@ -44,8 +39,6 @@ pub struct MeetingRoom {
     pub url: String,
 }
 
-/// Canonical address of a room whose accessibility controls the app can
-/// verify. Query and fragment may contain invitations or guest tokens.
 pub fn meeting_room(raw: &str) -> Option<MeetingRoom> {
     let rest = raw
         .get(..8)
@@ -114,20 +107,16 @@ fn numeric_room_component(value: &str) -> bool {
     !value.is_empty() && value.bytes().all(|byte| byte.is_ascii_digit())
 }
 
-/// `http(s)` links, stopping at whitespace, angle brackets, quotes and CJK
-/// punctuation (invitations write "会议：https://…" without a space).
 static SCHEME_LINK: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)https?://[^\s<>"'`\x{3000}-\x{303F}\x{FF00}-\x{FFEF}]+"#)
         .expect("valid regex")
 });
 
-/// A bare `host/path` link without a scheme ("zoom.us/j/123").
 static BARE_LINK: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r#"(?i)(?:^|[^\w@./:-])((?:[a-z0-9-]+\.)+[a-z]{2,}/[^\s<>"'`\x{3000}-\x{303F}\x{FF00}-\x{FFEF}]*)"#)
         .expect("valid regex")
 });
 
-/// The first conferencing link in `text`, or `None`.
 pub fn first_meeting_url(text: Option<&str>) -> Option<String> {
     let text = text.filter(|t| !t.is_empty())?;
     let mut found: Vec<(usize, String)> = SCHEME_LINK
@@ -145,8 +134,6 @@ pub fn first_meeting_url(text: Option<&str>) -> Option<String> {
         .find(|url| is_meeting_url(url))
 }
 
-/// Whether `url` is an `http(s)` link whose host is (a subdomain of) a known
-/// conferencing host.
 pub fn is_meeting_url(url: &str) -> bool {
     let lower = url.trim().to_ascii_lowercase();
     if !(lower.starts_with("https://") || lower.starts_with("http://")) {
@@ -163,7 +150,6 @@ pub fn is_meeting_url(url: &str) -> bool {
         .any(|known| host == *known || host.ends_with(&format!(".{known}")))
 }
 
-/// The lowercased host of a URL (`scheme://user@host:port/path`), if any.
 pub fn url_host(url: &str) -> Option<String> {
     let trimmed = url.trim();
     let rest = trimmed.split_once("://").map_or(trimmed, |(_, rest)| rest);
@@ -178,7 +164,6 @@ pub fn url_host(url: &str) -> Option<String> {
     (!host.is_empty()).then_some(host)
 }
 
-/// Sentence punctuation after a link is not part of it.
 fn trim_trailing(link: &str) -> &str {
     link.trim_end_matches(['.', ',', ';', ':', '!', '?', ')', ']', '}', '>', '*'])
 }

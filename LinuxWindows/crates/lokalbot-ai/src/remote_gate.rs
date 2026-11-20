@@ -1,11 +1,3 @@
-//! One admission gate for every external Think and autocomplete server, keyed by
-//! origin (`RemoteInferenceGate.swift`). Every request waits for a slot, so
-//! background digests and overnight reviews can't starve meeting notes, and a
-//! rate limit pauses every caller of that origin instead of each one trying again
-//! a second later. The built-in runtime has its own leases and never comes here.
-//!
-//! The gate lives in one process, like the Mac's actor.
-
 use std::collections::{HashMap, HashSet};
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -16,21 +8,14 @@ use parking_lot::{Condvar, Mutex};
 
 use crate::error::AiError;
 
-/// `RemoteRequestQueue.maximumCooldown`, in seconds.
 pub const MAXIMUM_COOLDOWN_SECONDS: f64 = 60.0;
-/// How often a waiter looks at its cancel flag, its deadline and the cooldown.
 const WAIT_TICK: Duration = Duration::from_millis(50);
 
-/// `InferencePriority`, most urgent first.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Priority {
-    /// The person is watching this happen (chat, autocomplete, model check).
     Interactive,
-    /// An agent is waiting.
     Agent,
-    /// Processing the person will open next: notes for a meeting that just ended.
     Pipeline,
-    /// Scheduled work nobody is waiting for (digests, overnight review, briefs).
     Background,
 }
 
@@ -45,7 +30,6 @@ impl Priority {
     }
 }
 
-/// `RemoteRequestQueue.Limits`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Limits {
     pub maximum_concurrent: usize,
@@ -68,20 +52,12 @@ struct Waiter {
     order: u64,
 }
 
-/// `RemoteRequestQueue`: pure bookkeeping for one origin's slots, with no clock
-/// and no threads. Processing work runs at most `maximum_concurrent` requests at
-/// once; background work holds at most `maximum_background` of them; someone
-/// waiting on the answer is never queued behind processing work. Waiters start in
-/// priority order, first come first served within a priority, and a blocked
-/// background waiter never holds back one that could start. After a rate limit
-/// nothing starts until the cooldown has passed.
 #[derive(Debug)]
 struct RequestQueue {
     limits: Limits,
     in_flight: HashMap<u64, Priority>,
     waiters: Vec<Waiter>,
     cooldown_until: f64,
-    /// Consecutive rate-limited answers; resets on the first other answer.
     consecutive_rate_limits: u32,
     next_order: u64,
 }
@@ -125,7 +101,6 @@ impl RequestQueue {
         self.waiters.retain(|waiter| waiter.id != id);
     }
 
-    /// Waiters that may start now, moved to `in_flight`.
     fn admit(&mut self, now: f64) -> Vec<u64> {
         if now < self.cooldown_until {
             return Vec::new();
@@ -151,7 +126,6 @@ impl RequestQueue {
         admitted
     }
 
-    /// Frees a slot. A rate-limited answer starts or extends the cooldown.
     fn finish(&mut self, id: u64, rate_limited: bool, retry_after: Option<f64>, now: f64) {
         self.in_flight.remove(&id);
         if !rate_limited {
@@ -164,8 +138,6 @@ impl RequestQueue {
     }
 }
 
-/// `RemoteRequestQueue.cooldown`: the server's `Retry-After` when given, else a
-/// pause that grows with consecutive rate limits.
 fn cooldown(count: u32, retry_after: Option<f64>) -> f64 {
     match retry_after {
         Some(after) => after.clamp(1.0, MAXIMUM_COOLDOWN_SECONDS),
@@ -175,9 +147,6 @@ fn cooldown(count: u32, retry_after: Option<f64>) -> f64 {
     }
 }
 
-/// `RemoteRetryPolicy.maximumAttempts`: the gate's cooldown already paces rate
-/// limits, so this bounds attempts rather than the wait. Meeting notes are worth
-/// waiting for; a person watching chat would rather see the error quickly.
 pub fn maximum_attempts(priority: Priority) -> u32 {
     match priority {
         Priority::Interactive | Priority::Agent => 2,
@@ -186,8 +155,6 @@ pub fn maximum_attempts(priority: Priority) -> u32 {
     }
 }
 
-/// `RemoteRetryPolicy.backoff`: the pause before a replay that didn't fail with a
-/// rate limit. Rate limits wait on the cooldown instead.
 pub fn backoff(attempt: u32, retry_after: Option<Duration>, jitter: Duration) -> Duration {
     let limit = Duration::from_secs_f64(MAXIMUM_COOLDOWN_SECONDS);
     match retry_after {
@@ -205,19 +172,16 @@ fn jitter() -> Duration {
     Duration::from_millis(u64::from(millis % 500))
 }
 
-/// `RemoteInferenceGate.origin(for:)`: scheme, host and port, in lower case.
 pub fn origin(url: &str) -> String {
     lokalbot_core::access::origin_of(url).unwrap_or_else(|| url.trim().to_lowercase())
 }
 
-/// Why a waiter gave up before it got a slot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Blocked {
     Cancelled,
     TimedOut,
 }
 
-/// How long a waiter stays in line.
 #[derive(Clone, Copy, Default)]
 pub struct Wait<'a> {
     pub cancel: Option<&'a AtomicBool>,
@@ -239,8 +203,6 @@ pub struct Gate {
     pause: fn(Duration),
 }
 
-/// The slot one request holds. Dropped without [`finish`](Self::finish) it frees
-/// the slot as an ordinary answer, so a panic can't leak it.
 pub struct Ticket<'a> {
     gate: &'a Gate,
     origin: String,
@@ -268,7 +230,6 @@ impl Drop for Ticket<'_> {
     }
 }
 
-/// The one gate this process shares.
 pub fn shared() -> &'static Gate {
     static GATE: OnceLock<Gate> = OnceLock::new();
     GATE.get_or_init(|| Gate::new(Limits::default(), std::thread::sleep))
@@ -301,7 +262,6 @@ impl Gate {
         }
     }
 
-    /// Waits for a slot on `origin`. Blocking.
     pub fn acquire(
         &self,
         origin: &str,
@@ -357,7 +317,6 @@ impl Gate {
         self.pump(&mut state, origin);
     }
 
-    /// One request that is never replayed: a stream could repeat text already shown.
     pub fn once<T>(
         &self,
         origin: &str,
@@ -380,8 +339,6 @@ impl Gate {
         result
     }
 
-    /// A replayable request (`GatedTextEngine.replaying`). Callers must not add
-    /// their own replay on top.
     pub fn replaying<T>(
         &self,
         origin: &str,
@@ -413,7 +370,6 @@ impl Gate {
                 priority.label(),
                 attempt + 1,
             );
-            // A rate limit waits on the origin's cooldown in `acquire`.
             if !rate_limited {
                 (self.pause)(backoff(attempt - 1, retry_after, jitter()));
             }
@@ -469,11 +425,9 @@ mod tests {
         queue.enqueue(2, Priority::Background);
         queue.enqueue(3, Priority::Pipeline);
         queue.enqueue(4, Priority::Pipeline);
-        // Notes first, in order, and they fill both slots.
         assert_eq!(queue.admit(0.0), [3, 4]);
         assert_eq!(queue.waiters.len(), 2);
         queue.finish(3, false, None, 0.0);
-        // One background request may take the slot; the second waits.
         assert_eq!(queue.admit(0.0), [1]);
         queue.finish(4, false, None, 0.0);
         assert_eq!(queue.admit(0.0), Vec::<u64>::new());
@@ -687,7 +641,6 @@ mod tests {
         });
         assert!(result.is_err());
         assert!(gate.cooldown_remaining("o") > 25.0);
-        // Autocomplete has a deadline, and gives up rather than wait it out.
         let waited = gate.acquire(
             "o",
             Priority::Interactive,
@@ -697,7 +650,6 @@ mod tests {
             },
         );
         assert_eq!(waited.err(), Some(Blocked::TimedOut));
-        // Another origin isn't paused.
         assert_eq!(gate.cooldown_remaining("other"), 0.0);
     }
 

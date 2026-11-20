@@ -4,8 +4,6 @@ import XCTest
 @testable import LokalBot
 
 final class ChatGPTPlanTests: XCTestCase {
-    // MARK: Fixtures
-
     final class MemoryStore: ChatGPTPlanStore, @unchecked Sendable {
         private let lock = NSLock()
         private var storedRegistration: ChatGPTPlanRegistration?
@@ -100,8 +98,6 @@ final class ChatGPTPlanTests: XCTestCase {
          "exp": Int(expiry.timeIntervalSince1970), "iat": Int(now.timeIntervalSince1970), "nonce": nonce]
     }
 
-    // MARK: Authorization request
-
     func testFirstSignInRegistersWithDynamicClientAndRequestsPlanScope() {
         let request = ChatGPTPlanOAuth.AuthorizationRequest(
             clientID: nil, hostID: "urn:uuid:host", redirectURI: ChatGPTPlanOAuth.redirectURI(port: 1455),
@@ -121,7 +117,6 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertEqual(items["code_challenge_method"], "S256")
         XCTAssertEqual(items["state"], "state-1")
         XCTAssertEqual(items["nonce"], "nonce-1")
-        // A first registration has no previous session to hint.
         XCTAssertNil(items["id_token_hint"])
         XCTAssertFalse(request.url.absoluteString.contains("127.0.0.1:1455/auth"),
                        "the redirect URI must be escaped inside the query")
@@ -147,8 +142,6 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertNotEqual(ChatGPTPlanOAuth.PKCE().verifier, ChatGPTPlanOAuth.PKCE().verifier)
     }
 
-    // MARK: Callback
-
     func testCallbackRejectsWrongStateBeforeAnythingElse() {
         XCTAssertThrowsError(try ChatGPTPlanOAuth.parseCallback(
             ["state": "other", "error": "access_denied"], expectedState: "s", expectedClientID: nil))
@@ -162,19 +155,14 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertEqual(try ChatGPTPlanOAuth.parseCallback(
             ["state": "s", "code": "c", "client_id": "oaiapp_1"], expectedState: "s", expectedClientID: nil),
             .code("c", clientID: "oaiapp_1"))
-        // Reauthorization may omit client_id.
         XCTAssertEqual(try ChatGPTPlanOAuth.parseCallback(
             ["state": "s", "code": "c"], expectedState: "s", expectedClientID: "oaiapp_1"),
             .code("c", clientID: nil))
-        // A first registration must say which client was issued.
         XCTAssertThrowsError(try ChatGPTPlanOAuth.parseCallback(
             ["state": "s", "code": "c"], expectedState: "s", expectedClientID: nil))
-        // A different client than the pending request's is rejected.
         XCTAssertThrowsError(try ChatGPTPlanOAuth.parseCallback(
             ["state": "s", "code": "c", "client_id": "oaiapp_2"], expectedState: "s", expectedClientID: "oaiapp_1"))
     }
-
-    // MARK: Token requests
 
     func testCodeExchangeAndRefreshForms() {
         let exchange = ChatGPTPlanOAuth.codeExchangeRequest(
@@ -206,8 +194,6 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertEqual(tokens.expiresIn, 3_600)
         XCTAssertThrowsError(try ChatGPTPlanOAuth.TokenResponse(json: Self.json(["token_type": "Bearer"])))
     }
-
-    // MARK: ID token
 
     func testES256IDTokenValidation() throws {
         let key = P256.Signing.PrivateKey()
@@ -261,7 +247,6 @@ final class ChatGPTPlanTests: XCTestCase {
                                                          nonce: "n-2", now: Self.now))
     }
 
-    /// Reads SEQUENCE { INTEGER n, INTEGER e } from a PKCS#1 public key.
     private static func rsaComponents(_ der: Data) throws -> (Data, Data) {
         var bytes = [UInt8](der)
         func readLength() -> Int {
@@ -282,8 +267,6 @@ final class ChatGPTPlanTests: XCTestCase {
         _ = readLength()
         return (readInteger(), readInteger())
     }
-
-    // MARK: Account
 
     func testFreshTokenIsReusedAndMissingPlanScopeStopsInference() async throws {
         let log = RequestLog()
@@ -326,7 +309,6 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertEqual(refreshes, 1)
         XCTAssertEqual(store.credentials()?.refreshToken, "refresh-2")
         XCTAssertEqual(store.credentials()?.expiresAt, Self.now.addingTimeInterval(3_600))
-        // Scopes stay when the refresh response omits them.
         XCTAssertEqual(store.credentials()?.allowsPlanUsage, true)
     }
 
@@ -440,10 +422,6 @@ final class ChatGPTPlanTests: XCTestCase {
         } catch ChatGPTPlanError.signedOut {}
     }
 
-    /// The whole browser round trip: the authorize URL opens, the "browser"
-    /// returns to the loopback listener, the code is exchanged, and the ID
-    /// token is checked against OpenAI's published key before anything is
-    /// stored.
     func testSignInCompletesThroughLoopbackRedirect() async throws {
         let key = P256.Signing.PrivateKey()
         let store = MemoryStore()
@@ -482,7 +460,6 @@ final class ChatGPTPlanTests: XCTestCase {
                   let callback = URL(string: "\(redirectURI)?code=code-1&state=\(state)&client_id=\(Self.clientID)")
             else { return false }
             Task.detached {
-                // A stray request first, as a browser's favicon fetch would be.
                 if let favicon = URL(string: redirectURI.replacingOccurrences(of: "/auth/callback", with: "/favicon.ico")) {
                     _ = try? await URLSession.shared.data(from: favicon)
                 }
@@ -498,8 +475,6 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertEqual(store.credentials()?.refreshToken, "refresh-1")
         XCTAssertTrue(redirect.value?.hasPrefix("http://127.0.0.1:") == true)
     }
-
-    // MARK: Engine
 
     private func engine(level: ThinkReasoningLevel = .automatic, model: String = "gpt-5.2",
                         store: MemoryStore = MemoryStore(credentials: credentials()),
@@ -563,7 +538,6 @@ final class ChatGPTPlanTests: XCTestCase {
         let format = try XCTUnwrap((body["text"] as? [String: Any])?["format"] as? [String: Any])
         XCTAssertEqual(format["type"] as? String, "json_schema")
         XCTAssertEqual(format["strict"] as? Bool, true)
-        // A task tuned for no reasoning stays at the model's lowest level.
         XCTAssertEqual((body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
     }
 
@@ -575,8 +549,6 @@ final class ChatGPTPlanTests: XCTestCase {
         XCTAssertNil(body["text"])
     }
 
-    /// GPT-6.1 Sol used to have no known levels, so the High the user chose
-    /// was dropped and every plan request ran at the model's default.
     func testGPT6RequestsCarryTheChosenLevel() throws {
         func effort(_ model: String, _ level: ThinkReasoningLevel, taskBudget: Int? = nil) throws -> String? {
             let request = try engine(level: level, model: model).makeRequest(

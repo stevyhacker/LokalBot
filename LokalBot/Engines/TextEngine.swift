@@ -1,26 +1,12 @@
 import Foundation
 
-/// The Main LLM engine's text generation: summaries, day digests, Q&A
-/// (design doc §5). Both backends speak HTTP to localhost only — the model
-/// itself runs in Ollama, LM Studio, or any OpenAI-compatible server the
-/// user points us at.
 protocol TextEngine {
     var displayName: String { get }
     var checkpointIdentity: String { get }
     var accountsForGenerationRequests: Bool { get }
-    /// Output space required by a provider whose reasoning cannot be disabled.
-    /// Callers reserve it inside their existing job/context limits.
     var minimumStructuredOutputTokens: Int { get }
-    /// True when the engine already replays transient failures (rate limits,
-    /// dropped connections) itself. Callers must then not add a replay of
-    /// their own, or one failure would be retried twice over.
     var handlesTransientRetries: Bool { get }
-    /// The most enum values a structured-output schema may hold in total, or
-    /// nil when the server has no such limit (it compiles schemas to a local
-    /// grammar). Notes parts list their source IDs as enums and are sized to
-    /// fit.
     var structuredOutputEnumLimit: Int? { get }
-    /// Nil means this provider has no supported tokenizer endpoint.
     func tokenCount(_ text: String) async throws -> Int?
     func generate(system: String, prompt: String, context: [String]) async throws -> String
     func generate(system: String, prompt: String, context: [String],
@@ -29,41 +15,22 @@ protocol TextEngine {
                            options: TextGenerationOptions,
                            onPartial: @escaping @MainActor (String) -> Void) async throws -> String
 
-    /// JSON-schema-constrained generation. Backends with decode-time
-    /// constraints guarantee the reply parses against `schema` (llama-server
-    /// compiles it to a GBNF grammar; Ollama takes it as `format`). The
-    /// default ignores the schema, so callers must keep their tolerant-parse
-    /// fallback for backends that can't constrain (Apple Intelligence).
     func generate(system: String, prompt: String, context: [String],
                   schema: [String: Any]) async throws -> String
     func generate(system: String, prompt: String, context: [String],
                   schema: [String: Any],
                   options: TextGenerationOptions) async throws -> String
 
-    /// Low-latency raw text continuation for cotyping (inline autocomplete).
-    /// The default delegates to `generate` with an autocomplete instruction so
-    /// every backend works; `OpenAICompatibleEngine` overrides it to hit raw
-    /// `/v1/completions`, which is faster and behaves as a pure text continuer.
     func complete(_ request: CompletionRequest) async throws -> String
 
-    /// Streaming variant of `complete`: `onPartial` receives the cumulative
-    /// completion text as tokens arrive, so the UI can paint ghost text before
-    /// the full response finishes. Returns the final text. Default is
-    /// non-streaming; `OpenAICompatibleEngine` overrides it with SSE.
     func completeStreaming(_ request: CompletionRequest,
                            onPartial: @escaping @Sendable (String) -> Void) async throws -> String
 }
 
-/// Per-request generation controls shared by the local chat backends. A nil
-/// reasoning budget inherits the engine's default.
 struct TextGenerationOptions: Equatable, Sendable {
     var maxTokens: Int?
     var reasoningBudgetTokens: Int?
     var temperature: Double?
-    /// A reply cut off at `maxTokens` returns the text it has instead of
-    /// failing as truncated; one cut off before any visible text still fails.
-    /// OpenAI-compatible chat honors it, for autocomplete, which keeps only
-    /// a phrase anyway.
     var keepsTruncatedReply: Bool
 
     init(maxTokens: Int? = nil, reasoningBudgetTokens: Int? = nil,
@@ -75,9 +42,6 @@ struct TextGenerationOptions: Equatable, Sendable {
     }
 }
 
-/// Request fields differ between bundled llama-server, generic compatible
-/// servers, OpenAI, and OpenRouter. Keep the dialect explicit so one
-/// provider's extensions can never leak into another provider's request.
 enum ChatCompletionDialect: Equatable, Sendable {
     case llamaServer
     case openAI
@@ -94,10 +58,6 @@ enum ChatCompletionDialect: Equatable, Sendable {
     }
 }
 
-/// OpenRouter request shape. Native uses `max_tokens`/`exclude` or
-/// `effort: none` plus strict `json_schema`. Effort maps a numeric budget to
-/// the supported low/high settings for always-reasoning models. Changing the
-/// reasoning dialect must never remove the caller's structured-output contract.
 enum OpenRouterReasoningCompatibility: Equatable, Sendable {
     case native
     case effort
@@ -144,7 +104,6 @@ enum TextEngineError: LocalizedError, Sendable {
         return retryAfter
     }
 
-    /// The server (or a provider behind a router) is rate limiting this key.
     var isRateLimit: Bool {
         guard case .httpStatus(let code, _, _) = self else { return false }
         return code == 429
@@ -153,7 +112,6 @@ enum TextEngineError: LocalizedError, Sendable {
     static func fromHTTPResponse(_ response: HTTPURLResponse?, data: Data) -> TextEngineError {
         guard let response else { return .badResponse("missing HTTP response") }
         let detail = serverErrorDetail(data)
-        // Anthropic's API names the header `request-id`.
         let requestID = response.value(forHTTPHeaderField: "x-request-id")
             ?? response.value(forHTTPHeaderField: "request-id")
         let diagnostic = requestID.map { "\(detail) (request ID: \($0))" } ?? detail
@@ -184,8 +142,6 @@ enum TextEngineError: LocalizedError, Sendable {
     }
 }
 
-/// One bounded retry for transient transport/status failures. Permanent 4xx,
-/// invalid payloads, cancellations, and missing configuration are never retried.
 enum TextEngineRetryPolicy {
     static let maximumDelay: TimeInterval = 60
 
@@ -201,9 +157,6 @@ enum TextEngineRetryPolicy {
     }
 }
 
-/// OpenAI strict Structured Outputs accepts a JSON Schema subset. Validate the
-/// invariants LokalBot relies on locally so malformed schemas never consume a
-/// remote request merely to receive a deterministic 400 response.
 enum OpenAIStrictSchemaValidator {
     static func validationIssue(in schema: [String: Any]) -> String? {
         guard schema["type"] as? String == "object" else {
@@ -271,11 +224,8 @@ enum OpenAIStrictSchemaValidator {
     }
 }
 
-/// Generation can legitimately take minutes for a long meeting on a laptop.
 let llmSession = InferenceURLSession.make(requestTimeout: 600, resourceTimeout: 900)
 
-/// Strips `<think>…</think>` reasoning blocks that models like Qwen 3 and
-/// DeepSeek R1 emit before the actual answer.
 func strippingReasoning(_ text: String) -> String {
     var result = text
     while let open = result.range(of: "<think>"),
@@ -285,11 +235,6 @@ func strippingReasoning(_ text: String) -> String {
     return result.trimmingCharacters(in: .whitespacesAndNewlines)
 }
 
-// MARK: - Cotyping completion
-
-/// One short continuation request for cotyping. Separate from `generate`'s
-/// chat shape because inline autocomplete wants a raw prompt, tight sampling,
-/// stop sequences, and a low latency budget.
 struct CompletionRequest: Sendable {
     var prompt: String
     var maxTokens: Int
@@ -302,9 +247,6 @@ struct CompletionRequest: Sendable {
     var stop: [String]
 }
 
-/// Cotyping must feel instant, so completions use a short timeout rather than
-/// `generate`'s minutes-long budget. Swift `Task` cancellation (the coordinator
-/// supersedes stale keystrokes) surfaces here as `URLError.cancelled`.
 private let completionSession = InferenceURLSession.make(requestTimeout: 12, resourceTimeout: 15)
 
 func cotypingCompletionSend(_ request: URLRequest, base: URL) async throws -> (Data, URLResponse) {
@@ -328,9 +270,6 @@ struct CotypingSSEEvent: Equatable {
     var isTerminal: Bool
 }
 
-/// Parses one Server-Sent-Events line from an OpenAI-style streaming
-/// completion. A terminal event is either `[DONE]` or a choice carrying a
-/// non-null `finish_reason`.
 func cotypingParseSSEEvent(_ line: String) -> CotypingSSEEvent? {
     let trimmed = line.trimmingCharacters(in: .whitespaces)
     guard trimmed.hasPrefix("data:") else { return nil }
@@ -345,8 +284,6 @@ func cotypingParseSSEEvent(_ line: String) -> CotypingSSEEvent? {
                             isTerminal: finishReason != nil)
 }
 
-/// Compatibility helper used by the lightweight parser tests and callers that
-/// only care about text-bearing chunks.
 func cotypingParseSSEDelta(_ line: String) -> String? {
     cotypingParseSSEEvent(line)?.delta
 }
@@ -365,21 +302,16 @@ extension TextEngine {
     var handlesTransientRetries: Bool { false }
     var structuredOutputEnumLimit: Int? { nil }
     func tokenCount(_ text: String) async throws -> Int? { nil }
-    /// Backends without an output-budget control keep their existing behavior.
     func generate(system: String, prompt: String, context: [String],
                   options: TextGenerationOptions) async throws -> String {
         try await generate(system: system, prompt: prompt, context: context)
     }
 
-    /// Unconstrained fallback for backends without decode-time grammar support.
     func generate(system: String, prompt: String, context: [String],
                   schema: [String: Any]) async throws -> String {
         try await generate(system: system, prompt: prompt, context: context)
     }
 
-    /// Backends that cannot combine grammar constraints with request controls
-    /// still preserve the schema. Built-in llama-server and Ollama override
-    /// this path so digest extraction also gets its explicit sampling policy.
     func generate(system: String, prompt: String, context: [String],
                   schema: [String: Any],
                   options: TextGenerationOptions) async throws -> String {
@@ -387,15 +319,11 @@ extension TextEngine {
                            schema: schema)
     }
 
-    /// Chat-backend fallback: ask the model to continue the text and emit only
-    /// the continuation. Used by Ollama / Apple Intelligence; the built-in
-    /// llama-server (OpenAI-compatible) overrides this with the raw endpoint.
     func complete(_ request: CompletionRequest) async throws -> String {
         try await generate(system: PromptTemplates.autocompleteSystem,
                            prompt: request.prompt, context: [])
     }
 
-    /// Non-streaming fallback: run once, emit the whole result as one partial.
     func completeStreaming(_ request: CompletionRequest,
                            onPartial: @escaping @Sendable (String) -> Void) async throws -> String {
         let result = try await complete(request)
@@ -404,13 +332,10 @@ extension TextEngine {
     }
 }
 
-// MARK: - Ollama
-
 struct OllamaEngine: TextEngine {
     var baseURL: URL
     var model: String
     var reasoningLevel: ThinkReasoningLevel = .automatic
-    /// What the model accepts; nil uses what LokalBot knows without asking.
     var reasoningSupport: ReasoningSupport?
 
     var displayName: String { "Ollama — \(model)" }
@@ -426,7 +351,6 @@ struct OllamaEngine: TextEngine {
                        schema: nil, options: options)
     }
 
-    /// Ollama enforces JSON schemas natively via the `format` field.
     func generate(system: String, prompt: String, context: [String],
                   schema: [String: Any]) async throws -> String {
         try await chat(system: system, prompt: prompt, context: context,
@@ -453,7 +377,6 @@ struct OllamaEngine: TextEngine {
         let body = Self.chatBody(model: model, system: system, user: user, schema: schema, options: options,
                                  requestLevel: support.requestLevel(
                                     reasoningLevel, taskBudget: options?.reasoningBudgetTokens))
-        // Same per-launch key order problem as OpenAICompatibleEngine.
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: schema == nil ? [] : [.sortedKeys])
 
         let (data, response) = try await sendInferenceRequest(request, base: baseURL)
@@ -466,8 +389,6 @@ struct OllamaEngine: TextEngine {
               let content = message["content"] as? String else {
             throw TextEngineError.badResponse("unexpected /api/chat payload")
         }
-        // Same contract as the OpenAI-compatible path: a reply cut off by the
-        // output limit is an error the caller can retry, not a finished answer.
         if json["done_reason"] as? String == "length" { throw TextEngineError.outputTruncated }
         return strippingReasoning(content)
     }
@@ -484,18 +405,11 @@ struct OllamaEngine: TextEngine {
             ],
         ]
         if let schema { body["format"] = schema }
-        // Ollama's thinking models think by default, and those tokens count
-        // against `num_predict`. A zero budget turns the thinking turn off.
-        // Of the chosen levels, only gpt-oss takes a graded one (see
-        // `ReasoningSupport`); `think: true` fails on models that can't think.
         if let requestLevel, requestLevel != .off {
             body["think"] = requestLevel.effortValue
         } else if requestLevel == .off || options?.reasoningBudgetTokens == 0 {
             body["think"] = false
         }
-        // Notes and digests are planned for this window. Without `num_ctx`,
-        // Ollama uses its own default (4K on most Macs) and silently drops the
-        // start of a longer prompt, which is where the instructions are.
         var generationOptions: [String: Any] = [
             "num_ctx": MeetingSummaryGenerator.conservativeExternalContextTokens,
         ]
@@ -509,7 +423,6 @@ struct OllamaEngine: TextEngine {
         return body
     }
 
-    /// Model names from `GET /api/tags`; empty array if the server is down.
     static func listModels(baseURL: URL) async -> [String] {
         var request = URLRequest(url: baseURL.appendingPathComponent("api/tags"))
         request.timeoutInterval = 3
@@ -519,8 +432,6 @@ struct OllamaEngine: TextEngine {
         return models.compactMap { $0["name"] as? String }.sorted()
     }
 
-    /// The model's levels from `POST /api/show` capabilities; nil if the
-    /// server does not answer. The request carries only the model name.
     static func reasoningSupport(baseURL: URL, model: String) async -> ReasoningSupport? {
         var request = URLRequest(url: baseURL.appendingPathComponent("api/show"))
         request.httpMethod = "POST"
@@ -540,23 +451,16 @@ struct OllamaEngine: TextEngine {
     }
 }
 
-// MARK: - OpenAI-compatible localhost (LM Studio, vllm-mlx, …)
-
 struct OpenAICompatibleEngine: TextEngine {
-    var baseURL: URL        // e.g. http://localhost:1234/v1
+    var baseURL: URL
     var model: String
     var apiKey: String?
-    /// Extra top-level request fields for server-specific compatibility.
     var extraBody: [String: Any] = [:]
-    /// Whether raw completions carry llama.cpp's `top_k`/`min_p`/`repeat_penalty`.
     var sendsLlamaSamplingExtensions = true
     var chatDialect: ChatCompletionDialect = .generic
     var openRouterDataPolicy: OpenRouterDataPolicy = .privateOnly
-    /// llama-server's request-level thinking ceiling. Kept nil for generic
-    /// external endpoints that may not understand this extension.
     var defaultThinkingBudgetTokens: Int?
     var reasoningLevel: ThinkReasoningLevel = .automatic
-    /// What the model accepts; nil uses what LokalBot knows without asking.
     var reasoningSupport: ReasoningSupport?
     var displayNameOverride: String?
 
@@ -566,10 +470,6 @@ struct OpenAICompatibleEngine: TextEngine {
     var minimumStructuredOutputTokens: Int {
         reasoningCompatibility(options: .init(reasoningBudgetTokens: 0)) == .effort ? 2_048 : 512
     }
-    /// Cerebras rejected a 709-value notes schema on 2026-10-07 ("cannot
-    /// exceed 500"); OpenAI documents 1,000. OpenRouter and other hosted
-    /// servers route to providers with unknown limits and get the smaller
-    /// one. Servers on this Mac compile the schema to a grammar.
     var structuredOutputEnumLimit: Int? {
         switch chatDialect {
         case .llamaServer: nil
@@ -605,9 +505,6 @@ struct OpenAICompatibleEngine: TextEngine {
                        schema: nil, options: options)
     }
 
-    /// OpenAI-standard structured output: llama-server compiles the schema to
-    /// a GBNF grammar and constrains decoding; LM Studio / vllm honour the
-    /// same `response_format` shape.
     func generate(system: String, prompt: String, context: [String],
                   schema: [String: Any]) async throws -> String {
         try await chat(system: system, prompt: prompt, context: context,
@@ -630,8 +527,6 @@ struct OpenAICompatibleEngine: TextEngine {
             reasoningFallback: false)
     }
 
-    /// The chosen level for one request (see `ReasoningSupport.requestLevel`),
-    /// or nil to leave reasoning to the task budget and the server's default.
     func requestLevel(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         let support = reasoningSupport
             ?? .known(provider: .init(dialect: chatDialect, baseURL: baseURL), model: model)
@@ -640,8 +535,6 @@ struct OpenAICompatibleEngine: TextEngine {
 
     private func reasoningCompatibility(options: TextGenerationOptions?) -> OpenRouterReasoningCompatibility {
         let name = model.lowercased().split(separator: ":").first.map(String.init) ?? ""
-        // GLM-5.3 supports low/high/max, with no disabled-thinking mode.
-        // Send its supported dialect on the first request of every part.
         if chatDialect == .openRouter, options?.reasoningBudgetTokens != nil,
            ["z-ai/glm-5.3", "z-ai/glm-5.3-flash"].contains(name) { return .effort }
         return .native
@@ -687,8 +580,6 @@ struct OpenAICompatibleEngine: TextEngine {
         }
     }
 
-    /// Stream chat content (never reasoning/tool deltas). Structured generation
-    /// keeps its existing accounting/repair path; interactive Ask has no budget.
     func generateStreaming(system: String, prompt: String, context: [String],
                            options: TextGenerationOptions,
                            onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
@@ -704,14 +595,11 @@ struct OpenAICompatibleEngine: TextEngine {
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
         let (bytes, response) = try await llmSession.bytes(for: request)
         guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
-            // A rejected stream did not generate output. Preserve compatibility
-            // with servers that only support whole chat responses.
             if let http = response as? HTTPURLResponse, [400, 404, 405, 422, 501].contains(http.statusCode) {
                 let result = try await generate(system: system, prompt: prompt, context: context, options: options)
                 await onPartial(result)
                 return result
             }
-            // The provider's reason is in the body ("insufficient credits").
             var body = Data()
             for try await byte in bytes where body.count < 65_536 { body.append(byte) }
             throw TextEngineError.fromHTTPResponse(response as? HTTPURLResponse, data: body)
@@ -746,8 +634,6 @@ struct OpenAICompatibleEngine: TextEngine {
             }
         }
         if !terminal, content.isEmpty, let data = nonStreaming.data(using: .utf8), !data.isEmpty {
-            // Some servers ignore stream=true. Consume that single response;
-            // never issue a duplicate paid generation for a successful reply.
             let parsed = try Self.parseChatCompletion(data, allowTruncation: false)
             content = parsed.content
             terminal = true
@@ -772,9 +658,6 @@ struct OpenAICompatibleEngine: TextEngine {
                     usedFallback: false, requestedReasoningBudget: options?.reasoningBudgetTokens)
                     || Self.shouldRetryRejectedReasoningLevel(dialect: chatDialect,
                         requestLevel: requestLevel(for: options), error: error, usedFallback: false) {
-                    // A routing/parameter rejection did not start generation.
-                    // Refund that output reservation, but still count the
-                    // physical request. Unknown transport usage stays reserved.
                     metric.outcome = "rejected"
                     metric.outputTokens = 0
                 }
@@ -809,8 +692,6 @@ struct OpenAICompatibleEngine: TextEngine {
         }
     }
 
-    /// Pure request construction keeps provider-field compatibility covered by
-    /// offline tests without requiring credentials or a billable call.
     func makeChatRequest(system: String, prompt: String, context: [String],
                          schema: [String: Any]?,
                          options: TextGenerationOptions?,
@@ -863,10 +744,6 @@ struct OpenAICompatibleEngine: TextEngine {
             body["provider"] = provider
         }
         body.merge(extraBody) { _, new in new }
-        // Grammar-constrained servers generate schema properties in wire order.
-        // Swift dictionaries hash in a per-launch order, so without sorting the
-        // same request could ask for a verdict before its evidence on one launch
-        // and after it on the next.
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: schema == nil ? [] : [.sortedKeys])
         return request
     }
@@ -886,8 +763,6 @@ struct OpenAICompatibleEngine: TextEngine {
         var generationSeconds: Double?
     }
 
-    /// What a reader would see of a reply cut off at its limit: a thinking
-    /// block that never closed is reasoning, not text.
     static func visibleText(ofTruncatedReply reply: String) -> String {
         guard let open = reply.range(of: "<think>") else { return reply }
         return reply[..<open.lowerBound].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -932,13 +807,6 @@ struct OpenAICompatibleEngine: TextEngine {
             generationSeconds: (timings?["predicted_ms"] as? Double).map { $0 / 1_000 })
     }
 
-    /// llama-server counts hidden reasoning and visible content inside the same
-    /// completion limit. OpenAI exposes a qualitative reasoning effort;
-    /// OpenRouter normalizes a provider-independent reasoning object. Generic
-    /// compatible servers receive only common request fields, plus
-    /// `reasoning_effort` once the user chooses a reasoning level. A
-    /// `requestLevel` (already clamped to the model) replaces the task budget;
-    /// `reasoningFallback` is the retry after a server rejected it.
     nonisolated static func applyGenerationOptions(
         to body: inout [String: Any],
         options: TextGenerationOptions?,
@@ -964,9 +832,6 @@ struct OpenAICompatibleEngine: TextEngine {
             let effective = maxTokens.map { min(nonnegative, $0 / 2) } ?? nonnegative
             body["thinking_budget_tokens"] = effective
             if effective == 0 {
-                // A zero budget alone still opens Qwen's thinking turn in the
-                // bundled runtime and can exhaust short replies before any
-                // visible text. Disable that turn in the chat template too.
                 var template = body["chat_template_kwargs"] as? [String: Any] ?? [:]
                 template["enable_thinking"] = false
                 body["chat_template_kwargs"] = template
@@ -977,10 +842,6 @@ struct OpenAICompatibleEngine: TextEngine {
             if let temperature = options?.temperature {
                 body["temperature"] = max(0, temperature)
             }
-            // Not every compatible server knows this field, so only a level
-            // the user chose sends it. A rejected `none` retries at `low` for
-            // models that always reason; any other rejected level retries at
-            // the server's default.
             if let requestLevel {
                 if !reasoningFallback {
                     body["reasoning_effort"] = requestLevel.effortValue
@@ -992,7 +853,6 @@ struct OpenAICompatibleEngine: TextEngine {
         case .openRouter:
             if let maxTokens { body["max_tokens"] = maxTokens }
             if let requestLevel {
-                // OpenRouter publishes each model's efforts; the level is one.
                 body["reasoning"] = requestLevel == .off
                     ? ["effort": "none"] : ["effort": requestLevel.effortValue, "exclude": true]
                 if requestLevel == .off, let temperature = options?.temperature {
@@ -1016,10 +876,6 @@ struct OpenAICompatibleEngine: TextEngine {
                     ]
                 }
             }
-            // Sampling controls vary across routed reasoning providers. Keep
-            // temperature only for requests that leave reasoning at the model
-            // default or explicitly disable it. Effort compatibility is
-            // always-on thinking, so omit temperature there too.
             if openRouterReasoning != .effort,
                (options?.reasoningBudgetTokens ?? 0) <= 0,
                let temperature = options?.temperature {
@@ -1028,13 +884,10 @@ struct OpenAICompatibleEngine: TextEngine {
 
         case .openAI:
             if let maxTokens { body["max_completion_tokens"] = maxTokens }
-            // Current OpenAI reasoning models reject sampling knobs such as a
-            // custom temperature. Non-reasoning chat models still accept it.
             if !isReasoningModel, let temperature = options?.temperature {
                 body["temperature"] = max(0, temperature)
             }
             if let requestLevel {
-                // A rejected `none` retries at `low`.
                 body["reasoning_effort"] = reasoningFallback && requestLevel == .off
                     ? "low" : requestLevel.effortValue
             } else if isReasoningModel, let budget = options?.reasoningBudgetTokens, budget > 0 {
@@ -1043,10 +896,6 @@ struct OpenAICompatibleEngine: TextEngine {
         }
     }
 
-    /// A reasoning-parameter mismatch allows one retry with low/high effort,
-    /// preserving the schema and privacy routing. A schema-only error is not
-    /// permission to weaken structured output. Some models report a routing
-    /// 404; others return a 400 when `effort: none` is explicit.
     nonisolated static func shouldFallbackToReasoningEffort(
         dialect: ChatCompletionDialect,
         error: Error,
@@ -1074,9 +923,6 @@ struct OpenAICompatibleEngine: TextEngine {
             || name.hasPrefix("gpt-5") || name.hasPrefix("gpt-6")
     }
 
-    /// A reasoning level the user chose can be one the selected model does
-    /// not accept. Retry once (see `applyGenerationOptions`) when the server
-    /// names reasoning in a 400/422; that rejection did not start generation.
     nonisolated static func shouldRetryRejectedReasoningLevel(
         dialect: ChatCompletionDialect,
         requestLevel: ThinkReasoningLevel?,
@@ -1096,9 +942,6 @@ struct OpenAICompatibleEngine: TextEngine {
         }
     }
 
-    /// Body for raw `/v1/completions`. `top_k`/`min_p`/`repeat_penalty` are
-    /// llama.cpp extensions a generic server ignores; hosted APIs that reject
-    /// unknown fields get only the OpenAI sampling fields, plus `extraBody`.
     func completionBody(_ request: CompletionRequest, stream: Bool) -> [String: Any] {
         var body: [String: Any] = [
             "model": model,
@@ -1115,7 +958,6 @@ struct OpenAICompatibleEngine: TextEngine {
             body["repeat_penalty"] = request.repeatPenalty
         }
         if !request.stop.isEmpty { body["stop"] = request.stop }
-        // The same provider data policy as chat: typed text is as private as Think's context.
         if chatDialect == .openRouter {
             body["provider"] = ["data_collection": openRouterDataPolicy.providerDataCollectionValue]
         }
@@ -1123,8 +965,6 @@ struct OpenAICompatibleEngine: TextEngine {
         return body
     }
 
-    /// Raw `/v1/completions`: the model continues `request.prompt` directly with
-    /// no chat template, which is what cotyping wants.
     func complete(_ request: CompletionRequest) async throws -> String {
         guard !model.isEmpty else { throw TextEngineError.noModel }
         var urlRequest = URLRequest(url: baseURL.appendingPathComponent("completions"))
@@ -1152,10 +992,6 @@ struct OpenAICompatibleEngine: TextEngine {
         case unsupportedPayload
     }
 
-    /// Streaming `/v1/completions` (SSE). Accumulates `choices[].text` deltas,
-    /// emitting the running text via `onPartial`. A non-streaming compatibility
-    /// fallback is allowed only when a successful response contains no SSE
-    /// events; transport and HTTP failures are surfaced without duplicating work.
     func completeStreaming(_ request: CompletionRequest,
                            onPartial: @escaping @Sendable (String) -> Void) async throws -> String {
         guard !model.isEmpty else { throw TextEngineError.noModel }
@@ -1210,8 +1046,6 @@ struct OpenAICompatibleEngine: TextEngine {
         } catch is CancellationError {
             throw CancellationError()
         } catch is StreamingCompatibilityError where accumulated.isEmpty {
-            // A 2xx non-SSE response means this server does not implement the
-            // streaming contract. No tokens were generated or shown yet.
             let full = try await complete(request)
             onPartial(full)
             return full
@@ -1226,9 +1060,6 @@ func sendInferenceRequest(_ request: URLRequest, base: URL) async throws -> (Dat
     } catch is CancellationError {
         throw CancellationError()
     } catch let error as URLError where error.code == .cancelled {
-        // Task cancelled mid-request (e.g. the user pressed Stop): surface it as
-        // cancellation, not an unreachable-server error, so callers can tell the
-        // difference.
         throw CancellationError()
     } catch {
         let diagnostic = error as NSError

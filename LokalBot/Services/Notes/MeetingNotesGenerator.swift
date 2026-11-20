@@ -1,8 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// One transcript scan produces facts, actions, decisions and questions. There
-/// is no recursive recovery or second full-transcript outcomes/synthesis pass.
 enum MeetingNotesGenerator {
     struct Result {
         var claims: [SummaryClaimEvidence.Claim]
@@ -42,9 +40,6 @@ enum MeetingNotesGenerator {
         PromptTemplates.meetingNotesSystem(template: template, language: language)
     }
 
-    /// Model tokenization includes all prompt text. Providers without a native
-    /// tokenizer use UTF-8 bytes as a conservative upper bound, plus envelope
-    /// and structured-output headroom; punctuation/numerals are never dropped.
     static func tokenCount(_ text: String, engine: TextEngine) async throws -> Int {
         try await promptSize(text, engine: engine).upperBound
     }
@@ -59,9 +54,6 @@ enum MeetingNotesGenerator {
         let native = try await engine.tokenCount(text)
         await MeetingGenerationBudget.current?.recordPhase("tokenization", seconds: ProcessInfo.processInfo.systemUptime - started)
         let bytes = text.utf8.count
-        // The estimate only chooses an efficient part size. UTF-8 bytes remain
-        // the hard context/input-budget bound when a tokenizer is unavailable,
-        // including for punctuation-heavy and non-Latin transcripts.
         return PromptSize(upperBound: max(1, native ?? bytes),
                           planningEstimate: max(1, native ?? ((bytes + 2) / 3)))
     }
@@ -74,17 +66,11 @@ enum MeetingNotesGenerator {
             + units.map(\.line).joined(separator: "\n")
     }
 
-    /// Parts fit the window's step and, on hosted servers, the provider's
-    /// limit on schema enum values: each part's schema lists its source IDs
-    /// three times.
     static func makeChunks(evidence: MeetingNotesEvidence, engine: TextEngine, system: String,
                            context: [String], contextTokens: Int,
                            template: NoteTemplate = .meeting) async throws -> [[MeetingNotesEvidence.Unit]] {
         guard !evidence.units.isEmpty else { return [] }
         let contextCeiling = contextTokens - 4_096 - 1_536
-        // Without a tokenizer the 6,000-token step admits about 18 KB, so
-        // windows from ~24K up to 64K plan identical parts (and keep
-        // checkpoints); larger known windows take larger steps.
         let planningCeiling = min(MeetingSummaryGenerator.notesPartTokens(contextTokens: contextTokens), contextCeiling)
         let fixed = ([system] + context).joined(separator: "\n\n") + "\n\n"
         let enumLimit = engine.structuredOutputEnumLimit
@@ -113,22 +99,15 @@ enum MeetingNotesGenerator {
                 end = start + max(1, Int(Double(end - start) * fraction))
             }
             if end == evidence.units.count { break }
-            // Two source turns retain context at boundaries without restarting
-            // extraction. A tiny chunk must still advance.
             start = max(start + 1, end - 2)
         }
         return chunks
     }
 
-    /// `retryingStoppedParts` is a person's explicit request: a part an earlier
-    /// run stopped (no further progress, invalid evidence IDs) gets another
-    /// scan instead of failing at once. Automatic runs keep the stop.
     static func generate(transcript: Transcript, engine: TextEngine, template: NoteTemplate,
                          language: SummaryLanguage, context: [String], contextTokens: Int,
                          meetingID: UUID, folder: URL, retryingStoppedParts: Bool = false,
                          budget: MeetingGenerationBudget = MeetingGenerationBudget()) async throws -> Result {
-        // The pipeline installs the allowance before model preparation; direct
-        // callers (including offline replays) get the same deadline here.
         if MeetingGenerationBudget.current == nil {
             do {
                 let result = try await budget.run {
@@ -148,8 +127,6 @@ enum MeetingNotesGenerator {
         let system = systemPrompt(template: template, language: language)
         let chunks = try await makeChunks(evidence: evidence, engine: engine, system: system,
                                           context: context, contextTokens: contextTokens, template: template)
-        // A part larger than the standard step gets proportionally more
-        // output and records, so fewer, larger parts keep the same coverage.
         let fixed = ([system] + context).joined(separator: "\n\n") + "\n\n"
         var outputScales: [Double] = []
         for chunk in chunks {
@@ -200,7 +177,6 @@ enum MeetingNotesGenerator {
         guard completed == chunks.count else { throw Incomplete(completed: completed, total: chunks.count) }
         let scanned = merged(checkpoint, transcript: transcript, template: template)
         if let stated = evidence.statedDecisions(after: scanned.claims, template: template, meetingID: meetingID) {
-            // Keyed after the last part, so the decisions follow what the model wrote.
             checkpoint.parts[String(chunks.count)] = Part(claims: stated.claims, outcomes: stated.outcomes, complete: true)
         }
         let result = merged(checkpoint, transcript: transcript, template: template)
@@ -237,15 +213,6 @@ enum MeetingNotesGenerator {
                             wallSeconds: ProcessInfo.processInfo.systemUptime - started))
                     }
                     if let partial = error as? TruncatedStructuredResponse {
-                        // Reasoning providers count hidden tokens against the
-                        // same completion ceiling as the JSON envelope. A
-                        // 4K request can therefore spend the whole response on
-                        // thinking and return no usable records. Give every
-                        // structured call one larger, budgeted retry before
-                        // handing partial content to the evidence validator.
-                        // The retry is deliberately bounded: a genuinely huge
-                        // response still falls through to checkpointed recovery
-                        // instead of consuming the job indefinitely.
                         if !stage.localizedCaseInsensitiveContains("repair"),
                            truncationRetry == 0,
                            let expanded = expandedStructuredOutputTokens(
@@ -260,20 +227,8 @@ enum MeetingNotesGenerator {
                                     attempt: attempt, truncationRetry: 1)
                             } catch {
                                 if Task.isCancelled || error is CancellationError { throw error }
-                                // The first call may have consumed the remaining
-                                // allowance, or the provider may reject the
-                                // expanded request. Preserve its usable prefix
-                                // and let checkpointed recovery report the
-                                // incomplete part instead of replacing progress.
                                 return (partial.content, true)
                             }
-                            // A larger completion ceiling does not guarantee a
-                            // longer visible prefix: reasoning can consume the
-                            // extra allowance and leave fewer complete records.
-                            // When both calls truncate, keep the prefix with the
-                            // most recoverable structured records. Ties retain
-                            // the first response because the retry has not made
-                            // source-linked progress.
                             if expandedResult.truncated,
                                prefersRecoverablePrefix(
                                 partial.content,
@@ -302,8 +257,6 @@ enum MeetingNotesGenerator {
                         }
                         return ("", true)
                     }
-                    // Managed and gated engines replay transient failures
-                    // themselves. Any other engine gets one replay charged to this job.
                     if !engine.handlesTransientRetries,
                        let delay = TextEngineRetryPolicy.delay(for: error, attempt: attempt) {
                         let waiting = ProcessInfo.processInfo.systemUptime
@@ -319,9 +272,6 @@ enum MeetingNotesGenerator {
         }
     }
 
-    /// One retry gives an always-reasoning provider room for visible JSON. The
-    /// cap keeps a standard job bounded while still covering the common 4K
-    /// reasoning + 4K visible-token split observed with GLM-5.3.
     static func expandedStructuredOutputTokens(
         from tokens: Int,
         input: Int,
@@ -357,11 +307,6 @@ enum MeetingNotesGenerator {
             actions: value.outcomes.actionItems.count, rejections: reasons))
     }
 
-    /// Each part writes up to three TL;DR takeaways for its stretch of the
-    /// meeting. Concatenated, a long meeting's first bullets, which the recap
-    /// card, briefs, and digest read, came from its first parts only. Taking
-    /// every part's first takeaway, then every part's second, and so on keeps
-    /// every takeaway while the first bullets span the whole meeting.
     static func interleavingTLDR(_ parts: [[SummaryClaimEvidence.Claim]]) -> [SummaryClaimEvidence.Claim] {
         let takeaways = parts.map { part in part.filter { $0.section == "TL;DR" } }
         var ordered: [SummaryClaimEvidence.Claim] = []
@@ -380,7 +325,6 @@ enum MeetingNotesGenerator {
         outcomes.transcriptRevision = transcript.evidenceRevision
         var renderedClaims = claims
         if !claims.contains(where: { $0.section == "TL;DR" }) {
-            // Rendering already accepted, source-linked facts needs no further model call.
             let overview = overviewClaims(claims, outcomes: outcomes)
                 .map { claim in var value = claim; value.section = "TL;DR"; return value }
             renderedClaims = overview + claims
@@ -397,8 +341,6 @@ enum MeetingNotesGenerator {
         var candidates = facts.filter { userSources.contains($0.segmentID) }
         candidates += facts.filter { $0.section == "Decisions" }
         candidates += facts.filter { actionSources.contains($0.segmentID) }
-        // When no explicit outcome distinguishes facts, sample the complete
-        // meeting instead of repeating only its first three introductory rows.
         if !facts.isEmpty { candidates += [facts[0], facts[facts.count / 2], facts[facts.count - 1]] }
         candidates += facts
         var sources = Set<String>()

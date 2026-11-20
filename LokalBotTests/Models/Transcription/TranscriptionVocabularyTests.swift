@@ -116,8 +116,6 @@ final class TranscriptionVocabularyTests: XCTestCase {
         XCTAssertEqual(sources.attendeeNames, ["Frequent Person", "Rare Person"])
     }
 
-    /// A merged meeting's applied names carry "· source N", and labels such as
-    /// "Them 6" name nobody; fed to the recognizer they came back as rows.
     func testTermsDropMergedAndPlaceholderSpeakerLabelsAndDepartmentTitleWords() throws {
         let merged = try meeting("Product standup", day: -1, attendees: [],
                                  aliases: ["them": "Them 6 · source 2", "local 2": "Mila Novak · source 1",

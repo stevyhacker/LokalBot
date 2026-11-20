@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Follow-through for one action: what the Think model read, then each
-/// proposed step as an editable card. Approving opens the step as a draft in
-/// the person's own app.
 struct FollowThroughSheet: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var session: FollowThroughSession
@@ -120,8 +117,6 @@ struct FollowThroughSheet: View {
         }
     }
 
-    /// Where the action and what is read about it go: wherever the Think
-    /// model runs. A blocked connection shows as the run's own error.
     private var destination: Text {
         switch InferencePresentation(settings: app.settings) {
         case .remote(let host):
@@ -141,8 +136,6 @@ struct FollowThroughSheet: View {
     }
 }
 
-/// One proposed step. Pending steps are editable; the person's version is
-/// what runs.
 private struct ProposalCard: View {
     let proposal: FollowThroughProposal
     let codingAgents: [ActionAgentHandoff]
@@ -158,8 +151,6 @@ private struct ProposalCard: View {
     @State private var minutes = 30
     @State private var agent: ActionAgentHandoff = .claudeCode
     @State private var loaded = false
-    /// Set on Approve or Decline, so a second click can't send twice while the
-    /// step runs.
     @State private var submitted = false
 
     private var isPending: Bool { proposal.status == .pending }

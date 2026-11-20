@@ -1,12 +1,9 @@
 import SwiftUI
 
-/// A compact audio overview with pointer scrubbing and a native accessibility
-/// slider. The drag previews locally; releasing seeks once, preserving playback.
 struct WaveformView: View {
     let sources: [WaveformAnalysis.Source]
     let currentTime: TimeInterval
     let duration: TimeInterval
-    /// The meeting's slim player bar draws a shorter overview.
     var height: CGFloat = 40
     let onSeek: (TimeInterval) -> Void
 
@@ -98,15 +95,11 @@ struct WaveformView: View {
         }
         .help("Click or drag to seek. Left and Right arrows move 5 seconds.")
         .task(id: request) { await load(request) }
-        // Media timelines stay left to right in right-to-left interfaces, like
-        // platform playback controls. It also keeps the Canvas, the timestamp
-        // bubble and pointer positions in one coordinate space.
         .environment(\.layoutDirection, .leftToRight)
     }
 
     private func waveform(in size: CGSize) -> some View {
         let bars = WaveformAnalysis.resample(availablePeaks ?? [], width: size.width)
-        // A short overview keeps less air above and below its bars.
         let inset: CGFloat = size.height < 32 ? 4 : 10
         return Canvas { context, _ in
             let center = size.height / 2
@@ -130,7 +123,6 @@ struct WaveformView: View {
             var played = context
             played.clip(to: Path(CGRect(x: 0, y: 0, width: cut, height: size.height)))
             played.fill(shape, with: .color(Brand.teal))
-            // A playhead makes position readable without relying on color alone.
             let playheadX = min(max(0, cut - 1), max(0, size.width - 2))
             context.fill(Path(roundedRect: CGRect(x: playheadX, y: inset * 0.3, width: 2, height: size.height - inset * 0.6),
                               cornerRadius: 1), with: .color(.primary))

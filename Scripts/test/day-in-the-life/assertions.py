@@ -31,7 +31,6 @@ def has_finished_notes(folder):
 
 
 def words(text):
-    # Hyphens, punctuation, and case are not recognition errors.
     return re.sub(r"[^a-z0-9' ]+", " ", text.lower().replace("-", " ")).split()
 
 
@@ -99,15 +98,12 @@ if __name__ == "__main__":
     if mode == "finished-notes":
         sys.exit(0 if has_finished_notes(target) else 1)
     if mode == "wer-day":
-        # wer-day <max> <folder> <golden> [<folder> <golden> ...]
         meetings = list(zip(sys.argv[3::2], sys.argv[4::2]))
         for folder, golden in meetings:
             reference, heard = golden_words(golden), heard_words(folder)
             rate = word_error_rate(reference, heard)
             print(f"    {Path(folder).name}: {rate:.1%}", file=sys.stderr)
             if rate:
-                # Synthetic meetings only: show the words so drift can be read
-                # from the log without the artifact.
                 print(f"      expected: {' '.join(reference)}", file=sys.stderr)
                 print(f"      heard: {' '.join(heard)}", file=sys.stderr)
         rate = day_word_error_rate(meetings)

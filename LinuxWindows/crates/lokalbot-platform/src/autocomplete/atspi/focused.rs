@@ -1,7 +1,3 @@
-//! One-shot reads of the focused object for dictation and selection actions,
-//! separate from the watcher: identity and privacy, the selection, the text
-//! before the caret, and the text above the field.
-
 use std::collections::{HashMap, VecDeque};
 use std::time::{Duration, Instant};
 
@@ -16,21 +12,16 @@ use super::{
     placement, role, state,
 };
 
-/// `ATSPI_STATE_ACTIVE`: the window with the keyboard.
 const ACTIVE: u32 = 1;
-/// How far the walk looks for a selection in read-only content.
 const SELECTION_WALK_NODES: usize = 400;
 const SELECTION_WALK_TIME: Duration = Duration::from_millis(250);
 
 enum Located {
-    /// The bus is unreachable or the app publishes nothing.
     Silent,
     NoFocus,
     Focused(Obj, u32),
 }
 
-/// The focused descendant of an app: one `Collection` query when the toolkit
-/// supports it, else a short walk through showing objects.
 fn find_focused(bus: &Bus, app: &Obj) -> Option<Obj> {
     let focused: Vec<i32> = vec![1 << state::FOCUSED, 0];
     let rule = (
@@ -73,8 +64,6 @@ fn find_focused(bus: &Bus, app: &Obj) -> Option<Obj> {
     None
 }
 
-/// Finds the focused object of `pid`, or without a pid (a Wayland desktop that
-/// does not say what is in front) of the one app whose window is active.
 fn locate(bus: &Bus, pid: Option<u32>) -> Located {
     let root = Obj::new(REGISTRY, ROOT_PATH);
     let own = std::process::id();
@@ -110,14 +99,12 @@ fn locate(bus: &Bus, pid: Option<u32>) -> Located {
             let (obj, pid) = found.remove(0);
             Located::Focused(obj, pid)
         }
-        // Several apps claiming the keyboard cannot be told apart.
         _ if !found.is_empty() => Located::Silent,
         _ if published => Located::NoFocus,
         _ => Located::Silent,
     }
 }
 
-/// Identity and privacy from metadata; only the selection's offsets are read.
 fn describe(bus: &Bus, obj: &Obj, pid: u32) -> Field {
     let object_role = bus.role(obj).unwrap_or(0);
     let states = bus.states(obj).unwrap_or(0);
@@ -167,8 +154,6 @@ pub(in crate::autocomplete) fn read_field(pid: Option<u32>) -> FieldRead {
     }
 }
 
-/// What accessibility adds to an input method's view of a field, when the app
-/// publishes it. Metadata only: no text of the field is read.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(in crate::autocomplete) struct Surroundings {
     pub key: String,
@@ -182,8 +167,6 @@ pub(in crate::autocomplete) struct Surroundings {
     pub url: Option<String>,
 }
 
-/// The focused object of `pid` and where it sits. `None` when the app says
-/// nothing, which leaves only the input method's own hints.
 pub(in crate::autocomplete) fn surroundings(pid: u32) -> Option<Surroundings> {
     let bus = Bus::connect().ok()?;
     let Located::Focused(obj, _) = locate(&bus, Some(pid)) else {
@@ -229,8 +212,6 @@ pub(in crate::autocomplete) fn surroundings(pid: u32) -> Option<Surroundings> {
     Some(found)
 }
 
-/// The process whose window is active, for a Wayland desktop that does not
-/// report it another way.
 pub(in crate::autocomplete) fn active_pid() -> Option<u32> {
     let bus = Bus::connect().ok()?;
     match locate(&bus, None) {
@@ -239,7 +220,6 @@ pub(in crate::autocomplete) fn active_pid() -> Option<u32> {
     }
 }
 
-/// The selected text of one object, with embedded-object marks removed.
 fn selection_in(bus: &Bus, obj: &Obj, max_characters: usize) -> Option<String> {
     let (start, end) = bus.selection(obj)?;
     if start == end {
@@ -251,8 +231,6 @@ fn selection_in(bus: &Bus, obj: &Obj, max_characters: usize) -> Option<String> {
     (!text.trim().is_empty()).then_some(text)
 }
 
-/// Read-only content keeps its selection on a text object below the document
-/// that has focus.
 fn selection_below(bus: &Bus, focus: &Obj, max_characters: usize) -> Option<String> {
     let mut start = focus.clone();
     let mut cursor = bus.parent(focus);
@@ -314,7 +292,6 @@ pub(in crate::autocomplete) fn selected_text(pid: u32, max_characters: usize) ->
             .then(|| selection_below(&bus, &obj, max_characters))
             .flatten()
     });
-    // The same object must still have focus once the text is in hand.
     match locate(&bus, Some(pid)) {
         Located::Focused(current, _) if current == obj => {}
         _ => return SelectionRead::Unavailable,
@@ -326,7 +303,6 @@ pub(in crate::autocomplete) fn selected_text(pid: u32, max_characters: usize) ->
     }
 }
 
-/// The focused object, when it is still the bound field and not a secure one.
 fn bound_field(bus: &Bus, pid: u32, identity: &str) -> Option<(Obj, Field)> {
     let Located::Focused(obj, _) = locate(bus, Some(pid)) else {
         return None;
@@ -344,7 +320,6 @@ pub(in crate::autocomplete) fn text_before_caret(pid: u32, identity: &str) -> Op
     Some(text)
 }
 
-/// The window title and page address around an object.
 fn surface(bus: &Bus, obj: &Obj) -> (String, Option<String>) {
     let mut title = String::new();
     let mut url = None;
@@ -380,8 +355,6 @@ fn document_url(bus: &Bus, document: &Obj) -> Option<String> {
         .find_map(|key| attributes.get(*key).filter(|v| !v.is_empty()).cloned())
 }
 
-/// Text above the bound field, under `policy`. Coordinates are window
-/// relative, which every toolkit reports consistently within one window.
 pub(in crate::autocomplete) fn visible_text(
     pid: u32,
     identity: &str,
@@ -446,7 +419,6 @@ pub(in crate::autocomplete) fn visible_text(
             field_frame,
         },
     );
-    // Nothing read while focus moved is kept.
     let (_, after) = bound_field(&bus, pid, identity)?;
     (after == before).then_some(text).flatten()
 }

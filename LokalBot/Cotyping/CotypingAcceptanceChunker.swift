@@ -1,15 +1,7 @@
 import Foundation
 
-/// Pure word/phrase segmentation for suggestion acceptance: what one Tab
-/// accepts (`nextWord` / `nextPhrase`), how the accepted chunk is adjusted for
-/// insertion (whitespace dedupe, auto-space), and accepted-word accounting.
-/// Extracted from the coordinator so the overlay's highlight and the accept
-/// path share one segmentation model.
 enum CotypingAcceptanceChunker {
 
-    /// First word-like acceptance chunk of `text`, preserving leading
-    /// whitespace. Space-less scripts use ICU word segmentation so one accept
-    /// advances by a word-sized unit instead of swallowing a whole CJK/Thai run.
     static func nextWord(
         in text: String,
         autoAcceptTrailingPunctuation: Bool = true
@@ -39,10 +31,6 @@ enum CotypingAcceptanceChunker {
         return String(text[text.startIndex..<index])
     }
 
-    /// Text up to and including the next sentence/clause boundary (or the whole
-    /// remaining text when there is none). Mirrors Cotabby's phrase acceptance
-    /// granularity: ASCII sentence terminators, newlines, and CJK clause marks;
-    /// ASCII commas stay inside the phrase.
     static func nextPhrase(
         in text: String,
         autoAcceptTrailingPunctuation: Bool = true
@@ -132,8 +120,6 @@ enum CotypingAcceptanceChunker {
             }
             .count
     }
-
-    // MARK: - Private
 
     private static func firstSegmentedWordEnd(
         in text: String,
@@ -351,18 +337,18 @@ extension Character {
     var cotypingBeginsSpacelessScriptWord: Bool {
         guard let scalar = unicodeScalars.first else { return false }
         switch scalar.value {
-        case 0x3040...0x30FF,   // Hiragana + Katakana
-             0x3400...0x4DBF,   // CJK Unified Ideographs Extension A
-             0x4E00...0x9FFF,   // CJK Unified Ideographs
-             0xF900...0xFAFF,   // CJK Compatibility Ideographs
-             0xAC00...0xD7A3,   // Hangul syllables
-             0x1100...0x11FF,   // Hangul Jamo
-             0x0E00...0x0E7F,   // Thai
-             0x0E80...0x0EFF,   // Lao
-             0x1780...0x17FF,   // Khmer
-             0x1000...0x109F,   // Myanmar
-             0x20000...0x2A6DF, // CJK Unified Ideographs Extension B
-             0x30000...0x3134F: // CJK Unified Ideographs Extension G
+        case 0x3040...0x30FF,
+             0x3400...0x4DBF,
+             0x4E00...0x9FFF,
+             0xF900...0xFAFF,
+             0xAC00...0xD7A3,
+             0x1100...0x11FF,
+             0x0E00...0x0E7F,
+             0x0E80...0x0EFF,
+             0x1780...0x17FF,
+             0x1000...0x109F,
+             0x20000...0x2A6DF,
+             0x30000...0x3134F:
             return true
         default:
             return false

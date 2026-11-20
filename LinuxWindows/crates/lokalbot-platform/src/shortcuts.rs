@@ -1,31 +1,11 @@
-//! System-wide shortcuts for dictation and Ask.
-//!
-//! [`Shortcut`] parses the strings stored in settings ("Ctrl+Shift+Space",
-//! "Alt+Space") and validates them with the macOS rules
-//! (`DictationShortcut.problem`, `QuickRecallHotKeyController.problem`).
-//! [`GlobalShortcuts`] registers them: `global-hotkey` on Windows and X11
-//! (press and release, for push to talk), and the XDG `GlobalShortcuts`
-//! portal on Wayland. Desktops without the portal (Sway, GNOME before 48)
-//! get a clear error; users there bind a desktop shortcut to the
-//! `lokalbot dictate --toggle` / `lokalbot quick-recall` commands, which reach
-//! the app through [`crate::instance`].
-//!
-//! Threading: create and use [`GlobalShortcuts`] from any one thread (the GPUI
-//! main thread is fine); it runs its own worker thread. The handler is called
-//! on a background thread (Windows: the worker for presses and a short-lived
-//! thread for releases; X11: `global-hotkey`'s X11 thread; Wayland: the portal
-//! thread), so it must not block: forward the event to the app.
-
 use std::fmt;
 use std::str::FromStr;
 use std::sync::Arc;
 
 use parking_lot::Mutex;
 
-/// The physical key of a shortcut, independent of modifiers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Key {
-    /// `A`–`Z`, `0`–`9`, or one of `` -=[]\;',./` ``.
     Char(char),
     Space,
     Enter,
@@ -42,7 +22,6 @@ pub enum Key {
     End,
     PageUp,
     PageDown,
-    /// F1–F24.
     Function(u8),
 }
 
@@ -123,12 +102,10 @@ impl Key {
         }
     }
 
-    /// Keys that do not type a character (`DictationShortcutKeyNames.isNamedKey`).
     pub fn is_named(self) -> bool {
         !matches!(self, Key::Char(_))
     }
 
-    /// The xkb keysym name the shortcuts portal expects.
     fn keysym_name(self) -> String {
         match self {
             Key::Char(c) if c.is_ascii_alphanumeric() => c.to_ascii_lowercase().to_string(),
@@ -166,21 +143,17 @@ impl Key {
     }
 }
 
-/// What Windows and Linux desktops call the logo key.
 #[cfg(windows)]
 pub const SUPER_LABEL: &str = "Win";
 #[cfg(not(windows))]
 pub const SUPER_LABEL: &str = "Super";
 
-/// A key with modifiers, or modifiers alone (`DictationShortcut`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Shortcut {
     pub ctrl: bool,
     pub alt: bool,
     pub shift: bool,
-    /// The Windows / Super / Meta key.
     pub logo: bool,
-    /// `None` for a modifier-only chord such as Ctrl+Alt.
     pub key: Option<Key>,
 }
 
@@ -195,7 +168,6 @@ pub enum ShortcutParseError {
 }
 
 impl Shortcut {
-    /// Ctrl+Shift+Space opens Ask (`quickRecallShortcut`).
     pub const QUICK_RECALL_DEFAULT: Shortcut = Shortcut {
         ctrl: true,
         alt: false,
@@ -203,7 +175,6 @@ impl Shortcut {
         logo: false,
         key: Some(Key::Space),
     };
-    /// Alt+Space starts dictation (`dictationShortcut`).
     pub const DICTATION_DEFAULT: Shortcut = Shortcut {
         ctrl: false,
         alt: true,
@@ -212,8 +183,6 @@ impl Shortcut {
         key: Some(Key::Space),
     };
 
-    /// Parses "Ctrl+Shift+Space", "alt+space", "Super+D", "F5", "Ctrl+Alt",
-    /// and the macOS symbols ("⌃⇧ Space").
     pub fn parse(text: &str) -> Result<Shortcut, ShortcutParseError> {
         let mut shortcut = Shortcut::default();
         let mut any = false;
@@ -267,7 +236,6 @@ impl Shortcut {
             .count()
     }
 
-    /// "Ctrl+Shift+Space", "F5", "Ctrl+Alt".
     pub fn label(&self) -> String {
         let mut parts: Vec<String> = Vec::new();
         if self.ctrl {
@@ -288,8 +256,6 @@ impl Shortcut {
         parts.join("+")
     }
 
-    /// Why this cannot be the dictation shortcut, or `None`
-    /// (`DictationShortcut.problem`). `ask` is the Ask shortcut, if enabled.
     pub fn dictation_problem(&self, ask: Option<&Shortcut>) -> Option<ShortcutProblem> {
         if let Some(problem) = self.typing_problem() {
             return Some(problem);
@@ -300,8 +266,6 @@ impl Shortcut {
         self.system_problem()
     }
 
-    /// Why this cannot open selection actions, or `None`. Like Ask it needs a
-    /// key, and it must differ from the other two shortcuts when they are on.
     pub fn selection_actions_problem(
         &self,
         dictation: Option<&Shortcut>,
@@ -322,8 +286,6 @@ impl Shortcut {
         self.system_problem()
     }
 
-    /// Plain Escape, or Escape with this shortcut's modifiers still held, the
-    /// keys that cancel a dictation (`isEscape(allowing:)`).
     pub fn cancel_key(&self) -> Shortcut {
         Shortcut {
             ctrl: self.ctrl,
@@ -334,8 +296,6 @@ impl Shortcut {
         }
     }
 
-    /// Why this cannot open Ask, or `None`
-    /// (`QuickRecallHotKeyController.problem`). Ask always needs a key.
     pub fn quick_recall_problem(&self, dictation: Option<&Shortcut>) -> Option<ShortcutProblem> {
         if self.is_modifier_only() {
             return Some(ShortcutProblem::NeedsKey);
@@ -355,7 +315,6 @@ impl Shortcut {
 
     fn typing_problem_where(&self, chords_available: bool) -> Option<ShortcutProblem> {
         let Some(key) = self.key else {
-            // One modifier alone fires whenever it is used for anything else.
             if self.modifier_count() < 2 {
                 return Some(ShortcutProblem::NeedsTwoModifiers);
             }
@@ -370,7 +329,6 @@ impl Shortcut {
         if !(self.ctrl || self.alt || self.logo) {
             return Some(ShortcutProblem::NeedsModifier);
         }
-        // Ctrl plus a character is how apps here spell Copy, Save, Undo….
         if self.ctrl && !self.alt && !self.shift && !self.logo && !key.is_named() {
             return Some(ShortcutProblem::CtrlOnly);
         }
@@ -385,7 +343,6 @@ impl Shortcut {
             .then_some(ShortcutProblem::UsedBySystem)
     }
 
-    /// The XDG shortcuts trigger ("CTRL+SHIFT+space") for the portal.
     pub fn portal_trigger(&self) -> Option<String> {
         let key = self.key?;
         let mut parts: Vec<String> = Vec::new();
@@ -406,13 +363,9 @@ impl Shortcut {
     }
 }
 
-/// Combinations the system takes before any app sees them, and Ctrl+Shift+W,
-/// which closes tabs and windows in most apps here (the Mac's default for
-/// selection actions).
 #[cfg(windows)]
 const RESERVED: &[&str] = &[
     "Ctrl+Shift+W",
-    // Switching the input language, held alone.
     "Alt+Shift",
     "Ctrl+Shift",
     "Ctrl+Alt+Delete",
@@ -469,15 +422,12 @@ const RESERVED: &[&str] = &[
     "Super+Space",
 ];
 
-/// Why a combination cannot be used (`DictationShortcut.Problem`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ShortcutProblem {
     ReservedForCancel,
     NeedsModifier,
     CtrlOnly,
     NeedsTwoModifiers,
-    /// Modifier chords (Ctrl+Alt alone) need to read the keyboard's state, which
-    /// Wayland doesn't let an app do.
     ModifierOnlyUnsupported,
     NeedsKey,
     UsedByDictation,
@@ -530,7 +480,6 @@ impl fmt::Display for ShortcutProblem {
     }
 }
 
-/// Shown when Ask's shortcut fails to register (`QuickRecallHotKeyController`).
 pub fn ask_registration_failed_message(shortcut: &Shortcut) -> String {
     lokalbot_i18n::format(
         "The Ask shortcut could not register {shortcut}. Another app may already use it.",
@@ -538,8 +487,6 @@ pub fn ask_registration_failed_message(shortcut: &Shortcut) -> String {
     )
 }
 
-/// Shown when selection actions' shortcut fails to register
-/// (`applySelectionActionsSetting`).
 pub fn selection_actions_registration_failed_message(shortcut: &Shortcut) -> String {
     lokalbot_i18n::format(
         "The selection actions shortcut could not register {shortcut}. Another app may already use it.",
@@ -547,8 +494,6 @@ pub fn selection_actions_registration_failed_message(shortcut: &Shortcut) -> Str
     )
 }
 
-/// Shown when dictation's shortcut fails to register. The page then says
-/// "Shortcut inactive."
 pub fn dictation_registration_failed_message(shortcut: &Shortcut) -> String {
     lokalbot_i18n::format(
         "The dictation shortcut could not register {shortcut}. Another app may already use it.",
@@ -570,12 +515,10 @@ impl FromStr for Shortcut {
     }
 }
 
-/// A registered shortcut went down (`pressed`) or up.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ShortcutEvent {
     pub id: String,
     pub pressed: bool,
-    /// A chord of modifiers alone decides for itself what the press means.
     pub chord: Option<crate::chord::ChordAction>,
 }
 
@@ -583,17 +526,14 @@ pub struct ShortcutEvent {
 pub enum ShortcutError {
     #[error("{0}")]
     Invalid(ShortcutProblem),
-    /// Another app or the desktop holds the combination.
     #[error("{}", ShortcutProblem::Unavailable.message())]
     InUse,
-    /// This desktop cannot register global shortcuts for apps.
     #[error("{0}")]
     Unsupported(String),
     #[error("The shortcut could not be registered: {0}")]
     Failed(String),
 }
 
-/// Suggested when a desktop has no way to register shortcuts for apps.
 pub const BIND_COMMAND_HINT: &str = "Add a shortcut in your desktop's keyboard settings that runs “lokalbot dictate --toggle” for dictation, “lokalbot quick-recall” for Ask or “lokalbot selection-actions” for selection actions.";
 
 pub(crate) type Handler = Arc<dyn Fn(ShortcutEvent) + Send + Sync>;
@@ -603,7 +543,6 @@ fn shared_handler(handler: impl Fn(ShortcutEvent) + Send + 'static) -> Handler {
     Arc::new(move |event| (handler.lock())(event))
 }
 
-/// Registers global shortcuts until dropped. Create one per process.
 pub struct GlobalShortcuts {
     backend: Backend,
     handler: Handler,
@@ -652,7 +591,6 @@ impl GlobalShortcuts {
         }
     }
 
-    /// Which mechanism delivers the shortcuts: `win32`, `x11` or `portal`.
     pub fn backend_name(&self) -> &'static str {
         match &self.backend {
             #[cfg(windows)]
@@ -666,10 +604,6 @@ impl GlobalShortcuts {
         }
     }
 
-    /// Starts watching a chord of modifiers alone under `id`. Nothing is taken
-    /// from other apps, so nothing can refuse it except a desktop that doesn't
-    /// let an app read the keyboard. `active` says whether a dictation is
-    /// starting or recording.
     pub fn register_chord(
         &mut self,
         id: &str,
@@ -689,10 +623,6 @@ impl GlobalShortcuts {
         Ok(())
     }
 
-    /// Registers `shortcut` under `id`, replacing what `id` had. On Wayland
-    /// the desktop may ask the user to confirm the shortcut; the call returns
-    /// once the request is sent (or after a few seconds) and the binding then
-    /// completes in the background.
     pub fn register(&mut self, id: &str, shortcut: &Shortcut) -> Result<(), ShortcutError> {
         if shortcut.is_modifier_only() {
             return Err(ShortcutError::Invalid(
@@ -726,10 +656,6 @@ impl GlobalShortcuts {
 
 #[cfg(any(windows, target_os = "linux"))]
 mod hotkey {
-    //! `global-hotkey` behind a worker thread. On Windows its hidden window
-    //! needs a message loop on the thread that created it, so the worker runs
-    //! one; GPUI's main-thread loop is never involved.
-
     use std::collections::HashMap;
     use std::sync::{LazyLock, Once};
     use std::thread::JoinHandle;
@@ -741,8 +667,6 @@ mod hotkey {
 
     use super::{Handler, Key, Shortcut, ShortcutError, ShortcutEvent};
 
-    /// `global-hotkey` allows one event handler per process; it forwards
-    /// here, to whichever [`Worker`] is current.
     struct Dispatch {
         handler: Option<Handler>,
         ids: HashMap<u32, String>,
@@ -885,7 +809,6 @@ mod hotkey {
         }
     }
 
-    /// `ERROR_REQUIRES_INTERACTIVE_WINDOWSTATION`: a service or SSH session.
     const NO_INTERACTIVE_DESKTOP: i32 = 1459;
 
     fn map_error(err: global_hotkey::Error) -> ShortcutError {
@@ -903,7 +826,6 @@ mod hotkey {
         }
     }
 
-    /// Handles one command; false once the worker should stop.
     fn handle(manager: &GlobalHotKeyManager, command: Command) -> bool {
         match command {
             Command::Register(hotkey, reply) => {
@@ -1085,10 +1007,6 @@ mod hotkey {
 
 #[cfg(target_os = "linux")]
 mod portal {
-    //! The XDG `GlobalShortcuts` portal (KDE Plasma, Hyprland, GNOME 48+).
-    //! Runs on its own thread and D-Bus connection, registered under the
-    //! app id so the desktop can remember the user's choices.
-
     use std::collections::BTreeMap;
     use std::thread::JoinHandle;
     use std::time::Duration;
@@ -1116,7 +1034,6 @@ mod portal {
         thread: Option<JoinHandle<()>>,
     }
 
-    /// How long `register` waits for the desktop before returning.
     const REPLY_WAIT: Duration = Duration::from_secs(3);
 
     impl Worker {
@@ -1149,7 +1066,6 @@ mod portal {
                 .map_err(|_| ShortcutError::Failed("the shortcut thread stopped".into()))?;
             match rx.recv_timeout(REPLY_WAIT) {
                 Ok(result) => result,
-                // The desktop is probably showing its confirmation dialog.
                 Err(_) => Ok(()),
             }
         }
@@ -1216,13 +1132,11 @@ mod portal {
                 return;
             }
         };
-        if let Ok(app_id) = crate::APP_ID.parse() {
-            // Older portals have no registry; they identify the app themselves.
-            if let Err(err) =
+        if let Ok(app_id) = crate::APP_ID.parse()
+            && let Err(err) =
                 ashpd::register_host_app_with_connection(connection.clone(), app_id).await
-            {
-                log::debug!("portal registry: {err}");
-            }
+        {
+            log::debug!("portal registry: {err}");
         }
         let portal = match Portal::with_connection(connection).await {
             Ok(portal) => portal,
@@ -1300,7 +1214,6 @@ mod portal {
         }
     }
 
-    /// A session serializes as its object path.
     fn session_path(session: &Session<Portal>) -> Option<String> {
         serde_json::to_value(session)
             .ok()
@@ -1408,7 +1321,6 @@ mod tests {
         assert_eq!(s("Ctrl+Space").dictation_problem(None), None);
         assert_eq!(s("Ctrl+Shift+S").dictation_problem(None), None);
         assert_eq!(s("Ctrl").dictation_problem(None), Some(NeedsTwoModifiers));
-        // Two modifiers alone, where the desktop lets an app watch them.
         assert_eq!(s("Ctrl+Alt").typing_problem_where(true), None);
         assert_eq!(
             s("Ctrl+Alt").typing_problem_where(false),
@@ -1522,8 +1434,6 @@ mod tests {
         assert_eq!(s("Ctrl+Alt").portal_trigger(), None);
     }
 
-    /// Exercises the worker thread and its message loop. Over SSH (session 0)
-    /// the keys can never be pressed, but registration must still work.
     #[cfg(windows)]
     #[test]
     fn windows_registration_round_trip() {
@@ -1536,13 +1446,11 @@ mod tests {
         match shortcuts.register("dictation", &chord) {
             Ok(()) => {}
             Err(ShortcutError::Unsupported(reason)) => {
-                // SSH runs in session 0, which has no interactive desktop.
                 eprintln!("registration unsupported here: {reason}");
                 return;
             }
             Err(err) => panic!("{err}"),
         }
-        // The same combination twice is refused before reaching Windows.
         assert!(matches!(
             shortcuts.register("ask", &chord),
             Err(ShortcutError::InUse)
@@ -1551,7 +1459,6 @@ mod tests {
         shortcuts.unregister("dictation").unwrap();
         shortcuts.unregister("ask").unwrap();
         drop(shortcuts);
-        // A new instance after the first is gone.
         let mut again = GlobalShortcuts::new(|_| {}).unwrap();
         again.register("dictation", &chord).unwrap();
     }

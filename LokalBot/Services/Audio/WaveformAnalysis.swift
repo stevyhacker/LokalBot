@@ -2,8 +2,6 @@ import AVFoundation
 import Accelerate
 import Foundation
 
-/// Peak envelopes for all audible tracks on the player's shared timeline.
-/// This is an activity overview, not a phase-accurate mix of the source signals.
 enum WaveformAnalysis {
     struct Source: Hashable, Sendable {
         let url: URL
@@ -33,7 +31,6 @@ enum WaveformAnalysis {
                 return peaks
             }
             guard let peaks = decode(request), !Task.isCancelled else { return nil }
-            // Do not save or publish an envelope if a source changed mid-read.
             guard key == cacheKey(request) else { return nil }
             cache.setObject(PeaksBox(peaks), forKey: key)
             writeDiskCache(peaks, request: request, key: key as String)
@@ -47,8 +44,6 @@ enum WaveformAnalysis {
         }
     }
 
-    /// The disk cache lives with the recording, so deleting a meeting removes
-    /// its derived peaks too. It stores only 1,024 floats and source identities.
     private struct DiskEntry: Codable {
         let key: String
         let peaks: [Float]
@@ -77,7 +72,6 @@ enum WaveformAnalysis {
     private static func writeDiskCache(_ peaks: [Float], request: Request, key: String) {
         guard !Task.isCancelled, let url = diskCacheURL(for: request),
               let data = try? JSONEncoder().encode(DiskEntry(key: key, peaks: peaks)) else { return }
-        // A read-only folder must never prevent playback or waveform loading.
         try? data.write(to: url, options: .atomic)
     }
 
@@ -85,12 +79,8 @@ enum WaveformAnalysis {
         cache.removeAllObjects()
     }
 
-    /// File identity includes modification time and size so replacing a recording
-    /// at the same path does not reuse its old waveform on the next load.
     private static func cacheKey(_ request: Request) -> NSString {
         let files = request.sources.map { source in
-            // URL resource values can be cached by Foundation for this URL
-            // instance; ask the filesystem afresh on every load.
             let attributes = try? FileManager.default.attributesOfItem(atPath: source.url.path)
             let size = attributes?[.size] as? NSNumber
             let modified = attributes?[.modificationDate] as? Date
@@ -99,9 +89,6 @@ enum WaveformAnalysis {
         return ("\(request.duration):" + files.joined(separator: "\n")) as NSString
     }
 
-    /// Bounded PCM buffers keep long recordings off the main actor without
-    /// allocating a full decoded file. Sample time, rather than each track's
-    /// length, determines the bin, so shorter tracks never stretch to fill it.
     static func decode(_ request: Request) -> [Float]? {
         guard request.duration.isFinite, request.duration > 0 else { return nil }
         var combined = [Float](repeating: 0, count: binCount)
@@ -144,8 +131,6 @@ enum WaveformAnalysis {
                 let time = Double(absolute) / format.sampleRate
                 guard time < duration else { break }
                 let bin = min(binCount - 1, Int(time / duration * Double(binCount)))
-                // Reduce a whole bin/chunk intersection at once. The old loop
-                // performed divisions and Swift array updates for every sample.
                 let boundary = ceil(Double(bin + 1) * duration / Double(binCount) * format.sampleRate)
                 let remaining = Double(frameCount - frame)
                 let count = max(1, Int(min(remaining, max(0, boundary - Double(absolute)))))
@@ -155,7 +140,6 @@ enum WaveformAnalysis {
                     var maximum: Float = 0
                     vDSP_maxmgv(samples, 1, &maximum, vDSP_Length(count))
                     if !maximum.isFinite {
-                        // Malformed PCM must not poison the entire envelope.
                         maximum = 0
                         for index in 0..<count where samples[index].isFinite {
                             maximum = max(maximum, abs(samples[index]))
@@ -172,8 +156,6 @@ enum WaveformAnalysis {
         return peaks
     }
 
-    /// Pool peaks to the available width instead of overflowing a narrow player
-    /// or dropping brief sounds between sampled points.
     static func resample(_ peaks: [Float], width: Double) -> [Float] {
         guard !peaks.isEmpty, width.isFinite, width > 0 else { return [] }
         let count = min(peaks.count, max(1, Int(min(width / 4, Double(peaks.count)))))

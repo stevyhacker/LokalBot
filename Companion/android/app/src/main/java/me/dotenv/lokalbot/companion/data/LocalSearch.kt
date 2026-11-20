@@ -5,10 +5,6 @@ import me.dotenv.lokalbot.companion.data.model.DayRecord
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.data.model.Transcript
 
-/**
- * Substring search over records held in memory, for the sample library. The
- * synced library uses the Rust store's FTS5 index instead.
- */
 object LocalSearch {
 
     fun search(

@@ -1,22 +1,8 @@
 import Foundation
 
-/// Reads what Fireflies.ai lets a person download for a meeting, from the
-/// Download icon at the bottom of the meeting: the transcript (JSON, SRT, CSV,
-/// or MD), the summary (JSON or MD), and the audio (MP3) or video (MP4). It
-/// also reads JSON shaped like the Fireflies API's `transcript`, which API
-/// backup tools save, and the text transcripts, summaries, and JSON metadata
-/// of an account data export. Files of one meeting are put together by name
-/// ("Weekly sync transcript.json" and "Weekly sync summary.md") or by sharing a
-/// folder of their own. PDF and DOCX downloads aren't read.
-///
-/// Fireflies doesn't document the layout of its downloads, so each format is
-/// read defensively: JSON keys match without regard to case or underscores,
-/// times may be seconds, milliseconds, or "00:01:02", and text transcripts
-/// may put the speaker and time before each line or on a line above it.
 enum FirefliesMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.fireflies
     static let exportHint = "In Fireflies, open the meeting from Meetings, click the Download icon at the bottom, and download the Transcript as JSON (or SRT) and the Summary as JSON or MD; add the Audio (MP3) to keep the recording. Choose those files or a folder holding them, or the .zip from Fireflies' account data export."
-    /// Fireflies keeps meetings in its cloud; nothing readable stays on the Mac.
     static let defaultLocations: [String] = []
 
     static func recognizes(_ url: URL) -> Bool {
@@ -45,8 +31,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return isDirectory.boolValue ? try readFolder(url) : try readFile(url)
     }
 
-    // MARK: - Files and folders
-
     private enum Kind: Equatable {
         case json, subtitle, table, text, media, unsupported, other
 
@@ -65,7 +49,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         var isParsed: Bool { [.json, .subtitle, .table, .text].contains(self) }
     }
 
-    /// Why one file couldn't be read. Never quotes the file.
     private enum Failure: Error {
         case unreadable, invalidJSON, empty
 
@@ -78,8 +61,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// What one file says about a meeting. Several pieces of one meeting
-    /// (transcript, summary, metadata) are merged before it becomes one.
     private struct Piece {
         var file: URL
         var id: String?
@@ -90,9 +71,7 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         var lines: [ExternalMeeting.Line] = []
         var notes: String?
         var actions: [ExternalMeeting.ActionItem] = []
-        /// Came from a JSON file holding several meetings.
         var fromCollection = false
-        /// Came from JSON, whose fields win over text guessed from a layout.
         var isStructured = false
 
         var hasContent: Bool {
@@ -103,7 +82,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
     private static func readFile(_ url: URL) throws -> ExternalImportScan {
         switch Kind(url) {
         case .media:
-            // A recording chosen on its own: LokalBot transcribes it.
             let title = fallbackTitle(for: url)
             let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
             let meeting = ExternalMeeting(
@@ -137,8 +115,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         var media: [URL] = []
         for file in ExternalImportText.files(in: folder) {
             if Kind(file) == .media {
-                // A recording only joins a meeting whose transcript or notes
-                // sit beside it; on its own it is just an audio file.
                 media.append(file)
                 continue
             }
@@ -188,7 +164,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// The first 64 KB, for the quick checks in `recognizes`.
     private static func peek(_ url: URL) -> String? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
@@ -213,7 +188,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
                        "\"rawtext\"", "\"meetingattendees\"", "\"bulletgist\"", "fireflies"]
         if markers.contains(where: squeezed.contains) { return true }
         if squeezed.contains("\"speaker") && (squeezed.contains("\"text\"") || squeezed.contains("\"sentence")) { return true }
-        // Meeting details without a transcript, as an account export keeps them.
         return squeezed.contains("\"title\"")
             && ["\"date", "\"duration\"", "\"participants\"", "\"organizer"].contains(where: squeezed.contains)
     }
@@ -232,12 +206,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return sections.count >= 2 || transcriptLike
     }
 
-    // MARK: - Putting meetings together
-
-    /// One meeting per group of files: a folder's files that share a name
-    /// once words like "transcript" or "summary" are dropped, or all of a
-    /// folder's files when it holds one meeting. Meetings from a JSON file
-    /// that holds several take in the groups that name their id or title.
     private static func assemble(_ pieces: [Piece], media: [URL]) -> [ExternalMeeting] {
         let collected = pieces.filter(\.fromCollection)
         let single = pieces.filter { !$0.fromCollection }
@@ -277,7 +245,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             var ids: [String] = []
             for piece in group.pieces { if let pieceID = piece.id, !ids.contains(pieceID) { ids.append(pieceID) } }
             if ids.count > 1 {
-                // Different meetings that happen to share a name: keep them apart.
                 for pieceID in ids {
                     meetings.append(meeting(from: merge(group.pieces.filter { $0.id == pieceID }), media: nil))
                 }
@@ -297,9 +264,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return meetings.filter { !$0.isEmpty }
     }
 
-    /// The meeting of a several-meeting JSON file that a group of files
-    /// belongs to: one whose id is in a file's path, else the only one with
-    /// the group's name as its title.
     private static func collectedMatch(_ stem: String, files: [URL], in collected: [Piece]) -> Int? {
         let paths = files.map { $0.path.lowercased() }
         if let index = collected.indices.first(where: { index in
@@ -317,8 +281,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         files.first { ["mp3", "m4a", "wav"].contains($0.pathExtension.lowercased()) } ?? files.first
     }
 
-    /// One meeting from its pieces. JSON wins over text guessed from a
-    /// layout, and a timed transcript wins over an untimed one.
     private static func merge(_ pieces: [Piece]) -> Piece {
         let ordered = pieces.enumerated().sorted { lhs, rhs in
             let left = (lhs.element.id != nil ? 0 : 1, lhs.element.isStructured ? 0 : 1, lhs.offset)
@@ -354,9 +316,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             actionItems: piece.actions, audioURL: media, origin: piece.file)
     }
 
-    /// Fireflies' own id when a file kept it (a JSON `id` or a link to the
-    /// meeting); otherwise a hash of the start and title, or of the title and
-    /// the first words, which a newer download of the same meeting repeats.
     private static func sourceID(for piece: Piece, title: String) -> String {
         if let id = piece.id?.trimmingCharacters(in: .whitespacesAndNewlines), !id.isEmpty { return id }
         if let start = piece.startedAt {
@@ -367,12 +326,8 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return ExternalImportText.stableID("fireflies", key(title), key(anchor))
     }
 
-    // MARK: - Names
-
     private static let roleWords = "transcript|transcription|summary|ai notes|notes|audio|video|recording|metadata|meta|captions|subtitles|action items|fireflies"
 
-    /// A file's name without words that only say which part of a meeting it
-    /// holds, as letters and digits: "Weekly_sync - Transcript" is "weekly sync".
     private static func groupStem(_ url: URL) -> String {
         var stem = url.deletingPathExtension().lastPathComponent.lowercased()
         var previous = ""
@@ -385,24 +340,20 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return key(stem)
     }
 
-    /// A readable title from a file name, keeping the words of the title.
     private static func fallbackTitle(for url: URL) -> String {
         var stem = url.deletingPathExtension().lastPathComponent
         stem = stem.replacingOccurrences(of: "\\s*[_.(\\[–—-]+\\s*(\(roleWords))[)\\]]?\\s*$", with: "",
                                          options: [.regularExpression, .caseInsensitive])
-        // "Design sync transcript", but not "Team notes" or "Spatial audio".
         stem = stem.replacingOccurrences(of: "\\s+(transcript|transcription|summary|captions|subtitles|metadata)\\s*$",
                                          with: "", options: [.regularExpression, .caseInsensitive])
         stem = stem.replacingOccurrences(of: "^(\(roleWords))\\s*[_:.–—-]+\\s*", with: "",
                                          options: [.regularExpression, .caseInsensitive])
         stem = collapseSpaces(stem.replacingOccurrences(of: "_", with: " "))
         if !stem.isEmpty, groupStem(url) != "" { return stem }
-        // "transcript.txt" in a folder of its own: the folder names the meeting.
         let folder = collapseSpaces(url.deletingLastPathComponent().lastPathComponent.replacingOccurrences(of: "_", with: " "))
         return folder.isEmpty || folder == "/" ? "Fireflies meeting" : folder
     }
 
-    /// Letters and digits only, lowercased, words separated by one space.
     private static func key(_ text: String) -> String {
         let scalars = text.lowercased().unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : " " }
         return String(scalars).split(separator: " ").joined(separator: " ")
@@ -432,7 +383,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             && name.split(separator: " ").count <= 5
     }
 
-    /// The meeting's id in a link to it, "app.fireflies.ai/view/Title::ID".
     private static func viewID(in text: String) -> String? {
         guard let range = text.range(of: #"app\.fireflies\.ai/view/[^\s)\]"'<>]+"#, options: .regularExpression) else {
             return nil
@@ -444,12 +394,9 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             let id = String(slug[separator.upperBound...])
             return id.count >= 6 && id.allSatisfy({ $0.isLetter || $0.isNumber }) ? id : nil
         }
-        // Without "::" only a bare id counts; a title alone isn't unique.
         return slug.count >= 16 && slug.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) ? slug : nil
     }
 
-    /// "Powered by Fireflies.ai" and links back to Fireflies, which branded
-    /// downloads add and which say nothing about the meeting.
     private static func isBranding(_ line: String) -> Bool {
         let lowered = line.lowercased()
         guard lowered.contains("fireflies"), line.split(separator: " ").count <= 15 else { return false }
@@ -458,21 +405,17 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
                              options: .regularExpression) != nil
     }
 
-    // MARK: - JSON
-
     private static func jsonPieces(_ url: URL) throws -> [Piece] {
         let text = try readText(url)
         guard let object = try? JSONSerialization.jsonObject(with: Data(text.utf8), options: [.fragmentsAllowed]) else {
             throw Failure.invalidJSON
         }
         var root = object
-        // GraphQL answers wrap the payload: {"data": {"transcript": {…}}}.
         if let dictionary = root as? [String: Any], let data = field(dictionary, "data"), data is [String: Any] || data is [Any] {
             root = data
         }
         if let dictionary = root as? [String: Any], dictionary.count <= 2 {
             if var inner = field(dictionary, "transcript") as? [String: Any] {
-                // {"transcript": {…}, "summary": {…}} keeps the summary beside it.
                 if field(inner, "summary") == nil, let summary = field(dictionary, "summary") { inner["summary"] = summary }
                 root = inner
             } else if let list = (field(dictionary, "transcripts") ?? field(dictionary, "meetings")) as? [Any] {
@@ -525,7 +468,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             if let email { emails.insert(email.lowercased()) }
             if let name = string(field(attendee, "displayname", "name")) ?? email { names.append(name) }
         }
-        // Fireflies sometimes keeps every address in one comma-separated string.
         let addresses = ((field(dictionary, "participants") as? [Any]) ?? [field(dictionary, "participants") as Any])
             .compactMap { string($0) }
             .flatMap { $0.split(whereSeparator: { $0 == "," || $0 == ";" }).map { $0.trimmingCharacters(in: .whitespaces) } }
@@ -543,8 +485,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             piece.lines = transcriptLines(text.components(separatedBy: "\n"))
         }
         if let minutes {
-            // The API counts minutes. A file that counted seconds gives about
-            // the transcript's own length, which as minutes would be far too long.
             let lastTime = piece.lines.compactMap { $0.end ?? $0.start }.max() ?? 0
             let countsSeconds = lastTime > 60 && (lastTime * 0.5...lastTime * 2).contains(minutes)
             piece.duration = countsSeconds ? minutes : minutes * 60
@@ -558,16 +498,12 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             piece.notes = document.notes
             piece.actions = document.actions
         }
-        // A summary download may keep its fields at the top level.
         let topLevel = summaryNotes(dictionary)
         if piece.notes == nil { piece.notes = topLevel.notes }
         if piece.actions.isEmpty { piece.actions = topLevel.actions }
         return piece
     }
 
-    /// Fireflies' summary fields as Markdown, in the order its meeting page
-    /// shows them, and its action items. Action items stay out of the notes;
-    /// the writer lists them after.
     private static func summaryNotes(_ summary: [String: Any]) -> (notes: String?, actions: [ExternalMeeting.ActionItem]) {
         var sections: [String] = []
         func add(_ heading: String, _ value: Any?) {
@@ -619,9 +555,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// Fireflies writes action items as lines grouped under each owner's
-    /// name in bold, each ending with when it was said: "**Ana**\nSend the
-    /// deck (03:12)".
     private static func actionItems(fromText text: String) -> [ExternalMeeting.ActionItem] {
         var owner: String?
         var items: [ExternalMeeting.ActionItem] = []
@@ -650,7 +583,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return items
     }
 
-    /// An item without its bullet, checkbox, bold, or trailing "(03:12)".
     private static func stripActionDecoration(_ line: String) -> String {
         var text = line.trimmingCharacters(in: .whitespaces)
         text = text.replacingOccurrences(of: "^([-*•‣◦+]|\\d{1,3}[.)])\\s+", with: "", options: .regularExpression)
@@ -668,8 +600,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             ? nil : cleaned
     }
 
-    /// Sentences as transcript lines, joined into turns the way subtitle
-    /// cues are, so a meeting reads the same from JSON or SRT.
     private static func sentenceLines(_ list: [Any], speakers: [String: String], duration: TimeInterval?) -> [ExternalMeeting.Line] {
         var lines: [ExternalMeeting.Line] = []
         var inMilliseconds = false
@@ -702,8 +632,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             }
             lines.append(.init(start: start, end: end, speaker: speaker, text: text))
         }
-        // Times in milliseconds would put the meeting's end many times past
-        // its length, or days away when the file doesn't say its length.
         let latest = lines.compactMap { $0.end ?? $0.start }.max() ?? 0
         if let duration, duration > 0 {
             inMilliseconds = latest > max(duration * 20, 1_000)
@@ -743,8 +671,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return result
     }
 
-    /// A value under any of `names`, matching keys without regard to case,
-    /// underscores, or spaces: "speakername" finds "speaker_name".
     private static func field(_ dictionary: [String: Any], _ names: String...) -> Any? {
         for name in names {
             if let value = dictionary[name], !(value is NSNull) { return value }
@@ -775,15 +701,12 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return nil
     }
 
-    /// Seconds from a number or from "62.5" or "00:01:02.5".
     private static func time(_ value: Any?) -> TimeInterval? {
         if let seconds = number(value), seconds >= 0 { return seconds }
         guard let text = value as? String else { return nil }
         return ExternalImportText.timestamp(text)
     }
 
-    /// The API's `date` counts milliseconds since 1970; other files may
-    /// count seconds or write ISO 8601.
     private static func date(_ value: Any?) -> Date? {
         if let text = value as? String, let parsed = ExternalImportText.date(text) ?? looseDate(text) { return parsed }
         guard let raw = number(value), raw > 0 else { return nil }
@@ -807,8 +730,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         }
         return nil
     }
-
-    // MARK: - CSV
 
     private static func tablePiece(_ url: URL, text: String) -> Piece {
         var piece = Piece(file: url)
@@ -844,7 +765,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return counts.max { $0.1 < $1.1 }.flatMap { $0.1 > 0 ? $0.0 : nil } ?? ","
     }
 
-    /// Which columns hold the speaker, text, and times, from the header.
     private static func tableColumns(_ header: [String]) -> (speaker: Int?, text: Int, start: Int?, end: Int?, inMilliseconds: Bool)? {
         let names = header.map { key($0).replacingOccurrences(of: " ", with: "") }
         func exact(_ options: [String]) -> Int? { names.firstIndex(where: options.contains) }
@@ -863,8 +783,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return (speaker, text, start, end == start ? nil : end, inMilliseconds)
     }
 
-    /// RFC 4180 rows: quoted fields may hold the delimiter, quotes ("") and
-    /// line breaks.
     private static func delimitedRows(_ text: String, delimiter: Character) -> [[String]] {
         var rows: [[String]] = []
         var row: [String] = []
@@ -902,14 +820,10 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return rows
     }
 
-    // MARK: - Markdown and text
-
     private enum Role { case transcript, summary, unknown }
 
     private enum SectionKind { case notes, actions, transcript }
 
-    /// What a text download says: a title and details at the top, then
-    /// summary sections, action items, and the transcript, in any order.
     private struct TextDocument {
         var title: String?
         var startedAt: Date?
@@ -949,7 +863,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
                 if kind == nil, trimmed.hasPrefix("# "), document.title == nil, sections.count == 1 {
                     document.title = heading
                 } else if kind != nil || trimmed.hasPrefix("#") {
-                    // Notes keep their headings; a transcript's isn't a line.
                     sections.append((kind ?? .notes, kind == .transcript ? [] : [row]))
                 } else {
                     sections[sections.count - 1].rows.append(row)
@@ -957,7 +870,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
                 continue
             }
             if let lead = sectionLead(trimmed), let kind = sectionKind(lead) {
-                // "Action items: Send the deck" starts a section on one line.
                 let rest = trimmed.split(separator: ":", maxSplits: 1).dropFirst().first.map(String.init) ?? ""
                 sections.append((kind, kind == .notes ? [row] : [rest]))
                 continue
@@ -986,8 +898,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
             document.startedAt = timeText.flatMap { looseDate(dateText + " " + $0) } ?? date(dateText)
         }
 
-        // The part before any heading: a transcript when most of it is
-        // spoken lines, else notes.
         let preamble = sections[0].rows
         let preambleKind: SectionKind
         switch role {
@@ -1027,8 +937,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return labeled >= 2 && labeled * 10 >= filled * 3
     }
 
-    /// The text of a Markdown heading, a line in bold, or a line that is only
-    /// a known section name such as "Action Items:".
     private static func headingText(_ line: String) -> String? {
         if line.hasPrefix("#") {
             let hashes = line.prefix { $0 == "#" }.count
@@ -1051,7 +959,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return cleaned.trimmingCharacters(in: .whitespaces)
     }
 
-    /// The name before the colon of "Overview: …".
     private static func sectionLead(_ line: String) -> String? {
         guard let colon = line.firstIndex(of: ":") else { return nil }
         let lead = cleanHeading(String(line[..<colon]))
@@ -1085,7 +992,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return known.contains(name) && !value.isEmpty ? (name, value) : nil
     }
 
-    /// "00:32:10", "32 min", or "1h 5m" in seconds.
     private static func durationValue(_ value: String) -> TimeInterval? {
         if let seconds = ExternalImportText.timestamp(value) { return seconds }
         var total: TimeInterval = 0
@@ -1103,15 +1009,9 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return found ? total : nil
     }
 
-    // MARK: - Text transcripts
-
-    /// One row of a text transcript.
     private enum Row {
         case blank
-        /// A time on its own line, for the line below it.
         case time(TimeInterval)
-        /// A speaker, and maybe a time, above what they said. `firm` when the
-        /// row can't be anything else ("**Ana**", "Ana:", "Ana (00:01)").
         case header(speaker: String, start: TimeInterval?, firm: Bool)
         case spoken(speaker: String?, start: TimeInterval?, text: String)
         case text(String)
@@ -1184,9 +1084,6 @@ enum FirefliesMeetingReader: ExternalMeetingReader {
         return .text(line)
     }
 
-    /// Lines from a text transcript in any of the layouts Fireflies and
-    /// other tools write: "[00:01:02] Ana: …", "Ana (00:01): …", "Ana: …",
-    /// or the speaker and time on a line above what they said.
     private static func transcriptLines(_ rows: [String]) -> [ExternalMeeting.Line] {
         let tokens = rows.map(classify)
         let labeled = tokens.contains { $0.isLabeled }

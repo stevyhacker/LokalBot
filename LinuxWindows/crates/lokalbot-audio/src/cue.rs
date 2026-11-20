@@ -1,7 +1,3 @@
-//! The short cue played when the dictation microphone starts delivering audio
-//! (`DictationCoordinator.startSound`, "Tink" at 0.35 on macOS). It is
-//! synthesized, so no sound file ships with the app.
-
 use std::time::Duration;
 
 use rodio::buffer::SamplesBuffer;
@@ -9,7 +5,6 @@ use rodio::buffer::SamplesBuffer;
 const RATE: u32 = 44_100;
 const SECONDS: f32 = 0.07;
 const FREQUENCY: f32 = 1_760.0;
-/// As quiet as the Mac's.
 const VOLUME: f32 = 0.35;
 
 fn samples() -> Vec<f32> {
@@ -24,7 +19,6 @@ fn samples() -> Vec<f32> {
         .collect()
 }
 
-/// Plays the cue on its own thread. A machine with no output just stays quiet.
 pub fn play_start() {
     let spawned = std::thread::Builder::new()
         .name("lokalbot-dictation-cue".into())
@@ -41,7 +35,6 @@ pub fn play_start() {
             };
             sink.mixer()
                 .add(SamplesBuffer::new(channels, rate, samples()));
-            // Hold the device until the sound has played.
             std::thread::sleep(Duration::from_secs_f32(SECONDS) + Duration::from_millis(60));
         });
     if let Err(err) = spawned {

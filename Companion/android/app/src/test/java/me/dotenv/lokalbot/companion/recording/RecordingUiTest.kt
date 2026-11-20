@@ -53,7 +53,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
-/** The record button, row wording and confirmations, on Robolectric. */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "en-rGB-w411dp-h891dp-hdpi")
 class RecordingUiTest {
@@ -85,7 +84,6 @@ class RecordingUiTest {
         assertThat(deleted).isEqualTo(1)
     }
 
-    /** Pairing again is how recordings held after a removal get sent. */
     @Test
     fun `the pairing screen works again after pairing once`() {
         fun link() = PairingLinkFixture.link(System.currentTimeMillis() / 1000 + 300)
@@ -106,7 +104,6 @@ class RecordingUiTest {
 
     private fun show(library: CompanionRepository, destination: Destination = Destination.Meetings, recorder: MeetingRecorder = recorder(library)) {
         compose.setContent {
-            // Robolectric's window isn't in touch mode, as a phone's is.
             CompositionLocalProvider(LocalInputModeManager provides Touchscreen) {
                 LokalBotTheme(darkTheme = false, reduceMotion = true) {
                     LokalBotApp(
@@ -151,7 +148,6 @@ class RecordingUiTest {
         val library = PairedTestLibrary()
         show(library)
         compose.onNodeWithContentDescription("Record a meeting").assertIsDisplayed()
-        // Nothing to show yet, so no section.
         compose.onNodeWithText("From this device").assertDoesNotExist()
     }
 
@@ -169,7 +165,6 @@ class RecordingUiTest {
         show(library, Destination.Today, recorder)
         compose.onNodeWithText("Meetings").performClick()
         compose.onNode(hasSetTextAction()).assertIsNotFocused()
-        // Nor on the way back from recording, where it would open the keyboard.
         compose.runOnUiThread {
             recorder.requestStart()
             recorder.begin()
@@ -177,7 +172,6 @@ class RecordingUiTest {
         compose.onNodeWithText("Stop").performClick()
         compose.waitUntil { recorder.state.value == RecorderState.Idle }
         compose.onNode(hasSetTextAction()).assertIsNotFocused()
-        // A tap still does.
         compose.onNode(hasSetTextAction()).performClick()
         compose.onNode(hasSetTextAction()).assertIsFocused()
     }
@@ -197,7 +191,6 @@ class RecordingUiTest {
         assertThat(RecordingStatus.Waiting("Update LokalBot.").text(resources, null).detail).isEqualTo("Update LokalBot.")
         assertThat(RecordingStatus.Waiting(null, computerTurnedItOff = true).text(resources, null).detail)
             .isEqualTo(resources.getString(R.string.recording_turned_off))
-        // What the computer said last wins over a manifest that can be stale.
         assertThat(RecordingStatus.Waiting("Disk full.", computerTurnedItOff = true).text(resources, null).detail).isEqualTo("Disk full.")
         assertThat(RecordingStatus.Waiting(null).text(resources, null).detail).isNull()
     }
@@ -263,13 +256,11 @@ class RecordingUiTest {
         compose.onNodeWithText("Stop").assertIsDisplayed()
         compose.onNodeWithText("Let everyone know you're recording.").assertIsDisplayed()
 
-        // Back leaves it recording, and the list says so.
         compose.onNodeWithContentDescription("Back to LokalBot. It keeps recording.").performClick()
         compose.onNodeWithText("Search meetings").assertIsDisplayed()
         compose.onNodeWithText("From this device").assertIsDisplayed()
         assertThat(recorder.isActive).isTrue()
 
-        // The row returns to it.
         compose.onNodeWithText("Phone recording").performClick()
         compose.onNodeWithText("Stop").performClick()
         compose.waitUntil { recorder.state.value == RecorderState.Idle }

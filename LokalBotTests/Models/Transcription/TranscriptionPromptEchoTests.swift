@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// A prompt-capable speech model answers a near-silent span with its
-/// vocabulary hint. Synthetic names stand in for the rows seen in a library.
 final class TranscriptionPromptEchoTests: XCTestCase {
     private let prompt = "LokalBot\nJelena Marković, Them 6 · source 2, Mila Novak, Orion Launch, Acme."
 

@@ -2,8 +2,6 @@ import Combine
 import XCTest
 @testable import LokalBot
 
-/// Live Radar: what one pass sends, which replies survive the grounding
-/// checks, and the pass loop over a scripted live transcript. No network.
 final class MeetingRadarAnalyzerTests: XCTestCase {
     private let meetingID = UUID()
     private let earlierID = UUID()
@@ -82,13 +80,10 @@ final class MeetingRadarAnalyzerTests: XCTestCase {
     func testRejectsInventedQuotesAndUnsupportedContradictions() throws {
         var next = 0
         let outcome = MeetingRadarAnalyzer.apply(reply: try reply([
-            // Not said in any new line.
             ["kind": "commitment", "text": "Ana books the venue", "owner": "Ana", "due": "",
              "line": "L3", "quote": "Ana will book the venue tomorrow", "evidence": ""],
-            // Quoted from context, not from a new line.
             ["kind": "decision", "text": "Pricing page ships first", "owner": "", "due": "",
              "line": "L1", "quote": "pricing page has to ship before the launch", "evidence": ""],
-            // A contradiction must cite a passage it was shown.
             ["kind": "contradiction", "text": "Launch date changed", "owner": "", "due": "",
              "line": "L4", "quote": "the launch is Friday the seventh now", "evidence": "E9"],
             ["kind": "summary", "text": "Not a kind", "owner": "", "due": "", "line": "L2",
@@ -170,7 +165,6 @@ private final class StubEvidence: RadarEvidenceSource {
     }
 }
 
-/// A Think engine that returns one reply and keeps what it was asked.
 final class RadarThinkEngine: TextEngine, @unchecked Sendable {
     struct Request {
         var system: String
@@ -198,7 +192,6 @@ final class RadarThinkEngine: TextEngine, @unchecked Sendable {
         return next()
     }
 
-    /// The replies in order; the last one repeats.
     private func next() -> String {
         replies.count > 1 ? replies.removeFirst() : (replies.first ?? "")
     }
@@ -246,8 +239,6 @@ final class MeetingRadarTests: XCTestCase {
         XCTAssertNil(MeetingRadar.unavailableReason(settings))
     }
 
-    /// Live Radar used to be offered once Meta Muse was approved. Settings
-    /// saved before it had its own switch keep it on with that approval.
     func testSettingsFromBeforeTheSwitchKeepLiveRadarWhereMetaMuseWasApproved() throws {
         func decoded(_ json: String) throws -> AppSettings {
             try JSONDecoder().decode(AppSettings.self, from: Data(json.utf8))
@@ -263,8 +254,6 @@ final class MeetingRadarTests: XCTestCase {
         XCTAssertTrue(try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(chosen)).liveRadarEnabled)
     }
 
-    /// Without its own calls, the radar asks the Think engine: a pass as one
-    /// schema-held reply, named after the Think model and with no cost.
     func testPassesRunOnTheThinkModel() async throws {
         let feed = ScriptedFeed()
         var settings = AppSettings()
@@ -320,10 +309,7 @@ final class MeetingRadarTests: XCTestCase {
                 return MuseChatClient.Reply(content: content, toolCalls: [],
                                             usage: .init(inputTokens: 1_000, outputTokens: 100), finishReason: "stop")
             },
-            // A model with a price, as when the hosted film runs the radar on
-            // Meta's models: the pass cost is counted from the reply's tokens.
             modelName: { _ in MetaModelAPI.museSpark.id },
-            // The stubbed call needs no setup; the switch is covered above.
             availability: { _ in nil },
             timing: .init(minimumInterval: .seconds(60), burstLines: 100, idlePoll: .milliseconds(5)))
         let meeting = Meeting(id: UUID(), title: "Synthetic sync", appName: "Meet", startedAt: Date(), relativePath: "m")
@@ -335,7 +321,6 @@ final class MeetingRadarTests: XCTestCase {
         XCTAssertEqual(radar.items.first?.owner, "Me")
         XCTAssertEqual(prompts.count, 1)
 
-        // The interval holds the next line until the recording ends.
         let first = feed.subject.value
         feed.subject.send(first + [.init(time: 9, speaker: "them", text: "Sounds good, thanks.")])
         try await Task.sleep(for: .milliseconds(50))

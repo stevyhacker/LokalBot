@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The user's own follow-ups lead every meeting: commitments spoken on this
-/// Mac's microphone and requests the user answered, ahead of other people's work.
 final class PersonalActionItemsTests: XCTestCase {
     private actor Script {
         var replies: [String]
@@ -30,7 +28,6 @@ final class PersonalActionItemsTests: XCTestCase {
     }
 
     private func microphone(_ start: Double, _ text: String, speaker: String = "local 1") -> Transcript.Segment {
-        // Persisted exactly as transcripts were while the microphone default was off.
         .init(start: start, end: start + 4, speaker: speaker, text: text,
               attribution: .init(source: .microphone, identity: .unresolved, method: .diarization))
     }
@@ -56,8 +53,6 @@ final class PersonalActionItemsTests: XCTestCase {
         return evidence.validate(try response(actions: actions), units: evidence.units, template: .meeting,
                                  meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
     }
-
-    // MARK: - Requests directed to the user
 
     func testPersonalObligationQuotedFromContextOwnsTheTaskAndAnchorsItsCitation() throws {
         let obligation = "I think I still have to review one change."
@@ -121,7 +116,6 @@ final class PersonalActionItemsTests: XCTestCase {
         let result = try validate(transcript, [raw])
         XCTAssertTrue(result.rejected.isEmpty)
         XCTAssertEqual(result.outcomes.actionItems.first?.attribution?.resolution, .other)
-        // The recap as source does not change who said they would do it.
         raw["source"] = "s1"
         raw["context"] = ["s2"]
         let recapFirst = try validate(transcript, [raw])
@@ -165,13 +159,11 @@ final class PersonalActionItemsTests: XCTestCase {
         let wrapped = try validate(transcript, [raw])
         XCTAssertTrue(try XCTUnwrap(wrapped.outcomes.actionItems.first).isForUser)
         XCTAssertEqual(wrapped.outcomes.actionItems.first?.attribution?.quote, quote)
-        // A quote the model got wrong does not unsay what the cited row says.
         raw["quote"] = "I need to review the document."
         let misquoted = try validate(transcript, [raw])
         XCTAssertTrue(misquoted.rejected.isEmpty)
         XCTAssertTrue(try XCTUnwrap(misquoted.outcomes.actionItems.first).isForUser)
         XCTAssertEqual(misquoted.outcomes.actionItems.first?.attribution?.quote, quote, "The saved quote is what was said")
-        // Words the model was never shown prove nothing.
         let evidence = MeetingNotesEvidence(transcript: transcript)
         var clipped = evidence.units[0]
         clipped.text = "review the change."
@@ -269,8 +261,6 @@ final class PersonalActionItemsTests: XCTestCase {
         }
     }
 
-    // MARK: - Speaker echo
-
     func testNearDuplicateEchoCannotBecomeMyEvidenceWhileMyOwnSpeechStaysMine() throws {
         var echo = microphone(3, "I will take a holiday before Patagonia.")
         echo.end = 9
@@ -294,8 +284,6 @@ final class PersonalActionItemsTests: XCTestCase {
         XCTAssertEqual(result.outcomes.userActionItems.map(\.text), ["Send the deck tomorrow"])
         XCTAssertEqual(result.rejected.map(\.reason), ["unknown_source"])
     }
-
-    // MARK: - Keep tasks whose wording escaped the commitment check
 
     func testWeeklyMeetingCommitmentsKeepUserOwnershipAcrossSplitTranscriptRows() throws {
         let shipping = "Yeah, so on my side, I'll try to keep up the the shipping cadence and review all the things as they come."
@@ -393,8 +381,6 @@ final class PersonalActionItemsTests: XCTestCase {
                        "An English statement with no undertaking is still not a task")
     }
 
-    /// Wording checks read English. In any other language the cited voice
-    /// and the model's claim decide, or the user would never own a task.
     func testNonEnglishCommitmentsFollowTheCitedVoiceAndTheModelsClaim() throws {
         let meetings: [(String, String, String)] = [
             ("Te mando el informe del presupuesto mañana por la mañana.",
@@ -422,8 +408,6 @@ final class PersonalActionItemsTests: XCTestCase {
         }
     }
 
-    /// Transcripts often open with noise heard as another language. That
-    /// opening used to switch the English checks off for the whole meeting.
     func testAForeignSoundingOpeningDoesNotMakeAnEnglishMeetingForeign() {
         var segments = [remote(0, "them 1", "Est-ce que le courrier est arrivé? demanda-t-il. Merkle ist eine Mutter. È d'ordine, e d'oro.")]
         for index in 1...40 {
@@ -432,8 +416,6 @@ final class PersonalActionItemsTests: XCTestCase {
         }
         XCTAssertTrue(MeetingNotesEvidence(transcript: Transcript(segments: segments, engine: "fixture")).isEnglishMeeting)
     }
-
-    // MARK: - Ranking
 
     func testLikelyUserActionsRankAheadOfOtherParticipants() {
         func citation(_ speaker: String, _ start: Double) -> OutcomeSourceCitation {
@@ -459,8 +441,6 @@ final class PersonalActionItemsTests: XCTestCase {
         XCTAssertFalse(unclearRemote.isLikelyUserAction)
         XCTAssertFalse(remote[0].isLikelyUserAction)
     }
-
-    // MARK: - End to end
 
     func testTirthStyleMeetingListsMyCommitmentsAndRequestsFirst() async throws {
         let transcript = Transcript(segments: [
@@ -506,8 +486,6 @@ final class PersonalActionItemsTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Actions are not minor details"))
         XCTAssertTrue(prompt.contains("the user answers in the next row"))
     }
-
-    // MARK: - Setting
 
     @MainActor
     func testMicrophoneSettingDefaultsOnRoundTripsAndReachesTranscripts() throws {

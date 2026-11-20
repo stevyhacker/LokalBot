@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Suggestion anchor cache
-
 final class CotypingSuggestionAnchorCacheTests: XCTestCase {
     private var clock = Date(timeIntervalSince1970: 1_000_000)
     private let requestFingerprint = "request-a"
@@ -97,8 +95,6 @@ final class CotypingSuggestionAnchorCacheTests: XCTestCase {
         XCTAssertNil(cache.remainder(identityKey: "field", requestFingerprint: requestFingerprint, precedingText: "Hello"))
     }
 
-    /// A tail shown again from the cache can still be topped up when the
-    /// suggestion it came from could.
     func testARestoredTailKeepsWhetherItMayBeToppedUp() throws {
         var cache = makeCache()
         cache.record(identityKey: "field", requestFingerprint: requestFingerprint, precedingText: "Hello",

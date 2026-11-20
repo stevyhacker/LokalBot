@@ -1,8 +1,3 @@
-//! Building blocks of a list beside a page, shared by People and Projects
-//! (`WorkspacePageBlocks.swift`): a page with a side column of reference
-//! blocks, a page section's heading, a side block, a decision with its
-//! meeting, a meeting title row and a small label chip.
-
 use gpui_kit::component::tooltip::Tooltip;
 use gpui_kit::component::v_flex;
 use gpui_kit::prelude::FluentBuilder as _;
@@ -16,29 +11,18 @@ use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
-/// Between a page's sections, and between the side column's blocks
-/// (`WorkspaceMetric.sectionGap`).
 pub const SECTION_GAP: f32 = 22.;
-/// The side column's width at the standard text size
-/// (`PageSideColumnLayout.sideWidth`).
 pub const WIDTH: f32 = 252.;
-/// The page keeps at least this much beside the column.
 pub const PAGE_MINIMUM_WIDTH: f32 = 388.;
 
-/// The side column's width; it grows with the text size.
 pub fn width(text_scale: f32) -> f32 {
     (WIDTH * text_scale.max(1.)).round()
 }
 
-/// Where the side column goes (`PageSideColumnLayout`): beside the page
-/// while the pane has room for both, under it otherwise.
 pub fn beside(pane_width: f32, text_scale: f32) -> bool {
     pane_width >= ((PAGE_MINIMUM_WIDTH + WIDTH) * text_scale.max(1.)).round()
 }
 
-/// How wide the page's own column is (`PageWithSideColumn`), for content
-/// that picks its layout by width: beside the side column it takes what the
-/// column leaves, under it the page keeps to the reading width.
 pub fn main_width(pane_width: f32, text_scale: f32, has_side: bool) -> f32 {
     let padding = f32::from(metric::DETAIL_PADDING);
     if has_side && beside(pane_width, text_scale) {
@@ -49,10 +33,6 @@ pub fn main_width(pane_width: f32, text_scale: f32, has_side: bool) -> f32 {
     }
 }
 
-/// A scrolling page with a side column of reference blocks at its trailing
-/// edge, divided by a line that runs the pane's height (`PageWithSideColumn`).
-/// A narrow pane puts the blocks under the page. With nothing for the page
-/// itself, the blocks are the page.
 pub fn page(
     id: impl Into<ElementId>,
     main: Vec<AnyElement>,
@@ -116,8 +96,6 @@ pub fn page(
         .into_any_element()
 }
 
-/// A page section's heading (`PageSectionHeading`): its name, how many rows
-/// follow, and one link.
 pub fn section_heading(
     title: impl Into<SharedString>,
     count: Option<usize>,
@@ -151,8 +129,6 @@ pub fn section_heading(
         })
 }
 
-/// One block of the side column (`SideColumnBlock`): a quiet heading over a
-/// few links or rows.
 pub fn side_block(title: impl Into<SharedString>, count: Option<usize>, cx: &App) -> Div {
     let lb = cx.lb();
     v_flex().w_full().gap(px(6.)).child(
@@ -177,8 +153,6 @@ pub fn side_block(title: impl Into<SharedString>, count: Option<usize>, cx: &App
     )
 }
 
-/// A capsule label (`LabelChip`): amber for what needs the reader, quiet
-/// otherwise. A list's badge is the small size.
 pub fn label_chip(text: impl Into<SharedString>, attention: bool, small: bool, cx: &App) -> Div {
     let lb = cx.lb();
     let (fill, color) = if attention {
@@ -206,10 +180,6 @@ pub fn label_chip(text: impl Into<SharedString>, attention: bool, small: bool, c
         .child(text.into())
 }
 
-/// A decision with the meeting it was made in at the trailing edge
-/// (`PageDecisionRow`). People names the meeting quietly; Projects, whose
-/// decisions come from many meetings, shows it with its date as an accent
-/// link (`accent`). `description` is the meeting with its date, on hover.
 pub fn decision_row(
     id: impl Into<ElementId>,
     text: impl Into<SharedString>,
@@ -260,7 +230,6 @@ pub fn decision_row(
         .into_any_element()
 }
 
-/// Whether a meeting row opens something or folds a series.
 #[derive(Clone, Copy, PartialEq)]
 pub enum Disclosure {
     None,
@@ -268,8 +237,6 @@ pub enum Disclosure {
     Expanded,
 }
 
-/// A meeting title in the side column with its detail under it and a
-/// chevron that turns down while a series is open (`MeetingLinkRow`).
 pub fn meeting_link_row(
     id: SharedString,
     title: String,
@@ -348,9 +315,7 @@ mod tests {
 
     #[test]
     fn the_page_column_is_what_the_side_column_leaves_or_the_reading_width() {
-        // Beside: 1000 − 252 − 28 − 32.
         assert_eq!(main_width(1000., 1.0, true), 688.);
-        // Under: the reading width, never wider.
         assert_eq!(main_width(1000., 1.0, false), 720.);
         assert_eq!(main_width(600., 1.0, true), 544.);
     }

@@ -20,21 +20,17 @@ VERIFIED catches up.
 
 VERIFIED = "2026-10-26"
 
-# When LokalBot's own facts on these pages last changed (not the competitors').
-# It moves dateModified and the sitemap's lastmod, but not "Last verified".
 LOKALBOT_UPDATED = "2026-11-10"
 
 CHECK = '<i class="ph ph-check" aria-hidden="true"></i>'
 CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
 
-# Shared LokalBot cells
 LB_ASR = "On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac"
 LB_DICTATION = f"{CHECK}Hold ⌥ Space (Alt+Space on Windows and Linux) in any app"
 LB_TIMELINE = f"{CHECK}App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days"
 LB_COTYPING = f"{CHECK}Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma)"
 LB_AGENTS = "Read-only CLI and MCP server, off until you turn them on in Settings"
 LB_PLATFORM = "macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; Android companion app"
-# Measured for the Mac engines; the Windows and Linux models differ.
 LB_LANGUAGES = "On Mac: 52 languages and dialects with the default model; 99 with Whisper"
 NO = f"{CROSS}No"
 

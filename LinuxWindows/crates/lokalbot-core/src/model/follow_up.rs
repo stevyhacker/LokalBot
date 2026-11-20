@@ -1,7 +1,3 @@
-//! `follow-up-draft.json` in a meeting folder (`FollowUpDraft` in
-//! `MeetingOutcomeState.swift`): the follow-up the user reviews, copies and
-//! sends themselves. LokalBot never sends it.
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -27,7 +23,6 @@ pub struct FollowUpDraft {
     pub body: String,
     #[serde(with = "iso_millis", default = "Utc::now")]
     pub updated_at: DateTime<Utc>,
-    /// Still the outline built from the outcomes, not edited or saved.
     #[serde(default)]
     pub seeded: bool,
     #[serde(default)]
@@ -46,8 +41,6 @@ fn default_schema() -> u32 {
 }
 
 impl FollowUpDraft {
-    /// The outline macOS starts from (`FollowUpDraft.seeded`): up to three
-    /// decisions and five next steps with their owners and due dates.
     pub fn seeded(meeting: &Meeting, outcomes: &MeetingOutcomes) -> Self {
         let title = meeting.display_title();
         let decisions: Vec<String> = outcomes

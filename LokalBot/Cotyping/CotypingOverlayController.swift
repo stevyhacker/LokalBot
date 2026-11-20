@@ -1,29 +1,16 @@
 import AppKit
 
-/// The floating ghost text. One borderless, non-activating, click-through
-/// `NSPanel` at the caret in global Cocoa coordinates. It never becomes key or
-/// main, so the host app keeps keyboard focus while a suggestion shows.
-///
-/// Inline suggestions are drawn in the field's own font, starting at the caret
-/// on the field's baseline. Accepting or topping up an inline suggestion moves
-/// it from the layout already on screen, without waiting for another
-/// Accessibility read. An inline suggestion is never drawn over text: what does
-/// not fit after the caret, or on free lines inside the field, is left out,
-/// and `acceptanceText` says what is shown.
 @MainActor
 final class CotypingOverlayController {
     private var panel: CotypingOverlayPanel?
     private var ghostView: CotypingGhostTextView?
     private(set) var isVisible = false
-    /// What an accept can take: the suggestion on screen, which may be only
-    /// the start of the text it was given.
     private(set) var acceptanceText: String?
     private let sampler = CotypingBackgroundSampler()
     private var sampleGeneration = 0
     private var samplingInFlight = false
     private var inline: InlineState?
 
-    /// What the visible inline ghost was laid out from.
     private struct InlineState {
         var text: String
         var layout: CotypingInlineGhostLayout
@@ -37,26 +24,12 @@ final class CotypingOverlayController {
         var luminance: CGFloat?
     }
 
-    /// Room around the glyph boxes so antialiased edges are never clipped.
     private static let inlinePadding: CGFloat = 2
     private static let chromePadding = CGSize(width: 8, height: 4)
     private static let mirrorPointSizes: ClosedRange<CGFloat> = 11...17
 
-    /// Whether the suggestion on screen is drawn at the caret, in the text.
     var isShowingInline: Bool { isVisible && inline != nil }
 
-    /// - Parameters:
-    ///   - acceptanceText: what an accept inserts, when it differs from what
-    ///     is drawn.
-    ///   - mayShowPart: an inline suggestion may be cut short after any word
-    ///     that fits, as a continuation can; `acceptanceText` is then what is
-    ///     drawn. Otherwise it is drawn whole or not at all.
-    ///   - trailingText: the field's text after the caret. Wrapped lines are
-    ///     never drawn over it.
-    ///   - emphasisLength: characters of `text` the next accept takes; nil
-    ///     when one accept takes all of it.
-    ///   - backgroundKey: the field, for reusing the background measured
-    ///     behind it (`CotypingFieldIdentity.background(for:)`).
     func show(
         text: String,
         caretRect: CGRect,
@@ -122,10 +95,6 @@ final class CotypingOverlayController {
         }
     }
 
-    /// Moves a visible inline ghost past text that was just accepted or typed,
-    /// to where the host will show the caret, without waiting for it. False
-    /// when that place is only known once the host shows the text; the ghost
-    /// is then left as it was.
     @discardableResult
     func advanceInline(
         to remainingText: String,
@@ -140,8 +109,6 @@ final class CotypingOverlayController {
               !insertedText.isEmpty,
               state.text.hasPrefix(insertedText),
               String(state.text.dropFirst(insertedText.count)) == remainingText,
-              // Measured as typed: the host draws every space, while the ghost
-              // draws a run of them as one.
               let caret = CotypingInlineGhostLayout.caretRect(
                   afterTyping: insertedText, font: state.layout.font,
                   caretRect: state.caretRect, inputFrameRect: state.inputFrameRect,
@@ -158,9 +125,6 @@ final class CotypingOverlayController {
         return presentInline(state)
     }
 
-    /// Adds words to the end of a visible inline ghost, as many as fit where
-    /// it may be drawn. Words already on screen keep their places, and
-    /// `acceptanceText` grows by the words added.
     @discardableResult
     func extendInline(to text: String, emphasisLength: Int? = nil) -> Bool {
         guard isVisible,
@@ -178,9 +142,6 @@ final class CotypingOverlayController {
         return presentInline(state)
     }
 
-    /// Whether a re-read caret is close enough to the visible ghost to leave it
-    /// where it is. Hosts often publish an insertion before its caret moves,
-    /// so a short backward jump right after an accept is held too.
     func shouldHoldInlineReanchor(
         text: String,
         caretRect: CGRect,
@@ -222,9 +183,6 @@ final class CotypingOverlayController {
         sampleGeneration += 1
     }
 
-    // MARK: - Presentation
-
-    /// `text`, or the state's own, laid out like the ghost on screen.
     private func relayout(_ state: InlineState, text: String? = nil) -> CotypingInlineGhostLayout {
         .make(
             text: text ?? state.text, font: state.layout.font, caretRect: state.caretRect,
@@ -233,13 +191,10 @@ final class CotypingOverlayController {
             linesBelowAreFree: state.linesBelowAreFree, wrapEdge: state.layout.wrapEdge)
     }
 
-    /// The caret's paragraph up to the caret.
     private nonisolated static func lastParagraph(of precedingText: String) -> String {
         String(precedingText.split(separator: "\n", omittingEmptySubsequences: false).last ?? "")
     }
 
-    /// Whether the lines under the caret hold no text, so a suggestion may
-    /// wrap onto them.
     nonisolated static func linesBelowAreFree(trailingText: String) -> Bool {
         !trailingText.contains { !$0.isWhitespace }
     }
@@ -268,8 +223,6 @@ final class CotypingOverlayController {
         return true
     }
 
-    /// A popup one line below the caret, for carets with text after them on
-    /// the line, or outside the field for carets without exact geometry.
     private func presentMirror(
         text: String, font fieldFont: NSFont, caretRect: CGRect, caretIsExact: Bool,
         inputFrameRect: CGRect?, visible: CGRect?, emphasisLength: Int, isRightToLeft: Bool
@@ -287,7 +240,6 @@ final class CotypingOverlayController {
         guard let frame = CotypingOverlayGeometry.popupFrame(
             caret: caretRect, caretIsExact: caretIsExact, field: inputFrameRect,
             content: content, visible: visible)?.integral else { return false }
-        // Center each glyph box in its line, top line first.
         let glyphBox = font.ascender - font.descender
         var offset = 0
         var drawn: [CotypingGhostTextView.Line] = []
@@ -321,9 +273,6 @@ final class CotypingOverlayController {
         isVisible = true
     }
 
-    /// The first suggestion in a field is drawn against its reported
-    /// colors; the real pixels behind it are then sampled once and the color
-    /// corrected if it would be hard to read.
     private func sampleBackground(behind caretRect: CGRect, forField fieldKey: String?) {
         guard !samplingInFlight else { return }
         samplingInFlight = true
@@ -339,13 +288,10 @@ final class CotypingOverlayController {
         }
     }
 
-    /// Whether the system is in dark mode. The overlay panel's appearance can
-    /// lag the active app, so consult AppKit's effective appearance.
     private static var prefersDarkEnvironment: Bool {
         NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 
-    /// Visible frame of the screen containing `rect`, or nil if none matches.
     private func screenVisibleFrame(containing rect: CGRect) -> CGRect? {
         let point = CGPoint(x: rect.midX, y: rect.midY)
         return NSScreen.screens.first(where: { $0.frame.contains(point) })?.visibleFrame
@@ -365,7 +311,6 @@ final class CotypingOverlayController {
         panel.animationBehavior = .none
         panel.level = NSWindow.Level(rawValue: NSWindow.Level.statusBar.rawValue + 2)
         panel.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .ignoresCycle]
-        // Keep the ghost out of screenshots, recordings, and background sampling.
         panel.sharingType = .none
 #if LOKALBOT_TEST_HOOKS
         if TestHooks.filmsAutocomplete { panel.sharingType = .readOnly }
@@ -378,7 +323,6 @@ final class CotypingOverlayController {
     }
 }
 
-/// A panel that never steals keyboard focus from the app being typed into.
 final class CotypingOverlayPanel: NSPanel {
     override var canBecomeKey: Bool { false }
     override var canBecomeMain: Bool { false }

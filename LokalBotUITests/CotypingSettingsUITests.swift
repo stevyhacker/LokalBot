@@ -1,8 +1,5 @@
 import XCTest
 
-/// Hosted coverage for autocomplete inside Settings → Autocomplete.
-/// The legacy cotyping keys remain internal; user-facing language and routes
-/// are Autocomplete throughout.
 final class CotypingSettingsUITests: XCTestCase {
     private var app: XCUIApplication!
     private var fixture: SyntheticFixture.Library!
@@ -31,8 +28,6 @@ final class CotypingSettingsUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    /// The page opens with its settings; readiness is the header's status
-    /// lines, and the rehearsal is the header's "Try it…" sheet.
     func testAutocompleteExperienceShowsReadinessPreviewAndPrivacy() {
         let lines = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "settings.status.writing."))
@@ -52,8 +47,6 @@ final class CotypingSettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { !insert.exists }, "Done closes the rehearsal")
     }
 
-    /// Every setting the page had is still there: on the page, or on the
-    /// page one of its More rows opens, with a way back.
     func testAutocompleteRowsOpenTheirPagesAndComeBack() {
         let form = app.scrollViews["settings.form"]
         let pages = [("settings.autocomplete.profile", app.buttons["Forget learned text"]),

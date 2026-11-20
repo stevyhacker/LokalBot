@@ -1,51 +1,33 @@
 import AppKit
 import CoreGraphics
 
-/// The app a selection action was invoked from.
 struct SelectionSource: Equatable, Sendable {
     let processID: pid_t
     let bundleID: String?
     let appName: String
 }
 
-/// What the selection actions shortcut found in the frontmost app. The text
-/// lives only in memory for the panel's lifetime and is never stored.
 struct SelectionCaptureResult: Equatable, Sendable {
     enum Issue: Equatable, Sendable {
-        /// LokalBot lacks Accessibility access, so it cannot read or paste.
         case accessibilityNeeded
-        /// The app is on the user's exclusion list; nothing was read.
         case excludedApp
-        /// A password or other secure field has focus; nothing was read.
         case secureField
-        /// Focus changed or could not be verified; no selection is accepted.
         case focusChanged
     }
 
     var source: SelectionSource?
     var text = ""
-    /// The editable field the selection sits in (with its selection range),
-    /// where a result can replace the selection or be inserted at the caret.
-    /// Nil for read-only text such as a web page or a PDF.
     var target: DictationDeliveryTarget?
     var issue: Issue?
-    /// The app did not share its selection through Accessibility, so LokalBot
-    /// copied it and restored the clipboard.
     var readThroughClipboard = false
 
     var hasSelection: Bool { !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-    /// A result can go back into the source app's field.
     var canInsert: Bool { target != nil && issue == nil }
     var isClipped: Bool { text.count > SelectionActionPrompt.selectionCharacterLimit }
 }
 
-/// Reads the selected text in the frontmost app once, on an explicit
-/// shortcut press. Accessibility comes first; apps that do not expose their
-/// selection that way (many Electron and web views) get a synthetic ⌘C whose
-/// result is read and the previous clipboard put back.
 @MainActor
 enum SelectionCapture {
-    /// Longest selection kept in memory; the prompt uses less.
     nonisolated static let maximumCharacters = 50_000
 
     struct Dependencies {
@@ -94,7 +76,6 @@ enum SelectionCapture {
             result.issue = .secureField
             return result
         }
-        // Only an editable field has an identity; read-only text cannot take a replacement.
         if snapshot.focusIdentityKey?.isEmpty == false {
             result.target = DictationDeliveryTarget.captured(from: snapshot)
         }
@@ -119,8 +100,6 @@ enum SelectionCapture {
         return result
     }
 
-    /// Off the main thread with a wall-clock deadline, so a wedged app costs
-    /// a short wait instead of a beachball.
     private static func readThroughAccessibility(source: SelectionSource, excludedApps: [String]) async -> String? {
         let limit = maximumCharacters
         return await boundedRead {
@@ -142,7 +121,6 @@ enum SelectionCapture {
     }
 }
 
-/// Resumes a continuation with the first value only.
 private final class ResumeOnce<Value: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Value?, Never>?
@@ -160,9 +138,6 @@ private final class ResumeOnce<Value: Sendable>: @unchecked Sendable {
     }
 }
 
-/// The ⌘C fallback. The copy comes from the source app, so clipboard managers
-/// may record it like any copy the person makes; the previous clipboard is
-/// restored right after, marked as generated.
 @MainActor
 enum SelectionClipboardCopy {
     struct Dependencies {
@@ -199,7 +174,6 @@ enum SelectionClipboardCopy {
     static func copySelection(from source: SelectionSource, excludedApps: [String],
                               timeout: Duration = .milliseconds(450),
                               dependencies: Dependencies = .live) async -> String? {
-        // The shortcut's own modifiers may still be held; ⌃⇧⌘C is not Copy.
         await dependencies.waitForModifiers()
         guard !Task.isCancelled, await dependencies.isAllowed(source, excludedApps),
               !Task.isCancelled, dependencies.isFrontmost(source) else { return nil }
@@ -211,12 +185,9 @@ enum SelectionClipboardCopy {
         while dependencies.changeCount() == before, clock.now < deadline, !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(15))
         }
-        // Nothing selected: the app copied nothing and the clipboard is untouched.
         guard dependencies.changeCount() != before else { return nil }
         let copiedGeneration = dependencies.changeCount()
         defer { if dependencies.changeCount() == copiedGeneration { restore() } }
-        // Re-check after the app handles Copy. A changed app/secure field is
-        // never read, and a newer clipboard generation is not ours to restore.
         guard !Task.isCancelled, await dependencies.isAllowed(source, excludedApps),
               !Task.isCancelled, dependencies.isFrontmost(source),
               dependencies.changeCount() == copiedGeneration else { return nil }
@@ -238,17 +209,14 @@ enum SelectionClipboardCopy {
         source?.setLocalEventsFilterDuringSuppressionState(
             [.permitLocalMouseEvents, .permitSystemDefinedEvents],
             state: .eventSuppressionStateSuppressionInterval)
-        // Virtual key 0x08 is C.
         guard let down = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: true),
               let up = CGEvent(keyboardEventSource: source, virtualKey: 0x08, keyDown: false) else {
             return false
         }
         down.flags = .maskCommand
         up.flags = .maskCommand
-        // Marked so Autocomplete's and Dictation's input taps ignore it.
         CotypingSyntheticMarker.mark(down)
         CotypingSyntheticMarker.mark(up)
-        // Bind the event destination even if focus moves between validation and posting.
         down.postToPid(processID)
         up.postToPid(processID)
         return true

@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The stock macOS dictionary set (abridged): notably no sr/hr/bs — Serbian,
-/// Croatian, Bosnian, and Montenegrin have no spell-check support at all.
 private let stockLanguages = ["en", "en_GB", "en_CA", "de", "fr", "ru", "bg", "pt_BR", "pt_PT", "sl"]
 
 final class CotypingSpellLanguageGateTests: XCTestCase {
@@ -31,8 +29,6 @@ final class CotypingSpellLanguageGateTests: XCTestCase {
     }
 
     func testAmbiguousShortContextKeepsVerdicts() {
-        // Recognizer confidence for one-word fragments varies by macOS model;
-        // the gate must not stand down without multi-word language evidence.
         XCTAssertTrue(CotypingSpellLanguageGate.spellVerdictsApply(
             context: "sasta", availableLanguages: stockLanguages))
         XCTAssertTrue(CotypingSpellLanguageGate.spellVerdictsApply(
@@ -47,8 +43,6 @@ final class CotypingSpellLanguageGateTests: XCTestCase {
     }
 
     func testIdentificationWindowsToCaretContext() {
-        // An English preamble must not keep the gate armed once the text at
-        // the caret is a full window of Serbian.
         let serbianTail = String(
             repeating: "Vidimo se sutra na sastanku i onda pričamo o izvještaju. ",
             count: 5)

@@ -29,8 +29,6 @@ enum AppleSpeechError: LocalizedError, Equatable, Sendable {
 enum AppleSpeechVocabulary {
     static let maxContextualPhrases = 100
 
-    /// Parses comma-, semicolon-, middot-, or newline-separated vocabulary hints
-    /// into deduplicated phrases capped at Apple Speech's 100-phrase limit.
     static func contextualStrings(from prompt: String?) -> [String] {
         guard let normalized = TranscriptionPrompt.normalized(prompt) else { return [] }
         let separators = CharacterSet(charactersIn: ",;·").union(.newlines)
@@ -50,11 +48,6 @@ enum AppleSpeechVocabulary {
     }
 }
 
-/// On-device transcription via Apple's macOS 26+ `SpeechAnalyzer` framework.
-///
-/// Mirrors `AppleIntelligenceEngine` by keeping macOS 26 `Speech` symbols
-/// behind `#if canImport(Speech)` and `@available(macOS 26.0, *)` so the
-/// macOS 15.0 deployment target stays intact.
 actor AppleSpeechEngine: TranscriptionEngine {
     struct RawUtterance: Equatable, Sendable {
         var start: TimeInterval
@@ -239,7 +232,6 @@ actor AppleSpeechEngine: TranscriptionEngine {
                     }
                     continue
                 }
-                // Keep the full result span when some recognized words have no usable time.
                 guard let range = run.audioTimeRange, range.start.seconds.isFinite else { return [] }
                 let start = max(0, range.start.seconds)
                 let end = range.end.seconds

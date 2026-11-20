@@ -1,7 +1,5 @@
 import XCTest
 
-/// Flows with the host's background work running on replayed inputs
-/// (tracking, detection, recording, pipeline, schedulers). Hosted CI only.
 final class BackgroundFlowUITests: XCTestCase {
     private var library: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -25,9 +23,6 @@ final class BackgroundFlowUITests: XCTestCase {
                       "missing UI test fixture \(directory)/\(name)")
     }
 
-    /// Starts the Bun stub with the committed GLM notes/digest recordings
-    /// (`Fixtures/background/scenario.json`, produced by
-    /// `Scripts/test/day-in-the-life/scenario.py`) and returns its base URL.
     private func startModelStub() throws -> String {
         let environment = ProcessInfo.processInfo.environment
         guard let bun = environment["LOKALBOT_TEST_BUN"], let script = environment["LOKALBOT_STUB_SCRIPT"] else {
@@ -83,7 +78,7 @@ final class BackgroundFlowUITests: XCTestCase {
         UITestHarness.clickSidebar("sidebar.meetings", in: app)
         app.buttons["toolbar.record"].click()
         sleep(8)
-        app.buttons["toolbar.record"].click() // stop
+        app.buttons["toolbar.record"].click()
         let newRow = app.descendants(matching: .any).matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "meeting.row.")).firstMatch
         XCTAssertTrue(newRow.waitForExistence(timeout: 30))
@@ -95,7 +90,6 @@ final class BackgroundFlowUITests: XCTestCase {
                       "the action owned by me appears in Needs Attention")
         search("eviction")
 
-        // Review the meeting boundary exactly as a user does, then search again (#115).
         UITestHarness.clickSidebar("sidebar.meetings", in: app)
         newRow.click()
         app.descendants(matching: .any)["toolbar.meetingActions"].click()
@@ -136,7 +130,6 @@ final class BackgroundFlowUITests: XCTestCase {
 
     func testDetectedMeetCallStartsAndStopsRecording() throws {
         try launch()
-        // The trace's call runs t=5…40 s.
         let recording = app.descendants(matching: .any)["sidebar.recording"]
         XCTAssertTrue(recording.waitForExistence(timeout: 30), "the detected call starts a recording")
         XCTAssertTrue(UITestHarness.waitUntil(timeout: 90) { !recording.exists },

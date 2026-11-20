@@ -1,18 +1,8 @@
-//! Which languages screen text recognition should read here: the app's and the
-//! system's, not every one, because each added language costs time on every
-//! capture. Also the pinned `tessdata_fast` file of each language.
-
-/// One language Tesseract can read, with its pinned data file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Language {
-    /// The locale it serves, as `lokalbot_i18n` names it where they overlap.
     pub locale: &'static str,
-    /// Tesseract's name for it, and the stem of its file.
     pub name: &'static str,
-    /// What the language calls itself, shown in Settings.
     pub autonym: &'static str,
-    /// Written in Latin letters. Such data also reads English about as well as
-    /// `eng` does (97–99% measured), so these don't need `eng` beside them.
     pub latin: bool,
     pub size: u64,
     pub sha256: &'static str,
@@ -36,10 +26,8 @@ const fn language(
     }
 }
 
-/// The revision of `tesseract-ocr/tessdata_fast` the files below come from.
 pub const TESSDATA_REVISION: &str = "87416418657359cb625c412a48b6e1d6d41c29bd";
 
-/// The app's languages and the most common system ones.
 #[rustfmt::skip]
 pub const LANGUAGES: [Language; 46] = [
     language("en", "eng", "English", true, 4113088, "7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2"),
@@ -90,11 +78,8 @@ pub const LANGUAGES: [Language; 46] = [
     language("ca", "cat", "Català", true, 1146012, "250db73cd5b380d2798581295dc12f20d0828cdb335a65d833d12dfdbf57117d"),
 ];
 
-/// English, the language every list falls back to.
 pub const ENGLISH: &Language = &LANGUAGES[0];
 
-/// The language a locale reads, from forms like `zh_TW.UTF-8`, `sr_RS@latin`,
-/// `sr-Cyrl-RS` or `ar-EG`. `None` for a language with no pinned data.
 pub fn for_locale(locale: &str) -> Option<&'static Language> {
     let lower = locale.trim().to_lowercase().replace('_', "-");
     let latin_modifier = lower.contains("@latin");
@@ -116,10 +101,6 @@ pub fn for_locale(locale: &str) -> Option<&'static Language> {
     LANGUAGES.iter().find(|language| language.locale == code)
 }
 
-/// What to read here: the app's language and the system's first one, with
-/// English beside any other script, because windows in those languages still
-/// show English (measured on rendered mixed screens: Korean 32% alone, 97%
-/// beside English; Arabic 46% and 99%). Script other than Latin comes first.
 pub fn wanted(app: &str, system: &[impl AsRef<str>]) -> Vec<&'static Language> {
     let mut languages: Vec<&'static Language> = Vec::new();
     let first_system = system.first().map(|locale| locale.as_ref());
@@ -137,7 +118,6 @@ pub fn wanted(app: &str, system: &[impl AsRef<str>]) -> Vec<&'static Language> {
     languages
 }
 
-/// The languages this app and system want, for this process.
 pub fn wanted_here() -> Vec<&'static Language> {
     wanted(
         lokalbot_i18n::current().code,
@@ -145,7 +125,6 @@ pub fn wanted_here() -> Vec<&'static Language> {
     )
 }
 
-/// Comparable language and script of a locale or a BCP 47 tag.
 fn key(locale: &str) -> (String, &'static str) {
     let lower = locale.trim().to_lowercase().replace('_', "-");
     let parts: Vec<&str> = lower.split('-').collect();
@@ -169,8 +148,6 @@ fn key(locale: &str) -> (String, &'static str) {
     (parts[0].to_string(), script)
 }
 
-/// The recognizer in `available` (BCP 47 tags) for one of the `wanted` languages,
-/// in their order. Windows runs one recognizer at a time, so this is one tag.
 pub fn pick_recognizer<'a>(
     wanted: &[&'static Language],
     available: &'a [String],
@@ -184,7 +161,6 @@ pub fn pick_recognizer<'a>(
     })
 }
 
-/// A recognizer for this language is among `available`.
 pub fn has_recognizer(language: &Language, available: &[String]) -> bool {
     let wanted_key = key(language.locale);
     available.iter().any(|tag| key(tag) == wanted_key)
@@ -244,7 +220,6 @@ mod tests {
         for app in lokalbot_i18n::LANGUAGES {
             let wanted = wanted(app.code, &[app.code]);
             assert!(!wanted.is_empty(), "{}", app.code);
-            // Hausa and Nigerian Pidgin have no data of their own and read as English.
             if !["ha", "pcm"].contains(&app.code) {
                 assert!(for_locale(app.code).is_some(), "{}", app.code);
             }
@@ -253,27 +228,21 @@ mod tests {
 
     #[test]
     fn only_the_app_and_first_system_language_are_loaded() {
-        // English alone needs one language.
         assert_eq!(names(&wanted("en", &["en_US.UTF-8", "de_DE"])), ["eng"]);
-        // Another script comes first, with English beside it.
         assert_eq!(
             names(&wanted("zh-Hans", &["zh_CN.UTF-8"])),
             ["chi_sim", "eng"]
         );
         assert_eq!(names(&wanted("en", &["ru_RU.UTF-8"])), ["rus", "eng"]);
-        // Latin data reads English, so nothing is added to it.
         assert_eq!(names(&wanted("de", &["de_DE.UTF-8"])), ["deu"]);
-        // The later preferences never count.
         assert_eq!(
             names(&wanted("ja", &["ko_KR", "ru_RU", "ar_SA"])),
             ["jpn", "kor", "eng"]
         );
-        // Serbian in both alphabets.
         assert_eq!(
             names(&wanted("sr-Latn", &["sr_RS.UTF-8"])),
             ["srp", "srp_latn"]
         );
-        // A language with no data still reads Latin letters.
         assert_eq!(names(&wanted("ha", &[] as &[&str])), ["eng"]);
     }
 
@@ -286,18 +255,15 @@ mod tests {
             pick_recognizer(&simplified, &available(&["en-US", "zh-Hans-CN"])),
             Some("zh-Hans-CN")
         );
-        // Traditional is not Simplified: English is what is left.
         assert_eq!(
             pick_recognizer(&simplified, &available(&["en-GB", "zh-Hant-TW"])),
             Some("en-GB")
         );
-        // Another script is chosen over Latin, whose recognizer can't read it.
         let japanese_system = wanted("en", &["ja-JP"]);
         assert_eq!(
             pick_recognizer(&japanese_system, &available(&["en-US", "ja-JP"])),
             Some("ja-JP")
         );
-        // Both Serbian alphabets are their own recognizers.
         let serbian = wanted("sr-Latn", &[] as &[&str]);
         assert_eq!(
             pick_recognizer(&serbian, &available(&["sr-Cyrl-RS", "sr-Latn-RS"])),

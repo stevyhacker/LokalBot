@@ -66,7 +66,6 @@ import me.dotenv.lokalbot.companion.ui.components.groupedSurface
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** The LokalBot robot on its slate plate, as on the launcher. */
 @Composable
 fun AppMark(modifier: Modifier = Modifier) {
     Box(modifier.size(88.dp).clip(RoundedCornerShape(22.dp))) {
@@ -75,7 +74,6 @@ fun AppMark(modifier: Modifier = Modifier) {
     }
 }
 
-/** First run: pair with a Mac, or look around the built-in sample library. */
 @Composable
 fun WelcomeScreen(
     onPair: () -> Unit,
@@ -124,7 +122,6 @@ fun WelcomeScreen(
     }
 }
 
-/** Recordings kept after the Mac removed this device. Pairing again sends them. */
 @Composable
 private fun HeldRecordings(count: Int, onDelete: () -> Unit) {
     val palette = LokalBotTheme.palette
@@ -165,10 +162,6 @@ private fun Promise(icon: ImageVector, text: String) {
     }
 }
 
-/**
- * Pairing: scan the QR code the Mac shows (or paste its link), confirm, then
- * wait while the person approves this device on the Mac.
- */
 @Composable
 fun PairingScreen(viewModel: PairingViewModel, initialLink: String?, onDone: () -> Unit, onClose: () -> Unit) {
     val step by viewModel.step.collectAsStateWithLifecycle()
@@ -231,7 +224,6 @@ fun PairingScreen(viewModel: PairingViewModel, initialLink: String?, onDone: () 
                     }
                 }
                 is PairingStep.Paired -> {
-                    // The view model outlives this screen, and pairing again starts over.
                     LaunchedEffect(Unit) {
                         viewModel.restart()
                         onDone()

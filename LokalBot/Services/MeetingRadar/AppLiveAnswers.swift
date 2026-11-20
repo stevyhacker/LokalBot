@@ -1,9 +1,5 @@
 import Foundation
 
-/// Live answers' view of the app: what LokalBot remembers that bears on a
-/// question, Ask's meeting and screen tools, and the folders chosen in
-/// Settings. Everything is read on this Mac; only what the prompt and the
-/// tools return goes to the Think model.
 @MainActor
 final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
     private weak var app: AppState?
@@ -13,8 +9,6 @@ final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
     static let blockCharacters = 2_500
 
     init(app: AppState) { self.app = app }
-
-    // MARK: - Memory first
 
     func context(for question: String, meeting: LiveAnswerMeeting) async -> [LiveAnswerContext] {
         guard let app else { return [] }
@@ -41,8 +35,6 @@ final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
         return items
     }
 
-    /// Tracked projects whose names or "Where it stands" notes share words
-    /// with the question, with their notes.
     private func projects(for query: String) -> [LiveAnswerContext] {
         guard let app else { return [] }
         let words = PersonalContextSelection.contentWords(query)
@@ -69,18 +61,13 @@ final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
         return scored.sorted { $0.score > $1.score }.prefix(Self.projectLimit).map(\.item)
     }
 
-    // MARK: - Folders
-
     func places() async -> [LiveAnswerPlace] {
         let paths = app?.settings.liveAnswerFolders ?? []
-        // Re-read git details now and then, so links point at what is checked out.
         if let cached, cached.paths == paths, Date().timeIntervalSince(cached.at) < 600 { return cached.places }
         let places = await LiveAnswerPlace.load(paths)
         cached = (paths, Date(), places)
         return places
     }
-
-    // MARK: - Library tools
 
     var libraryToolSpecs: [ChatToolSpec] { MeetingChatTools.baseSpecs }
 
@@ -93,7 +80,6 @@ final class AppLiveAnswerEnvironment: LiveAnswerEnvironment {
         default: .meeting
         }
         var output = LiveAnswerToolOutput(text: result.text, kind: kind, title: Self.fallbackTitle(kind))
-        // A result from one meeting names that meeting, and opens it.
         if result.evidence.meetingIDs.count == 1, let short = result.evidence.meetingIDs.first,
            let meeting = app.meetings.first(where: { SessionLookup.shortID($0.id).lowercased() == short }) {
             output.title = "\(meeting.displayTitle) · \(meeting.startedAt.formatted(date: .abbreviated, time: .omitted))"

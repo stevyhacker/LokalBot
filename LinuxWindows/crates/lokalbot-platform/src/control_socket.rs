@@ -1,9 +1,3 @@
-//! The app end of the CLI control socket (`AppControlServer.swift`). It runs
-//! only while the person allows external agents to change settings and accepts
-//! connections from this user only: a Unix socket (mode 0600, in a 0700 folder,
-//! with the peer's user id checked) or a named pipe whose access list holds only
-//! this user and which refuses remote clients.
-
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -21,10 +15,8 @@ use lokalbot_core::control::socket as core_socket;
 
 const IO_TIMEOUT: Duration = Duration::from_secs(10);
 
-/// Answers a request. The handler may keep it and answer later, on any thread.
 pub type Reply = Box<dyn FnOnce(Response) + Send>;
 
-/// Accepts requests until dropped; dropping removes the socket.
 pub struct ControlServer {
     stop: Arc<AtomicBool>,
     endpoint: PathBuf,
@@ -40,10 +32,6 @@ impl ControlServer {
 impl Drop for ControlServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // Wake the blocking accept with a connection of our own, held open until
-        // the thread has gone: a Windows pipe listener skips a client that has
-        // already left, so closing this one first could leave accept waiting and
-        // the join below waiting on it, for good.
         let waker = connect(&self.endpoint);
         if let Some(thread) = self.thread.take()
             && waker.is_ok()
@@ -53,9 +41,6 @@ impl Drop for ControlServer {
     }
 }
 
-/// Listens for requests for the library at `root`. Call while holding the
-/// library's instance lock; a socket left by a crashed run is replaced.
-/// `on_request` runs on the connection's own thread with the caller's name.
 pub fn listen_control(
     root: &Path,
     on_request: impl Fn(Request, String, Reply) + Send + Sync + 'static,
@@ -113,8 +98,6 @@ fn private_options(name: Name<'static>) -> std::io::Result<ListenerOptions<'stat
     let Some(sid) = core_socket::current_user_sid() else {
         return Err(std::io::Error::other("could not find this user's identity"));
     };
-    // A protected list with one entry: no inherited access, and nobody but
-    // this user. Named pipes refuse remote clients unless told otherwise.
     let sddl = widestring::U16CString::from_str(format!("D:P(A;;GA;;;{sid})"))
         .map_err(std::io::Error::other)?;
     let descriptor = SecurityDescriptor::deserialize(&sddl)?;
@@ -137,7 +120,6 @@ fn connect(endpoint: &Path) -> std::io::Result<Stream> {
         .connect_sync()
 }
 
-/// The peer's name for the audit log, or `None` when it runs as another user.
 fn caller(stream: &Stream) -> Option<String> {
     let credentials = stream.peer_creds().ok();
     #[cfg(unix)]

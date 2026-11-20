@@ -1,8 +1,5 @@
 import Foundation
 
-/// The v2 CoreML export fixes ANE compilation on M3 while retaining the GA
-/// checkpoint weights. Keep an immutable, integrity-checked cache rather than
-/// following the upstream downloader's mutable `main` revision.
 enum NemotronDiarizationModels {
     static let repository = "FluidInference/nemotron-3-diarization-coreml"
     static let revision = "25a90f97f254428d4b30374b76af9c74fdee8327"

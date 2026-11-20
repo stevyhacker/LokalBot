@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Values, not an AppState observer: `AppSceneState` publishes the language
-/// and whether Agent is showing, and the App body passes them in.
 struct AgentCommands: Commands {
     let app: AppState
     let language: AppLanguage

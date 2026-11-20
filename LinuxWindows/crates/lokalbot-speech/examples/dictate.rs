@@ -1,7 +1,3 @@
-//! Times the dictation path on a WAV file.
-//!
-//! `cargo run -p lokalbot-speech --release --example dictate -- <library root> <model id> <wav> [threads…]`
-
 use std::time::Instant;
 
 use lokalbot_core::LibraryPaths;

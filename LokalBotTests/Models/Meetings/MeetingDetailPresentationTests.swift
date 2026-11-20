@@ -92,7 +92,6 @@ final class MeetingDetailPresentationTests: XCTestCase {
         XCTAssertEqual(index.caption(at: 29.9)?.speakerKey, "them 1")
         XCTAssertEqual(index.caption(at: 30)?.text, "Where does the load test stand?")
         XCTAssertEqual(index.caption(at: 35)?.speakerKey, "me")
-        // The blank fifth segment is never shown, so the last spoken line stays.
         XCTAssertEqual(index.caption(at: 500)?.segmentIndex, 3)
         XCTAssertEqual(index.caption(at: -3)?.segmentIndex, 0, "before any speech the first line is shown")
         XCTAssertNil(MeetingDetailPresentation.PlayheadIndex().caption(at: 10))
@@ -176,12 +175,9 @@ final class MeetingDetailPresentationTests: XCTestCase {
     }
 
     func testPinnedHeaderTakesTheScrollBarsInset() {
-        // Overlay scroll bars: the scrolling column is as wide as the pane.
         XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 952), 0)
-        // Scroll bars always shown: the column gives up the scroller's width.
         XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 937), 15)
         XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 936.4), 16)
-        // Not yet measured, a rounding difference, or a layout in flight.
         XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 0, scrollContentWidth: 937), 0)
         XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 0), 0)
         XCTAssertEqual(MeetingDetailLayout.pinnedTrailingInset(paneWidth: 952, scrollContentWidth: 951.6), 0)
@@ -194,7 +190,6 @@ final class MeetingDetailPresentationTests: XCTestCase {
         XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: .notes, pageSearchPresented: false), .hidden)
         XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: .transcript, pageSearchPresented: false),
                        .transcriptPanel)
-        // One field at a time: the pinned bar replaces the panel's field.
         for tab in MeetingWorkspaceTab.allCases {
             XCTAssertEqual(MeetingDetailLayout.findPlacement(tab: tab, pageSearchPresented: true), .pinnedBar)
         }
@@ -207,9 +202,7 @@ final class MeetingDetailPresentationTests: XCTestCase {
         XCTAssertGreaterThan(MeetingDetailLayout.proseWidth(textScale: AppTextSize.largest.scale), 860)
         XCTAssertLessThan(MeetingDetailLayout.proseWidth(textScale: AppTextSize.small.scale), 860)
         XCTAssertGreaterThan(MeetingDetailLayout.findFieldWidth(textScale: AppTextSize.largest.scale), 260)
-        // A scale of zero from an unset environment never collapses a width.
         XCTAssertGreaterThan(MeetingDetailLayout.proseWidth(textScale: 0), 0)
-        // The column is wider than the prose it holds and than a row needs.
         XCTAssertGreaterThanOrEqual(MeetingDetailLayout.columnMaximumWidth, 1100)
         XCTAssertGreaterThan(MeetingDetailLayout.columnMaximumWidth, MeetingDetailLayout.proseWidth)
         XCTAssertLessThan(MeetingDetailLayout.findFieldMinimumWidth, MeetingDetailLayout.findFieldWidth)
@@ -274,7 +267,6 @@ final class MeetingDetailPresentationTests: XCTestCase {
             invited: ["Daniel Ortiz", "maya chen", " ", "Daniel Ortiz"])
         XCTAssertEqual(options.map(\.title), ["You", "Maya Chen", "Speaker 2", "Daniel Ortiz", "No owner"])
         XCTAssertEqual(options.map(\.kind), [.you, .speaker, .speaker, .invited, .none])
-        // An unnamed voice is saved under the transcript's own name for it.
         XCTAssertEqual(options.map(\.value), ["Me", "Maya Chen", "Them 2", "Daniel Ortiz", ""])
         XCTAssertEqual(options.filter(\.isSelected).map(\.title), ["Speaker 2"])
     }
@@ -296,9 +288,6 @@ final class MeetingDetailPresentationTests: XCTestCase {
         XCTAssertEqual(selected("Someone not listed"), [], "a typed owner is none of the menu's choices")
     }
 
-    /// Filmed by CI: after "Them" was named Ana Petrović, the action still
-    /// said "Other speaker", yet Ana's menu item counted as already chosen,
-    /// so choosing it did nothing.
     func testAnOwnerLeftAsAPlaceholderIsNotTheNamedSpeakerUntilChosen() throws {
         let transcript = Transcript(segments: [
             segment(0, 10, "me", "I'll draft the synthetic policy.", user: true),

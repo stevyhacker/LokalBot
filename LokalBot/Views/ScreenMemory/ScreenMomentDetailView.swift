@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Timeline's detail inspector for one exact captured moment.
 struct ScreenMomentDetailView: View {
     @EnvironmentObject private var app: AppState
 
@@ -11,7 +10,6 @@ struct ScreenMomentDetailView: View {
     let onDismiss: (() -> Void)?
 
     @State private var note = ""
-    /// The note as last read from the store, which `note` is compared with.
     @State private var storedNote = ""
     @State private var confirmingDeletion = false
     @State private var detailsExpanded = false
@@ -92,7 +90,6 @@ struct ScreenMomentDetailView: View {
         }
     }
 
-    /// "Back to day" → "Day" for the visible button text.
     private var backTitle: String {
         let destination = backLabel.hasPrefix("Back to ") ? String(backLabel.dropFirst(8)) : backLabel
         return destination.prefix(1).uppercased() + destination.dropFirst()

@@ -1,11 +1,3 @@
-//! Where Agent Mode keeps its files (`AgentRuntimeLayout`).
-//!
-//! The runtime (Bun, pi and LokalBot's pi extension) is a machine-local
-//! cache next to the llama.cpp runtime in `<library>/runtimes/`, not user
-//! data. pi's session files, the task list and pi's own configuration live in
-//! `<library>/agent/`, where macOS keeps them, so they follow
-//! `LOKALBOT_STORAGE_ROOT` and stay with the rest of the library.
-
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -18,7 +10,6 @@ use crate::manifest::{BUN_VERSION, PI_VERSION, RuntimeManifest};
 pub const BUN_BINARY: &str = if cfg!(windows) { "bun.exe" } else { "bun" };
 const PI_CLI: &str = "pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js";
 
-/// `version.json`: versions and the digests verified at install time.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VersionMarker {
@@ -38,7 +29,6 @@ pub struct VersionMarker {
     pub pi_runtime_tree_sha256: String,
 }
 
-/// The installed runtime folder.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct RuntimeLayout {
     root: PathBuf,
@@ -49,7 +39,6 @@ impl RuntimeLayout {
         Self { root: root.into() }
     }
 
-    /// `<library>/runtimes/agent-runtime`.
     pub fn for_library(paths: &LibraryPaths) -> Self {
         Self::new(paths.runtimes_dir().join("agent-runtime"))
     }
@@ -74,7 +63,6 @@ impl RuntimeLayout {
         self.root.join("version.json")
     }
 
-    /// LokalBot's pi extension, written from the copy built into the app.
     pub fn extension_dir(&self) -> PathBuf {
         self.root.join("lokalbot-extension")
     }
@@ -83,7 +71,6 @@ impl RuntimeLayout {
         self.root.join("lokalbot-cli-skill")
     }
 
-    /// LokalBot's system prompt, written from the copy built into the app.
     pub fn system_prompt_file(&self) -> PathBuf {
         self.root.join("lokalbot-system-prompt.md")
     }
@@ -92,10 +79,6 @@ impl RuntimeLayout {
         serde_json::from_slice(&std::fs::read(self.version_marker()).ok()?).ok()
     }
 
-    /// Cheap receipt check for the normal launch path. Installation verifies
-    /// every staged byte before the atomic swap, so routine entry only proves
-    /// that the entry points and a matching receipt are present; use
-    /// [`is_integrity_valid`](Self::is_integrity_valid) for a deep audit.
     pub fn is_installed(&self, manifest: &RuntimeManifest) -> bool {
         let pi = self.pi_dir();
         if !is_executable(&self.bun())
@@ -121,8 +104,6 @@ impl RuntimeLayout {
             )
     }
 
-    /// Recursive audit: hashes every runtime file. Reserved for installation,
-    /// launching a task, repair and the user's "Verify Agent runtime".
     pub fn is_integrity_valid(&self, manifest: &RuntimeManifest) -> bool {
         if !self.is_installed(manifest) {
             return false;
@@ -175,7 +156,6 @@ pub(crate) fn is_executable(path: &Path) -> bool {
     }
 }
 
-/// `<library>/agent`: pi sessions, task metadata and pi's own configuration.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AgentDirectories {
     library_root: PathBuf,
@@ -192,30 +172,22 @@ impl AgentDirectories {
         &self.library_root
     }
 
-    /// pi session JSONL files and `tasks.json` (`AgentRuntimeLayout.sessionsDirectory`).
     pub fn sessions(&self) -> PathBuf {
         self.library_root.join("agent").join("sessions")
     }
 
-    /// `PI_CODING_AGENT_DIR`: pi's settings and state, isolated from `~/.pi`.
     pub fn pi_config(&self) -> PathBuf {
         self.library_root.join("agent").join("pi-config")
     }
 
-    /// The remembered approval mode, kept out of `settings.json` like the
-    /// macOS `lokalbotv3.agent.approvalMode` default.
     pub fn approval_mode_file(&self) -> PathBuf {
         self.library_root.join("agent").join("approval-mode.json")
     }
 
-    /// Records of running pi processes, so a later run can stop leftovers.
     pub fn process_markers(&self) -> PathBuf {
         self.library_root.join("agent").join("processes")
     }
 
-    /// The default working folder, a sibling of the library
-    /// (`AppDirectories.agentWorkspace(forLibraryRoot:)`), so the private
-    /// library is never an implicit working folder.
     pub fn default_workspace(&self) -> PathBuf {
         let resolved =
             dunce::canonicalize(&self.library_root).unwrap_or_else(|_| self.library_root.clone());

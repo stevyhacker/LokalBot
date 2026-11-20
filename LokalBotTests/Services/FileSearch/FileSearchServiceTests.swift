@@ -7,8 +7,6 @@ import UniformTypeIdentifiers
 import XCTest
 @testable import LokalBot
 
-/// Files end to end with DigUp's real crawler, readers, index and search, and
-/// a deterministic embedder in place of the media llama-server.
 @MainActor
 final class FileSearchServiceTests: XCTestCase {
     private var root: URL!
@@ -86,15 +84,12 @@ final class FileSearchServiceTests: XCTestCase {
         try makeFolder("Site/dist")
         let service = makeService()
         service.changeDelay = .milliseconds(50)
-        // Asked once as each pass begins.
         service.isRecording = { [weak self] in
             self?.passes += 1
             return false
         }
         service.apply(.init(enabled: true, folders: [chosen.path]))
         await service.waitUntilIdle()
-        // FSEvents can still report what was written just before its stream began, and notes.txt does start a pass.
-        // Outlast the watcher's latency, so that only the writes below can start another.
         try await Task.sleep(for: .seconds(3))
         await service.waitUntilIdle()
         let settled = passes
@@ -158,7 +153,6 @@ final class FileSearchServiceTests: XCTestCase {
         let cloned = kFSEventStreamEventFlagItemIsDir | kFSEventStreamEventFlagItemCloned
         let counts = { (name: String, flags: Int) in self.counts(name, flags) }
 
-        // What can be indexed, here or gone.
         for name in ["notes.md", "Work/Notes/gone.txt", "report.pdf", "photo.heic", "clip.mov"] {
             XCTAssertTrue(counts(name, file), name)
             XCTAssertTrue(counts(name, kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemRemoved), name)
@@ -166,13 +160,11 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertFalse(self.counts("clip.mov", file, includesMedia: false), "recordings and video are off")
         XCTAssertTrue(self.counts("notes.md", file, includesMedia: false))
 
-        // Where the crawl doesn't go, and what it never reads.
         for name in [".DS_Store", ".hidden/notes.md", "node_modules/left-pad/readme.md", "Cache.noindex/notes.md",
                      "Work/Notes/server.log", "Work/Notes/data.json", "Work/Notes/no-extension"] {
             XCTAssertFalse(counts(name, file), name)
         }
 
-        // Inside a code project: screenshots, and nothing else.
         for name in ["Work/Site/readme.md", "Work/Site/assets/plain.png", "Work/Site/assets/gone.png",
                      "Work/App/plain.png", "Work/Site/Screenshots/notes.md", "Work/Site/report.pdf"] {
             XCTAssertFalse(counts(name, file), name)
@@ -182,14 +174,12 @@ final class FileSearchServiceTests: XCTestCase {
             XCTAssertTrue(counts(name, file), name)
         }
 
-        // A folder's only marker decides what's kept around it. Editing it, or another beside it, changes nothing.
         XCTAssertTrue(counts("Work/App/package.json", kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemRemoved))
         XCTAssertTrue(counts("Work/Notes/Cargo.toml", file))
         XCTAssertFalse(counts("Work/App/package.json", kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemModified))
         XCTAssertFalse(counts("Work/Site/package.json", file), "the folder has .git")
         XCTAssertFalse(counts("Work/App/sub/Cargo.toml", file), "a project above it already decides")
 
-        // A new folder's contents report themselves; one that moved or was cloned says only this.
         XCTAssertFalse(counts("Work/Notes/New", folder))
         XCTAssertFalse(counts("Work/Site/dist", folder))
         for flags in [moved, cloned] {
@@ -198,7 +188,6 @@ final class FileSearchServiceTests: XCTestCase {
             XCTAssertFalse(counts("node_modules/left-pad/lib", flags))
         }
 
-        // FSEvents lost track, or the path can't be placed: only a sync can tell.
         XCTAssertTrue(counts("node_modules/left-pad", kFSEventStreamEventFlagMustScanSubDirs))
         XCTAssertTrue(counts("Work/Notes", kFSEventStreamEventFlagKernelDropped | kFSEventStreamEventFlagItemIsDir))
         XCTAssertTrue(counts("Work/Notes/server.log", kFSEventStreamEventFlagNone))
@@ -209,8 +198,6 @@ final class FileSearchServiceTests: XCTestCase {
     }
 
     func testAChosenFolderIsReadWholeWhateverHoldsIt() throws {
-        // Chosen on purpose: its own markers don't make it a project, and a hidden or skipped folder above it doesn't
-        // count. FSEvents reports the real path, /private/var where the chosen one says /var.
         let inner = chosen.appendingPathComponent(".hidden/node_modules/Repo", isDirectory: true)
         try FileManager.default.createDirectory(at: inner.appendingPathComponent(".git"), withIntermediateDirectories: true)
         let flags = FSEventStreamEventFlags(kFSEventStreamEventFlagItemIsFile | kFSEventStreamEventFlagItemCreated)
@@ -222,12 +209,10 @@ final class FileSearchServiceTests: XCTestCase {
             XCTAssertNil(filter.firstThatMatters([.init(path: spelling + "/.notes.md", flags: flags)]))
         }
 
-        // Another chosen folder can still reach what this one skips.
         let both = FileChangeFilter(folders: [chosen.path, inner.path], options: FileSearchService.indexOptions())
         XCTAssertNotNil(both.firstThatMatters([.init(path: inner.path + "/notes.md", flags: flags)]))
         XCTAssertNil(both.firstThatMatters([.init(path: chosen.path + "/node_modules/notes.md", flags: flags)]))
 
-        // Nested folders answer separately within a batch: a project to the outer one is whole to the inner one.
         let site = chosen.appendingPathComponent("Site", isDirectory: true)
         try FileManager.default.createDirectory(at: site.appendingPathComponent(".git"), withIntermediateDirectories: true)
         let nested = FileChangeFilter(folders: [chosen.path, site.path], options: FileSearchService.indexOptions())
@@ -367,7 +352,6 @@ final class FileSearchServiceTests: XCTestCase {
         service.apply(.init(enabled: false, folders: [other.path]))
         await service.waitUntilIdle()
         XCTAssertEqual(service.state, .off)
-        // The index goes once the reader and the worker have let go of it, on their own queues.
         let index = root.appendingPathComponent(FileSearchService.indexFolderName).path
         let deadline = Date().addingTimeInterval(20)
         while FileManager.default.fileExists(atPath: index), Date() < deadline {
@@ -415,7 +399,6 @@ final class FileSearchServiceTests: XCTestCase {
         await service.waitUntilIdle()
 
         XCTAssertEqual(service.totals.byKind["audio"], 1)
-        // DigUp reads 30 s windows every 25 s: 0–30 s and 25–40 s.
         XCTAssertEqual(try segmentStarts(kind: "audio"), [0, 25])
         let byName = await service.search("podcast episode", queryVector: nil)
         XCTAssertEqual(byName.first?.name, "podcast-episode.wav")
@@ -427,9 +410,6 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertEqual(service.totals.byKind["doc"], 1)
     }
 
-    /// 2026-11-09: text recognition never answered for one screenshot the
-    /// indexer was reading. The pass waited for it, and kept the media model
-    /// it had started, until the app quit.
     func testAPassFinishesWithoutTextRecognitionThatNeverAnswers() async throws {
         let screenshot = "Screenshot 2026-11-09 at 10.00.00.png"
         try writePicture(screenshot, width: 640, height: 480)
@@ -457,15 +437,12 @@ final class FileSearchServiceTests: XCTestCase {
             return XCTFail("the pass is still waiting for text recognition")
         }
 
-        // The pass went on to the document. The screenshot is not settled
-        // without its words: it waits, where failed or read it never would.
         XCTAssertEqual(service.state, .ready)
         XCTAssertEqual(service.totals.searchable, 1)
         XCTAssertEqual(service.totals.pending, 1)
         XCTAssertEqual(service.totals.failed, 0)
         XCTAssertEqual(service.lastPass?.filesRead, 1)
 
-        // The next pass reads it, once recognition answers.
         FileTextRecognition.route(through: TextRecognitionQueue(stallLimit: 60), within: 10) { _ in
             "Order K7QLATER2 has shipped"
         }
@@ -477,8 +454,6 @@ final class FileSearchServiceTests: XCTestCase {
         XCTAssertEqual(hits.map(\.name), [screenshot])
     }
 
-    // MARK: - Helpers
-
     private func makeService() -> FileSearchService {
         FileSearchService(
             indexFolder: root.appendingPathComponent(FileSearchService.indexFolderName, isDirectory: true),
@@ -489,7 +464,6 @@ final class FileSearchServiceTests: XCTestCase {
             })
     }
 
-    /// A 16 kHz mono tone: DigUp drops silent windows.
     private func writeTone(_ name: String, seconds: Int) throws {
         let rate = 16_000
         var samples = Data(capacity: rate * seconds * 2)
@@ -552,7 +526,6 @@ private final class ReportedPaths: @unchecked Sendable {
 
     var first: String? { lock.withLock { paths.first } }
 
-    /// How many there are now.
     func append(_ path: String) -> Int {
         lock.withLock {
             paths.append(path)
@@ -573,8 +546,6 @@ private final class BatteryFlag: @unchecked Sendable {
     }
 }
 
-/// Bag-of-words vectors: texts that share words point the same way. Pictures
-/// and sound get one fixed direction.
 private final class FakeFileEmbedder: Embedder {
     static let workerInfo = WorkerInfo(model: "test/fake", revision: "0000000", runtime: "fake", dtype: "f32",
                                  dim: 768, textOnly: false, loadSeconds: nil)

@@ -1,7 +1,3 @@
-//! Screen & activity (activity tracking and screen context) and Daily
-//! review (the day digest, with the overnight review, routines and the
-//! daily note from their own files).
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::Textarea;
@@ -20,10 +16,8 @@ use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// The first characters of the digest instructions that are used.
 pub const DIGEST_PROMPT_LIMIT: usize = 500;
 
-/// `ScreenContextCaptureMode.detail`, for this platform's accessibility and OCR.
 pub fn mode_detail(mode: ScreenContextMode) -> &'static str {
     match mode {
         ScreenContextMode::ActivityOnly => {
@@ -127,7 +121,6 @@ impl SettingsPage {
                 .screenshot_interval_minutes
                 .round()
                 .clamp(1.0, 15.0) as u32;
-            // The download recognition needs is offered right under the choice.
             memory = memory
                 .row(
                     "settings.screenTextRecognition",
@@ -188,8 +181,6 @@ impl SettingsPage {
         vec![memory]
     }
 
-    /// Daily review (`SettingsTab.daily`): the day digest, the overnight
-    /// review, routines and the daily note, which Day Memory held before.
     pub(super) fn daily_review_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let settings = self.data.read(cx).settings.clone();
         let data = self.data.clone();
@@ -284,15 +275,12 @@ impl SettingsPage {
         vec![digest, overnight, routines, daily_notes]
     }
 
-    /// What capture can do on this desktop right now (`MemoryHealthSection`).
     fn screen_status(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let (status, paused) = {
             let data = self.data.read(cx);
             (data.screen.clone(), data.day_memory_paused)
         };
-        // What this desktop doesn't allow (window pixels, the credential
-        // store) is said in the page's header, beside its fix.
         let mut notes: Vec<(Ico, String, bool)> = Vec::new();
         if paused {
             notes.push((
@@ -366,8 +354,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// Screen text recognition: what reads here, in which languages, and the
-    /// download that would help. Never started on its own.
     fn screen_text_model_row(&self, cx: &mut Context<Self>) -> AnyElement {
         let status = self.data.read(cx).models.screen_text.clone();
         let failed = status
@@ -395,7 +381,6 @@ impl SettingsPage {
     }
 }
 
-/// What recognition does on this computer and what it would take to do more.
 pub(crate) fn screen_text_help(status: &OcrStatus) -> String {
     let list = |names: &[String]| names.join(", ");
     let mut sentences = vec![
@@ -455,7 +440,6 @@ pub(crate) fn screen_text_help(status: &OcrStatus) -> String {
     sentences.join(" ")
 }
 
-/// Download when that would help, its progress while it runs, or Ready.
 pub(crate) fn screen_text_control(
     data: &Entity<AppData>,
     id: &'static str,
@@ -503,7 +487,6 @@ pub(crate) fn screen_text_control(
     }
 }
 
-/// `MemoryHealthSection.textSourceLabel`.
 pub(super) fn text_source_label(source: &str) -> String {
     let base = source.strip_suffix("_redacted");
     let label = match base.unwrap_or(source) {

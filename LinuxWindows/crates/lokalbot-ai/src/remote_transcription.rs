@@ -1,7 +1,3 @@
-//! Sends speech clips to the transcription server the user approved
-//! (`RemoteTranscriptionEngine`), in OpenAI's `/audio/transcriptions` shape.
-//! Redirects are not followed, so a clip can't leave the approved origin.
-
 use std::collections::HashSet;
 use std::sync::LazyLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -19,7 +15,6 @@ use crate::error::AiError;
 use crate::http::{self, Reply};
 
 const MAXIMUM_ATTEMPTS: u32 = 3;
-/// A slow CPU server can spend well over a minute on one span.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(600);
 const MAXIMUM_COOLDOWN: Duration =
     Duration::from_secs(crate::remote_gate::MAXIMUM_COOLDOWN_SECONDS as u64);
@@ -51,26 +46,19 @@ fn rejection(status: u16, detail: &str) -> String {
     }
 }
 
-/// Servers and models that refused the word-timing fields during this run
-/// (`WordTimingRejections`). Kept in memory only: a server that adds support is
-/// asked again after the next launch.
 static WORD_TIMING_REJECTIONS: LazyLock<Mutex<HashSet<String>>> = LazyLock::new(Default::default);
 
-/// One approved server, its key held for the life of one transcription.
 pub struct Client {
     endpoint: String,
     model: String,
     api_key: String,
     agent: ureq::Agent,
-    /// This server and model are known to time words.
     word_timings: bool,
     word_timing_key: String,
-    /// Pause before a retry; tests shorten it.
     base_backoff: Duration,
 }
 
 impl Client {
-    /// Refuses an unconfigured, invalid, unencrypted or unapproved server.
     pub fn new(
         server: &RemoteTranscription,
         api_key: String,
@@ -88,13 +76,11 @@ impl Client {
         })
     }
 
-    /// Changes when the server, the model or the key does; holds no secret.
     pub fn identity(&self) -> String {
         let key = hex::encode(Sha256::digest(self.api_key.as_bytes()));
         format!("{}|{}|{key}", self.endpoint, self.model)
     }
 
-    /// The server times words, and hasn't refused to during this run.
     pub fn provides_word_timings(&self) -> bool {
         self.word_timings
             && !WORD_TIMING_REJECTIONS
@@ -102,7 +88,6 @@ impl Client {
                 .contains(&self.word_timing_key)
     }
 
-    /// The text of one WAV clip.
     pub fn transcribe(
         &self,
         wav: &[u8],
@@ -113,7 +98,6 @@ impl Client {
         Ok(self.upload(wav, language, prompt, false, cancel)?.text)
     }
 
-    /// The text of one WAV clip, with word times where the server gives them.
     pub fn transcribe_timed(
         &self,
         wav: &[u8],
@@ -124,10 +108,6 @@ impl Client {
         self.upload(wav, language, prompt, true, cancel)
     }
 
-    /// One clip, retried on rate limits, server errors and dropped connections. A
-    /// server that answers the word-timing fields with HTTP 400 is asked again with
-    /// plain `json`; when that succeeds, it stops being asked for word times until
-    /// LokalBot quits.
     fn upload(
         &self,
         wav: &[u8],
@@ -164,8 +144,6 @@ impl Client {
                 Ok(reply) if reply.ok() => {
                     let answer = transcription(&reply)?;
                     if refused {
-                        // Only once plain json works: a clip the server refuses
-                        // for another reason changes nothing.
                         log::info!(
                             "remote-asr word timings off for this server and model until relaunch"
                         );
@@ -218,8 +196,6 @@ impl Client {
     }
 }
 
-/// `RemoteRetryPolicy.backoff`: what the server asked for, else doubling with a
-/// little jitter, never longer than a minute.
 fn backoff(base: Duration, attempt: u32, retry_after: Option<Duration>) -> Duration {
     if let Some(retry_after) = retry_after {
         return retry_after.min(MAXIMUM_COOLDOWN);
@@ -245,10 +221,6 @@ fn is_retryable(status: u16) -> bool {
     matches!(status, 408 | 425 | 429 | 500 | 502 | 503 | 504)
 }
 
-/// A multipart form in OpenAI's shape. `response_format=json` is the one every
-/// provider and whisper.cpp accept; `word_timings` asks for `verbose_json` with word
-/// timestamps instead. `model` is left out when empty because single-model servers
-/// need none.
 fn multipart_body(
     boundary: &str,
     model: &str,
@@ -294,9 +266,6 @@ fn multipart_body(
     body
 }
 
-/// `verbose_json`'s `words: [{word, start, end}]`. Tokens without letters or digits
-/// are dropped; one word without valid times drops them all, and the clip then keeps
-/// one speaker.
 fn timed_words(words: &[Value]) -> Vec<TimedWord> {
     let mut timed = Vec::new();
     for word in words {
@@ -324,8 +293,6 @@ fn timed_words(words: &[Value]) -> Vec<TimedWord> {
     timed
 }
 
-/// `{"text": …}` from OpenAI-style servers, plus any word times; a few self-hosted
-/// ones answer plain text instead.
 fn transcription(reply: &Reply) -> Result<WindowTranscription, ServerError> {
     if let Ok(payload) = serde_json::from_slice::<Value>(&reply.body)
         && let Some(text) = payload.get("text").and_then(Value::as_str)
@@ -352,8 +319,6 @@ fn transcription(reply: &Reply) -> Result<WindowTranscription, ServerError> {
     Err(ServerError::InvalidResponse)
 }
 
-/// The server's own message (`{"error": {"message": …}}`, `{"error": "…"}`, or a
-/// short plain body), bounded for display.
 fn error_detail(body: &[u8]) -> String {
     let message = match serde_json::from_slice::<Value>(body) {
         Ok(Value::Object(object)) => object
@@ -479,7 +444,6 @@ mod tests {
         assert!(reply.words.is_empty());
         assert_eq!(server.requests().len(), 2);
         assert!(!client.provides_word_timings());
-        // The next clip doesn't ask again.
         client
             .transcribe_timed(b"wav", None, None, &cancel)
             .unwrap();

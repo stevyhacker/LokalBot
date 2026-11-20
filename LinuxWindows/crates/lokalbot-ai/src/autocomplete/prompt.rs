@@ -3,22 +3,11 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! The completion prompt (`CotypingPromptRenderer`) and the request built
-//! around it (`CotypingRequestBuilder`).
-//!
-//! The model is a pure text continuer, not an instruction follower, for
-//! every model in the catalog: there is no chat template and no control
-//! token besides the BOS llama-server adds. Persona, style and context go
-//! into a short conditioning preface, and the text before the caret is the
-//! last thing in the prompt, its whitespace intact.
-
 use lokalbot_core::Settings;
 
 use super::{surface, window};
 use crate::sanitize;
 
-/// `CotypingConfiguration.standard`: low temperature for stable inline
-/// completions; the fixed seed keeps identical context reproducible.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Sampling {
     pub temperature: f64,
@@ -39,7 +28,6 @@ impl Default for Sampling {
             min_p: 0.08,
             repeat_penalty: 1.05,
             repeat_last_n: 64,
-            // 0x00C0FFEE, Cotabby's "coffee" seed.
             seed: 0x00C0_FFEE,
         }
     }
@@ -48,8 +36,6 @@ impl Default for Sampling {
 pub const MAX_PREFIX_CHARACTERS: usize = 2_500;
 pub const MAX_PREFIX_WORDS: usize = 500;
 
-/// `AppSettings.cotypingMaxResponseTokens`: ceil(words × 1.3), at least 5,
-/// doubled for multi-line, at most 120.
 pub fn max_response_tokens(max_words: u32, multi_line: bool) -> usize {
     let language_aware = (max_words as usize * 13).div_ceil(10);
     let base = language_aware.max(5);
@@ -60,22 +46,17 @@ pub fn max_response_tokens(max_words: u32, multi_line: bool) -> usize {
     }
 }
 
-/// `CotypingPersonalization`: the optional voice cues from Settings → Autocomplete.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Personalization {
     pub user_name: Option<String>,
     pub style_note: Option<String>,
-    /// "The text is usually written in …" (macOS `cotypingLanguages`).
     pub language_hint: Option<String>,
-    /// Glossary and notes (macOS `cotypingExtendedContext`).
     pub extended_context: Option<String>,
     pub multi_line: bool,
-    /// Condition on the app and window title. On by default on macOS.
     pub app_context: bool,
 }
 
 impl Personalization {
-    /// `AppSettings.cotypingPersonalization`.
     pub fn from_settings(settings: &Settings) -> Self {
         Self {
             user_name: non_empty(&settings.cotyping_user_name),
@@ -89,8 +70,6 @@ impl Personalization {
     }
 }
 
-/// The focused field a request is built from (`CotypingField`), as the
-/// desktop integration read it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Field {
     pub app_name: String,
@@ -98,43 +77,27 @@ pub struct Field {
     pub window_title: String,
     pub before: String,
     pub after: String,
-    /// Text visible above the field: the conversation being answered.
     pub visible_text: Option<String>,
     pub single_line: bool,
-    /// An xterm.js surface in an editor or a browser.
     pub integrated_terminal: bool,
 }
 
-/// One generation (`CotypingRequest`): what the model is asked and what the
-/// normalizer needs to clean its answer.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Request {
-    /// Conditioning preface plus the caret prefix.
     pub prompt: String,
-    /// The windowed text before the caret, alone.
     pub prefix: String,
-    /// Text after the caret.
     pub after: String,
     pub multi_line: bool,
     pub max_tokens: usize,
-    /// The word ceiling the normalizer enforces after the model.
     pub max_words: usize,
     pub sampling: Sampling,
-    /// The caret is strictly inside a word: the suggestion must continue it.
     pub force_word_continuation: bool,
-    /// The word characters right before the caret ("" at a word boundary).
     pub word_prefix: String,
-    /// Whether `word_prefix` is a whole word ("the") rather than a fragment
-    /// ("follo"). True without a dictionary for the text's language, as on
-    /// macOS.
     pub word_prefix_is_valid_word: bool,
-    /// The exact hidden preface in `prompt`, so an echo of it is suppressed.
     pub conditioning_preface: Option<String>,
 }
 
 impl Request {
-    /// The caret prefix ends on whitespace, so a leading space in the answer
-    /// is dropped.
     pub fn preceding_ends_with_whitespace(&self) -> bool {
         self.prefix
             .chars()
@@ -143,24 +106,16 @@ impl Request {
     }
 }
 
-/// Context besides the field itself.
 #[derive(Clone, Debug, Default)]
 pub struct Extras {
-    /// Relevant saved facts (`CotypingMemoryContext`).
     pub memory: Option<String>,
-    /// Earlier accepted completions in the same document.
     pub learned_examples: Vec<String>,
-    /// A fresh copy related to what is being typed (`CotypingClipboardContext`).
     pub clipboard: Option<String>,
-    /// The focused window's text, one screen line per line (`CotypingWindowText`).
     pub window: Option<String>,
     pub word_prefix_is_valid_word: bool,
-    /// Build a request for a blank field too, to prefill its prompt.
     pub allows_blank_prefix: bool,
 }
 
-/// `CotypingRequestBuilder.build`. `None` when there is nothing before the
-/// caret to continue.
 pub fn build_request(
     field: &Field,
     max_words: u32,
@@ -183,7 +138,6 @@ pub fn build_request(
     } else {
         Vec::new()
     };
-    // The whole window includes everything the column above the field would add.
     let window_text = extras.window.as_deref().filter(|t| !t.trim().is_empty());
     let nearby = window_text
         .is_none()
@@ -218,14 +172,12 @@ pub fn build_request(
     })
 }
 
-/// The prompt and its exact hidden preface.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rendered {
     pub prompt: String,
     pub conditioning_preface: Option<String>,
 }
 
-/// What [`render`] folds into the preface; every part is optional.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Context<'a> {
     pub prefix: &'a str,
@@ -241,20 +193,14 @@ pub struct Context<'a> {
     pub learned_examples: &'a [String],
 }
 
-/// Upper bound on the preface so a long style note never crowds the prompt.
 pub const MAX_PREFACE_CHARACTERS: usize = 900;
 const MAX_CLIPBOARD_LINE_CHARACTERS: usize = 180;
 const MAX_LEARNED_EXAMPLE_CHARACTERS: usize = 120;
-/// Heads the focused window's text, one screen line per line.
 pub const WINDOW_LABEL: &str = "Visible in this window:";
-/// `CotypingWindowText.maximumCharacters`.
 const MAX_WINDOW_CHARACTERS: usize = 2_000;
 
-/// `CotypingPromptRenderer.render`.
 pub fn render(context: &Context) -> Rendered {
     let prefix = context.prefix;
-    // Window text has its own budget and comes first: it changes least
-    // while typing, and the server keeps what it read of an unchanged start.
     let window = trimmed(context.window).map(|text| {
         format!(
             "{WINDOW_LABEL}\n{}",
@@ -313,7 +259,6 @@ pub fn render(context: &Context) -> Rendered {
         ));
     }
     if window.is_none() && preface.is_empty() {
-        // Nothing to condition on: the model gets the bare text.
         return Rendered {
             prompt: prefix.to_string(),
             conditioning_preface: None,
@@ -330,8 +275,6 @@ pub fn render(context: &Context) -> Rendered {
             format!("{window}\n\n{preface_text}")
         };
     }
-    // A blank line separates the preface from the live text, with no label
-    // the model could echo. The prefix stays the final bytes.
     Rendered {
         prompt: format!("{preface_text}\n\n{prefix}"),
         conditioning_preface: Some(preface_text),
@@ -347,9 +290,6 @@ fn non_empty(text: &str) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
-/// `CotypingVisibleContext`: at most three excerpts within 420 characters,
-/// nearest the field first, kept in reading order and joined with " | ".
-/// Lines that look like credentials or prompt instructions are left out.
 pub fn nearby_text(visible: &str) -> Option<String> {
     const MAX_CHARACTERS: usize = 420;
     const MAX_EXCERPTS: usize = 3;
@@ -362,8 +302,6 @@ pub fn nearby_text(visible: &str) -> Option<String> {
         if line.trim().is_empty() || line.chars().count() > 8_000 || is_sensitive(line) {
             continue;
         }
-        // A line without a letter or digit (a rule, an emoji reaction) adds
-        // nothing (`CotypingWindowText.cleaned`).
         let Some(cleaned) =
             sanitized_context(line).filter(|t| t.chars().any(char::is_alphanumeric))
         else {
@@ -381,7 +319,6 @@ pub fn nearby_text(visible: &str) -> Option<String> {
     (!excerpts.is_empty()).then(|| excerpts.join(" | "))
 }
 
-/// `CotypingSecureFieldDetector.sensitiveMarkers`.
 const SENSITIVE_MARKERS: [&str; 13] = [
     "secure",
     "password",
@@ -403,8 +340,6 @@ pub(crate) fn is_sensitive(text: &str) -> bool {
     SENSITIVE_MARKERS.iter().any(|m| lower.contains(m))
 }
 
-/// `CotypingMemoryContext.sanitized`: no secrets, no prompt-injection
-/// phrasing, whitespace collapsed. `None` when nothing safe is left.
 pub fn sanitized_context(text: &str) -> Option<String> {
     if text.is_empty() || sanitize::redaction(text).1 > 0 {
         return None;
@@ -588,7 +523,6 @@ mod tests {
         );
         assert!(request.multi_line);
         assert_eq!(request.max_tokens, 12);
-        // A single-line input keeps one line whatever the setting.
         mail.single_line = true;
         let single = build_request(&mail, 4, &personalization, &Extras::default()).unwrap();
         assert!(!single.multi_line);

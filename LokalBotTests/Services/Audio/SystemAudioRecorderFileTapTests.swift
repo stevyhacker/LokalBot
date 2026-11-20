@@ -24,8 +24,6 @@ final class SystemAudioRecorderFileTapTests: XCTestCase {
         XCTAssertGreaterThan(try AVAudioFile(forReading: output).length, 0)
     }
 
-    /// RecordingController keeps its old target when a reattach throws, so a
-    /// process the tap cannot find must leave the running capture untouched.
     func testReattachToAMissingProcessKeepsTheCurrentCapture() throws {
         final class PickyTap: SystemAudioTap {
             private let base: FileSystemAudioTap

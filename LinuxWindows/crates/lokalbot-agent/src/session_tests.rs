@@ -1,6 +1,3 @@
-//! Controller behavior (`AgentSessionControllerTests.swift`), driven through
-//! a fake launcher and transport: no process, model or network.
-
 use std::sync::Arc;
 
 use parking_lot::{Mutex, RwLock};
@@ -16,10 +13,8 @@ struct FakeLauncher {
     requests: Mutex<Vec<LaunchRequest>>,
     clients: Mutex<Vec<RpcClient<RequestTag>>>,
     failure: Mutex<Option<LaunchError>>,
-    /// Keep `done` until the test releases it (a slow model warm-up).
     hold: Mutex<bool>,
     held: Mutex<Vec<Box<dyn FnOnce() + Send>>>,
-    /// Launches as if through a plan relay.
     plan: Mutex<Option<SubscriptionPlan>>,
 }
 
@@ -69,7 +64,6 @@ struct Harness {
     rx: async_channel::Receiver<TaskInput>,
     tx: Inbox,
     session: AgentSession,
-    /// Dropped last: Windows can't remove the library while it is open.
     _dir: tempfile::TempDir,
 }
 
@@ -112,7 +106,6 @@ impl Harness {
     }
 
     fn pump(&mut self) {
-        // Responses can arrive from the timeout thread; give it a moment.
         std::thread::sleep(std::time::Duration::from_millis(5));
         while let Ok(input) = self.rx.try_recv() {
             self.session.handle(input.generation, input.input);
@@ -148,7 +141,6 @@ impl Harness {
         self.lines().pop().unwrap()
     }
 
-    /// Acknowledges the newest request that has an id.
     fn ack(&mut self, success: bool) {
         let line = self
             .lines()
@@ -331,7 +323,6 @@ fn session_scope_auto_approves_repeats_inside_the_workspace() {
     assert!(h.session.pending_approvals().is_empty());
     assert_eq!(h.last_line()["id"], "w2");
     assert_eq!(h.last_line()["confirmed"], true);
-    // A different tool still asks.
     h.confirm("e1", file_payload("edit", &ws, &format!("{ws}/b.txt")));
     assert_eq!(h.session.pending_approvals().len(), 1);
 }
@@ -353,7 +344,6 @@ fn read_mode_approves_reads_but_shows_changes_and_shell() {
         serde_json::json!({"tool": "bash", "workspace": ws, "command": "ls"}),
     );
     assert_eq!(h.session.pending_approvals().len(), 2);
-    // Widening the mode answers the cards it now allows, but never bash.
     h.session
         .set_approval_mode(ApprovalMode::ApproveReadsAndEdits);
     let pending: Vec<String> = h
@@ -448,7 +438,6 @@ fn transport_death_fails_the_session_with_the_stderr_tail() {
     assert!(message.starts_with("The agent process exited unexpectedly."));
     assert!(message.contains("out of memory"));
     assert_eq!(h.session.recovery_action, Some(RecoveryAction::Restart));
-    // Restart launches a fresh process.
     h.session.start();
     h.pump();
     assert_eq!(h.session.state, SessionState::Ready);
@@ -561,7 +550,6 @@ fn stop_cancels_pending_approvals_before_aborting_and_keeps_follow_ups() {
     assert!(cancel < abort);
     assert!(h.session.pending_approvals().is_empty());
     assert!(h.session.is_stopping);
-    // An approval arriving while stopping is cancelled at once.
     h.confirm("w2", file_payload("write", &ws, &format!("{ws}/b.txt")));
     assert_eq!(h.last_line()["cancelled"], true);
     h.ack(true);
@@ -645,7 +633,6 @@ fn reasoning_level_is_written_for_the_extension_and_follows_changes() {
     assert_eq!(read(&h), "low");
     h.env.settings.write().agent_reasoning_level = Some(ReasoningLevel::Max);
     h.session.reasoning_level_did_change();
-    // qwen3.5 accepts Off–High: Max clamps to High.
     assert_eq!(read(&h), "high");
     h.session.shutdown();
     assert!(!h.session.reasoning_level_file().exists());
@@ -733,8 +720,6 @@ fn session_titles_cut_at_a_word() {
     );
 }
 
-/// `InferenceEndpointPolicy.validate` before each send: approving a server on the
-/// user's network doesn't stand in for encrypting what goes to it.
 #[test]
 fn a_running_task_stops_sending_to_plain_http_off_this_computer() {
     let settings = |base: &str| Settings {
@@ -763,8 +748,6 @@ fn lookup(workspace: &str, command: &str) -> Value {
     serde_json::json!({"tool": "bash", "workspace": workspace, "command": command})
 }
 
-/// The owner's decision: a read-only library lookup runs without a card at
-/// the default level only while the task's model runs on this computer.
 #[test]
 fn a_library_lookup_runs_unasked_with_a_model_on_this_computer() {
     let mut h = Harness::new();
@@ -779,10 +762,8 @@ fn a_library_lookup_runs_unasked_with_a_model_on_this_computer() {
     assert!(h.session.pending_approvals().is_empty());
     assert_eq!(h.last_line()["id"], "l1");
     assert_eq!(h.last_line()["confirmed"], true);
-    // Anything that is not a proven lookup still asks.
     h.confirm("l2", lookup(&ws, "lokalbot-cli list > notes.md"));
     assert_eq!(h.session.pending_approvals().len(), 1);
-    // After the task's agent stops, where the model runs is not known.
     h.session.shutdown();
     assert!(!h.session.model_runs_on_this_computer());
 }
@@ -799,7 +780,6 @@ fn a_library_lookup_asks_when_the_model_is_not_on_this_computer() {
     h.confirm("l1", lookup(&ws, "lokalbot-cli brief"));
     assert_eq!(h.session.pending_approvals().len(), 1);
     assert_eq!(h.session.pending_approvals()[0].id, "l1");
-    // The read levels do not let it through either; full access runs every command.
     h.session
         .set_approval_mode(ApprovalMode::ApproveReadsAndEdits);
     assert_eq!(h.session.pending_approvals().len(), 1);
@@ -832,7 +812,6 @@ fn send_now_steers_a_working_task_and_sends_on_a_ready_one() {
         .collect();
     assert_eq!(left, ["second"]);
     h.ack(true);
-    // A paused queue on a ready task: Send now sends that message as the next one.
     h.event(r#"{"type":"message_end","message":{"role":"assistant","content":[],"stopReason":"error","errorMessage":"502 Bad Gateway"}}"#);
     h.event(r#"{"type":"agent_settled"}"#);
     assert!(h.session.queue_is_paused);
@@ -909,7 +888,6 @@ fn an_approval_names_its_file_and_where_it_sits() {
     assert_eq!(file.target.place, crate::presentation::Place::WorkingFolder);
     assert!(file.exists);
     assert!(!file.is_protected);
-    // LokalBot's own data can only ever be allowed once.
     let private = h
         .env
         .library
@@ -922,7 +900,6 @@ fn an_approval_names_its_file_and_where_it_sits() {
     let file = h.session.approval_file(&request).unwrap();
     assert!(file.is_protected);
     assert!(!h.session.can_allow_for_session(&request));
-    // A command names no file.
     h.confirm("c1", lookup(&ws, "ls -la"));
     let request = h.session.pending_approvals()[2].clone();
     assert_eq!(h.session.approval_file(&request), None);
