@@ -1,7 +1,3 @@
-//! One serial authority for evidence, assignment journals and profile
-//! mutations (`MeetingSpeakerEvidenceStore.swift`). A durable decision is
-//! committed before its public transcript projection.
-
 use std::collections::BTreeSet;
 use std::fs;
 use std::path::PathBuf;
@@ -40,10 +36,8 @@ pub enum Failure {
     TooLarge,
     #[error("Speaker evidence was deleted or expired while this result was being prepared.")]
     EvidenceExpired,
-    /// A locked or unreachable file is unavailable, not corrupt ciphertext.
     #[error("{0}")]
     Io(#[from] std::io::Error),
-    /// The credential store has no usable key, so nothing is read or written.
     #[error("The key that protects remembered voices is not available: {0}")]
     KeyUnavailable(String),
     #[error("{0}")]
@@ -54,7 +48,6 @@ pub struct Store {
     root: PathBuf,
     key: [u8; 32],
     has_secret: fn(&str) -> bool,
-    /// Serializes read-modify-write cycles. Files are replaced atomically.
     lock: Mutex<BTreeSet<Uuid>>,
 }
 
@@ -79,8 +72,6 @@ impl Store {
         )
     }
 
-    /// `/`-separated on every platform, so a file's associated data never
-    /// depends on the system that wrote it.
     fn seal<T: Serialize>(&self, value: &T, relative: &str) -> Result<Vec<u8>, Failure> {
         let clear = serde_json::to_vec(value)?;
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&self.key));
@@ -136,7 +127,6 @@ impl Store {
 
     fn write<T: Serialize>(&self, value: &T, relative: &str) -> Result<(), Failure> {
         let sealed = self.seal(value, relative)?;
-        // `write_atomic` keeps these owner-only, and the bytes are ciphertext.
         crate::library::write_atomic(&self.root.join(relative), &sealed)?;
         Ok(())
     }
@@ -214,7 +204,6 @@ impl Store {
         }
         let mut next = proposed;
         next.revision = current.revision + 1;
-        // Retain only bounded recent event metadata; assignments hold durable authority.
         if next.decisions.len() > MAXIMUM_DECISIONS {
             next.decisions
                 .drain(..next.decisions.len() - MAXIMUM_DECISIONS);
@@ -223,7 +212,6 @@ impl Store {
         Ok(next)
     }
 
-    /// Everything beside the identity journal is retired speaker observation.
     fn remove_retired_observations(&self, meeting: &Meeting) -> Result<(), Failure> {
         let folder = self.root.join(&meeting.relative_path).join(EVIDENCE_FOLDER);
         let entries = match fs::read_dir(&folder) {
@@ -246,8 +234,6 @@ impl Store {
         Ok(())
     }
 
-    /// Deletes samples, suggestions and timelines, keeping applied names,
-    /// corrections, suppression choices and the turns that hold them.
     pub fn erase_evidence(&self, meeting: &Meeting) -> Result<(), Failure> {
         let deleted = self.lock.lock();
         self.erase_inner(meeting, &deleted)
@@ -272,8 +258,6 @@ impl Store {
         Ok(())
     }
 
-    /// Evidence older than the retention window goes; recent voice samples
-    /// stay available for remembering.
     pub fn expire(
         &self,
         meetings: &[Meeting],
@@ -288,8 +272,6 @@ impl Store {
                 continue;
             }
             if meeting.started_at < cutoff {
-                // Another computer's file can't be opened here and stays as it
-                // is; it must not hold back every meeting after it.
                 match self.erase_inner(meeting, &deleted) {
                     Err(Failure::Corrupt) => log::info!(
                         "speaker evidence not expired meeting={}: can't be opened here",
@@ -380,9 +362,6 @@ impl Store {
         )
     }
 
-    /// A name the user gave before call voices were remembered. Legacy names
-    /// have no decision, so the assignment ID stands in for one: a later
-    /// correction revokes it like any other contribution.
     pub fn enroll_saved_name(
         &self,
         meeting: &Meeting,
@@ -477,7 +456,6 @@ impl Store {
             if profile_id.is_some() {
                 return Err(Failure::Deleted);
             }
-            // Every named call participant is remembered, so leave room for a whole company.
             if database.profiles.len() >= MAXIMUM_PROFILES {
                 return Err(Failure::TooLarge);
             }
@@ -496,8 +474,6 @@ impl Store {
         Ok(target)
     }
 
-    /// Takes a meeting's contributions out of every profile; a profile left
-    /// with none is forgotten.
     pub fn revoke(
         &self,
         meeting_id: Uuid,
@@ -539,7 +515,6 @@ impl Store {
         self.write(&database, PROFILES_FILE)
     }
 
-    /// Forgets one person, or everyone with `None`.
     pub fn forget_profile(&self, id: Option<Uuid>) -> Result<(), Failure> {
         let _guard = self.lock.lock();
         let mut database = self.profiles_inner()?;
@@ -581,8 +556,6 @@ impl Store {
     }
 }
 
-/// Call voices store their average and one chunk for provenance, which keeps
-/// a busy team's profiles well inside the file limit.
 fn contribution(
     meeting: &Meeting,
     assignment: &Assignment,

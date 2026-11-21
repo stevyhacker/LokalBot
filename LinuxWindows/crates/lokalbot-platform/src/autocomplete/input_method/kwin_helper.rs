@@ -1,19 +1,3 @@
-//! The input method KWin starts for LokalBot (`lokalbot --kwin-input-method`),
-//! once the user chooses LokalBot under System Settings → Keyboard → Virtual
-//! Keyboard.
-//!
-//! KWin offers `zwp_input_method_v1` only to the program it started, over the
-//! connection it handed it, and starts it again only if it crashes. So this
-//! small process holds that connection for the whole session and passes the
-//! active field to the app over the socket in [`super::kwin_wire`]. The app's
-//! route ([`super::kwin`]) does everything else.
-//!
-//! The keyboard is taken only while the app shows a suggestion. Then every key
-//! but the accept keys and Esc goes straight back to KWin, and nothing keeps
-//! it. With no app connected this holds no text, takes no keys and shows
-//! nothing, so typing is as it is without an input method. Typed text is never
-//! logged.
-
 use std::collections::HashSet;
 use std::os::fd::{AsRawFd as _, RawFd};
 use std::os::unix::fs::{FileTypeExt as _, PermissionsExt as _};
@@ -37,8 +21,6 @@ const KEY_RELEASED: u32 = 0;
 const KEY_PRESSED: u32 = 1;
 const KEY_REPEATED: u32 = 2;
 
-/// Runs the helper until KWin closes its connection. The exit code is never
-/// a crash's, so KWin does not start it again in a loop.
 pub(crate) fn run() -> i32 {
     if std::env::var_os("WAYLAND_SOCKET").is_none() {
         eprintln!(
@@ -114,7 +96,6 @@ fn serve() -> anyhow::Result<()> {
                 }
                 fds.push(pollfd(fd, events));
             }
-            // SAFETY: `fds` is a valid array for its length, for the whole call.
             let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, -1) };
             if ready < 0
                 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted
@@ -145,8 +126,6 @@ fn pollfd(fd: RawFd, events: libc::c_short) -> libc::pollfd {
     }
 }
 
-/// Listens where the app looks. A socket left by a helper that is gone is
-/// replaced; anything else in the way is not touched.
 fn listen(path: &std::path::Path) -> anyhow::Result<UnixListener> {
     match std::fs::symlink_metadata(path) {
         Ok(meta) if meta.file_type().is_socket() => {
@@ -162,7 +141,6 @@ fn listen(path: &std::path::Path) -> anyhow::Result<UnixListener> {
     Ok(listener)
 }
 
-/// Whether the other end of `stream` runs as this user.
 fn same_user(stream: &UnixStream) -> bool {
     let mut cred = libc::ucred {
         pid: 0,
@@ -170,7 +148,6 @@ fn same_user(stream: &UnixStream) -> bool {
         gid: u32::MAX,
     };
     let mut len = std::mem::size_of::<libc::ucred>() as libc::socklen_t;
-    // SAFETY: `cred` and `len` are valid for writes of the sizes given.
     let got = unsafe {
         libc::getsockopt(
             stream.as_raw_fd(),
@@ -180,31 +157,21 @@ fn same_user(stream: &UnixStream) -> bool {
             &mut len,
         )
     };
-    // SAFETY: getuid cannot fail.
     got == 0 && cred.uid == unsafe { libc::getuid() }
 }
 
-/// `zwp_text_input_v1`'s content purpose, as KWin sends it to an input
-/// method, in `zwp_text_input_v3`'s numbering, which the rest of the route
-/// uses. The hint bits are the same in both.
 pub(super) fn content_v3(purpose: u32, hint: u32) -> (u32, u32) {
     let purpose = match purpose {
-        // normal, alpha, digits, number, phone, url, email, name, password
         0..=8 => purpose,
-        // date, time, datetime, terminal: v3 has `pin` at 9
         9..=12 => purpose + 1,
-        // Unknown: never prose.
         _ => u32::MAX,
     };
     (purpose, hint)
 }
 
-/// Field state seen since it was last passed on.
 #[derive(Default)]
 struct Pending {
-    /// The field went away.
     left: bool,
-    /// A field has focus, or the one in focus may be another now.
     field: bool,
     content: Option<(u32, u32)>,
     surrounding: Option<Surrounding>,
@@ -214,7 +181,6 @@ struct App {
     stream: UnixStream,
     inbox: Inbox,
     outbox: Outbox,
-    /// The app wants text from around the caret.
     reading: bool,
 }
 
@@ -222,21 +188,16 @@ struct Helper {
     qh: QueueHandle<Helper>,
     _input_method: ZwpInputMethodV1,
     context: Option<ZwpInputMethodContextV1>,
-    /// The serial of the field's last committed state, which requests quote.
     serial: u32,
-    /// The active field's content type, for an app that connects later.
     content: Option<(u32, u32)>,
     pending: Pending,
     keyboard: Option<wl_keyboard::WlKeyboard>,
     wants_grab: bool,
     keymap: Option<Keymap>,
     modifiers: Modifiers,
-    /// Keys taken and still down: their release and repeats go nowhere.
     taken: HashSet<u32>,
-    /// The serial and time of the last key, for keys typed on the app's behalf.
     last_key: (u32, u32),
     accept: AcceptKeys,
-    /// A suggestion is in the field.
     shown: bool,
     app: Option<App>,
 }
@@ -255,7 +216,6 @@ impl Helper {
                     if !same_user(&stream) || stream.set_nonblocking(true).is_err() {
                         continue;
                     }
-                    // One app at a time: the newest is the one still running.
                     self.drop_app();
                     log::info!("kwin input method: LokalBot connected");
                     self.app = Some(App {
@@ -280,7 +240,6 @@ impl Helper {
         }
     }
 
-    /// Back to typing as if there were no input method.
     fn drop_app(&mut self) {
         let Some(mut app) = self.app.take() else {
             return;
@@ -360,8 +319,6 @@ impl Helper {
                     return;
                 };
                 if delete_before > 0 || delete_after > 0 {
-                    // KWin applies a deletion of [index, index + length]
-                    // around the caret at once.
                     let index = -i32::try_from(delete_before).unwrap_or(i32::MAX);
                     context.delete_surrounding_text(index, delete_before + delete_after);
                 }
@@ -384,15 +341,11 @@ impl Helper {
         }
     }
 
-    /// Shows `text` in the field, in front of the caret's way. Empty clears it,
-    /// which also prompts a quiet field to report its text.
     fn show(&mut self, text: &str) {
         let Some(context) = &self.context else {
             return;
         };
-        // The caret stays where the user is typing, before the suggestion.
         context.preedit_cursor(0);
-        // Nothing to commit if the field loses focus: a suggestion is not text.
         context.preedit_string(self.serial, clipped(text).to_string(), String::new());
         self.shown = !text.is_empty();
     }
@@ -461,9 +414,6 @@ impl Helper {
                     .as_ref()
                     .is_some_and(|keymap| keymap.modifiers.contains(&scancode));
                 if !is_modifier && self.shown {
-                    // Toolkits may commit preedit when a key arrives, so the
-                    // suggestion leaves first. The app puts it back if it
-                    // still applies.
                     self.show("");
                     self.send(&Event::Passed);
                 }
@@ -530,7 +480,6 @@ impl Dispatch<ZwpInputMethodV1, ()> for Helper {
                 context.destroy();
                 state.content = None;
                 state.shown = false;
-                // A field that came and went before it was passed on never was.
                 state.pending = Pending {
                     left: true,
                     ..Pending::default()
@@ -558,7 +507,6 @@ impl Dispatch<ZwpInputMethodContextV1, ()> for Helper {
             return;
         }
         use zwp_input_method_context_v1::Event as E;
-        // The kind of event only: never the text.
         log::debug!(
             "kwin input method: {}",
             match &event {
@@ -577,7 +525,6 @@ impl Dispatch<ZwpInputMethodContextV1, ()> for Helper {
                 cursor,
                 anchor,
             } => {
-                // Held only until passed on, and only for an app that reads.
                 if state.app.as_ref().is_some_and(|app| app.reading) {
                     state.pending.surrounding = Some(Surrounding {
                         text,
@@ -586,10 +533,6 @@ impl Dispatch<ZwpInputMethodContextV1, ()> for Helper {
                     });
                 }
             }
-            // Moving to another field or window deactivates and activates the
-            // context. A text input enabled again resets it, which may also be
-            // another field, so the app asks again whose it is. The content
-            // type comes with most keystrokes and says nothing about that.
             E::Reset => {
                 state.shown = false;
                 state.pending.field = true;
@@ -669,7 +612,6 @@ mod tests {
 
     #[test]
     fn content_purposes_from_text_input_v1_land_on_v3s_numbers() {
-        // v1 password (8) is v3 password (8); v3 inserted `pin` at 9.
         assert_eq!(content_v3(8, 0xc0), (8, 0xc0));
         assert_eq!(content_v3(0, 0x200), (0, 0x200));
         assert_eq!(content_v3(9, 0), (10, 0), "date");
@@ -683,7 +625,6 @@ mod tests {
         let path = dir.path().join(kwin_wire::SOCKET_NAME);
         let first = listen(&path).unwrap();
         drop(first);
-        // The socket file outlives the helper that made it.
         assert!(path.exists());
         let _second = listen(&path).unwrap();
         let mode = std::fs::metadata(&path).unwrap().permissions().mode() & 0o777;

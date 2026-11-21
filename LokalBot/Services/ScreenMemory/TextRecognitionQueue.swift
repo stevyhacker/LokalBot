@@ -1,32 +1,13 @@
 import Foundation
 
-/// Runs every Vision text-recognition request in the app, one at a time on its
-/// own queue, and lets no caller wait past its time limit.
-///
-/// Vision sends all text recognition in a process through one serial queue.
-/// On 2026-11-09 a request never came back from it, so every later one waited
-/// behind it for good, and so did its caller: screen capture kept its turn and
-/// stored nothing for the rest of the day, and each caret lookup parked a
-/// Swift concurrency thread until none was left for the rest of the app.
-///
-/// A caller that has no answer at its limit goes on without the text. Work
-/// that had not started is dropped; work under way finishes, since Vision
-/// cannot be interrupted, and its result is thrown away. Once a request has
-/// run for `stallLimit`, recognition counts as stalled: callers are turned
-/// away at once and `observeStalls` hears of it, until that request returns.
 final class TextRecognitionQueue: @unchecked Sendable {
     static let shared = TextRecognitionQueue()
 
-    /// Which waiting request runs next. Requests of one urgency run in order.
     enum Urgency: Int, Sendable {
-        /// Someone typing or dictating waits for this text.
         case interactive
-        /// Screen memory.
         case background
     }
 
-    /// Recognition that stopped answering: what it was reading for, and how
-    /// long that had taken when it was noticed.
     struct Stall: Equatable, Sendable {
         let purpose: String
         let seconds: TimeInterval
@@ -38,7 +19,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         let purpose: String
         let work: () -> Void
         let answer: (_ finished: Bool) -> Void
-        /// Guarded by the queue's lock.
         var answered = false
 
         init(urgency: Urgency, sequence: UInt64, purpose: String,
@@ -55,7 +35,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         }
     }
 
-    /// What the work returned, on its way from the worker to the caller.
     private final class Slot<Value>: @unchecked Sendable {
         private let lock = NSLock()
         private var value: Value?
@@ -72,8 +51,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         }
     }
 
-    /// Lets a cancelled caller stop waiting, whether it is cancelled before or
-    /// after its request went in.
     private final class Ticket: @unchecked Sendable {
         private let lock = NSLock()
         private var cancelled = false
@@ -97,8 +74,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         }
     }
 
-    /// Longer than any request that came back: the slowest in six weeks of
-    /// one Mac's log took 86 s, across a sleep.
     static let defaultStallLimit: TimeInterval = 120
 
     private let stallLimit: TimeInterval
@@ -115,25 +90,18 @@ final class TextRecognitionQueue: @unchecked Sendable {
         self.stallLimit = max(0.001, stallLimit)
     }
 
-    /// Set while recognition is not answering.
     var currentStall: Stall? {
         lock.withLock { stall }
     }
 
-    /// Requests whose turn has not come. For tests.
     var waitingCount: Int {
         lock.withLock { waiting.count }
     }
 
-    /// Called with the stall when recognition stops answering, and with nil
-    /// when it answers again. One observer at a time.
     func observeStalls(_ observer: (@Sendable (Stall?) -> Void)?) {
         lock.withLock { stallObserver = observer }
     }
 
-    /// What `work` returns, or nil when there is no answer within `seconds`
-    /// (counted from now, waiting for earlier requests included) or
-    /// recognition is stalled. Never blocks the caller's thread.
     func run<Value: Sendable>(
         _ purpose: String, urgency: Urgency = .background, within seconds: TimeInterval,
         _ work: @escaping @Sendable () -> Value
@@ -153,8 +121,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         }
     }
 
-    /// The same for a caller that cannot suspend. Its thread waits, for at
-    /// most `seconds`.
     func runAndWait<Value: Sendable>(
         _ purpose: String, urgency: Urgency = .background, within seconds: TimeInterval,
         _ work: @escaping @Sendable () -> Value
@@ -165,7 +131,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
             result.put(value)
             answered.signal()
         }
-        // The limit's own timer answers; the extra second is for a late timer.
         _ = answered.wait(timeout: .now() + max(0, seconds) + 1)
         return result.take()
     }
@@ -199,8 +164,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         return job
     }
 
-    /// One call per request. A request whose caller stopped waiting before its
-    /// turn is gone by then, so a call can find nothing to run.
     private func runNext() {
         let next = lock.withLock { () -> Job? in
             guard let job = waiting.min(by: { $0.runsBefore($1) }) else { return nil }
@@ -230,7 +193,6 @@ final class TextRecognitionQueue: @unchecked Sendable {
         }
     }
 
-    /// The caller goes on without the text.
     private func stopWaiting(for job: Job) {
         let wanted = lock.withLock { () -> Bool in
             guard !job.answered else { return false }

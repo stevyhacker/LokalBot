@@ -1,8 +1,3 @@
-//! Reaching a coding agent installed on this computer: whether a deep-link
-//! scheme has a handler, opening such a link, and starting a command-line
-//! agent in a new terminal window. The app chooses the scheme and builds the
-//! link; nothing here accepts text from meetings or models as a program.
-
 use std::path::Path;
 #[cfg(target_os = "linux")]
 use std::process::{Child, Command, Stdio};
@@ -11,13 +6,10 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, bail};
 
-/// Whether something on this computer handles `scheme://` links.
 pub fn handles_scheme(scheme: &str) -> bool {
     platform::handles_scheme(scheme)
 }
 
-/// Opens an agent's deep link. `url` must use a scheme `handles_scheme`
-/// accepted; a handler that fails right away is reported.
 pub fn open_agent_link(url: &str) -> anyhow::Result<()> {
     let parsed = url::Url::parse(url).context("not a link")?;
     if matches!(parsed.scheme(), "file" | "javascript" | "data") {
@@ -26,15 +18,10 @@ pub fn open_agent_link(url: &str) -> anyhow::Result<()> {
     platform::open_link(url)
 }
 
-/// Starts `program` in a new terminal window, in `folder`. Only a program the
-/// caller located is run: no prompt is ever passed on a command line, where a
-/// terminal or a shell could read it as more than text.
 pub fn open_in_terminal(program: &Path, folder: &Path) -> anyhow::Result<()> {
     platform::open_in_terminal(program, folder)
 }
 
-/// Waits briefly for a launcher: one that exits with an error failed, and one
-/// still running after `patience` has taken over the job.
 #[cfg(target_os = "linux")]
 fn launched(mut child: Child, patience: Duration) -> anyhow::Result<()> {
     let start = Instant::now();
@@ -46,12 +33,10 @@ fn launched(mut child: Child, patience: Duration) -> anyhow::Result<()> {
             Err(err) => return Err(err.into()),
         }
     }
-    // Reap it whenever it finishes.
     std::thread::spawn(move || child.wait());
     Ok(())
 }
 
-/// How each Linux terminal runs a program, most specific desktops first.
 #[cfg(target_os = "linux")]
 const LINUX_TERMINALS: &[(&str, &[&str])] = &[
     ("xdg-terminal-exec", &[]),
@@ -120,7 +105,6 @@ mod platform {
 
     pub(super) fn open_in_terminal(program: &Path, folder: &Path) -> anyhow::Result<()> {
         let mut last_failure = None;
-        // The user's own choice comes first, when it names a terminal.
         let chosen = std::env::var("TERMINAL").ok();
         let chosen = chosen
             .as_deref()
@@ -174,11 +158,8 @@ mod platform {
 
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-    /// A registered protocol is a key under `HKEY_CLASSES_ROOT` (which merges
-    /// the user's and the machine's) holding an empty `URL Protocol` value.
     pub(super) fn handles_scheme(scheme: &str) -> bool {
         let mut key = HKEY::default();
-        // SAFETY: `key` is a valid out-pointer and is closed below.
         let opened = unsafe {
             RegOpenKeyExW(
                 HKEY_CLASSES_ROOT,
@@ -191,9 +172,7 @@ mod platform {
         if opened.is_err() {
             return false;
         }
-        // SAFETY: only asks whether the value exists; nothing is written.
         let found = unsafe { RegQueryValueExW(key, w!("URL Protocol"), None, None, None, None) };
-        // SAFETY: `key` was opened above.
         let _ = unsafe { RegCloseKey(key) };
         found.is_ok()
     }
@@ -202,9 +181,6 @@ mod platform {
         open::that_detached(url).context("could not open the link")
     }
 
-    /// Windows Terminal when it is installed, else a console window. `cmd /k`
-    /// runs `.cmd` shims and stays open if the program fails to start, so the
-    /// failure is visible.
     pub(super) fn open_in_terminal(program: &Path, folder: &Path) -> anyhow::Result<()> {
         let path = program.display().to_string();
         if path.contains('"') {
@@ -279,7 +255,6 @@ mod tests {
         assert!(launched(slow, Duration::from_millis(100)).is_ok());
     }
 
-    /// Every terminal gets the program as one argument, after its flags.
     #[test]
     fn terminals_take_the_program_after_their_flags() {
         for (name, flags) in LINUX_TERMINALS {

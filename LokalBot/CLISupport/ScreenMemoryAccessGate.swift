@@ -46,11 +46,6 @@ struct ScreenMemoryAccessProfile: Codable, Equatable, Sendable {
     static let legacyUnscoped = ScreenMemoryAccessProfile(scope: .retainedHistory)
 }
 
-/// Cross-process marker-file truth for the more-sensitive screen-memory scope.
-///
-/// This deliberately does not reuse `AgentAccessGate`. Enabling meeting-library
-/// access, or issuing an Agent Mode meeting capability, must never grant access
-/// to window titles, OCR text, activity blocks, or screenshot metadata.
 struct ScreenMemoryAccessGate {
     static let markerName = "screen-memory-access-enabled"
 
@@ -74,16 +69,12 @@ struct ScreenMemoryAccessGate {
 
     var profile: ScreenMemoryAccessProfile {
         guard let data = try? Data(contentsOf: accessMarkerURL), !data.isEmpty else {
-            // An empty marker was written by the earlier binary gate. Preserve
-            // that user's existing authorization until they choose a profile.
             return .legacyUnscoped
         }
         return (try? JSONDecoder().decode(ScreenMemoryAccessProfile.self, from: data))
             ?? .safeDefault
     }
 
-    /// Kept as a method to parallel `AgentAccessGate` at call sites while
-    /// intentionally accepting no environment-borne meeting capability.
     func isAuthorized() -> Bool {
         isEnabled
     }
@@ -98,9 +89,6 @@ struct ScreenMemoryAccessGate {
             at: controlDirectory,
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700])
-        // `createDirectory(attributes:)` does not re-apply attributes when the
-        // shared control directory already exists (for example after enabling
-        // meeting access first), so harden the existing directory explicitly.
         try fileManager.setAttributes(
             [.posixPermissions: 0o700],
             ofItemAtPath: controlDirectory.path)
@@ -120,11 +108,6 @@ struct ScreenMemoryAccessGate {
     }
 }
 
-/// Small app-side owner for the independent screen-memory marker.
-///
-/// Unlike `AgentAccessManager`, this has no wake watcher or inference lease:
-/// every screen-memory MCP tool is a read-only SQLite query that works while
-/// the app is closed.
 @MainActor
 final class ScreenMemoryAccessManager: ObservableObject {
     @Published private(set) var isEnabled = false

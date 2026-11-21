@@ -1,22 +1,13 @@
 import Foundation
 
-/// What Follow-through can read and do on this Mac. The app supplies the real
-/// library and hand-offs; tests supply a stub.
 @MainActor
 protocol FollowThroughEnvironment: AnyObject {
     var readToolSpecs: [ChatToolSpec] { get }
     var codingAgents: [ActionAgentHandoff] { get }
     func runReadTool(_ call: ChatToolCall) async -> ChatToolResult
-    /// Carries out an approved proposal and says what happened, for the
-    /// person and for the model.
     func perform(_ proposal: FollowThroughProposal, for target: FollowThroughTarget) async throws -> String
 }
 
-/// One Follow-through run: the Think model plans the work for one action,
-/// reads what it needs from the library, and proposes steps. Each step waits
-/// for the person to approve, edit, or decline it; nothing leaves the Mac as
-/// an email, invitation, or task without that click, and even then it opens
-/// as a draft.
 @MainActor
 final class FollowThroughSession: ObservableObject, Identifiable {
     enum Step: Identifiable, Equatable {
@@ -42,19 +33,15 @@ final class FollowThroughSession: ObservableObject, Identifiable {
 
     let id = UUID()
     let target: FollowThroughTarget
-    /// The name of the model doing the work, for the sheet.
     let model: String
     @Published private(set) var steps: [Step] = []
     @Published private(set) var state: State = .idle
     @Published private(set) var summary: String?
     @Published private(set) var usage = MuseChatClient.Usage()
 
-    /// Zero on the Think model, which reports no token use. The hosted film
-    /// runs on Meta's models, which do.
     var cost: Double { MetaModelAPI.cost(of: usage, model: model) }
 
     static let maximumTurns = 10
-    /// One tool call per turn; a draft email or a coding task is the longest.
     static let turnOptions = TextGenerationOptions(maxTokens: 4_000, reasoningBudgetTokens: 1_024, temperature: 0.2)
     static let maximumToolResultCharacters = 6_000
 
@@ -109,7 +96,6 @@ final class FollowThroughSession: ObservableObject, Identifiable {
         task = Task { [weak self] in await self?.run() }
     }
 
-    /// Approves a pending proposal, with the person's edits.
     func approve(_ proposal: FollowThroughProposal) {
         guard let index = proposalIndex(proposal.id), currentProposal(at: index)?.status == .pending else { return }
         steps[index] = .proposal(proposal)
@@ -126,8 +112,6 @@ final class FollowThroughSession: ObservableObject, Identifiable {
         resume(with: .declined(reason: "The person stopped Follow-through."))
         if state != .finished { state = .failed("Stopped.") }
     }
-
-    // MARK: - Loop
 
     private func run() async {
         let codingAgents = environment.codingAgents
@@ -222,11 +206,9 @@ final class FollowThroughSession: ObservableObject, Identifiable {
         }
     }
 
-    /// The final version, so the model knows what the person changed.
     static func describe(_ kind: FollowThroughProposal.Kind) -> String {
         switch kind {
         case .email(let to, let cc, let subject, _):
-            // Names only: addresses the person typed stay on this Mac.
             "Final draft: to \(names(to))" + (cc.isEmpty ? "" : ", cc \(names(cc))") + ", subject “\(subject)”."
         case .event(let title, let start, let minutes, _, _):
             "Final invitation: “\(title)” at \(start.formatted(date: .abbreviated, time: .shortened)) for \(minutes) minutes."

@@ -185,8 +185,6 @@ final class MeetingNoteExportServiceTests: XCTestCase {
     func testUnchangedMeetingsAreSkippedUntilTheirSourcesChange() throws {
         let first = try service.export(configuration(.obsidian))
         let url = vault.appendingPathComponent(noteName)
-        // Without the note and its sidecar, a meeting that is looked at gets
-        // a new note; one that is skipped does not.
         try FileManager.default.removeItem(at: url)
         try FileManager.default.removeItem(at: GeneratedFileWriter.sidecarURL(for: url))
 
@@ -256,8 +254,6 @@ final class MeetingNoteExportServiceTests: XCTestCase {
         let text = try String(contentsOf: vault.appendingPathComponent(name), encoding: .utf8)
         XCTAssertTrue(text.contains(#"  - "Q3: \"Atlas\" \\ review""#), text)
     }
-
-    // MARK: - Helpers
 
     private var meetingFolder: URL {
         library.appendingPathComponent("meetings/2026/07/4f7c2a91-fixture", isDirectory: true)

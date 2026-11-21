@@ -104,8 +104,6 @@ final class AppIdentifiersTests: XCTestCase {
             AppDirectories.applicationSupport.standardizedFileURL)
     }
 
-    /// Unit tests' settings turn semantic search on, so searching screens
-    /// through `AppState` used to download the 310 MB embedding model.
     @MainActor
     func testHostedUnitTestAppStateNeverDownloadsTheEmbeddingModel() async throws {
         guard UITestRuntime.isUnitTesting else {
@@ -134,8 +132,6 @@ final class AppIdentifiersTests: XCTestCase {
         XCTAssertEqual(UITestRuntime.takeRefusedUnitTestDownloads(), [])
     }
 
-    /// Any other unit test that reaches the real embedder is refused before
-    /// the download starts, and `LokalBotTestObservation` fails it.
     @MainActor
     func testHostedUnitTestEmbeddingModelDownloadIsRefused() async throws {
         guard UITestRuntime.isUnitTesting else {

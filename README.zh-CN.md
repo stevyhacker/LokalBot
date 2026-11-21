@@ -29,9 +29,10 @@ brew install --cask stevyhacker/tap/lokalbot
 [![下载 macOS 版 LokalBot](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20macOS%20%E7%89%88%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![下载 Windows 版 LokalBot（alpha）](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20Windows%20%E7%89%88%E2%80%82-alpha-0969da?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNiAxNic%2BPHBhdGggZmlsbD0nd2hpdGUnIGQ9J00wIDBoNy41djcuNUgwek04LjUgMEgxNnY3LjVIOC41ek0wIDguNWg3LjVWMTZIMHpNOC41IDguNUgxNlYxNkg4LjV6Jy8%2BPC9zdmc%2B)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![下载 Linux 版 LokalBot（alpha）](https://img.shields.io/badge/%E2%80%82%E4%B8%8B%E8%BD%BD%20Linux%20%E7%89%88%E2%80%82-alpha-0969da?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
+[![在 App Store 下载 LokalBot iOS 和 iPadOS 配套应用](https://img.shields.io/badge/%E2%80%82iOS%20%E4%B8%8E%20iPadOS%20%E7%89%88%E2%80%82-App%20Store-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/id6836773709)
 [![在 Google Play 获取 LokalBot 安卓配套应用](https://img.shields.io/badge/%E2%80%82Android%20%E7%89%88%E2%80%82-Google%20Play-0969da?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)
 
-<sub>macOS：<code>.dmg</code> 或 Homebrew · Windows 10/11 x64：<code>setup.exe</code> 或免安装 zip（alpha）· Linux x86_64：<code>.deb</code>、<code>.rpm</code>、Arch 或 <code>.tar.gz</code>（alpha）· Android 10 及以上（配套应用）。<a href="#get-started">安装详情</a></sub>
+<sub>macOS：<code>.dmg</code> 或 Homebrew · Windows 10/11 x64：<code>setup.exe</code> 或免安装 zip（alpha）· Linux x86_64：<code>.deb</code>、<code>.rpm</code>、Arch 或 <code>.tar.gz</code>（alpha）· iOS/iPadOS 18+ 与 Android 10+ 配套应用。<a href="#get-started">安装详情</a></sub>
 
 **免费开源（GPLv3）· 无需账号 · 没有统计分析和遥测 · 经过 Apple 公证的 Mac 应用 · 模型下载完成后，内置 AI 可离线使用**
 
@@ -45,7 +46,7 @@ brew install --cask stevyhacker/tap/lokalbot
 
 [English](README.md) · **简体中文**
 
-[开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [基准测试](https://www.lokalbot.com/benchmarks) · [硬件计算器](https://www.lokalbot.com/hardware) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [中文主页](https://www.lokalbot.com/zh)
+[开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [iOS 与 Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [基准测试](https://www.lokalbot.com/benchmarks) · [硬件计算器](https://www.lokalbot.com/hardware) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [中文主页](https://www.lokalbot.com/zh)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" /><img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot 的使用过程：六个循环场景，演示数据为虚构内容，界面为英文。录制一场 Google Chrome 通话，实时转写逐行出现，随后生成纪要，点击待办的引用会跳到转写里的原话。输入 demo pres，同时找到在屏幕上看过的 Keynote 文稿、Mail 回复和两场会议。在 TextEdit 中，自动补全接着写完团队套餐的价格，按 Tab 接受。按住 Option-Space 说话，光标处写出一段简短的团队通知。向 Ask 提问，回答带编号引用，点击引用打开来源会议。在终端里，Claude Code 调用 LokalBot，列出设计评审的决定和还欠的事项。" /></picture>
 
@@ -236,16 +237,16 @@ lokalbot-cli mcp
 
 <a id="on-your-phone"></a>
 
-#### 手机上（Android）
+#### 手机与平板上（iOS 与 Android）
 
 > [!TIP]
-> **LokalBot Android 版已在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 上架。** 离线阅读和搜索你的会议、待办和每日摘要，还能从手机向电脑提问。它直接从你的电脑同步，端到端加密，中间没有 LokalBot 服务器。
+> **LokalBot 已在 [App Store](https://apps.apple.com/app/id6836773709)（iPhone 与 iPad）和 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)（Android）上架。** 离线阅读和搜索你的会议、待办和每日摘要，还能从手机和平板向电脑提问或录制会议。它直接从你的电脑同步，端到端加密，中间没有 LokalBot 服务器。
 
-Android 应用会保存一份端到端加密的副本，内容是你选择共享的会议、待办事项、时间线（Timeline）、每日摘要（Day Digest）、人物和项目，离线也能阅读和搜索。提问会发送到你的电脑，由电脑按它自己的 AI 设置作答；不在电脑旁时，可以先把问题排队，稍后再发。在 Mac、Windows 或 Linux 电脑上的 **Settings → Phones & tablets** 中扫描二维码完成配对。手机直接通过本地网络或 Tailscale 从你的电脑同步，中间没有 LokalBot 服务器。已配对的手机也可以录制会议并以同样的方式发送；由 Mac 处理，之后手机会删除自己的副本。
+iPhone、iPad 和 Android 配套应用会保存一份端到端加密的副本，内容是你选择共享的会议、待办事项、时间线（Timeline）、每日摘要（Day Digest）、人物和项目，离线也能阅读和搜索。提问会发送到你的电脑，由电脑按它自己的 AI 设置作答；不在电脑旁时，可以先把问题排队，稍后再发。在 Mac、Windows 或 Linux 电脑上的 **Settings → Phones & tablets** 中扫描二维码完成配对。设备直接通过本地网络或 Tailscale 从你的电脑同步，中间没有 LokalBot 服务器。已配对的手机或平板也可以录制会议并以同样的方式发送；由电脑处理，之后设备会删除自己的副本。
 
-<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/android-today-dark.png" /><img src="Assets/readme/android-today-light.png" width="300" alt="Android 上的 LokalBot“今天”页面：待办事项及其所属会议，以及昨天的每日摘要，数据来自示例资料库" /></picture></div>
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/ios-today-dark.png" /><img src="Assets/readme/ios-today-light.png" width="260" alt="iPhone 上的 LokalBot“今天”页面：待办事项及其所属会议，以及昨天的每日摘要，数据来自示例资料库" /></picture>&nbsp;&nbsp;&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/android-today-dark.png" /><img src="Assets/readme/android-today-light.png" width="260" alt="Android 上的 LokalBot“今天”页面：待办事项及其所属会议，以及昨天的每日摘要，数据来自示例资料库" /></picture></div>
 
-可以在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取（需要 Android 10 或更新版本），也可以从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK 安装。两者使用不同的签名密钥，请选定一种：之后要换，需要先卸载，手机上的副本和配对都会被删除。在中国大陆无法访问 Google Play 时，请使用 APK。配对前可以先试用示例资料库。iPhone 和 iPad 应用尚未上架 App Store。
+可以在 [App Store](https://apps.apple.com/app/id6836773709) 下载（需要 iOS 或 iPadOS 18 及以上）、在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取（需要 Android 10 或更新版本），或从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 Android APK 安装。Google Play 与发行版 APK 使用不同的签名密钥，请选定一种：之后要换，需要先卸载，手机上的副本和配对都会被删除。在中国大陆无法访问 Google Play 时，Android 请使用 APK。配对前可以先试用示例资料库。
 
 <a id="windows-and-linux"></a>
 
@@ -372,7 +373,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 在一个平台上录制的资料库可以在其他平台上打开。并非所有 Mac 功能都已移植到 Windows 和 Linux，详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
 
-**手机上：** 在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取 Android 配套应用（Android 10 或更新版本），或从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK，然后在 **Settings → Phones & tablets** 中配对。详见[手机上](#on-your-phone)。
+**手机与平板上：** 在 [App Store](https://apps.apple.com/app/id6836773709) 获取 iPhone 和 iPad 配套应用（iOS/iPadOS 18 及以上），或在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取 Android 配套应用（Android 10 及以上，也可从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK），然后在 **Settings → Phones & tablets** 中配对。详见[手机与平板上](#on-your-phone)。
 
 1. **安装应用。** 安装对应平台的版本，然后打开它。
 2. **选择要采集的内容。** 检查录制设置：自动检测、先询问，还是手动录制。工作记录默认只记活动；保存屏幕文字或截图是单独的选项。只为你要用的功能授予权限。
@@ -419,7 +420,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 <details>
 <summary><strong>有手机应用吗？</strong></summary>
 
-有，支持 Android 10 或更新版本，可以在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取，也可以从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK。它是电脑上 LokalBot 的配套应用：读取电脑共享的会议、待办事项和每日摘要，可以离线搜索，并把你的问题发送给电脑。在你开启 **Settings → Phones & tablets** 之前不会共享任何内容；副本通过本地网络或 Tailscale 端到端加密传输，从不经过 LokalBot 服务器。iPhone 和 iPad 应用尚未上架 App Store。
+有，支持 iPhone 和 iPad（iOS/iPadOS 18 及以上，可在 [App Store](https://apps.apple.com/app/id6836773709) 下载）以及 Android（Android 10 及以上，可在 [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) 获取，或从[最新版本](https://github.com/stevyhacker/lokalbot/releases/latest)下载 APK）。它们是电脑上 LokalBot 的配套应用：读取电脑共享的会议、待办事项和每日摘要，可以离线搜索、录制会议交由电脑转写，并把你的问题发送给电脑。在你开启 **Settings → Phones & tablets** 之前不会共享任何内容；副本通过本地网络或 Tailscale 端到端加密传输，从不经过 LokalBot 服务器。
 
 </details>
 

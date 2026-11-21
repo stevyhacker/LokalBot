@@ -1,7 +1,3 @@
-//! Settings → Phones & tablets (`CompanionSettingsView.swift`). Turning sharing
-//! on starts a listener for paired devices on the local network and Tailscale;
-//! everything below the switch only exists while it is on.
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -28,15 +24,12 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, settings_row};
 
 const QR_SIZE: f32 = 196.;
-/// Pixels per QR module, and the blank border a scanner needs around the code.
 const QR_SCALE: u32 = 6;
 const QR_QUIET_MODULES: u32 = 4;
-/// Enough to show every code a device needs.
 const COUNTDOWN_TICK: Duration = Duration::from_secs(1);
 
 pub struct DevicesState {
     port: Entity<InputState>,
-    /// The drawn code and the offer it's for.
     code: Option<(String, Arc<RenderImage>)>,
     released_codes: Vec<Arc<RenderImage>>,
     counting_down: bool,
@@ -55,8 +48,6 @@ impl DevicesState {
         }
     }
 
-    /// The port applies when editing ends, so a half-typed number never
-    /// restarts the listener.
     pub fn subscribe(
         state: &Self,
         window: &mut Window,
@@ -88,8 +79,6 @@ impl DevicesState {
     }
 }
 
-/// A number clamped to the range a listener may use, or the current port when
-/// it isn't a number.
 fn parsed_port(text: &str, current: u16) -> u16 {
     match text.trim().parse::<u64>() {
         Ok(value) => clamped_port(u16::try_from(value).unwrap_or(u16::MAX)),
@@ -136,7 +125,6 @@ impl SettingsPage {
             sections.push(self.recordings_section(&settings, cx));
             sections.push(self.network_section(&settings, &snapshot, cx));
         } else {
-            // A code held after sharing stopped would be a dead picture.
             self.release_code();
         }
         sections
@@ -289,7 +277,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Redraws once a second while a code is on screen, for its countdown.
     fn keep_counting_down(&mut self, cx: &mut Context<Self>) {
         if self.devices.counting_down {
             return;
@@ -454,7 +441,6 @@ impl SettingsPage {
             )
     }
 
-    /// A switch that means nothing without the one above it.
     #[allow(clippy::too_many_arguments)]
     fn dependent_toggle(
         &self,
@@ -708,7 +694,6 @@ pub(crate) fn history_label(window: HistoryWindow) -> &'static str {
     }
 }
 
-/// A device names its own platform; only the known ones are translated.
 fn platform_label(raw: &str) -> String {
     match raw.to_lowercase().as_str() {
         "ios" => lokalbot_i18n::tr("iPhone").to_string(),
@@ -779,7 +764,6 @@ fn confirm_removal(device: &CompanionDevice, window: &mut Window, cx: &mut App) 
     });
 }
 
-/// What stands between a device and this computer that the person can act on.
 fn network_notes(settings: &Settings, snapshot: &CompanionSnapshot) -> Vec<(&'static str, String)> {
     let mut notes = Vec::new();
     if !matches!(snapshot.status, CompanionStatus::Listening { .. }) {
@@ -808,7 +792,6 @@ fn network_notes(settings: &Settings, snapshot: &CompanionSnapshot) -> Vec<(&'st
     notes
 }
 
-/// LokalBot can't see past a firewall, so it says what to check.
 #[cfg(windows)]
 fn firewall_note(_port: u16) -> String {
     lokalbot_i18n::tr(
@@ -825,8 +808,6 @@ fn firewall_note(port: u16) -> String {
     )
 }
 
-/// One grid cell per module, for a code scanners read at error level M, as
-/// on the Mac.
 fn qr_modules(payload: &str) -> Option<(u32, Vec<bool>)> {
     let code =
         qrcode::QrCode::with_error_correction_level(payload.as_bytes(), qrcode::EcLevel::M).ok()?;
@@ -849,7 +830,6 @@ fn qr_pixels(width: u32, modules: &[bool]) -> image::RgbaImage {
             }
             _ => false,
         };
-        // Black and white read the same in GPUI's BGRA.
         image::Rgba(if dark {
             [0, 0, 0, 255]
         } else {
@@ -864,11 +844,6 @@ fn qr_image(payload: &str) -> Option<Arc<RenderImage>> {
     Some(Arc::new(RenderImage::new(vec![image::Frame::new(pixels)])))
 }
 
-// ---------------------------------------------------------- the pairing prompt
-
-/// Brings the Settings window up on Phones & tablets with the question a
-/// scanning device is waiting on, or takes it away once the request is gone.
-/// Called off the engine's update.
 pub(crate) fn pairing_prompt_changed(
     data: Entity<AppData>,
     request: Option<PairingRequest>,
@@ -952,7 +927,6 @@ mod tests {
         let (width, modules) = qr_modules(payload).unwrap();
         assert!(width >= 21 && width % 2 == 1, "{width}");
         assert_eq!(modules.len(), (width * width) as usize);
-        // A finder pattern starts at each of three corners.
         assert!(modules[0] && modules[(width - 1) as usize]);
         assert!(modules[((width - 1) * width) as usize]);
         let pixels = qr_pixels(width, &modules);

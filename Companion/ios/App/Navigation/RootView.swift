@@ -21,7 +21,6 @@ struct RootView: View {
         .brandTinted()
         .fullScreenCover(isPresented: $recording.isPresented) { RecordingScreen().brandTinted() }
         .onChange(of: session.mode) { recording.sessionModeChanged() }
-        // The cover stops touches, not a hardware keyboard: nothing under it takes focus or keys while locked.
         .disabled(appLock.isLocked)
         .overlay {
             if appLock.isLocked || appLock.isObscured {
@@ -36,9 +35,6 @@ struct RootView: View {
     }
 }
 
-/// The tab bar on iPhone and in compact width; a sidebar like the Mac's on a
-/// full-width iPad. Which one follows the size class, so Split View, Slide
-/// Over, Stage Manager and rotation all work.
 struct MainTabs: View {
     @Environment(AppNavigator.self) private var navigator
     @Environment(AppLock.self) private var appLock
@@ -75,14 +71,9 @@ struct MainTabs: View {
             }
         }
         .tabViewStyle(.sidebarAdaptable)
-        // Beside the content like the Mac's when there is room; a tab bar
-        // in portrait, where an open sidebar would cover the page.
         .defaultAdaptableTabBarPlacement(wide ? .sidebar : .automatic)
         .tabViewSidebarBottomBar { SidebarSyncCard() }
-        // The sidebar's selection is white on the deep teal, as on the Mac;
-        // pages keep the text teal (see tab(_:)).
         .tint(sizeClass == .regular ? Brand.tealFill : Brand.teal)
-        // The keyboard commands act through this, so they do nothing while the app is locked.
         .focusedSceneValue(\.navigator, appLock.isLocked ? nil : navigator)
         .onAppear { navigator.adapt(compact: sizeClass == .compact) }
         .onChange(of: sizeClass) { _, new in navigator.adapt(compact: new == .compact) }
@@ -95,8 +86,6 @@ struct MainTabs: View {
     }
 }
 
-/// A top-level section in its container: a split view where a list leads to
-/// details, a stack elsewhere.
 struct SectionHost: View {
     let section: AppSection
 
@@ -124,7 +113,6 @@ struct SectionHost: View {
     }
 }
 
-/// Timeline, People, Projects and Settings in compact width.
 struct MoreScreen: View {
     @Environment(AppNavigator.self) private var navigator
 
@@ -171,8 +159,6 @@ struct MoreScreen: View {
     }
 }
 
-/// "Synced with your computer" at the foot of the sidebar, where the Mac shows
-/// "Storage: this Mac".
 struct SidebarSyncCard: View {
     @Environment(CompanionSession.self) private var session
 
@@ -200,7 +186,6 @@ struct SidebarSyncCard: View {
     }
 }
 
-/// The sync state as one quiet line, refreshed every half minute.
 struct SyncStatusLine: View {
     @Environment(CompanionSession.self) private var session
 
@@ -232,13 +217,11 @@ struct LockCover: View {
             }
         }
         .ignoresSafeArea()
-        // VoiceOver stays on the cover instead of reading the page under it.
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isModal)
     }
 }
 
-/// A meeting in its own window, from the iPad's "Open in New Window".
 struct MeetingWindow: View {
     static let id = "meeting"
     let meetingID: String?
@@ -256,7 +239,6 @@ struct MeetingWindow: View {
         }
         .brandTinted()
         .disabled(appLock.isLocked)
-        // The lock covers this window as it does the main one.
         .overlay {
             if appLock.isLocked || appLock.isObscured {
                 LockCover()

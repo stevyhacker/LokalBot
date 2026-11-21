@@ -41,6 +41,8 @@ dist/
 # Local agent/browser workspaces and snapshots
 .claude/launch.json
 .claude/serve-web.js
+.claude/settings.local.json
+.claude/worktrees/
 .codex/environments/
 .playwright-mcp/
 

@@ -101,8 +101,6 @@ final class MCPProtocolTests: XCTestCase {
         }
     }
 
-    /// Clients keep stdin open and send one short line at a time; the reader
-    /// must hand that line over without waiting for a full chunk or EOF.
     func testReaderReturnsALineWhileThePipeStaysOpen() {
         let pipe = Pipe()
         pipe.fileHandleForWriting.write(Data("{\"jsonrpc\":\"2.0\",\"id\":1}\n".utf8))

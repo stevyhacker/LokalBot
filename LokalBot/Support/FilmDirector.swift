@@ -1,20 +1,6 @@
 #if LOKALBOT_TEST_HOOKS
 import AppKit
 
-/// Films a scripted run of the real app for demo videos (Debug builds only;
-/// see Scripts/media/agent-handoff-demo). `LOKALBOT_TEST_FILM_SCRIPT` picks the run:
-///
-/// - `install-agent` installs Agent Mode's runtime, prints the result and quits.
-/// - `agent-handoff` opens the meeting `LOKALBOT_TEST_FILM_MEETING` while it is
-///   transcribed and summarized, then Agent Mode once its actions are handed
-///   off, moving between their tasks until the agents finish, then each
-///   task's report and the last one's results. A tool request that still
-///   asks is allowed once after two seconds, as a person would.
-///
-/// `LOKALBOT_TEST_FILM_DIR` receives `director.log`, a `done` marker,
-/// `scenes.jsonl` (each scene and when it began, in seconds since 1970) and
-/// `window.json` (the main window's number and top-left frame), which the
-/// script recording the screen reads.
 @MainActor
 final class FilmDirector {
     enum Scene: String {
@@ -108,8 +94,6 @@ final class FilmDirector {
         recordScene()
     }
 
-    // MARK: - Script
-
     private func openMeeting() {
         guard app.libraryReady, let meetingID else {
             if inScene > 120 { note("the library or meeting never loaded"); move(to: .done) }
@@ -135,7 +119,6 @@ final class FilmDirector {
             lastStage = label
         }
         if stage == .waitingForModels, inScene > 5, !requestedModels {
-            // Automatic jobs never download models; ask the way Download & process does.
             requestedModels = true
             note("models missing: processing as a user request")
             _ = app.pipeline.enqueue(meeting, transcribe: true, summarize: true, origin: .userInitiated)
@@ -176,13 +159,11 @@ final class FilmDirector {
         let finished = tasks.filter(isFinished)
         if !tasks.isEmpty, finished.count == tasks.count || inScene > agentSeconds {
             note("\(finished.count) of \(tasks.count) tasks finished")
-            // The first task handed off is reviewed last, with its results open.
             let shown = finished.isEmpty ? tasks : finished
             reviewOrder = (shown.dropFirst() + shown.prefix(1)).map(\.id)
             move(to: .done)
             return
         }
-        // Each task in turn, skipping ones still waiting for a free agent.
         guard Date().timeIntervalSince(taskShownAt) > 20, tasks.count > 1 else { return }
         let begun = tasks.filter { $0.controller.state != .idle }
         let order = begun.isEmpty ? tasks : begun
@@ -214,7 +195,6 @@ final class FilmDirector {
         }
     }
 
-    /// Three seconds on each task's report, then the Results panel on the last.
     private func review() {
         guard !reviewOrder.isEmpty else {
             if inScene > 5 { finish() }
@@ -234,7 +214,6 @@ final class FilmDirector {
         app.agentSessions.select(id)
         shownTask = id
         taskShownAt = Date()
-        // Open on the latest output, and again once the transcript has laid out.
         let end = "agent.transcript.end"
         guard let controller = app.agentSessions.tabs.first(where: { $0.id == id })?.controller else { return }
         controller.visibleTranscriptID = end
@@ -254,9 +233,6 @@ final class FilmDirector {
         FileManager.default.createFile(atPath: folder.appendingPathComponent("done").path, contents: nil)
     }
 
-    // MARK: - Recording
-
-    /// Sizes the main window once, then keeps `window.json` current for the recorder.
     private func trackWindow() {
         guard let window = WindowAccess.visibleMainWindow(in: NSApp) else { return }
         if !sizedWindow {

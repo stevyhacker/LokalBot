@@ -1,7 +1,3 @@
-//! What the tray menu says LokalBot is doing, and the meetings listed under
-//! it (`MenuBarStatus.swift`, `MenuBarView.swift`). Display-only: nothing
-//! here is stored or sent. `desktop.rs` hands the result to the tray.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, Local, Utc};
@@ -17,17 +13,10 @@ use lokalbot_platform::tray::{
 
 use crate::state::{AppData, DictationHud, RecordingState};
 
-/// A calendar meeting leads the menu once it starts within this long, and
-/// keeps the block while under way and not being recorded. Shorter than
-/// Today's hour: the menu is a glance (`MenuBarStatus.soonWindow`).
 const SOON_WINDOW_SECONDS: i64 = 15 * 60;
-/// How long a recording that has just been saved is named in the block
-/// (`MenuBarStatus.justStoppedWindow`).
 const JUST_STOPPED_SECONDS: i64 = 2 * 60;
-/// The menu keeps the two most recent meetings.
 const RECENT_MEETING_LIMIT: usize = 2;
 
-/// The menu as `data` stands at `now`.
 pub fn menu_state(
     data: &AppData,
     now: DateTime<Utc>,
@@ -50,7 +39,6 @@ pub fn menu_state(
         } else {
             Vec::new()
         };
-    // The recording in progress claims its event before the library lists it.
     let recordings: Vec<&Meeting> = live.into_iter().chain(data.meetings.iter()).collect();
     let recorded = crate::pages::today::model::recorded_event_ids(&recordings, &schedule);
     let soon = soon_meeting(&schedule, now, &recorded).map(|event| TraySoonMeeting {
@@ -117,7 +105,6 @@ pub fn menu_state(
     }
 }
 
-/// What dictation is doing, as the menu words it.
 fn dictation(hud: &DictationHud) -> TrayDictation {
     match hud {
         DictationHud::Starting => TrayDictation::Starting,
@@ -128,9 +115,6 @@ fn dictation(hud: &DictationHud) -> TrayDictation {
     }
 }
 
-/// The recording in progress: its meeting, timer, warnings, and whether
-/// sound arrives from each source. The engine reports each track's state in
-/// the Mac's words; levels stand in until its first report.
 fn recording(data: &AppData) -> Option<TrayRecording> {
     let RecordingState::Recording {
         meeting,
@@ -169,7 +153,6 @@ fn recording(data: &AppData) -> Option<TrayRecording> {
     })
 }
 
-/// Sound is arriving only while the recorder says so (`MemoryHealthTone.audio`).
 fn source(status: String) -> TraySource {
     TraySource {
         receiving: status == "Receiving audio",
@@ -177,9 +160,6 @@ fn source(status: String) -> TraySource {
     }
 }
 
-/// Everything waiting, most blocking first: the latest error, then
-/// approvals (`MenuBarAttention.items`). The port has no microphone
-/// permission to lose.
 fn attention(error: Option<&str>, approvals: usize) -> Vec<TrayAttention> {
     let mut items = Vec::new();
     if let Some(error) = error.filter(|error| !error.is_empty()) {
@@ -191,22 +171,16 @@ fn attention(error: Option<&str>, approvals: usize) -> Vec<TrayAttention> {
     items
 }
 
-/// What picks the status block.
 struct Inputs<'a> {
     recording: Option<TrayRecording>,
     dictation: TrayDictation,
     attention: Vec<TrayAttention>,
     soon: Option<TraySoonMeeting>,
-    /// Day memory runs and is paused.
     paused: bool,
     just_stopped: Option<&'a Meeting>,
     habit: AutoRecordMode,
 }
 
-/// The block in this order: recording, dictating, needs attention, a
-/// meeting about to start, day memory paused, just stopped, idle. A
-/// recording or a dictation leads even when something needs attention, so
-/// Stop is never hidden; the waiting items are listed under it.
 fn block(inputs: Inputs) -> (TrayBlock, Vec<TrayAttention>) {
     let Inputs {
         recording,
@@ -243,9 +217,6 @@ fn block(inputs: Inputs) -> (TrayBlock, Vec<TrayAttention>) {
     (block, Vec::new())
 }
 
-/// The calendar meeting that leads the menu: the one under way, or the next
-/// once it starts within 15 minutes. Events already recorded, and the one
-/// being recorded now, are passed over (`TodayAgenda.nextMeeting`).
 fn soon_meeting<'a>(
     schedule: &'a [CalendarEvent],
     now: DateTime<Utc>,
@@ -265,16 +236,10 @@ fn soon_meeting<'a>(
         .find(|event| event.external_id == next.external_id)
 }
 
-/// "6:00 PM – 6:30 PM". The Mac adds the first attendee and a count
-/// (`MenuBarStatusBlock.schedule`); here the menu's words reach every app on
-/// the session bus (Linux), and the tray has never shown attendee names, so
-/// it leaves them out.
 fn schedule_line(event: &CalendarEvent) -> String {
     crate::pages::today::upcoming::interval(event)
 }
 
-/// The recording made here that ended within two minutes. An imported file
-/// was not just recorded, whenever its audio ends.
 fn just_stopped(meetings: &[Meeting], now: DateTime<Utc>) -> Option<&Meeting> {
     let window = chrono::Duration::seconds(JUST_STOPPED_SECONDS);
     meetings
@@ -289,9 +254,6 @@ fn just_stopped(meetings: &[Meeting], now: DateTime<Utc>) -> Option<&Meeting> {
         .max_by_key(|meeting| meeting.ended_at)
 }
 
-/// The first meetings of the library, which lists the newest first, with the
-/// one just saved in front, and whether each is that one. Sources folded into
-/// a merged meeting and the recording in progress are not listed.
 fn recent_meetings<'a>(
     meetings: &'a [Meeting],
     just_stopped: Option<&'a Meeting>,
@@ -309,7 +271,6 @@ fn recent_meetings<'a>(
         .collect()
 }
 
-/// When a recent meeting was, at the far side of its row.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum When {
     JustNow,
@@ -332,8 +293,6 @@ fn when(started: DateTime<Utc>, just_now: bool, now: DateTime<Utc>) -> When {
     }
 }
 
-/// "Just now", today's start time, "Yesterday", or the day
-/// (`MenuBarPanelWhen`).
 fn when_label(started: DateTime<Utc>, just_now: bool, now: DateTime<Utc>) -> String {
     match when(started, just_now, now) {
         When::JustNow => lokalbot_i18n::tr("Just now").to_string(),
@@ -349,9 +308,6 @@ fn when_label(started: DateTime<Utc>, just_now: bool, now: DateTime<Utc>) -> Str
     }
 }
 
-/// The Lucide icon each menu row draws where the tray menu draws pixels
-/// (Windows), as the app draws it elsewhere. Record, Stop and the blank are
-/// drawn by the tray itself.
 fn lucide(glyph: TrayGlyph) -> Option<crate::ui::Ico> {
     use crate::ui::Ico;
     Some(match glyph {
@@ -380,15 +336,9 @@ fn lucide(glyph: TrayGlyph) -> Option<crate::ui::Ico> {
     })
 }
 
-/// Pixels on a side of a row icon; Windows scales them to its 16 px menus.
 const GLYPH_PIXELS: u32 = 32;
-/// The icons' grey on Windows' light tray menus: the Mac rows' secondary ink,
-/// 6.7:1 on white.
 const GLYPH_INK: [u8; 3] = [0x5C, 0x5C, 0x5C];
 
-/// Every row icon the tray cannot draw itself, rasterized from the bundled
-/// Lucide icons in [`GLYPH_INK`]. Only Windows' menus draw pixels, so only
-/// Windows asks for them.
 pub fn glyph_pixels() -> Vec<(TrayGlyph, TrayIcon)> {
     use gpui_kit::AssetSource as _;
     let renderer = gpui_kit::SvgRenderer::new(std::sync::Arc::new(crate::assets::Assets));
@@ -410,7 +360,6 @@ pub fn glyph_pixels() -> Vec<(TrayGlyph, TrayIcon)> {
                 u32::try_from(image_size.width.0).ok()?,
                 u32::try_from(image_size.height.0).ok()?,
             );
-            // BGRA, premultiplied: only the coverage is kept, in one ink.
             let pixels = image
                 .as_bytes(0)?
                 .as_chunks::<4>()
@@ -480,7 +429,6 @@ mod tests {
             ..Default::default()
         };
 
-        // A recording leads and lists everything waiting under it.
         let (block, more) = block(Inputs {
             recording: Some(TrayRecording::default()),
             dictation: TrayDictation::Recording,
@@ -498,7 +446,6 @@ mod tests {
         assert_eq!(block, TrayBlock::Dictating(TrayDictation::Composing));
         assert_eq!(more, std::slice::from_ref(&approvals));
 
-        // The first item waiting leads; the rest are listed.
         let (block, more) = super::block(Inputs {
             attention: vec![error.clone(), approvals.clone()],
             soon: Some(soon.clone()),
@@ -568,7 +515,6 @@ mod tests {
         let ended_ago = |minutes: i64| meeting("Call", now - Duration::minutes(30 + minutes), 30);
         assert!(just_stopped(&[ended_ago(1)], now).is_some());
         assert!(just_stopped(&[ended_ago(3)], now).is_none());
-        // An imported file, a merged source or one still recording is not.
         let mut imported = ended_ago(1);
         imported.imported_file_names = Some(vec!["call.m4a".into()]);
         let mut merged = ended_ago(1);
@@ -576,7 +522,6 @@ mod tests {
         let mut live = ended_ago(1);
         live.ended_at = None;
         assert!(just_stopped(&[imported, merged, live], now).is_none());
-        // The one that ended last wins.
         let earlier = ended_ago(1);
         let later = meeting("Later", now - Duration::minutes(10), 10);
         assert_eq!(
@@ -615,7 +560,6 @@ mod tests {
             titles(recent_meetings(&library, Some(&saved), None)),
             [("Saved".to_string(), true), ("Newest".to_string(), false)]
         );
-        // The recording in progress is not a recent meeting.
         assert_eq!(
             titles(recent_meetings(&library, None, Some(newest.id))),
             [("Older".to_string(), false), ("Oldest".to_string(), false)]
@@ -648,10 +592,8 @@ mod tests {
         );
         let in_twenty = [event("later", now + Duration::minutes(20), 30)];
         assert!(soon_meeting(&in_twenty, now, &none).is_none());
-        // Under way and not recorded: it keeps the block.
         let under_way = [event("now", now - Duration::minutes(5), 30)];
         assert!(soon_meeting(&under_way, now, &none).is_some());
-        // Recorded already, or over: it does not.
         let recorded: HashSet<String> = ["now".to_string()].into();
         assert!(soon_meeting(&under_way, now, &recorded).is_none());
         let over = [event("over", now - Duration::minutes(40), 30)];
@@ -686,7 +628,6 @@ mod tests {
                         drawn.unwrap_or_else(|| panic!("no pixels for {glyph:?}"));
                     assert_eq!((*width, *height), (GLYPH_PIXELS, GLYPH_PIXELS));
                     assert_eq!(rgba.len(), (GLYPH_PIXELS * GLYPH_PIXELS * 4) as usize);
-                    // Some ink, in the one grey, and clear around it.
                     let pixels = rgba.as_chunks::<4>().0;
                     assert!(pixels.iter().any(|p| p[3] > 200), "{glyph:?}");
                     assert!(pixels.iter().any(|p| p[3] == 0), "{glyph:?}");

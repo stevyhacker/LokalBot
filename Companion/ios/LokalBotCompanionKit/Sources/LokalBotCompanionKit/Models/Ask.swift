@@ -1,6 +1,5 @@
 import Foundation
 
-/// A question for the Mac (records.md, Ask).
 public struct AskRequest: Codable, Sendable, Hashable, Identifiable {
     public var requestId: String
     public var conversationId: String
@@ -22,7 +21,6 @@ public struct AskRequest: Codable, Sendable, Hashable, Identifiable {
     }
 
     public struct Scope: Codable, Sendable, Hashable {
-        /// `YYYY-MM-DD`.
         public var day: String?
         public var meetingId: String?
 
@@ -42,13 +40,9 @@ public struct AskRequest: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// Where an answer was produced: teal for the Mac's own engine, amber for an
-/// approved remote engine.
 public enum AnswerLocation: String, Codable, Sendable {
     case mac, remote
 
-    /// An unknown location is treated as remote, so it is never presented as
-    /// private when it may not be.
     public init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = AnswerLocation(rawValue: raw) ?? .remote
@@ -74,12 +68,9 @@ public struct AskResult: Codable, Sendable, Hashable {
     }
 }
 
-/// `[n]` in an answer refers to `index`. Without a `meetingId` (a screen
-/// moment) the citation is text only.
 public struct AskCitation: Codable, Sendable, Hashable, Identifiable {
     public var index: Int
     public var meetingId: String?
-    /// Seconds from the start of the meeting.
     public var at: Double?
     public var label: String
 
@@ -93,7 +84,6 @@ public struct AskCitation: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// One saved question and its answer, from the store's ask history.
 public struct AskExchange: Codable, Sendable, Hashable, Identifiable {
     public var request: AskRequest
     public var result: AskResult

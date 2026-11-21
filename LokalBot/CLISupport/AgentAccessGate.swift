@@ -17,7 +17,6 @@ enum AgentAccessError: LocalizedError {
     }
 }
 
-/// Cross-process marker-file truth for external-agent access and LLM wakeup.
 struct AgentAccessGate {
     static let capabilityEnvironmentKey = "LOKALBOT_AGENT_CAPABILITY"
 
@@ -51,10 +50,6 @@ struct AgentAccessGate {
         FileManager.default.fileExists(atPath: accessMarkerURL.path)
     }
 
-    /// True for the user-controlled global toggle or for an app-issued,
-    /// short-lived capability inherited by the embedded Agent Mode process.
-    /// A normal terminal invocation has no capability and must honor the
-    /// Privacy toggle just like MCP does.
     func isAuthorized(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date()
@@ -62,9 +57,6 @@ struct AgentAccessGate {
         authorizationID(environment: environment, now: now) != nil
     }
 
-    /// A long-running read must retain the same grant through response delivery.
-    /// Re-enabling global access issues a new identity, so it cannot revive an
-    /// answer whose original grant was revoked while inference was pending.
     func authorizationID(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         now: Date = Date()
@@ -82,7 +74,6 @@ struct AgentAccessGate {
         guard isAuthorized(environment: environment) else { throw AgentAccessError.disabled }
     }
 
-    /// `requireAuthorized` for a CLI command: the refusal carries its code.
     func requireCommandAccess(
         environment: [String: String] = ProcessInfo.processInfo.environment
     ) throws {
@@ -102,9 +93,6 @@ struct AgentAccessGate {
         try? FileManager.default.removeItem(at: accessMarkerURL)
     }
 
-    /// Creates a bearer capability for one embedded Agent Mode subprocess.
-    /// Only a SHA-256 digest is persisted; the bearer secret exists in the
-    /// process environment and is revoked when the tab shuts down.
     func issueScopedCapability(validFor lifetime: TimeInterval = 24 * 60 * 60) throws
         -> AgentAccessCapability {
         let id = UUID().uuidString.lowercased()

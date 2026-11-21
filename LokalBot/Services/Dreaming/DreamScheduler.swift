@@ -1,47 +1,23 @@
 import Foundation
 
-/// Wall-clock scheduler for the overnight dream. Same minute-tick design as
-/// `DailyMemoryExportScheduler` (correct across sleep/wake and DST), with two
-/// dreaming-specific twists:
-///
-/// - the durable once-per-day marker is the report file itself (via the
-///   injected `hasReport`), so a night the Mac slept through is caught up at
-///   the next launch or wake, right before the user opens Today;
-/// - a `canRun` downtime gate keeps the dream from competing with recording,
-///   processing, dictation, or cotyping — it simply waits for the next tick;
-/// - catch-up is bounded to the last `catchUpDays` local days, so a long
-///   pause never turns into a backlog of unattended model runs.
 @MainActor
 final class DreamScheduler: ObservableObject {
-    /// Yesterday plus the six days before it.
     nonisolated static let catchUpDays = 7
-    /// Automatic runs that hit a rate limit or dropped connection are retried
-    /// after the failure backoff; the evidence-only brief is written only
-    /// once this many consecutive attempts for the same day have failed.
     nonisolated static let transientAttemptsBeforeFallback = 3
 
     struct Configuration: Equatable, Sendable {
         var enabled: Bool
-        /// Local wall-clock hour (0...23) after which the previous day may be
-        /// dreamed. Before it, the previous day is considered still "in use"
-        /// (a late session past midnight belongs to the evening's context).
         var hour: Int
-        /// Persisted activation boundary for catch-up. The scheduler walks
-        /// forward from this local day and dreams the oldest missing report.
         var firstEligibleDayKey: String
 
         var normalizedHour: Int { min(23, max(0, hour)) }
     }
 
-    /// One immutable local-day interpretation shared by scheduling, evidence
-    /// compilation, and persistence. `Calendar.current` may change when the
-    /// user travels, so a run must not reconstruct any part of this target.
     struct Target: Equatable, Sendable {
         let day: Date
         let dayKey: String
         let calendar: Calendar
         var isAutomatic: Bool = false
-        /// Consecutive transient failures already seen for this day.
         var transientFailures: Int = 0
     }
 
@@ -50,13 +26,9 @@ final class DreamScheduler: ObservableObject {
     @Published private(set) var isDreaming = false
     @Published private(set) var lastDreamedAt: Date?
     @Published private(set) var lastError: String?
-    /// Day being dreamed, for progress surfaces.
     @Published private(set) var activeDayKey: String?
-    /// Missing days still queued behind an automatic catch-up run.
     @Published private(set) var remainingCatchUpDays = 0
 
-    /// Nil in production so every tick snapshots the then-current calendar.
-    /// Tests can inject a fixed calendar through `init(calendar:now:)`.
     private let fixedCalendar: Calendar?
     private let now: () -> Date
     private var configuration: Configuration?
@@ -67,9 +39,6 @@ final class DreamScheduler: ObservableObject {
     private var timer: Timer?
     private var dreamTask: Task<Void, Never>?
     private var lastFailure: Date?
-    /// In-memory high-water mark for the current calendar snapshot. A launch
-    /// may scan the persisted activation range once, but subsequent minute
-    /// ticks start at the first day not already proven complete.
     private var scanCursorDayKey: String?
     private var scanCalendar: Calendar?
     private var generation = 0
@@ -131,11 +100,7 @@ final class DreamScheduler: ObservableObject {
         isDreaming = false
     }
 
-    /// A generated artifact changed behind the in-memory scan cursor. Reset
-    /// the high-water mark so the next tick can find and repair the hole.
     func reconsiderReports(invalidating dayKeys: Set<String> = [], cancellingInFlight: Bool = false) {
-        // A newer dream can depend on an old source through durable memory,
-        // even when its own day is outside the direct comparison window.
         if let activeDayKey, cancellingInFlight || dayKeys.contains(activeDayKey) {
             generation &+= 1
             dreamTask?.cancel()
@@ -168,12 +133,7 @@ final class DreamScheduler: ObservableObject {
             hour: configuration.normalizedHour,
             hasReportForPreviousDay: false,
             calendar: calendar) else { return }
-        // A failed dream (model unreachable mid-boot, disk error) should be
-        // visible but not retried every minute; generation can also take a
-        // while, so give the system room between attempts.
         if let lastFailure, current.timeIntervalSince(lastFailure) < 15 * 60 { return }
-        // Not downtime yet — recording, processing, dictation, or cotyping is
-        // active. Don't burn the backoff; just wait for a quieter tick.
         guard canRun() else { return }
         let scanStart = scanCursorDayKey ?? configuration.firstEligibleDayKey
         guard let target = Self.oldestMissingTarget(
@@ -181,10 +141,6 @@ final class DreamScheduler: ObservableObject {
             through: yesterday,
             hasReport: hasReport,
             calendar: calendar) else {
-            // A canonical start after yesterday is either a future opt-in
-            // boundary or the cursor parked on the next not-yet-eligible day.
-            // Keep it intact. Otherwise the scanned range is complete, so park
-            // directly after yesterday and avoid decoding it again next minute.
             if !Self.isCanonicalFutureDayKey(
                 scanStart,
                 after: yesterday,
@@ -199,9 +155,6 @@ final class DreamScheduler: ObservableObject {
         start(target: target, advancesScanCursor: true)
     }
 
-    /// Manual run from a user action: ignores whether overnight automation is
-    /// enabled, the hour, the existing report (the day is re-dreamed and its
-    /// files replaced), and the downtime gate. Still one dream at a time.
     func dreamNow() {
         guard dreamTask == nil,
               configuration != nil,
@@ -238,7 +191,6 @@ final class DreamScheduler: ObservableObject {
                 continueCatchUp = advancesScanCursor
             } catch is CancellationError {
             } catch is DreamService.Deferred {
-                // Retried after the usual backoff; not surfaced as an error.
                 guard generation == runGeneration else { return }
                 lastFailure = now()
                 transientFailures[target.dayKey, default: 0] += 1
@@ -262,11 +214,6 @@ final class DreamScheduler: ObservableObject {
         fixedCalendar ?? Calendar.current
     }
 
-    /// Finds the oldest undreamed local day between the persisted activation
-    /// boundary and yesterday (inclusive), looking back at most `catchUpDays`
-    /// days. A malformed boundary is narrowed to yesterday for safe migration;
-    /// a valid future boundary waits, preserving the user's opt-in boundary
-    /// across date-line travel.
     nonisolated static func oldestMissingTarget(
         firstEligibleDayKey: String,
         through yesterday: Date,
@@ -298,7 +245,6 @@ final class DreamScheduler: ObservableObject {
         return nil
     }
 
-    /// Undreamed days after `day` through yesterday, for progress display.
     nonisolated static func missingDayCount(
         after day: Date,
         through yesterday: Date,
@@ -335,16 +281,12 @@ final class DreamScheduler: ObservableObject {
         return calendar.startOfDay(for: parsed) > calendar.startOfDay(for: day)
     }
 
-    /// The day a dream analyzes: the local calendar day before `date`.
     nonisolated static func previousDay(of date: Date, calendar: Calendar) -> Date {
         let today = calendar.startOfDay(for: date)
         return calendar.date(byAdding: .day, value: -1, to: today)
             ?? today.addingTimeInterval(-86_400)
     }
 
-    /// Run once the clock passes today's configured hour, unless the previous
-    /// day already has a report. No same-day memory needed: writing the report
-    /// flips `hasReportForPreviousDay` durably.
     nonisolated static func shouldRun(
         at date: Date,
         hour: Int,
@@ -358,9 +300,6 @@ final class DreamScheduler: ObservableObject {
         return date >= target
     }
 
-    /// Dreaming waits for AC power — an unattended model pass must never be
-    /// the thing that drains the battery. It does not wait for the user to be
-    /// idle: a missed run catches up as soon as LokalBot itself is quiet.
     nonisolated static func powerAllowsDreaming(isOnBattery: Bool) -> Bool {
         !isOnBattery
     }

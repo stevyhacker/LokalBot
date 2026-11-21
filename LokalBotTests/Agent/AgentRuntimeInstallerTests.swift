@@ -30,7 +30,6 @@ final class AgentRuntimeInstallerTests: XCTestCase {
         try? FileManager.default.removeItem(at: sandbox)
     }
 
-    /// zip containing bun-darwin-aarch64/bun (the layout of the real Bun release zip)
     private func makeBunFixture() throws -> URL {
         let stage = sandbox.appendingPathComponent("bun-stage/bun-darwin-aarch64", isDirectory: true)
         try FileManager.default.createDirectory(at: stage, withIntermediateDirectories: true)

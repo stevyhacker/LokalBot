@@ -1,28 +1,4 @@
 #!/usr/bin/env bash
-# Adds Linux packages to LokalBot's apt and dnf repositories and signs them.
-# .github/workflows/linux-repos.yml publishes the tree at https://pkg.lokalbot.com:
-#   apt/           suite stable, component main, amd64: pool/main/l/lokalbot/
-#                  and dists/stable/ with InRelease, Release and Release.gpg
-#                  (apt-ftparchive, SHA-256 only, indexes also by hash)
-#   rpm/           the RPMs, each signed with rpmsign, and repodata/
-#                  (createrepo_c) with repomd.xml.asc
-#   lokalbot.asc   the public key, and lokalbot.gpg, the same key unarmored
-#
-#   scripts/linux-repos.sh REPO KEY [PACKAGE.deb|PACKAGE.rpm ...]
-#
-# REPO holds the published packages (copied from the bucket, or empty for a
-# new repository) and receives the new tree. KEY is the signing key's
-# fingerprint; GNUPGHOME has its secret key. A package whose version is
-# already published is left out: a published version's bytes never change.
-# Each repository then keeps its newest KEEP (default 3) versions, and every
-# index is rebuilt, signed and checked against the public key. With no
-# packages, the indexes are only rebuilt and signed again.
-#
-# PUBLIC_KEY: the armored public keyring to publish (default: KEY's public
-# key). It must contain KEY.
-#
-# Needs apt-ftparchive (apt-utils), dpkg-deb, createrepo_c, rpm, rpmsign and
-# gpg, as on Ubuntu 24.04.
 set -euo pipefail
 if [ $# -lt 2 ]; then
   echo "usage: $0 REPO KEY [PACKAGE.deb|PACKAGE.rpm ...]" >&2
@@ -84,7 +60,6 @@ for package in "$@"; do
   fi
   cp "$package" "$WORK/new"
   if [[ "$package" == *.rpm ]]; then
-    # Ubuntu's rpm looks for gpg as gpg2, which it no longer ships.
     rpmsign --addsign --define "__gpg $(command -v gpg)" --define "_gpg_name $KEY" \
       --define "_gpg_sign_cmd_extra_args --batch --digest-algo sha256" "$WORK/new" > /dev/null
   fi
@@ -92,7 +67,6 @@ for package in "$@"; do
   echo "added $(basename "$target")"
 done
 
-# The newest KEEP versions stay.
 prune() {
   local dir=$1 prefix=$2 suffix=$3 version
   find "$dir" -maxdepth 1 -name "$prefix*$suffix" -printf '%f\n' |
@@ -105,8 +79,6 @@ prune() {
 prune "$POOL" lokalbot_ _amd64.deb
 prune "$RPMS" lokalbot- .x86_64.rpm
 
-# apt: one index, listed in Release by SHA-256 and also stored under its hash
-# (Acquire-By-Hash), so a cached or half-uploaded index never mismatches.
 SHA256_ONLY=(-o APT::FTPArchive::MD5=false -o APT::FTPArchive::SHA1=false -o APT::FTPArchive::SHA512=false)
 BIN="$DIST/main/binary-amd64"
 rm -rf "$DIST"
@@ -133,12 +105,10 @@ sign() { gpg --batch --yes --local-user "$KEY" --digest-algo SHA512 "$@"; }
 sign --clearsign --output "$DIST/InRelease" "$DIST/Release"
 sign --armor --detach-sign --output "$DIST/Release.gpg" "$DIST/Release"
 
-# dnf: repodata names each file by its hash; repomd.xml is signed.
 rm -rf "$RPMS/repodata"
 createrepo_c --quiet --no-database --general-compress-type=gz "$RPMS"
 sign --armor --detach-sign --output "$RPMS/repodata/repomd.xml.asc" "$RPMS/repodata/repomd.xml"
 
-# Everything verifies with the public key alone.
 gpgv --quiet --keyring "$REPO/lokalbot.gpg" "$DIST/InRelease"
 gpgv --quiet --keyring "$REPO/lokalbot.gpg" "$DIST/Release.gpg" "$DIST/Release"
 gpgv --quiet --keyring "$REPO/lokalbot.gpg" "$RPMS/repodata/repomd.xml.asc" "$RPMS/repodata/repomd.xml"

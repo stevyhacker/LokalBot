@@ -1,22 +1,11 @@
 import Foundation
 
-/// Companion records, schema version 1 (`Companion/protocol/records.md`).
-///
-/// These types are the allowlist: a field reaches a phone only if it is
-/// declared here. Optional fields are omitted from the JSON, never `null`.
-/// Instants are ISO 8601 UTC strings with milliseconds; calendar days are
-/// `YYYY-MM-DD` in the Mac's time zone; offsets inside a meeting are seconds
-/// from the start of its audio.
 enum CompanionRecordKind: String, CaseIterable, Sendable {
     case manifest, meeting, transcript, day, person, project
 
-    /// Kinds whose keys the publisher reconciles. The manifest is a single
-    /// record set through `setManifest`.
     static let reconciled: [Self] = [.meeting, .transcript, .day, .person, .project]
 }
 
-/// One built record: what the Mac publishes. The host adds the envelope
-/// (`version`, `seq`, `sortKey`, `deleted`).
 struct CompanionRecord: Equatable, Sendable {
     let kind: CompanionRecordKind
     let key: String
@@ -24,8 +13,6 @@ struct CompanionRecord: Equatable, Sendable {
 }
 
 enum CompanionJSON {
-    /// Sorted keys and unescaped slashes, so equal content always serializes
-    /// to the same bytes and the host can skip unchanged bodies.
     static func encode<T: Encodable>(_ value: T) throws -> String {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys, .withoutEscapingSlashes]
@@ -43,11 +30,8 @@ enum CompanionJSON {
         DreamDay.key(for: date, calendar: calendar)
     }
 
-    /// Meeting and project UUIDs travel in lower case, as in the fixtures.
     static func id(_ uuid: UUID) -> String { uuid.uuidString.lowercased() }
 }
-
-// MARK: - Bodies
 
 struct CompanionManifestBody: Codable, Equatable, Sendable {
     var schemaVersion = 1
@@ -230,9 +214,6 @@ struct CompanionProjectBody: Codable, Equatable, Sendable {
     var meetingIds: [String]
 }
 
-// MARK: - Phone → Mac
-
-/// `action.setStatus`, the only op in schema version 1.
 struct CompanionSetStatusOp: Codable, Equatable, Sendable {
     var type: String
     var opId: String?
@@ -245,7 +226,6 @@ struct CompanionSetStatusOp: Codable, Equatable, Sendable {
     static let typeName = "action.setStatus"
 }
 
-/// What `apply_op` reports back to the device.
 struct CompanionOpResult: Equatable, Sendable {
     enum Status: String, Sendable { case applied, unmatched, rejected }
     var status: Status

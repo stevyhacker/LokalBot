@@ -1,15 +1,4 @@
 #!/bin/bash
-# Builds the copy of LokalBot that films autocomplete and dictation.
-#
-#   Scripts/media/readme-gif/build_filming_app.sh <work-dir> [revision]   (default revision: v0.11.2)
-#
-# The shipping autocomplete panel sets `sharingType = .none`, so screen
-# recording never sees a suggestion. This copy changes that one line to
-# `.readOnly` and is otherwise the release source. It is built from
-# `git archive`, so the checkout and /Applications/LokalBot.app are untouched,
-# then re-signed to the installed app's designated requirement so the
-# installed app's Accessibility and Input Monitoring grants apply to it.
-# Never ship or commit the result.
 set -euo pipefail
 REPO=$(cd "$(dirname "$0")/../../.." && pwd)
 WORK=$(mkdir -p "$1" && cd "$1" && pwd)
@@ -41,9 +30,6 @@ xcodebuild archive -project "$SRC/LokalBot.xcodeproj" -scheme LokalBot -configur
   -quiet > "$WORK/filming-build.log" 2>&1 || { tail -30 "$WORK/filming-build.log" >&2; exit 1; }
 
 APP="$DD/LokalBot.xcarchive/Products/Applications/LokalBot.app"
-# Nested code keeps the signatures the archive gave it; only the outer bundle
-# gets the installed app's designated requirement. --deep would re-sign
-# Sparkle and lokalbot-cli with the app's entitlements and break them.
 codesign --force --preserve-metadata=identifier,entitlements,flags,runtime \
   --requirements="=designated => $REQ" --options runtime --timestamp=none \
   --sign "$IDENTITY" "$APP" >> "$WORK/filming-build.log" 2>&1

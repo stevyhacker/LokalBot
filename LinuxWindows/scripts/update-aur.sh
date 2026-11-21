@@ -1,24 +1,10 @@
 #!/usr/bin/env bash
-# Points the lokalbot-bin AUR package (packaging/aur/lokalbot-bin) at a
-# release: sets pkgver, takes the SHA-256 GitHub reports for the Linux archive
-# (with gh), and regenerates .SRCINFO. A new version resets pkgrel to 1;
-# the same version keeps it unless PKGREL is given (a packaging-only fix).
-#
-#   scripts/update-aur.sh 0.11.1       # or v0.11.1
-#   scripts/update-aur.sh 0.11.1 2     # PKGREL 2 for the same release
-#
-# .SRCINFO comes from makepkg --printsrcinfo. Where there is no makepkg
-# (macOS, Ubuntu), it runs in an archlinux container with docker or podman.
-#
-# REPOSITORY: the GitHub repository with the release (default
-# stevyhacker/LokalBot). SHA256: use this checksum instead of asking GitHub.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DIR="packaging/aur/lokalbot-bin"
 VERSION="${1:?usage: scripts/update-aur.sh <version> [pkgrel]}"
 VERSION="${VERSION#v}"
 PKGREL="${2:-}"
-# pkgver cannot hold a hyphen, and pre-releases stay off the AUR.
 if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
   echo "$VERSION is not a release version (x.y.z)." >&2
   exit 1
@@ -52,8 +38,6 @@ sed -e "s/^pkgver=.*/pkgver=$VERSION/" \
   "$DIR/PKGBUILD" > "$DIR/PKGBUILD.new"
 mv "$DIR/PKGBUILD.new" "$DIR/PKGBUILD"
 
-# makepkg refuses to run as root. In the container its user cannot write the
-# mounted folder, so its build and output folders move to /tmp.
 if command -v makepkg > /dev/null && [ "$(id -u)" != 0 ]; then
   (cd "$DIR" && makepkg --printsrcinfo) > "$DIR/.SRCINFO.new"
 else

@@ -1,10 +1,6 @@
 import Foundation
 import FluidAudio
 
-/// IBM Granite Speech 4.1/5.0 2B through the bundled llama.cpp server. The model is
-/// local-only: first use downloads the GGUF model and multimodal projector from
-/// Hugging Face, then LokalBot talks to llama-server's OpenAI-compatible audio
-/// transcription endpoint on localhost.
 actor GraniteSpeechEngine: TranscriptionEngine {
     static let shared = GraniteSpeechEngine()
 
@@ -15,7 +11,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         GraniteSpeechModelConfiguration.defaultModel.localModelFileName
     private static let prompt = "transcribe the speech with proper punctuation and capitalization."
     private static let maxSegmentSeconds = 30.0
-    // Leave room for audio and decoded text in the 4,096-token server context.
     private static let maximumVocabularyCharacters = 480
 
     private var server: LlamaServer?
@@ -154,8 +149,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
     private func releaseConfigurationUse() {
         configurationUses = max(0, configurationUses - 1)
         if configurationUses == 0 { resumeConfigurationWaiters() }
-        // Recording-time prewarm must not pin Granite for an entire meeting.
-        // Actual transcription refreshes the same two-minute idle window.
         Task { await idle.bump() }
     }
 
@@ -170,8 +163,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         guard let handler else { return }
         Task { @MainActor in handler(update) }
     }
-
-    // MARK: - Download / paths
 
     struct PreparedPaths: Sendable {
         let model: URL
@@ -272,9 +263,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         return .init(model: model, projector: projector)
     }
 
-    /// Fetches one GGUF through the shared download stack (ranged when the CDN
-    /// supports it, with real progress either way), validates, and installs it
-    /// atomically.
     private nonisolated static func downloadIfNeeded(
         source: URL,
         destination: URL,
@@ -325,8 +313,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir
     }
-
-    // MARK: - llama-server request
 
     private func transcribeWav(_ wav: URL, modelFileName: String,
                                language: String?, vocabularyPrompt: String?) async throws -> String {
@@ -395,8 +381,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
                 + String(vocabulary.prefix(Self.maximumVocabularyCharacters))
         }
         if let language, !language.isEmpty {
-            // llama.cpp's transcription endpoint appends this ISO language
-            // hint to the ASR prompt. Omitting it preserves real auto-detect.
             fields["language"] = language
         }
         request.httpBody = try Self.multipartBody(
@@ -448,9 +432,6 @@ actor GraniteSpeechEngine: TranscriptionEngine {
     }
 }
 
-/// Immutable façade captured with one settings snapshot. The shared actor
-/// serializes switches between different Granite configurations while still
-/// allowing concurrent tracks to use the same loaded model.
 private struct ConfiguredGraniteSpeechEngine: TranscriptionEngine {
     let configuration: GraniteSpeechModelConfiguration
 

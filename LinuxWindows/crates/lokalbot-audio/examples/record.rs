@@ -1,7 +1,3 @@
-//! Records a meeting into a folder and prints the health strip twice a second.
-//!
-//! `cargo run -p lokalbot-audio --example record -- <dir> <seconds> [--mic <id>] [--no-system] [--devices]`
-
 use std::path::PathBuf;
 use std::time::{Duration, Instant};
 
@@ -20,7 +16,6 @@ fn main() -> anyhow::Result<()> {
         match arg.as_str() {
             "--mic" => options.mic_device = args.next(),
             "--no-system" => options.capture_system = false,
-            // Records this executable's sound alone, when it can be separated.
             "--app" => {
                 options.system_app = args.next().map(|name| AppAudioTarget {
                     pid: 0,

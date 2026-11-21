@@ -1,7 +1,3 @@
-//! Which desktop session LokalBot runs in, decided at runtime so one Linux
-//! build serves X11 and every Wayland desktop.
-
-/// The desktop or compositor, as far as it changes how LokalBot talks to it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Desktop {
     Windows,
@@ -10,9 +6,7 @@ pub enum Desktop {
     Sway,
     Kde,
     Gnome,
-    /// Another Wayland compositor, named by `XDG_CURRENT_DESKTOP` if set.
     OtherWayland(String),
-    /// No graphical session (SSH, a service, CI without a display).
     Headless,
 }
 
@@ -31,8 +25,6 @@ impl Desktop {
         }
     }
 
-    /// Hyprland (Omarchy) and Sway tile every ordinary window. Both float a
-    /// window that has a parent window, as they do dialogs.
     pub fn tiles_windows(&self) -> bool {
         matches!(self, Self::Hyprland | Self::Sway)
     }
@@ -42,7 +34,6 @@ fn env(name: &str) -> Option<String> {
     std::env::var(name).ok().filter(|value| !value.is_empty())
 }
 
-/// True in a Wayland session, where X11 only sees XWayland windows.
 pub fn is_wayland() -> bool {
     if cfg!(windows) {
         return false;
@@ -51,7 +42,6 @@ pub fn is_wayland() -> bool {
         || env("XDG_SESSION_TYPE").is_some_and(|kind| kind.eq_ignore_ascii_case("wayland"))
 }
 
-/// True when an X server accepts connections (`DISPLAY`).
 #[cfg(target_os = "linux")]
 pub fn has_x11_display() -> bool {
     env("DISPLAY").is_some() && x11rb::connect(None).is_ok()
@@ -84,20 +74,15 @@ pub fn desktop() -> Desktop {
     Desktop::Headless
 }
 
-/// Runs `then` once when the system asks this process to end (SIGTERM on
-/// logout or a `kill`, SIGHUP, or Ctrl+C in a terminal), so a recording can be
-/// saved first. A second signal ends the process right away.
 #[cfg(target_os = "linux")]
 pub fn on_termination(then: impl FnOnce() + Send + 'static) {
     use std::sync::atomic::{AtomicBool, Ordering};
     static ASKED: AtomicBool = AtomicBool::new(false);
     extern "C" fn asked(signal: libc::c_int) {
         ASKED.store(true, Ordering::SeqCst);
-        // SAFETY: `signal` is async-signal-safe, and this restores the default.
         unsafe { libc::signal(signal, libc::SIG_DFL) };
     }
     for signal in [libc::SIGTERM, libc::SIGHUP, libc::SIGINT] {
-        // SAFETY: the handler only touches an atomic and `signal`.
         unsafe {
             libc::signal(
                 signal,

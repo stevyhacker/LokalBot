@@ -1,9 +1,5 @@
 import Foundation
 
-/// Ukrainian is a newly exposed choice. Keep existing language behavior,
-/// including the separately benchmarked Serbian Qwen hint, unchanged.
-/// Coverage comes from the pinned engines and their publishers' model cards;
-/// a shared language picker is not evidence of model support.
 enum UkrainianTranscriptionSupport: Equatable {
     case languageToken
     case scriptHint
@@ -29,7 +25,6 @@ extension TranscriptionModelChoice {
     var ukrainianSupport: UkrainianTranscriptionSupport {
         switch self {
         case .whisperLarge, .appleSpeech: .languageToken
-        // FluidAudio 0.17.7 maps Ukrainian and Russian to the same script filter.
         case .parakeetUltra, .parakeetV3: .scriptHint
         case .remoteServer: .serverDependent
         case .parakeetV2, .qwenASR17B, .qwenASR06B, .graniteSpeech, .graniteSpeech5,
@@ -60,9 +55,6 @@ extension TranscriptionModelChoice {
         self == .appleSpeech && language == .auto ? "System language" : language.displayName
     }
 
-    /// Validate before loading weights, reading audio, or falling back to auto
-    /// detection. A saved Ukrainian choice must survive model switches, but an
-    /// unsupported engine must not silently transcribe it in another language.
     func validateLanguage(_ code: String?) throws {
         if self == .appleSpeech {
             try AppleSpeechLocaleResolver.validateLanguage(code, modelName: displayName)

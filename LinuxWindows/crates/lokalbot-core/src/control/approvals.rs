@@ -1,10 +1,3 @@
-//! Requests from the terminal that wait for the person (`SettingsApprovals.swift`):
-//! settings changes that widen what LokalBot captures, reads, records, or sends,
-//! and new API keys. Each request is one card in the approval window listing
-//! every change it makes. It is answered once, expires after a few minutes, and
-//! is never approved in bulk. Only the app's own window calls [`Approvals::approve`];
-//! nothing on the control socket can reach it.
-
 use chrono::{DateTime, Duration, Utc};
 use serde_json::{Map, Value, json};
 use uuid::Uuid;
@@ -24,26 +17,20 @@ pub enum Subject {
 #[derive(Clone, Debug)]
 pub struct ApprovalRequest {
     pub id: Uuid,
-    /// Who asked, from the process tree: shown to the person, never trusted.
     pub caller: String,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub subject: Subject,
-    /// What the request changes, as `settings.set` reports it.
     pub changes: Vec<Value>,
     pub items: Vec<PlanItem>,
-    /// The cleanup a shorter retention policy deletes. Approving the card
-    /// applies exactly this review.
     pub retention: Option<RetentionReview>,
     pub state: RequestState,
     pub answered_at: Option<DateTime<Utc>>,
     pub result: Option<Value>,
-    /// Why the last Approve did not go through, shown on the card.
     pub problem: Option<String>,
 }
 
 impl ApprovalRequest {
-    /// What `settings.request` reports. An API key never appears in it.
     pub fn json(&self) -> Value {
         let mut object = Map::new();
         object.insert("id".into(), json!(uuid_upper(&self.id)));
@@ -73,7 +60,6 @@ impl ApprovalRequest {
         Value::Object(object)
     }
 
-    /// What the request asks for, for the error message and notification.
     pub fn headline(&self) -> String {
         match &self.subject {
             Subject::Secret(secret, _) => format!("Setting the {}", secret.title()),
@@ -98,11 +84,9 @@ impl ApprovalRequest {
     }
 }
 
-/// Why an approval did not finish.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ApprovalProblem {
     Control(ControlError),
-    /// Keep the card waiting with this message.
     Retry(String),
 }
 
@@ -115,8 +99,6 @@ impl std::fmt::Display for ApprovalProblem {
     }
 }
 
-/// Approving would widen more than the card showed; it now shows the changes
-/// as they would apply.
 pub const CHANGED_WHILE_WAITING: &str = "Your settings changed while this request was waiting. Review the updated changes before approving.";
 
 pub struct Approvals {
@@ -133,7 +115,6 @@ impl Default for Approvals {
 impl Approvals {
     pub const LIFETIME_SECONDS: i64 = 5 * 60;
     pub const MAXIMUM_PENDING: usize = 5;
-    /// Answers stay readable for `config request` this long.
     pub const ANSWERED_LIFETIME_SECONDS: i64 = 30 * 60;
 
     pub fn new() -> Self {
@@ -143,9 +124,6 @@ impl Approvals {
         }
     }
 
-    /// Queues a request. An identical settings request from the same caller
-    /// that is still waiting is returned instead of asking twice. The bool
-    /// says whether the request is new, so the person is told only once.
     pub fn submit(
         &mut self,
         subject: Subject,
@@ -193,8 +171,6 @@ impl Approvals {
             .find(|r| r.id == id)
     }
 
-    /// The waiting request for `id`, or why it isn't waiting. An approved one
-    /// answers `Ok(None)`: approving twice changes nothing.
     pub fn waiting(
         &mut self,
         id: Uuid,
@@ -212,14 +188,12 @@ impl Approvals {
         }
     }
 
-    /// The person approved and the change went through.
     pub fn finish_approved(&mut self, id: Uuid, result: Value, now: DateTime<Utc>) {
         if let Some(index) = self.pending.iter().position(|r| r.id == id) {
             self.finish(index, RequestState::Approved, Some(result), now);
         }
     }
 
-    /// Leaves the card waiting, with why on it.
     pub fn set_problem(&mut self, id: Uuid, problem: String) {
         if let Some(found) = self.pending.iter_mut().find(|r| r.id == id) {
             found.problem = Some(problem);
@@ -232,7 +206,6 @@ impl Approvals {
         }
     }
 
-    /// Turning the settings grant off answers everything still waiting.
     pub fn deny_all(&mut self, now: DateTime<Utc>) -> Vec<Uuid> {
         let ids: Vec<Uuid> = self.pending.iter().map(|r| r.id).collect();
         while !self.pending.is_empty() {
@@ -241,14 +214,12 @@ impl Approvals {
         ids
     }
 
-    /// Lets the approval path refresh a card it could not apply as shown.
     pub fn update(&mut self, id: Uuid, change: impl FnOnce(&mut ApprovalRequest)) {
         if let Some(found) = self.pending.iter_mut().find(|r| r.id == id) {
             change(found);
         }
     }
 
-    /// Returns the requests that just expired.
     pub fn expire_stale(&mut self, now: DateTime<Utc>) -> Vec<Uuid> {
         let mut expired = Vec::new();
         while let Some(index) = self.pending.iter().position(|r| r.expires_at <= now) {
@@ -273,7 +244,6 @@ impl Approvals {
         request.answered_at = Some(now);
         request.result = result;
         request.problem = None;
-        // An API key is kept only until the request is answered.
         if let Subject::Secret(secret, _) = request.subject {
             request.subject = Subject::Secret(secret, SecretValue::default());
         }

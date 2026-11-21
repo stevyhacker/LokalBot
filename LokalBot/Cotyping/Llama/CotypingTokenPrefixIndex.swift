@@ -1,8 +1,5 @@
 import Foundation
 
-/// Fallback for a typed fragment whose compatible tokens are outside the global
-/// top candidates. Rank only tokens that can actually spell the user's prefix;
-/// canonical tokenization alone discards the model's preference between them.
 struct CotypingTokenPrefixIndex {
     private struct Entry {
         var token: Int32

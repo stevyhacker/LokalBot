@@ -1,12 +1,3 @@
-//! On-device speech for LokalBot on Linux and Windows, built on sherpa-onnx:
-//! transcription (Qwen3-ASR by default), voice activity detection, speaker
-//! separation and attribution into a [`lokalbot_core::Transcript`].
-//!
-//! Follows the macOS pipeline (`ProcessingPipeline`, `AttributedTrackTranscriber`,
-//! `TranscriptSanitizer`): the microphone track is "Me" (`local…`), system
-//! audio is "Them" (`them…`), each optionally split into voices. [`kokoro`]
-//! reads text aloud.
-
 mod asr;
 mod attribution;
 mod bleed_gate;

@@ -1,8 +1,5 @@
 import Foundation
 
-/// One continuing commitment assembled from compatible action mentions across
-/// meetings. The references remain the source of truth; a thread is only a
-/// derived presentation and never replaces or rewrites extracted evidence.
 struct ActionThread: Identifiable, Equatable, Sendable {
     let id: String
     let references: [OutcomeActionReference]
@@ -10,7 +7,6 @@ struct ActionThread: Identifiable, Equatable, Sendable {
     let owner: String?
     let due: String?
     let dueSourceMeetingDate: Date?
-    /// The day the effective due phrase was said or corrected.
     let dueReferenceDate: Date?
     let resolvedDueDate: Date?
 
@@ -27,15 +23,11 @@ struct ActionThread: Identifiable, Equatable, Sendable {
     }
     var statusLabel: String { hasMixedStatus ? "Mixed" : status.label }
 
-    /// Open work whose resolved due day is already behind the current day.
     func isOverdue(now: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard status == .open, let resolvedDueDate else { return false }
         return resolvedDueDate < calendar.startOfDay(for: now)
     }
 
-    /// Open work due today or within the window that puts it near the top of
-    /// attention lists. Rows color these dates so they stand apart from later
-    /// ones, and overdue dates stand apart from both.
     func isDueSoon(now: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard status == .open, let resolvedDueDate else { return false }
         let today = calendar.startOfDay(for: now)
@@ -43,25 +35,19 @@ struct ActionThread: Identifiable, Equatable, Sendable {
         return resolvedDueDate >= today && resolvedDueDate <= soon
     }
 
-    /// Open work last mentioned this long ago, with no due day still ahead,
-    /// is worth asking about.
     static let staleAfterDays = 21
 
-    /// Whole days since the newest meeting that mentioned this work.
     func daysSinceLastMention(now: Date = Date(), calendar: Calendar = .current) -> Int {
         calendar.dateComponents([.day], from: calendar.startOfDay(for: latestReference.meetingStartedAt),
                                 to: calendar.startOfDay(for: now)).day ?? 0
     }
 
-    /// Open work nobody has mentioned for weeks and that is not due ahead,
-    /// which may be done or dropped without anyone saying so.
     func isStale(now: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard status == .open else { return false }
         if let resolvedDueDate, resolvedDueDate >= calendar.startOfDay(for: now) { return false }
         return daysSinceLastMention(now: now, calendar: calendar) >= Self.staleAfterDays
     }
 
-    /// A completed mention cannot hide unfinished work in another meeting.
     var status: OutcomeStatus {
         if references.contains(where: { $0.status == .open }) { return .open }
         if references.contains(where: { $0.status == .deferred }) { return .deferred }
@@ -122,13 +108,9 @@ struct ActionThread: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Today's attention order: overdue work first, then work due within a week,
-/// each by due day, then everything else in the existing recency order.
 enum ActionAttentionOrder {
     static let dueSoonWindowDays = 7
 
-    /// The three groups of the order, which the Actions page shows as
-    /// headings. A due phrase that names no day counts as no date.
     enum Bucket: Int, Comparable, Sendable {
         case overdue, soon, later
 
@@ -159,8 +141,6 @@ enum ActionAttentionOrder {
     }
 }
 
-/// Only equal canonical source commitments form threads. Similar wording is
-/// not sufficient authority to share status, ownership, or corrections.
 enum ActionThreadClusterer {
     static let maximumMeetingSpan: TimeInterval = 30 * 86_400
 
@@ -189,8 +169,6 @@ enum ActionThreadClusterer {
         for reference in sorted {
             let key = sourceKey(reference)
             var matching = key.flatMap { candidates[$0] } ?? []
-            // Input is newest first, so expired groups never become candidates
-            // again. Normalize once per reference, never once per pair.
             matching.removeAll {
                 groups[$0].latestDate.timeIntervalSince(reference.meetingStartedAt) > maximumMeetingSpan
             }
@@ -216,7 +194,6 @@ enum ActionThreadClusterer {
     private static func sourceKey(_ reference: OutcomeActionReference) -> SourceKey? {
         guard !reference.isThreadExcluded else { return nil }
         let text = canonicalSourceText(reference.action.displayText)
-        // Short generic commitments recur naturally and are unsafe to merge.
         guard OutcomeTextSimilarity.significantTokens(text).count >= 3 else { return nil }
         if reference.action.isForUser { return SourceKey(text: text, owner: "", isForUser: true) }
         guard let owner = reference.action.owner.map(OutcomeTextSimilarity.normalized), !owner.isEmpty else {
@@ -231,8 +208,6 @@ enum ActionThreadClusterer {
             .replacingOccurrences(of: "’", with: "'")
             .trimmingCharacters(in: .whitespacesAndNewlines.union(CharacterSet(charactersIn: ".!?")))
         var words = normalized.split(whereSeparator: \.isWhitespace).map(String.init)
-        // Remove only complete, harmless leading phrases; preserve verb,
-        // negation, word order, names, and identifiers everywhere else.
         for prefix in [["i", "will"], ["i'll"], ["we", "will"], ["please"]]
             where words.starts(with: prefix) {
             words.removeFirst(prefix.count)
@@ -243,9 +218,6 @@ enum ActionThreadClusterer {
 
 }
 
-/// Converts an editor's visible optional field back to persistence intent.
-/// Untouched extracted values continue to inherit; an existing correction or
-/// a user edit is written verbatim, including an empty explicit clear.
 enum ActionCorrectionFieldIntent {
     static func persistedValue(
         _ value: String,

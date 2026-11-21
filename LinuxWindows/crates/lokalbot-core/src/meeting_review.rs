@@ -1,8 +1,3 @@
-//! What a meeting's page says about its notes and its capture: carrying the
-//! user's edits to regenerated actions (`MeetingOutcomeStore.reconcileState`),
-//! the retry a failed job really needs (`ProcessingPipeline.retryWork`), and
-//! the capture health sidecar (`RecordingHealthReport`).
-
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::Path;
 
@@ -18,7 +13,6 @@ use crate::library::{Library, REFRESH_MARKER, read_json};
 use crate::model::{ActionItem, Meeting, MeetingOutcomes, OutcomeState};
 use crate::time::swift_date;
 
-/// `outcomes.previous.json`: the notes a transcript change moved aside.
 pub const PREVIOUS_OUTCOMES_FILE: &str = "outcomes.previous.json";
 
 fn normalized(text: &str) -> String {
@@ -72,9 +66,6 @@ fn match_score(lhs: &ActionItem, rhs: &ActionItem) -> f64 {
     }
 }
 
-/// Carries user-owned state across a safe re-extraction. A transfer requires
-/// an unambiguous match in both directions and compatible source evidence;
-/// unmatched edits stay available for review.
 pub fn reconcile_state(
     state: &OutcomeState,
     previous: &MeetingOutcomes,
@@ -140,8 +131,6 @@ pub fn reconcile_state(
     reconciled
 }
 
-/// What a retry should run. With no saved request a finished transcript is
-/// never overwritten; the Process menu stays there for a deliberate redo.
 pub fn retry_work(
     has_transcript: bool,
     auto_summarize: bool,
@@ -157,7 +146,6 @@ pub fn retry_work(
 }
 
 impl Library {
-    /// The transcript or speakers changed since the notes were written.
     pub fn notes_marked_stale(&self, meeting: &Meeting) -> bool {
         self.meeting_dir(meeting).join(REFRESH_MARKER).is_file()
     }
@@ -166,8 +154,6 @@ impl Library {
         read_json(&self.meeting_dir(meeting).join(PREVIOUS_OUTCOMES_FILE))
     }
 
-    /// The actions a refresh moved aside, shown for review until new notes
-    /// exist (`MeetingOutcomeProjection.load(includingPrevious:)`).
     pub fn previous_outcome_projection(
         &self,
         meeting: &Meeting,
@@ -182,7 +168,6 @@ impl Library {
         }))
     }
 
-    /// `ProcessingPipeline.retryWork` for one meeting.
     pub fn retry_work(&self, meeting: &Meeting, auto_summarize: bool) -> Result<(bool, bool)> {
         let has_transcript = self
             .meeting_dir(meeting)
@@ -193,8 +178,6 @@ impl Library {
     }
 }
 
-/// `recording-health.json`, written while recording and read for the warning
-/// on the meeting's page. Keys the Mac's decoder requires are always written.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordingHealthReport {
@@ -245,7 +228,6 @@ impl Default for RecordingHealthReport {
 
 impl RecordingHealthReport {
     pub const FILE_NAME: &str = "recording-health.json";
-    /// Fewer than this are isolated callbacks no listener would notice.
     pub const NOTICEABLE_DROPPED_BUFFERS: u64 = 5;
 
     pub fn drops_are_noticeable(microphone: u64, system: u64) -> bool {
@@ -265,8 +247,6 @@ impl RecordingHealthReport {
         read_json(&folder.join(Self::FILE_NAME)).ok().flatten()
     }
 
-    /// Records a change of warnings, keeping the history bounded but its first
-    /// failure. Returns whether anything changed.
     pub fn observe(&mut self, messages: &[String], seconds: f64) -> bool {
         if self.events.last().is_some_and(|e| e.messages == messages) {
             return false;
@@ -287,18 +267,11 @@ pub const DROPPED_BUFFERS_WARNING: &str =
 pub const DISK_LOW_WARNING: &str =
     "Disk space is low. Free space now to keep saving this recording.";
 pub const HEALTH_NOT_SAVED_WARNING: &str = "Recording health could not be saved. Check disk space.";
-/// Audio that stops arriving must persist this long before it notifies.
 pub const SUSTAINED_AUDIO_WARNING_SECONDS: f64 = 15.0;
-/// Recording onto a nearly full volume risks truncated tracks.
 pub const RECORDING_FLOOR_BYTES: u64 = 1_000_000_000;
-/// A session this much longer than its audio is worth saying so, as long as
-/// the audio is also well under its length (`stop`).
 const MISSING_AUDIO_SECONDS: f64 = 60.0;
 const CAPTURED_SHARE_WARNING: f64 = 0.8;
 
-/// Why a recording can't start on this volume, when the system can say
-/// (`DiskSpacePrecheck.recordingAdvisory`). A recording that dies mid-meeting
-/// loses the meeting; a clear refusal doesn't.
 pub fn recording_advisory(available_bytes: Option<u64>) -> Option<String> {
     let available = available_bytes.filter(|free| *free < RECORDING_FLOOR_BYTES)?;
     Some(lokalbot_i18n::format(
@@ -310,8 +283,6 @@ pub fn recording_advisory(available_bytes: Option<u64>) -> Option<String> {
     ))
 }
 
-/// A file size as the Mac's `ByteCountFormatter` writes it: decimal units,
-/// whole KB and MB, up to two decimals from GB on.
 fn byte_count(bytes: u64) -> String {
     const UNITS: [&str; 4] = ["KB", "MB", "GB", "TB"];
     if bytes < 1_000 {
@@ -331,8 +302,6 @@ fn byte_count(bytes: u64) -> String {
     format!("{text} {}", UNITS[unit])
 }
 
-/// The warning for a session with much less audio than time, such as a device
-/// that dropped out and never came back.
 pub fn short_capture_warning(recorded_seconds: f64, session_seconds: f64) -> Option<String> {
     if session_seconds - recorded_seconds <= MISSING_AUDIO_SECONDS
         || recorded_seconds >= session_seconds * CAPTURED_SHARE_WARNING
@@ -361,9 +330,6 @@ pub fn short_capture_warning(recorded_seconds: f64, session_seconds: f64) -> Opt
     ))
 }
 
-/// When a live capture warning also becomes a notification. The meeting view
-/// shows every warning as it happens; a notification interrupts the call, so
-/// it is kept for conditions that lasted long enough to matter.
 #[derive(Clone, Debug, Default)]
 pub struct CaptureWarningNotifications {
     first_seen: BTreeMap<String, f64>,
@@ -371,7 +337,6 @@ pub struct CaptureWarningNotifications {
 }
 
 impl CaptureWarningNotifications {
-    /// Seconds a warning must persist before it notifies; `None` never does.
     fn delay(message: &str) -> Option<f64> {
         if message == DROPPED_BUFFERS_WARNING {
             return None;
@@ -385,7 +350,6 @@ impl CaptureWarningNotifications {
         Some(SUSTAINED_AUDIO_WARNING_SECONDS)
     }
 
-    /// Warnings due for a notification now, each at most once per recording.
     pub fn due(&mut self, messages: &[String], elapsed: f64) -> Vec<String> {
         self.first_seen.retain(|key, _| messages.contains(key));
         let mut due = Vec::new();
@@ -402,23 +366,16 @@ impl CaptureWarningNotifications {
     }
 }
 
-/// What the app can observe about the tracks for [`capture_warnings`].
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CaptureObservation {
-    /// Recording what the computer plays was asked for.
     pub system_requested: bool,
-    /// System capture attached.
     pub has_system_target: bool,
-    /// Seconds since microphone audio reached the writer.
     pub microphone_age: Option<f64>,
-    /// Seconds since system audio reached the writer; `None` before the first.
     pub system_age: Option<f64>,
-    /// A quiet loopback delivers nothing while nothing plays, and that is fine.
     pub system_quiet_is_normal: bool,
     pub elapsed: f64,
 }
 
-/// `RecordingController.captureWarnings`.
 pub fn capture_warnings(seen: &CaptureObservation) -> Vec<String> {
     let mut warnings = Vec::new();
     if seen.system_requested && !seen.has_system_target {
@@ -449,7 +406,6 @@ pub fn capture_warnings(seen: &CaptureObservation) -> Vec<String> {
     warnings
 }
 
-/// Actions in a meeting's outcome state whose edits didn't carry over.
 pub fn unmatched_edits(state: &OutcomeState) -> Vec<(String, String)> {
     let Some(unmatched) = &state.unmatched_actions else {
         return Vec::new();
@@ -568,13 +524,10 @@ mod tests {
 
     #[test]
     fn a_retry_repeats_only_what_failed() {
-        // No saved job: a finished transcript is kept.
         assert_eq!(retry_work(true, true, None), (false, true));
         assert_eq!(retry_work(false, false, None), (true, false));
-        // A finished transcription isn't redone for a failed summary.
         let notes_failed = job(true, true, true, false);
         assert_eq!(retry_work(true, false, Some(&notes_failed)), (false, true));
-        // An automatic summary follows the current setting.
         let automatic = job(true, false, true, true);
         assert_eq!(retry_work(false, false, Some(&automatic)), (true, false));
         assert_eq!(retry_work(false, true, Some(&automatic)), (true, true));
@@ -589,7 +542,6 @@ mod tests {
         .unwrap();
         assert!(report.has_capture_issues());
         assert!(report.last_verified_call_at.is_some());
-        // Non-optional Swift fields are required when the Mac decodes.
         let json = serde_json::to_value(RecordingHealthReport::default()).unwrap();
         for key in [
             "version",
@@ -634,12 +586,10 @@ mod tests {
         assert!(notifications.due(&audio, 20.0).is_empty());
         assert_eq!(notifications.due(&audio, 25.0), audio);
         assert!(notifications.due(&audio, 40.0).is_empty(), "only once");
-        // A hiccup that ended never notifies.
         let mut hiccup = CaptureWarningNotifications::default();
         assert!(hiccup.due(&audio, 10.0).is_empty());
         assert!(hiccup.due(&[], 12.0).is_empty());
         assert!(hiccup.due(&audio, 30.0).is_empty());
-        // Saving problems notify at once; dropped buffers never do.
         let disk = vec![DISK_LOW_WARNING.to_string()];
         assert_eq!(notifications.due(&disk, 50.0), disk);
         let drops = vec![DROPPED_BUFFERS_WARNING.to_string()];
@@ -664,7 +614,6 @@ mod tests {
             ..healthy.clone()
         };
         assert_eq!(capture_warnings(&stalled).len(), 2);
-        // A quiet Windows loopback delivers nothing while nothing plays.
         let quiet = CaptureObservation {
             system_age: None,
             system_quiet_is_normal: true,

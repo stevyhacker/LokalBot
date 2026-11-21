@@ -1,6 +1,3 @@
-//! Short in-memory microphone capture for dictation: 16 kHz mono samples,
-//! a live level for the overlay bars, and a snapshot for live preview.
-
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::thread::JoinHandle;
@@ -15,11 +12,8 @@ use crate::resample::Resampler;
 use crate::track::{ChunkSink, LevelMeter, QUEUE_CAPACITY, TrackMessage, TrackState};
 use crate::wav::SAMPLE_RATE;
 
-/// Reconnections allowed before the dictation ends (`DictationCoordinator`:
-/// more than 3 recoveries within 20 s ends it).
 const MAX_RECOVERIES: u32 = 3;
 const RECOVERY_WINDOW: Duration = Duration::from_secs(20);
-/// Hard cap on memory: 30 minutes of audio.
 const MAX_SAMPLES: usize = SAMPLE_RATE as usize * 60 * 30;
 
 pub struct MicCapture {
@@ -33,8 +27,6 @@ pub struct MicCapture {
 }
 
 impl MicCapture {
-    /// Opens the microphone (`None` or empty = system default) and starts
-    /// collecting audio. Fails when no microphone can be opened.
     pub fn start(device: Option<&str>) -> Result<MicCapture> {
         let origin = Instant::now();
         let state = Arc::new(TrackState::new(origin));
@@ -74,9 +66,6 @@ impl MicCapture {
                 Err(anyhow!("Could not start the microphone: {message}"))
             }
             Err(_) => {
-                // The thread is still inside the audio system. Joining it
-                // would wait for the call this timeout gave up on, so it is
-                // left to end by itself once it sees the stop.
                 drop(capture.control.take());
                 capture.shutdown();
                 Err(anyhow!(
@@ -86,8 +75,6 @@ impl MicCapture {
         }
     }
 
-    /// A capture that is already over: what it recorded and why it stopped.
-    /// For testing code built on a capture where there is no microphone.
     #[doc(hidden)]
     pub fn ended(samples: Vec<f32>, error: Option<String>) -> MicCapture {
         let (audio_tx, _) = crossbeam_channel::bounded(1);
@@ -103,32 +90,26 @@ impl MicCapture {
         }
     }
 
-    /// Current loudness, 0–1.
     pub fn level(&self) -> f32 {
         self.state.level()
     }
 
-    /// Whether the microphone delivered any audio yet (the overlay dot turns red).
     pub fn has_audio(&self) -> bool {
         self.state.has_audio()
     }
 
-    /// Time since the last buffer, `None` before the first.
     pub fn silent_for(&self) -> Option<Duration> {
         self.state.since_audio_ms().map(Duration::from_millis)
     }
 
-    /// The microphone was lost and could not be reopened.
     pub fn error(&self) -> Option<String> {
         self.error.lock().clone()
     }
 
-    /// Seconds captured so far.
     pub fn seconds(&self) -> f64 {
         self.samples.lock().len() as f64 / SAMPLE_RATE as f64
     }
 
-    /// Copy of the samples from `start` to `end`, for one preview window.
     pub fn samples_between(&self, start: usize, end: usize) -> Vec<f32> {
         let samples = self.samples.lock();
         let end = end.min(samples.len());
@@ -138,14 +119,12 @@ impl MicCapture {
             .to_vec()
     }
 
-    /// Stops the microphone and returns all captured 16 kHz mono samples.
     pub fn stop(mut self) -> Vec<f32> {
         self.shutdown();
         std::mem::take(&mut *self.samples.lock())
     }
 
     fn shutdown(&mut self) {
-        // Never blocks: a stop the thread has not read yet is stop enough.
         let _ = self.stop_tx.try_send(());
         if let Some(control) = self.control.take() {
             let _ = control.join();

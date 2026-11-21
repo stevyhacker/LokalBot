@@ -3,14 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! X11 for autocomplete: `XGrabKey` on the accept keys and Escape while ghost
-//! text shows (`CotypingInputMonitor`'s consuming tap), the active window for matching a
-//! focused field to its window, and moving LokalBot's ghost window.
-//!
-//! The grabs cover the Caps Lock and Num Lock variants, so the key is taken
-//! whatever those locks say, and are released the moment the overlay hides.
-//! While inactive the thread holds no grab and only waits for commands.
-
 use std::sync::{Arc, LazyLock};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -38,12 +30,10 @@ const XK_ESCAPE: u32 = 0xff1b;
 const XK_NUM_LOCK: u32 = 0xff7f;
 const XK_RIGHT: u32 = 0xff53;
 const XK_GRAVE: u32 = 0x60;
-/// The key left of 1 under the evdev keymap every current X server uses (TLDE).
 const EVDEV_TILDE_KEY: u8 = 49;
 pub(super) const XK_BACKSPACE: u32 = 0xff08;
 pub(super) const XK_DELETE: u32 = 0xffff;
 
-/// How often the grab thread looks for key events while it holds a grab.
 const ACTIVE_POLL: Duration = Duration::from_millis(5);
 
 enum Command {
@@ -53,9 +43,6 @@ enum Command {
     Stop,
 }
 
-/// Whether a grabbed key is still held. While it is, the keyboard is
-/// grabbed by LokalBot, so XTest typing would come back to LokalBot instead
-/// of reaching the app; the inserter waits for the release.
 #[derive(Default)]
 struct KeyHeld {
     down: Mutex<bool>,
@@ -64,7 +51,6 @@ struct KeyHeld {
 
 static HELD: LazyLock<Arc<KeyHeld>> = LazyLock::new(|| Arc::new(KeyHeld::default()));
 
-/// Waits up to `timeout` for a grabbed key to come up.
 pub(super) fn wait_for_grabbed_key_release(timeout: Duration) {
     let held = HELD.clone();
     let mut down = held.down.lock();
@@ -125,7 +111,6 @@ impl Drop for Grabber {
     }
 }
 
-/// Keycodes and lock masks of this keyboard.
 #[derive(Clone, Copy)]
 struct Keys {
     tab: u8,
@@ -148,8 +133,6 @@ impl Keys {
         })
     }
 
-    /// The modifier states a plain key press can come with: none, Caps Lock,
-    /// Num Lock, or both.
     fn lock_variants(&self) -> [ModMask; 4] {
         [
             ModMask::from(0u16),
@@ -169,10 +152,6 @@ impl Keys {
     }
 }
 
-/// The physical key left of 1. Matching the keysym instead would, on other
-/// layouts, take a letter key that types a backtick on a shifted level. An
-/// X server without the evdev keymap falls back to the key whose first level
-/// is a backtick.
 fn backtick_keycode(conn: &impl Connection) -> anyhow::Result<Option<u8>> {
     let setup = conn.setup();
     let (min, max) = (setup.min_keycode, setup.max_keycode);
@@ -200,7 +179,6 @@ pub(super) fn keycode(conn: &impl Connection, keysym: u32) -> anyhow::Result<Opt
         .and_then(|index| u8::try_from(usize::from(min) + index).ok()))
 }
 
-/// The modifier bit Num Lock is mapped to (usually Mod2).
 fn num_lock_mask(conn: &impl Connection) -> anyhow::Result<ModMask> {
     let Some(num_lock) = keycode(conn, XK_NUM_LOCK)? else {
         return Ok(ModMask::M2);
@@ -243,7 +221,6 @@ fn ungrab(conn: &RustConnection, root: Window, keys: &Keys, code: u8) {
     }
 }
 
-/// Takes every key `bindings` names; false when another app holds one.
 fn grab_all(conn: &RustConnection, root: Window, keys: &Keys, bindings: &AcceptKeys) -> bool {
     bindings
         .taken()
@@ -314,7 +291,6 @@ fn run(
                 let Some(code) = keys.code(key) else {
                     continue;
                 };
-                // Out of the way first, or the replayed key would come back here.
                 ungrab(&conn, root, &keys, code);
                 let _ = conn.ungrab_keyboard(x11rb::CURRENT_TIME);
                 release_held();
@@ -370,8 +346,6 @@ fn release_held() {
     }
 }
 
-/// Sends `keysym` presses through XTest, for deleting around the caret
-/// where the field cannot edit through AT-SPI.
 pub(super) fn tap_keys(keysym: u32, count: usize) -> anyhow::Result<()> {
     if count == 0 {
         return Ok(());
@@ -394,19 +368,15 @@ pub(super) fn tap_keys(keysym: u32, count: usize) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// The active window (`_NET_ACTIVE_WINDOW`) and what autocomplete needs of it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct ActiveWindow {
     pub id: u32,
     pub pid: Option<u32>,
     pub class: Option<String>,
     pub instance: Option<String>,
-    /// Its content in root coordinates, without the shadow a client-side
-    /// decorated window (GTK) draws around itself (`_GTK_FRAME_EXTENTS`).
     pub frame: Option<Rect>,
 }
 
-/// One X connection for the watcher's reads, reopened after errors.
 pub(super) struct Display {
     conn: Option<(RustConnection, Window)>,
     net_active_window: u32,
@@ -440,7 +410,6 @@ impl Display {
     }
 
     pub(super) fn active_window(&mut self) -> Option<ActiveWindow> {
-        // Interns the atoms on first use.
         self.connection()?;
         let net_active = self.net_active_window;
         let net_pid = self.net_wm_pid;
@@ -479,7 +448,6 @@ impl Display {
                     (instance, parts.next().filter(|s| !s.is_empty()))
                 })
                 .unwrap_or((None, None));
-            // Left, right, top, bottom.
             let shadow: Vec<u32> = conn
                 .get_property(false, id, gtk_frame, AtomEnum::CARDINAL, 0, 4)?
                 .reply()
@@ -520,7 +488,6 @@ impl Display {
     }
 }
 
-/// A connection for moving the ghost window, opened on first use.
 static OVERLAY: LazyLock<Mutex<Option<RustConnection>>> = LazyLock::new(|| Mutex::new(None));
 
 fn with_overlay_connection<T>(
@@ -541,7 +508,6 @@ fn with_overlay_connection<T>(
     result
 }
 
-/// An empty input shape: clicks go to whatever is under the ghost.
 pub(super) fn prepare_overlay(window: u32) -> anyhow::Result<()> {
     with_overlay_connection(|conn| {
         conn.shape_rectangles(
@@ -583,7 +549,6 @@ pub(super) fn place_overlay(window: u32, frame: Option<Rect>) -> anyhow::Result<
     })
 }
 
-/// The monitor holding `rect` (RandR), else the whole screen.
 pub(super) fn screen_containing(rect: &Rect) -> Option<Rect> {
     with_overlay_connection(|conn| {
         let root = &conn.setup().roots[0];
@@ -615,7 +580,6 @@ pub(super) fn screen_containing(rect: &Rect) -> Option<Rect> {
     .ok()
 }
 
-/// Mean luminance of a few pixels just right of `rect`.
 pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
     with_overlay_connection(|conn| {
         let root = conn.setup().roots[0].root;
@@ -625,7 +589,6 @@ pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
             .get_image(ImageFormat::Z_PIXMAP, root, x, y, 6, 2, !0)?
             .reply()?;
         anyhow::ensure!(image.depth >= 24, "unexpected screen depth {}", image.depth);
-        // 32 bits per pixel, blue first.
         let pixels: Vec<f32> = image
             .data
             .as_chunks::<4>()
@@ -645,7 +608,6 @@ pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
 mod tests {
     use super::*;
 
-    /// Presses a key through XTest, as a user would.
     fn press(conn: &RustConnection, root: Window, code: u8) {
         const PRESS: u8 = x11rb::protocol::xproto::KEY_PRESS_EVENT;
         const RELEASE: u8 = x11rb::protocol::xproto::KEY_RELEASE_EVENT;
@@ -656,7 +618,6 @@ mod tests {
         conn.sync().unwrap();
     }
 
-    /// Runs only with an X display, such as under `xvfb-run`.
     #[test]
     fn the_bound_keys_are_taken_only_while_active_and_can_change() {
         if crate::session::desktop() != crate::session::Desktop::X11 {
@@ -675,13 +636,11 @@ mod tests {
         let next = || receiver.recv_timeout(Duration::from_millis(400)).ok();
         let settle = || std::thread::sleep(Duration::from_millis(60));
 
-        // Inactive: nothing is held, so nothing is taken.
         press(&conn, root, keys.tab);
         assert_eq!(next(), None);
 
         grabber.set_active(true);
         settle();
-        // The defaults: Tab, the physical key left of 1, Esc.
         press(&conn, root, keys.tab);
         assert_eq!(next(), Some(InterceptedKey::Tab));
         press(&conn, root, keys.backtick.unwrap());
@@ -691,7 +650,6 @@ mod tests {
         press(&conn, root, keys.right.unwrap());
         assert_eq!(next(), None, "Right Arrow is not bound");
 
-        // New bindings apply at once, even while active.
         grabber.set_keys(AcceptKeys {
             accept: InterceptedKey::RightArrow,
             full: None,

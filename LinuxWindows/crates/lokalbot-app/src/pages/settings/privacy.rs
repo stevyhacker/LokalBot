@@ -1,8 +1,3 @@
-//! Privacy & permissions (what LokalBot may use on this computer and what
-//! leaves it), and the sections that moved out of the old Privacy & Data:
-//! screen retention and capture exclusions (now on Screen & activity) and
-//! external agent access (now on AI agents).
-
 use crate::i18n::h_flex;
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
@@ -50,8 +45,6 @@ fn days_label(days: u32) -> String {
     }
 }
 
-/// One kind of agent access, shown again on the page of what it reads
-/// (`AgentKindAccessSection`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum AgentKind {
     ScreenMemory,
@@ -59,7 +52,6 @@ pub(super) enum AgentKind {
 }
 
 impl SettingsPage {
-    /// The same switch as on Privacy & Data, on the page it reads from.
     pub(super) fn agent_kind_section(&self, kind: AgentKind, cx: &mut Context<Self>) -> Section {
         let page = cx.entity();
         let (id, title, help, on) = match kind {
@@ -172,7 +164,6 @@ impl SettingsPage {
         cx.notify();
     }
 
-    /// The Files grant, with the folder list it keeps (`FilesAccessManager`).
     fn set_files_access(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.files_access = Some(enabled);
         let (paths, folders) = {
@@ -214,8 +205,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// The Agent notes grant: only a marker. Agents find notes only while Read
-    /// coding agent notes is on, because turning that off deletes the copy.
     fn set_agent_notes_access(&mut self, enabled: bool, cx: &mut Context<Self>) {
         self.agent_notes_access = Some(enabled);
         let paths = self.data.read(cx).library.paths().clone();
@@ -273,13 +262,6 @@ impl SettingsPage {
         cx.notify();
     }
 
-    /// Privacy & permissions (`SettingsPrivacySections`): the one place
-    /// that shows what LokalBot may use on this computer and what leaves it.
-    /// Each permission says which features use it and where it stands; each
-    /// server that receives something is listed with the control that
-    /// revokes it; sharing with agents and with phones is summed up and opens
-    /// its own page, where its consent lives. PRIVACY.md is the contract for
-    /// every sentence here.
     pub(super) fn privacy_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         self.refresh_library_size(cx);
         let status = self.status(cx);
@@ -313,7 +295,6 @@ impl SettingsPage {
         vec![permissions, leaves, kept, links]
     }
 
-    /// Screen memory retention (`retentionSection`), on Screen & activity.
     pub(super) fn retention_section(&mut self, cx: &mut Context<Self>) -> Section {
         let settings = self.data.read(cx).settings.clone();
         let days = self
@@ -352,7 +333,6 @@ impl SettingsPage {
                         "settings.keepOCRTextForever",
                         settings.keep_ocr_text_forever,
                         move |on, window, cx| {
-                            // Turning this off deletes text, so it goes through the review.
                             keep_page.update(cx, |page, cx| {
                                 page.propose_retention(keep_days, on, window, cx)
                             })
@@ -419,8 +399,6 @@ impl SettingsPage {
         retention
     }
 
-    /// What external agents may read or change (`agentAccessSection`), on
-    /// AI agents. The switches are the same as before the move.
     pub(super) fn agent_access_section(&mut self, cx: &mut Context<Self>) -> Section {
         self.reload_personal(cx);
         let page = cx.entity();
@@ -493,7 +471,6 @@ impl SettingsPage {
             "settings.personalContextAccess",
             self.personal_access_row(None, cx),
         );
-        // The way to the items, once there's a grant for them to go through.
         if self.personal.access_on {
             let shared = self.shared_personal_items();
             let choose_page = page.clone();
@@ -526,7 +503,6 @@ impl SettingsPage {
                 ),
             );
         }
-        // Agents can search only the folders chosen under Files.
         let settings = self.data.read(cx).settings.clone();
         if files_on && (!settings.file_search_enabled || settings.file_search_folders.is_empty()) {
             let choose_page = page.clone();
@@ -556,7 +532,6 @@ impl SettingsPage {
                 ),
             );
         }
-        // Agents find notes only while they are being read.
         if notes_on && !settings.coding_agent_notes_enabled {
             let notes_page = page.clone();
             agents = agents.row(
@@ -620,7 +595,6 @@ impl SettingsPage {
         self.settings_control_rows(agents, cx)
     }
 
-    /// Capture exclusions (`exclusionsSection`), on Screen & activity.
     pub(super) fn exclusions_section(&mut self, cx: &mut Context<Self>) -> Section {
         Section::new(lokalbot_i18n::tr("Capture exclusions"))
             .row(
@@ -647,7 +621,6 @@ impl SettingsPage {
             )
     }
 
-    /// "Allow external agents to change LokalBot settings", and what they changed.
     fn settings_control_rows(&mut self, section: Section, cx: &mut Context<Self>) -> Section {
         let Some(host) = crate::control::global(cx) else {
             return section;
@@ -750,9 +723,6 @@ impl SettingsPage {
         section
     }
 
-    /// Every permission this desktop has, with its real state and its fix
-    /// (`SettingsPrivacySections.permissionRow`). Features that are on and
-    /// use one name it; one that nothing uses now says so.
     fn permissions_section(&mut self, status: &SettingsStatus, cx: &mut Context<Self>) -> Section {
         let lb = cx.lb().clone();
         let focused = self.is_focused("settings.permissions");
@@ -847,9 +817,6 @@ impl SettingsPage {
         )
     }
 
-    /// Every server approved to receive something, with its Revoke; the
-    /// server Autocomplete sends typing to; what agents and phones may have,
-    /// each opening its own page; and the rest of the network use.
     fn leaves_section(&mut self, status: &SettingsStatus, cx: &mut Context<Self>) -> Section {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -997,7 +964,6 @@ impl SettingsPage {
                 ),
             );
         }
-        // Sharing with agents and phones is agreed to on its own page.
         let kinds = status.input.agent_kinds;
         let agents_detail = if kinds == 0 {
             lokalbot_i18n::tr("Can’t read anything").to_string()
@@ -1056,7 +1022,6 @@ impl SettingsPage {
     }
 }
 
-/// A summary that opens the page where the sharing is set up and agreed to.
 fn page_row(
     id: &'static str,
     title: &'static str,

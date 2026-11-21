@@ -1,8 +1,3 @@
-//! Turns a `CompanionLibrary` into companion records
-//! (`CompanionRecordBuilder.swift`). Pure reads: every field a record carries
-//! is chosen here, from display-ready sources, so attendee emails, speaker
-//! evidence, screenshot paths and screen text never enter one.
-
 use std::collections::{BTreeSet, HashMap};
 use std::sync::LazyLock;
 
@@ -27,7 +22,6 @@ use super::records::{self, *};
 use super::sharing::{DataClasses, Sharing, day_key, parse_day_key};
 
 pub const LIBRARY_NAME: &str = "LokalBot";
-/// More than a person saves in a day; the query wants a bound.
 const SAVED_MOMENTS_PER_DAY: usize = 10_000;
 
 pub struct RecordBuilder<'a> {
@@ -70,9 +64,6 @@ impl<'a> RecordBuilder<'a> {
         self.library.scope.data_classes
     }
 
-    // ----------------------------------------------------------- everything
-
-    /// Every record the current scope shares, manifest excluded.
     pub fn all_records(&self) -> Vec<Record> {
         let mut records = Vec::new();
         for meeting in &self.library.meetings {
@@ -88,9 +79,6 @@ impl<'a> RecordBuilder<'a> {
         records
     }
 
-    // ------------------------------------------------------------- meetings
-
-    /// The meeting record and, when transcripts are shared, its transcript.
     pub fn meeting_records(&self, meeting: &Meeting) -> Vec<Record> {
         if !self.classes().meetings
             || !is_shared(meeting, self.library.scope.history, self.library.now)
@@ -264,10 +252,6 @@ impl<'a> RecordBuilder<'a> {
         })
     }
 
-    // ----------------------------------------------------------------- days
-
-    /// Days that have a digest, recorded activity, or a shared meeting,
-    /// inside the history window, newest first.
     pub fn day_keys(&self) -> Vec<String> {
         let mut keys: BTreeSet<String> = BTreeSet::new();
         let classes = self.classes();
@@ -374,7 +358,6 @@ impl<'a> RecordBuilder<'a> {
         if raw.trim().is_empty() {
             return None;
         }
-        // An unknown sidecar version is not one this build wrote or understands.
         let metadata = library
             .digest_meta(day)
             .ok()
@@ -440,8 +423,6 @@ impl<'a> RecordBuilder<'a> {
         }
         let library = &self.library.library;
         let raw = library.activity_blocks(start, end).unwrap_or_default();
-        // One definition of active time for every day surface: valid,
-        // non-system intervals clipped to the day (`DayActivityProjection`).
         let blocks: Vec<ActivityBlock> = clip_blocks(&raw, start, end)
             .into_iter()
             .filter(|block| !is_system_app(&block.app) && block.end > block.start)
@@ -560,9 +541,6 @@ impl<'a> RecordBuilder<'a> {
         })
     }
 
-    /// A work session as the Timeline rail shows it. Without the window
-    /// titles class, a title made from window titles falls back to the
-    /// session's project or apps.
     fn work_session(&self, session: &WorkSession, blocks: &[ActivityBlock]) -> Session {
         let own: Vec<&ActivityBlock> = blocks
             .iter()
@@ -628,8 +606,6 @@ impl<'a> RecordBuilder<'a> {
         let moment = self.library.library.screen_moment(id).ok().flatten()?;
         Some(moment.ts)
     }
-
-    // ------------------------------------------------- people and projects
 
     pub fn person_records(&self) -> Vec<Record> {
         if !self.classes().people {
@@ -787,8 +763,6 @@ fn load_transcript(library: &CompanionLibrary, meeting: &Meeting) -> Option<Tran
     Some(transcript)
 }
 
-/// Display text, times, display names and a stable color per speaker; never
-/// attribution, identity evidence or calendar identity links.
 fn transcript_body(
     meeting: &Meeting,
     transcript: Option<&Transcript>,
@@ -824,8 +798,6 @@ fn transcript_body(
     })
 }
 
-/// 0 is the person themselves, 1–7 the speaker palette in order of first
-/// appearance, -1 a voice that could not be told apart.
 pub fn color_index(presentation_index: i32, speaker: &str) -> i32 {
     if Transcript::default_speaker_name(speaker) == "Speaker unclear" {
         return -1;
@@ -853,8 +825,6 @@ fn open_work(threads: &[ActionThread], theirs: bool) -> Vec<OpenWork> {
         .collect()
 }
 
-/// A session's window titles that held attention for at least a minute,
-/// most time first, at most six (`titleEvidence`).
 fn sustained_titles(session: &WorkSession, own: &[&ActivityBlock]) -> Vec<String> {
     let mut by_title: HashMap<String, Vec<&ActivityBlock>> = HashMap::new();
     for block in own {
@@ -878,8 +848,6 @@ fn sustained_titles(session: &WorkSession, own: &[&ActivityBlock]) -> Vec<String
         .collect()
 }
 
-/// The note's overview and the points taken from meetings. Points from
-/// overnight review notes stay on this computer with the rest of Dream memory.
 pub fn where_it_stands(summary: &ProjectSummary) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     let overview = summary.overview.trim();
@@ -906,10 +874,6 @@ pub fn where_it_stands(summary: &ProjectSummary) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join("\n\n"))
 }
 
-// ------------------------------------------------------------------ summary
-
-/// The summary as the Meetings page shows it: no provenance line and no title
-/// heading, which the phone draws from the record itself.
 pub fn shareable_summary(markdown: &str, meeting: &Meeting) -> Option<String> {
     let body = merged_meeting_body(&without_provenance(markdown), meeting);
     let mut lines: Vec<&str> = body.split('\n').collect();
@@ -923,9 +887,6 @@ pub fn shareable_summary(markdown: &str, meeting: &Meeting) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
-/// `SummaryPresentation.split`: lifts out the first non-empty, non-heading
-/// line among the leading four when it holds at least two `**Label:** value`
-/// pairs joined by "·", so a body opening with bold text stays intact.
 fn without_provenance(markdown: &str) -> String {
     let lines: Vec<&str> = markdown.split('\n').collect();
     for (index, line) in lines.iter().enumerate().take(4) {
@@ -961,8 +922,6 @@ fn is_provenance_line(line: &str) -> bool {
     count >= 2
 }
 
-/// `SummaryPresentation.meetingBody`: older merge drafts open with
-/// implementation details instead of meeting content.
 fn merged_meeting_body(markdown: &str, meeting: &Meeting) -> String {
     if !meeting.is_merged_meeting() {
         return markdown.to_string();
@@ -987,14 +946,8 @@ fn merged_meeting_body(markdown: &str, meeting: &Meeting) -> String {
         .join("\n")
 }
 
-// ------------------------------------------------------------------- digest
-
-/// Level-2 sections LokalBot renders from raw capture rather than writes.
 const EVIDENCE_SECTIONS: [&str; 2] = ["full activity log", "chronological work log"];
 
-/// Day Digest Markdown made fit for a phone: the raw evidence log, which
-/// quotes screen text and window titles, stays on this computer, and screen
-/// citations become the time of the moment they point at.
 pub fn shareable_digest(markdown: &str, time: &dyn Fn(i64) -> Option<DateTime<Utc>>) -> String {
     rewriting_screen_citations(&removing_evidence_sections(markdown), time)
         .trim()
@@ -1020,8 +973,6 @@ pub fn removing_evidence_sections(markdown: &str) -> String {
 static SCREEN_CITATION: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"[ \t]?\[screen(?::(\d+))?\]").expect("valid pattern"));
 
-/// `[screen:42]` becomes "(screen moment at 14:32)"; a marker whose capture
-/// is gone, and a bare `[screen]`, are dropped.
 pub fn rewriting_screen_citations(
     text: &str,
     time: &dyn Fn(i64) -> Option<DateTime<Utc>>,
@@ -1048,8 +999,6 @@ pub fn rewriting_screen_citations(
         .into_owned()
 }
 
-/// Top-level list items without their markers, or the paragraphs of a passage
-/// written as prose.
 pub fn items(markdown: &str) -> Vec<String> {
     let bullets: Vec<String> = markdown
         .split('\n')
@@ -1068,11 +1017,6 @@ pub fn items(markdown: &str) -> Vec<String> {
         .collect()
 }
 
-// ----------------------------------------------------------------- speakers
-
-/// `SpeakerDisplayName.label`: stored keys keep their canonical names ("Me",
-/// "Them 2"); "Local speaker" stays because that voice is not yet confirmed
-/// as the user. These go to the phone in English, as from the Mac.
 pub fn label(name: &str) -> String {
     let trimmed = name.trim();
     let lower = trimmed.to_lowercase();
@@ -1104,8 +1048,6 @@ static PLACEHOLDER_SPEAKER: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid pattern")
 });
 
-/// Display-only names for a meeting's speakers (`MeetingSpeakerPresentation`).
-/// Source-scoped keys, confirmed identities, and saved aliases stay untouched.
 #[derive(Default)]
 pub struct SpeakerPresentation {
     names: HashMap<String, String>,
@@ -1197,7 +1139,6 @@ impl SpeakerPresentation {
         )
     }
 
-    /// Stable across alias edits and the action-prioritized review ordering.
     pub fn color_index(&self, key: &str) -> i32 {
         self.color_indices
             .get(&Transcript::canonical_speaker_key(key))
@@ -1205,7 +1146,6 @@ impl SpeakerPresentation {
             .unwrap_or(1)
     }
 
-    /// An action owner as people should read it ("You", "Other speaker").
     pub fn owner(&self, value: &str, is_for_user: bool) -> String {
         let key = value.trim().to_lowercase();
         let identity = if is_for_user {
@@ -1220,7 +1160,6 @@ impl SpeakerPresentation {
     }
 
     fn text(&self, value: &str) -> String {
-        // Longest first protects nested merges and source 1 versus source 10.
         let mut originals: Vec<&String> = self.replacements.keys().collect();
         originals.sort_by_key(|original| std::cmp::Reverse(original.chars().count()));
         originals
@@ -1231,7 +1170,6 @@ impl SpeakerPresentation {
     }
 }
 
-/// Replaces `original` where no letter or number touches it on either side.
 fn replacing_whole(text: &str, original: &str, replacement: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;

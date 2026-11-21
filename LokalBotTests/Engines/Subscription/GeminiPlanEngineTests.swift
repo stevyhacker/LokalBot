@@ -45,8 +45,6 @@ final class GeminiPlanEngineTests: XCTestCase {
         arguments.firstIndex(of: flag).flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
     }
 
-    // MARK: Arguments & Isolation
-
     func testArgumentsKeepGeminiCLIToPlainTextMode() {
         let engine = GeminiPlanEngine(model: "gemini-3.5-flash")
         let arguments = engine.arguments(streaming: false)
@@ -83,8 +81,6 @@ final class GeminiPlanEngineTests: XCTestCase {
         XCTAssertTrue(toml.contains(#"toolName = "*""#))
         XCTAssertTrue(toml.contains(#"decision = "deny""#))
     }
-
-    // MARK: Requests
 
     func testRequestWritesSystemPromptToFileAndContextToStdin() async throws {
         let runner = FakeRunner { _ in
@@ -154,8 +150,6 @@ final class GeminiPlanEngineTests: XCTestCase {
         XCTAssertEqual(value(after: "--output-format", in: runner.calls[0].arguments), "stream-json")
     }
 
-    // MARK: Failures
-
     func testErrorClassificationAndNoRetryOnQuotaLimit() async throws {
         XCTAssertEqual(
             GeminiPlanEngine.failure(message: "API key not valid (API_KEY_INVALID)", statusCode: 400) as? GeminiPlanError,
@@ -191,8 +185,6 @@ final class GeminiPlanEngineTests: XCTestCase {
         }
         XCTAssertEqual(runner.calls.count, 1)
     }
-
-    // MARK: Discovery & Models
 
     func testLocateAndEnvironmentAndModelsJSON() {
         let home = "/Users/test"

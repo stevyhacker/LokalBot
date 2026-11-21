@@ -1,6 +1,3 @@
-//! Release versions: the macOS marketing version (`0.10.11`), which the Linux
-//! and Windows workspace repeats so one tag ships all three platforms.
-
 use std::fmt;
 use std::str::FromStr;
 
@@ -24,7 +21,6 @@ impl Version {
         }
     }
 
-    /// The version of this build.
     pub fn current() -> Self {
         env!("CARGO_PKG_VERSION")
             .parse()
@@ -35,8 +31,6 @@ impl Version {
 impl FromStr for Version {
     type Err = InvalidVersion;
 
-    /// Exactly three decimal numbers, as `release-preflight.py` requires of
-    /// the marketing version. Pre-release tags never reach a feed.
     fn from_str(text: &str) -> Result<Self, Self::Err> {
         let invalid = || InvalidVersion(text.to_string());
         let mut parts = text.split('.');

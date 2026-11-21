@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Phrase acceptance, accept options, context prompt
-
 final class CotypingWordAcceptanceTests: XCTestCase {
     func testLatinAcceptanceUnchangedBySpacelessBranch() {
         XCTAssertEqual(CotypingAcceptanceChunker.nextWord(in: "hello world"), "hello")
@@ -232,7 +230,6 @@ final class CotypingAcceptOptionsTests: XCTestCase {
         XCTAssertEqual(settings.cotypingAcceptGranularity, .word)
         XCTAssertEqual(settings.cotypingAcceptKey, .tab)
         XCTAssertEqual(settings.cotypingFullAcceptKey, .backtick)
-        // Cotypist's default: punctuation after a word takes its own press.
         XCTAssertFalse(settings.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertEqual(settings.cotypingEscapeBehavior, .pause)
         XCTAssertFalse(settings.cotypingAddSpaceAfterAccept)

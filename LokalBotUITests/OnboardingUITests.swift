@@ -1,7 +1,5 @@
 import XCTest
 
-/// Drives the real first-run wizard (Choose, Allow access, Download) and pins
-/// down the permission contract for the day-memory layers selected by default.
 final class OnboardingUITests: XCTestCase {
     private var root: URL!
     private var app: XCUIApplication!
@@ -40,9 +38,6 @@ final class OnboardingUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    /// The language menu is on the first step only. Switching it must restyle
-    /// the open window in place: the choice made before the switch is still
-    /// there, and setup is still on its first step.
     func testLanguageSwitchKeepsTheOpenWizardOnItsCurrentStep() {
         UITestHarness.selectSegment("English", pickerIdentifier: "onboarding.appLanguage", in: app)
         let codingAgents = UITestHarness.toggle("Read coding agent sessions", in: app)
@@ -102,7 +97,6 @@ final class OnboardingUITests: XCTestCase {
         XCTAssertTrue(text(containing: "of 3 allowed").exists,
                       "The footer counts the permissions these choices need")
         app.buttons["Continue"].click()
-        // The library is new, so its models are still to download.
         assertPage(title: "Download the models", step: 3)
         XCTAssertTrue(app.buttons["onboarding.downloadModels"].exists)
         XCTAssertTrue(app.buttons["onboarding.skipDownload"].exists,
@@ -118,9 +112,6 @@ final class OnboardingUITests: XCTestCase {
                        "Moving through setup must not apply capture choices")
     }
 
-    /// Each step has one title, `onboarding.title`. The stepper shows finished
-    /// steps as buttons that go back; the current and later steps are plain
-    /// labels, so a step's name in the stepper does not count as its page.
     private func assertPage(title: String, step: Int) {
         XCTAssertTrue(heading("onboarding.title", says: title), "onboarding page missing: \(title)")
         let attachment = XCTAttachment(screenshot: app.windows.firstMatch.screenshot())
@@ -137,7 +128,6 @@ final class OnboardingUITests: XCTestCase {
         }
     }
 
-    /// A switch reports 1 or 0, as a number or as text depending on the system.
     private func isOn(_ toggle: XCUIElement) -> Bool {
         switch toggle.value {
         case let number as NSNumber: number.boolValue
@@ -146,11 +136,6 @@ final class OnboardingUITests: XCTestCase {
         }
     }
 
-    /// Whether the heading with this identifier comes to say these words. A
-    /// heading's words reach XCUITest as its label, and a static-text query
-    /// did not match one on the hosted runner, so it is found by identifier
-    /// among all elements. While one step replaces another both titles exist
-    /// for a moment; a title is read only once it is the only one.
     private func heading(_ identifier: String, says words: String, timeout: TimeInterval = 6) -> Bool {
         let named = app.descendants(matching: .any).matching(identifier: identifier)
         let saying = named.matching(NSPredicate(format: "label CONTAINS %@ OR value CONTAINS %@", words, words))

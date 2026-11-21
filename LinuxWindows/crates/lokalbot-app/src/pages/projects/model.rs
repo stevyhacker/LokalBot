@@ -1,10 +1,3 @@
-//! The Projects list and a project's page as plain data
-//! (`ProjectsListPresentation.swift`): tracked projects by last activity,
-//! then suggestions with where each came from; which tracked project a
-//! suggestion probably belongs to; the side column's week of window time;
-//! and the wording put together from counts, dates and names. Kept apart
-//! from drawing so it can be tested.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, NaiveDate, Utc};
@@ -14,45 +7,28 @@ use uuid::Uuid;
 use crate::pages::people::model::{day, formatted, local, short_date};
 use lokalbot_i18n::{directional, fill};
 
-/// A project nothing has named for this many days reads "Quiet since…";
-/// the same two weeks after which other people's open work stops counting
-/// as recent.
 pub(super) const QUIET_AFTER_DAYS: i64 = lokalbot_core::projects::RECENT_OTHERS_ACTION_DAYS;
-/// Other people's actions shown before "Show N more".
 pub(super) const VISIBLE_OTHERS_ACTIONS: usize = 3;
-/// Meetings shown before "Show all N".
 pub(super) const VISIBLE_MEETINGS: usize = 4;
-/// Windows listed before "N more windows".
 pub(super) const VISIBLE_WINDOWS: usize = 3;
-/// Time under a minute is not shown, as on Timeline.
 pub(super) const MINIMUM_SECONDS: f64 = 60.;
-/// The days of window time the side column shows.
 pub(super) const REVIEW_DAYS: i64 = lokalbot_core::projects::REVIEW_DAYS;
-/// Names that come up in this many meetings are suggested.
 pub(super) const MINIMUM_MEETINGS: usize = lokalbot_core::projects::MINIMUM_TOPIC_MEETINGS;
-/// Below this width the toolbar's Ask button shows its icon alone.
 pub(super) const COMPACT_TOOLBAR_WIDTH: f32 = 720.;
 
-/// `tracked:<UUID>`, the selection and note id of a tracked project.
 pub(super) fn selection_id(id: Uuid) -> String {
     format!("tracked:{}", lokalbot_core::ids::uuid_upper(&id))
 }
 
-/// The start of a local day, for wording that takes an instant.
 fn day_start(date: NaiveDate) -> DateTime<Utc> {
     lokalbot_core::time::local_day_bounds(date).0
 }
 
-// ------------------------------------------------------------------ list
-
-/// How recently anything named a project: its newest meeting, overnight
-/// review note, or day with window time.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) enum Activity {
     NothingLinked,
     Today,
     Yesterday,
-    /// Within the last `QUIET_AFTER_DAYS` days.
     Recent(DateTime<Utc>),
     Quiet(DateTime<Utc>),
 }
@@ -76,8 +52,6 @@ pub(super) fn activity(last_active: Option<DateTime<Utc>>, now: DateTime<Utc>) -
     }
 }
 
-/// "Active today", "Active yesterday", "Last active Fri, Nov 6", "Quiet
-/// since Oct 22", or that nothing is linked yet.
 pub(super) fn activity_line(activity: Activity, now: DateTime<Utc>) -> String {
     match activity {
         Activity::NothingLinked => lokalbot_i18n::tr("Nothing linked yet").to_string(),
@@ -91,23 +65,16 @@ pub(super) fn activity_line(activity: Activity, now: DateTime<Utc>) -> String {
     }
 }
 
-/// One project in the list (`ProjectsListContent.Row`).
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Row {
-    /// The project's id, which is also the list's selection.
     pub id: String,
     pub name: String,
-    /// "Active today", "Quiet since Oct 22", "In 4 meetings"…
     pub detail: String,
     pub is_suggestion: bool,
-    /// Drawn a little fainter: nothing has named the project for weeks.
     pub is_quiet: bool,
-    /// The user's own open actions on the project.
     pub open_actions: usize,
 }
 
-/// The list as it is drawn: tracked projects by last activity, then
-/// suggestions in the order they are offered.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(super) struct ListContent {
     pub tracked: Vec<Row>,
@@ -115,8 +82,6 @@ pub(super) struct ListContent {
 }
 
 impl ListContent {
-    /// `query` matches a project's name or any of its other names. A
-    /// suggestion hidden a moment ago leaves before the next refresh.
     pub fn build(
         projects: &[&ProjectProfile],
         hidden: &[String],
@@ -134,7 +99,6 @@ impl ListContent {
                         .any(|name| name.to_lowercase().contains(&needle))
             })
             .collect();
-        // Most recently active first; a project nothing names yet goes last.
         let mut tracked: Vec<&ProjectProfile> = matching
             .iter()
             .copied()
@@ -146,8 +110,6 @@ impl ListContent {
                 .cmp(&left.last_active)
                 .then_with(|| left.name.to_lowercase().cmp(&right.name.to_lowercase()))
         });
-        // Suggestions keep the order they are offered in: names from
-        // meetings by how many meetings, then the overnight review's.
         let suggested = matching.iter().copied().filter(|p| {
             !p.is_tracked() && !hidden.contains(&lokalbot_core::people::normalized(&p.name))
         });
@@ -179,7 +141,6 @@ impl ListContent {
         }
     }
 
-    /// Every row's project id, in the order shown.
     pub fn project_ids(&self) -> impl Iterator<Item = &str> {
         self.tracked
             .iter()
@@ -191,9 +152,6 @@ impl ListContent {
         self.tracked.is_empty() && self.suggested.is_empty()
     }
 
-    /// What opens once a suggestion leaves the list: the suggestion after
-    /// it, else the first one left. None when it was the last suggestion,
-    /// and then the page opens the first tracked project.
     pub fn selection_after_removing(&self, id: &str) -> Option<String> {
         let Some(index) = self.suggested.iter().position(|row| row.id == id) else {
             return self.suggested.first().map(|row| row.id.clone());
@@ -205,8 +163,6 @@ impl ListContent {
             .map(|row| row.id.clone())
     }
 
-    /// The row's position among the list's children: a heading leads each
-    /// group that has rows.
     pub fn child_index(&self, id: &str) -> Option<usize> {
         let mut index = 0;
         for group in [&self.tracked, &self.suggested] {
@@ -223,8 +179,6 @@ impl ListContent {
     }
 }
 
-/// Where a suggestion came from: "In 4 meetings" for a name that recurs
-/// across meetings, "From overnight review" for work the review named.
 pub(super) fn suggestion_source(project: &ProjectProfile) -> String {
     if project.kind == ProjectKind::SuggestedReview {
         return lokalbot_i18n::tr("From overnight review").to_string();
@@ -240,15 +194,11 @@ pub(super) fn suggestion_source(project: &ProjectProfile) -> String {
     ))
 }
 
-/// Beside the project's name in the toolbar: its last activity, "Tracked
-/// since Nov 1" while nothing names it, or "Suggested".
 pub(super) fn subtitle(
     project: &ProjectProfile,
     tracked_since: Option<DateTime<Utc>>,
     now: DateTime<Utc>,
 ) -> String {
-    // Its own key: beside one project the word is singular, and the list's
-    // "Suggested" heading is not in every language.
     if !project.is_tracked() {
         return lokalbot_i18n::tr("Suggested (one project)").to_string();
     }
@@ -264,7 +214,6 @@ pub(super) fn subtitle(
     activity_line(activity, now)
 }
 
-/// "2 open actions for you", on hover over the number on a row.
 pub(super) fn open_actions(count: usize) -> String {
     directional(fill(
         lokalbot_i18n::tr(if count == 1 {
@@ -276,7 +225,6 @@ pub(super) fn open_actions(count: usize) -> String {
     ))
 }
 
-/// "Show 2 hidden suggestions".
 pub(super) fn show_hidden(count: usize) -> String {
     directional(fill(
         lokalbot_i18n::tr(if count == 1 {
@@ -288,15 +236,10 @@ pub(super) fn show_hidden(count: usize) -> String {
     ))
 }
 
-// ------------------------------------------------------------ selection
-
-/// The tracked project a suggestion probably belongs to
-/// (`ProjectSuggestionHome.Match`).
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Home {
     pub tracked_id: Uuid,
     pub name: String,
-    /// How many of the suggestion's meetings the project already has.
     pub shared_meetings: usize,
 }
 
@@ -304,9 +247,6 @@ fn meeting_ids(project: &ProjectProfile) -> HashSet<Uuid> {
     project.meetings.iter().map(|m| m.id).collect()
 }
 
-/// How many of the suggestion's meetings the project already has, when that
-/// is at least half of them; None otherwise, and for a suggestion no
-/// meeting names.
 pub(super) fn shared_meetings(
     suggestion: &HashSet<Uuid>,
     project: &HashSet<Uuid>,
@@ -318,9 +258,6 @@ pub(super) fn shared_meetings(
     (shared > 0 && shared * 2 >= suggestion.len()).then_some(shared)
 }
 
-/// The tracked project that already has at least half of the suggestion's
-/// meetings: the one sharing the most when several do, the first in the
-/// list on a tie. Deterministic; no model decides.
 pub(super) fn suggestion_home(
     suggestion: &ProjectProfile,
     projects: &[&ProjectProfile],
@@ -348,10 +285,6 @@ pub(super) fn suggestion_home(
     best
 }
 
-/// A suggestion that was just tracked stays on screen, already as tracked,
-/// until the next load delivers its tracked profile
-/// (`ProjectsWorkspaceView.settlingProfile`). Nothing is written from this
-/// copy: its evidence is about to be replaced.
 pub(super) fn settling_profile(
     selection: Option<&str>,
     curation: &ProjectCuration,
@@ -375,9 +308,6 @@ pub(super) fn settling_profile(
     Some(settled)
 }
 
-/// The projects the list and the page draw: while a just-tracked suggestion
-/// settles, its tracked copy stands in for the suggestion, so the row moves
-/// under Tracked at once and stays selected.
 pub(super) fn list_projects<'a>(
     projects: &'a [ProjectProfile],
     settling: Option<&'a ProjectProfile>,
@@ -395,10 +325,6 @@ pub(super) fn list_projects<'a>(
         .collect()
 }
 
-// ------------------------------------------------------------------ page
-
-/// Nothing names the project yet: no meeting, action, decision, overnight
-/// review note, person, or window time.
 pub(super) fn is_empty(project: &ProjectProfile) -> bool {
     project.meetings.is_empty()
         && project.my_actions.is_empty()
@@ -410,8 +336,6 @@ pub(super) fn is_empty(project: &ProjectProfile) -> bool {
         && project.week_seconds < MINIMUM_SECONDS
 }
 
-/// Other people's open work in one list: what was mentioned recently or is
-/// due ahead first, then the older work.
 pub(super) fn others_actions(project: &ProjectProfile) -> Vec<&ActionThread> {
     project
         .others_actions
@@ -420,7 +344,6 @@ pub(super) fn others_actions(project: &ProjectProfile) -> Vec<&ActionThread> {
         .collect()
 }
 
-/// "Show all 12" or "Show fewer" under the meetings.
 pub(super) fn show_all(expanded: bool, total: usize) -> String {
     if expanded {
         lokalbot_i18n::tr("Show fewer").to_string()
@@ -432,19 +355,13 @@ pub(super) fn show_all(expanded: bool, total: usize) -> String {
     }
 }
 
-// ------------------------------------------------------------------ time
-
-/// One bar of the side column's week.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Day {
     pub date: NaiveDate,
-    /// Zero for a day with no window time that names the project.
     pub seconds: f64,
     pub is_today: bool,
 }
 
-/// The days the window time covers, oldest first and ending today, with
-/// zero for a day without time (`ProjectTimePresentation.days`).
 pub(super) fn days(times: &[(String, f64)], today: NaiveDate) -> Vec<Day> {
     (0..REVIEW_DAYS)
         .rev()
@@ -465,7 +382,6 @@ pub(super) fn days(times: &[(String, f64)], today: NaiveDate) -> Vec<Day> {
         .collect()
 }
 
-/// How tall a day's bar is, from 0 to 1 of the tallest day.
 pub(super) fn fraction(day: &Day, days: &[Day]) -> f32 {
     let top = days.iter().map(|d| d.seconds).fold(0., f64::max);
     if top > 0. {
@@ -475,8 +391,6 @@ pub(super) fn fraction(day: &Day, days: &[Day]) -> f32 {
     }
 }
 
-/// The windows behind "N more windows" and their time together. The
-/// project counts every window; it lists only the longest.
 pub(super) fn rest(project: &ProjectProfile) -> Option<(usize, f64)> {
     let shown: Vec<_> = project.windows.iter().take(VISIBLE_WINDOWS).collect();
     let count = project.window_count.max(project.windows.len()) - shown.len();
@@ -484,12 +398,10 @@ pub(super) fn rest(project: &ProjectProfile) -> Option<(usize, f64)> {
     (count > 0 && seconds >= MINIMUM_SECONDS).then_some((count, seconds))
 }
 
-/// "40h 10m", "35m"; under a minute still reads as one.
 pub(super) fn duration(seconds: f64) -> String {
     directional(crate::ui::profile::duration(seconds))
 }
 
-/// "3 more windows".
 pub(super) fn more_windows(count: usize) -> String {
     directional(fill(
         lokalbot_i18n::tr(if count == 1 {
@@ -501,8 +413,6 @@ pub(super) fn more_windows(count: usize) -> String {
     ))
 }
 
-/// "Wed, Nov 4: 8h 20m", on hover over a day's bar; a day without time says
-/// so with a zero.
 pub(super) fn day_time(day: &Day) -> String {
     let time = if day.seconds >= MINIMUM_SECONDS {
         crate::ui::profile::duration(day.seconds)
@@ -512,7 +422,6 @@ pub(super) fn day_time(day: &Day) -> String {
     format!("{}: {time}", formatted(day_start(day.date), "%a, %b %-d"))
 }
 
-/// The one-letter weekday under a day's bar.
 pub(super) fn weekday_letter(date: NaiveDate) -> String {
     formatted(day_start(date), "%a")
         .chars()
@@ -521,8 +430,6 @@ pub(super) fn weekday_letter(date: NaiveDate) -> String {
         .unwrap_or_default()
 }
 
-/// The names a project is matched by, for "Time in windows whose titles name
-/// Atlas, Larkspur".
 pub(super) fn time_source(project: &ProjectProfile) -> String {
     let names: Vec<&str> = std::iter::once(project.name.as_str())
         .chain(project.other_names.iter().map(String::as_str))
@@ -533,19 +440,12 @@ pub(super) fn time_source(project: &ProjectProfile) -> String {
     )
 }
 
-// ---------------------------------------------------------------- notes
-
-/// Whether a note was written on this computer: the port saves "on this
-/// PC", and an empty location is never a server.
 fn written_here(location: &str) -> bool {
     let place = location.trim();
     let place = place.strip_prefix("on ").unwrap_or(place).trim();
     place.is_empty() || place.eq_ignore_ascii_case("this PC")
 }
 
-/// When "Where it stands" was written, by which model, and where it ran:
-/// "Written today, 9:12 AM, by Qwen3.5 4B on this PC", or with the server's
-/// host for a model that ran elsewhere.
 pub(super) fn provenance(summary: &ProjectSummary, now: DateTime<Utc>) -> String {
     let is_today = local(summary.generated_at).date_naive() == local(now).date_naive();
     let when = if is_today {
@@ -583,8 +483,6 @@ pub(super) fn provenance(summary: &ProjectSummary, now: DateTime<Utc>) -> String
     )
 }
 
-/// "Writing where it stands from 4 meetings…", naming what the model is
-/// given.
 pub(super) fn writing(meetings: usize, has_review_notes: bool) -> String {
     if meetings == 0 {
         return lokalbot_i18n::tr("Writing where it stands from the overnight review…").to_string();
@@ -602,8 +500,6 @@ pub(super) fn writing(meetings: usize, has_review_notes: bool) -> String {
     directional(fill(key, &[&lokalbot_i18n::number(meetings)]))
 }
 
-/// A point's meeting as its link reads: "Design review meeting · Nov 10",
-/// or the title alone when the note kept no date.
 pub(super) fn point_citation(title: &str, day_key: Option<&str>, now: DateTime<Utc>) -> String {
     match day_key.and_then(|key| NaiveDate::parse_from_str(key, "%Y-%m-%d").ok()) {
         Some(date) => format!("{title} · {}", short_date(day_start(date), now)),
@@ -611,7 +507,6 @@ pub(super) fn point_citation(title: &str, day_key: Option<&str>, now: DateTime<U
     }
 }
 
-/// "Overnight review · Nov 9" under the review's own words.
 pub(super) fn review_citation(day_key: &str, now: DateTime<Utc>) -> String {
     let label = lokalbot_i18n::tr("Overnight review");
     match NaiveDate::parse_from_str(day_key, "%Y-%m-%d") {
@@ -620,10 +515,6 @@ pub(super) fn review_citation(day_key: &str, now: DateTime<Utc>) -> String {
     }
 }
 
-// ----------------------------------------------------------- suggestions
-
-/// The heading of a suggestion's decision: "Redis came up in 4 meetings
-/// since Oct 29", or that the overnight review found the work.
 pub(super) fn suggestion_title(project: &ProjectProfile, now: DateTime<Utc>) -> String {
     if project.kind == ProjectKind::SuggestedReview {
         return fill(
@@ -649,8 +540,6 @@ pub(super) fn suggestion_title(project: &ProjectProfile, now: DateTime<Utc>) -> 
     )
 }
 
-/// Why the first answer is the one offered: the tracked project that
-/// already has most of the suggestion's meetings, or that none covers it.
 pub(super) fn suggestion_reason(home: Option<&Home>) -> String {
     let Some(home) = home else {
         return lokalbot_i18n::tr("No tracked project covers it.").to_string();
@@ -665,12 +554,6 @@ pub(super) fn suggestion_reason(home: Option<&Home>) -> String {
     ))
 }
 
-// ------------------------------------------------------------ the card
-
-/// Whether the note's provenance fits beside "Where it stands" and its
-/// button (`ViewThatFits`); otherwise it goes under the title. GPUI cannot
-/// measure a line before laying it out, so this estimates the widths from
-/// the text: half an em a character, a full em for wide (CJK) ones.
 pub(super) fn provenance_fits_beside(
     card_width: f32,
     title: &str,
@@ -685,7 +568,6 @@ pub(super) fn provenance_fits_beside(
             .sum::<f32>()
             * scale
     };
-    // Sparkle and gaps, the button's padding, the card's own padding.
     let title_width = width(title, 14.) + 22. * scale;
     let control_width = if control.is_empty() {
         0.
@@ -707,8 +589,6 @@ mod tests {
     use chrono::{Duration, Local, TimeZone as _};
     use lokalbot_core::{MeetingRef, ProjectWindowTime, TrackedProject};
 
-    /// A Tuesday at noon, local time, so day words do not depend on the
-    /// machine's time zone.
     fn now() -> DateTime<Utc> {
         Local
             .with_ymd_and_hms(2026, 11, 10, 12, 0, 0)

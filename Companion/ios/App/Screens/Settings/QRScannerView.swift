@@ -2,8 +2,6 @@ import AVFoundation
 import SwiftUI
 import VisionKit
 
-/// Reads the pairing QR code: VisionKit's data scanner where the device
-/// supports it, an AVFoundation metadata reader otherwise.
 struct QRScannerView: View {
     let onCode: (String) -> Void
 
@@ -73,8 +71,6 @@ private struct MetadataScannerRepresentable: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: MetadataScannerController, context: Context) {}
 }
 
-/// AVCaptureSession with a QR metadata output, for devices without the
-/// VisionKit scanner.
 final class MetadataScannerController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
     private let onCode: (String) -> Void
     private let session = AVCaptureSession()
@@ -112,7 +108,6 @@ final class MetadataScannerController: UIViewController, AVCaptureMetadataOutput
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // startRunning blocks; the session is only touched here and on stop.
         nonisolated(unsafe) let session = session
         DispatchQueue.global(qos: .userInitiated).async { session.startRunning() }
     }

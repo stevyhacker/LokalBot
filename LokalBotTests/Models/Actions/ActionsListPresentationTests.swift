@@ -1,21 +1,15 @@
 import XCTest
 @testable import LokalBot
 
-/// The Actions page's list: what each status shows, in which groups and
-/// order, what every Filter choice keeps, and how rows and details are worded.
 @MainActor
 final class ActionsListPresentationTests: XCTestCase {
-    /// Due phrases resolve in the current calendar, so the tests keep to it.
     private let calendar = Calendar.current
     private let locale = Locale(identifier: "en_US")
-    /// Tuesday, 10 November 2026, at noon.
     private var now: Date!
 
     override func setUpWithError() throws {
         now = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 12)))
     }
-
-    // MARK: Groups and order
 
     func testOpenActionsGroupAsOverdueThenNextSevenDaysThenTheRestNewestFirst() throws {
         let threads = [
@@ -42,7 +36,6 @@ final class ActionsListPresentationTests: XCTestCase {
         XCTAssertEqual(content.order, content.sections.flatMap { $0.rows.map(\.id) })
         XCTAssertEqual(content.openCount, 9)
 
-        // Dated groups name the meeting; the rest also say which day it was.
         XCTAssertEqual(content.sections[0].rows.map(\.source), ["Atlas planning", "1:1 with Maya"])
         XCTAssertEqual(content.sections[2].rows.map(\.source), [
             "Engineering standup · Today", "Atlas planning · Yesterday", "Hiring debrief · Fri, Nov 6",
@@ -131,8 +124,6 @@ final class ActionsListPresentationTests: XCTestCase {
                        "a deferred action is not overdue")
         XCTAssertEqual(deferred.openCount, 1, "the open count ignores what the list shows")
     }
-
-    // MARK: Filters
 
     func testEachDueFilter() {
         let threads = [
@@ -238,7 +229,6 @@ final class ActionsListPresentationTests: XCTestCase {
             "Engineering standup · last mentioned Oct 20", "Design review meeting · last mentioned Oct 19",
         ])
 
-        // The review is about open work: leaving Open ends it.
         filter.show(.deferred)
         XCTAssertFalse(filter.staleOnly)
         XCTAssertEqual(texts(build(threads, filter).sections[0]), ["Old and deferred"])
@@ -282,8 +272,6 @@ final class ActionsListPresentationTests: XCTestCase {
         XCTAssertEqual(kept.openCount, 1)
     }
 
-    // MARK: Wording
-
     func testDueWording() throws {
         func label(_ due: String?, status: OutcomeStatus = .open) -> ActionsListContent.DueLabel? {
             ActionListWording.dueLabel(
@@ -302,7 +290,6 @@ final class ActionsListPresentationTests: XCTestCase {
         XCTAssertEqual(label("2026-11-05", status: .deferred), .init(text: "Due Thu, Nov 5", tone: .calm))
         XCTAssertEqual(label("2026-11-10", status: .done), .init(text: "Due today", tone: .calm))
 
-        // A language supplies the words; the date follows its locale.
         let translated = ActionListWording.dueLabel(
             for: thread("Wording in another language", meeting: "Standup", daysAgo: 12, due: "2026-11-05"),
             now: now, calendar: calendar, locale: locale,
@@ -320,7 +307,6 @@ final class ActionsListPresentationTests: XCTestCase {
             capturedAt: try XCTUnwrap(calendar.date(from: DateComponents(
                 year: 2026, month: 11, day: 9, hour: 17, minute: 48))),
             app: "Mail", title: "Re: failover", cue: "Message sent")
-        // The system puts a narrow no-break space before "PM".
         XCTAssertEqual(ActionListWording.completionHint(hint, calendar: calendar, locale: locale),
                        "Mail showed “Message sent” · Mon 5:48\u{202F}PM")
         XCTAssertEqual(ActionListWording.completionHintSentence(hint, calendar: calendar, locale: locale),
@@ -355,7 +341,6 @@ final class ActionsListPresentationTests: XCTestCase {
         let typed = thread("Clean up the feature flags", meeting: "Standup", daysAgo: 3, due: "2026-11-30")
         XCTAssertNil(ActionDetailsPresentation.dueNote(for: typed), "a typed day was not said")
 
-        // A due day goes on the newest mention and leaves other fields alone.
         let friday = try XCTUnwrap(calendar.date(from: DateComponents(year: 2026, month: 11, day: 13, hour: 9)))
         XCTAssertEqual(ActionDetailsPresentation.dueCorrection(friday, for: twice, calendar: calendar), .init(
             actionID: newer.action.id, meetingID: newer.meetingID, text: nil, owner: nil, due: "2026-11-13"))
@@ -371,7 +356,6 @@ final class ActionsListPresentationTests: XCTestCase {
         XCTAssertEqual(change.text, "Draft the eviction policy", "a saved wording is written back unchanged")
         XCTAssertEqual(change.owner, "Me")
 
-        // "Not mine" clears the owner of every mention and nothing else.
         let notMine = ActionDetailsPresentation.notMineCorrections(for: twice)
         XCTAssertEqual(Set(notMine.map(\.meetingID)), [older.meetingID, newer.meetingID])
         XCTAssertTrue(notMine.allSatisfy { $0.owner == "" && $0.text == nil && $0.due == nil })
@@ -413,8 +397,6 @@ final class ActionsListPresentationTests: XCTestCase {
                        "2026-11-20", "Not mine keeps the corrected day")
     }
 
-    // MARK: Selection
-
     func testSelectionFollowsClicksModifiersAndArrowKeys() {
         let order = ["a", "b", "c", "d", "e"]
         var selection = ActionListSelection()
@@ -435,7 +417,6 @@ final class ActionsListPresentationTests: XCTestCase {
         selection.click("d", shift: true, order: order)
         XCTAssertEqual(selection.current(in: order), ["d", "e"])
 
-        // ⌘-click from the implicit first row adds to it.
         var fresh = ActionListSelection()
         fresh.click("c", command: true, order: order)
         XCTAssertEqual(fresh.current(in: order), ["a", "c"])
@@ -458,18 +439,13 @@ final class ActionsListPresentationTests: XCTestCase {
         selection.collapse(in: order)
         XCTAssertEqual(selection.current(in: order).count, 1)
 
-        // A filter that hides the chosen row shows the first one instead,
-        // and the choice returns with the row.
         selection.click("d", order: order)
         XCTAssertEqual(selection.current(in: ["a", "b"]), ["a"])
         XCTAssertEqual(selection.current(in: order), ["d"])
     }
 
-    // MARK: Fixtures
-
     private func build(_ threads: [ActionThread], _ filter: ActionsListFilter = .init(),
                        links: ActionThreadLinks = .init(), kept: Set<String> = []) -> ActionsListContent {
-        // Threads arrive newest meeting first, as the outcome index publishes them.
         let published = threads.sorted {
             $0.latestReference.meetingStartedAt > $1.latestReference.meetingStartedAt
         }

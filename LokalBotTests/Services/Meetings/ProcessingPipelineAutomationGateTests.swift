@@ -2,10 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// The automation gate: automatic jobs (auto-transcribe after a recording,
-/// launch resume) must never trigger a model download — they park as
-/// `.waitingForModels` without burning auto-resume attempts. User-initiated
-/// jobs pass straight through.
 @MainActor
 final class ProcessingPipelineAutomationGateTests: XCTestCase {
     func testCaptureDefersDurableJobsWithoutBurningAttemptsAndResumesOnStop() async throws {
@@ -67,8 +63,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         XCTAssertTrue(pipeline.stages.isEmpty)
     }
 
-    /// Revoking the transcription server while a meeting is uploading stops
-    /// the uploads; the meeting must then wait for a model, not sit failed.
     func testMeetingWaitsWhenItsTranscriptionServerIsRevokedMidRun() async throws {
         let previous = RemoteTranscriptionConsent.current
         addTeardownBlock { RemoteTranscriptionConsent.current = previous }
@@ -96,7 +90,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
                 transcription: { $0.remoteTranscription.isReady }, think: { _, _ in true }),
             transcriptionStarted: { _ in
                 starts += 1
-                // The person revokes the server once the meeting is under way.
                 settings.approvedRemoteTranscriptionOrigins = []
                 RemoteTranscriptionConsent.current = .init(settings: settings)
             },
@@ -110,8 +103,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         XCTAssertEqual(starts, 1, "the meeting is not sent to the revoked server again")
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.appendingPathComponent("transcript.json").path))
 
-        // A server that was never approved still fails with its message
-        // instead of going round again.
         let other = makeMeeting()
         let otherFolder = root.appendingPathComponent(other.relativePath, isDirectory: true)
         try FileManager.default.createDirectory(at: otherFolder, withIntermediateDirectories: true)
@@ -150,8 +141,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
                 relativePath: "meetings/2026/08/17-standup-\(UUID().uuidString.prefix(8))")
     }
 
-    /// Readiness stub whose answers can flip mid-test, standing in for a
-    /// model download completing.
     private final class ReadinessBox {
         var transcriptionReady = false
         var thinkReady = false
@@ -238,8 +227,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         let meeting = makeMeeting()
 
         pipeline.enqueue(meeting, transcribe: true, summarize: true, origin: .automatic)
-        // process() parks the job before the drain task resumes and clears
-        // its active-work state. Await that cleanup before asserting it.
         await waitUntil {
             pipeline.stages[meeting.id] == .waitingForModels && !pipeline.hasActiveWork
         }
@@ -263,14 +250,10 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         await waitUntil { pipeline.stages[meeting.id] == .waitingForModels }
         XCTAssertEqual(pipeline.stages[meeting.id], .waitingForModels)
 
-        // Still missing: a re-check parks again instead of downloading.
         pipeline.retryJobsWaitingForModels()
         await waitUntil { pipeline.stages[meeting.id] == .waitingForModels }
         XCTAssertEqual(pipeline.stages[meeting.id], .waitingForModels)
 
-        // "Download finished": the job passes the gate and actually runs —
-        // this hermetic meeting has no audio, so passing the gate shows up
-        // as the pipeline's no-audio failure rather than a parked stage.
         readiness.transcriptionReady = true
         pipeline.retryJobsWaitingForModels()
         await waitUntil { pipeline.stages[meeting.id]?.isFailure == true }
@@ -284,8 +267,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         let pipeline = makePipeline(root: root, readiness: readiness)
         let meeting = makeMeeting()
 
-        // Default origin is user-initiated (Retry, Process menu, --process):
-        // the job runs — and fails on missing audio — instead of parking.
         pipeline.enqueue(meeting, transcribe: true, summarize: false)
         await waitUntil { pipeline.stages[meeting.id]?.isFailure == true }
         XCTAssertEqual(pipeline.stages[meeting.id]?.isFailure, true)
@@ -301,8 +282,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         pipeline.enqueue(meeting, transcribe: true, summarize: true, origin: .automatic)
         await waitUntil { pipeline.stages[meeting.id] == .waitingForModels }
 
-        // "Download & process" re-enqueues user-initiated: the parked copy is
-        // merged away and the job runs.
         pipeline.enqueue(meeting, transcribe: true, summarize: true)
         await waitUntil { pipeline.stages[meeting.id]?.isFailure == true }
         XCTAssertEqual(pipeline.stages[meeting.id]?.isFailure, true)
@@ -310,8 +289,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
                        "the parked copy must not linger after an explicit retry")
     }
 
-    /// Pressing "Transcribe" must stay transcribe-only even when a job for the
-    /// same meeting is already queued or parked asking for a summary.
     func testUserInitiatedEnqueueDoesNotInheritAQueuedSummary() {
         let pending = ProcessingPipeline.Work(transcribe: true, summarize: true)
 
@@ -323,8 +300,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         XCTAssertEqual(user, .init(transcribe: true, summarize: false))
     }
 
-    /// The opposite direction still merges: automatic re-enqueues (launch
-    /// resume, a model finishing its download) must not drop a parked summary.
     func testAutomaticEnqueueStillMergesPendingWork() {
         let automatic = ProcessingPipeline.merged(
             pending: .init(transcribe: false, summarize: true),
@@ -334,9 +309,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         XCTAssertEqual(automatic, .init(transcribe: true, summarize: true))
     }
 
-    /// Transcription is the prerequisite for everything downstream, so it
-    /// merges by OR regardless of who asked: "Re-summarize" on a meeting whose
-    /// transcript is still queued must not cancel that transcription.
     func testTranscriptionIsNeverDroppedByAUserChoice() {
         let work = ProcessingPipeline.merged(
             pending: .init(transcribe: true, summarize: false),
@@ -463,8 +435,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
             .init(transcribe: false, summarize: true))
     }
 
-    /// With no durable intent, Retry must not destroy a completed transcript
-    /// merely to avoid becoming a no-op.
     func testRetryWorkDoesNotOverwriteTranscriptWhenAutoSummarizeIsOff() {
         let work = ProcessingPipeline.retryWork(
             hasTranscript: true,
@@ -549,8 +519,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
         let pipeline = makePipeline(root: root, jobStore: jobStore, readiness: readiness)
         let meeting = makeMeeting()
 
-        // A transcript already on disk (live transcription, earlier run):
-        // only the summary needs Think, so only the summary waits.
         let storage = StorageManager(rootURL: root)
         let folder = meeting.folderURL(in: storage)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -564,8 +532,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
             atPath: folder.appendingPathComponent("transcript.json").path),
             "parking the summary must not disturb the transcript")
 
-        // Repeated launch/download readiness checks while Think is still
-        // absent must remain pure waits, not crash-loop processing attempts.
         for _ in 0..<(PipelineJobStore.maxAutoResumeAttempts + 1) {
             pipeline.retryJobsWaitingForModels()
             await waitUntil {
@@ -578,8 +544,6 @@ final class ProcessingPipelineAutomationGateTests: XCTestCase {
                        "summary-only waiting must preserve the auto-resume budget")
         XCTAssertTrue(jobStore.parkedJobs().isEmpty)
     }
-
-    // MARK: - Readiness helpers
 
     func testThinkReadinessTracksBackendAndLocalModel() throws {
         let root = try makeRoot()

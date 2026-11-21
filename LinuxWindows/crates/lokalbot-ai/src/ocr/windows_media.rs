@@ -1,6 +1,3 @@
-//! `Windows.Media.Ocr`, the recognizer built into Windows. It has no model to
-//! download and reads the languages whose packs are installed on this PC.
-
 use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result};
@@ -13,10 +10,8 @@ use windows::core::HSTRING;
 
 use super::OcrLine;
 
-/// How long the installed languages are trusted before asking Windows again.
 const LANGUAGES_LIFETIME: Duration = Duration::from_secs(30);
 
-/// The language tags Windows can read here, such as `en-US` or `zh-Hans-CN`.
 pub fn recognizer_languages() -> Vec<String> {
     static CACHE: Mutex<Option<(Instant, Vec<String>)>> = Mutex::new(None);
     let mut cache = CACHE.lock();
@@ -39,7 +34,6 @@ pub fn recognizer_languages() -> Vec<String> {
     languages
 }
 
-/// One recognizer, for one language.
 pub(super) struct Recognizer {
     engine: OcrEngine,
     max_dimension: u32,
@@ -56,7 +50,6 @@ impl Recognizer {
         })
     }
 
-    /// The lines in an RGBA image, in the image's pixels.
     pub(super) fn read(&self, rgba: &[u8], width: u32, height: u32) -> Result<Vec<OcrLine>> {
         anyhow::ensure!(
             width.max(height) <= self.max_dimension,
@@ -100,7 +93,6 @@ impl Recognizer {
     }
 }
 
-/// RGBA as opaque BGRA, the format the recognizer's own samples hand it.
 fn bgra(rgba: &[u8]) -> Vec<u8> {
     let mut out = Vec::with_capacity(rgba.len());
     for pixel in rgba.as_chunks::<4>().0 {
@@ -121,8 +113,6 @@ mod tests {
         );
     }
 
-    /// Runs on the Windows CI job against the real recognizer. Images without an
-    /// OCR language pack have nothing to read with, and that is reported as such.
     #[test]
     fn the_real_recognizer_reads_a_rendered_banner() {
         let languages = recognizer_languages();
@@ -136,7 +126,6 @@ mod tests {
         let lines = recognizer.read(&rgba, width, height).unwrap();
         println!("read with {tag}: {lines:?}");
         let text: String = lines.iter().map(|line| line.text.as_str()).collect();
-        // The blocky test font can be misread a letter at a time.
         let found = "LOKABT"
             .chars()
             .filter(|letter| text.to_uppercase().contains(*letter))
@@ -145,7 +134,6 @@ mod tests {
         assert!(lines[0].width > 0 && lines[0].height > 0, "{lines:?}");
     }
 
-    /// The image is checked before anything reaches Windows.
     #[test]
     fn an_image_beyond_the_limit_is_refused() {
         let Some(tag) = recognizer_languages().into_iter().next() else {

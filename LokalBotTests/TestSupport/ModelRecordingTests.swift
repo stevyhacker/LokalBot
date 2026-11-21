@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Records real responses to `SyntheticModelPrompts` for the drift models.
-/// Runs only when `LOKALBOT_RECORD_MODELS=1` with `OPENROUTER_API_KEY`,
-/// `LOKALBOT_RECORD_MODEL_IDS` (comma-separated), and
-/// `LOKALBOT_RECORDINGS_OUT` set — i.e. in the nightly `model-drift` job.
 final class ModelRecordingTests: XCTestCase {
     func testRecordDriftModels() async throws {
         let environment = ProcessInfo.processInfo.environment

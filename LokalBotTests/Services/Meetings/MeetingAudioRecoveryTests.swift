@@ -19,9 +19,6 @@ final class MeetingAudioRecoveryTests: XCTestCase {
                                                            frontmostPID: teams.pid), zoom)
     }
 
-    /// #179: an unbound recording may hold only an always-open stream. A
-    /// stream that is call evidence (Zoom's) goes through the verified path,
-    /// and a closed modulehost leaves nothing to hold.
     func testOnlyAnAlwaysOpenStreamCanBeHeld() {
         let teams = RunningApp(processIdentifier: 11, bundleIdentifier: "com.microsoft.teams2",
                                localizedName: "Microsoft Teams")

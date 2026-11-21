@@ -19,7 +19,6 @@ EI_EVENT_SEAT_ADDED = 3
 EI_EVENT_DEVICE_ADDED = 5
 EI_EVENT_DEVICE_RESUMED = 8
 EI_DEVICE_CAP_KEYBOARD = 1 << 2
-# org.kde.KWin.EIS.RemoteDesktop takes the portal's device types.
 PORTAL_KEYBOARD = 1
 
 ROWS = (("qwertyuiop", 16), ("asdfghjkl", 30), ("zxcvbnm", 44))
@@ -54,7 +53,6 @@ ei.ei_device_keyboard_key.argtypes = [P, ctypes.c_uint32, ctypes.c_bool]
 ei.ei_device_frame.argtypes = [P, ctypes.c_uint64]
 ei.ei_now.argtypes = [P]
 ei.ei_now.restype = ctypes.c_uint64
-# Variadic, ended by 0: give the arguments' types at each call.
 bind_capabilities = ei.ei_seat_bind_capabilities
 
 

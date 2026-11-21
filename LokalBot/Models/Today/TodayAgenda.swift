@@ -1,17 +1,11 @@
 import Foundation
 
-/// Today's one list of meetings: what was recorded and what the calendar
-/// holds, in time order. Display-only; nothing here is stored or sent.
 enum TodayAgenda {
-    /// A calendar meeting earns the card at the top of Today once it starts
-    /// within the hour, and keeps it while under way and not being recorded.
     static let nextMeetingWindow: TimeInterval = 60 * 60
 
     struct Entry: Identifiable, Equatable {
         enum Source: Equatable {
-            /// A recording made today, in progress or saved.
             case recording(Meeting)
-            /// A calendar event nothing was recorded for.
             case event(CalendarMeetingCandidate)
         }
 
@@ -29,7 +23,6 @@ enum TodayAgenda {
         let title: String
         let start: Date
         let status: Status
-        /// Starts within `nextMeetingWindow`, so its status reads in the accent.
         let isSoon: Bool
 
         var meeting: Meeting? {
@@ -40,7 +33,6 @@ enum TodayAgenda {
 
     enum Row: Identifiable, Equatable {
         case entry(Entry)
-        /// The thin line between what has started and what is still ahead.
         case now(Date)
 
         var id: String {
@@ -51,7 +43,6 @@ enum TodayAgenda {
         }
     }
 
-    /// Where a calendar event stands at `now`.
     static func status(of event: CalendarMeetingCandidate, now: Date) -> Entry.Status {
         if event.endDate < now { return .ended }
         if event.startDate <= now { return .inProgress }
@@ -59,14 +50,10 @@ enum TodayAgenda {
         return minutes < 1 ? .startingNow : .upcoming(minutes: minutes)
     }
 
-    /// Calendar events some recording is already linked to. They are listed
-    /// once, as that recording, and never offered again as the next meeting.
     static func recordedEventIDs(in recordings: [Meeting]) -> Set<String> {
         Set(recordings.compactMap(\.calendarEventID))
     }
 
-    /// Today's recordings and calendar events as one list, earliest first. A
-    /// recording that stores its calendar event stands in for that event.
     static func entries(
         recordings: [Meeting],
         events: [CalendarMeetingCandidate],
@@ -80,7 +67,6 @@ enum TodayAgenda {
                 && calendar.isDate(meeting.startedAt, inSameDayAs: now)
                 && seen.insert(meeting.id).inserted
         }
-        // Any recording claims its event, a merged source included.
         let recorded = recordedEventIDs(in: recordings)
         let recordingEntries = today.map { meeting in
             Entry(id: "recording-\(meeting.id.uuidString)",
@@ -104,14 +90,11 @@ enum TodayAgenda {
             }
         return (recordingEntries + eventEntries).sorted { lhs, rhs in
             if lhs.start != rhs.start { return lhs.start < rhs.start }
-            // At the same minute the recording is the thing that happened.
             if (lhs.meeting != nil) != (rhs.meeting != nil) { return lhs.meeting != nil }
             return lhs.id < rhs.id
         }
     }
 
-    /// The list with the now line before the first entry still ahead. A day
-    /// with nothing ahead has no line.
     static func rows(_ entries: [Entry], now: Date) -> [Row] {
         var rows = entries.map(Row.entry)
         if let next = entries.firstIndex(where: { $0.start > now }) {
@@ -120,10 +103,6 @@ enum TodayAgenda {
         return rows
     }
 
-    /// The meeting for the card at the top of Today: the one under way, or
-    /// the next one once it is within `window`. Events already recorded, and
-    /// the one being recorded now, are passed over. The menu bar asks with
-    /// its own, shorter window (`MenuBarStatus.soonWindow`).
     static func nextMeeting(
         in schedule: [CalendarMeetingCandidate],
         now: Date,
@@ -138,16 +117,12 @@ enum TodayAgenda {
     }
 }
 
-/// One line saying what a recorded meeting was about, taken from the summary
-/// already saved beside it. No model runs for this.
 enum TodayMeetingRecap {
     static let maximumCharacters = 220
 
     private static let overviewSections: Set<String> = ["tldr", "summary", "overview", "recap"]
     private static let stamp = #"\s*\(?\[\d{1,2}(?::\d{2}){1,2}\](?:\s*[–—-]\s*\[\d{1,2}(?::\d{2}){1,2}\])?\)?"#
 
-    /// The first sentence-like line under the summary's TL;DR (or Summary,
-    /// Overview, Recap) heading; nil when the summary has no such section.
     static func line(fromSummary markdown: String) -> String? {
         var inOverview = false
         for rawLine in markdown.components(separatedBy: .newlines) {
@@ -161,7 +136,6 @@ enum TodayMeetingRecap {
             if let marker = line.range(of: #"^(?:[-*•]|\d+[.)])\s+"#, options: .regularExpression) {
                 line.removeSubrange(marker)
             }
-            // Checkbox bullets are actions, not a recap.
             guard !line.hasPrefix("[") else { continue }
             if let speaker = line.range(of: #"^\*\*[^*]{1,48}?:\*\*\s*"#, options: .regularExpression) {
                 line.removeSubrange(speaker)
@@ -186,8 +160,6 @@ enum TodayMeetingRecap {
         return cut[..<end].trimmingCharacters(in: .punctuationCharacters.union(.whitespaces)) + "…"
     }
 
-    /// Reads each meeting's saved `summary.md`. Small files, read off the
-    /// main thread by the caller.
     static func lines(for meetings: [Meeting], root: URL) -> [Meeting.ID: String] {
         var result: [Meeting.ID: String] = [:]
         for meeting in meetings {
@@ -200,13 +172,9 @@ enum TodayMeetingRecap {
     }
 }
 
-/// The few lines of the day digest that Today shows. The rest of the digest
-/// (tasks, decisions, follow-ups, the activity log) is on Timeline.
 enum TodayDigestHighlights {
     static let taskFallbackLimit = 3
 
-    /// The digest's "At a glance" lines; a digest without them falls back to
-    /// the titles of its first tasks.
     static func markdown(for digest: String?) -> String {
         guard let digest, !digest.isEmpty else { return "" }
         let presentation = DayDigestPresentation(markdown: digest)
@@ -217,14 +185,10 @@ enum TodayDigestHighlights {
     }
 }
 
-/// The one line under So far today that says where the digest stands.
 enum TodayDigestLine: Equatable {
-    /// A digest is being written, by hand or on schedule.
     case writing
-    /// No digest for today yet.
     case missing
     case current(writtenAt: Date?)
-    /// Activity arrived after the digest was written; Update rewrites it.
     case stale(writtenAt: Date?)
 
     static func state(hasDigest: Bool, writtenAt: Date?, isStale: Bool, isWriting: Bool) -> TodayDigestLine {
@@ -234,16 +198,11 @@ enum TodayDigestLine: Equatable {
     }
 }
 
-/// What the page is made of right now.
 enum TodayPageLayout: Equatable {
-    /// The day's sections. Getting started stays under them until hidden.
     case sections(gettingStartedBelow: Bool)
-    /// Nothing to show yet: the Getting started steps are the page.
     case gettingStarted
-    /// Nothing to show and Getting started is hidden.
     case placeholder
 
-    /// The day's panels are on the page.
     var showsSections: Bool {
         if case .sections = self { return true }
         return false
@@ -255,8 +214,6 @@ enum TodayPageLayout: Equatable {
     }
 }
 
-/// The "Before you join" rows of the next-meeting card, built from the
-/// evidence the preparation model already selected.
 enum TodayPreparation {
     struct Row: Identifiable, Equatable {
         enum Kind: Equatable { case decision, commitment, project, email, recentMeeting }
@@ -268,16 +225,12 @@ enum TodayPreparation {
         let id: String
         let kind: Kind
         let text: String
-        /// Where it comes from: a meeting title, an owner or a sender.
         let source: String
         let date: Date?
-        /// An email whose latest message asks something still unanswered.
         var awaitingReply = false
         var target: Target?
     }
 
-    /// One row of each kind the evidence holds. A meeting with no decisions,
-    /// commitments or projects falls back to the closest earlier meeting.
     static func primaryRows(_ evidence: UpcomingMeetingEvidence) -> [Row] {
         var rows: [Row] = []
         if let decision = evidence.decisions.first { rows.append(row(decision)) }
@@ -293,7 +246,6 @@ enum TodayPreparation {
         return rows
     }
 
-    /// Everything past the first of each kind.
     static func moreRows(_ evidence: UpcomingMeetingEvidence) -> [Row] {
         evidence.decisions.dropFirst().map(row)
             + evidence.commitments.dropFirst().map(row)
@@ -301,13 +253,10 @@ enum TodayPreparation {
             + evidence.emailThreads.dropFirst().map(row)
     }
 
-    /// The count the collapsed card shows.
     static func count(_ evidence: UpcomingMeetingEvidence) -> Int {
         primaryRows(evidence).count + moreRows(evidence).count
     }
 
-    /// A brief the model wrote is always shown. The template brief only
-    /// restates the rows, so it is shown when there are no rows to read.
     static func showsBrief(generatedByModel: Bool, rowCount: Int) -> Bool {
         generatedByModel || rowCount == 0
     }

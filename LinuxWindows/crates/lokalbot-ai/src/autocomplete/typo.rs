@@ -3,39 +3,23 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Typo and autocorrect rules (`CotypingTypo.swift`,
-//! `CotypingSpellChecker.swift`, `CotypingSpellLanguageGate.swift`), pure:
-//! the words and verdicts come from a [`SpellSource`] the desktop provides.
-//! Only non-words are flagged; real-word errors (their/there) are out of scope.
-
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use super::window;
 
-/// What a platform's spell checker answers. Calls must be quick: they run on
-/// the autocomplete worker, and a dictionary still loading answers "not a
-/// typo" and "no dictionary" rather than wait.
 pub trait SpellSource: Send + Sync {
-    /// The languages with a dictionary, as `en_US` or `en-US`. Empty when
-    /// spell checking is not available here.
     fn languages(&self) -> Vec<String>;
     fn is_typo(&self, word: &str) -> bool;
-    /// Suggestions for `word`, best first.
     fn guesses(&self, word: &str) -> Vec<String>;
-    /// A longer dictionary word starts with `word`.
     fn is_completable_prefix(&self, word: &str) -> bool;
 }
 
-/// The trailing word at the caret and its length in user-perceived
-/// characters: one Delete press removes one.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Word {
     pub word: String,
     pub character_count: usize,
 }
 
-/// The trailing word, or `None` when the caret is on whitespace or the token
-/// is not plausibly natural language.
 pub fn extract(before: &str) -> Option<Word> {
     let last = before.chars().next_back()?;
     if last.is_whitespace() {
@@ -57,8 +41,6 @@ pub fn extract(before: &str) -> Option<Word> {
     })
 }
 
-/// Tolerates exactly one trailing space, so a just-finished word stays
-/// actionable after pressing Space.
 pub fn extract_trailing_word(before: &str) -> Option<(Word, usize)> {
     let Some(without_space) = before.strip_suffix(' ') else {
         return extract(before).map(|word| (word, 0));
@@ -73,8 +55,6 @@ pub fn extract_trailing_word(before: &str) -> Option<(Word, usize)> {
     extract(without_space).map(|word| (word, 1))
 }
 
-/// Skips code, URLs, numbers and all-caps acronyms. Conservative: a miss is
-/// fine, a false positive on code is not.
 pub fn is_plausible_natural_word(word: &str) -> bool {
     const CODE_LIKE: [char; 24] = [
         '@', '/', '\\', '_', ':', '.', '#', '<', '>', '(', ')', '[', ']', '{', '}', '$', '%', '^',
@@ -93,8 +73,6 @@ pub fn is_plausible_natural_word(word: &str) -> bool {
     !(letters.peek().is_some() && letters.all(char::is_uppercase))
 }
 
-/// Copies a typo's capitalization onto its correction (`Teh` → `The`,
-/// `HTE` → `THE`).
 pub fn apply_case(source: &str, correction: &str) -> String {
     let letters: Vec<char> = source.chars().filter(|c| c.is_alphabetic()).collect();
     if correction.is_empty() || letters.is_empty() {
@@ -113,21 +91,13 @@ pub fn apply_case(source: &str, correction: &str) -> String {
     correction.to_string()
 }
 
-/// What to do about the trailing word before the caret.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TypoDecision {
-    /// No actionable typo: generate a normal continuation.
     Proceed,
-    /// Misspelled, no correction: hide the continuation.
     Suppress,
-    /// Misspelled, with a fix to offer as a one-key replacement.
     Offer { word: String, corrected: String },
 }
 
-/// `CotypingTypoGate.resolve`. A word still being typed that is a live prefix
-/// of a real word ("follo") is not a typo: the model must complete it. Only a
-/// fragment no word starts with is a typo mid-word; once finished with a
-/// space, being completable no longer matters.
 pub fn resolve(
     before: &str,
     enabled: bool,
@@ -156,8 +126,6 @@ pub fn resolve(
     }
 }
 
-/// The edit that replaces a verified trailing typo, recomputed from the live
-/// text at accept time (`CotypingCorrectionPlan`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CorrectionPlan {
     pub deleting_characters: usize,
@@ -183,11 +151,8 @@ pub fn correction_plan(
     })
 }
 
-/// The caret-preceding window language recognition looks at.
 pub const CONTEXT_WINDOW_CHARACTERS: usize = 200;
-/// Below this the recognizer is guessing, so spell checking stays on.
 const MINIMUM_CONFIDENCE: f64 = 0.5;
-/// One token is never enough evidence to turn spell checks off.
 const MINIMUM_WORD_COUNT: usize = 2;
 
 fn last_chars(text: &str, count: usize) -> &str {
@@ -197,10 +162,6 @@ fn last_chars(text: &str, count: usize) -> &str {
         .map_or(text, |(index, _)| &text[index..])
 }
 
-/// Whether spell verdicts mean anything for the text at the caret
-/// (`CotypingSpellLanguageGate`): text confidently in a language with no
-/// dictionary would otherwise be flagged word by word. `whatlang` stands in
-/// for `NLLanguageRecognizer`; its confidence is its own scale.
 pub fn spell_verdicts_apply(context: &str, languages: &[String]) -> bool {
     let window = last_chars(context, CONTEXT_WINDOW_CHARACTERS).trim();
     if window.is_empty() || window.split_whitespace().count() < MINIMUM_WORD_COUNT {
@@ -215,7 +176,6 @@ pub fn spell_verdicts_apply(context: &str, languages: &[String]) -> bool {
     has_dictionary(iso_639_1(info.lang()), languages)
 }
 
-/// "en" covers "en_GB".
 fn has_dictionary(code: &str, languages: &[String]) -> bool {
     languages.iter().any(|language| {
         language
@@ -301,9 +261,6 @@ fn iso_639_1(lang: whatlang::Lang) -> &'static str {
     }
 }
 
-/// A [`SpellSource`] with the per-keystroke rules of `CotypingSpellChecker`
-/// around it. One keystroke asks several times about the same text, so the
-/// language is recognized once.
 pub struct Speller {
     source: std::sync::Arc<dyn SpellSource>,
     last_verdict: parking_lot::Mutex<Option<(String, bool)>>,
@@ -335,7 +292,6 @@ impl Speller {
         !word.is_empty() && self.source.is_typo(word)
     }
 
-    /// Unknown coverage must not turn every fragment into a spelling error.
     pub fn word_prefix_is_valid_word(&self, context: &str) -> bool {
         let partial = window::current_partial_word(context);
         if partial.graphemes(true).count() < 2 || !self.verdicts_apply(context) {
@@ -344,7 +300,6 @@ impl Speller {
         !self.is_typo(partial)
     }
 
-    /// The top guess that is a different single word, recased to match.
     pub fn best_correction(&self, word: &str) -> Option<String> {
         let lower = word.to_lowercase();
         let candidate = self
@@ -358,8 +313,6 @@ impl Speller {
         Some(apply_case(word, &candidate))
     }
 
-    /// The trailing word's decision, with verdicts standing down where they
-    /// do not apply.
     pub fn typo_decision(&self, before: &str, enabled: bool) -> TypoDecision {
         if !self.verdicts_apply(before) {
             return TypoDecision::Proceed;
@@ -373,7 +326,6 @@ impl Speller {
         )
     }
 
-    /// For the seam guard: a known word, or verdicts that do not apply.
     pub fn is_known_word(&self, context: &str, word: &str) -> bool {
         !self.verdicts_apply(context) || !self.is_typo(word)
     }
@@ -419,12 +371,10 @@ mod tests {
             resolve("a fine", true, typo, fix, live),
             TypoDecision::Proceed
         );
-        // Still being typed and a live prefix: the model completes it.
         assert_eq!(
             resolve("I follo", true, typo, fix, live),
             TypoDecision::Proceed
         );
-        // Finished with a space, being a prefix no longer saves it.
         assert_eq!(
             resolve("I follo ", true, typo, fix, live),
             TypoDecision::Suppress
@@ -498,7 +448,6 @@ mod tests {
         assert!(!spell_verdicts_apply(serbian, &en));
         let english = "Thanks for the update, I wanted to follow up on the migration timeline we scoped yesterday.";
         assert!(spell_verdicts_apply(english, &en));
-        // A single token is never enough evidence.
         assert!(spell_verdicts_apply("Hvala", &en));
         assert!(spell_verdicts_apply("", &en));
         assert!(spell_verdicts_apply(

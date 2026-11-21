@@ -3,10 +3,6 @@ import AppKit
 import SQLite3
 import ApplicationServices
 
-/// M4 day tracking, layer 1 (design doc §3.1): sample the frontmost app +
-/// window title + idle state, collapse contiguous samples into activity
-/// blocks, persist them to the shared SQLite database.
-
 struct ActivityBlock: Identifiable, Equatable, Sendable {
     var id: Int64 = 0
     var app: String
@@ -16,9 +12,6 @@ struct ActivityBlock: Identifiable, Equatable, Sendable {
     var duration: TimeInterval { end.timeIntervalSince(start) }
 }
 
-/// Optional constraints shared by keyword and semantic screen-memory search.
-/// The interval is half-open (`start <= timestamp < end`) so adjacent day or
-/// selection ranges never return the same capture twice.
 struct ScreenSearchFilter: Equatable, Sendable {
     var interval: DateInterval?
     var app: String?
@@ -33,8 +26,6 @@ struct ScreenSearchFilter: Equatable, Sendable {
     }
 }
 
-/// One connection per executor. The app owns its writer on the main actor;
-/// background reads construct a separate read-only instance and never share it.
 final class ActivityStore {
     private let database: SQLiteDatabase?
     let databaseURL: URL
@@ -88,9 +79,6 @@ final class ActivityStore {
         }
     }
 
-    /// Screenshots taken by builds before event-driven capture lack the
-    /// `window_title` / `capture_trigger` columns. ALTER is cheap and keeps
-    /// existing rows; fresh databases already have the full shape.
     private func migrateScreenshotColumns() throws {
         let database = try requiredDatabase()
         let columns = try columnNames(of: "screenshots")
@@ -128,10 +116,6 @@ final class ActivityStore {
         }
     }
 
-    /// FTS5 tables cannot ALTER-add columns, so a legacy `ocr_fts`
-    /// (text, ts, app) is rebuilt into the new shape with `window_title`
-    /// indexed (searchable) plus `text_source` / `snapshot_id` metadata.
-    /// `text_source` distinguishes Accessibility, OCR, and hybrid captures.
     private func migrateOCRTable() throws {
         let database = try requiredDatabase()
         let existing = try columnNames(of: "ocr_fts")
@@ -171,12 +155,6 @@ final class ActivityStore {
         }
     }
 
-    /// An earlier migration version could create the six-column FTS table but
-    /// leave `snapshot_id = 0`. Repair those rows idempotently by capture time;
-    /// FTS row IDs are not screenshot IDs because empty OCR was never inserted.
-    /// Runs at every launch. Once `ocr_metadata` mirrors the FTS identities
-    /// (every insert writes both), its index finds unlinked rows without
-    /// reading every capture's text, which the FTS table stores first.
     private func backfillUnlinkedOCRRows(_ database: SQLiteDatabase) throws {
         let unlinked = database.hasRow("SELECT 1 FROM sqlite_master WHERE name = 'ocr_metadata'")
             ? "rowid IN (SELECT rowid FROM ocr_metadata WHERE snapshot_id <= 0)"
@@ -196,8 +174,6 @@ final class ActivityStore {
         guard !rows.isEmpty else { return }
         try database.withTransaction {
             for row in rows {
-                // The range lets SQLite search an index. `ABS` alone made every
-                // row that never links scan all of `screenshots` at each launch.
                 let snapshotID: Int64? = try database.queryChecked("""
                     SELECT id FROM screenshots
                     WHERE ts BETWEEN ?2 - 1.5 AND ?2 + 1.5
@@ -242,8 +218,6 @@ final class ActivityStore {
         return database
     }
 
-    /// A day loader's metadata, text, and watermark share one WAL read snapshot.
-    /// This is a deferred read transaction, so capture writers remain unblocked.
     func withReadSnapshot<Value>(_ read: () -> Value) -> Value {
         let began = database?.exec("BEGIN DEFERRED TRANSACTION") == true
         defer { if began { database?.exec("ROLLBACK") } }
@@ -268,8 +242,6 @@ final class ActivityStore {
             return false
         }
     }
-
-    // MARK: Screenshots / OCR (M5)
 
     struct Screenshot: Identifiable, Equatable, Sendable {
         var id: Int64
@@ -299,16 +271,11 @@ final class ActivityStore {
         var similarityGroupID: Int64?
         var captureCount: Int
         var isSemantic = false
-        /// Set only on hits from `searchOCR(deferringSnippets: true)` until
-        /// `fillOCRSnippets` replaces the empty `snippet`.
         var pendingSnippet: SnippetSource?
 
-        /// The FTS row a deferred snippet is read from, and how it is marked.
         struct SnippetSource: Hashable, Sendable {
             enum Marking: Hashable, Sendable {
-                /// FTS `snippet()` for this MATCH expression.
                 case fullText(String)
-                /// Built from the stored text around these substring terms.
                 case substring([String])
             }
             let rowID: Int64
@@ -339,8 +306,6 @@ final class ActivityStore {
         var createdAt: Date
     }
 
-    /// Insert one paired capture row (pixels bookkeeping + searchable text).
-    /// Returns the screenshot rowid so the OCR row links back to its pixels.
     @discardableResult
     func insertScreenshot(ts: Date, path: String, app: String,
                           windowTitle: String = "", trigger: String = "interval",
@@ -426,9 +391,6 @@ final class ActivityStore {
                     includingMissingFiles: includingTextOnly)
     }
 
-    /// Captures available for rewind/citation, oldest first. A nil interval
-    /// means all retained captures. App matching is exact but case-insensitive,
-    /// which maps cleanly to the app chips built from stored application names.
     func screenshots(in interval: DateInterval? = nil, app: String? = nil,
                      bookmarkedOnly: Bool = false,
                      includingMissingFiles: Bool = false) -> [Screenshot] {
@@ -441,7 +403,6 @@ final class ActivityStore {
         }
     }
 
-    /// Destructive previews must distinguish a failed read from an empty scope.
     func screenshotsChecked(in interval: DateInterval? = nil, app: String? = nil,
                             bookmarkedOnly: Bool = false,
                             includingMissingFiles: Bool = false) throws -> [Screenshot] {
@@ -465,9 +426,6 @@ final class ActivityStore {
                 """, bind: bindings, row: Self.screenshot(from:))
     }
 
-    /// Captures stamped with this meeting while it recorded, plus unstamped
-    /// captures inside its span from builds that predate meeting stamping.
-    /// Text-only captures are included; they carry titles, documents, and URLs.
     func screenshots(forMeeting meetingID: UUID, from start: Date, to end: Date) -> [Screenshot] {
         guard end > start else { return [] }
         do {
@@ -490,7 +448,6 @@ final class ActivityStore {
         }
     }
 
-    /// Exact row lookup used by `[screen:ID]` citations and pinned context.
     func screenshot(id: Int64) -> Screenshot? {
         do { return try screenshotChecked(id: id) } catch {
             lokalbotLog("screenshot lookup failed id=\(id): \(error.localizedDescription)")
@@ -506,8 +463,6 @@ final class ActivityStore {
                 """, bind: [id], row: Self.screenshot(from:)).first
     }
 
-    /// `screenshot(id:)` for many captures, one query per 400 ids. A capture
-    /// that is gone (retention, a delete) has no entry.
     func screenshots(ids: [Int64]) -> [Int64: Screenshot] {
         let wanted = Array(Set(ids.filter { $0 > 0 }))
         guard !wanted.isEmpty else { return [:] }
@@ -530,7 +485,6 @@ final class ActivityStore {
         return found
     }
 
-    /// The columns `screenshot(from:)` reads.
     private static let screenshotSelect = """
         SELECT shot.id, shot.ts, shot.path, shot.app, shot.window_title,
                shot.capture_trigger, shot.perceptual_hash,
@@ -541,17 +495,11 @@ final class ActivityStore {
         LEFT JOIN screen_bookmarks AS bookmark ON bookmark.snapshot_id = shot.id
         """
 
-    /// FTS search over screen text (and window titles). `matchAll: false`
-    /// relaxes a natural-language query to OR'd content keywords — same
-    /// rescue the meeting search uses.
-    /// `deferringSnippets` returns hits with empty snippets for
-    /// `fillOCRSnippets`, so a caller showing only some hits marks only those.
     func searchOCR(_ query: String, limit: Int = 40,
                    matchAll: Bool = true, dropStopWords: Bool = false,
                    filter: ScreenSearchFilter = .all, groupResults: Bool = true,
                    deferringSnippets: Bool = false) -> [OCRHit] {
         guard limit > 0 else { return [] }
-        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
         if CJKSearch.containsCJK(query) {
             return substringSearchOCR(query, limit: limit, matchAll: matchAll, dropStopWords: dropStopWords,
                                       filter: filter, groupResults: groupResults, cjkRowsOnly: false,
@@ -564,15 +512,11 @@ final class ActivityStore {
                                 limit: limit, filter: filter, groupResults: groupResults,
                                 deferringSnippets: deferringSnippets)
         guard hits.isEmpty else { return hits }
-        // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
         return substringSearchOCR(query, limit: limit, matchAll: matchAll, dropStopWords: dropStopWords,
                                   filter: filter, groupResults: groupResults, cjkRowsOnly: true,
                                   deferringSnippets: deferringSnippets)
     }
 
-    /// Fills the snippets `searchOCR(deferringSnippets: true)` left empty, in
-    /// one query per marking. Building a snippet tokenizes the row's whole
-    /// text, which cost more than ranking when every match got one.
     func fillOCRSnippets(_ hits: [OCRHit]) -> [OCRHit] {
         var filled = hits
         let pending = Dictionary(grouping: hits.indices.filter { hits[$0].pendingSnippet != nil }) {
@@ -621,10 +565,6 @@ final class ActivityStore {
         return filled
     }
 
-    /// Substring counterpart of the FTS search, for text the tokenizer cannot
-    /// split. The rank is how many terms matched (most first, then newest), and
-    /// snippets are built from the stored text because `snippet()` marks
-    /// nothing without MATCH.
     private func substringSearchOCR(_ query: String, limit: Int, matchAll: Bool, dropStopWords: Bool,
                                     filter: ScreenSearchFilter, groupResults: Bool,
                                     cjkRowsOnly: Bool, deferringSnippets: Bool) -> [OCRHit] {
@@ -651,10 +591,6 @@ final class ActivityStore {
                             deferringSnippets: deferringSnippets)
     }
 
-    /// The screen search query, grouped into scenes unless `groupResults` is
-    /// false. `matchCondition` and `bindings` select the rows, and
-    /// `rankExpression` orders them (lower first) ahead of recency. Snippets
-    /// are built afterwards for the rows returned only.
     private func runOCRSearch(matchCondition: String, bindings matchBindings: [Any],
                               rankExpression: String, marking: OCRHit.SnippetSource.Marking,
                               limit: Int, filter: ScreenSearchFilter, groupResults: Bool,
@@ -764,9 +700,6 @@ final class ActivityStore {
         }
     }
 
-    /// Full captured OCR for a stable citation/pinned Ask attachment. Unlike
-    /// FTS snippets this preserves line breaks and never falls through to a
-    /// nearby timestamp, so `[screen:ID]` always resolves exact source text.
     func ocrText(snapshotID: Int64, maxChars: Int = 9_000) -> String? {
         guard snapshotID > 0, maxChars > 0 else { return nil }
         do {
@@ -783,10 +716,6 @@ final class ActivityStore {
         }
     }
 
-    // MARK: Saved moments
-
-    /// Idempotently saves a capture. Saving it again updates the note without
-    /// changing its original `createdAt`, keeping daily exports stable.
     func saveMoment(snapshotID: Int64, note: String = "") throws {
         let database = try requiredDatabase()
         guard snapshotID > 0,
@@ -813,16 +742,12 @@ final class ActivityStore {
             "SELECT 1 FROM screen_bookmarks WHERE snapshot_id = ?1", bind: [snapshotID])
     }
 
-    /// Every saved moment, read once for a retention pass instead of one
-    /// query per candidate.
     func bookmarkedSnapshotIDs() throws -> Set<Int64> {
         Set(try requiredDatabase().queryChecked("SELECT snapshot_id FROM screen_bookmarks") {
             sqlite3_column_int64($0, 0)
         })
     }
 
-    /// One saved moment's note, or nil when the capture is not saved.
-    /// `savedMoments` returns only the newest ones.
     func savedMomentNote(snapshotID: Int64) -> String? {
         do {
             return try requiredDatabase().queryChecked(
@@ -861,16 +786,10 @@ final class ActivityStore {
         }
     }
 
-    /// Removes one capture and every derived/search row in one transaction.
-    /// The owning `ScreenshotService` removes encrypted pixels first so a
-    /// failed filesystem delete remains retryable from this database row.
     func deleteScreenshot(id: Int64) throws {
         try deleteScreenshots(ids: [id])
     }
 
-    /// Batch counterpart for Timeline range deletion. FTS metadata columns are
-    /// unindexed, so deleting chunks in one transaction avoids rescanning the
-    /// entire OCR table once per selected frame and prevents partial DB state.
     func deleteScreenshots(ids: [Int64]) throws {
         let snapshotIDs = Array(Set(ids.filter { $0 > 0 })).sorted()
         guard !snapshotIDs.isEmpty else { return }
@@ -917,11 +836,6 @@ final class ActivityStore {
         NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
     }
 
-    /// Every retained screen-text record for one local day, oldest first.
-    /// This has no whole-day character ceiling: callers can chunk the complete
-    /// evidence without a busy morning crowding out the afternoon. Individual
-    /// captures stay bounded to keep one pathological Accessibility tree from
-    /// dominating a chunk.
     func screenContexts(on day: Date, maxCharactersPerCapture: Int = 2_000) -> [DayScreenContext] {
         guard maxCharactersPerCapture > 0 else { return [] }
         let interval = Self.dayInterval(containing: day)
@@ -950,8 +864,6 @@ final class ActivityStore {
         }
     }
 
-    /// OCR text for a precise interval. Used for meeting-local participant
-    /// hints, where the current day's whole screen history would be too broad.
     func ocrText(from start: Date, to end: Date, maxChars: Int = 9_000,
                  includeAppNames: Bool = false) -> String {
         guard maxChars > 0 else { return "" }
@@ -976,8 +888,6 @@ final class ActivityStore {
         }
     }
 
-    /// `measuringBytes` stats every candidate file for the review sheet's
-    /// "space recovered"; deletion passes skip it.
     func retentionReview(days: Int, keepTextForever: Bool, now: Date = Date(),
                          measuringBytes: Bool = true) throws -> RetentionReview {
         let database = try requiredDatabase()
@@ -1002,8 +912,6 @@ final class ActivityStore {
                     removeVector: !keepTextForever && sqlite3_column_int(statement, 4) != 0,
                     removeMetadata: !keepTextForever && sqlite3_column_int(statement, 5) != 0)
             }.filter { !$0.path.isEmpty || $0.removeText || $0.removeVector || $0.removeMetadata }
-        // App names and durations remain useful aggregate history. Window
-        // titles are content and expire even with the screen-text exception.
         let activityTitles = try database.queryChecked("""
             SELECT id, start, end, title FROM activity_blocks
             WHERE end < ?1 AND title != '' ORDER BY start
@@ -1023,7 +931,6 @@ final class ActivityStore {
             let attributes = try? FileManager.default.attributesOfItem(atPath: candidate.path)
             return sum + ((attributes?[.size] as? NSNumber)?.int64Value ?? 0)
         }
-        // Agent requests and reports are text: they follow the text rule.
         var agentBursts: [RetentionReview.CodingAgentBurst] = []
         if !keepTextForever {
             agentBursts = try database.queryChecked("""
@@ -1064,10 +971,6 @@ final class ActivityStore {
         let database = try requiredDatabase()
         let hasVectors = try database.hasRowChecked("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'screen_embeddings'")
         try database.withTransaction {
-            // FTS5 cannot index its UNINDEXED snapshot_id column. Resolve the
-            // exact FTS rowids through the ordinary metadata index and delete
-            // bounded chunks instead of rescanning the full FTS table once per
-            // screenshot. Keep every write bookmark-aware at execution time.
             for start in stride(from: 0, to: snapshotIDs.count, by: 400) {
                 let chunk = Array(snapshotIDs[start..<min(start + 400, snapshotIDs.count)])
                 let placeholders = (1...chunk.count).map { "?\($0)" }.joined(separator: ", ")
@@ -1114,9 +1017,6 @@ final class ActivityStore {
         NotificationCenter.default.post(name: .retainedScreenTextChanged, object: nil)
     }
 
-    /// Legacy OCR can have snapshot_id = 0, or point at a screenshot row that
-    /// no longer exists. Its own timestamp still establishes the evidence day.
-    /// Keep exact row identities so revocation never authorizes a broad cutoff.
     struct OrphanedScreenEvidence {
         struct TextRow {
             let rowID: Int64
@@ -1175,8 +1075,6 @@ final class ActivityStore {
         let database = try requiredDatabase()
         try database.withTransaction {
             for row in review.text {
-                // Backfill, new screenshots and new bookmarks can make a
-                // reviewed orphan live again. Recheck before deleting it.
                 let stillOrphan = try database.hasRowChecked("""
                     SELECT 1 FROM ocr_fts AS ocr
                     WHERE rowid = ?1 AND COALESCE(CAST(snapshot_id AS INTEGER), 0) = ?2 AND CAST(ts AS REAL) = ?3
@@ -1217,14 +1115,6 @@ final class ActivityStore {
         }
     }
 
-    /// Clear only the row whose file was successfully removed. This avoids
-    /// losing the sole reference to an encrypted file when filesystem cleanup
-    /// fails (permissions, transient volume error, and so on).
-    /// Retention calls this once per expired capture on the main actor; the
-    /// partial path index keeps each call from scanning every capture row.
-    /// The capture's picture vector goes first: it was made from these pixels
-    /// and must not outlive them (`ScreenImageEmbeddings`). If the update then
-    /// fails, the pixels stay and are embedded again later.
     func clearScreenshotPath(_ path: String) throws {
         let database = try requiredDatabase()
         if try database.hasRowChecked("""
@@ -1238,9 +1128,6 @@ final class ActivityStore {
         try database.runChecked("UPDATE screenshots SET path = '' WHERE path = ?1 AND path != ''", bind: [path])
     }
 
-    /// Not the retention path, and only tests call it. Retention is
-    /// `retentionReview` with `clearRetainedText`, which also clears the
-    /// window titles, addresses and document names this leaves in place.
     @discardableResult
     func clearOCRText(olderThan cutoff: Date) -> Bool {
         do {
@@ -1275,7 +1162,6 @@ final class ActivityStore {
         }
     }
 
-    /// All blocks overlapping the given day, oldest first.
     func blocks(on day: Date) -> [ActivityBlock] {
         blocks(in: Self.dayInterval(containing: day))
     }
@@ -1300,7 +1186,6 @@ final class ActivityStore {
         }
     }
 
-    /// The first recorded activity, for walking the days a library covers.
     func earliestActivityStart() -> Date? {
         do {
             return try requiredDatabase().queryChecked(
@@ -1315,7 +1200,6 @@ final class ActivityStore {
         }
     }
 
-    /// Whether any activity block overlaps the interval.
     func hasActivity(in interval: DateInterval) -> Bool {
         do {
             return try requiredDatabase().hasRowChecked("""
@@ -1327,7 +1211,6 @@ final class ActivityStore {
         }
     }
 
-    /// Saved moments captured inside the interval, oldest first.
     func savedMoments(in interval: DateInterval) -> [SavedMoment] {
         do {
             return try requiredDatabase().queryChecked("""
@@ -1368,8 +1251,6 @@ final class ActivityStore {
         }
     }
 
-    /// Latest activity or screen-text timestamp inside one local day. Used to
-    /// tell whether a saved digest predates evidence that arrived afterwards.
     func latestEvidenceAt(on day: Date) -> Date? {
         let interval = Self.dayInterval(containing: day)
         do {
@@ -1443,14 +1324,9 @@ final class ActivityStore {
         UInt64(value, radix: 16)
     }
 
-    // MARK: - Coding-agent evidence
-
-    /// Settled coding-agent bursts that began inside `interval`, oldest
-    /// first. A burst never crosses midnight, so its start names its day.
     func codingAgentBursts(in interval: DateInterval) -> [CodingAgentBurst] {
         do {
             let database = try requiredDatabase()
-            // Read-only connections can predate the table's creation.
             guard try database.hasRowChecked("""
                 SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'coding_agent_bursts'
                 """) else { return [] }
@@ -1473,8 +1349,6 @@ final class ActivityStore {
         codingAgentBursts(in: Self.dayInterval(containing: day))
     }
 
-    /// Insert or replace bursts by id. Callers compute what changed; this
-    /// only writes, so a failure never looks like an empty source.
     func upsertCodingAgentBursts(_ bursts: [CodingAgentBurst]) throws {
         guard !bursts.isEmpty else { return }
         let database = try requiredDatabase()
@@ -1510,7 +1384,6 @@ final class ActivityStore {
         }
     }
 
-    /// Start times of every stored burst, for the days a full clear revokes.
     func codingAgentBurstStarts() throws -> [String: Date] {
         let database = try requiredDatabase()
         let rows = try database.queryChecked("SELECT id, start FROM coding_agent_bursts") { statement in
@@ -1528,10 +1401,6 @@ struct FocusedWindowTitleLookupResult: Equatable, Sendable {
     static let timeout = Self(title: nil, timedOut: true)
 }
 
-/// Keeps cross-process Accessibility title reads off the main actor and bounds
-/// both queue growth and caller latency. One resolver may be active at a time;
-/// same-PID callers share it, while a different PID fails closed instead of
-/// accumulating behind a wedged target process.
 final class FocusedWindowTitleLookup: @unchecked Sendable {
     typealias Resolver = @Sendable (pid_t) -> String?
 
@@ -1570,8 +1439,6 @@ final class FocusedWindowTitleLookup: @unchecked Sendable {
     }
 
     func title(for processID: pid_t) async -> FocusedWindowTitleLookupResult {
-        // Reading LokalBot's own window from this worker would run SwiftUI off
-        // the main actor; see ScreenAccessibilityReader.isOwnProcess.
         guard processID > 0, !ScreenAccessibilityReader.isOwnProcess(processID) else {
             return .init(title: nil, timedOut: false)
         }
@@ -1656,8 +1523,6 @@ final class FocusedWindowTitleLookup: @unchecked Sendable {
     }
 }
 
-/// The sampler: 5 s poll (cheap), block boundaries on app/title change,
-/// idle > 3 min, pause, or app quit. No screenshots here — that's M5.
 @MainActor
 final class ActivitySampler: ObservableObject {
 
@@ -1672,15 +1537,9 @@ final class ActivitySampler: ObservableObject {
 
     private let store: ActivityStore
     private let accessibilityReader: ScreenAccessibilityReader
-    /// Used instead when no site is excluded, so a sample needs no page address.
     private let windowReader: ScreenAccessibilityReader
-    /// Injected by AppState; apps matching these are logged as "Private".
     var excludedApps: () -> [String] = { [] }
     var excludedDomains: () -> [String] = { [] }
-    /// Event-driven capture hook: fired when the sampled (app, title) pair
-    /// changes — i.e. at the same boundaries that close activity blocks.
-    /// `appChanged` distinguishes an app switch from a window/tab change
-    /// inside the same app. Excluded apps arrive as ("Private", "").
     var onActivityBoundary: ((_ app: String, _ title: String, _ appChanged: Bool) -> Void)?
     private var sampleTimer: CaptureTimer?
     private var environment: CaptureEnvironment { .current }
@@ -1737,7 +1596,6 @@ final class ActivitySampler: ObservableObject {
         }
     }
 
-    /// Window titles need Accessibility; unknown privacy state is anonymized.
     nonisolated static var hasAccessibility: Bool { CaptureEnvironment.current.accessibility.isTrusted() }
 
     func sample() async {
@@ -1746,7 +1604,6 @@ final class ActivitySampler: ObservableObject {
         let generation = samplingGeneration
         defer { isSampling = false }
 
-        // Idle: any input event type, session-wide.
         let idle = environment.workspace.secondsSinceLastInput()
         if idle > Self.idleLimit {
             closeCurrentBlock(at: lastSeen)
@@ -1772,8 +1629,6 @@ final class ActivitySampler: ObservableObject {
                      accessibility: accessibility)
     }
 
-    /// Shared ingestion path for live samples and synthetic regression tests.
-    /// Exclusions and unknown AX state preserve duration without title or URL.
     func recordSample(appName: String, bundleIdentifier: String?,
                       accessibility: ScreenAccessibilityCaptureResult, at timestamp: Date? = nil) {
         let timestamp = timestamp ?? environment.clock.now()

@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Settings → Files. Nothing is read until the person
-/// turns Files on after a notice and chooses a folder.
 struct FileSearchSettingsSection: View {
     @EnvironmentObject var app: AppState
     let focusedSettingID: String?
@@ -90,8 +88,6 @@ struct FileSearchSettingsSection: View {
 
     static let privacyPolicyURL = URL(string: "https://www.lokalbot.com/privacy#files")!
 
-    /// One click opens the same estimate sheet as Add Folder…; macOS asks for
-    /// access to the folder only then.
     @ViewBuilder private var suggestions: some View {
         let common = FileSearchService.suggestedFolders(excluding: app.settings.fileSearchFolders)
         if !common.isEmpty {
@@ -156,13 +152,9 @@ struct FileSearchSettingsSection: View {
 private struct FolderAddition: Identifiable {
     let id = UUID()
     let folders: [String]
-    /// What to call a single folder in the sheet, when it isn't its file name.
     var name: String?
 }
 
-/// Before a folder is added: what it holds and how long its first read takes
-/// on this Mac, counted from metadata while the sheet is open. Nothing is
-/// read until the person adds it, and adding doesn't wait for the count.
 struct FileFolderAddSheet: View {
     let folders: [String]
     var name: String?
@@ -271,14 +263,12 @@ struct FileFolderAddSheet: View {
         }
     }
 
-    /// "25 min", "2 hr, 10 min": the precision an estimate deserves.
     static func duration(_ seconds: Double) -> String {
         let rounded = seconds < 3600 ? max(1, (seconds / 60).rounded()) * 60 : (seconds / 600).rounded() * 600
         return Duration.seconds(rounded).formatted(.units(allowed: [.hours, .minutes], width: .abbreviated))
     }
 }
 
-/// What Files is doing now, and what the index holds.
 struct FileSearchStatusView: View {
     @ObservedObject var files: FileSearchService
 

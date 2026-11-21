@@ -1,9 +1,5 @@
 import Foundation
 
-/// One app process per library. A second copy writing the same activity
-/// database, journals, and schedules double-counts tracked time and races
-/// scheduled model runs. The kernel releases the lock when the holder exits,
-/// including after a crash.
 final class LibraryInstanceLock {
     static let fileName = ".instance.lock"
 
@@ -18,9 +14,6 @@ final class LibraryInstanceLock {
         close(descriptor)
     }
 
-    /// Takes the lock for `root`, waiting up to `timeout` for a quitting
-    /// instance. Returns nil while another process holds it. A lock file
-    /// that cannot be opened never blocks launch.
     static func acquire(root: URL, timeout: TimeInterval = 10) -> LibraryInstanceLock? {
         try? FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         let path = root.appendingPathComponent(fileName).path

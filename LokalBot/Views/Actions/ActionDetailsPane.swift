@@ -1,11 +1,8 @@
 import SwiftUI
 
-/// The pane beside the Actions list. One selected action shows what the app
-/// knows about it; several show the changes that apply to all of them.
 struct ActionDetailsPane: View {
     let rows: [ActionsListContent.Row]
     let links: ActionThreadLinks
-    /// The status the list is showing, which decides what a batch offers.
     let listing: OutcomeStatus
     let listedCount: Int
     let onStatus: (OutcomeStatus, [ActionThread]) -> Void
@@ -153,7 +150,6 @@ private struct ActionThreadDetails: View {
             .gridColumnAlignment(.leading)
     }
 
-    /// What was said about the date, led by "Overdue." while it is.
     @ViewBuilder private var dueNote: some View {
         if let note = dueNoteText {
             note

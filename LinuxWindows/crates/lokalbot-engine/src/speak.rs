@@ -1,7 +1,3 @@
-//! Read aloud (`MeetingWorkspaceView.readSummary`, `ChatView.readAssistantTurn`,
-//! `ModelSpeechSettingsSheet`). One thing reads at a time. The model loads when
-//! first needed, downloading if it must, and is released after two idle minutes.
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -18,14 +14,12 @@ use crate::models::Models;
 use crate::{EngineEvent, Shared, SpeechCommand, SpeechStatus};
 
 const IDLE_UNLOAD: Duration = Duration::from_secs(120);
-/// Marks an export's failure in [`SpeechStatus::error`].
 pub const EXPORT_KEY: &str = "export";
 
 struct Session {
     id: u64,
     cancel: Arc<AtomicBool>,
     player: Option<Arc<SpeechPlayer>>,
-    /// This session started the model download, so stopping it stops the download.
     downloading: bool,
 }
 
@@ -46,8 +40,6 @@ struct Inner {
     next_id: AtomicU64,
     status: Mutex<SpeechStatus>,
     loaded: Mutex<Option<Loaded>>,
-    /// One synthesis at a time: the Mac runs a process for each, and espeak's
-    /// state inside sherpa-onnx is shared.
     synthesis: Mutex<()>,
 }
 
@@ -172,8 +164,6 @@ impl Inner {
         }
     }
 
-    /// Clears the session if it is still `id`. Stopped or replaced sessions
-    /// leave the status to whatever replaced them.
     fn end_session(&self, id: u64) -> bool {
         let mut session = self.session.lock();
         if session.as_ref().is_some_and(|s| s.id == id) {
@@ -208,7 +198,6 @@ impl Inner {
         text: &str,
         cancel: &Arc<AtomicBool>,
     ) -> Result<Speech> {
-        // Say nothing about a missing model when there is nothing to read.
         if kokoro::plain_text(text).trim().is_empty() {
             return Err(SynthesisError::EmptyText.into());
         }
@@ -223,8 +212,6 @@ impl Inner {
         speech
     }
 
-    /// Downloads the model if it is missing (`KokoroSpeechEngine.preparedModelDir`),
-    /// or waits for a download that is already running.
     fn prepare_model(&self, session: Option<u64>, cancel: &AtomicBool) -> Result<()> {
         let ids = [KOKORO_MODEL.to_string()];
         self.wait_for_download(cancel)?;
@@ -238,7 +225,6 @@ impl Inner {
             }
         }
         self.models.ensure(&ids, true)?;
-        // Someone else may have started it between the check and `ensure`.
         self.wait_for_download(cancel)
     }
 
@@ -271,7 +257,6 @@ impl Inner {
         }
     }
 
-    /// Frees the model; a synthesis still running keeps its own reference.
     fn release_if_idle(&self) {
         let mut loaded = self.loaded.lock();
         if loaded

@@ -1,9 +1,6 @@
 import Foundation
 import Security
 
-/// This device's long-term X25519 private key and its device id, kept in the
-/// Keychain for this device only: available after first unlock (so background
-/// refresh can sync) and never synchronized to other devices.
 public enum DeviceIdentity {
     static let service = "me.dotenv.LokalBot.companion"
     static let keyAccount = "device-static-key"
@@ -20,8 +17,6 @@ public enum DeviceIdentity {
         }
     }
 
-    /// The stored private key, or a new one from `generate` (the sync core's
-    /// `generateStaticKey()`), saved before it is returned.
     public static func privateKey(generate: () throws -> Data) throws -> Data {
         if let existing = try read(keyAccount) { return existing }
         let key = try generate()
@@ -66,9 +61,6 @@ public enum DeviceIdentity {
     }
 }
 
-/// Where the phone keeps its copy: Application Support, protected until the
-/// first unlock after a restart, and left out of device backups because the
-/// Mac can always send it again.
 public enum CompanionStorage {
     public static func directory() throws -> URL {
         let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask,
@@ -91,7 +83,6 @@ public enum CompanionStorage {
         try directory().appendingPathComponent("companion.sqlite")
     }
 
-    /// Bytes used by the local copy, for Settings.
     public static func usedBytes() -> Int64 {
         guard let directory = try? directory(),
               let files = FileManager.default.enumerator(at: directory, includingPropertiesForKeys: [.totalFileAllocatedSizeKey]) else { return 0 }

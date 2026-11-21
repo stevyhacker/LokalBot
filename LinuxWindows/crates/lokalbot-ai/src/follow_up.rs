@@ -1,8 +1,3 @@
-//! A follow-up email draft from one meeting's own outcomes
-//! (`FollowUpDraftGenerator.swift`). Explicit (the user asks for it),
-//! grounded (only the recap, decisions, corrected actions and open
-//! questions) and never sent: the draft is returned for the user to review.
-
 use std::collections::HashSet;
 
 use anyhow::Result;
@@ -29,7 +24,6 @@ pub enum FollowUpError {
     UnreadableResponse,
 }
 
-/// The draft to show; nothing is sent.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct FollowUpDraft {
     pub subject: String,
@@ -39,9 +33,7 @@ pub struct FollowUpDraft {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EvidenceAction {
     pub text: String,
-    /// "Me" for the user's own work.
     pub owner: Option<String>,
-    /// The resolved day ("Thu, Oct 22") or the spoken phrase.
     pub due: Option<String>,
 }
 
@@ -53,7 +45,6 @@ pub struct Evidence {
     pub decisions: Vec<String>,
     pub actions: Vec<EvidenceAction>,
     pub open_questions: Vec<String>,
-    /// Calendar display names only, for the greeting.
     pub participant_names: Vec<String>,
 }
 
@@ -66,8 +57,6 @@ impl Evidence {
     }
 }
 
-/// The evidence for `meeting`: its outcomes with the user's corrections and
-/// its saved summary's recap.
 pub fn evidence_for(library: &Library, meeting: &Meeting) -> Result<Evidence> {
     let summary = library.summary(meeting)?;
     let projection = library.outcome_projection(meeting)?;
@@ -87,7 +76,6 @@ pub fn evidence_for(library: &Library, meeting: &Meeting) -> Result<Evidence> {
     })
 }
 
-/// `FollowUpDraftGenerator.evidence(for:summary:)`.
 pub fn evidence(projection: &OutcomeProjection, summary: Option<&str>) -> Evidence {
     let meeting = &projection.meeting;
     let actions = projection
@@ -123,7 +111,6 @@ pub fn evidence(projection: &OutcomeProjection, summary: Option<&str>) -> Eviden
     }
 }
 
-/// The evidence as prompt text, sanitized and capped at 8,000 characters.
 pub fn prompt_context(evidence: &Evidence) -> String {
     let date = evidence
         .meeting_date
@@ -202,7 +189,6 @@ struct Draft {
     body: String,
 }
 
-/// Drafts the follow-up email for `meeting`.
 pub fn generate(
     think: &ThinkClient,
     library: &Library,
@@ -211,7 +197,6 @@ pub fn generate(
     generate_from(think, &evidence_for(library, meeting)?)
 }
 
-/// `FollowUpDraftGenerator.generate(evidence:engine:)`.
 pub fn generate_from(think: &ThinkClient, evidence: &Evidence) -> Result<FollowUpDraft> {
     if evidence.is_empty() {
         return Err(FollowUpError::EmptyEvidence.into());
@@ -246,14 +231,9 @@ pub fn generate_from(think: &ThinkClient, evidence: &Evidence) -> Result<FollowU
     })
 }
 
-// ------------------------------------------------------------ presentation
-
-/// The line older merge drafts open with (`SummaryPresentation.meetingBody`).
 const MERGE_BOILERPLATE: &str =
     "This is a non-destructive merge. Source evidence remains on disk for provenance,";
 
-/// `SummaryPresentation.meetingBody`: merged meetings show their display
-/// title and drop implementation boilerplate.
 pub fn meeting_body(markdown: &str, meeting: &Meeting) -> String {
     if !meeting.is_merged_meeting() {
         return markdown.to_string();
@@ -274,7 +254,6 @@ pub fn meeting_body(markdown: &str, meeting: &Meeting) -> String {
         .join("\n")
 }
 
-/// The summary without its provenance line (`SummaryPresentation.split`).
 pub fn summary_body(markdown: &str) -> String {
     let mut lines: Vec<&str> = markdown.split('\n').collect();
     for index in 0..lines.len().min(4) {
@@ -291,8 +270,6 @@ pub fn summary_body(markdown: &str) -> String {
     markdown.to_string()
 }
 
-/// How many `**Label:** value` pairs joined by " · " make up `line` (0 when
-/// any piece is not one).
 fn metadata_pairs(line: &str) -> usize {
     let mut count = 0;
     for piece in line.split(" · ") {
@@ -313,9 +290,6 @@ fn metadata_pairs(line: &str) -> usize {
     count
 }
 
-/// The reading preview of a summary (`SummaryPresentation.recap`): its
-/// TL;DR section, else its first prose paragraph, without speaker labels or
-/// playback stamps.
 pub fn recap(markdown: &str) -> Option<String> {
     let body = summary_body(markdown);
     let lines: Vec<&str> = body.split('\n').collect();
@@ -372,9 +346,6 @@ fn recap_text(section: &str) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
-/// Calendar attendee names (`resolvedCalendarParticipantIdentities`),
-/// deduplicated by email, else by folded name; legacy name hints when the
-/// meeting has no structured attendees.
 pub fn participant_names(meeting: &Meeting) -> Vec<String> {
     struct Identity {
         name: Option<String>,
@@ -441,7 +412,6 @@ pub fn participant_names(meeting: &Meeting) -> Vec<String> {
         .collect()
 }
 
-/// `CalendarParticipantIdentity.normalizedDisplayName`.
 fn display_name(raw: &str) -> Option<String> {
     static ROLE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"(?i)\s*\((host|co-host|organizer|presenter|you|me)\)\s*").unwrap()
@@ -460,7 +430,6 @@ fn display_name(raw: &str) -> Option<String> {
     .then_some(name)
 }
 
-/// `CalendarParticipantIdentity.normalizedEmailAddress`.
 fn email_address(raw: &str) -> Option<String> {
     let email = raw.trim().to_lowercase();
     let count = email.chars().count();

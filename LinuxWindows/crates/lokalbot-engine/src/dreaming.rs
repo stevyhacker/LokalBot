@@ -1,10 +1,3 @@
-//! The overnight review's schedule (`DreamScheduler`, `AppState.applyDreamingSetting`):
-//! a minute tick, correct across sleep and clock changes. The durable marker is
-//! the report itself, so a night the computer slept through is caught up at the
-//! next launch or wake. A review waits until LokalBot is quiet and the computer is
-//! on mains power, never starts a model download, and never reaches further back
-//! than seven days or the start of this enabled period.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -25,16 +18,12 @@ use crate::models::Models;
 use crate::{BackgroundItem, BackgroundKind, EngineEvent, Shared};
 
 const TICK: Duration = Duration::from_secs(60);
-/// A failed review is visible but not retried every minute.
 const FAILURE_BACKOFF: Duration = Duration::from_secs(15 * 60);
 
-/// What Settings and Today show about reviews.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DreamStatus {
     pub is_dreaming: bool,
-    /// The day being reviewed, for progress.
     pub active_day: Option<String>,
-    /// Missing days queued behind an automatic catch-up.
     pub remaining_days: usize,
     pub last_dreamed_at: Option<DateTime<Utc>>,
     pub last_error: Option<String>,
@@ -45,7 +34,6 @@ struct State {
     status: DreamStatus,
     last_failure: Option<Instant>,
     transient_failures: HashMap<String, u32>,
-    /// Every eligible day through this one has a report, so ticks needn't look.
     complete_through: Option<NaiveDate>,
     review_now: bool,
     wake: bool,
@@ -55,7 +43,6 @@ struct State {
 pub(crate) struct Dreams {
     state: Mutex<State>,
     wake: Condvar,
-    /// Bumped to abandon a run: what it finishes with is thrown away.
     generation: AtomicU64,
 }
 
@@ -65,8 +52,6 @@ impl Dreams {
         self.wake.notify_all();
     }
 
-    /// "Review now": ignores whether reviews are scheduled, the hour, an existing
-    /// report and the idle gate. Still one at a time.
     pub fn review_now(&self) {
         {
             let mut state = self.state.lock();
@@ -79,9 +64,6 @@ impl Dreams {
         self.wake.notify_all();
     }
 
-    /// A report changed behind the marker (`reconsiderReports`). A run in flight is
-    /// checked against its own sources when it commits, so only a change to the
-    /// day it is reviewing stops it early.
     pub fn reconsider(&self, days: &[NaiveDate]) {
         {
             let mut state = self.state.lock();
@@ -96,7 +78,6 @@ impl Dreams {
         self.wake.notify_all();
     }
 
-    /// The schedule changed: start over.
     pub fn settings_changed(&self) {
         {
             let mut state = self.state.lock();
@@ -129,9 +110,6 @@ fn publish(shared: &Shared, change: impl FnOnce(&mut State)) {
     shared.emit(EngineEvent::Dream(Box::new(status)));
 }
 
-/// The oldest day without a report, from the enabled period's start through
-/// yesterday, looking back at most seven days. A malformed boundary is narrowed to
-/// yesterday; a valid future one waits (`oldestMissingTarget`).
 pub fn oldest_missing_target(
     first_eligible: Option<&str>,
     yesterday: NaiveDate,
@@ -170,13 +148,10 @@ fn missing_after(day: NaiveDate, yesterday: NaiveDate, has_report: &dyn Fn(&str)
     count
 }
 
-/// Run once the clock passes today's hour (`DreamScheduler.shouldRun`).
 pub fn past_the_hour(now_hour: u32, hour: u32) -> bool {
     now_hour >= hour.min(23)
 }
 
-/// The downtime gate. Never competes with recording, processing, dictation or an
-/// autocomplete request, never drains the battery, and never starts a download.
 fn can_run(shared: &Shared, models: &Models, settings: &Settings) -> bool {
     allows_automatic_main_inference(settings)
         && models.missing(&models.think_requirements()).is_empty()
@@ -196,7 +171,6 @@ fn tick(shared: &Arc<Shared>, models: &Models) {
         run(shared, models, yesterday, false, 0);
         return;
     }
-    // Finish the backlog without waiting a minute per day.
     loop {
         let settings = shared.settings();
         if !settings.dreaming_enabled || shared.is_shutting_down() {
@@ -217,7 +191,6 @@ fn tick(shared: &Arc<Shared>, models: &Models) {
                 return;
             }
         }
-        // Not downtime yet: don't burn the backoff, wait for a quieter tick.
         if !can_run(shared, models, &settings) {
             return;
         }
@@ -242,7 +215,6 @@ fn day_label(day: NaiveDate) -> String {
     day.format("%b %-d").to_string()
 }
 
-/// One review. True when the scheduler may move on to the next day.
 fn run(
     shared: &Arc<Shared>,
     models: &Models,
@@ -325,7 +297,6 @@ fn run(
         }
         Err(DreamError::Cancelled) => {}
         Err(DreamError::Deferred(_)) => {
-            // Retried after the usual backoff; not surfaced as an error.
             let mut state = shared.dreams.state.lock();
             state.last_failure = Some(Instant::now());
             *state.transient_failures.entry(key.clone()).or_default() += 1;
@@ -350,9 +321,6 @@ fn run(
     advance
 }
 
-/// After the review: up to three facts, goals or suggested preferences from the
-/// person's own words that day. Best effort; a failure never affects the review
-/// (`AppState.learnAboutPerson`).
 fn learn_about_person(shared: &Arc<Shared>, models: &Models, day: NaiveDate, is_automatic: bool) {
     let settings = shared.settings();
     if !settings.ask_memory_enabled || !settings.personal_learning_enabled {
@@ -361,7 +329,6 @@ fn learn_about_person(shared: &Arc<Shared>, models: &Models, day: NaiveDate, is_
     let library = &shared.library;
     let store = DreamStore::new(library.paths().root());
     let key = day_key(day);
-    // Goals and projects kept for weeks need no model call.
     if let Ok(Some(memory)) = store.load_memory() {
         let promoted = library.personal().promote_work_memory(&memory, &key);
         if !promoted.proposed.is_empty() {
@@ -391,8 +358,6 @@ fn learn_about_person(shared: &Arc<Shared>, models: &Models, day: NaiveDate, is_
         let lines = learning::utterances(library, day, &typed)?;
         let fingerprint = learning::fingerprint(&lines);
         let counts = learning::line_counts(&lines);
-        // The review rebuilds a day whenever one of its sources changes. Reading
-        // the same lines again would only reword the same items.
         if lines.is_empty()
             || (dictated.is_empty() && library.personal().has_learned(&key, &fingerprint))
         {
@@ -403,8 +368,6 @@ fn learn_about_person(shared: &Arc<Shared>, models: &Models, day: NaiveDate, is_
         let think = shared.think(&settings)?;
         let mut known = library.personal().usable_claims(true);
         known.extend(library.personal().suggestions());
-        // The local embedder checks items the model translated; without semantic
-        // search, or with its model not downloaded, those are dropped.
         let embedder = (settings.semantic_search_enabled
             && models.missing(&models.embedding_requirements()).is_empty())
         .then(|| lokalbot_ai::think::EmbeddingClient::new(&shared.runtime));
@@ -413,7 +376,6 @@ fn learn_about_person(shared: &Arc<Shared>, models: &Models, day: NaiveDate, is_
             embedder.embed(texts, SIMILARITY_PREFIX).ok()
         };
         let candidates = personal_learning::run(&think, &lines, &known, revision, Some(&embed))?;
-        // Read once, then gone: the day's dictation is never kept past its pass.
         if !dictated.is_empty()
             && let Err(err) = log.remove_through(day)
         {
@@ -435,10 +397,6 @@ fn learn_about_person(shared: &Arc<Shared>, models: &Models, day: NaiveDate, is_
     }
 }
 
-/// After the review: the one-line week and month summaries the agent briefing
-/// shows below recent days. Stale lines are always removed; new ones cost a model
-/// call, so they are written only while agents may read all retained screen
-/// history, which the briefing's older timeline needs (`rollUpReviews`).
 fn roll_up_reviews(shared: &Arc<Shared>, is_automatic: bool) {
     let settings = shared.settings();
     let showable = lokalbot_core::access::screen_access_scope(shared.library.paths())
@@ -467,9 +425,6 @@ fn roll_up_reviews(shared: &Arc<Shared>, is_automatic: bool) {
     }
 }
 
-/// Clear work memory: stops a run in progress and deletes every report and the
-/// memory. The app moves the enabled period's start to today, so the week before
-/// isn't reviewed straight back into memory.
 pub(crate) fn clear_work_memory(shared: &Shared) {
     shared.dreams.abandon();
     if let Err(err) = DreamStore::new(shared.library.paths().root()).clear_all() {
@@ -482,8 +437,6 @@ pub(crate) fn clear_work_memory(shared: &Shared) {
     shared.emit(EngineEvent::LibraryChanged);
 }
 
-/// A day digest for a past day changed, so that day's review goes
-/// (`dayDigestDidChange`). Today's digest changes all day and no report reads it.
 pub(crate) fn digest_changed(shared: &Shared, day: NaiveDate) {
     if day >= Local::now().date_naive() {
         return;
@@ -505,8 +458,6 @@ pub(crate) fn digest_changed(shared: &Shared, day: NaiveDate) {
     shared.dreams.reconsider(&[day]);
 }
 
-/// `lokalbot --dream [yyyy-MM-dd]`: reviews one day and returns, past the hour,
-/// idle and power gates like Review now. The person asked.
 pub fn review_once(
     library: &lokalbot_core::Library,
     settings: &Settings,
@@ -539,7 +490,6 @@ pub fn review_once(
     result.map_err(|err| anyhow!("{err:#}"))
 }
 
-/// `HeadlessCommand.validatedDreamTarget`.
 pub fn validated_day(key: Option<&str>, today: NaiveDate) -> Result<NaiveDate, String> {
     let yesterday = today - chrono::Duration::days(1);
     let day = match key {
@@ -561,7 +511,6 @@ pub(crate) fn start(shared: Arc<Shared>, models: Models) {
             publish(&shared, |_| {});
             shared.library.personal().start_access();
             while !shared.is_shutting_down() {
-                // The first tick waits too, so launch recovery can claim the queue.
                 shared.dreams.sleep();
                 if shared.is_shutting_down() {
                     return;
@@ -574,7 +523,6 @@ pub(crate) fn start(shared: Arc<Shared>, models: Models) {
     }
 }
 
-/// Wakes the thread so shutdown doesn't wait out a tick.
 pub(crate) fn stop(shared: &Shared) {
     shared.dreams.abandon();
     shared.dreams.wake();
@@ -596,7 +544,6 @@ mod tests {
             oldest_missing_target(Some("2026-10-18"), yesterday, &none),
             Some(day("2026-10-18"))
         );
-        // Bounded: a long pause never turns into a backlog.
         assert_eq!(
             oldest_missing_target(Some("2026-01-01"), yesterday, &none),
             Some(day("2026-10-13"))
@@ -628,7 +575,6 @@ mod tests {
             oldest_missing_target(None, yesterday, &none),
             Some(yesterday)
         );
-        // Not canonical: narrowed rather than trusted.
         assert_eq!(
             oldest_missing_target(Some("2026-1-1"), yesterday, &none),
             Some(yesterday)

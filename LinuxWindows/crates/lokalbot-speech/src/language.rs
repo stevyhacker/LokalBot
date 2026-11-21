@@ -1,13 +1,7 @@
-//! Which languages each transcription model can be told to use
-//! (`TranscriptionLanguage.swift`, `TranscriptionLanguageSupport.swift`).
-//! Coverage comes from the pinned models and their publishers' cards; a shared
-//! language picker is not evidence of model support.
-
 use lokalbot_core::remote_transcription::MODEL_ID as REMOTE_MODEL_ID;
 
 use crate::models::{self, Family};
 
-/// `auto` plus `LanguageCode.transcriptionSupported`, with the Mac's names.
 pub const TRANSCRIPTION_LANGUAGES: [(&str, &str); 24] = [
     ("auto", "Auto-detect"),
     ("en", "English"),
@@ -35,7 +29,6 @@ pub const TRANSCRIPTION_LANGUAGES: [(&str, &str); 24] = [
     ("vi", "Vietnamese"),
 ];
 
-/// The picker's name for a stored code.
 pub fn language_name(code: &str) -> &'static str {
     TRANSCRIPTION_LANGUAGES
         .iter()
@@ -46,7 +39,6 @@ pub fn language_name(code: &str) -> &'static str {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UkrainianSupport {
     LanguageToken,
-    /// Parakeet v3 has Ukrainian but detects the language itself.
     Detected,
     ServerDependent,
     Unsupported,
@@ -92,7 +84,6 @@ pub fn is_language_selectable(model_id: &str, code: &str) -> bool {
     code != "uk" || UkrainianSupport::for_model(model_id).is_available()
 }
 
-/// What the picker explains under the chosen language.
 pub fn language_selection_message(model_id: &str, code: &str) -> Option<&'static str> {
     let support = UkrainianSupport::for_model(model_id);
     if code == "uk" || support == UkrainianSupport::Unsupported {
@@ -111,9 +102,6 @@ pub struct UnsupportedTranscriptionLanguage {
     pub model: String,
 }
 
-/// Checked before reading audio or falling back to detection: a saved Ukrainian
-/// choice survives model switches, but a model without it must not silently
-/// transcribe in another language.
 pub fn validate_language(
     model_id: &str,
     display_name: &str,
@@ -167,7 +155,6 @@ mod tests {
         );
         assert_eq!(language_selection_message("parakeet-v3", "de"), None);
         assert!(language_selection_message("parakeet-v3", "uk").is_some());
-        // A model without Ukrainian says so whichever language is chosen.
         assert!(language_selection_message("sense-voice", "en").is_some());
     }
 

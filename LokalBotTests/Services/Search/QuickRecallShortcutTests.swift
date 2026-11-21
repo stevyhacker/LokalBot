@@ -2,12 +2,9 @@ import Carbon.HIToolbox
 import XCTest
 @testable import LokalBot
 
-/// The Quick Recall shortcut can be changed in Settings.
 final class QuickRecallShortcutTests: XCTestCase {
     private let controlOptionK = DictationShortcut(
         keyCode: CGKeyCode(kVK_ANSI_K), modifiers: [.maskControl, .maskAlternate])
-    // Combinations nobody presses, so the brief registrations below cannot
-    // fire while the tests run.
     private let hyperF18 = DictationShortcut(
         keyCode: CGKeyCode(kVK_F18), modifiers: [.maskControl, .maskAlternate, .maskShift, .maskCommand])
     private let hyperF19 = DictationShortcut(

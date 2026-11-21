@@ -2,12 +2,9 @@ import XCTest
 @testable import LokalBot
 
 final class DayDigestEvidenceTests: XCTestCase {
-    /// Digest times were written with a new `DateFormatter` each; the
-    /// calendar's own hour and minute must read the same everywhere.
     func testClockStampMatchesAPOSIXFormatterAcrossCalendarsAndTimeZones() throws {
         let zones = ["UTC", "Europe/Podgorica", "America/St_Johns", "Asia/Kathmandu", "Pacific/Chatham"]
         let calendars: [Calendar.Identifier] = [.gregorian, .buddhist, .japanese, .persian, .hebrew, .islamicUmmAlQura]
-        // Every 37 minutes across the 2026 spring clock change, and one day in each season.
         let starts = [1_774_656_000.0, 1_782_000_000, 1_792_800_000, 1_767_225_600]
         for zone in zones {
             for identifier in calendars {
@@ -1396,12 +1393,7 @@ final class DayDigestEvidenceTests: XCTestCase {
     }
 }
 
-// MARK: - Reruns and segment sizing (2026-10-01 regressions)
-
 extension DayDigestEvidenceTests {
-    /// The digest ran 16 times on 2026-10-01 and re-asked the model about
-    /// every segment each time, including morning segments whose evidence had
-    /// not changed.
     func testRerunReusesUnchangedSegmentAndAggregationAnswers() async throws {
         let cache = DayDigestSegmentCache()
         let recorder = GenerationRecorder()
@@ -1449,9 +1441,6 @@ extension DayDigestEvidenceTests {
         XCTAssertEqual(calls.filter(\.isFocus).count, 2)
     }
 
-    /// On 2026-10-01 a fragmented day used all eight segments on separate
-    /// sessions, so the six-hour main block (809 events) was squeezed into a
-    /// single segment's sample budget and then judged not substantive.
     func testLongSessionGetsSegmentsInProportionToItsActiveTime() {
         var blocks: [ActivityBlock] = []
         for index in 0..<36 {

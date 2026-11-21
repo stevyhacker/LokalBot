@@ -1,5 +1,3 @@
-//! Starting and stopping meeting recordings (`RecordingController.swift`).
-
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
@@ -24,19 +22,11 @@ pub struct Recording {
     shared: Arc<Shared>,
     pipeline: Pipeline,
     active: Arc<Mutex<Option<Active>>>,
-    /// The calendar event of the last recording the user stopped, and when,
-    /// so detection cannot immediately restart a meeting they ended
-    /// (`lastCalendarEventID`, `calendarRepeatCooldown`).
     last_stopped_event: Mutex<Option<(String, DateTime<Utc>)>>,
-    /// Stopped recordings whose details or processing job could not be saved.
-    /// Quitting saves them again and stays open if it still can't
-    /// (`pendingFinalizations`).
     pending: Mutex<HashMap<Uuid, PendingFinalization>>,
-    /// Free bytes on the library's volume, replaced in tests.
     free_bytes: fn(&Path) -> Option<u64>,
 }
 
-/// A stopped recording on its way to disk (`PendingFinalization`).
 struct PendingFinalization {
     meeting: Meeting,
     transcribe: bool,
@@ -49,15 +39,11 @@ struct Active {
     recorder: Recorder,
     ticker_stop: Arc<AtomicBool>,
     ticker: Option<JoinHandle<()>>,
-    /// Started by the detector; its call's end may stop it.
     automatic: bool,
-    /// Live warnings and `recording-health.json`.
     health: crate::capture_health::CaptureMonitor,
-    /// The meeting app whose sound the system track is bound to.
     system_app: Option<AppAudioTarget>,
 }
 
-/// The sound to record for a detected call.
 fn audio_target(meeting: &lokalbot_platform::DetectedMeeting) -> AppAudioTarget {
     AppAudioTarget {
         pid: meeting.audio_pid,
@@ -66,9 +52,6 @@ fn audio_target(meeting: &lokalbot_platform::DetectedMeeting) -> AppAudioTarget 
     }
 }
 
-/// Whether a detected call can be the one a recording is for
-/// (`CaptureIntent.accepts`): a recording that names a room accepts only that
-/// room. Calendar links can carry query parameters such as `?authuser=0`.
 fn accepts_call(recording_url: Option<&str>, detected_url: Option<&str>) -> bool {
     let room = |url: &str| {
         lokalbot_core::calendar::meeting_room(url).map_or_else(|| url.to_string(), |room| room.url)
@@ -79,7 +62,6 @@ fn accepts_call(recording_url: Option<&str>, detected_url: Option<&str>) -> bool
     }
 }
 
-/// A call found during a recording: its sound from now on, and its room.
 fn bind_detected_call(
     active: &mut Active,
     detected: &lokalbot_platform::DetectedMeeting,
@@ -112,24 +94,19 @@ fn bind_detected_call(
     }
 }
 
-/// What a recording is for (`MeetingDetectionContext`).
 #[derive(Clone, Debug, Default)]
 pub struct RecordingStart {
     pub title: Option<String>,
     pub app_name: Option<String>,
-    /// The calendar event it is stamped with.
     pub calendar: Option<CalendarEvent>,
     pub source: StartSource,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum StartSource {
-    /// Record Now, the tray, a notification or Today.
     #[default]
     User,
-    /// Automatic mode; suppressed for an event the user just stopped.
     Detector,
-    /// The next event of a call the detector is recording.
     CalendarHandoff,
 }
 
@@ -145,12 +122,7 @@ impl Recording {
         }
     }
 
-    /// Every way to start a recording ends here: the buttons, the tray, the
-    /// palette, a second `lokalbot` process, the detector, a notification and
-    /// Today's calendar rows.
     pub fn start(&self, request: RecordingStart) {
-        // A calendar handoff continues a recording, which dictation can't be
-        // running over; every other start asks first (`startRecording`).
         if request.source != StartSource::CalendarHandoff
             && self.shared.dictation_state.lock().is_busy()
         {
@@ -178,8 +150,6 @@ impl Recording {
                 return;
             }
         }
-        // A recording that dies mid-meeting from a full disk loses the meeting;
-        // a clear refusal doesn't. Nothing has been created yet.
         let root = self.shared.library.paths().root();
         if let Some(advisory) = recording_advisory((self.free_bytes)(root)) {
             log::warn!("not recording: low disk space");
@@ -321,8 +291,6 @@ impl Recording {
         Ok(())
     }
 
-    /// The user stopped the recording: detection may not restart its
-    /// calendar event for a while.
     pub fn stop(&self) {
         let event = self
             .active
@@ -335,13 +303,10 @@ impl Recording {
         self.finish(true);
     }
 
-    /// The recording was started by the detector (or a calendar handoff).
     pub fn is_automatic(&self) -> bool {
         self.active.lock().as_ref().is_some_and(|a| a.automatic)
     }
 
-    /// The detector's call ended on its own: stop the recording it started.
-    /// A call that ended this way never starts the repeat cooldown.
     pub fn call_ended(&self) {
         let automatic = self.active.lock().as_ref().is_some_and(|a| a.automatic);
         if automatic {
@@ -350,8 +315,6 @@ impl Recording {
         }
     }
 
-    /// Back-to-back events in one call (`splitForCalendarHandoff`): the
-    /// recording the detector started ends and the next event's begins.
     pub fn split_for_calendar_handoff(&self, next: RecordingStart) {
         let current = self
             .active
@@ -374,7 +337,6 @@ impl Recording {
         });
     }
 
-    /// The folder of the meeting being recorded, if any.
     pub fn active_folder(&self) -> Option<std::path::PathBuf> {
         let active = self.active.lock();
         active
@@ -382,9 +344,6 @@ impl Recording {
             .map(|active| self.shared.library.meeting_dir(&active.meeting))
     }
 
-    /// On quit: saves what was recorded and leaves processing for the next
-    /// launch. False while anything stopped could not be saved
-    /// (`prepareForTermination`).
     pub fn prepare_for_quit(&self) -> bool {
         let retry: Vec<Uuid> = self.pending.lock().keys().copied().collect();
         self.finish(false);
@@ -427,8 +386,6 @@ impl Recording {
         health.finish(write_failed);
         let ended = lokalbot_core::time::now_seconds();
         meeting.ended_at = Some(ended);
-        // The wall clock can outlast the audio: a device that dropped out
-        // truncates the tracks while the session stays live.
         if let Some(recorded) = meeting.recorded_duration {
             let session = (ended - meeting.started_at).num_milliseconds() as f64 / 1000.0;
             if let Some(warning) = short_capture_warning(recorded, session) {
@@ -438,8 +395,6 @@ impl Recording {
         self.finalize(meeting, process_now, warnings);
     }
 
-    /// The part of stopping that can fail on a full or read-only disk, apart
-    /// from the capture device. Says whether it was all saved (`finalize`).
     fn finalize(&self, meeting: Meeting, process_now: bool, warnings: Vec<String>) -> bool {
         let settings = self.shared.settings();
         let id = meeting.id;
@@ -477,9 +432,6 @@ impl Recording {
         saved
     }
 
-    /// Saves one stopped recording's details, then its processing job. A step
-    /// that fails stays pending and tells the person what to do
-    /// (`persistFinalization`).
     fn persist(&self, id: Uuid, defer_processing: bool) -> bool {
         let mut pending = self.pending.lock();
         let Some(entry) = pending.get_mut(&id) else {
@@ -487,8 +439,6 @@ impl Recording {
         };
         let library = &self.shared.library;
         let folder = library.meeting_dir(&entry.meeting);
-        // Deleted while its details couldn't be saved: nothing is left to keep
-        // (`forgetFinalization`).
         if !folder.is_dir() {
             pending.remove(&id);
             return true;
@@ -527,8 +477,6 @@ impl Recording {
     }
 }
 
-/// The meeting as it is on disk now, if it is still the same one. Its title and
-/// boundaries may be newer than what the recording started with.
 fn current_metadata(library: &Library, meeting: &Meeting) -> Option<Meeting> {
     let path = library
         .meeting_dir(meeting)
@@ -538,9 +486,6 @@ fn current_metadata(library: &Library, meeting: &Meeting) -> Option<Meeting> {
     (current.id == meeting.id).then_some(current)
 }
 
-/// The latest saved details win for anything the person can edit. Stopping only
-/// fills in the capture facts an in-progress `meta.json` can't know yet
-/// (`mergingFinalization`).
 fn merging_finalization(finalized: &Meeting, current: Meeting) -> Meeting {
     let mut merged = current;
     if merged.ended_at.is_none() {
@@ -562,16 +507,6 @@ fn merging_finalization(finalized: &Meeting, current: Meeting) -> Meeting {
     merged
 }
 
-/// Closes recordings a crash or power loss left open. Their `meta.json` has no
-/// `endedAt`, so they would stay "recording" for good: processing skips live
-/// meetings and the player refuses them. As the macOS app does when it loads
-/// a library, each one ends at its audio's last write, or where its longest
-/// track ends if that is later, once the WAV headers are repaired; then it is
-/// queued the way a stopped recording is.
-///
-/// Call only while holding the library's single-instance lock and before the
-/// engine starts, so a recording that is still running is never closed.
-/// Returns the meetings it closed.
 pub fn recover_unfinished_recordings(library: &Library, settings: &Settings) -> Vec<Uuid> {
     if library.is_read_only() {
         return Vec::new();
@@ -591,7 +526,6 @@ pub fn recover_unfinished_recordings(library: &Library, settings: &Settings) -> 
         let mut system_seconds = 0.0f64;
         for (path, system) in [(audio.mic, false), (audio.system, true)] {
             let Some(path) = path else { continue };
-            // Before the repair, which writes to the file.
             let Ok(modified) = std::fs::metadata(&path).and_then(|m| m.modified()) else {
                 continue;
             };
@@ -681,8 +615,6 @@ mod tests {
         assert_eq!(target.app_name, "Teams");
     }
 
-    /// A meeting whose recording stopped without `finish`: no `endedAt`, and
-    /// WAV headers that still say the files are empty, as after a crash.
     fn crashed_recording(library: &Library, seconds: f64, system: bool) -> Meeting {
         let started = lokalbot_core::time::now_seconds() - chrono::Duration::seconds(600);
         let meeting = library
@@ -697,7 +629,6 @@ mod tests {
         for track in tracks {
             let path = folder.join(track);
             lokalbot_audio::write_wav_16k(&path, &samples).unwrap();
-            // The writer had not updated the RIFF and data sizes yet.
             let mut bytes = std::fs::read(&path).unwrap();
             bytes[4..8].copy_from_slice(&36u32.to_le_bytes());
             bytes[40..44].copy_from_slice(&0u32.to_le_bytes());
@@ -712,7 +643,6 @@ mod tests {
         (dir, library)
     }
 
-    /// A controller with no capture device, and everything it reported.
     struct Harness {
         _dir: tempfile::TempDir,
         recording: Recording,
@@ -729,7 +659,6 @@ mod tests {
             let shared = Shared::for_tests(library, settings, move |event| log.lock().push(event));
             let models = crate::models::Models::new(shared.clone());
             let pipeline = Pipeline::start(shared.clone(), models);
-            // Started jobs aren't what these tests are about.
             pipeline.stop();
             let mut recording = Recording::new(shared.clone(), pipeline.clone());
             recording.free_bytes = |_| Some(50_000_000_000);
@@ -746,8 +675,6 @@ mod tests {
             &self.shared.library
         }
 
-        /// A meeting as `finish` hands it over: stopped, audio on disk, details
-        /// not saved yet.
         fn stopped_meeting(&self, seconds: f64) -> Meeting {
             let started = lokalbot_core::time::now_seconds() - chrono::Duration::seconds(600);
             let mut meeting = self
@@ -872,8 +799,6 @@ mod tests {
         }
     }
 
-    /// The Mac's quit: stopping leaves a finished meeting and a job for the
-    /// next launch, with no notification and nothing processing now.
     #[test]
     fn quitting_saves_the_recording_and_defers_its_processing() {
         let harness = Harness::new(Settings {
@@ -899,7 +824,6 @@ mod tests {
         assert_eq!(harness.stops(), vec![(Vec::new(), None)]);
     }
 
-    /// A queued job a person asked for during the retry survives the deferral.
     #[test]
     fn a_durable_request_outranks_the_deferred_one() {
         let harness = Harness::new(Settings::default());
@@ -917,7 +841,6 @@ mod tests {
         assert!(!job.summarize && !job.summary_follows_setting);
     }
 
-    /// Details that can't be saved keep the app open until a later quit can.
     #[cfg(unix)]
     #[test]
     fn quit_is_refused_until_the_details_are_saved() {
@@ -955,7 +878,6 @@ mod tests {
         assert_eq!(harness.library().pending_jobs().unwrap().len(), 1);
     }
 
-    /// A meeting deleted while it was pending can't hold quitting up forever.
     #[test]
     fn a_deleted_meeting_no_longer_blocks_quitting() {
         let harness = Harness::new(Settings::default());
@@ -973,7 +895,6 @@ mod tests {
         assert!(harness.recording.prepare_for_quit());
     }
 
-    /// A title changed during the recording survives stopping.
     #[test]
     fn the_details_saved_during_a_recording_win() {
         let harness = Harness::new(Settings::default());
@@ -998,7 +919,6 @@ mod tests {
 
     #[test]
     fn the_notification_says_transcribing_only_when_true() {
-        // Automatic transcription off: nothing runs and nothing says it will.
         let harness = Harness::new(Settings {
             auto_transcribe: false,
             ..Settings::default()
@@ -1011,7 +931,6 @@ mod tests {
         assert_eq!(saved.body(), "Weekly sync · 2 min");
         assert!(harness.library().pending_jobs().unwrap().is_empty());
 
-        // On, with the speech model not downloaded: the job parks.
         let harness = Harness::new(Settings {
             auto_transcribe: true,
             ..Settings::default()
@@ -1051,7 +970,6 @@ mod tests {
                 "Recording saved, but only 1 hr 15 min of audio was captured from a 120 min session."
             )
         );
-        // Under a minute missing, or at least 80% captured: nothing to say.
         assert_eq!(short_capture_warning(30.0, 80.0), None);
         assert_eq!(short_capture_warning(3000.0, 3600.0), None);
         assert_eq!(short_capture_warning(3599.0, 3600.0), None);
@@ -1073,8 +991,6 @@ mod tests {
         assert!(library.pending_jobs().unwrap().is_empty());
     }
 
-    /// The Mac's crash audio is closed like this app's own: no `endedAt`, an
-    /// AAC that never finished and a tee with a data chunk of unknown size.
     #[test]
     fn closes_a_mac_recording_from_its_crash_audio() {
         let (_dir, library) = library();
@@ -1104,7 +1020,6 @@ mod tests {
         assert!((decoded[100] - 0.25).abs() < 0.001);
     }
 
-    /// What `AVAudioFile` leaves behind for the tee when the process dies.
     fn growing_caf(samples: &[f32]) -> Vec<u8> {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(b"caff");
@@ -1114,14 +1029,14 @@ mod tests {
         bytes.extend_from_slice(&32i64.to_be_bytes());
         bytes.extend_from_slice(&16_000f64.to_be_bytes());
         bytes.extend_from_slice(b"lpcm");
-        bytes.extend_from_slice(&3u32.to_be_bytes()); // float, little-endian
+        bytes.extend_from_slice(&3u32.to_be_bytes());
         bytes.extend_from_slice(&4u32.to_be_bytes());
         bytes.extend_from_slice(&1u32.to_be_bytes());
         bytes.extend_from_slice(&1u32.to_be_bytes());
         bytes.extend_from_slice(&32u32.to_be_bytes());
         bytes.extend_from_slice(b"data");
         bytes.extend_from_slice(&(-1i64).to_be_bytes());
-        bytes.extend_from_slice(&0u32.to_be_bytes()); // edit count
+        bytes.extend_from_slice(&0u32.to_be_bytes());
         for sample in samples {
             bytes.extend_from_slice(&sample.to_le_bytes());
         }
@@ -1145,7 +1060,6 @@ mod tests {
 
         let closed = library.meeting(meeting.id).unwrap().unwrap();
         assert!(!closed.is_live());
-        // The files were written just now, long after the meeting started.
         let ended = closed.ended_at.unwrap();
         assert!(ended >= meeting.started_at + chrono::Duration::milliseconds(2_500));
         assert!(closed.has_system_track);
@@ -1157,7 +1071,6 @@ mod tests {
         assert_eq!(jobs[0].meeting_id, meeting.id);
         assert!(jobs[0].transcribe && jobs[0].summarize);
 
-        // Nothing is left to close the next time.
         assert!(recover_unfinished_recordings(&library, &settings).is_empty());
         assert_eq!(library.pending_jobs().unwrap().len(), 1);
     }

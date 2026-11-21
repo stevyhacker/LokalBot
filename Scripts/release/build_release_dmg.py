@@ -34,11 +34,9 @@ import tempfile
 from pathlib import Path
 from textwrap import dedent
 
-# Product constants. LokalBot ships as a single window; keep the geometry
-# compact so the mounted volume opens without scrollbars on a laptop display.
 VOLUME_NAME = "LokalBot"
 APP_BUNDLE_NAME = "LokalBot.app"
-WINDOW_RECT = ((200, 120), (520, 360))  # ((origin_x, origin_y), (width, height))
+WINDOW_RECT = ((200, 120), (520, 360))
 ICON_SIZE = 128
 APP_ICON_LOCATION = (130, 170)
 APPLICATIONS_ICON_LOCATION = (390, 170)

@@ -1,9 +1,3 @@
-//! Agent Mode setup (`AgentRuntimeInstaller.swift`): downloads and verifies
-//! Bun, then installs pi from the public npm registry with the frozen
-//! lockfile bundled in the app. Everything is assembled in a staging folder
-//! and swapped into place only after every digest matched, so a failed setup
-//! leaves nothing half-written.
-
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::atomic::AtomicBool;
@@ -15,19 +9,12 @@ use crate::digest;
 use crate::layout::{RuntimeLayout, VersionMarker};
 use crate::manifest::{BUN_VERSION, PI_VERSION, RuntimeArtifact, RuntimeManifest};
 
-/// What the setup card shows.
 #[derive(Clone, Debug, PartialEq)]
 pub enum InstallPhase {
     Checking,
     Idle,
-    /// 0…1, or `None` when the size is unknown.
-    Downloading {
-        name: String,
-        progress: Option<f32>,
-    },
-    Installing {
-        name: String,
-    },
+    Downloading { name: String, progress: Option<f32> },
+    Installing { name: String },
     Installed,
     Failed(String),
 }
@@ -52,13 +39,11 @@ pub enum InstallError {
     Other(String),
 }
 
-/// Downloads one pinned artifact to `dest`, verifying size and digest.
 pub type Fetch = Box<
     dyn Fn(&RuntimeArtifact, &Path, &AtomicBool, &mut dyn FnMut(u64, u64)) -> Result<()>
         + Send
         + Sync,
 >;
-/// Installs the pi packages with `bun` into `dest` (which holds the template).
 pub type PackageInstaller = Box<dyn Fn(&Path, &Path) -> Result<(), InstallError> + Send + Sync>;
 
 pub struct Installer {
@@ -86,7 +71,6 @@ impl Installer {
         }
     }
 
-    /// For tests: local artifacts and a fake `bun install`.
     pub fn with_hooks(
         layout: RuntimeLayout,
         manifest: RuntimeManifest,
@@ -109,7 +93,6 @@ impl Installer {
         &self.manifest
     }
 
-    /// The cheap receipt check used when the Agent page opens.
     pub fn initial_phase(&self) -> InstallPhase {
         if self.layout.is_installed(&self.manifest) {
             InstallPhase::Installed
@@ -118,7 +101,6 @@ impl Installer {
         }
     }
 
-    /// Installs unless already installed (`force` repairs). Blocking.
     pub fn install(
         &self,
         force: bool,
@@ -176,7 +158,6 @@ impl Installer {
                 InstallError::Download(bun.name.clone(), text)
             }
         })?;
-        // The fetch verifies the digest; check again so a hook cannot skip it.
         if !digest::file_hex(&archive).is_ok_and(|actual| actual.eq_ignore_ascii_case(&bun.sha256))
         {
             return Err(InstallError::Checksum(bun.name.clone()));
@@ -269,8 +250,6 @@ impl Installer {
         crate::resources::materialize(&assembled_layout)
             .map_err(|e| InstallError::Other(format!("{e:#}")))?;
 
-        // Swap: the old runtime (if any) moves aside first, so a failed
-        // rename never leaves a half-removed folder in place.
         let root = self.layout.root();
         let previous = staging.join("previous");
         if root.exists() {
@@ -289,7 +268,6 @@ impl Installer {
         Ok(())
     }
 
-    /// The user's "Verify Agent runtime": hashes every runtime file.
     pub fn verify(&self) -> bool {
         self.layout.is_integrity_valid(&self.manifest)
     }
@@ -328,7 +306,6 @@ fn make_executable(path: &Path) -> Result<(), InstallError> {
     Ok(())
 }
 
-/// The command `bun install` runs with (exposed for tests).
 pub fn package_install_command(bun: &Path, destination: &Path) -> Command {
     let mut command = Command::new(bun);
     command
@@ -340,9 +317,6 @@ pub fn package_install_command(bun: &Path, destination: &Path) -> Command {
             "--no-progress",
         ])
         .current_dir(destination)
-        // A private cache inside staging: nothing lands in the user's
-        // ~/.bun, and no stale cache entry can stand in for a download
-        // (the lockfile's integrity hashes are still checked).
         .env(
             "BUN_INSTALL_CACHE_DIR",
             destination
@@ -354,8 +328,6 @@ pub fn package_install_command(bun: &Path, destination: &Path) -> Command {
     command
 }
 
-/// `bun install --production --frozen-lockfile --ignore-scripts` in
-/// `destination`, which already holds the package template.
 pub fn install_packages(bun: &Path, destination: &Path) -> Result<(), InstallError> {
     let log_path = destination.join("install.log");
     let log = std::fs::File::create(&log_path).map_err(|e| InstallError::Other(e.to_string()))?;
@@ -399,7 +371,6 @@ mod tests {
     use crate::manifest::ArchiveKind;
     use std::sync::Arc;
 
-    /// A zip holding `<folder>/bun` with `content`.
     fn bun_zip(dir: &Path, folder: &str, content: &[u8]) -> PathBuf {
         let path = dir.join("bun-test.zip");
         let file = std::fs::File::create(&path).unwrap();
@@ -493,14 +464,12 @@ mod tests {
                 .any(|p| matches!(p, InstallPhase::Downloading { .. }))
         );
         assert_eq!(phases.last(), Some(&InstallPhase::Installed));
-        // No staging folder is left behind.
         let leftovers: Vec<_> = std::fs::read_dir(fixture.root.parent().unwrap())
             .unwrap()
             .flatten()
             .filter(|e| e.file_name().to_string_lossy().contains("staging"))
             .collect();
         assert!(leftovers.is_empty());
-        // Installed: a second install short-circuits; repair reinstalls.
         installer
             .install(false, &AtomicBool::new(false), &mut |_| {})
             .unwrap();

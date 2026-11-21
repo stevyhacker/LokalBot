@@ -1,26 +1,3 @@
-//! Voice memory (`MeetingSpeakerEvidence.swift`, `SpeakerVoiceProfile.swift`,
-//! `SpeakerVoiceMatcher.swift`, `SpeakerIdentityResolver.swift`,
-//! `MeetingSpeakerEvidenceStore.swift`, `MeetingSpeakerIdentityService.swift`).
-//!
-//! Naming a speaker teaches an encrypted voice profile; later meetings offer
-//! or apply the name. Everything here is private: it stays out of the
-//! transcript model, search, exports, the CLI and prompts.
-//!
-//! # Files
-//!
-//! `speaker-profiles/profiles.sealed` under the library root and
-//! `speaker-evidence/identity.sealed` in a meeting's folder, as on macOS: the
-//! `Codable` JSON sealed with AES-256-GCM as `nonce ‖ ciphertext ‖ tag`, with
-//! the file's path under the root as associated data. The key is per install
-//! and lives in the system credential store, so a Mac's files don't open here.
-//! That reads as an error, never as empty, so they are not overwritten.
-//!
-//! # Models
-//!
-//! Every sample and profile names the voice model that made it. This port uses
-//! TitaNet where the Mac uses pyannote; the two spaces are not comparable, so
-//! only vectors of [`VOICE_MODEL`] are ever scored or added to.
-
 mod evidence;
 mod matcher;
 mod resolver;
@@ -56,21 +33,15 @@ pub use service::{
 pub use store::{Failure, Store};
 pub use timing::{AudioClockSpan, RecordingAudioTiming, TrackClock, reference_clock};
 
-/// The voice model this app's vectors come from. A changed model or
-/// preprocessing needs a new value, which leaves older profiles unmatched.
 pub const VOICE_MODEL: &str = "sherpa-onnx/nemo-titanet-small/embedding192/16k-mono-v1";
-/// TitaNet's vector length. The Mac's pyannote vectors have 256.
 pub const VOICE_DIMENSION: usize = 192;
 
-/// Bumped when call voices start being analyzed differently, so saved
-/// meetings are revisited once (`callVoicesVersion`).
 pub const CALL_VOICES_VERSION: u32 = 1;
 
 pub const EVIDENCE_FOLDER: &str = "speaker-evidence";
 pub const IDENTITY_FILE: &str = "identity.sealed";
 pub const PROFILES_FILE: &str = "speaker-profiles/profiles.sealed";
 
-/// A span of a track, in seconds (`SpeakerTurnAnchor`).
 #[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
 pub struct TurnAnchor {
     pub start: f64,
@@ -91,7 +62,6 @@ impl TurnAnchor {
     }
 }
 
-/// Overlapping or touching spans merged (`VisualSpeakerMatcher.union`).
 pub fn union(ranges: impl IntoIterator<Item = TurnAnchor>) -> Vec<TurnAnchor> {
     let mut ranges: Vec<TurnAnchor> = ranges.into_iter().filter(TurnAnchor::is_valid).collect();
     ranges.sort_by(|a, b| a.start.total_cmp(&b.start));
@@ -105,7 +75,6 @@ pub fn union(ranges: impl IntoIterator<Item = TurnAnchor>) -> Vec<TurnAnchor> {
     out
 }
 
-/// One speaker's turn on a track (`SpeakerAudioTurn`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct AudioTurn {
     pub speaker: String,
@@ -120,7 +89,6 @@ impl AudioTurn {
     }
 }
 
-/// `SpeakerAudioTurn.legacySource`.
 pub fn legacy_source(speaker: &str) -> AttributionSource {
     if speaker == "me" || speaker.starts_with("local") {
         AttributionSource::Microphone
@@ -129,7 +97,6 @@ pub fn legacy_source(speaker: &str) -> AttributionSource {
     }
 }
 
-/// `VisualSpeakerMatcher.mergedTurns`: same-speaker neighbours within 0.5 s.
 pub(crate) fn merged_turns(turns: &[AudioTurn]) -> Vec<AudioTurn> {
     let mut sorted: Vec<&AudioTurn> = turns.iter().filter(|t| t.range.is_valid()).collect();
     sorted.sort_by(|a, b| a.range.start.total_cmp(&b.range.start));
@@ -147,9 +114,6 @@ pub(crate) fn merged_turns(turns: &[AudioTurn]) -> Vec<AudioTurn> {
     out
 }
 
-/// A speaker's display name is safe to keep and teach (`safeName`): 2–80
-/// characters with no address, URL, control character or a secret that
-/// `has_secret` finds, and not a word meeting apps show for people.
 pub fn safe_name(raw: &str, has_secret: &dyn Fn(&str) -> bool) -> Option<String> {
     let name = raw.split_whitespace().collect::<Vec<_>>().join(" ");
     let count = name.chars().count();
@@ -172,7 +136,6 @@ pub fn safe_name(raw: &str, has_secret: &dyn Fn(&str) -> bool) -> Option<String>
     Some(name)
 }
 
-/// Case- and accent-insensitive key for names (`ParticipantObservation.nameKey`).
 pub fn name_key(name: &str) -> String {
     let folded: String = name
         .nfd()
@@ -192,12 +155,10 @@ pub enum MatchTier {
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MatchSource {
-    /// The retired Google Meet naming; saved meetings still decode it.
     Visual,
     Profile,
 }
 
-/// `SpeakerNameMatch`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct NameMatch {
@@ -227,7 +188,6 @@ fn default_policy_version() -> String {
     "speaker-identity-1-experimental".into()
 }
 
-/// How an assignment got its name (`SpeakerIdentityAssignment.Origin`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Origin {
@@ -240,7 +200,6 @@ pub enum Origin {
 }
 
 impl Origin {
-    /// A name from a person: automatic work never replaces it.
     pub fn is_protected(self) -> bool {
         matches!(
             self,
@@ -249,7 +208,6 @@ impl Origin {
     }
 }
 
-/// `SpeakerIdentityAssignment`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Assignment {
@@ -282,7 +240,6 @@ pub struct Assignment {
         rename = "profileID"
     )]
     pub profile_id: Option<Uuid>,
-    /// Independent of a display alias, including an alias spelled "Me".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub is_local_user: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -323,7 +280,6 @@ impl Assignment {
     }
 }
 
-/// `SpeakerAliasDecision.Action`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum DecisionAction {
@@ -346,7 +302,6 @@ impl DecisionAction {
     }
 }
 
-/// `SpeakerAliasDecision`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Decision {
@@ -362,7 +317,6 @@ pub struct Decision {
     pub confirmed_at: DateTime<Utc>,
 }
 
-/// `MeetingSpeakerIdentityState`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IdentityState {
@@ -385,8 +339,6 @@ pub struct IdentityState {
     pub voice_samples: Vec<VoiceSample>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub microphone_sample_diagnostics: Option<std::collections::BTreeMap<String, u32>>,
-    /// Set once call voices were analyzed; meetings processed before that are
-    /// revisited once.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub call_voices_analyzed: Option<u32>,
 }
@@ -416,7 +368,6 @@ impl IdentityState {
         self.assignments.iter().find(|a| a.label == label)
     }
 
-    /// When the speakers last changed, for "Notes need a refresh".
     pub fn latest_attribution_change(&self) -> Option<DateTime<Utc>> {
         self.decisions
             .iter()
@@ -426,7 +377,6 @@ impl IdentityState {
     }
 }
 
-/// `SpeakerVoiceSample`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct VoiceSample {
     pub speaker: String,
@@ -443,7 +393,6 @@ impl VoiceSample {
     }
 }
 
-/// `SpeakerVoiceProfile.Contribution`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Contribution {
@@ -457,12 +406,10 @@ pub struct Contribution {
     #[serde(with = "swift_date")]
     pub confirmed_at: DateTime<Utc>,
     pub samples: Vec<VoiceSample>,
-    /// Call voices keep the average of every eligible chunk instead of the chunks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub voiceprint: Option<Vec<f32>>,
 }
 
-/// `SpeakerVoiceProfile`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct VoiceProfile {
@@ -477,7 +424,6 @@ pub struct VoiceProfile {
     pub model: String,
 }
 
-/// `SpeakerVoiceProfileDatabase`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ProfileDatabase {
@@ -505,7 +451,6 @@ impl Default for ProfileDatabase {
     }
 }
 
-/// A Swift `Set<UUID>`: an array of uppercase strings.
 mod uuid_set {
     use std::collections::BTreeSet;
 

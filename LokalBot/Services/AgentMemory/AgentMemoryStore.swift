@@ -3,14 +3,9 @@ import Foundation
 import SQLite3
 
 extension Notification.Name {
-    /// Saved coding-agent notes were added, changed, or removed.
     static let agentNotesChanged = Notification.Name("agentNotesChanged")
 }
 
-/// Write side of the saved coding-agent notes (`agent-notes.sqlite` in the
-/// library; `AgentNotesIndex` reads it). The file holds only what the readers
-/// kept of the agents' own files, so it is rebuilt from them at any time and
-/// deleted outright when the person turns the feature off.
 struct AgentMemoryStore: Sendable {
     struct Change: Equatable, Sendable {
         var added = 0
@@ -36,9 +31,6 @@ struct AgentMemoryStore: Sendable {
         databaseURL = root.appendingPathComponent(AgentNotesIndex.fileName)
     }
 
-    /// Make the saved notes of `agents` match `scan`, and drop notes of any
-    /// other agent. While a file could not be read, a note missing from the
-    /// scan stays: an unreadable file is not a deleted one.
     @discardableResult
     func apply(_ scan: AgentMemoryScan, agents: Set<CodingAgentKind>) throws -> Change {
         guard let database = SQLiteDatabase(url: databaseURL) else {
@@ -109,7 +101,6 @@ struct AgentMemoryStore: Sendable {
         return change
     }
 
-    /// Removes every saved note. The agents' own files are untouched.
     func deleteAll() {
         for suffix in ["", "-wal", "-shm"] {
             try? FileManager.default.removeItem(atPath: databaseURL.path + suffix)
@@ -129,11 +120,6 @@ struct AgentMemoryStore: Sendable {
     }
 }
 
-/// Keeps the saved coding-agent notes in step with the agents' files.
-///
-/// Scans and writes run off the main actor, one at a time. Nothing under the
-/// agents' folders is opened until the person turns the feature on, and
-/// turning it off deletes what was saved.
 @MainActor
 final class AgentMemoryIngestor: ObservableObject {
     struct Configuration: Equatable, Sendable {
@@ -161,7 +147,6 @@ final class AgentMemoryIngestor: ObservableObject {
 
     static let refreshInterval: TimeInterval = 10 * 60
 
-    /// Saved notes per agent, for Settings.
     @Published private(set) var counts: [CodingAgentKind: Int] = [:]
     @Published private(set) var lastError: String?
 
@@ -190,8 +175,6 @@ final class AgentMemoryIngestor: ObservableObject {
 
     var total: Int { counts.values.reduce(0, +) }
 
-    /// The setting changed, or the app launched: start reading, read again,
-    /// or stop and delete.
     func start() {
         let next = configuration()
         let previous = applied
@@ -216,7 +199,6 @@ final class AgentMemoryIngestor: ObservableObject {
         timer = nil
     }
 
-    /// Read the agents' notes now. Refreshes run one after another.
     func refresh() async {
         let previous = latestRefresh
         let task = Task { @MainActor [weak self] in
@@ -236,7 +218,6 @@ final class AgentMemoryIngestor: ObservableObject {
             let found = scan(configuration)
             return Result { try store.apply(found, agents: configuration.agents) }
         }.value
-        // Turned off or narrowed while reading: what was just written must go.
         guard self.configuration() == configuration else {
             if !self.configuration().reads { removeAll() }
             return
@@ -252,8 +233,6 @@ final class AgentMemoryIngestor: ObservableObject {
         }
     }
 
-    /// Deletion takes its turn with the refreshes, so turning the setting
-    /// off and on again cannot delete what the new read just saved.
     private func removeAll() {
         let previous = latestRefresh
         let store = self.store
@@ -276,10 +255,6 @@ final class AgentMemoryIngestor: ObservableObject {
     }
 }
 
-/// App-side owner of the Agent notes grant (Settings → External Agents). The
-/// grant is only a marker: `lokalbot-cli` and its MCP server search the saved
-/// notes themselves, without the app running, and find none while Read coding
-/// agent notes is off because turning that off deletes them.
 @MainActor
 final class AgentNotesAccessManager: ObservableObject {
     @Published private(set) var isEnabled = false

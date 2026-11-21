@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The one-time GitHub star request: when it may appear, that answering it is
-/// permanent, and that test, capture, and demo launches never see it.
 @MainActor
 final class GitHubStarPromptTests: XCTestCase {
     private var calendar: Calendar {
@@ -36,8 +34,6 @@ final class GitHubStarPromptTests: XCTestCase {
         return root
     }
 
-    // MARK: Eligibility
-
     func testFreshInstallIsNotAsked() {
         XCTAssertFalse(GitHubStarPrompt.shouldShow(.init(), in: .init()))
     }
@@ -67,7 +63,6 @@ final class GitHubStarPromptTests: XCTestCase {
         relaunched.recordActiveDay(date(day: 1, hour: 23, minute: 59), calendar: calendar)
         XCTAssertEqual(relaunched.state.activeDays, ["2026-10-01"])
 
-        // Many launches spread over six days are still six days.
         for day in 2...6 {
             for hour in [8, 12, 18] {
                 makeStore(defaults).recordActiveDay(date(day: day, hour: hour), calendar: calendar)
@@ -112,8 +107,6 @@ final class GitHubStarPromptTests: XCTestCase {
         XCTAssertFalse(makeStore(defaults).showsPrompt, "a later normal launch has nothing to act on")
     }
 
-    /// The detection the app itself uses: XCTest hosts the app, so this very
-    /// process must count as a test launch.
     func testHostedTestProcessIsSuppressed() throws {
         let store = GitHubStarPromptStore.live(libraryRoot: try makeRoot())
         XCTAssertTrue(store.launch.unitTesting)
@@ -127,8 +120,6 @@ final class GitHubStarPromptTests: XCTestCase {
             .write(to: root.appendingPathComponent(".lokalbot-demo-library"))
         XCTAssertTrue(GitHubStarPrompt.isSeededDemoLibrary(root))
     }
-
-    // MARK: Persistence
 
     func testDismissalSurvivesRelaunch() throws {
         let defaults = try makeDefaults()
@@ -165,11 +156,8 @@ final class GitHubStarPromptTests: XCTestCase {
     }
 }
 
-/// The request counts a meeting summary only when the pipeline saved one.
 @MainActor
 final class ProcessingPipelineSummarySignalTests: XCTestCase {
-    /// `onArtifactsWritten` also fires when notes fail, so it cannot tell a
-    /// finished summary from a failed one.
     func testFailedSummaryIsNotACompletedSummary() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ProcessingPipelineSummarySignalTests-\(UUID().uuidString)", isDirectory: true)
@@ -187,7 +175,6 @@ final class ProcessingPipelineSummarySignalTests: XCTestCase {
 
         var settings = AppSettings()
         settings.summarizerBackend = .openAICompatible
-        // Not approved, so the engine is refused before any request is made.
         settings.openAIBaseURL = "https://notes.example.com/v1"
         let pipeline = ProcessingPipeline(storage: storage, settings: { settings })
         var artifactsWritten = 0

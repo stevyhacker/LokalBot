@@ -59,9 +59,9 @@ Without a write token, create a public Static Space named `lokalbot-benchmarks` 
 
 - [ ] **lokalbot.com**: add the Space + collection links to the site footer or the "local transcription models compared" post. *(Site edit is not part of this kit — maintainer follow-up.)*
 - [x] **Repo README**: links to both the interactive Space and recommended-model Collection under the model-stack table.
-- [ ] **r/LocalLLaMA**: mention the collection + Space in the next model-stack thread (see `Docs/reddit-localllama-followup-2026-07.md` for tone); lead with the numbers, not the app.
+- [ ] **r/LocalLLaMA**: mention the collection + Space in the next model-stack thread; lead with the numbers, not the app.
 - [ ] **Release notes**: add the collection link to the next GitHub release body (v0.6.3+) under "Recommended models".
-- [ ] **HF community post**: short article "the local stack behind a Mac meeting-notes app" tagging IBM Granite, NVIDIA (Parakeet), Qwen, LiquidAI, and FluidInference teams — per `Docs/distribution-channels-2026-07.md`, their devrel reshare downstream wins.
+- [ ] **HF community post**: short article "the local stack behind a Mac meeting-notes app" tagging IBM Granite, NVIDIA (Parakeet), Qwen, LiquidAI, and FluidInference teams for downstream devrel visibility.
 - [ ] Re-run the gap experiments from `benchmark-summary.md` when hardware access allows (M1/M2/M3 coverage, WER) and re-publish the Space.
 
 ## Maintenance rules

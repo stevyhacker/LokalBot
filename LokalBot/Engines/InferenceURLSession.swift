@@ -1,8 +1,5 @@
 import Foundation
 
-/// The engine entry point authorizes its configured origin. Redirects may
-/// change a path on that origin, but cannot transfer prompts or credentials to
-/// another server (including a different loopback port).
 enum InferenceURLSession {
     static func make(requestTimeout: TimeInterval, resourceTimeout: TimeInterval) -> URLSession {
         let configuration = URLSessionConfiguration.ephemeral

@@ -1,12 +1,6 @@
 import CoreGraphics
 import Foundation
 
-// Gives the hosted desktop a Retina (2x) mode when the runner offers one, so
-// the filmed text stays sharp when the cut scales it up. Lists every mode it
-// sees; falls back to the widest 1x mode. Either has room for the takes'
-// windows, which are 1760 points wide.
-//
-//   swift Scripts/media/autocomplete-demo/display.swift
 guard ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" else {
     FileHandle.standardError.write(Data("display: only changes the hosted desktop in GitHub Actions\n".utf8))
     exit(1)

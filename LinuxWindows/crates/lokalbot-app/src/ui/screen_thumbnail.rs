@@ -1,9 +1,3 @@
-//! Small images of screen moments for lists (`ScreenThumbnailView`). Sealed
-//! images are decrypted off the UI thread and kept in memory only: nothing is
-//! written to disk, and the textures go when they fall out of the cache or the
-//! list's window closes. A moment with no pixels, or one this install can't open,
-//! shows a stand-in.
-
 use std::cell::RefCell;
 use std::collections::{HashMap, VecDeque};
 use std::sync::Arc;
@@ -19,22 +13,17 @@ use crate::theme::{LbThemeExt as _, metric};
 use crate::ui::{self, Ico};
 use crate::windows::screen_image::{self, ScreenImage};
 
-/// Decrypted images one surface keeps. Lists show about twenty at a time.
 const MAX_THUMBNAILS: usize = 48;
 const THUMBNAIL_PIXELS: u32 = 240;
 
 #[derive(Default)]
 pub struct ScreenThumbnails {
-    /// `None` while loading.
     images: RefCell<HashMap<i64, Option<ScreenImage>>>,
-    /// Oldest first.
     order: RefCell<VecDeque<i64>>,
     released: RefCell<Vec<Arc<RenderImage>>>,
 }
 
 impl ScreenThumbnails {
-    /// A moment's image, loading it the first time it is asked for. `store` finds
-    /// this cache on the view that owns it.
     pub fn image<V: 'static>(
         &self,
         moment: &ScreenMoment,
@@ -66,7 +55,6 @@ impl ScreenThumbnails {
         None
     }
 
-    /// Stores what a load gave, unless the moment fell out while it ran.
     fn finished(&self, id: i64, image: ScreenImage) {
         if let Some(entry) = self.images.borrow_mut().get_mut(&id) {
             *entry = Some(image);
@@ -92,14 +80,12 @@ impl ScreenThumbnails {
         }
     }
 
-    /// Frees the textures of images that left the cache. Call while rendering.
     pub fn drop_released(&self, window: &mut Window, cx: &mut gpui_kit::App) {
         for image in self.released.take() {
             cx.drop_image(image, Some(window));
         }
     }
 
-    /// Forgets every image, as the window showing them closes.
     pub fn clear(&self, window: &mut Window, cx: &mut gpui_kit::App) {
         self.order.borrow_mut().clear();
         for (_, entry) in self.images.borrow_mut().drain() {
@@ -116,8 +102,6 @@ impl ScreenThumbnails {
     }
 }
 
-/// The image filling `width`×`height`, or a stand-in in the app's color: a text
-/// glyph when only text was kept, a display when the image can't be shown yet.
 pub fn tile(
     image: Option<ScreenImage>,
     moment: &ScreenMoment,
@@ -167,7 +151,6 @@ mod tests {
         assert_eq!(cache.held(), MAX_THUMBNAILS);
         assert!(!cache.images.borrow().contains_key(&0));
         assert!(cache.images.borrow().contains_key(&(MAX_THUMBNAILS as i64)));
-        // A load that finishes after its moment left the cache keeps nothing.
         cache.finished(0, ScreenImage::Unavailable("gone"));
         assert!(!cache.images.borrow().contains_key(&0));
     }

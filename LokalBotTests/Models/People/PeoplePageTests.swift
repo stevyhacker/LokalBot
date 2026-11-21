@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The People page's read model: meetings recorded in parts, series,
-/// decisions in larger meetings, the person's corrections, notes about the
-/// person, and the projects named around them. Names are synthetic.
 final class PeoplePageTests: XCTestCase {
     private let base = Date(timeIntervalSince1970: 1_780_000_000)
     private let ana = ("Ana Petrović", "ana@example.com")
@@ -44,8 +41,6 @@ final class PeoplePageTests: XCTestCase {
                                     selfNames: ["Sam Reed"], curation: curation), now: base)
     }
 
-    // MARK: - Meetings recorded in parts
-
     func testRecordingsOfOneCalendarEventCountAsOneMeeting() throws {
         let first = meeting("Demo Day", day: -2, minutes: 8, eventID: "demo#2", attendees: [ana])
         let second = meeting("Demo Day", day: -2, minutes: 50, offsetMinutes: 9, eventID: "demo#2", attendees: [ana])
@@ -81,8 +76,6 @@ final class PeoplePageTests: XCTestCase {
         XCTAssertEqual(person.series.map(\.title), ["Product Standup", "Roadmap review"])
         XCTAssertEqual(person.series.map(\.occasions.count), [3, 1])
     }
-
-    // MARK: - Decisions in larger meetings
 
     func testLargerMeetingDecisionsGoOnlyToWhoSaidThemOrIsNamed() throws {
         let attendees = [ana, marko, ("Ivana Ilić", "ivana@example.com"), ("Petar Lazić", "petar@example.com"),
@@ -129,8 +122,6 @@ final class PeoplePageTests: XCTestCase {
         XCTAssertTrue(PeopleDirectory.isNamed("Will Moss", in: "Will Moss shipped the build."))
         XCTAssertFalse(PeopleDirectory.isNamed("Ana", in: "Banana bread"))
     }
-
-    // MARK: - Corrections
 
     func testChosenNameKeepsTheIdAndRecognizesTheNewNameInOwners() throws {
         let call = meeting("Vendor call", day: -2, attendees: [("Radmirkaz Ca", "rk@example.com")])
@@ -186,8 +177,6 @@ final class PeoplePageTests: XCTestCase {
         XCTAssertEqual(after.first { $0.id == anaID }?.theirActions.map(\.text), ["Book the synthetic venue"])
     }
 
-    // MARK: - Stale open work
-
     func testOpenWorkNobodyMentionedForWeeksIsStaleUnlessDueAhead() throws {
         let call = meeting("Pricing sync", day: -30, attendees: [ana])
         let quiet = MeetingOutcomes.ActionItem(text: "Send the synthetic price table", owner: "Ana")
@@ -200,8 +189,6 @@ final class PeoplePageTests: XCTestCase {
         XCTAssertEqual(byText["Send the synthetic price table"]?.isStale(now: base.addingTimeInterval(-15 * 86_400)), false)
         XCTAssertEqual(byText["Draft the synthetic renewal"]?.isStale(now: base), false)
     }
-
-    // MARK: - Notes about the person
 
     private let standupSummary = """
     # Product Standup — synthetic

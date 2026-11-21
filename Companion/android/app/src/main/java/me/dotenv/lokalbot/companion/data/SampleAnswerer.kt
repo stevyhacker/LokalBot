@@ -10,11 +10,6 @@ import me.dotenv.lokalbot.companion.data.model.AskResult
 import me.dotenv.lokalbot.companion.data.model.Citation
 import me.dotenv.lokalbot.companion.data.model.Meeting
 
-/**
- * Answers questions about the sample library from its own records, so the
- * Ask screen can be tried without a Mac. Real answers come from the Mac's
- * Ask agent.
- */
 internal class SampleAnswerer(private val repository: CompanionRepository) {
 
     private data class Source(val text: String, val meeting: Meeting, val citation: Citation?)
@@ -112,11 +107,9 @@ internal class SampleAnswerer(private val repository: CompanionRepository) {
     }
 }
 
-/** "Thu 29 Oct": the sample library is in English. */
 private fun sampleDay(day: String): String =
     parseDayOrNull(day)?.let { DateTimeFormatter.ofPattern("EEE d MMM", Locale.ENGLISH).format(it) } ?: day
 
-/** Seconds into a recording as "m:ss" or "h:mm:ss". */
 fun formatOffset(seconds: Double): String {
     val total = seconds.toInt().coerceAtLeast(0)
     val h = total / 3600

@@ -1,29 +1,20 @@
 import AppKit
 import CoreText
 
-/// Draws a suggestion's lines at exact baselines. Plain AppKit drawing keeps
-/// the ghost on the field's own baseline and avoids a SwiftUI layout pass on
-/// every keystroke. The word the next accept takes is drawn a little stronger
-/// than the rest, so it is clear what Tab will insert.
 final class CotypingGhostTextView: NSView {
     struct Line: Equatable {
         let text: String
-        /// Where `text` starts in the displayed suggestion, in characters.
         let offset: Int
-        /// The baseline's leading end in view coordinates (its right end for
-        /// right-to-left text).
         let origin: CGPoint
     }
 
     struct Content: Equatable {
         var lines: [Line]
         var font: NSFont
-        /// Characters from the start of the suggestion the next accept takes.
         var emphasisLength: Int
         var color: NSColor
         var emphasisColor: NSColor
         var isRightToLeft = false
-        /// Popup placement draws its own background.
         var showsChrome = false
     }
 
@@ -75,8 +66,6 @@ final class CotypingGhostTextView: NSView {
 }
 
 nonisolated enum CotypingGhostHighlight {
-    /// The part of `text` the next accept keypress takes, with the user's
-    /// word-or-phrase and punctuation settings.
     static func acceptancePrefix(
         in text: String,
         granularity: CotypingAcceptGranularity = .word,

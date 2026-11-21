@@ -5,8 +5,6 @@ use ring::signature::{ECDSA_P256_SHA256_FIXED_SIGNING, EcdsaKeyPair, KeyPair as 
 use super::*;
 use crate::http::testing::{Reply, StubServer};
 
-/// Generated with `openssl genrsa 2048` and `openssl dgst -sha256 -sign`
-/// (iss https://auth.openai.com, aud app_test, nonce nonce-rsa, exp 2100).
 const RSA_N: &str = "x3wSp_UiRSf3C1M7THXy6A7ywi9kAVnVwbyd9lUFlfssxhfKX2JVLFDv50cArcM-rtXFb-ag4LrVIf4WItbEYyjAMUQcYnQ60GSId5h1e4DyEf8i8-IAjb1eBCHSurYG-DnigjQSMREZPgfXut_IphbCPSvwrNdIXz3k2f8v19nvWm1u2A9qspADXvisugzuUkEtLHzBKrT200Up3np-Ohqv1AeKUFhx4q582KpHmoeEobM2b3WTQ3B3L_mDZ79Q9cfW9S3aNt9kb71FcrzGSAu772XdEO2_ldhsrB6rFB-QaHR-egNsubT5YbY72eDOWA7Nrq5K17lt-T_oP4gK_w";
 const RSA_TOKEN: &str = "eyJhbGciOiJSUzI1NiIsImtpZCI6InJzYS10ZXN0IiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2F1dGgub3BlbmFpLmNvbSIsImF1ZCI6WyJhcHBfdGVzdCJdLCJzdWIiOiJ1c2VyLXJzYSIsImVtYWlsIjoicnNhQGV4YW1wbGUuY29tIiwiZXhwIjo0MTAyNDQ0ODAwLCJub25jZSI6Im5vbmNlLXJzYSJ9.iNkEda91Th16MbXRnsJQetXG6QB_Px9fWhFqqlBcSmFjs5ExtN7rk4ArO0hjc5i8MQNLwJDooYlQ95R9fXD55WL6fJSKb6yucSbkTHgiZsWrw0q-qJJXhCutp1ySXeeQXcOvRgZ29uAfNCnC__ydDeRKLOMiT-qxtepQ98CbCnQ33rkGOmMOodFVaDS2UGTv1cYfzuMz9NfADBqbykPUt0_ADpqDqwQ14p0cZBYavY1H6KbJmS0RWEttb16AFe3-lBBWp5HUaEBrvwu3de6G6dlL1thj0uEulTZMh--kL8izq3SH-FP0Xa4JZ0eB4TTQursRPoPhk6aWV3i-UuxXTw";
 
@@ -85,7 +83,6 @@ fn authorization_urls_register_once_then_reuse_the_client() {
     assert!(first.contains("&resource=https%3A%2F%2Fapi.openai.com%2Fv1&"));
     assert!(first.contains("&ext_agent_host_id=urn%3Auuid%3A1234&"));
     assert!(first.contains("&code_challenge_method=S256&code_challenge="));
-    // A first registration has no previous client to hint at.
     assert!(!first.contains("id_token_hint"));
 
     request.client_id = Some("app_issued".into());
@@ -105,7 +102,6 @@ fn callbacks_check_state_first() {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect()
     };
-    // A forged request can neither complete nor cancel a sign-in.
     let forged = parse_callback(
         &query(&[("state", "x"), ("error", "access_denied")]),
         "s",
@@ -135,7 +131,6 @@ fn callbacks_check_state_first() {
         .contains("boom")
     );
     assert!(parse_callback(&query(&[("state", "s")]), "s", Some("app")).is_err());
-    // A first registration needs the issued client id back.
     assert!(parse_callback(&query(&[("state", "s"), ("code", "c")]), "s", None).is_err());
     assert_eq!(
         parse_callback(
@@ -183,7 +178,6 @@ fn id_tokens_need_a_good_signature_issuer_audience_expiry_and_nonce() {
     .unwrap();
     assert_eq!(claims.subject, "user-rsa");
     assert_eq!(claims.email.as_deref(), Some("rsa@example.com"));
-    // One flipped signature byte.
     let mut tampered = RSA_TOKEN.to_string();
     let last = tampered.pop().unwrap();
     tampered.push(if last == 'A' { 'B' } else { 'A' });
@@ -241,7 +235,6 @@ fn id_tokens_need_a_good_signature_issuer_audience_expiry_and_nonce() {
             .to_string()
             .contains("issuer")
     );
-    // Another key cannot vouch for it.
     let stranger = Signer::new();
     assert!(
         validate_id_token(
@@ -307,8 +300,6 @@ fn token_responses_and_model_lists_parse() {
     );
 }
 
-/// A store that cannot be reached, like a Linux session without a Secret
-/// Service.
 struct BrokenStore;
 
 impl Store for BrokenStore {
@@ -346,8 +337,6 @@ struct Fixture {
     store: Arc<MemoryStore>,
 }
 
-/// OpenAI's sign-in and API played by one local server. `token_reply`
-/// answers the token endpoint; `api` answers `/v1/*`.
 fn fixture(
     signer: Arc<Signer>,
     nonce: Arc<Mutex<String>>,
@@ -414,8 +403,6 @@ fn fixture(
     }
 }
 
-/// Plays the browser: reads the authorize URL, then calls the loopback
-/// redirect the way OpenAI would after a successful sign-in.
 fn browser(nonce: Arc<Mutex<String>>) -> impl Fn(&str) -> Result<()> {
     move |url: &str| {
         let query = super::super::loopback::query_of(&url[url.find('?').unwrap()..]);
@@ -468,7 +455,6 @@ fn sign_in_registers_exchanges_with_pkce_and_keeps_tokens_in_the_store() {
         exchange.header("content-type").as_deref(),
         Some("application/x-www-form-urlencoded")
     );
-    // Everything lives in the credential store, under the Mac's names.
     let saved: Credentials =
         serde_json::from_str(&fx.store.get(CREDENTIALS_ACCOUNT).unwrap().unwrap()).unwrap();
     assert_eq!(saved.access_token, "access-1");
@@ -486,7 +472,6 @@ fn sign_in_registers_exchanges_with_pkce_and_keeps_tokens_in_the_store() {
     );
     assert_eq!(fx.account.access_token().unwrap(), "access-1");
 
-    // Sign-out revokes the refresh token and keeps the registration.
     assert!(fx.account.sign_out());
     let revoke = fx
         .server
@@ -544,7 +529,6 @@ fn expiring_tokens_refresh_and_a_dead_refresh_token_signs_out() {
     let saved: Credentials =
         serde_json::from_str(&fx.store.get(CREDENTIALS_ACCOUNT).unwrap().unwrap()).unwrap();
     assert_eq!(saved.refresh_token.as_deref(), Some("refresh-2"));
-    // The rotated session keeps its plan grant.
     assert!(saved.allows_plan_usage());
 
     signed_in(&fx.store, NOW - 10, "refresh-dead");
@@ -614,7 +598,6 @@ fn responses_requests_stream_without_storage_or_sampling() {
     assert_eq!(body["instructions"], "Be brief.");
     assert_eq!(body["text"]["format"]["type"], "json_schema");
     assert_eq!(body["text"]["format"]["strict"], true);
-    // The task budget caps the chosen level.
     assert_eq!(body["reasoning"]["effort"], "low");
     let content = body["input"][0]["content"].as_array().unwrap();
     assert_eq!(content.len(), 2, "blank context blocks are dropped");
@@ -745,7 +728,6 @@ fn stream_accumulator_requires_completion() {
     assert!(err.to_string().contains("Free plan"));
 }
 
-/// A store with Windows Credential Manager's item limit.
 #[derive(Default)]
 struct SmallItems(MemoryStore);
 
@@ -772,7 +754,6 @@ fn long_sessions_are_split_for_small_credential_stores() {
         store.inner.get("creds").unwrap().as_deref(),
         Some("lokalbot-chunks:4")
     );
-    // A shorter value replaces it and leaves no parts behind.
     store.set("creds", Some("short")).unwrap();
     assert_eq!(store.get("creds").unwrap().as_deref(), Some("short"));
     assert_eq!(store.inner.get("creds.1").unwrap(), None);
@@ -780,12 +761,10 @@ fn long_sessions_are_split_for_small_credential_stores() {
     store.set("creds", None).unwrap();
     assert_eq!(store.get("creds").unwrap(), None);
     assert!((1..=4).all(|i| store.inner.get(&format!("creds.{i}")).unwrap().is_none()));
-    // A missing part reads as nothing stored.
     store.set("creds", Some(&long)).unwrap();
     store.inner.set("creds.2", None).unwrap();
     assert_eq!(store.get("creds").unwrap(), None);
 
-    // A whole signed-in session fits through it.
     let account = Account::with_clock(
         Arc::new(Chunked::new(SmallItems::default())),
         Endpoints::default(),

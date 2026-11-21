@@ -1,8 +1,3 @@
-// The image people share: an SVG drawn from the year's figures, and the
-// self-contained page that previews it with live layout/privacy toggles,
-// saves or copies a 2x PNG, and prepares a post caption. Both load nothing
-// from the network.
-
 import fs from 'node:fs';
 
 import {
@@ -34,7 +29,6 @@ const INK = {
 
 export const escape = svgEscape;
 
-/** Normalizes `{ stats, grid, calendar, earlierDays }` into the plain shape shared with the page. */
 function cardData({ stats, grid, calendar, earlierDays }) {
   const months = new Array(calendar.days);
   for (let day = 0; day < calendar.days; day += 1) months[day] = calendar.month(day);
@@ -48,10 +42,6 @@ function cardData({ stats, grid, calendar, earlierDays }) {
   };
 }
 
-/**
- * Project names can be client names, so the image leaves them out unless
- * `showProjects` is set.
- */
 export function renderCard(result, options = {}) {
   return renderCardSvg(cardData(result), {
     layout: options.layout ?? 'portrait',
@@ -62,7 +52,6 @@ export function renderCard(result, options = {}) {
   });
 }
 
-/** Packs sparse grid & earlierDays arrays so the standalone HTML file stays small. */
 function serializePayload(data, { includeProjects = false } = {}) {
   const gridCells = [];
   for (let index = 0; index < data.grid.length; index += 1) {
@@ -91,7 +80,6 @@ function serializePayload(data, { includeProjects = false } = {}) {
     .replaceAll('&', '\\u0026');
 }
 
-/** The standalone page that previews, customizes, and saves/copies the card as a 2x PNG. */
 export function renderPage(result, options = {}) {
   const data = cardData(result);
   const { stats } = data;

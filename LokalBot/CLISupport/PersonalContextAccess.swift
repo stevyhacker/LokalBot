@@ -1,7 +1,5 @@
 import Foundation
 
-/// What a personal claim is about. Shared by the app's personal model and the
-/// CLI, which only ever sees claims the person chose to share.
 enum PersonalClaimKind: String, Codable, CaseIterable, Sendable {
     case fact
     case preference
@@ -9,8 +7,6 @@ enum PersonalClaimKind: String, Codable, CaseIterable, Sendable {
     case principle
 }
 
-/// The fields relevance ranking needs, so the app (all claims) and the CLI
-/// (the shared projection) rank with the same rules.
 protocol PersonalContextItem {
     var id: UUID { get }
     var kind: PersonalClaimKind { get }
@@ -19,13 +15,6 @@ protocol PersonalContextItem {
     var alwaysUse: Bool { get }
 }
 
-/// Deterministic priority order for a task or question, newest first within
-/// each step:
-/// 1. items marked Always use;
-/// 2. principles and preferences, which apply to most tasks;
-/// 3. facts and goals sharing a content word with the query, most shared
-///    words first;
-/// 4. the remaining facts and goals.
 enum PersonalContextSelection {
     static func ordered<Item: PersonalContextItem>(_ items: [Item], query: String,
                                                    recentTurns: [String] = []) -> [Item] {
@@ -43,7 +32,6 @@ enum PersonalContextSelection {
         }
         for item in newestFirst where item.alwaysUse { place(item) }
         for item in newestFirst where item.kind == .principle || item.kind == .preference { place(item) }
-        // Stable sort by shared-word count keeps newest-first among ties.
         var matches: [(item: Item, score: Int)] = []
         for item in newestFirst where !placed.contains(item.id) {
             let score = contentWords(item.text).intersection(queryWords).count
@@ -74,9 +62,6 @@ enum PersonalContextSelection {
         "remember", "please", "always", "never",
     ]
 
-    /// Case- and diacritic-folded words of three or more letters, minus
-    /// stopwords. Works for any script, so Serbian Latin and Cyrillic match
-    /// themselves.
     static func contentWords(_ text: String) -> Set<String> {
         let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
         var words: Set<String> = []
@@ -89,21 +74,14 @@ enum PersonalContextSelection {
     }
 }
 
-/// The claims a person shared with agents, as the app last wrote them. The
-/// CLI never reads the encrypted personal model: this plaintext copy exists
-/// only while the Personal context grant is on and holds only shared claims.
 struct PersonalContextProjection: Codable, Equatable, Sendable {
     struct Claim: Codable, Equatable, Sendable, PersonalContextItem {
         enum Source: String, Codable, Sendable {
             case askedToRemember = "asked_to_remember"
             case addedInSettings = "added_in_settings"
-            /// Saved automatically from something the user said in a meeting.
             case learnedFromMeeting = "learned_from_meeting"
-            /// From something the user typed to a coding agent or in Ask.
             case learnedFromTyping = "learned_from_typing"
-            /// From something the user dictated into another app.
             case learnedFromDictation = "learned_from_dictation"
-            /// A goal or project LokalBot's overnight review kept for weeks.
             case learnedFromWorkMemory = "learned_from_work_memory"
         }
 
@@ -123,9 +101,6 @@ struct PersonalContextProjection: Codable, Equatable, Sendable {
     var claims: [Claim]
 }
 
-/// Cross-process truth for the Personal context grant: a marker the app sets
-/// from Settings → External Agents or Personal Context, plus the projection it keeps in sync. Separate
-/// from meeting and screen access, and no Agent Mode capability satisfies it.
 struct PersonalContextAccessGate {
     static let markerName = "personal-context-access-enabled"
     static let projectionName = "personal-context.json"
@@ -150,7 +125,6 @@ struct PersonalContextAccessGate {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: accessMarkerURL.path)
     }
 
-    /// Revoking removes the shared copy too, so nothing lingers on disk.
     func disable() {
         removeProjection()
         try? FileManager.default.removeItem(at: accessMarkerURL)
@@ -170,8 +144,6 @@ struct PersonalContextAccessGate {
         try? FileManager.default.removeItem(at: projectionURL)
     }
 
-    /// The shared claims, or nil when the grant is off or the app hasn't
-    /// written a readable projection.
     func readProjection() -> PersonalContextProjection? {
         guard isEnabled, let data = try? Data(contentsOf: projectionURL) else { return nil }
         let decoder = JSONDecoder()
@@ -189,7 +161,6 @@ struct PersonalContextAccessGate {
     }
 }
 
-/// `get_personal_context` for MCP and `lokalbot-cli personal-context`.
 enum PersonalContextTool {
     static let name = "get_personal_context"
     static let defaultItems = 8
@@ -249,8 +220,6 @@ enum PersonalContextTool {
             }
         }
 
-        /// What a CLI command throws for a refusal, with its code. Nil for
-        /// bad arguments, which the command reports as a usage error.
         var commandError: CodedCommandError? {
             switch self {
             case .disabled:

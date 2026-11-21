@@ -1,41 +1,22 @@
-//! What first-run setup can check about this computer before anything turns
-//! on (`OnboardingAccess` on the Mac). Linux and Windows have no permission
-//! prompts like macOS, so each check reads what this desktop provides
-//! instead. Every check only reads: none prompts, opens a capture session,
-//! loads a script, reads a window's contents or changes a setting.
-
 use crate::session::Desktop;
 
-/// Where one thing setup needs stands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Check {
-    /// It works now, with nothing left to allow.
     Ready,
-    /// The system has it switched off (Windows' microphone privacy setting).
     TurnedOff,
-    /// Something this desktop lacks, which the person can add.
     Missing(Gap),
-    /// It can't be known before the feature first runs.
     Unknown,
 }
 
-/// What is missing, for the app to word.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Gap {
-    /// GNOME on Wayland without a window-information extension ("Window Calls").
     GnomeWindowExtension,
-    /// This desktop gives no way to see which window is in front.
     WindowTitles,
-    /// No AT-SPI accessibility service in this session.
     AccessibilityService,
-    /// No way to take a screenshot of only the window in front.
     WindowScreenshots,
-    /// No Secret Service provider to keep the screenshot key.
     CredentialStore,
 }
 
-/// Windows' "Let desktop apps access your microphone" and the switches
-/// above it. Elsewhere `Unknown`: there is no such switch to read.
 pub fn microphone() -> Check {
     #[cfg(windows)]
     {
@@ -47,7 +28,6 @@ pub fn microphone() -> Check {
     }
 }
 
-/// Seeing the app and window title in front, which day memory records.
 pub fn window_titles() -> Check {
     let desktop = crate::session::desktop();
     let has_env = |name: &str| std::env::var_os(name).is_some();
@@ -67,12 +47,10 @@ fn window_titles_on(
     has_env: impl Fn(&str) -> bool,
 ) -> Check {
     match desktop {
-        // Win32 and X11 (EWMH) tell any app which window is in front.
         Desktop::Windows | Desktop::X11 => Check::Ready,
         Desktop::Hyprland if has_env("HYPRLAND_INSTANCE_SIGNATURE") => Check::Ready,
         Desktop::Sway if has_env("SWAYSOCK") => Check::Ready,
         Desktop::Hyprland | Desktop::Sway => Check::Unknown,
-        // LokalBot loads its KWin script when day memory starts.
         Desktop::Kde => Check::Unknown,
         Desktop::Gnome => match gnome_extension() {
             Some(true) => Check::Ready,
@@ -83,7 +61,6 @@ fn window_titles_on(
     }
 }
 
-/// Reading the text on screen through accessibility (AT-SPI, UI Automation).
 pub fn screen_text() -> Check {
     #[cfg(target_os = "linux")]
     {
@@ -95,7 +72,6 @@ pub fn screen_text() -> Check {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        // UI Automation needs no permission.
         if cfg!(windows) {
             Check::Ready
         } else {
@@ -104,7 +80,6 @@ pub fn screen_text() -> Check {
     }
 }
 
-/// Taking a screenshot of only the window in front.
 pub fn screenshots() -> Check {
     let desktop = crate::session::desktop();
     #[cfg(target_os = "linux")]
@@ -127,11 +102,9 @@ fn screenshots_on(
     portal: impl FnOnce() -> Option<bool>,
 ) -> Check {
     match desktop {
-        // GDI and X11 read a window's pixels without asking.
         Desktop::Windows | Desktop::X11 => Check::Ready,
         Desktop::Headless => Check::Missing(Gap::WindowScreenshots),
         Desktop::Hyprland | Desktop::Sway if has_grim() => Check::Ready,
-        // The screenshot portal may ask once, the first time.
         _ => match portal() {
             Some(true) => Check::Unknown,
             Some(false) => Check::Missing(Gap::WindowScreenshots),
@@ -140,7 +113,6 @@ fn screenshots_on(
     }
 }
 
-/// A system credential store for the key that encrypts screenshots.
 pub fn credential_store() -> Check {
     #[cfg(target_os = "linux")]
     {
@@ -152,7 +124,6 @@ pub fn credential_store() -> Check {
     }
     #[cfg(not(target_os = "linux"))]
     {
-        // Windows always has its Credential Manager.
         if cfg!(windows) {
             Check::Ready
         } else {
@@ -179,8 +150,6 @@ mod linux {
             .ok()
     }
 
-    /// Whether a D-Bus service runs now or can be started on demand,
-    /// without starting it. `None` without a session bus.
     pub(super) fn service_available(name: &str) -> Option<bool> {
         let bus = session_bus()?;
         let proxy = zbus::blocking::fdo::DBusProxy::new(&bus).ok()?;
@@ -196,8 +165,6 @@ mod linux {
         )
     }
 
-    /// Whether GNOME Shell has an extension that says which window is in
-    /// front. Introspection lists its interface without reading any window.
     pub(super) fn gnome_window_extension() -> Option<bool> {
         let bus = session_bus()?;
         let mut answered = false;
@@ -232,8 +199,6 @@ mod linux {
         answered.then_some(false)
     }
 
-    /// Whether the screenshot portal can capture only the window in front.
-    /// Reads the portal's property; takes no screenshot.
     pub(super) fn portal_window_screenshots() -> Option<bool> {
         futures_lite::future::block_on(futures_lite::future::or(
             async {
@@ -262,8 +227,6 @@ mod win {
 
     const STORE: &str = r"Software\Microsoft\Windows\CurrentVersion\CapabilityAccessManager\ConsentStore\microphone";
 
-    /// The device switch, the user's switch and the desktop-apps switch, in
-    /// that order; any one set to "Deny" keeps desktop apps off the microphone.
     pub(super) fn microphone() -> Check {
         let values = [
             read(HKEY_LOCAL_MACHINE, STORE),
@@ -277,8 +240,6 @@ mod win {
         let key = HSTRING::from(key);
         let name = HSTRING::from("Value");
         let mut size = 0u32;
-        // SAFETY: the first call asks for the size; the second fills a buffer
-        // of exactly that size.
         unsafe {
             RegGetValueW(
                 root,
@@ -309,8 +270,6 @@ mod win {
     }
 }
 
-/// The microphone's state from its privacy switches, each "Allow", "Deny"
-/// or unread.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn microphone_from(values: &[Option<String>]) -> Check {
     if values
@@ -364,7 +323,6 @@ mod tests {
             window_titles_on(&Desktop::Gnome, || Some(false), none),
             Check::Missing(Gap::GnomeWindowExtension)
         );
-        // GNOME Shell didn't answer: nothing is claimed.
         assert_eq!(
             window_titles_on(&Desktop::Gnome, || None, none),
             Check::Unknown
@@ -385,12 +343,10 @@ mod tests {
             screenshots_on(&Desktop::Sway, || true, || None),
             Check::Ready
         );
-        // Without grim, Sway falls back to the portal like GNOME and KDE.
         assert_eq!(
             screenshots_on(&Desktop::Sway, || false, || Some(false)),
             Check::Missing(Gap::WindowScreenshots)
         );
-        // The portal can ask the first time, so a capable one stays unknown.
         assert_eq!(
             screenshots_on(&Desktop::Gnome, || false, || Some(true)),
             Check::Unknown

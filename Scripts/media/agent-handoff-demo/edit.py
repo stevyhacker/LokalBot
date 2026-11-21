@@ -24,7 +24,6 @@ PAD = 24
 BAR = 72
 BACKDROP = "#ececef"
 INK = "#1d1d1f"
-# Seconds on screen per scene; None keeps the scene's real length.
 SCENES = [
     ("meeting", None, "The call ends. LokalBot transcribes it and writes the notes."),
     ("handed-off", None, "Each action you took on becomes its own agent task."),
@@ -71,7 +70,7 @@ def caption_font(size):
             continue
         try:
             face.set_variation_by_name("Semibold")
-        except Exception:  # not a variable font, or no such instance
+        except Exception:
             pass
         return face
     return ImageFont.load_default(size)
@@ -105,8 +104,6 @@ def main():
     if not timeline:
         raise SystemExit("no frames to cut")
 
-    # Every frame at the size most of them have, no wider than MAX_WIDTH,
-    # with even sides for H.264.
     sizes = [Image.open(film / "frames" / name).size for name, _ in timeline[::10]]
     width, height = max(set(sizes), key=sizes.count)
     scale = min(1.0, MAX_WIDTH / width)

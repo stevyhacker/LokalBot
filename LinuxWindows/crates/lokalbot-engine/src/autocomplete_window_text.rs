@@ -1,9 +1,3 @@
-//! Reading the focused window for autocomplete (`CotypingWindowTextCapture`):
-//! captures only that window, recognizes its text with the on-device OCR
-//! engine, and drops the image at once. Never downloads: without an engine
-//! there is no window text. An image unchanged outside the field reuses the
-//! last lines. Logs carry counts and times only, never text.
-
 use std::time::Instant;
 
 use lokalbot_ai::autocomplete::window_text::{self, Frame, Line};
@@ -11,7 +5,6 @@ use lokalbot_ai::ocr::{self, OcrEngine};
 use lokalbot_core::LibraryPaths;
 use lokalbot_platform::screen::{self, WindowCapture};
 
-/// Everything a read needs, from the field read that asked for it.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct WindowRequest {
     pub key: String,
@@ -21,10 +14,8 @@ pub(crate) struct WindowRequest {
     pub field: Frame,
 }
 
-/// The longest side of a captured window, as on macOS.
 const MAXIMUM_DIMENSION: u32 = 3_000;
 
-/// Lines recognized in one window, in screen pixels.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct WindowRead {
     pub lines: Vec<Line>,
@@ -35,14 +26,10 @@ pub(crate) struct WindowRead {
 pub(crate) struct WindowReader {
     capture: Option<Box<dyn WindowCapture>>,
     engine: Option<OcrEngine>,
-    /// The last lines read for the field in use, outside the field, with the
-    /// fingerprint of the image they came from.
     recognized: Option<(String, [u8; 32], Vec<Line>)>,
 }
 
 impl WindowReader {
-    /// `None` when nothing here can read, or the window in front is not the one
-    /// asked about.
     pub fn read(&mut self, paths: &LibraryPaths, request: &WindowRequest) -> Option<WindowRead> {
         if !ocr::is_ready(paths) {
             return None;
@@ -121,7 +108,6 @@ impl WindowReader {
             started.elapsed().as_millis()
         );
         if let Some(print) = fingerprint {
-            // The draft is never prompt context, so it is not kept either.
             self.recognized = Some((
                 request.key.clone(),
                 print,
@@ -134,12 +120,10 @@ impl WindowReader {
         })
     }
 
-    /// Forgets the text held for reuse.
     pub fn forget(&mut self) {
         self.recognized = None;
     }
 
-    /// Autocomplete stopped: the model need not stay loaded.
     pub fn unload(&mut self) {
         *self = Self::default();
     }

@@ -1,6 +1,3 @@
-//! Shared child-process, binary discovery, npm shim resolution, and private
-//! temp-file helpers for CLI-backed subscription plans (`PlanCLIProcess.swift`).
-
 use std::ffi::{OsStr, OsString};
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -72,8 +69,6 @@ pub(crate) fn locate_with_login_shell(command_name: &str) -> Option<PathBuf> {
     (path.is_absolute() && is_executable(&path)).then_some(path)
 }
 
-/// How to start a user CLI. An npm `.cmd` shim on Windows is resolved to its
-/// target script or `.exe` so arguments never pass through `cmd.exe`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Launch {
     pub program: PathBuf,
@@ -166,7 +161,6 @@ impl Launch {
     }
 }
 
-/// What a finished CLI run left behind.
 #[derive(Debug, Default)]
 pub struct Output {
     pub status: Option<i32>,
@@ -175,7 +169,6 @@ pub struct Output {
     pub cancelled: bool,
 }
 
-/// Writes a private file (creating intermediate private directories if needed).
 pub(crate) fn write_private(root: &Path, relative: &str, contents: &str) -> std::io::Result<()> {
     let path = root.join(relative);
     if let Some(parent) = path.parent()
@@ -205,8 +198,6 @@ pub(crate) struct ChildSpec {
     pub failed: fn(String) -> PlanError,
 }
 
-/// Writes stdin, streams stdout line by line, keeps a bounded stderr tail, and
-/// stops the child (and its process group) on cancel or timeout.
 pub(crate) fn run_child(
     #[cfg_attr(not(unix), allow(unused_mut))] mut command: Command,
     input: &str,
@@ -311,8 +302,6 @@ fn stop(child: &mut std::process::Child) {
     #[cfg(unix)]
     {
         let group = child.id() as libc::pid_t;
-        // SAFETY: signal delivery to the process group we created for our
-        // own, not yet reaped, child.
         unsafe { libc::kill(-group, libc::SIGTERM) };
         let deadline = Instant::now() + Duration::from_secs(2);
         while Instant::now() < deadline {
@@ -321,13 +310,11 @@ fn stop(child: &mut std::process::Child) {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        // SAFETY: as above; helpers that ignored SIGTERM end here.
         unsafe { libc::kill(-group, libc::SIGKILL) };
     }
     crate::process::stop_child(child, Duration::ZERO);
 }
 
-/// Strips ANSI CSI escape sequences (spinners, color codes) from CLI output.
 pub(crate) fn strip_ansi(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
@@ -346,8 +333,6 @@ pub(crate) fn strip_ansi(text: &str) -> String {
     out
 }
 
-/// Extracts and canonicalizes a JSON object/array from a structured reply
-/// (handling optional markdown code fences), returning `None` on plain prose.
 pub(crate) fn extract_json_text(text: &str) -> Option<String> {
     let cleaned = model_json::strip_reasoning(text);
     let trimmed = cleaned.trim();

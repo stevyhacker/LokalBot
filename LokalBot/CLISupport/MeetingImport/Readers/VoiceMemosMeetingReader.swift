@@ -1,26 +1,6 @@
 import Foundation
 import SQLite3
 
-/// Reads Apple Voice Memos recordings: the app's own `Recordings` folder, or
-/// `.m4a` and `.qta` files dragged out of it.
-///
-/// The folder holds `CloudRecordings.db`, a Core Data store whose
-/// `ZCLOUDRECORDING` rows give each recording's id (`ZUNIQUEID`), title
-/// (`ZENCRYPTEDTITLE`, plain text despite its name, or the older
-/// `ZCUSTOMLABEL`), start (`ZDATE`, seconds since 2001), length (`ZDURATION`),
-/// audio file (`ZPATH`), and whether it is in Recently Deleted
-/// (`ZEVICTIONDATE`). Recent releases write the transcript into the audio
-/// file: a `tsrp` atom in an `.m4a` track's user data, or the
-/// `com.apple.VoiceMemos.tsrp` item of a `.qta` track's QuickTime metadata,
-/// holding a Foundation `AttributedString` in its JSON coding whose runs,
-/// usually one word each, carry `timeRange: [start, end]` in seconds. Each
-/// `.m4a` also carries the recording's id as the iTunes item
-/// `voice-memo-uuid`, the same value as `ZUNIQUEID`, so a dragged-out copy
-/// and the library row are one meeting.
-///
-/// The database is opened read-only and immutable, so SQLite never touches
-/// its journal; a recording whose row is still only in the write-ahead log is
-/// read from its audio file like a dragged-out copy.
 enum VoiceMemosMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.voiceMemos
     static let exportHint = "In Voice Memos, drag recordings to a Finder window to save them, then import those files. "
@@ -30,19 +10,15 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
 
     static let databaseName = "CloudRecordings.db"
     private static let audioExtensions: Set<String> = ["m4a", "qta"]
-    /// Top-level atoms an MPEG-4 or QuickTime file can start with.
     private static let leadingAtoms: Set<String> = ["ftyp", "wide", "free", "skip", "mdat", "moov", "pnot"]
-    /// What a recording is called when nothing names it.
     static let untitled = "Voice memo"
 
     static func recognizes(_ url: URL) -> Bool {
         if isDatabase(url) { return true }
         guard audioExtensions.contains(url.pathExtension.lowercased()) else { return false }
-        // A file that can't be opened is still offered, so reading it can say why.
         guard let handle = try? FileHandle(forReadingFrom: url) else { return true }
         defer { try? handle.close() }
         guard let head = try? handle.read(upToCount: 8) else { return true }
-        // An empty file is a recording Voice Memos keeps only in iCloud.
         if head.isEmpty { return true }
         guard head.count == 8 else { return false }
         return leadingAtoms.contains(String(decoding: head.suffix(4), as: UTF8.self))
@@ -95,22 +71,15 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return result
     }
 
-    // MARK: The library database
-
     private static func isDatabase(_ url: URL) -> Bool {
         let name = url.lastPathComponent.lowercased()
         return name.hasPrefix("cloudrecordings") && url.pathExtension.lowercased() == "db"
     }
 
-    /// Fragments of an edited recording in the older library layout, which
-    /// are parts of the recording beside them, not recordings of their own.
     private static func isInsideComposition(_ url: URL) -> Bool {
         url.deletingLastPathComponent().pathComponents.contains { $0.lowercased().hasSuffix(".composition") }
     }
 
-    /// The recordings a library database lists, and every audio file it names,
-    /// so the folder walk doesn't read them again, including the ones in
-    /// Recently Deleted.
     private static func readLibrary(_ database: URL) throws -> (scan: ExternalImportScan, claimed: Set<String>) {
         let rows = try VoiceMemosLibrary.rows(in: database)
         let folder = database.deletingLastPathComponent()
@@ -139,9 +108,6 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return (scan, claimed)
     }
 
-    /// The audio file a row's `ZPATH` names, which is usually a file name in
-    /// the database's folder and sometimes an absolute path into it. A path
-    /// that leads out of the folder names nothing.
     private static func audioURL(for path: String, in folder: URL) -> URL? {
         let trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -152,9 +118,6 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return url
     }
 
-    // MARK: Recordings
-
-    /// One recording, with what the library row says about it when there is one.
     private static func readRecording(_ url: URL, row: VoiceMemosLibrary.Row? = nil) throws -> ExternalMeeting {
         guard fileSize(url) > 0 else { throw RecordingError.empty }
         let movie = try VoiceMemoMovie(contentsOf: url)
@@ -172,8 +135,6 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
                                duration: duration, lines: lines, audioURL: url, origin: url)
     }
 
-    /// A title that names something: not empty, and not the date placeholder
-    /// older devices show for a title they can't read ("2023-08-11T07:53:31Z").
     private static func cleanTitle(_ value: String?) -> String? {
         guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty,
               value.range(of: #"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$"#, options: .regularExpression) == nil
@@ -181,14 +142,10 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return value
     }
 
-    /// The file name as a title, unless it is the time stamp Voice Memos names
-    /// its own files with ("20260304 101500-1A2B3C4D.m4a").
     private static func fileTitle(_ url: URL) -> String? {
         originalStamp(url) == nil ? ExternalImportText.title(fromFileName: url) : nil
     }
 
-    /// When a recording started, from the name Voice Memos gives its own files:
-    /// the device's local time, read in this Mac's time zone.
     private static func originalStamp(_ url: URL) -> Date? {
         let stem = url.deletingPathExtension().lastPathComponent
         guard stem.range(of: #"^\d{8} \d{6}(-[0-9A-Fa-f]{8})?$"#, options: .regularExpression) != nil else { return nil }
@@ -199,14 +156,11 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return formatter.date(from: String(stem.prefix(15)))
     }
 
-    /// A recording id as Voice Memos writes it: an upper-case UUID.
     private static func normalizedID(_ value: String?) -> String? {
         guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else { return nil }
         return UUID(uuidString: value)?.uuidString ?? value
     }
 
-    /// For a file that carries no id: its original name when Voice Memos gave
-    /// it one, else its title, start, and length.
     private static func fallbackID(_ url: URL, title: String, startedAt: Date?, duration: TimeInterval?) -> String {
         if originalStamp(url) != nil {
             return ExternalImportText.stableID("voice-memos-file", url.deletingPathExtension().lastPathComponent)
@@ -237,22 +191,12 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: Transcripts
-
-    /// A pause this long starts a new line.
     private static let pauseBreak: TimeInterval = 1.5
-    /// A line this long ends at its next sentence end.
     private static let sentenceBreak: TimeInterval = 4
-    /// No line runs longer than this.
     private static let longestLine: TimeInterval = 30
 
-    /// The lines of a transcript Voice Memos wrote into a recording: its
-    /// words, grouped at pauses and sentence ends. Empty when the transcript
-    /// is empty or isn't the JSON Voice Memos writes.
     static func transcriptLines(from data: Data) -> [ExternalMeeting.Line] {
         var json = data
-        // A QuickTime metadata value can come with its `data` header, and a
-        // payload can be padded with zeros.
         if let brace = json.prefix(32).firstIndex(of: UInt8(ascii: "{")) { json = json[brace...] }
         while json.last == 0 { json.removeLast() }
         guard let root = (try? JSONSerialization.jsonObject(with: Data(json))) as? [String: Any] else { return [] }
@@ -291,10 +235,6 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         var range: ClosedRange<TimeInterval>?
     }
 
-    /// The runs of an `AttributedString` in either of its JSON codings: text
-    /// and attributes interleaved (`["Hi", {…}, " there", {…}]`), or text and
-    /// indexes into an `attributeTable` (`{"runs": ["Hi", 0], "attributeTable": [{…}]}`).
-    /// A transcript with no speech is a plain string.
     private static func transcriptWords(_ value: Any?) -> [Word] {
         if let string = value as? String { return [Word(text: string)] }
         if let interleaved = value as? [Any] {
@@ -322,7 +262,6 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return words
     }
 
-    /// `timeRange` is a start and an end in seconds, not a start and a length.
     private static func timeRange(_ attributes: [String: Any]) -> ClosedRange<TimeInterval>? {
         guard let pair = attributes["timeRange"] as? [Any], pair.count == 2,
               let start = (pair[0] as? NSNumber)?.doubleValue, let end = (pair[1] as? NSNumber)?.doubleValue,
@@ -336,8 +275,6 @@ enum VoiceMemosMeetingReader: ExternalMeetingReader {
         return trimmed.last.map { ".?!…。？！".contains($0) } ?? false
     }
 }
-
-// MARK: - Errors
 
 private enum RecordingError: Error {
     case empty
@@ -358,29 +295,16 @@ private enum RecordingError: Error {
     }
 }
 
-// MARK: - The movie header
-
-/// What a Voice Memos recording says about itself in its movie header
-/// (`moov`), read without its audio: length and creation time (`mvhd`),
-/// iTunes tags (`©nam`, `©too`, `----:com.apple.iTunes:voice-memo-uuid`), the
-/// `date` user data string, QuickTime metadata (`com.apple.quicktime.*`), and
-/// the transcript.
 private struct VoiceMemoMovie {
-    /// No real movie header comes near this; a larger one is damage.
     static let largestHeader: UInt64 = 64 * 1_024 * 1_024
-    /// Seconds from 1904-01-01, where QuickTime times count from, to 1970-01-01.
     static let quickTimeEpoch: TimeInterval = 2_082_844_800
 
     var duration: TimeInterval?
-    /// `mvhd`'s creation time. Voice Memos appears to stamp it when it
-    /// finishes writing, so it is the end of the recording, or of an export.
     var creationTime: Date?
     var title: String?
     var encoder: String?
     var memoID: String?
-    /// The `date` user data string, in UTC.
     var dateTag: Date?
-    /// `com.apple.quicktime.creationdate`, which carries its offset.
     var creationDate: Date?
     var transcript: Data?
 
@@ -429,7 +353,6 @@ private struct VoiceMemoMovie {
             transcript = transcript ?? children("tsrp", in: userData).first.map { Data(bytes[$0]) }
         }
         for metadata in children("meta", in: movie) { readQuickTimeMetadata(metadata) }
-        // The transcript is track metadata; a movie-level one is the fallback.
         var trackTranscript: Data?
         for track in children("trak", in: movie) where trackTranscript == nil {
             let userData = children("udta", in: track) + children("mdia", in: track).flatMap { children("udta", in: $0) }
@@ -451,7 +374,6 @@ private struct VoiceMemoMovie {
         let timescaleOffset = creationOffset + 2 * timeLength
         guard timescaleOffset + 4 + timeLength <= header.upperBound else { return }
         let created = TimeInterval(Self.integer(bytes, at: creationOffset, length: timeLength)) - Self.quickTimeEpoch
-        // Before 2001 or in the future is an unset or wrong clock.
         if created > 978_307_200, created < Date().timeIntervalSince1970 + 86_400 {
             creationTime = Date(timeIntervalSince1970: created)
         }
@@ -462,10 +384,7 @@ private struct VoiceMemoMovie {
         }
     }
 
-    /// `moov/udta`: the `date` string and the iTunes tags in `meta/ilst`.
     private mutating func readUserData(_ userData: Range<Int>) {
-        // `date` is a bare string; a QuickTime `©day` text atom has a length
-        // and language before it, which the date pattern skips.
         for atom in atoms(in: userData) where atom.type == Self.code("date") || atom.type == 0xA964_6179 {
             dateTag = dateTag ?? Self.isoDate(in: text(atom.payload))
         }
@@ -474,9 +393,9 @@ private struct VoiceMemoMovie {
             for list in children("ilst", in: start..<metadata.upperBound) {
                 for item in atoms(in: list) {
                     switch item.type {
-                    case 0xA96E_616D: title = title ?? dataValue(in: item.payload).map(text)  // ©nam
-                    case 0xA974_6F6F: encoder = encoder ?? dataValue(in: item.payload).map(text)  // ©too
-                    case 0xA964_6179: dateTag = dateTag ?? dataValue(in: item.payload).flatMap { Self.isoDate(in: text($0)) }  // ©day
+                    case 0xA96E_616D: title = title ?? dataValue(in: item.payload).map(text)
+                    case 0xA974_6F6F: encoder = encoder ?? dataValue(in: item.payload).map(text)
+                    case 0xA964_6179: dateTag = dateTag ?? dataValue(in: item.payload).flatMap { Self.isoDate(in: text($0)) }
                     case Self.code("----"): readFreeform(item.payload)
                     default: break
                     }
@@ -485,7 +404,6 @@ private struct VoiceMemoMovie {
         }
     }
 
-    /// An iTunes freeform item: `mean`, `name`, and `data`.
     private mutating func readFreeform(_ item: Range<Int>) {
         guard let name = children("name", in: item).first, name.count > 4,
               text((name.lowerBound + 4)..<name.upperBound) == "voice-memo-uuid",
@@ -493,7 +411,6 @@ private struct VoiceMemoMovie {
         memoID = memoID ?? text(value)
     }
 
-    /// `moov/meta` in the QuickTime style, keyed by names in `keys`.
     private mutating func readQuickTimeMetadata(_ metadata: Range<Int>) {
         for (key, value) in quickTimeItems(metadata) {
             switch key {
@@ -506,9 +423,6 @@ private struct VoiceMemoMovie {
         }
     }
 
-    /// The values of a QuickTime metadata atom, by key: `keys` lists names in
-    /// the `mdta` namespace, and each `ilst` item's type is its key's 1-based
-    /// index, holding a `data` atom.
     private func quickTimeItems(_ metadata: Range<Int>) -> [String: Range<Int>] {
         let start = metadataStart(metadata)
         guard let keys = children("keys", in: start..<metadata.upperBound).first, keys.count >= 8 else { return [:] }
@@ -534,14 +448,11 @@ private struct VoiceMemoMovie {
         return values
     }
 
-    /// An ISO `meta` atom starts with a version and flags, which are zero; a
-    /// QuickTime one starts with its first child, whose size isn't.
     private func metadataStart(_ metadata: Range<Int>) -> Int {
         metadata.count >= 4 && Self.integer(bytes, at: metadata.lowerBound, length: 4) == 0
             ? metadata.lowerBound + 4 : metadata.lowerBound
     }
 
-    /// The value in a `data` atom, after its type and locale.
     private func dataValue(in item: Range<Int>) -> Range<Int>? {
         guard let data = children("data", in: item).first, data.count >= 8 else { return nil }
         return (data.lowerBound + 8)..<data.upperBound
@@ -552,7 +463,6 @@ private struct VoiceMemoMovie {
             .trimmingCharacters(in: CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: "\0")))
     }
 
-    /// The first ISO 8601 date in `text`, with or without a colon in its offset.
     private static func isoDate(in text: String) -> Date? {
         let pattern = #"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:?\d{2})?"#
         guard let range = text.range(of: pattern, options: .regularExpression) else { return nil }
@@ -560,8 +470,6 @@ private struct VoiceMemoMovie {
             of: #"([+-]\d{2})(\d{2})$"#, with: "$1:$2", options: .regularExpression)
         return ExternalImportText.date(found)
     }
-
-    // MARK: Atoms
 
     private struct Atom {
         var type: UInt32
@@ -577,7 +485,6 @@ private struct VoiceMemoMovie {
         return atoms(in: range).filter { $0.type == code }.map(\.payload)
     }
 
-    /// The atoms directly inside `range`, up to the first whose size is damaged.
     private func atoms(in range: Range<Int>) -> [Atom] {
         var atoms: [Atom] = []
         var offset = range.lowerBound
@@ -599,16 +506,11 @@ private struct VoiceMemoMovie {
         return atoms
     }
 
-    /// A big-endian unsigned integer; the caller keeps it in bounds.
     private static func integer(_ bytes: [UInt8], at offset: Int, length: Int) -> UInt64 {
         bytes[offset..<(offset + length)].reduce(UInt64(0)) { $0 << 8 | UInt64($1) }
     }
 }
 
-// MARK: - The older library layout
-
-/// `<recording>.composition/manifest.plist`, which older Voice Memos
-/// libraries and device backups keep beside an edited recording.
 private struct CompositionManifest {
     var title: String?
     var date: Date?
@@ -627,12 +529,6 @@ private struct CompositionManifest {
     }
 }
 
-// MARK: - The database
-
-/// `CloudRecordings.db`, opened read-only and immutable: SQLite reads the
-/// main file only and never creates or touches `-wal` or `-shm` files.
-/// Every attribute is optional in Voice Memos' Core Data model, so columns
-/// the table lacks read as NULL.
 private enum VoiceMemosLibrary {
     struct Row {
         var uniqueID: String?
@@ -671,7 +567,6 @@ private enum VoiceMemosLibrary {
             """
         var rows: [Row] = []
         try each(handle, query, name) { statement in
-            // Dates far from any real recording's are damage.
             let date = number(statement, 4).flatMap { abs($0) < 1e10 ? Date(timeIntervalSinceReferenceDate: $0) : nil }
             let duration = number(statement, 5).flatMap { $0 > 0 && $0 < 10_000_000 ? $0 : nil }
             rows.append(Row(uniqueID: text(statement, 0), title: text(statement, 1), customLabel: text(statement, 2),
@@ -695,7 +590,6 @@ private enum VoiceMemosLibrary {
         }
     }
 
-    /// Text, or a blob that is valid UTF-8; nil for anything else.
     private static func text(_ statement: OpaquePointer, _ index: Int32) -> String? {
         switch sqlite3_column_type(statement, index) {
         case SQLITE_TEXT, SQLITE_BLOB:
@@ -720,7 +614,6 @@ private enum VoiceMemosLibrary {
         }
     }
 
-    /// SQLite's codes in words that never quote the database's contents.
     private static func failure(_ status: Int32, _ name: String) -> ExternalImportError {
         let reason: String
         switch status & 0xFF {

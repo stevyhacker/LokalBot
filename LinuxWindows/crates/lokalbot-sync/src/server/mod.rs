@@ -1,6 +1,3 @@
-//! The Mac's end: `SyncServer` publishes records into its database and
-//! serves paired devices over TCP.
-
 mod answers;
 mod session;
 pub(crate) mod store;
@@ -28,26 +25,20 @@ use crate::wire::{Channel, PAIRING_ID_LEN, Tuning};
 use self::answers::{Answer, Answers};
 use self::store::HostStore;
 
-/// More simultaneous connections than any person's devices need.
 const MAX_CONNECTIONS: usize = 64;
 
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct ServerConfig {
-    /// `<library>/companion/companion.sqlite`.
     pub db_path: String,
     pub mac_name: String,
     pub static_private_key: Vec<u8>,
-    /// 17890 by default; 0 picks a free port (see `bound_port`).
     pub port: u16,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct PairingOffer {
-    /// `lokalbot://pair?d=…`, the text of the QR code.
     pub qr_payload: String,
-    /// base64url, as `pid` in the payload.
     pub pairing_id: String,
-    /// ISO 8601 UTC.
     pub expires_at: String,
 }
 
@@ -55,64 +46,35 @@ pub struct PairingOffer {
 pub struct PairedDevice {
     pub device_id: String,
     pub name: String,
-    /// `ios`, `ipados` or `android`.
     pub platform: String,
-    /// ISO 8601 UTC.
     pub paired_at: String,
     pub last_seen_at: Option<String>,
-    /// The IP address of the device's last connection.
     pub last_address: Option<String>,
 }
 
-/// What became of a phone's op.
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct OpOutcome {
-    /// `applied`, `unmatched` or `rejected`.
     pub status: String,
     pub message: Option<String>,
 }
 
-/// What became of a recording a device sent.
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct UploadOutcome {
-    /// `accepted` (the Mac keeps it; the device may delete its copy),
-    /// `deferred` (try again later) or `rejected` (it can't be used).
     pub status: String,
-    /// The meeting it became, when accepted.
     pub meeting_id: Option<String>,
     pub message: Option<String>,
 }
 
-/// Implemented by the Mac app. Called on background threads.
 #[uniffi::export(callback_interface)]
 pub trait ServerDelegate: Send + Sync {
-    /// Asks the person whether to pair this device. May block up to 120 s;
-    /// no answer by then counts as a refusal.
     fn approve_pairing(&self, device_name: String, platform: String) -> bool;
-    /// Applies a phone's op. Republish the affected records before returning;
-    /// they reach the phone before the op's result.
     fn apply_op(&self, op_json: String) -> OpOutcome;
-    /// Answers a question through `sink`. May return before the answer is
-    /// finished; the sink works from any thread.
     fn ask(&self, request_json: String, sink: Arc<AskSink>);
-    /// A device paired, was removed, connected or disconnected.
     fn devices_changed(&self);
-    /// Whether this Mac takes recordings from devices right now. While false
-    /// a device keeps them and tries again later, sending no audio.
     fn accepts_recordings(&self) -> bool;
-    /// A device's recording arrived whole and matches its checksum. Reads
-    /// `file_path` (an ADTS AAC stream the crate owns and deletes) and makes
-    /// a meeting from it. May block for as long as that takes; return only
-    /// once the meeting is safely stored, because the device then deletes
-    /// its copy. `recording_json` is protocol.md's recording plus `deviceId`,
-    /// `deviceName` and `platform`, which come from the pairing.
     fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome;
 }
 
-/// Streams one answer to the phone that asked. The Mac finishes it even if
-/// the phone disconnects, and the phone gets it by asking again with the
-/// same `requestId` (see `answers`). Calls after the answer finished are
-/// ignored.
 #[derive(uniffi::Object)]
 pub struct AskSink {
     answer: Arc<Answer>,
@@ -122,7 +84,6 @@ pub struct AskSink {
 
 #[uniffi::export]
 impl AskSink {
-    /// The next part of the answer text.
     pub fn delta(&self, text: String) {
         if self.finished.load(Ordering::SeqCst) {
             return;
@@ -130,7 +91,6 @@ impl AskSink {
         self.answer.delta(text);
     }
 
-    /// The final answer: records.md's Ask result, as JSON.
     pub fn done(&self, result_json: String) {
         if self.finished.swap(true, Ordering::SeqCst) {
             return;
@@ -148,7 +108,6 @@ impl AskSink {
         }
     }
 
-    /// The Mac could not answer.
     pub fn failed(&self, message: String) {
         if self.finished.swap(true, Ordering::SeqCst) {
             return;
@@ -167,7 +126,6 @@ impl AskSink {
     }
 }
 
-/// The open pairing offer.
 #[derive(Clone)]
 pub(crate) struct Offer {
     pairing_id: [u8; PAIRING_ID_LEN],
@@ -175,7 +133,6 @@ pub(crate) struct Offer {
     expires_at: i64,
 }
 
-/// A live session, as other threads see it.
 struct SessionHandle {
     device_id: String,
     events: Sender<session::Event>,
@@ -205,11 +162,9 @@ pub(crate) struct ServerInner {
     connections: AtomicUsize,
     answers: Arc<Answers>,
     uploads_dir: PathBuf,
-    /// Recordings a session is receiving or the Mac is importing.
     active_uploads: Mutex<HashSet<String>>,
 }
 
-/// The Mac's listener and record database.
 #[derive(uniffi::Object)]
 pub struct SyncServer {
     inner: Arc<ServerInner>,
@@ -246,13 +201,10 @@ impl SyncServer {
         }))
     }
 
-    /// Binds `0.0.0.0:port` and `[::]:port` (either may be missing on this
-    /// machine) and serves on background threads.
     pub fn start(&self) -> Result<()> {
         ServerInner::start(&self.inner)
     }
 
-    /// Closes the listeners and every session.
     pub fn stop(&self) {
         self.inner.stop();
     }
@@ -261,22 +213,16 @@ impl SyncServer {
         self.inner.running()
     }
 
-    /// The port actually bound while running, else the configured one.
     pub fn bound_port(&self) -> u16 {
         self.inner.port()
     }
 
-    /// Listens on 127.0.0.1 and ::1 only, for development hosts and tests.
-    /// Takes effect at the next `start`, which then fails if 127.0.0.1 is
-    /// taken on the configured port; port 0 finds one free on both.
     pub fn set_loopback_only(&self, loopback_only: bool) {
         self.inner
             .loopback_only
             .store(loopback_only, Ordering::SeqCst);
     }
 
-    /// Publishes a record body. Returns true when it changed (a new version
-    /// and seq), and pushes it to connected devices.
     pub fn publish(&self, kind: String, key: String, body_json: String) -> Result<bool> {
         validate_kind_key(&kind, &key)?;
         let body: Value = serde_json::from_str(&body_json)
@@ -296,7 +242,6 @@ impl SyncServer {
         Ok(changed)
     }
 
-    /// Replaces a record with a tombstone. Returns true if it existed.
     pub fn remove(&self, kind: String, key: String) -> Result<bool> {
         validate_kind_key(&kind, &key)?;
         let removed = self.inner.store.lock().remove(&kind, &key)?.is_some();
@@ -306,13 +251,11 @@ impl SyncServer {
         Ok(removed)
     }
 
-    /// Publishes the `manifest` record (key `library`).
     pub fn set_manifest(&self, body_json: String) -> Result<()> {
         self.publish(MANIFEST.into(), MANIFEST_KEY.into(), body_json)
             .map(|_| ())
     }
 
-    /// Keys of the live (not deleted) records of one kind.
     pub fn record_keys(&self, kind: String) -> Result<Vec<String>> {
         self.inner.store.lock().record_keys(&kind)
     }
@@ -321,8 +264,6 @@ impl SyncServer {
         self.inner.store.lock().current_seq()
     }
 
-    /// Opens a pairing offer, replacing any open one. `addresses` go into the
-    /// code; an empty list uses `local_addresses()`.
     pub fn begin_pairing(&self, addresses: Vec<String>) -> PairingOffer {
         let lifetime = self.inner.tuning.lock().offer_lifetime_secs;
         let offer = Offer {
@@ -360,8 +301,6 @@ impl SyncServer {
         self.inner.store.lock().devices()
     }
 
-    /// Forgets a device's key. A live session from it is told `revoked` and
-    /// closes; later connections are refused the same way.
     pub fn remove_device(&self, device_id: String) -> Result<()> {
         let removed = self
             .inner
@@ -387,7 +326,6 @@ impl SyncServer {
         Ok(())
     }
 
-    /// Devices with an open session.
     pub fn connected_device_ids(&self) -> Vec<String> {
         let mut ids: Vec<String> = self
             .inner
@@ -402,7 +340,6 @@ impl SyncServer {
     }
 }
 
-/// Controls for tests.
 #[cfg(test)]
 impl SyncServer {
     pub(crate) fn set_tuning(&self, tuning: Tuning) {
@@ -588,7 +525,6 @@ impl ServerInner {
         self.sessions.lock().remove(&id);
     }
 
-    /// Takes the open offer if `pairing_id` names it and it has not expired.
     fn offer_for(&self, pairing_id: &[u8]) -> Option<Offer> {
         self.offer
             .lock()
@@ -596,8 +532,6 @@ impl ServerInner {
             .filter(|offer| offer.pairing_id == pairing_id && offer.expires_at > unix_now())
     }
 
-    /// Consumes the offer after a successful handshake; false if another
-    /// handshake got there first or it was cancelled.
     fn consume_offer(&self, pairing_id: &[u8]) -> bool {
         let mut slot = self.offer.lock();
         if slot
@@ -612,7 +546,6 @@ impl ServerInner {
     }
 }
 
-/// What a host binds, IPv6 first.
 pub(crate) fn listen_hosts(loopback_only: bool) -> (&'static str, &'static str) {
     if loopback_only {
         ("[::1]", "127.0.0.1")
@@ -621,19 +554,14 @@ pub(crate) fn listen_hosts(loopback_only: bool) -> (&'static str, &'static str) 
     }
 }
 
-/// Fresh ports a loopback host tries when the one `[::1]` got is already
-/// taken on 127.0.0.1.
 pub(crate) const LOOPBACK_PORT_ATTEMPTS: usize = 16;
 
-/// Listeners for IPv6 and IPv4, IPv6 first, on one port.
 fn bind(port: u16, loopback_only: bool) -> Result<Vec<TcpListener>> {
     bind_with(port, loopback_only, &mut |address| {
         TcpListener::bind(address)
     })
 }
 
-/// `bind`, with each socket bound by `bind_one`, so tests can hand it a
-/// port that is taken.
 pub(crate) fn bind_with(
     port: u16,
     loopback_only: bool,
@@ -646,9 +574,6 @@ pub(crate) fn bind_with(
     }
 }
 
-/// Where `[::]` is dual-stack (Linux, macOS) the IPv4 bind may fail with
-/// "address in use" and the IPv6 listener serves both; where IPv6 is
-/// missing, IPv4 alone serves.
 fn bind_wildcard(
     port: u16,
     bind_one: &mut dyn FnMut(SocketAddr) -> std::io::Result<TcpListener>,
@@ -680,15 +605,6 @@ fn bind_wildcard(
     Ok(listeners)
 }
 
-/// Every loopback host hands out 127.0.0.1 (the tests, the engine's
-/// development host, the example host), so IPv4 must be served: a host on
-/// `[::1]` alone would send phones to whatever else holds 127.0.0.1 on that
-/// port, and pairing would fail as if the code were wrong. `[::1]` is extra,
-/// for clients that resolve `localhost`, and may be missing.
-///
-/// IPv4 and IPv6 ephemeral ports are handed out separately, so with port 0
-/// the port `[::1]` got may be taken on 127.0.0.1; then another is tried.
-/// A fixed port that is taken on 127.0.0.1 is an error.
 fn bind_loopback(
     port: u16,
     bind_one: &mut dyn FnMut(SocketAddr) -> std::io::Result<TcpListener>,
@@ -696,7 +612,6 @@ fn bind_loopback(
     let (v6, v4) = listen_hosts(true);
     let attempts = if port == 0 { LOOPBACK_PORT_ATTEMPTS } else { 1 };
     let mut taken = Vec::new();
-    // Held until this returns: closed, Linux may hand the same port back.
     let mut rejected = Vec::new();
     for _ in 0..attempts {
         let ipv6 = match bind_one(socket(v6, port)) {
@@ -714,8 +629,6 @@ fn bind_loopback(
         let chosen = ipv6.local_addr()?.port();
         match bind_one(socket(v4, chosen)) {
             Ok(ipv4) => return Ok(vec![ipv6, ipv4]),
-            // Windows reports a port another socket holds exclusively, or
-            // one in a reserved range, as "access denied".
             Err(e)
                 if port == 0
                     && matches!(e.kind(), ErrorKind::AddrInUse | ErrorKind::PermissionDenied) =>

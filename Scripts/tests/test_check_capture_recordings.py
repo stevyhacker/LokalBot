@@ -44,8 +44,6 @@ class CaptureTraceCheckerTests(unittest.TestCase):
             self.assertEqual(checker.violations(with_bundle(allowed), "t"), [], allowed)
 
     def test_nested_meeting_hosts_pass_in_any_order(self):
-        # Set order changes between processes; stripping zoom.us before
-        # app.zoom.us must not leave "app." behind as unscrubbed text.
         original = checker.HOSTS
         try:
             for order in (["zoom.us", "app.zoom.us"], ["app.zoom.us", "zoom.us"]):

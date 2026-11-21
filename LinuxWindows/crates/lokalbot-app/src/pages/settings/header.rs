@@ -1,12 +1,3 @@
-//! How every Settings page opens (`SettingsPageHeader.swift`): the page's
-//! icon, name and one-line description, "Try it…" where the feature has
-//! something to try, the page's own control and its main switch where it has
-//! them, and under them one status line for each thing to know, with the
-//! button that fixes it. Overview has no header: it opens with what needs you.
-//!
-//! A page fills in a [`HeaderSpec`] in `SettingsPage::header_spec`; the
-//! window draws the header above the page's sections.
-
 use std::rc::Rc;
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -25,48 +16,26 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, settings_row};
 use lokalbot_i18n::directional;
 
-/// Opens a Settings page, revealing a setting on it when one is named (a
-/// catalog id such as "settings.permissions"): what a status line's `Open`
-/// does. Make one with [`opener`].
 pub type Opener = Rc<dyn Fn(SettingsCategory, Option<&'static str>, &mut Window, &mut App)>;
 
-/// Opens a page's "Try it…".
 pub type TryIt = Rc<dyn Fn(&mut Window, &mut App)>;
 
-/// What a page's main switch does when flipped.
 pub type SwitchChange = Rc<dyn Fn(bool, &mut Window, &mut App)>;
 
-/// What a page adds to its header. Every field is optional: a page with
-/// nothing to try and no main switch leaves it at `HeaderSpec::default()`.
 #[derive(Default)]
 pub struct HeaderSpec {
-    /// Opens the page's "Try it…" (a sheet over the page on the Mac).
     pub try_it: Option<TryIt>,
-    /// The page's main switch.
     pub switch: Option<HeaderSwitch>,
-    /// A page's own leading control, such as Models' "Download all". Drawn
-    /// before "Try it…" and the switch.
     pub accessory: Option<AnyElement>,
-    /// The page's line under its name, when it is not the category's own
-    /// (Dictation names its shortcut).
     pub summary: Option<String>,
 }
 
-/// The switch at the right of a page's header (`isOn`, `switchLabel`,
-/// `switchSettingID`).
 pub struct HeaderSwitch {
-    /// The setting it stands for, so search and links land on it, such as
-    /// "settings.cotypingEnabled". Highlighted while it is the found setting.
     pub setting_id: &'static str,
     pub on: bool,
-    /// Runs on every flip. It must do exactly what the page's own switch did
-    /// before, confirmations included: moving a control never skips one.
     pub on_change: SwitchChange,
 }
 
-/// Runs a status line's fix, an Overview row's or a permission row's, the
-/// same way everywhere (`SettingsStatusActions.perform`). `open` selects a
-/// page and reveals a setting on it.
 pub fn perform(
     action: &StatusAction,
     data: &Entity<AppData>,
@@ -81,9 +50,6 @@ pub fn perform(
     }
 }
 
-/// Downloads what Transcribe and Think are missing, one at a time, and
-/// Autocomplete's model while Autocomplete is on
-/// (`startCoreModelDownloads(includeAutocomplete:)`).
 pub fn start_downloads(data: &Entity<AppData>, cx: &mut App) {
     data.update(cx, |data, cx| {
         let settings = data.settings.clone();
@@ -102,8 +68,6 @@ pub fn start_downloads(data: &Entity<AppData>, cx: &mut App) {
     });
 }
 
-/// Stops the downloads "Download all" started: every model of the three
-/// roles that is on its way (`cancelCoreModelDownloads`).
 pub fn cancel_downloads(data: &Entity<AppData>, cx: &mut App) {
     data.update(cx, |data, cx| {
         let settings = data.settings.clone();
@@ -127,9 +91,6 @@ pub fn cancel_downloads(data: &Entity<AppData>, cx: &mut App) {
     });
 }
 
-/// Models' own header control (`ModelsView.downloadControl`): Cancel while
-/// models arrive, "Download all · 5.9 GB" while some are missing, nothing
-/// once they are all here.
 pub fn download_control(
     status: &super::status::SettingsStatus,
     data: &Entity<AppData>,
@@ -167,8 +128,6 @@ pub fn download_control(
     )
 }
 
-/// The header: a card with the page's name and controls, then its status
-/// lines under hairlines.
 #[allow(clippy::too_many_arguments)]
 pub fn page_header(
     category: SettingsCategory,
@@ -248,8 +207,6 @@ pub fn page_header(
         .into_any_element()
 }
 
-/// One status line: a sign for its tone, the sentence, and its fix
-/// (`SettingsStatusLineRow`).
 pub fn status_line(
     category: SettingsCategory,
     line: StatusLine,
@@ -334,8 +291,6 @@ pub fn status_line(
         .into_any_element()
 }
 
-/// A page's open action for the header and Overview rows: select the page
-/// and reveal the setting.
 pub fn opener(page: &Entity<super::SettingsPage>) -> Opener {
     let page = page.downgrade();
     Rc::new(move |category, focus, window, cx| {

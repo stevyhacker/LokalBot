@@ -1,45 +1,23 @@
 import Foundation
 
-/// Produces a copy of the microphone track with the remote side cancelled out,
-/// for transcription only.
-///
-/// The original `mic.m4a` is never touched: it stays the recording the user can
-/// play back, and this writes a 16 kHz mono sidecar that the ASR engines
-/// consume (they resample to exactly that anyway). Working on the recorded
-/// files rather than inside the capture path costs a codec generation — both
-/// tracks are AAC by now — but it means meetings already in the library can be
-/// cleaned by re-running transcription, which a capture-time canceller can
-/// never do.
 enum EchoCancelledTrack {
 
     struct Report: Equatable, Sendable {
-        /// How far the microphone lagged the system track.
         var delaySeconds: TimeInterval
-        /// Energy removed, in dB. Near zero means there was no echo to find —
-        /// the expected outcome on headphones.
         var echoReturnLossDB: Double
         var processedSeconds: TimeInterval
         var acceptedSeconds: TimeInterval?
         var alignmentVerified = false
     }
 
-    /// Streamed in windows so a long meeting never has both tracks resident:
-    /// an hour of 16 kHz mono is 230 MB per track decoded whole.
     static let chunkSeconds: TimeInterval = 30
 
-    /// Voice Isolation produced only 2.6-3.1 dB on the recordings used to
-    /// validate this stage, while Standard mode produced at least 12.9 dB.
-    /// Keep a deliberate gap between those ranges: a marginal result is more
-    /// safely transcribed from the untouched microphone track.
     static let minimumAcceptedEchoReturnLossDB = 6.0
 
     enum StageError: Error {
         case noOverlap
     }
 
-    /// Runs decode and DSP on a utility executor rather than the caller's
-    /// actor. Cancelling the awaiting task also cancels the worker, whose
-    /// cooperative checks remove any partial destination before returning.
     static func write(microphone: URL, reference: URL, to destination: URL,
                       timing: RecordingAudioTiming? = nil) async throws -> Report {
         let worker = Task.detached(priority: .utility) {
@@ -54,8 +32,6 @@ enum EchoCancelledTrack {
         }
     }
 
-    /// Fail open to the original microphone whenever the score is uncertain or
-    /// falls in the known Voice Isolation degradation range.
     static func shouldUse(_ report: Report) -> Bool {
         report.echoReturnLossDB.isFinite
             && report.echoReturnLossDB >= minimumAcceptedEchoReturnLossDB
@@ -105,11 +81,8 @@ enum EchoCancelledTrack {
             guard !mic.isEmpty else { break }
             let mapped = timing?.referenceRange(start: position, end: end)
             let range = mapped ?? SpeakerTurnAnchor(start: position, end: end)
-            // A known capture gap is stronger evidence than an acoustic guess.
-            // Older recordings can use local acoustic alignment, with uncertainty.
             var canAlign = timing == nil || mapped != nil
             let remote = canAlign ? try SpanAudioReader(url: reference).samples(from: range.start, to: range.end) : []
-            // Do not stretch a missing tail or truncated reference over speech.
             if abs(Double(remote.count) - range.duration * rate) > 256 { canAlign = false }
             let referenceSamples = resampled(remote, count: mic.count)
             let estimate = EchoDelayEstimator.estimate(microphone: mic, reference: referenceSamples, sampleRate: rate)
@@ -141,8 +114,6 @@ enum EchoCancelledTrack {
             acceptedSeconds: acceptedSeconds, alignmentVerified: verified)
     }
 
-    /// Correct the small measured clock-rate difference without holding either
-    /// full recording in memory. Empty or missing reference remains silence.
     static func resampled(_ samples: [Float], count: Int) -> [Float] {
         guard count > 0 else { return [] }
         guard samples.count > 1, count > 1 else { return Array(repeating: samples.first ?? 0, count: count) }
@@ -156,10 +127,6 @@ enum EchoCancelledTrack {
 
 }
 
-/// Minimal streaming 16-bit PCM WAV writer. The header's two size fields are
-/// only known at the end, so they are written as placeholders and patched on
-/// `finish()` — which is what lets a 50-minute track be written without ever
-/// holding it in memory.
 final class WavWriter {
     private let handle: FileHandle
     private var bytesWritten = 0
@@ -205,12 +172,12 @@ final class WavWriter {
         data.append(Data("WAVE".utf8))
         data.append(Data("fmt ".utf8))
         data.append(le32(16))
-        data.append(le16(1))                                 // PCM
-        data.append(le16(1))                                 // mono
+        data.append(le16(1))
+        data.append(le16(1))
         data.append(le32(UInt32(sampleRate)))
-        data.append(le32(UInt32(sampleRate * 2)))            // byte rate
-        data.append(le16(2))                                 // block align
-        data.append(le16(16))                                // bits per sample
+        data.append(le32(UInt32(sampleRate * 2)))
+        data.append(le16(2))
+        data.append(le16(16))
         data.append(Data("data".utf8))
         data.append(le32(UInt32(dataBytes)))
         return data

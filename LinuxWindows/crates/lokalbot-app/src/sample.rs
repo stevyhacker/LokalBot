@@ -1,9 +1,3 @@
-//! "Try a sample meeting": LokalBot's bundled sample (`lokalbot_engine::sample`)
-//! for a library with nothing in it yet. The models it needs download first,
-//! as their own step and only when asked; then the sample is imported like
-//! any recording, transcribed, and summarized, and its banner suggests one
-//! question for Ask. Nothing about trying it is recorded anywhere else.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::spinner::Spinner;
@@ -23,22 +17,14 @@ use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, ProcessingStage};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
-/// The question the sample's banner suggests. Its answer is in the passage
-/// where the decision changes (`SampleMeeting/expected.en.json`).
 pub const QUESTION: &str = "Is the delivery window field required in the Orders API response?";
 
-/// "Try a sample meeting" waiting for its models.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SampleSetup {
-    /// The user chose "Download and continue".
     pub downloading: bool,
-    /// The sample is being added to the library.
     pub importing: bool,
 }
 
-/// Model ids the sample needs: Transcribe with voice detection and speaker
-/// separation, and the built-in Think model with its runtime (nothing for
-/// Think on a model server).
 pub fn needs(settings: &Settings) -> Vec<String> {
     let mut ids = speech_needs(settings);
     if settings.summarizer_backend == SummarizerBackend::BuiltIn {
@@ -56,13 +42,10 @@ fn missing(data: &AppData) -> Vec<String> {
 }
 
 impl AppData {
-    /// The sample meeting, when the library has one.
     pub fn sample_meeting(&self) -> Option<&Meeting> {
         self.meetings.iter().find(|m| m.is_sample())
     }
 
-    /// Opens the sample, or starts adding it: straight away when its models
-    /// are here, otherwise after the download step in Meetings.
     pub fn try_sample(&mut self, cx: &mut Context<Self>) {
         if let Some(sample) = self.sample_meeting() {
             let id = sample.id;
@@ -98,7 +81,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// Called when model downloads change: continues once the last one lands.
     pub(crate) fn sample_models_changed(&mut self, cx: &mut Context<Self>) {
         let ready = self
             .sample_setup
@@ -131,7 +113,6 @@ impl AppData {
                 match result {
                     Ok(meeting) => {
                         log::info!("sample meeting added meeting={}", meeting.id);
-                        // Notes are part of the sample even with automatic notes off.
                         this.request(
                             AppEvent::ProcessMeeting {
                                 meeting_id: meeting.id,
@@ -151,7 +132,6 @@ impl AppData {
         .detach();
     }
 
-    /// Asks the suggested question about the sample, with the sample as the only source.
     pub fn ask_sample_question(&mut self, meeting_id: uuid::Uuid, cx: &mut Context<Self>) {
         self.ask(
             AskRequest {
@@ -195,8 +175,6 @@ fn stage_row(done: bool, active: bool, label: &'static str, cx: &App) -> AnyElem
         .into_any_element()
 }
 
-/// The Meetings detail pane while the sample waits for its models: what will
-/// download and how big it is, then the steps that follow.
 pub fn render_setup(data: &Entity<AppData>, cx: &App) -> AnyElement {
     let lb = cx.lb().clone();
     let state = data.read(cx);
@@ -343,8 +321,6 @@ pub fn render_setup(data: &Entity<AppData>, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// The banner on the sample meeting: what it is, how far processing got,
-/// the suggested question, and removing it.
 pub fn render_banner(
     data: &Entity<AppData>,
     meeting_id: uuid::Uuid,

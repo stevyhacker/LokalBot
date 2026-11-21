@@ -1,9 +1,6 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// Pure rule for deciding whether the active keyboard input source composes
-/// through marked text. Plain keyboard layouts commit directly; non-layout
-/// input methods are treated as composing except known direct-ASCII modes.
 enum CotypingCompositionInputModeClassifier {
     static let nonComposingInputModeIDs: Set<String> = [
         "com.apple.inputmethod.Roman"
@@ -20,8 +17,6 @@ enum CotypingCompositionInputModeClassifier {
     }
 }
 
-/// Caches the current Text Input Source composition state so the accept tap can
-/// pass IME-owned keys through without touching Carbon at event time.
 @MainActor
 final class CotypingKeyboardInputSourceMonitor {
     private(set) var isComposingIMEActive = false
@@ -53,8 +48,6 @@ final class CotypingKeyboardInputSourceMonitor {
 
     func refresh() {
         guard let unmanagedSource = TISCopyCurrentKeyboardInputSource() else {
-            // Carbon could not prove a direct-input keyboard layout. Fail
-            // closed for suggestion ownership so Tab remains with the host.
             isComposingIMEActive = true
             return
         }

@@ -1,10 +1,3 @@
-//! One night's review, end to end (`DreamCompiler`, `DreamPrompts`, `DreamService`):
-//! compile the previous day's evidence, ask the Think model for the retrospective
-//! and the memory update, merge and save. When no model is reachable a
-//! deterministic evidence-only brief is written instead, and the report says
-//! which kind it is. Evidence comes from the local library; generation follows the
-//! Think model's privacy boundary, and artifacts stay inside the library.
-
 use std::collections::HashMap;
 
 use anyhow::Result;
@@ -36,11 +29,8 @@ use crate::sanitize::sanitize;
 use crate::think::{ChatRequest, ThinkClient};
 
 pub const EVIDENCE_CHARACTER_LIMIT: usize = 24_000;
-/// The journal's share of the pack. Its activity log can run to hundreds of KB;
-/// unbounded it pushed everything else past the limit.
 pub const DIGEST_CHARACTER_LIMIT: usize = 12_000;
 pub const MAX_OPEN_ACTIONS: usize = 30;
-/// Under five tracked minutes a day counts as empty.
 pub const EMPTY_DAY_TRACKED_SECONDS_FLOOR: f64 = 300.0;
 
 const MAX_OUTPUT_TOKENS: u32 = 4_096;
@@ -66,8 +56,6 @@ pub struct PriorMeeting {
     pub title: String,
 }
 
-/// Everything one review reads, gathered up front so the synthesis is a pure
-/// function of this value.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DreamEvidence {
     pub day: NaiveDate,
@@ -77,18 +65,13 @@ pub struct DreamEvidence {
     pub app_usage: Vec<AppTime>,
     pub stats: DaySummary,
     pub saved_moments: Vec<SavedMoment>,
-    /// Titles and days only, so recurring themes show without re-reading.
     pub prior_meetings: Vec<PriorMeeting>,
-    /// Rendered candidates, `- [ ] [A1] …`; each handle indexes the ids below.
     pub open_actions: Vec<String>,
     pub open_action_thread_ids: Vec<String>,
-    /// The complete, app-owned dependency set of the rendered input.
     pub sources: Vec<Source>,
 }
 
 impl DreamEvidence {
-    /// The analyzed day itself produced nothing worth a model pass. The
-    /// comparison window never counts.
     pub fn is_substantively_empty(&self) -> bool {
         self.meetings.is_empty()
             && self.digest.is_none()
@@ -114,7 +97,6 @@ fn duration(seconds: f64) -> String {
     }
 }
 
-/// `MeetingOutcomes` with done actions left out, as the day's meetings show them.
 fn active_outcomes(outcomes: &MeetingOutcomes, references: &[ActionReference]) -> MeetingOutcomes {
     let mut result = outcomes.clone();
     result.action_items = references
@@ -168,11 +150,9 @@ fn meeting_day_key(meeting: &Meeting) -> String {
     day_key(local_day(meeting.started_at))
 }
 
-/// `DreamCompiler.compile`: read-only over the library.
 pub fn compile(library: &Library, day: NaiveDate) -> Result<DreamEvidence> {
     let (start, end) = local_day_bounds(day);
     let all = library.list_meetings()?;
-    // The sample meeting is made up: it never becomes part of the day.
     let mut day_meetings: Vec<&Meeting> = all
         .iter()
         .filter(|m| !m.is_sample() && m.started_at >= start && m.started_at < end)
@@ -280,7 +260,6 @@ pub fn compile(library: &Library, day: NaiveDate) -> Result<DreamEvidence> {
     })
 }
 
-/// The journal's grounded sections, then as much of its raw activity log as fits.
 pub fn digest_for_dream(journal: &str) -> String {
     const MARKER: &str = "\n## Full activity log";
     let head = journal
@@ -301,8 +280,6 @@ pub fn digest_for_dream(journal: &str) -> String {
     format!("{head}{rest}{NOTICE}")
 }
 
-/// Every section as labeled plain text, sanitized and hard-capped so an OCR-heavy
-/// day can't blow the context window.
 pub fn evidence_pack(evidence: &DreamEvidence) -> String {
     let mut sections: Vec<String> = Vec::new();
     if evidence.meetings.is_empty() {
@@ -401,7 +378,6 @@ pub fn evidence_pack(evidence: &DreamEvidence) -> String {
     sanitize(&sections.join("\n\n"), Some(EVIDENCE_CHARACTER_LIMIT))
 }
 
-/// The model-free brief: it only restates evidence, so it can never invent.
 pub fn fallback_report(
     evidence: &DreamEvidence,
     generated_at: DateTime<Utc>,
@@ -422,7 +398,6 @@ pub fn fallback_report(
             evidence.stats.app_count
         )
     } else {
-        // Fallback cause stays in metadata; only app-owned labels are localized.
         format!(
             "{}: {count} · {} {} · {} {}",
             language.text("Meetings"),
@@ -493,9 +468,6 @@ pub fn fallback_report(
     report
 }
 
-/// JSON schema matching the system prompt, for grammar-constrained backends.
-/// Strict structured outputs need every declared property, so `expired` is
-/// required here and the prompt says to return false for an active goal.
 pub fn schema() -> Value {
     let list = json!({"type": "array", "items": {"type": "string"}});
     json!({
@@ -565,7 +537,6 @@ pub fn context(evidence: &DreamEvidence, memory: &DreamMemory) -> Vec<String> {
     context
 }
 
-/// What one night proposed; pure data.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Synthesis {
     pub narrative: String,
@@ -610,9 +581,6 @@ impl Synthesis {
     }
 }
 
-/// Strips candidate handles ("[A2] …") and maps each to its thread. Unknown or
-/// out-of-range handles are removed without inventing a link; duplicates keep
-/// only their first link.
 pub fn link_top_actions(
     actions: &[String],
     thread_ids: &[String],
@@ -718,9 +686,6 @@ fn take<T>(mut values: Vec<T>, limit: usize) -> Vec<T> {
     values
 }
 
-/// `DreamPrompts.parse`: tolerant extraction of the JSON object, then strict typed
-/// decoding. Report sections drop blank bullets; memory lists stay strict because
-/// they replace stored entries. `None` sends the service to the fallback.
 pub fn parse(output: &str) -> Option<Synthesis> {
     let visible = strip_reasoning(output);
     let object = extract_json_object(&visible)?;
@@ -762,8 +727,6 @@ pub fn parse(output: &str) -> Option<Synthesis> {
     (!synthesis.is_empty()).then_some(synthesis)
 }
 
-/// The model ran out of room: retry once with thinking off and more room for the
-/// visible JSON, as the day digest does.
 fn generate_synthesis(
     think: &ThinkClient,
     evidence: &DreamEvidence,
@@ -793,7 +756,6 @@ fn generate_synthesis(
     }
 }
 
-/// Where a Think client runs, for the report (`DreamInferenceProvenance`).
 pub fn inference_provenance(think: &ThinkClient, settings: &Settings) -> InferenceProvenance {
     if think.is_local() {
         return InferenceProvenance::local();
@@ -808,29 +770,21 @@ pub fn inference_provenance(think: &ThinkClient, settings: &Settings) -> Inferen
     InferenceProvenance::remote(lokalbot_core::access::origin_of(base))
 }
 
-/// What a run needs that the engine decides.
 pub struct DreamRequest<'a> {
     pub day: NaiveDate,
     pub language: DailySummaryLanguage,
     pub is_automatic: bool,
-    /// Consecutive transient failures already seen for this day.
     pub transient_failures: u32,
-    /// `None` when the Think model can't be made; the brief is then evidence-only.
     pub make_engine: &'a dyn Fn() -> Result<(ThinkClient, InferenceProvenance)>,
-    /// True once the run has been overtaken and must not continue.
     pub cancelled: &'a dyn Fn() -> bool,
 }
 
-/// Automatic runs that hit a rate limit or dropped connection are retried after
-/// the backoff; the evidence-only brief is written only after this many.
 pub const TRANSIENT_ATTEMPTS_BEFORE_FALLBACK: u32 = 3;
 
 #[derive(Debug, thiserror::Error)]
 pub enum DreamError {
-    /// A transient failure the scheduler retries after its backoff, quietly.
     #[error("{0}")]
     Deferred(String),
-    /// The sources changed, Clear work memory ran, or the run was stopped.
     #[error("The review was cancelled.")]
     Cancelled,
     #[error(transparent)]
@@ -848,11 +802,8 @@ impl From<StoreError> for DreamError {
     }
 }
 
-/// `DreamService.dream`.
 pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamReport, DreamError> {
     let store = DreamStore::new(library.paths().root());
-    // Read before compiling: a source change while the library is being read
-    // can't be noticed any other way.
     let revision = store.evidence_revision()?;
     let evidence = compile(library, request.day)?;
     if (request.cancelled)() {
@@ -862,9 +813,6 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
     let memory = store
         .load_memory()?
         .unwrap_or_else(|| DreamMemory::empty(now()));
-    // A missing historical report may need rebuilding after later days advanced
-    // memory: rebuild it from its own evidence, but never replay an older
-    // synthesis over newer state.
     let watermark = [
         memory.last_dream_day.clone(),
         store.latest_report().map(|report| report.day),
@@ -882,8 +830,6 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
     let mut provenance = DreamMemory::empty(now()).provenance_adding(&evidence.sources, revision);
 
     let mut report = if evidence.is_substantively_empty() {
-        // Nothing happened that day: don't wake a model to say so. The stub
-        // marks the day reviewed so catch-up moves on, and memory carries forward.
         fallback_report(
             &evidence,
             now(),
@@ -939,7 +885,6 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
                     && request.is_automatic
                     && request.transient_failures + 1 < TRANSIENT_ATTEMPTS_BEFORE_FALLBACK =>
             {
-                // A rate limit or dropped connection isn't a broken backend.
                 log::info!(
                     "dreaming: deferred after transient error day={} attempt={}",
                     evidence.day_key,
@@ -948,9 +893,6 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
                 return Err(DreamError::Deferred(err.to_string()));
             }
             Err(err) => {
-                // No model prepared, server down, remote origin unapproved, or
-                // still failing: deliver the morning surface, memory untouched,
-                // and mark the day done. "Review now" can redo it.
                 log::warn!("dreaming: engine unavailable, writing evidence-only brief: {err:#}");
                 fallback_report(
                     &evidence,
@@ -978,9 +920,6 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
     Ok(report)
 }
 
-/// `TodayDreamSelection.report`: yesterday's brief when there is one, otherwise the
-/// newest substantive brief within the last five days. Empty-day stubs exist only
-/// to mark their day reviewed and are never shown.
 pub fn today_report(library: &Library, today: NaiveDate) -> Option<DreamReport> {
     const LOOKBACK_DAYS: i64 = 5;
     let store = DreamStore::new(library.paths().root());
@@ -989,8 +928,6 @@ pub fn today_report(library: &Library, today: NaiveDate) -> Option<DreamReport> 
         .find(|report| report.fallback_reason != Some(FallbackReason::EmptyDay))
 }
 
-/// A current evidence-only brief caused by model generation can be retried
-/// (`TodayDreamSelection.isRetryableFailure`). An empty day has nothing to redo.
 pub fn is_retryable_failure(report: &DreamReport, today: NaiveDate) -> bool {
     let yesterday = day_key(today - chrono::Duration::days(1));
     report.day == yesterday

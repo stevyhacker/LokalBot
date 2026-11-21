@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// How coding-agent sessions reach the digest model: as segment evidence,
-/// with reserved room, once per session, ahead of the same work on screen.
 final class CodingAgentDigestModelTests: XCTestCase {
     private var calendar: Calendar!
     private var day: Date!
@@ -29,9 +27,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
     }
 
     func testACrowdedSegmentKeepsRoomForSessionsThatRecordedOutcomes() throws {
-        // One busy stretch with forty screen activities and seven parallel
-        // sessions, followed by seven short, separate stretches, so the busy
-        // one stays a single segment with more events than detail slots.
         let morning: Date = day.addingTimeInterval(9 * 3_600)
         var blocks: [ActivityBlock] = []
         for minute in 0..<40 {
@@ -63,8 +58,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
     }
 
     func testASessionsBurstsInOneSegmentAppearOnceWithAllTheirActions() throws {
-        // Seven separate later stretches keep the session to one segment; a
-        // quiet day would otherwise be spread across several.
         var later: [ActivityBlock] = []
         for hour in 11...17 {
             let start: Date = day.addingTimeInterval(TimeInterval(hour) * 3_600)
@@ -96,8 +89,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
             ActivityBlock(id: 3, app: "Claude", title: "Claude",
                           start: try date("2026-09-29T13:00:00Z"), end: try date("2026-09-29T14:00:00Z")),
         ]
-        // Plain loops and typed locals: inline arithmetic inside a mapped
-        // initializer is too slow to type-check on CI's compiler.
         var contexts: [DayScreenContext] = []
         let samples: [(prefix: String, start: String, block: Int)] = [
             ("CLAUDE-DURING", "09:00", 1), ("XCODE", "10:30", 2), ("CLAUDE-AFTER", "13:00", 3),
@@ -165,7 +156,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
             try burst("B", start: "2026-09-29T09:05:00Z", end: "2026-09-29T09:25:00Z",
                       title: "Update app branding", project: "Mojo",
                       actions: [.openedPullRequest(title: "feat: apply Mojo branding")]),
-            // Describes the same work as the model's task, so it merges.
             try burst("C", start: "2026-09-29T09:10:00Z", end: "2026-09-29T09:15:00Z",
                       title: "Keep the digest badge fresh", actions: [.pushed]),
         ])
@@ -203,10 +193,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
         XCTAssertTrue(summary.contains("o/r#11"), summary)
     }
 
-    /// The 2026-10-19 journal named tasks "can you add short video demo
-    /// recording of the new app platforms in the PR? (GitHub)", "Untitled
-    /// session (GitHub)", and "… (scratch-2026-10-19-6f7eb7)", and listed two
-    /// PR review sessions beside the model's own review task.
     func testSessionTasksAreNamedByTheirWorkAndProjectNotTheRequestOrFolder() async throws {
         let github = "/Users/me/Documents/GitHub"
         let scratch = "/Users/me/Library/Application Support/Claude/scratch-workspaces/bbf0/1b98/scratch-2026-10-19-6f7eb7"
@@ -325,8 +311,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
                       pullRequests: ["https://github.com/acme/LokalBot/pull/12"]),
         ])
         let language = DailySummaryLanguage(notes: .ru, interface: .english)
-        // Exercise both a session inserted after aggregation and a session
-        // merged into the model's existing PR task. Canonical leads must parse.
         for title in ["Другая задача", "LokalBot PR #12"] {
             let result = try await DayDigestOverviewGenerator.generateResult(
                 evidence: evidence,
@@ -351,7 +335,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
         }
     }
 
-    // MARK: - Fixtures
 
     private actor PromptRecorder {
         private(set) var focusPrompts: [String] = []
@@ -378,7 +361,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
         }
     }
 
-    /// Answers every segment with the first task and the recap with `digestTasks`.
     private struct StubEngine: TextEngine {
         let digestTasks: [(title: String, summary: String)]
         var displayName: String { "stub-test" }
@@ -406,8 +388,6 @@ final class CodingAgentDigestModelTests: XCTestCase {
         }
     }
 
-    /// Bursts read the way the transcript readers produce them, so an
-    /// untitled session is labeled with its first request or the placeholder.
     private func session(
         _ id: String,
         agent: CodingAgentKind = .claudeCode,

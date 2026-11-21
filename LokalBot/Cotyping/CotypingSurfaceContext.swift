@@ -6,21 +6,10 @@
 import CoreGraphics
 import Foundation
 
-// "What am I writing in?" context that conditions cotyping's suggestions on the
-// focused app + window. Ported from Cotabby's `AppSurfaceClassifier` +
-// `SurfaceContextComposer`: the window title carries the email subject, doc
-// name, chat channel, or page title — the single strongest situational cue a
-// small local model gets. Suppressed for code editors and terminals, where app
-// metadata biases the model toward code/numbers over prose.
-//
-// Pure value logic — no AX, no I/O — so it is unit-testable.
-
-/// The coarse kind of writing surface the focused app presents.
 enum CotypingSurfaceClass: String, Equatable, Sendable {
     case codeEditor, terminal, email, chat, browser, other
 }
 
-/// Bundle-identifier → surface classification. Prefix-matched, case-folded.
 enum CotypingSurfaceClassifier {
     static func classify(bundleID: String?, isIntegratedTerminal: Bool = false) -> CotypingSurfaceClass {
         if isIntegratedTerminal { return .terminal }
@@ -61,7 +50,6 @@ enum CotypingSurfaceClassifier {
     }
 }
 
-/// A sanitized surface description ready to condition a prompt.
 struct CotypingSurfaceContext: Equatable, Sendable {
     let surfaceClass: CotypingSurfaceClass
     let applicationName: String
@@ -69,13 +57,6 @@ struct CotypingSurfaceContext: Equatable, Sendable {
     let fieldPlaceholder: String?
 }
 
-/// AX-derived app/window metadata for the focused field.
-///
-/// CoTabby freezes this context while focus remains in one field. LokalBot
-/// reads it again once it is a second old
-/// (`CotypingAXHelper.surfaceCaptureMaximumAgeSeconds`): chat apps reuse one
-/// composer across conversations, so a frozen title named the conversation
-/// left behind. A second still keeps one suggestion's reads on one capture.
 struct CotypingSurfaceCapture: Equatable, Sendable {
     var windowTitle: String?
     var fieldPlaceholder: String?
@@ -87,9 +68,6 @@ struct CotypingSurfaceCapture: Equatable, Sendable {
         urlString: nil)
 }
 
-/// The key for a field's surface capture. The app caches captures in
-/// `CotypingSurfaceCaptureSingleFlight` with a maximum age; the one-entry
-/// cache below, which never expires, is exercised only by tests.
 struct CotypingSurfaceCaptureCache: Sendable {
     private var key: String?
     private var captured: CotypingSurfaceCapture = .empty
@@ -145,8 +123,6 @@ enum CotypingSurfaceComposer {
     private static let maxTitleLength = 80
     private static let maxPlaceholderLength = 60
 
-    /// Builds a surface description, or `nil` when there's nothing useful (or
-    /// safe) to say — code editors, terminals, and bare generic apps.
     static func compose(
         appName: String,
         bundleID: String?,
@@ -168,16 +144,12 @@ enum CotypingSurfaceComposer {
         let rawTitle = sanitizedTitle(windowTitle, applicationName: cleanedApp)
         let title = rawTitle.flatMap { isGenericDocumentTitle($0) ? nil : $0 }
         let placeholder = sanitizedPlaceholder(fieldPlaceholder)
-        // A generic app with no title or placeholder has nothing useful to add.
         if surfaceClass == .other, title == nil, placeholder == nil { return nil }
         return CotypingSurfaceContext(
             surfaceClass: surfaceClass, applicationName: cleanedApp,
             windowTitle: title, fieldPlaceholder: placeholder)
     }
 
-    /// Condition on the writing topic. Descriptions of the UI ("text being
-    /// typed", "the window is titled") pull small models toward talking about
-    /// buttons and fields instead of continuing the passage.
     static func prefaceLines(for surface: CotypingSurfaceContext) -> [String] {
         switch surface.surfaceClass {
         case .codeEditor, .terminal: return []
@@ -187,8 +159,6 @@ enum CotypingSurfaceComposer {
             let label = surface.surfaceClass == .email ? "Subject" : "Topic"
             return ["\(label): \(title)"]
         }
-        // A channel name can still be useful when the host supplies no title.
-        // Generic labels such as Message, Reply and Search carry no topic.
         if surface.surfaceClass == .chat, let placeholder = surface.fieldPlaceholder,
            let channel = placeholder.range(of: "#") {
             return ["Topic: \(placeholder[channel.lowerBound...])"]
@@ -196,10 +166,6 @@ enum CotypingSurfaceComposer {
         return []
     }
 
-    // MARK: - Sanitization
-
-    /// Strips the app-name suffix apps append (`Inbox - Gmail`, `Doc — Pages`),
-    /// drops control chars and quotes (they'd corrupt the quoted line), caps length.
     static func sanitizedTitle(_ rawTitle: String?, applicationName: String) -> String? {
         guard var title = nonEmptyCleaned(rawTitle) else { return nil }
         for separator in [" - ", " — ", " – "] {

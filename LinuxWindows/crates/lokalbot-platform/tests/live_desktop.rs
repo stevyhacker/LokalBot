@@ -1,8 +1,3 @@
-//! Checks against a real desktop session, ignored by default. Run them with a
-//! display, for example `scripts/live-x11.sh` style: Xvfb, a window manager
-//! and a titled window, then
-//! `LOKALBOT_EXPECT_TITLE=… cargo test -p lokalbot-platform --test live_desktop -- --ignored`.
-
 #![cfg(target_os = "linux")]
 
 use std::process::Command;
@@ -31,7 +26,6 @@ fn x11_sampler_reads_the_active_window_and_idle_time() {
     };
     assert!(!kept.title.contains("abcdef123456"), "secrets are redacted");
 
-    // Input resets the idle clock; quiet time grows it.
     Command::new("xdotool")
         .args(["mousemove", "10", "10"])
         .status()
@@ -89,7 +83,6 @@ fn xdotool(args: &[&str]) -> String {
     String::from_utf8_lossy(&output.stdout).trim().to_string()
 }
 
-/// Waits for a window titled `title` and gives it the focus.
 fn focus_window(title: &str) {
     let window = xdotool(&["search", "--sync", "--name", title]);
     let window = window
@@ -112,8 +105,6 @@ fn wait_with_timeout(child: &mut std::process::Child, timeout: Duration) {
     }
 }
 
-/// Opens a GTK text entry, runs `insert`, confirms the entry and returns
-/// what it contained.
 fn into_gtk_entry(insert: impl FnOnce() -> lokalbot_platform::InsertOutcome) -> String {
     let mut zenity = Command::new("zenity")
         .args([
@@ -157,7 +148,6 @@ fn x11_paste_and_type_into_a_gtk_entry() {
     let pasted = into_gtk_entry(|| insert_text(dictated, InsertMethod::Paste).unwrap());
     println!("pasted: {pasted:?}");
     assert_eq!(pasted, dictated);
-    // The clipboard is put back once the app has read it.
     assert_eq!(clipboard_via_xsel(), "previous clipboard");
 
     let typed = "Typed ünï — 7";

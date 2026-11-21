@@ -3,9 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 25 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! `CotypingSeamGuard`: no suggestion beats a junk punctuation run or a
-//! mid-word splice that misspells the word being typed.
-
 use super::text::{is_letter, is_punctuation_or_symbol};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -18,9 +15,6 @@ pub enum SeamVerdict {
 const JUNK_RUN_LENGTH: usize = 4;
 const MINIMUM_SEAM_WORD_LENGTH: usize = 4;
 
-/// `is_known_word` answers for the joined word at the caret. Without a
-/// spell checker for the text's language it should say yes to everything,
-/// as macOS does where it has no dictionary.
 pub fn verdict(
     before: &str,
     completion: &str,
@@ -52,7 +46,6 @@ fn introduces_junk_punctuation_run(before: &str, completion: &str) -> bool {
         if run_length < JUNK_RUN_LENGTH || !is_punctuation_or_symbol(c) {
             continue;
         }
-        // Continuing a divider the text already has ("--" + "----") is fine.
         if run_starts_at_start && before.chars().rev().take_while(|p| *p == c).count() >= 2 {
             continue;
         }

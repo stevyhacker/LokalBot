@@ -1,6 +1,3 @@
-//! Extend the pinned GPUI component backend with the app's catalogs. This
-//! covers the controls we use without vendoring or changing the UI dependency.
-
 use std::borrow::Cow;
 use std::sync::Once;
 
@@ -109,7 +106,6 @@ mod tests {
             gpui_kit::component::_rust_i18n_translate("fr", "Calendar.week.1"),
             "lun."
         );
-        // A dependency update must not silently add an untranslated control.
         for (key, value) in gpui_kit::component::_rust_i18n_backend()
             .messages_for_locale("en")
             .unwrap()

@@ -1,10 +1,3 @@
-//! Today (`TodayView.swift`): what is live, what is next, and what needs you.
-//! A card leads only while it matters (the recording in progress, a meeting
-//! within the hour); the rest is the day's panels (Needs attention, Meetings
-//! today, So far today, Yesterday), side by side when the page has room, and
-//! Get started on the first days. Sessions, the digest's tasks and its menu
-//! are on Timeline; planning the open actions is on Actions.
-
 pub(crate) mod brief;
 pub(crate) mod digest;
 mod getting_started;
@@ -41,36 +34,22 @@ use crate::ui::section_panel::{page_surface, panel_column, panel_surface};
 use crate::ui::{Ico, action_row};
 use model::{AttentionSummary, Entry, EntryStatus, PageLayout, columns};
 
-/// The title of the card at the top (`TodayType.cardTitle`, 20 pt on macOS).
 const CARD_TITLE: Pixels = px(21.);
-/// The next meeting's title while another one is being recorded, and Get
-/// started's title (`TodayType.cardTitleCompact`).
 const CARD_TITLE_COMPACT: Pixels = ty::QUESTION;
-/// The page's padding at its top and bottom.
 const PAGE_TOP: Pixels = px(16.);
 const PAGE_BOTTOM: Pixels = px(32.);
 
-/// What Today shows, loaded off the main thread.
 struct TodayModel {
     day: NaiveDate,
     activity: DayActivity,
     digest: Option<DayDigest>,
-    /// The most urgent of the user's open actions, overdue first: at most
-    /// `model::ATTENTION_LIMIT`.
     attention: Vec<ActionThread>,
     summary: AttentionSummary,
-    /// "Looks done?" suggestions, by thread.
     hints: HashMap<String, lokalbot_core::action_completion::CompletionHint>,
-    /// Yesterday's overnight brief.
     brief: brief::BriefModel,
-    /// One line per finished recording of today, from its saved summary.
     recaps: HashMap<Uuid, String>,
 }
 
-/// Needs attention as last counted. Counting reads every meeting's outcomes,
-/// so it is kept until the library changes (`AppData::revision`, which every
-/// action edit, phone edit and engine write bumps) or the day turns, which
-/// moves what is overdue.
 #[derive(Clone)]
 struct OpenActions {
     revision: u64,
@@ -80,16 +59,11 @@ struct OpenActions {
 }
 
 impl OpenActions {
-    /// Still the count for the library at `revision` on `day`.
     fn holds_for(&self, revision: u64, day: NaiveDate) -> bool {
         self.revision == revision && self.day == day
     }
 
-    /// Counts them; nil when the library couldn't be read, so the next
-    /// reload tries again rather than keeping an empty list.
     fn count(library: &lokalbot_core::Library, revision: u64, day: NaiveDate) -> Option<Self> {
-        // Every open action of the user's, in attention order, so the panel
-        // can say how many there are and how many are overdue.
         let open = library
             .needs_attention(None, usize::MAX)
             .map_err(|err| log::warn!("needs attention: {err:#}"))
@@ -111,19 +85,14 @@ pub struct TodayPage {
     open_actions: Option<OpenActions>,
     load_generation: u64,
     loaded_revision: Option<u64>,
-    /// The page's size, for the column decision.
     bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// The next meeting's card: its preparation and what is open in it.
     upcoming: upcoming::UpcomingState,
-    /// A planted demo library never counts days toward the GitHub star.
     seeded_demo_library: bool,
     tick: Option<Task<()>>,
     _refresh: Task<()>,
     _subscriptions: Vec<Subscription>,
 }
 
-/// What the page is built from at one moment: the day's meetings, the card
-/// at the top and which panels have something to say.
 struct Frame {
     now: DateTime<Utc>,
     live: Option<Meeting>,
@@ -142,9 +111,6 @@ impl TodayPage {
         let seeded_demo_library = lokalbot_core::github_star::is_seeded_demo_library(
             data.read(cx).library.paths().root(),
         );
-        // Today re-anchors after midnight, moves the now line and picks up
-        // new activity. Open actions are counted again only when the library
-        // or the day changed (`OpenActions`).
         let refresh = cx.spawn(async move |this, cx| {
             loop {
                 cx.background_executor()
@@ -195,7 +161,6 @@ impl TodayPage {
             .open_actions
             .clone()
             .filter(|open| open.holds_for(revision, day));
-        // Finished recordings of today, for their recap lines.
         let finished: Vec<Meeting> = data
             .meetings
             .iter()
@@ -225,7 +190,6 @@ impl TodayPage {
                         .as_ref()
                         .map(|open| (open.attention.clone(), open.summary))
                         .unwrap_or_default();
-                    // Suggestions only, and only from text kept with consent.
                     let hints = if suggest_done {
                         library.action_completion_hints(&attention, Utc::now())
                     } else {
@@ -263,7 +227,6 @@ impl TodayPage {
         .detach();
     }
 
-    /// Redraws every second while recording, for the timer.
     fn sync_tick(&mut self, recording: bool, cx: &mut Context<Self>) {
         if recording && self.tick.is_none() {
             self.tick = Some(cx.spawn(async move |this, cx| {
@@ -293,9 +256,6 @@ impl TodayPage {
         });
     }
 
-    /// Counts today once toward the GitHub star prompt's active days, as the
-    /// Mac does at launch. The prompt itself is no longer on Today: the
-    /// Mac shows "Star on GitHub" in Settings only.
     fn record_active_day(&mut self, cx: &mut Context<Self>) {
         if self.seeded_demo_library {
             return;
@@ -312,7 +272,6 @@ impl TodayPage {
         }
     }
 
-    /// The meetings, the card and the calendar's state at `now`.
     fn frame(&self, cx: &App) -> Frame {
         let now = Utc::now();
         let data = self.data.read(cx);
@@ -324,8 +283,6 @@ impl TodayPage {
         } else {
             Vec::new()
         };
-        // The recording in progress leads, so it is found even before the
-        // library lists it.
         let recordings: Vec<&Meeting> = live.iter().chain(data.meetings.iter()).collect();
         let recorded = model::recorded_event_ids(&recordings, &events);
         let next = model::next_meeting(&events, now, &recorded).cloned();
@@ -335,7 +292,6 @@ impl TodayPage {
             live,
             next,
             entries,
-            // Off in Settings, or no calendar to read yet.
             calendar_off: !enabled
                 || matches!(
                     calendar.status,
@@ -344,7 +300,6 @@ impl TodayPage {
         }
     }
 
-    /// The page content's width inside its side padding.
     fn content_width(&self, maximum: f32) -> f32 {
         let page = self
             .bounds
@@ -355,8 +310,6 @@ impl TodayPage {
     }
 }
 
-/// The raised card at the top of Today and around Get started
-/// (`todayCardSurface`): the panel surface, tinted for a recording.
 fn card_surface(tint: Option<Hsla>, cx: &App) -> Div {
     let lb = cx.lb();
     let surface = panel_surface(cx);
@@ -375,12 +328,9 @@ fn card_surface(tint: Option<Hsla>, cx: &App) -> Div {
     }
 }
 
-/// A meeting's place in the day in words: "In 12 min", "Recording", "Ended"
-/// (`TodayMeetingStatusText`). The tray menu's next meeting says it the same.
 pub(crate) fn status_text(status: EntryStatus) -> String {
     lokalbot_i18n::directional(match status {
         EntryStatus::Recording => lokalbot_i18n::tr("Recording").to_string(),
-        // A saved recording's row shows its app and length instead.
         EntryStatus::Recorded | EntryStatus::Ended => lokalbot_i18n::tr("Ended").to_string(),
         EntryStatus::InProgress => lokalbot_i18n::tr("In progress").to_string(),
         EntryStatus::StartingNow => lokalbot_i18n::tr("Starting now").to_string(),
@@ -401,7 +351,6 @@ pub(crate) fn status_text(status: EntryStatus) -> String {
     })
 }
 
-/// The red dot of Record buttons (`circle.fill` in the recording colour).
 fn record_dot(cx: &App) -> Div {
     div()
         .flex_none()
@@ -410,7 +359,6 @@ fn record_dot(cx: &App) -> Div {
         .bg(cx.lb().recording)
 }
 
-/// A bordered button with the red dot and "Record".
 fn record_button(id: impl Into<gpui_kit::ElementId>, cx: &App) -> Button {
     Button::new(id).secondary().child(
         h_flex()
@@ -426,7 +374,6 @@ impl Page for TodayPage {
         lokalbot_i18n::tr("Today").into()
     }
 
-    /// The full date under the title (`navigationSubtitle`).
     fn subtitle(&self, _cx: &App) -> Option<SharedString> {
         Some(
             Local::now()
@@ -439,8 +386,6 @@ impl Page for TodayPage {
         )
     }
 
-    /// Ask About Today and Record. The page has no recording bar: Record
-    /// lives here, and the live card holds the only Stop.
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let data = self.data.clone();
         let recording = self.data.read(cx).recording.is_active();
@@ -492,8 +437,6 @@ impl Render for TodayPage {
         self.upcoming
             .sync(next.as_ref(), recording, revision, &self.data, cx);
 
-        // The cards on top, then the panels in their columns, then Get
-        // started or the placeholder.
         let mut cards: Vec<AnyElement> = Vec::new();
         cards.extend(self.render_live_card(frame.live.as_ref(), cx));
         if let Some(event) = &next {
@@ -563,7 +506,6 @@ impl Render for TodayPage {
                 (!leading.is_empty(), !trailing.is_empty())
             }
             None => {
-                // Nothing is said about the day before it has loaded once.
                 below.push(
                     h_flex()
                         .gap(px(8.))
@@ -659,11 +601,8 @@ mod tests {
             attention: Vec::new(),
             summary: AttentionSummary::default(),
         };
-        // The 30-second refresh: same library, same day.
         assert!(counted.holds_for(7, day));
-        // An action edit, a phone edit or a finished summary.
         assert!(!counted.holds_for(8, day));
-        // Midnight moves what is overdue.
         assert!(!counted.holds_for(7, day.succ_opt().unwrap()));
     }
 

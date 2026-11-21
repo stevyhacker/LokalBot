@@ -1,6 +1,3 @@
-//! Pieces shared by People and Projects: name tints, the project monogram,
-//! relative days, durations and links.
-
 use chrono::{DateTime, Local, Utc};
 use gpui_kit::component::v_flex;
 use gpui_kit::{
@@ -10,7 +7,6 @@ use gpui_kit::{
 
 use crate::theme::{LbThemeExt as _, ty};
 
-/// A stable color per name, from the speaker palette.
 pub fn name_tint(name: &str, cx: &App) -> Hsla {
     let mut hash: u32 = 5381;
     for byte in name.to_lowercase().bytes() {
@@ -19,9 +15,6 @@ pub fn name_tint(name: &str, cx: &App) -> Hsla {
     cx.lb().speaker(hash as usize % 8)
 }
 
-/// A project's first letter on a rounded square tinted from its name
-/// (`ProjectMonogram`, radius 0.26× size). A suggestion, which nobody tracks
-/// yet, is a dashed outline.
 pub fn monogram(name: &str, size: Pixels, suggestion: bool, cx: &App) -> Div {
     let lb = cx.lb();
     let tint = name_tint(name, cx);
@@ -53,7 +46,6 @@ pub fn monogram(name: &str, size: Pixels, suggestion: bool, cx: &App) -> Div {
     }
 }
 
-/// "today", "yesterday", "3 days ago", then "Oct 3" (`PersonDetailView.relativeDay`).
 pub fn relative_day(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     let days = (now.date_naive() - at.with_timezone(&Local).date_naive()).num_days();
     match days {
@@ -70,17 +62,14 @@ pub fn relative_day(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     }
 }
 
-/// "1 meeting" / "3 meetings".
 pub fn count(n: usize, noun: &str) -> String {
     lokalbot_i18n::count(n, noun)
 }
 
-/// "3h 10m" or "48m" (`ProjectDetailView.duration`).
 pub fn duration(seconds: f64) -> String {
     crate::i18n::compact_duration(seconds.max(60.0))
 }
 
-/// A link styled like `.workspaceLink`.
 pub fn link(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
@@ -98,7 +87,6 @@ pub fn link(
         .on_click(move |_, window, cx| on_click(window, cx))
 }
 
-/// Rows separated by hairlines.
 pub fn divided(rows: Vec<AnyElement>, cx: &App) -> Div {
     let separator = cx.lb().separator;
     let count = rows.len();

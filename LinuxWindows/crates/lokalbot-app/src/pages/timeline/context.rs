@@ -1,9 +1,3 @@
-//! Timeline's main area when something other than the day is chosen in the
-//! rail (`TimelineContextPanel`): a work session, a meeting's short preview,
-//! all captured activity, or one activity block or screen moment opened from
-//! those. Each is a title panel, then one panel per section it has; "‹ Day
-//! digest" above goes back.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Icon, v_flex};
@@ -28,12 +22,9 @@ use crate::ui::{self, Ico};
 use crate::windows::screen_image::ScreenImage;
 use lokalbot_i18n::mac;
 
-/// A meeting preview stays short; the meeting has the rest.
 const PREVIEW_ROWS: usize = 6;
-/// Representative moments a session shows before "Show all".
 const REPRESENTATIVE_MOMENTS: usize = 3;
 
-/// What the meeting page shows, loaded in the background.
 pub(crate) struct MeetingPreview {
     pub meeting: Meeting,
     pub recap: Option<String>,
@@ -92,7 +83,6 @@ impl TimelinePage {
                 .map(|block| vec![self.render_block(model, block, cx)]),
             None => None,
         };
-        // A selection still loading, or one the day no longer has.
         let page = page.unwrap_or_else(|| {
             vec![
                 SectionPanelLead::new("timeline-details")
@@ -117,7 +107,6 @@ impl TimelinePage {
                     .into_any_element(),
             ]
         });
-        // Pages opened inside another have their own way back.
         let opened_inside = !self.selection_trail.is_empty()
             || matches!(
                 self.selection,
@@ -131,9 +120,6 @@ impl TimelinePage {
         self.page_column("timeline-context", children, cx)
     }
 
-    /// The way back from a page opened inside another: an activity block to
-    /// its session, a moment to its activity. The destination alone is the
-    /// visible text.
     pub(super) fn back_link(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let label = match self.selection_trail.last() {
@@ -165,8 +151,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------- a session
-
     fn session_page(
         &self,
         model: &DayModel,
@@ -179,7 +163,6 @@ impl TimelinePage {
             &lokalbot_core::coding_agents::attribution::Outcomes::of(&session.agent_bursts),
         );
         let text = day_list::work_text(session, &used_apps, outcomes);
-        // The dot the session has in the rail and the hour strip.
         let color_key = model
             .list
             .row(&session.id)
@@ -318,7 +301,6 @@ impl TimelinePage {
         panels
     }
 
-    /// A moment as a picture with what it shows and when, opening the moment.
     fn moment_card(&self, moment: &ScreenMoment, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let title = if !moment.window_title.is_empty() {
@@ -381,9 +363,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// The windows and documents the session had open, with their time.
-    /// Opening a row lists the activity behind the title, which stays
-    /// inspectable.
     fn what_was_open(
         &self,
         model: &DayModel,
@@ -495,10 +474,6 @@ impl TimelinePage {
         )
     }
 
-    // ------------------------------------------------- all captured activity
-
-    /// Its title and the way to delete screen moments on top, the hour track
-    /// under them.
     fn raw_capture_page(&self, model: &DayModel, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let lb = cx.lb().clone();
         let empty = model.activity.blocks.is_empty() && model.moments.is_empty();
@@ -552,8 +527,6 @@ impl TimelinePage {
         vec![lead.into_any_element()]
     }
 
-    // -------------------------------------------------------- a meeting
-
     fn meeting_page(&self, model: &DayModel, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let lb = cx.lb().clone();
         let Some(preview) = self.meeting_preview.as_ref() else {
@@ -603,7 +576,6 @@ impl TimelinePage {
                     ),
             );
         }
-        // The recap only: decisions and actions follow as their own panels.
         if let Some(recap) = preview.recap.clone() {
             lead = lead.child(ui::divider(cx)).child(
                 v_flex()
@@ -712,7 +684,6 @@ impl TimelinePage {
     }
 }
 
-/// A meeting's decisions panel: the first few, counted in all.
 fn decisions_panel_counted(
     decisions: &[String],
     count: usize,
@@ -748,7 +719,6 @@ fn decisions_panel_counted(
         .into_any_element()
 }
 
-/// A page's mark: an icon in the accent.
 pub(super) fn header_icon(icon: Ico, cx: &Context<TimelinePage>) -> AnyElement {
     div()
         .pt(px(4.))
@@ -756,8 +726,6 @@ pub(super) fn header_icon(icon: Ico, cx: &Context<TimelinePage>) -> AnyElement {
         .into_any_element()
 }
 
-/// A page's heading: its mark (a colour dot or an icon), the title, and one
-/// quiet line under it (`TimelinePageHeader`).
 pub(super) fn page_header(
     mark: AnyElement,
     title: SharedString,

@@ -1,8 +1,3 @@
-//! Text rules shared by the transcript readers (`CodingAgentText.swift`).
-//! Every string that leaves a reader passes through here: injected context is
-//! removed, credentials are redacted, and length is capped before anything is
-//! kept.
-
 use std::sync::LazyLock;
 
 use chrono::{DateTime, Utc};
@@ -18,7 +13,6 @@ fn regex(pattern: &str) -> Regex {
     Regex::new(pattern).expect("built-in coding-agent pattern")
 }
 
-/// Whole messages the harness writes in the person's turn.
 const IGNORED_PROMPT_PREFIXES: &[&str] = &[
     "<local-command",
     "Caveat:",
@@ -30,10 +24,6 @@ const IGNORED_PROMPT_PREFIXES: &[&str] = &[
     "<collaboration_mode",
 ];
 
-/// Harness context wrapped around or beside a request: system reminders, IDE
-/// and browser state, skill bodies, captured terminal output. These tags are
-/// hyphenated or underscored (`system-reminder`, `bash-stdout`, `ide_selection`),
-/// unlike HTML a person might paste into a prompt.
 static BLOCK_OPENING: LazyLock<Regex> =
     LazyLock::new(|| regex(r"<([a-z]+(?:[-_][a-z0-9]+)+|skill|attachments?)\b[^>]*>"));
 static HARNESS_TAG_OPENING: LazyLock<Regex> =
@@ -51,7 +41,6 @@ static AUTOMATION_ID: LazyLock<Regex> =
 static SCHEDULED_TASK_NAME: LazyLock<Regex> =
     LazyLock::new(|| regex(r#"^<scheduled-task\b[^>]*\bname="([^"]+)""#));
 
-/// Session-management commands say nothing about the work.
 const HOUSEKEEPING_COMMANDS: &[&str] = &[
     "/clear",
     "/compact",
@@ -117,7 +106,6 @@ fn first_capture(expression: &Regex, text: &str) -> Option<String> {
         .map(|m| m.as_str().to_string())
 }
 
-/// Where the first `</name>` after an opening ends, counted from `rest`'s start.
 fn closing_tag_end(rest: &str, name: &str) -> Option<usize> {
     let marker = format!("</{name}");
     let mut from = 0;
@@ -133,8 +121,6 @@ fn closing_tag_end(rest: &str, name: &str) -> Option<usize> {
     None
 }
 
-/// Each block goes with its own closing tag; an opening without one stays, to be
-/// judged as harness text afterwards.
 fn removing_blocks(text: &str) -> String {
     let mut output = String::with_capacity(text.len());
     let (mut copied, mut search) = (0, 0);
@@ -149,7 +135,6 @@ fn removing_blocks(text: &str) -> String {
                 copied = whole.end() + length;
                 search = copied;
             }
-            // `<` is one byte, so this stays on a character boundary.
             None => search = whole.start() + 1,
         }
     }
@@ -157,7 +142,6 @@ fn removing_blocks(text: &str) -> String {
     output
 }
 
-/// One line, credentials redacted, capped.
 pub fn sanitized(text: &str, max_characters: usize) -> String {
     let redacted = sanitize::redact(text);
     let line = redacted.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -168,10 +152,7 @@ pub fn truncated(text: &str, max_characters: usize) -> String {
     sanitize::sanitize(text, Some(max_characters))
 }
 
-/// A person's request with harness-injected context removed, or `None` when
-/// nothing the person wrote remains.
 pub fn prompt(raw: &str) -> Option<String> {
-    // Codex puts IDE, browser and file context above the request.
     let text = ["## My request for Codex:", "## My request:"]
         .iter()
         .find_map(|marker| raw.find(marker).map(|index| &raw[index + marker.len()..]))
@@ -184,7 +165,6 @@ pub fn prompt(raw: &str) -> Option<String> {
         return slash_command(&command, trimmed);
     }
     if let Some(command) = terminal_command(trimmed) {
-        // The person's own shell input; its captured output is never kept.
         return Some(sanitized(
             &format!("Ran in terminal: {command}"),
             PROMPT_CHARACTERS,
@@ -198,11 +178,9 @@ pub fn prompt(raw: &str) -> Option<String> {
     }
     let text = PASTED_CONTENT.replace_all(trimmed, "[pasted text]");
     let clean = sanitized(&removing_blocks(&text), PROMPT_CHARACTERS);
-    // An unclosed harness tag is still harness text.
     (!clean.is_empty() && !HARNESS_TAG_OPENING.is_match(&clean)).then_some(clean)
 }
 
-/// A command the person typed into the agent's terminal mode.
 pub fn terminal_command(raw: &str) -> Option<String> {
     first_capture(&BASH_INPUT, raw).map(|command| command.trim().to_string())
 }
@@ -217,8 +195,6 @@ pub fn title(raw: &str) -> Option<String> {
     (!clean.is_empty()).then_some(clean)
 }
 
-/// A skill or command the person invoked, e.g. `/code-review high`. Session
-/// housekeeping such as `/fast on` is not a request.
 fn slash_command(name: &str, text: &str) -> Option<String> {
     if HOUSEKEEPING_COMMANDS.contains(&name.to_lowercase().as_str()) {
         return None;
@@ -227,8 +203,6 @@ fn slash_command(name: &str, text: &str) -> Option<String> {
     Some(sanitized(&format!("{name} {arguments}"), PROMPT_CHARACTERS))
 }
 
-/// Runs the person scheduled earlier: they asked for the work, but not in the
-/// words the harness injects for each run.
 fn scheduled_run(text: &str) -> Option<String> {
     if text.starts_with("<heartbeat>") {
         let id = first_capture(&AUTOMATION_ID, text).unwrap_or_else(|| "unnamed".into());
@@ -238,7 +212,6 @@ fn scheduled_run(text: &str) -> Option<String> {
         .map(|name| format!("Scheduled task: {}", sanitized(&name, 80)))
 }
 
-/// The first alternative that matched, with shell-escaped quotes undone.
 fn message(captures: &regex::Captures) -> Option<String> {
     captures
         .iter()
@@ -248,8 +221,6 @@ fn message(captures: &regex::Captures) -> Option<String> {
         .map(|m| m.as_str().replace("\\\"", "\""))
 }
 
-/// Outcomes recorded by a shell command. Command output is never read, so an
-/// action means the agent ran it, not that it succeeded.
 pub fn actions_in_command(command: &str) -> Vec<CodingAgentAction> {
     let command = unwrapped_shell_command(command);
     let mut actions: Vec<CodingAgentAction> = Vec::new();
@@ -301,7 +272,6 @@ pub fn pull_request_urls(text: &str) -> Vec<String> {
     urls
 }
 
-/// The agent read LokalBot's library, whose content its replies may echo.
 pub fn reads_lokalbot_command(command: &str) -> bool {
     LOKALBOT_COMMAND.is_match(command)
 }
@@ -310,8 +280,6 @@ pub fn reads_lokalbot_tool(name: &str) -> bool {
     name.to_lowercase().contains("lokalbot")
 }
 
-/// Codex records commands as a JSON-encoded argv such as
-/// `["/bin/zsh","-lc","git push"]`; the script is the last element.
 pub fn unwrapped_shell_command(command: &str) -> String {
     if command.starts_with('[')
         && let Ok(argv) = serde_json::from_str::<Vec<String>>(command)
@@ -322,21 +290,18 @@ pub fn unwrapped_shell_command(command: &str) -> String {
     command.to_string()
 }
 
-/// The person's home folder as a path string.
 pub fn home_directory() -> Option<String> {
     std::env::home_dir()
         .and_then(|home| home.to_str().map(str::to_string))
         .map(|home| normalized_separators(&home))
 }
 
-/// `C:\Users\me` or `\\server\share`, wherever the transcript came from.
 pub fn is_windows_path(path: &str) -> bool {
     let bytes = path.as_bytes();
     (bytes.len() >= 2 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':')
         || path.starts_with("\\\\")
 }
 
-/// Windows paths use forward slashes here, so one set of rules reads both.
 fn normalized_separators(path: &str) -> String {
     if is_windows_path(path) {
         path.replace('\\', "/")
@@ -345,14 +310,11 @@ fn normalized_separators(path: &str) -> String {
     }
 }
 
-/// `NSString.standardizingPath`: `~` expanded, `.`, `..` and doubled separators
-/// gone. Lexical, because a session's folder may no longer exist.
 pub fn standardized_path(path: &str, home: Option<&str>) -> String {
     let path = normalized_separators(path);
     let home = home.map(normalized_separators);
     let expanded = match (path.strip_prefix('~'), home) {
         (Some(""), Some(home)) => home,
-        // A folder chosen on Windows is saved as `~\Code`.
         (Some(rest), Some(home)) if is_windows_path(&home) && rest.starts_with(['/', '\\']) => {
             format!("{home}{}", rest.replace('\\', "/"))
         }
@@ -379,15 +341,12 @@ pub fn standardized_path(path: &str, home: Option<&str>) -> String {
     }
 }
 
-/// A changed file as the person would name it: relative to the session's
-/// project, never exposing scratch or worktree plumbing.
 pub fn display_path(path: &str, working_directory: Option<&str>) -> String {
     display_path_in(path, working_directory, home_directory().as_deref())
 }
 
 pub fn display_path_in(path: &str, working_directory: Option<&str>, home: Option<&str>) -> String {
     let value = standardized_path(path, home);
-    // Worktrees sit inside the project folder, so strip them first.
     if let Some(found) = CLAUDE_SCRATCHPAD.find(&value) {
         return format!("scratchpad/{}", &value[found.end()..]);
     }
@@ -410,7 +369,6 @@ pub fn display_path_in(path: &str, working_directory: Option<&str>, home: Option
 
 fn strip_folder<'a>(path: &'a str, folder: &str) -> Option<&'a str> {
     if is_windows_path(path) {
-        // Windows paths don't care about case.
         let prefix = path.get(..folder.len())?;
         if prefix.eq_ignore_ascii_case(folder) {
             return path[folder.len()..].strip_prefix('/');
@@ -420,7 +378,6 @@ fn strip_folder<'a>(path: &'a str, folder: &str) -> Option<&'a str> {
     path.strip_prefix(folder)?.strip_prefix('/')
 }
 
-/// A session's folder is inside `folder`, or is it.
 pub fn is_inside(path: &str, folder: &str) -> bool {
     if is_windows_path(path) {
         path.eq_ignore_ascii_case(folder) || strip_folder(path, folder).is_some()
@@ -429,15 +386,10 @@ pub fn is_inside(path: &str, folder: &str) -> bool {
     }
 }
 
-/// The UTC `yyyy-MM-ddTHH:mm:ss(.SSS…)Z` stamps both agents write, and any
-/// other ISO 8601 form.
 pub fn timestamp(value: &str) -> Option<DateTime<Utc>> {
     lokalbot_core::time::parse_iso(value)
 }
 
-/// One line of a JSON Lines transcript. Tool output dominates these files (one
-/// 15 MB session held about a dozen prompts), so readers classify a line from
-/// its opening bytes and fully decode only lines that can carry evidence.
 #[derive(Clone, Copy)]
 pub struct Line<'a>(pub &'a [u8]);
 
@@ -449,14 +401,10 @@ fn find(haystack: &[u8], needle: &[u8]) -> Option<usize> {
 }
 
 impl Line<'_> {
-    /// Whether `needle` occurs within the first `limit` bytes.
     pub fn prefix_contains(&self, limit: usize, needle: &str) -> bool {
         find(&self.0[..limit.min(self.0.len())], needle.as_bytes()).is_some()
     }
 
-    /// The first unescaped string value for `"key":"`. Escaped quotes in nested
-    /// JSON text cannot match, so this safely reads identifiers and timestamps
-    /// without decoding a multi-megabyte line.
     pub fn string_value(&self, key: &str) -> Option<String> {
         let marker = format!("\"{key}\":\"");
         let start = find(self.0, marker.as_bytes())? + marker.len();

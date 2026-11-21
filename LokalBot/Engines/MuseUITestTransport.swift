@@ -1,29 +1,11 @@
 #if LOKALBOT_UI_TEST_HOST
 import Foundation
 
-/// UI-test host only. `LOKALBOT_MUSE_UI_TEST` puts Live Radar and
-/// Follow-through in a mode the hosted UI suite can film:
-/// - `1`: Meta Model API requests get scripted replies instead of reaching
-///   api.meta.ai, so no key, network, or model is used. Replies follow the
-///   demo call in `Docs/meta-hackathon/demo-script.md` and still pass through
-///   `MuseChatClient` parsing and the radar's grounding checks: a
-///   contradiction appears only if local search put the earlier passage in
-///   the request.
-/// - `live`: requests go to Meta with the key read from the file named by
-///   `LOKALBOT_UI_TEST_META_API_KEY_FILE`, so the key never appears in the
-///   test configuration or its result bundle.
-/// In both modes approved Follow-through steps do not open Mail or Calendar.
-/// Screen-answer requests (the ones carrying images) get the answer the
-/// film's synthetic captures show, which still has to pass the quote check
-/// against the crop Vision read in the host. Live answers look up the pricing
-/// sheet and the panel question with the real tools in the host, and answer
-/// with a quote that has to be in what those tools returned.
 enum MuseUITestTransport {
     private static var mode: String? { ProcessInfo.processInfo.environment["LOKALBOT_MUSE_UI_TEST"] }
     static var isEnabled: Bool { mode == "1" || mode == "live" }
     static var isScripted: Bool { mode == "1" }
 
-    /// The key for `live` mode, or a placeholder the scripted replies ignore.
     static var apiKey: String? {
         if isScripted { return "ui-test-key" }
         guard mode == "live", let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_META_API_KEY_FILE"],
@@ -32,9 +14,6 @@ enum MuseUITestTransport {
         return key
     }
 
-    /// Live Radar's passes and screen answers for the film. The app itself
-    /// runs them on the Think model; the film keeps Meta's wire format so its
-    /// scripted replies, and a live run with the film's key, work as before.
     @MainActor
     static func radarCall(settings: @escaping () -> AppSettings) -> MeetingRadar.ModelCall {
         { messages, schema, _ in
@@ -45,7 +24,6 @@ enum MuseUITestTransport {
         }
     }
 
-    /// Live answers for the film, as `radarCall`.
     @MainActor
     static func answerCall(settings: @escaping () -> AppSettings) -> LiveAnswerSession.Call {
         { messages, tools, _ in
@@ -56,7 +34,6 @@ enum MuseUITestTransport {
         }
     }
 
-    /// Follow-through for the film, as `radarCall`.
     @MainActor
     static func followThroughCall(settings: @escaping () -> AppSettings) -> FollowThroughSession.ModelCall {
         { messages, tools in
@@ -68,7 +45,6 @@ enum MuseUITestTransport {
     }
 
     static func reply(to request: URLRequest) async throws -> (Data, URLResponse) {
-        // Long enough for the in-flight states to be visible.
         try await Task.sleep(for: .milliseconds(1_200))
         let body = (try? JSONSerialization.jsonObject(with: request.httpBody ?? Data())) as? [String: Any] ?? [:]
         let messages = body["messages"] as? [[String: Any]] ?? []
@@ -93,15 +69,12 @@ enum MuseUITestTransport {
         return (data, response)
     }
 
-    // MARK: - Live Radar
-
     private struct Rule {
         let trigger: String
         let kind: String
         let text: String
         let owner: String
         let due: String
-        /// For contradictions: words an earlier passage must contain.
         let conflictsWith: String?
     }
 
@@ -152,12 +125,6 @@ enum MuseUITestTransport {
         return ["role": "assistant", "content": content]
     }
 
-    // MARK: - Screen answers
-
-    /// The captures are labelled "Image N: <app> — <window>"; the answer names
-    /// the one that shows it. Only the question decides: the same part of the
-    /// request starts with the meeting's title, and "Launch sync" would give
-    /// every question the launch date.
     private static func screenAnswer(_ messages: [[String: Any]]) -> [String: Any] {
         let texts = (messages.last?["content"] as? [[String: Any]] ?? []).compactMap { $0["text"] as? String }
         let question = (texts.first ?? "").components(separatedBy: "\nQuestion: ").last ?? ""
@@ -173,10 +140,6 @@ enum MuseUITestTransport {
         return ["role": "assistant", "content": content]
     }
 
-    // MARK: - Live answers
-
-    /// One lookup, then an answer quoting what it returned. Other questions
-    /// get no answer.
     private static func liveAnswer(_ messages: [[String: Any]], tools: [[String: Any]]) -> [String: Any] {
         let prompt = messages.first { $0["role"] as? String == "user" }?["content"] as? String ?? ""
         let question = prompt.components(separatedBy: "\n").first { $0.hasPrefix("QUESTION: ") } ?? ""
@@ -184,7 +147,6 @@ enum MuseUITestTransport {
         let searchCode = tools.first { $0["name"] as? String == "search_code" }
         let repository = ((searchCode?["parameters"] as? [String: Any])?["properties"] as? [String: Any])
             .flatMap { ($0["repository"] as? [String: Any])?["enum"] as? [String] }?.first
-        // Split so a code search of this checkout finds the setting, not these replies.
         let identifier = "liveRadarPanel" + "HiddenFromCapture"
         let call: (name: String, arguments: [String: Any])
         if question.contains("Team plan") {
@@ -205,8 +167,6 @@ enum MuseUITestTransport {
                 "tool_calls": [["id": "answer_\(turn)", "type": "function",
                                 "function": ["name": call.name, "arguments": arguments]]]]
     }
-
-    // MARK: - Follow-through
 
     private static func followThrough(_ messages: [[String: Any]]) -> [String: Any] {
         let briefing = messages.first { $0["role"] as? String == "user" }?["content"] as? String ?? ""

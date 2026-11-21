@@ -1,12 +1,7 @@
-//! Tolerant reading of model output (`ChatPrompt.extractJSONObject`,
-//! `CompleteJSONRecords`, `strippingReasoning`).
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use serde_json::{Map, Value};
 
-/// Removes `<think>…</think>` blocks that Qwen 3 and similar models emit
-/// before the answer, then trims.
 pub fn strip_reasoning(text: &str) -> String {
     let mut result = text.to_string();
     while let Some(open) = result.find("<think>") {
@@ -19,7 +14,6 @@ pub fn strip_reasoning(text: &str) -> String {
     result.trim().to_string()
 }
 
-/// A truncated reply's visible part: an unclosed thinking block is reasoning.
 pub fn visible_text_of_truncated(reply: &str) -> String {
     match reply.find("<think>") {
         Some(open) => reply[..open].trim().to_string(),
@@ -27,7 +21,6 @@ pub fn visible_text_of_truncated(reply: &str) -> String {
     }
 }
 
-/// The first balanced `{…}` object in `text`, honouring strings and escapes.
 pub fn extract_json_object(text: &str) -> Option<&str> {
     let start = text.find('{')?;
     let mut depth = 0i32;
@@ -59,7 +52,6 @@ pub fn extract_json_object(text: &str) -> Option<&str> {
     None
 }
 
-/// Parses the first JSON object in a model reply.
 pub fn parse_object(text: &str) -> Option<Map<String, Value>> {
     let cleaned = strip_reasoning(text);
     let json = extract_json_object(&cleaned)?;
@@ -69,17 +61,13 @@ pub fn parse_object(text: &str) -> Option<Map<String, Value>> {
     }
 }
 
-/// Complete top-level array records, even from a truncated envelope.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CompleteRecords {
     pub arrays: BTreeMap<String, Vec<Map<String, Value>>>,
-    /// The envelope parsed whole and every requested key held an array.
     pub complete: bool,
     pub malformed_records: usize,
 }
 
-/// `CompleteJSONRecords.parse`: never closes a partial object or invents
-/// fields; it keeps only records that were fully written.
 pub fn complete_records(text: &str, keys: &[&str]) -> CompleteRecords {
     let keys: BTreeSet<&str> = keys.iter().copied().collect();
     let text = strip_reasoning(text);
@@ -112,7 +100,6 @@ pub fn complete_records(text: &str, keys: &[&str]) -> CompleteRecords {
         return result;
     }
 
-    // The strict envelope starts with an object, not arbitrary prose.
     let chars: Vec<(usize, char)> = text.char_indices().collect();
     if chars.first().map(|c| c.1) != Some('{') {
         return CompleteRecords::default();
@@ -181,8 +168,6 @@ pub fn complete_records(text: &str, keys: &[&str]) -> CompleteRecords {
     result
 }
 
-/// Rebuilds every object with sorted keys. Grammar-constrained servers emit
-/// schema properties in wire order, so request bodies must be stable.
 pub fn sort_keys(value: Value) -> Value {
     match value {
         Value::Object(map) => {
@@ -199,7 +184,6 @@ pub fn sort_keys(value: Value) -> Value {
     }
 }
 
-/// Strips one surrounding Markdown code fence (```json … ```), if present.
 pub fn strip_code_fence(text: &str) -> &str {
     let trimmed = text.trim();
     let Some(rest) = trimmed.strip_prefix("```") else {

@@ -1,17 +1,10 @@
 import Foundation
 
-/// Capture the journal revision before awaiting a model, then verify it again
-/// immediately before committing. A user edit or a newer generation wins.
 enum DayDigestJournalWriter {
     struct Revision: Equatable, Sendable {
         var digest: String?
     }
 
-    /// A two-file journal commit cannot be made atomic by the filesystem. Keep
-    /// enough intent beside it to finish the ownership sidecar after a crash.
-    /// Readers recognize the intended digest while this record exists, so a
-    /// generated journal never becomes user-owned merely because the sidecar
-    /// write was interrupted.
     private struct PendingWrite: Codable {
         static let currentVersion = 1
 
@@ -123,9 +116,6 @@ enum DayDigestJournalWriter {
             atPath: transactionURL(for: journalURL).path)
     }
 
-    /// Return recoverable ownership even when persisting the repaired sidecar
-    /// still fails. Callers can therefore retract generated text without ever
-    /// mistaking it for a user edit, and a later read retries the repair.
     static func recoverPendingMetadata(at journalURL: URL) -> DayDigestGenerationMetadata? {
         guard let pending = loadPendingWrite(at: journalURL) else { return nil }
         guard let journalData = try? Data(contentsOf: journalURL),
@@ -143,9 +133,6 @@ enum DayDigestJournalWriter {
             return previous
         }
         if pending.expectedJournalDigest == pending.journalDigest {
-            // An interrupted rewrite of byte-identical user content is
-            // indistinguishable from a commit that never reached the journal.
-            // Resolve that ambiguity in favor of the user's prior ownership.
             if !activeWrites.contains(journalURL) {
                 try? removeTransactionIfPresent(for: journalURL)
             }
@@ -169,8 +156,6 @@ enum DayDigestJournalWriter {
                 for: journalURL)
             try removeTransactionIfPresent(for: journalURL)
         } catch {
-            // The transaction remains the durable ownership record. A later
-            // read retries once the filesystem failure is gone.
         }
         return recovered
     }

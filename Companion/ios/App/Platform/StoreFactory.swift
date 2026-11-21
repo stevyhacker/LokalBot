@@ -2,10 +2,7 @@ import Foundation
 import LokalBotCompanionKit
 import UIKit
 
-/// Chooses the store: the Rust sync core's, or the in-memory sample store for
-/// debug screenshots (DemoLaunch).
 enum StoreFactory {
-    /// Why the local copy couldn't be opened, shown once at launch.
     @MainActor static var openError: String?
 
     @MainActor
@@ -14,7 +11,6 @@ enum StoreFactory {
         do {
             return try RustStore.open()
         } catch {
-            // The app still opens (welcome screen, sample library) and says why.
             openError = "LokalBot couldn't open its copy on this device: \(error.localizedDescription)"
             return FixtureStore(envelopes: [])
         }
@@ -27,8 +23,6 @@ enum StoreFactory {
         }
     }
 
-    /// Remembers the name the Mac will show for this device. The sync core
-    /// sends it when pairing, so a changed name reopens the store first.
     @MainActor
     static func useDeviceName(_ name: String, in session: CompanionSession) async throws {
         DeviceName.remember(name)
@@ -37,9 +31,6 @@ enum StoreFactory {
     }
 }
 
-/// What the Mac calls this device in its approval prompt and device list.
-/// iOS gives apps only the model ("iPhone", "iPad"), so the person names it
-/// when pairing.
 enum DeviceName {
     private static let key = "companion.deviceName"
 

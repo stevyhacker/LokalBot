@@ -2,8 +2,6 @@ import Foundation
 import LokalBotSync
 
 extension CompanionServerFactory {
-    /// The `lokalbot-sync` crate: the local package `Vendor/lokalbot-sync`,
-    /// built by `Scripts/build/build-sync-xcframework.sh`.
     static let live = CompanionServerFactory(
         makeServer: { configuration, events in
             try CompanionSyncServer(configuration: configuration, events: events)
@@ -17,12 +15,9 @@ extension CompanionServerFactory {
         localAddresses: { LokalBotSync.localAddresses() })
 }
 
-/// `SyncServer` behind the app's `CompanionServer`. The crate's calls are
-/// blocking and thread-safe; the host calls them from its own queue.
 final class CompanionSyncServer: CompanionServer, @unchecked Sendable {
     private let server: SyncServer
 
-    /// `loopbackOnly` is for tests, where it keeps the firewall out of it.
     init(configuration: CompanionServerFactory.Configuration, events: CompanionServerEvents,
          loopbackOnly: Bool = false) throws {
         server = try SyncServer(
@@ -77,7 +72,6 @@ final class CompanionSyncServer: CompanionServer, @unchecked Sendable {
 
     func connectedDeviceIDs() -> Set<String> { Set(server.connectedDeviceIds()) }
 
-    /// The crate writes ISO 8601 UTC, with or without fractional seconds.
     static func date(_ text: String) -> Date? {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
@@ -87,7 +81,6 @@ final class CompanionSyncServer: CompanionServer, @unchecked Sendable {
     }
 }
 
-/// The crate's callback interface, forwarded to the app on the crate's threads.
 private final class CompanionSyncDelegate: ServerDelegate, @unchecked Sendable {
     private let events: CompanionServerEvents
 
@@ -122,7 +115,6 @@ private final class CompanionSyncDelegate: ServerDelegate, @unchecked Sendable {
     }
 }
 
-/// `AskSink` works from any thread and ignores calls after the answer ends.
 private final class CompanionAskSinkOutput: CompanionAskOutput, @unchecked Sendable {
     private let sink: AskSink
 

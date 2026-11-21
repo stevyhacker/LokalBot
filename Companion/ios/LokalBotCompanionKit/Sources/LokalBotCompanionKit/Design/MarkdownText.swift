@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Renders the Markdown the Mac sends: summaries, notes, digests and answers.
 public struct MarkdownText: View {
     let document: MarkdownDocument
     var inline: (String) -> AttributedString

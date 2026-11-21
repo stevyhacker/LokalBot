@@ -1,9 +1,3 @@
-//! Speaker review inside Name Speaker (`SpeakerIdentityReview`). Evidence
-//! stays out of the transcript model and its search and export paths; only
-//! names a person accepts reach them. Names recognized from earlier meetings
-//! start picked in the naming sheet (`naming.rs`) and are applied only when
-//! the person saves.
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Disableable as _, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -16,7 +10,6 @@ use super::dialogs::NameSpeakerSheet;
 use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, ty};
 
-/// `SpeakerNameMatch.explanation`.
 fn explanation(found: &NameMatch) -> String {
     lokalbot_i18n::format(
         "Matched a remembered voice across {count} speaking turns",

@@ -1,9 +1,3 @@
-//! Settings → Overview, opened from the LokalBot row at the top of the list
-//! (`SettingsOverview.swift`). A status page: what needs you, each with its
-//! own fix, then where your data is, the keyboard shortcuts and the version.
-//! Features are turned on and off on their own pages, beside what explains
-//! them and asks for consent, so nothing here turns anything on.
-
 use gpui_kit::component::button::Button;
 use gpui_kit::component::progress::Progress;
 use gpui_kit::component::{Sizable as _, v_flex};
@@ -24,7 +18,6 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, settings_row};
 use lokalbot_i18n::{directional, fill};
 
-/// The label of the key that accepts a suggestion.
 fn accept_key_label(settings: &Settings) -> String {
     match settings.cotyping_accept_key {
         CotypingAcceptKey::Tab => lokalbot_i18n::tr("Tab").to_string(),
@@ -32,13 +25,8 @@ fn accept_key_label(settings: &Settings) -> String {
     }
 }
 
-/// One keyboard shortcut Overview lists: its name, keys, whether it is on,
-/// and the page that sets it.
 type ShortcutRow = (&'static str, String, bool, Option<SettingsCategory>);
 
-/// The keyboard shortcuts Overview lists: each opens the page that sets it,
-/// and one that is off says so. Quick Recall inside LokalBot (Ctrl+K) has
-/// no page.
 fn shortcut_rows(settings: &Settings) -> Vec<ShortcutRow> {
     vec![
         (
@@ -69,7 +57,6 @@ fn shortcut_rows(settings: &Settings) -> Vec<ShortcutRow> {
     ]
 }
 
-/// Where things go: each AI server, then phones and tablets.
 pub(super) fn leaving(status: &SettingsStatus) -> String {
     let mut places = status.remote_hosts();
     if status.shares_with_devices() {
@@ -90,7 +77,6 @@ impl SettingsPage {
         let settings = self.data.read(cx).settings.clone();
         let (learned, _) = self.personal_counts();
 
-        // What needs you.
         let mut first: Vec<AnyElement> = vec![self.headline(status, cx)];
         for (index, need) in status.needs().iter().enumerate() {
             first.push(self.need_row(index, need, status, open.clone(), cx));
@@ -102,7 +88,6 @@ impl SettingsPage {
             first.push(self.learned_row(learned, open.clone(), cx));
         }
 
-        // Your data.
         let data_rows = vec![
             self.data_row(status, open.clone(), cx),
             self.library_row(false, cx),
@@ -151,7 +136,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// The big line on top: how many things need you, or that nothing does.
     fn headline(&self, status: &SettingsStatus, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let (title, detail) = status.headline();
@@ -206,7 +190,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// A row with a tile, a title over a detail, and something at the right.
     #[allow(clippy::too_many_arguments)]
     fn status_row(
         id: impl Into<gpui_kit::ElementId>,
@@ -252,7 +235,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// The button of a row's fix, run the same way as a header's.
     fn fix_button(
         id: SharedString,
         title: &'static str,
@@ -328,7 +310,6 @@ impl SettingsPage {
         )
     }
 
-    /// What LokalBot learned waits for a look, but stops nothing from working.
     fn learned_row(&self, learned: usize, open: Opener, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let button = Self::fix_button(
@@ -352,7 +333,6 @@ impl SettingsPage {
         )
     }
 
-    /// Whether everything stays here, or where things go.
     fn data_row(
         &self,
         status: &SettingsStatus,
@@ -413,9 +393,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Where the library is and how much it holds, with a way to open it.
-    /// Overview says what is in it; Privacy & permissions names the folder
-    /// (`SettingsLibraryRow`).
     pub(super) fn library_row(&self, shows_path: bool, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let root = self.data.read(cx).library.paths().root().to_path_buf();
@@ -474,7 +451,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Models and their first status line; the row opens Models.
     fn models_row(
         &self,
         status: &SettingsStatus,
@@ -515,7 +491,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// A shortcut opens the page that sets it. One that is off says so.
     fn shortcut_rows(
         &self,
         settings: &Settings,
@@ -571,7 +546,6 @@ impl SettingsPage {
     }
 }
 
-/// The glyph of a permission, on Overview and Privacy & permissions.
 pub(super) fn permission_icon(name: &str) -> Ico {
     match name {
         "microphone" => Ico::Mic,
@@ -585,7 +559,6 @@ pub(super) fn permission_icon(name: &str) -> Ico {
     }
 }
 
-/// The chevron that points into a row, the way the interface reads.
 pub(super) fn chevron() -> Ico {
     if lokalbot_i18n::current().rtl {
         Ico::ChevronLeft

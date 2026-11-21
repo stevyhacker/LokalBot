@@ -1,8 +1,3 @@
-//! The words the Agent page shows (`AgentPresentation.swift`): each step in
-//! plain words, the steps line, where a task stands, a changed file's line,
-//! the access levels and the approval card. The rules behind them (layout,
-//! status, changed files) are in `lokalbot_agent::presentation`.
-
 use std::path::Path;
 
 use chrono::{DateTime, Local, Utc};
@@ -17,24 +12,15 @@ use lokalbot_agent::transcript::{ApprovalRequest, ToolStatus, is_shell_tool};
 use lokalbot_i18n::tr;
 use lokalbot_i18n::{fill, interface_directional, mac};
 
-// ------------------------------------------------------------------ steps
-
-/// One tool call in plain words.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct StepLabel {
-    /// "Read meeting notes"
     pub done: String,
-    /// "Reading meeting notes", without the ellipsis.
     pub doing: String,
-    /// What the step worked on: the search, the meeting's title, the folder.
     pub detail: Option<String>,
-    /// The words begin with a file or tool name, whose capitals must stay.
     pub begins_with_name: bool,
 }
 
 impl StepLabel {
-    /// The words for a step in the given state. A step still running when
-    /// its task stopped never finished.
     pub fn text(&self, status: ToolStatus, task_is_working: bool) -> String {
         match status {
             ToolStatus::Succeeded => self.done.clone(),
@@ -45,11 +31,9 @@ impl StepLabel {
     }
 }
 
-/// What a step's words need to know about its task.
 pub struct StepContext<'a> {
     pub workspace: &'a Path,
     pub workspace_name: &'a str,
-    /// A meeting's title from the ID or ID prefix a lookup names.
     pub meeting_title: &'a dyn Fn(&str) -> Option<String>,
 }
 
@@ -76,7 +60,6 @@ pub fn step_label(tool: &str, args_json: &str, context: &StepContext) -> StepLab
 
 fn named(done: &str, doing: &str, name: &str, detail: Option<String>) -> StepLabel {
     StepLabel {
-        // A right-to-left translation can begin with the name.
         done: interface_directional(&fill(done, &[name])),
         doing: interface_directional(&fill(doing, &[name])),
         detail,
@@ -93,9 +76,6 @@ fn phrase(done: &str, doing: &str, detail: Option<String>) -> StepLabel {
     }
 }
 
-/// `lokalbot-cli` calls made of plain words get a name for what they look
-/// up. Anything a shell could chain or redirect is a command, shown with its
-/// text, so a label never hides what ran.
 fn command_label(text: &str, context: &StepContext) -> StepLabel {
     let first_line = text.lines().next().unwrap_or_default();
     let shown = if first_line.chars().count() > 120 {
@@ -116,7 +96,6 @@ fn command_label(text: &str, context: &StepContext) -> StepLabel {
     if words.len() < 2 || words[0] != "lokalbot-cli" {
         return other();
     }
-    // The first word after the subcommand that is not an option or its value.
     let mut subject = None;
     let mut skip_value = false;
     for word in &words[2..] {
@@ -161,9 +140,6 @@ fn command_label(text: &str, context: &StepContext) -> StepLabel {
     }
 }
 
-/// "Searched meeting library, read meeting notes": each different step
-/// once, in order. `lowercase_following` suits languages that write a list's
-/// later items without a capital; names keep theirs.
 pub fn steps_summary(labels: &[(String, bool)], lowercase_following: bool) -> String {
     let mut seen = std::collections::HashSet::new();
     let mut parts: Vec<String> = Vec::new();
@@ -186,12 +162,10 @@ pub fn steps_summary(labels: &[(String, bool)], lowercase_following: bool) -> St
     parts.join(", ")
 }
 
-/// English writes a list's later items without a capital.
 pub fn lowercases_list_items() -> bool {
     lokalbot_i18n::current().code.starts_with("en")
 }
 
-/// "4 steps"
 pub fn steps_count(steps: usize) -> String {
     if steps == 1 {
         tr("1 step").to_string()
@@ -200,9 +174,6 @@ pub fn steps_count(steps: usize) -> String {
     }
 }
 
-// ----------------------------------------------------------------- status
-
-/// The word for the toolbar. A saved task that is doing nothing shows none.
 pub fn status_title(status: TaskStatus) -> Option<&'static str> {
     Some(match status {
         TaskStatus::NotStarted => tr("Not started"),
@@ -216,7 +187,6 @@ pub fn status_title(status: TaskStatus) -> Option<&'static str> {
     })
 }
 
-/// The line under a task's title in the list: "Done · 1 file changed".
 pub fn status_line(status: TaskStatus) -> Option<String> {
     match status {
         TaskStatus::Done { changed_files: 1 } => Some(tr("Done · 1 file changed").to_string()),
@@ -230,9 +200,6 @@ pub fn status_line(status: TaskStatus) -> Option<String> {
     }
 }
 
-// ------------------------------------------------------------ changed files
-
-/// "New file", or nothing when history does not say what the write did.
 pub fn change_label(change: Change) -> Option<&'static str> {
     match change {
         Change::Created => Some(tr("New file")),
@@ -242,7 +209,6 @@ pub fn change_label(change: Change) -> Option<&'static str> {
     }
 }
 
-/// "New file · 12 lines · Agent Workspace"
 pub fn changed_file_detail(file: &ChangedFile) -> String {
     let mut parts: Vec<String> = change_label(file.change)
         .map(str::to_string)
@@ -259,8 +225,6 @@ pub fn changed_file_detail(file: &ChangedFile) -> String {
     interface_directional(&parts.join(" · "))
 }
 
-// --------------------------------------------------------------- task list
-
 pub fn section_title(kind: SectionKind) -> String {
     match kind {
         SectionKind::Pinned => tr("Pinned").to_string(),
@@ -276,8 +240,6 @@ pub fn section_title(kind: SectionKind) -> String {
     }
 }
 
-/// A day group already names the day, so its rows show the time. A pinned
-/// task from another day shows the date.
 pub fn row_time(modified_at: DateTime<Utc>, pinned: bool, now: DateTime<Local>) -> Option<String> {
     if modified_at == DateTime::<Utc>::MIN_UTC {
         return None;
@@ -298,9 +260,6 @@ pub fn row_time(modified_at: DateTime<Utc>, pinned: bool, now: DateTime<Local>) 
     )
 }
 
-// ---------------------------------------------------------- access levels
-
-/// On the composer's chip: what the agent does on its own.
 pub fn chip_title(mode: ApprovalMode) -> &'static str {
     match mode {
         ApprovalMode::AskBeforeChanges => tr("Asks first"),
@@ -310,7 +269,6 @@ pub fn chip_title(mode: ApprovalMode) -> &'static str {
     }
 }
 
-/// The level's name in the access list.
 pub fn level_title(mode: ApprovalMode) -> &'static str {
     match mode {
         ApprovalMode::AskBeforeChanges => tr("Ask first"),
@@ -320,15 +278,12 @@ pub fn level_title(mode: ApprovalMode) -> &'static str {
     }
 }
 
-/// Full access runs commands unasked, so it is drawn in the caution colour.
 pub fn needs_caution(mode: ApprovalMode) -> bool {
     mode == ApprovalMode::FullAccess
 }
 
-/// One line per level: what runs on its own, and what still asks.
 pub fn level_detail(mode: ApprovalMode, workspace_name: &str) -> String {
     let detail = match mode {
-        // Lookups skip approval only with a model on this computer (policy.rs).
         ApprovalMode::AskBeforeChanges => lokalbot_i18n::format(
             "Reads files in {folder} without asking, and looks things up in your LokalBot library when the model runs on this PC. Asks before anything else.",
             &[("folder", workspace_name.to_string())],
@@ -348,7 +303,6 @@ pub fn level_detail(mode: ApprovalMode, workspace_name: &str) -> String {
     interface_directional(&detail)
 }
 
-/// The line under the heading of a new task.
 pub fn capability(mode: ApprovalMode) -> &'static str {
     match mode {
         ApprovalMode::AskBeforeChanges => tr(
@@ -366,38 +320,25 @@ pub fn capability(mode: ApprovalMode) -> &'static str {
     }
 }
 
-// ----------------------------------------------------------- approval card
-
-/// Where an approval request's file sits.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApprovalPlace {
     WorkingFolder,
     Outside,
-    /// Inside LokalBot's library, runtime, saved tasks or app.
     LokalbotData,
-    /// The request names no file.
     None,
 }
 
-/// The words of one approval request: a question that names its target,
-/// what will happen and where, and the text to review.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApprovalCard {
     pub is_command: bool,
     pub title: String,
     pub effect: String,
-    /// The full path, shown with a caution when the file is not in the
-    /// working folder.
     pub caution: Option<String>,
-    /// Where the result goes when the model is not on this computer.
     pub destination: Option<String>,
     pub preview: String,
-    /// "Allow writes for this task", when the policy lets this request be
-    /// allowed that way.
     pub task_answer: Option<&'static str>,
 }
 
-/// A preview shows this many lines until "Show all".
 pub const COLLAPSED_PREVIEW_LINES: usize = 4;
 
 impl ApprovalCard {
@@ -416,12 +357,10 @@ impl ApprovalCard {
             .and_then(|p| Path::new(p).file_name())
             .map(|n| n.to_string_lossy().into_owned())
             .filter(|n| !n.is_empty());
-        // A file tool always names its file; one that does not is shown as the tool it is.
         let named = |template: &str| match &name {
             Some(name) => fill(template, &[name]),
             None => mac("Use %@?", &[&request.tool]),
         };
-        // The question says what happens to the file; this line where it is.
         let located = |inside: String| match place {
             ApprovalPlace::LokalbotData => {
                 tr("This file is part of LokalBot’s own data.").to_string()
@@ -513,7 +452,6 @@ impl ApprovalCard {
                 tr("Allow writes for this task")
             }
         });
-        // A right-to-left translation can begin with the file's or folder's name.
         ApprovalCard {
             is_command,
             title: interface_directional(&title),
@@ -530,7 +468,6 @@ impl ApprovalCard {
     }
 }
 
-/// "Show all 12 lines"
 pub fn show_all(lines: usize) -> String {
     interface_directional(&mac(
         "Show all %lld lines",
@@ -589,8 +526,6 @@ mod tests {
         let path = f.workspace.join("a.rs");
         let edit = serde_json::json!({"file_path": path.to_string_lossy()});
         assert_eq!(label(&f, "Edit", edit).done, "Edited a.rs");
-        // A file outside the workspace shows its full folder. The path must be
-        // absolute on each system: on Windows "/etc/hosts" is on the current drive.
         let (hosts, folder) = if cfg!(windows) {
             (
                 r"C:\Windows\System32\drivers\etc\hosts",
@@ -629,7 +564,6 @@ mod tests {
                 .as_deref(),
             Some("release")
         );
-        // A command without a name of its own shows its text.
         let people = command(&f, "lokalbot-cli people \"Ana Petrović\"");
         assert_eq!(people.done, "Ran a command");
         assert_eq!(
@@ -638,8 +572,6 @@ mod tests {
         );
     }
 
-    /// A label never hides what ran: anything a shell could chain or redirect
-    /// is a command, shown with its text.
     #[test]
     fn other_commands_show_their_text() {
         let f = fixture();
@@ -666,7 +598,6 @@ mod tests {
             Some(120)
         );
         assert_eq!(label(&f, "bash", serde_json::json!({})).detail, None);
-        // PowerShell commands read the same way.
         let shell = label(
             &f,
             "powershell",
@@ -681,7 +612,6 @@ mod tests {
         let tool = label(&f, "mcp_search", serde_json::json!({"q": "x"}));
         assert_eq!(tool.done, "Used mcp_search");
         assert_eq!(tool.doing, "Using mcp_search");
-        // A file tool without a path has nothing to name.
         assert_eq!(label(&f, "read", serde_json::json!({})).done, "Used read");
     }
 
@@ -695,7 +625,6 @@ mod tests {
             label.text(ToolStatus::Failed, false),
             "Writing note.md · failed"
         );
-        // Still running when its task stopped: it never finished.
         assert_eq!(
             label.text(ToolStatus::Running, false),
             "Writing note.md · not finished"
@@ -721,7 +650,6 @@ mod tests {
             steps_summary(&labels, false),
             "Searched meeting library, Read meeting notes, Wrote README.md"
         );
-        // Where a translation puts the file name first, its capitals stay.
         let german = [
             ("Gelesen".to_string(), false),
             ("README.md geschrieben".to_string(), true),
@@ -780,7 +708,6 @@ mod tests {
             changed_file_detail(&file(Change::Replaced, None)),
             "Replaced · Agent Workspace"
         );
-        // History does not say whether a written file was there before.
         assert_eq!(
             changed_file_detail(&file(Change::Written, Some(2))),
             "2 lines · Agent Workspace"
@@ -958,7 +885,6 @@ mod tests {
         let tool = card(&tool, ApprovalPlace::None, false, None, false);
         assert_eq!(tool.title, "Use mcp_search?");
         assert_eq!(tool.preview, "{\"q\":\"x\"}");
-        // A write's text stays here until the agent reads something back.
         let mut write = request(&f, "write", Some("/a/b.md"));
         write.content = Some("x".into());
         assert_eq!(

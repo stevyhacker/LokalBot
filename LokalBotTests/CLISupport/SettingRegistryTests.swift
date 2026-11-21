@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Keeps the terminal's settings registry identical to `AppSettings`: every
-/// stored key described, every choice spelled as the real enum stores it.
 @MainActor
 final class SettingRegistryTests: XCTestCase {
     private func encodedKeys(_ settings: AppSettings) throws -> Set<String> {
@@ -16,7 +14,6 @@ final class SettingRegistryTests: XCTestCase {
 
     func testEveryStoredKeyHasExactlyOneSpecOrIsInternal() throws {
         var settings = AppSettings()
-        // Optional keys are encoded only when set.
         settings.agentReasoningLevel = .low
         settings.dreamingFirstEligibleDayKey = "2026-01-01"
         let stored = try encodedKeys(settings)
@@ -58,7 +55,6 @@ final class SettingRegistryTests: XCTestCase {
             "dictationIntent": try stored(DictationIntent.allCases),
             "dictationTriggerMode": try stored(DictationTriggerMode.allCases),
             "dictationOutputMode": try stored(DictationOutputMode.allCases),
-            // Shortest window first, so a later choice shares more.
             "companionHistory": try stored([CompanionHistoryWindow.days30, .days90, .days365, .all]),
         ]
         let choiceSpecs = SettingRegistry.all.filter { $0.kind.choices != nil }
@@ -170,7 +166,6 @@ final class SettingRegistryTests: XCTestCase {
     func testSnapshotSpecSelection() throws {
         XCTAssertEqual(try SettingsSnapshot.specs(category: "files", keys: nil).map(\.key),
                        ["fileSearchEnabled", "fileSearchFolders", "fileSearchIncludesMedia", "fileSearchReadsOnBattery"])
-        // Retention and exclusions live with the capture they limit.
         XCTAssertEqual(try SettingsSnapshot.specs(category: "privacy", keys: nil).map(\.key), [])
         XCTAssertTrue(try SettingsSnapshot.specs(category: "dayMemory", keys: nil).map(\.key)
             .contains("retentionDays"))

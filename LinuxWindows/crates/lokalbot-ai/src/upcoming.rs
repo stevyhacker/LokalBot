@@ -1,10 +1,3 @@
-//! Preparation for an upcoming meeting (`UpcomingMeetingPreparation.swift`).
-//!
-//! Code picks the evidence: prior meetings by attendees and recurring title,
-//! their decisions, open commitments and related projects. The local Think
-//! model only rewrites that packet into a short brief, which is kept in
-//! memory and never saved.
-
 use std::collections::HashSet;
 
 use anyhow::Result;
@@ -40,8 +33,6 @@ pub enum ReferenceKind {
     Commitment,
 }
 
-/// A decision or commitment with the meeting it came from, so Today can open
-/// the source instead of an uncited assertion.
 #[derive(Clone, Debug, PartialEq)]
 pub struct UpcomingReference {
     pub id: String,
@@ -73,7 +64,6 @@ pub struct RelatedMeeting {
     pub relevance_score: i64,
 }
 
-/// The bounded evidence behind one brief (`UpcomingMeetingEvidence`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct UpcomingEvidence {
     pub event: CalendarEvent,
@@ -81,7 +71,6 @@ pub struct UpcomingEvidence {
     pub decisions: Vec<UpcomingReference>,
     pub commitments: Vec<UpcomingReference>,
     pub projects: Vec<UpcomingProject>,
-    /// The sanitized agenda, only when agenda use is on.
     pub agenda: Option<String>,
 }
 
@@ -94,8 +83,6 @@ impl UpcomingEvidence {
             || self.agenda.is_some()
     }
 
-    /// Changes whenever the evidence does, so a new summary or outcome
-    /// invalidates a brief written for the old one.
     pub fn signature(&self) -> String {
         let meetings: Vec<String> = self
             .related_meetings
@@ -137,8 +124,6 @@ impl UpcomingEvidence {
         .join("\u{1f}")
     }
 
-    /// A model-free brief shown at once and whenever no model writes one. It
-    /// only restates selected evidence.
     pub fn fallback_brief(&self) -> String {
         let mut sentences: Vec<String> = Vec::new();
         if let Some(decision) = self.decisions.first() {
@@ -180,8 +165,6 @@ impl UpcomingEvidence {
         sanitize(&sentences[..sentences.len().min(3)].join(" "), Some(520))
     }
 
-    /// Decisions, commitments and projects first; prior summaries share the
-    /// room they leave, so long summaries cannot push them past the cap.
     pub fn prompt_context(&self) -> String {
         let start = self.event.start.with_timezone(&Local);
         let end = self.event.end.with_timezone(&Local);
@@ -303,9 +286,6 @@ impl UpcomingEvidence {
     }
 }
 
-/// Everything LokalBot knows for `event` (`UpcomingMeetingPreparationCompiler`):
-/// prior meetings of the last 180 days, scored by shared attendees, then a
-/// recurring title, then recency.
 pub fn compile(
     event: &CalendarEvent,
     library: &Library,
@@ -485,8 +465,6 @@ pub struct MemoryProject {
     pub pinned: bool,
 }
 
-/// `DreamMemory.activeProjects`, through the evidence check: a project whose
-/// sources were deleted or corrected since it was written doesn't count.
 fn read_projects(library: &Library) -> Vec<MemoryProject> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -547,8 +525,6 @@ Use only supplied evidence. Do not invent history, completion, ownership, dates,
 Write two or three direct sentences: what matters now, a prior decision, and a commitment or risk to revisit.
 Avoid headings, bullets, greetings, and meta commentary. Return only the requested JSON object.";
 
-/// Rewrites the evidence into two or three sentences
-/// (`UpcomingMeetingBriefGenerator`). Only for a Think model on this computer.
 pub fn generate_brief(think: &ThinkClient, evidence: &UpcomingEvidence) -> Result<String> {
     if !evidence.has_preparation_context() {
         anyhow::bail!("No related local context was found.");
@@ -600,7 +576,6 @@ fn non_empty(value: Option<&str>) -> Option<&str> {
     value.map(str::trim).filter(|v| !v.is_empty())
 }
 
-/// `SpeakerDisplayName.label` for an owner: the user reads as "You".
 fn owner_label(owner: &str, is_for_user: bool) -> String {
     let trimmed = owner.trim();
     if is_for_user || trimmed.eq_ignore_ascii_case("me") {
@@ -616,7 +591,6 @@ fn abbreviated_date(value: DateTime<Utc>) -> String {
     value.with_timezone(&Local).format("%b %-d, %Y").to_string()
 }
 
-/// Case- and accent-folded words joined by single spaces.
 fn normalized_phrase(value: &str) -> String {
     let folded: String = value
         .nfkd()

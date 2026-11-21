@@ -1,18 +1,10 @@
-//! Library root resolution and the well-known paths inside it.
-
 use std::path::{Path, PathBuf};
 
-/// Environment variable that points the app and CLI at another library, as on
-/// macOS (`AppDirectories.libraryRoot`).
 pub const STORAGE_ROOT_ENV: &str = "LOKALBOT_STORAGE_ROOT";
-/// Command-line flag with the same meaning as [`STORAGE_ROOT_ENV`].
 pub const STORAGE_ROOT_FLAG: &str = "--lokalbot-storage-root";
 
-/// Folder name under the platform's per-user data directory.
 const LIBRARY_FOLDER: &str = "LokalBot";
 
-/// Every path the app, engine and CLI share. Construct once with
-/// [`LibraryPaths::resolve`] (or [`LibraryPaths::new`] in tests).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LibraryPaths {
     root: PathBuf,
@@ -23,9 +15,6 @@ impl LibraryPaths {
         Self { root: root.into() }
     }
 
-    /// The library root: an explicit override, then `LOKALBOT_STORAGE_ROOT`,
-    /// then `%LOCALAPPDATA%\LokalBot` on Windows or `$XDG_DATA_HOME/LokalBot`
-    /// (`~/.local/share/LokalBot`) on Linux.
     pub fn resolve(explicit: Option<&Path>) -> Self {
         if let Some(path) = explicit {
             return Self::new(path);
@@ -36,8 +25,6 @@ impl LibraryPaths {
         Self::new(Self::default_root())
     }
 
-    /// Looks for `--lokalbot-storage-root <path>` or `--lokalbot-storage-root=<path>`
-    /// in process arguments.
     pub fn root_from_args<I, S>(args: I) -> Option<PathBuf>
     where
         I: IntoIterator<Item = S>,
@@ -117,7 +104,6 @@ impl LibraryPaths {
         self.root.join(".instance.lock")
     }
 
-    /// Absolute folder of a meeting from its `relativePath`.
     pub fn meeting_dir(&self, relative_path: &str) -> PathBuf {
         let mut path = self.root.clone();
         for part in relative_path.split(['/', '\\']).filter(|p| !p.is_empty()) {

@@ -1,6 +1,5 @@
 import AppKit
 
-/// Where a window handoff goes. Every target runs on this Mac.
 enum WindowHandoffTarget: String, CaseIterable, Identifiable {
     case agentMode = "Agent Mode"
     case claudeCode = "Claude Code"
@@ -9,7 +8,6 @@ enum WindowHandoffTarget: String, CaseIterable, Identifiable {
 
     var id: String { rawValue }
 
-    /// The coding agent a link target opens.
     var agent: ActionAgentHandoff? {
         switch self {
         case .claudeCode: .claudeCode
@@ -28,29 +26,22 @@ enum WindowHandoffTarget: String, CaseIterable, Identifiable {
     }
 }
 
-/// Hand off: a system-wide shortcut reads the focused window, the Think
-/// model writes a brief the person reviews and edits, and the task goes to
-/// the target they pick, with a package folder holding the full context.
 @MainActor
 final class WindowHandoffController: ObservableObject {
     enum Phase: Equatable {
         case idle
-        /// Reading the window before the panel opens.
         case capturing
-        /// The Think model is writing the brief.
         case writing
         case ready
         case handingOff
     }
 
     struct Dependencies {
-        /// True when LokalBot itself is the frontmost app.
         var isLokalBotFrontmost: @MainActor () -> Bool = { FocusReturn.frontmostOtherApplication() == nil }
         var capture: @MainActor () async -> WindowHandoffCapture
         var makeEngine: @MainActor () async throws -> TextEngine
         var targets: @MainActor () -> [WindowHandoffTarget]
         var writePackage: @MainActor (WindowHandoffCapture, String) throws -> WindowHandoffPackage
-        /// Delivers the package. Returns why it could not, or nil.
         var deliver: @MainActor (WindowHandoffPackage, WindowHandoffTarget) async -> String?
         var returnFocus: @MainActor (SelectionSource) -> Void
         var openPanel: @MainActor () -> Void
@@ -63,17 +54,12 @@ final class WindowHandoffController: ObservableObject {
     @Published var target: WindowHandoffTarget = .agentMode
     @Published private(set) var targets: [WindowHandoffTarget] = []
     @Published private(set) var modelName: String?
-    /// The brief is LokalBot's template, not the model's.
     @Published private(set) var briefIsTemplate = false
-    /// Why the model or the last delivery failed; shown above the brief.
     @Published private(set) var notice: String?
-    /// The shortcut was pressed while LokalBot was in front, so there was no
-    /// other window to read.
     @Published private(set) var needsSourceWindow = false
 
     private let dependencies: Dependencies
     private var task: Task<Void, Never>?
-    /// Bumped by every new request, so a superseded one never writes state.
     private var generation = 0
 
     init(dependencies: Dependencies) {
@@ -85,11 +71,8 @@ final class WindowHandoffController: ObservableObject {
             && !brief.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && targets.contains(target)
     }
 
-    /// The shortcut was pressed. Reads the window before the panel opens,
-    /// because the panel takes focus from it.
     func invoke() {
         guard !dependencies.isLokalBotFrontmost() else {
-            // Keep a handoff that is already open; otherwise say what to do.
             if phase == .idle { needsSourceWindow = true }
             dependencies.openPanel()
             return
@@ -113,7 +96,6 @@ final class WindowHandoffController: ObservableObject {
         }
     }
 
-    /// Uses LokalBot's template instead of waiting for the model.
     func skipBrief() {
         guard phase == .writing else { return }
         task?.cancel()
@@ -122,7 +104,6 @@ final class WindowHandoffController: ObservableObject {
         useTemplate(notice: nil)
     }
 
-    /// Writes the brief again with the model, replacing edits.
     func rewriteBrief() {
         guard phase == .ready, capture.hasContent else { return }
         task?.cancel()
@@ -160,7 +141,6 @@ final class WindowHandoffController: ObservableObject {
         }
     }
 
-    /// Closes without handing off and returns to the source app.
     func dismiss() {
         let source = capture.source
         finish()
@@ -168,7 +148,6 @@ final class WindowHandoffController: ObservableObject {
         if let source { dependencies.returnFocus(source) }
     }
 
-    /// The panel closed: stop writing and forget the capture.
     func panelClosed() {
         guard phase != .idle || needsSourceWindow else { return }
         finish()
@@ -177,8 +156,6 @@ final class WindowHandoffController: ObservableObject {
     func stop() {
         finish()
     }
-
-    // MARK: - Brief
 
     private func writeBrief(generation current: Int) {
         phase = .writing
@@ -226,8 +203,6 @@ final class WindowHandoffController: ObservableObject {
         self.notice = notice
         phase = .ready
     }
-
-    // MARK: - State
 
     private func begin() -> Int {
         task?.cancel()

@@ -1,8 +1,3 @@
-//! Recordings arriving from paired devices (protocol.md, Flow for
-//! `purpose: "upload"`). A partial file's length is how far it got, so a
-//! dropped connection resumes where it stopped; nothing else about an upload
-//! is kept until it is whole.
-
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read as _, Write as _};
 use std::path::{Path, PathBuf};
@@ -21,18 +16,11 @@ use crate::records::now_iso;
 pub(super) const DIRECTORY: &str = "uploads";
 pub(super) const NOT_BEGUN: &str = "This computer lost its place in the recording.";
 
-/// Far more than a day of the apps' 64 kbit/s audio.
 const MAX_BYTES: u64 = 4 * 1024 * 1024 * 1024;
-/// Base64 of a chunk may not decode to more than this.
 const MAX_CHUNK_BYTES: usize = 1024 * 1024;
-/// A partial file nobody came back for.
 const STALE_AFTER: Duration = Duration::from_secs(14 * 24 * 60 * 60);
-/// How often a running host looks for those.
 pub(super) const SWEEP_EVERY: Duration = Duration::from_secs(60 * 60);
-/// Recordings arriving or being imported at once, which keeps one device from
-/// stacking up imports by reconnecting. Nobody has this many devices recording.
 const MAX_ACTIVE: usize = 8;
-/// Unfinished files one device may hold here.
 const MAX_PARTIALS_PER_DEVICE: usize = 16;
 
 impl UploadOutcome {
@@ -61,8 +49,6 @@ impl UploadOutcome {
     }
 }
 
-/// The folder of one device's partial files. Device ids come from the device,
-/// so its name is a hash of the id.
 fn device_directory(root: &Path, device_id: &str) -> PathBuf {
     let hash = Sha256::digest(device_id.as_bytes());
     root.join(hex::encode(&hash[..8]))
@@ -72,7 +58,6 @@ pub(super) fn forget_device(root: &Path, device_id: &str) {
     let _ = fs::remove_dir_all(device_directory(root, device_id));
 }
 
-/// Removes partial files older than [`STALE_AFTER`].
 pub(super) fn remove_stale(root: &Path) {
     let Ok(devices) = fs::read_dir(root) else {
         return;
@@ -92,13 +77,10 @@ pub(super) fn remove_stale(root: &Path) {
                 let _ = fs::remove_file(file.path());
             }
         }
-        // Fails while the folder still holds something, which is fine.
         let _ = fs::remove_dir(device.path());
     }
 }
 
-/// Holds an upload id for one session or import, so a phone that reconnected
-/// can't write to the same file at once. Dropping it lets go.
 pub(super) struct Claim {
     inner: Arc<ServerInner>,
     id: String,
@@ -110,7 +92,6 @@ impl Drop for Claim {
     }
 }
 
-/// A recording being received.
 pub(super) struct Incoming {
     id: String,
     byte_count: u64,
@@ -123,14 +104,12 @@ pub(super) struct Incoming {
 }
 
 pub(super) enum Begin {
-    /// Nothing to send: the outcome is already known.
     Done(UploadOutcome),
     Ready(Incoming),
 }
 
 pub(super) enum Append {
     Written(u64),
-    /// The chunk wasn't for this position; the phone should seek here.
     Elsewhere(u64),
     Failed(UploadOutcome),
 }
@@ -151,7 +130,6 @@ pub(super) fn begin(
     sha256: &str,
     recording: Value,
 ) -> Begin {
-    // The id names a file and becomes the meeting's id: only a UUID will do.
     let Some(id) = canonical_id(upload_id) else {
         return Begin::Done(UploadOutcome::rejected("The recording has no valid id."));
     };
@@ -219,9 +197,6 @@ pub(super) fn begin(
     }
 }
 
-/// The partial file, named so AVFoundation and Symphonia can tell its type,
-/// and how much of it is already here. The checksum is in the name, so bytes
-/// of a different file can never continue this one.
 fn open_partial(
     root: &Path,
     device_id: &str,
@@ -286,7 +261,6 @@ impl Incoming {
         }
         if let Err(error) = self.file.write_all(&bytes) {
             log::warn!("companion upload: writing failed: {error}");
-            // A partial write leaves the file's length as the true position.
             return Append::Failed(UploadOutcome::deferred(format!(
                 "This computer couldn't save the recording: {error}"
             )));
@@ -309,7 +283,6 @@ fn file_sha256(path: &Path) -> io::Result<String> {
     }
 }
 
-/// Checks the finished file, hands it to the Mac and records the outcome.
 pub(super) fn complete(
     inner: &Arc<ServerInner>,
     incoming: Incoming,
@@ -323,7 +296,6 @@ pub(super) fn complete(
     match matches {
         Ok(true) => {}
         Ok(false) => {
-            // Damaged somewhere along the way: the next attempt starts over.
             let _ = fs::remove_file(&path);
             return UploadOutcome::deferred(
                 "The recording arrived damaged. It will be sent again.",
@@ -354,7 +326,6 @@ pub(super) fn complete(
                 &now_iso(),
             );
             if let Err(error) = recorded {
-                // The Mac's import is idempotent by id, so a resend is safe.
                 log::warn!("companion upload: recording the arrival failed: {error}");
             }
             let _ = fs::remove_file(&path);
@@ -364,7 +335,6 @@ pub(super) fn complete(
             let _ = fs::remove_file(&path);
             outcome
         }
-        // Whole and checked: the next attempt needs no audio sent again.
         "deferred" => outcome,
         other => {
             log::warn!("companion upload: unknown outcome \"{other}\"");

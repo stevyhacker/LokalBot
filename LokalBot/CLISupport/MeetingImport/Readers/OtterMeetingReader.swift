@@ -1,25 +1,5 @@
 import Foundation
 
-/// Reads Otter.ai conversations from what Otter's Export dialog gives: TXT,
-/// DOCX, and SRT files, one at a time or many in a bulk export's ZIP, with
-/// the MP3 its Audio toggle adds. Otter keeps nothing on this computer that
-/// LokalBot can read, so it always needs an export. PDF exports aren't read.
-///
-/// A TXT turn is a header, the speaker's name, two spaces, and the time it
-/// starts (`Ana Petrović  0:07`, `1:02:10` past the hour), then its words on
-/// the next line and a blank line. An export made without the names or the
-/// times leaves that part of the header out, and one made with neither is
-/// paragraphs alone. The file closes with `Transcribed by https://otter.ai`
-/// unless the branding is removed. Word and PDF exports open with the
-/// title, the date and length (`Wed, Mar 4, 2026 10:15AM • 32:15`),
-/// `SUMMARY KEYWORDS`, and `SPEAKERS`. An SRT names the speaker on the first
-/// cue of each turn (`Ana: …`). Summary sections the dialog adds (Overview,
-/// Action Items, Outline) are read by their headings wherever they stand.
-///
-/// Exports carry no conversation id, so a meeting's id hashes its file name
-/// (without Otter's `_otter_ai` suffix or a browser's ` (1)`) and the words
-/// of its transcript: the same conversation exported again, as TXT, DOCX, or
-/// SRT, gets the same id.
 enum OtterMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.otter
     static let exportHint = "In Otter, open the conversation, click the three dots, select Export, and choose TXT, DOCX, or SRT with Show speaker names and Show timestamps on (turn on Audio too to keep the recording). To export many at once on Business or Enterprise, select them in My Conversations, click Export, and choose the ZIP file Otter emails you."
@@ -49,14 +29,10 @@ enum OtterMeetingReader: ExternalMeetingReader {
         return isDirectory.boolValue ? try readFolder(url) : try readFile(url)
     }
 
-    // MARK: - Files and folders
-
     private static let transcriptExtensions: Set<String> = ["txt", "docx", "srt"]
     private static let audioExtensions: Set<String> = ["mp3", "m4a", "wav"]
     private static let pdfReason = "Otter's PDF export can't be read. Export the conversation as TXT, DOCX, or SRT instead."
 
-    /// The files of one conversation: its exports in different formats and
-    /// the recording that came with them.
     private struct Group {
         var key: String
         var files: [URL]
@@ -65,9 +41,6 @@ enum OtterMeetingReader: ExternalMeetingReader {
         var folder: String { files.first?.deletingLastPathComponent().standardizedFileURL.path ?? "" }
     }
 
-    /// One file the person chose. A transcript takes the recording named
-    /// like it from its folder; a recording chosen on its own reads the
-    /// transcripts named like it, so choosing both gives one meeting.
     private static func readFile(_ url: URL) throws -> ExternalImportScan {
         let ext = url.pathExtension.lowercased()
         if ext == "pdf" { throw ExternalImportError.unreadable(url.lastPathComponent, pdfReason) }
@@ -85,8 +58,6 @@ enum OtterMeetingReader: ExternalMeetingReader {
         throw ExternalImportError.unrecognized(source, url.path)
     }
 
-    /// A folder, such as an unpacked bulk export: every Otter file in it,
-    /// grouped by conversation.
     private static func readFolder(_ folder: URL) throws -> ExternalImportScan {
         var groups: [Group] = []
         var index: [String: Int] = [:]
@@ -97,8 +68,6 @@ enum OtterMeetingReader: ExternalMeetingReader {
             if transcriptExtensions.contains(ext) {
                 guard recognizes(file) else { continue }
                 var key = groupKey(file)
-                // Two files of one format are two conversations whose names
-                // only differ in punctuation.
                 if let at = index[key], groups[at].files.contains(where: { $0.pathExtension.lowercased() == ext }) {
                     key += "\u{1F}" + file.lastPathComponent
                 }
@@ -123,8 +92,6 @@ enum OtterMeetingReader: ExternalMeetingReader {
                 unpaired.append(file)
             }
         }
-        // One transcript and one recording alone in a folder belong
-        // together even when Otter named them apart.
         for file in unpaired {
             let folderPath = file.deletingLastPathComponent().standardizedFileURL.path
             let inFolder = groups.indices.filter { groups[$0].folder == folderPath }
@@ -148,17 +115,12 @@ enum OtterMeetingReader: ExternalMeetingReader {
         return scan
     }
 
-    /// Reads a conversation's files into one meeting. When the person chose
-    /// the file itself, a file that can't be read throws; in a folder it
-    /// becomes a problem and the rest is still read.
     private static func readGroup(_ group: Group, direct: Bool) throws -> ExternalImportScan {
         var scan = ExternalImportScan()
         var exports: [(url: URL, export: OtterExport)] = []
         for file in group.files {
             do {
                 let export = try OtterExport.read(file)
-                // Any Word file in a folder passes `recognizes`; only one
-                // laid out like Otter's is read.
                 if !direct, file.pathExtension.lowercased() == "docx", !export.hasOtterMarks { continue }
                 exports.append((file, export))
             } catch {
@@ -180,12 +142,8 @@ enum OtterMeetingReader: ExternalMeetingReader {
         return scan
     }
 
-    // MARK: - One meeting from a conversation's exports
-
     private static func merge(_ exports: [(url: URL, export: OtterExport)], audio: URL?) -> ExternalMeeting {
         let ordered = exports.sorted { formatRank($0.url) < formatRank($1.url) }
-        // The transcript that says the most: speakers, then times. TXT
-        // wins a tie, since its turns are whole paragraphs.
         var chosen = ordered[0]
         for item in ordered.dropFirst() where transcriptScore(item.export) > transcriptScore(chosen.export) {
             chosen = item
@@ -234,10 +192,6 @@ enum OtterMeetingReader: ExternalMeetingReader {
         return (export.lines.contains { $0.speaker != nil } ? 2 : 0) + (export.lines.contains { $0.start != nil } ? 1 : 0)
     }
 
-    // MARK: - Names
-
-    /// Otter names a download after the conversation, sometimes with
-    /// `_otter_ai` or `_otter.ai` after it.
     private static func hasOtterSuffix(_ url: URL) -> Bool {
         let name = url.deletingPathExtension().lastPathComponent
             .replacingOccurrences(of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression)
@@ -252,7 +206,6 @@ enum OtterMeetingReader: ExternalMeetingReader {
         return name.replacingOccurrences(of: #"(^|[ ._-])otter[._]ai$"#, with: "", options: [.regularExpression, .caseInsensitive])
     }
 
-    /// Files of one conversation share a folder and a name.
     private static func groupKey(_ url: URL) -> String {
         url.deletingLastPathComponent().standardizedFileURL.path + "\u{1F}" + normalized(baseName(url, droppingCopyNumber: false))
     }
@@ -264,17 +217,12 @@ enum OtterMeetingReader: ExternalMeetingReader {
         return title.isEmpty ? "Otter conversation" : title
     }
 
-    /// Lower-case words without punctuation, so the same words written by
-    /// different formats compare equal.
     private static func normalized(_ text: String) -> String {
         text.lowercased().components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }.joined(separator: " ")
     }
 }
 
-// MARK: - What one export file holds
-
-/// Why a file couldn't be read, in words that never quote it.
 private struct OtterReadError: Error {
     var reason: String
 }
@@ -293,14 +241,11 @@ private struct OtterExport {
     var title: String?
     var startedAt: Date?
     var duration: TimeInterval?
-    /// The `SPEAKERS` list of a Word or PDF export's opening.
     var speakers: [String] = []
     var keywords: String?
     var sections: [OtterSection] = []
-    /// Text before the transcript that no heading claims.
     var otherNotes: [String] = []
     var lines: [ExternalMeeting.Line] = []
-    /// Otter's closing line, its turn headers, or its opening block.
     var hasOtterMarks = false
 
     static func read(_ url: URL) throws -> OtterExport {
@@ -342,8 +287,6 @@ private struct OtterExport {
         sections.filter { $0.kind == .actionItems }.flatMap { OtterActionItems.parse($0.rows) }
     }
 
-    /// A section's rows as Markdown: Otter's round bullets become list items
-    /// and runs of blank rows one paragraph break.
     private static func markdownBody(_ rows: [String]) -> String {
         var out: [String] = []
         for row in rows {
@@ -362,20 +305,11 @@ private struct OtterExport {
     }
 }
 
-// MARK: - TXT and DOCX layout
-
-/// Reads Otter's text layout: an optional opening block (title, date,
-/// keywords, speakers, summary sections), then turns under headers.
 private enum OtterLayout {
     private enum Mode {
-        /// Headers with times: `Ana  0:07`, or `Unknown 0:00` for a name
-        /// Otter's opening lists or a label of its own.
         case named
-        /// `0:07` alone: exported without speaker names.
         case times
-        /// `Ana  ` alone: exported without timestamps.
         case names
-        /// Paragraphs alone.
         case paragraphs
     }
 
@@ -385,8 +319,6 @@ private enum OtterLayout {
         var kind: Kind
         var speaker: String?
         var start: TimeInterval?
-        /// Rows it takes: two when a name and its time stand on rows of
-        /// their own, as a Word file can lay them out.
         var rows = 1
     }
 
@@ -406,7 +338,6 @@ private enum OtterLayout {
         }
         let headerAt: (Int) -> Header? = { header(in: rows, at: $0, known: known) }
 
-        // Pick the layout and where the transcript starts.
         var mode = Mode.paragraphs
         var bodyStart = 0
         var afterHeader = false
@@ -476,13 +407,10 @@ private enum OtterLayout {
         return export
     }
 
-    /// A quick look at a file's first and last bytes: Otter's closing
-    /// line, its keyword heading, or turn headers with words under them.
     static func looksLikeExport(head: String, tail: String) -> Bool {
         if tail.range(of: "transcribed by https://otter.ai", options: .caseInsensitive) != nil { return true }
         let rows = head.components(separatedBy: "\n")
         if rows.contains(where: { $0.trimmingCharacters(in: .whitespaces).uppercased() == "SUMMARY KEYWORDS" }) { return true }
-        // The last row may be cut short, so it is never weighed.
         let worded = rows.indices.dropLast().filter { index in
             guard let header = nameAndTime(rows[index]), header.wide, OtterSpeakers.nameLike(header.name) else { return false }
             return !isBlank(rows[index + 1]) && nameAndTime(rows[index + 1]) == nil
@@ -517,7 +445,6 @@ private enum OtterLayout {
             return Header(kind: .time, start: start)
         }
         if isKnown(trimmed), OtterSpeakers.nameLike(trimmed) {
-            // A listed name with its time on the next row.
             if index + 1 < rows.count {
                 let next = rows[index + 1].trimmingCharacters(in: .whitespaces)
                 if isClock(next), let start = ExternalImportText.timestamp(next) {
@@ -532,9 +459,6 @@ private enum OtterLayout {
         return nil
     }
 
-    /// Where Otter's opening block ends, when a transcript without timed
-    /// headers follows it: the title, the date, the keyword and speaker
-    /// lists, and summary sections, each running to a blank row.
     private static func openingEnd(_ rows: [String], headerAt: (Int) -> Header?) -> Int {
         guard var index = rows.firstIndex(where: { !isBlank($0) }) else { return rows.count }
         let firstRow = index
@@ -558,7 +482,6 @@ private enum OtterLayout {
             if heading == .transcript { break }
             var taken = 0
             while index < rows.count, !isBlank(rows[index]), OtterHeading(rows[index]) == nil, headerAt(index) == nil {
-                // The keyword and speaker lists are one row each.
                 if (heading == .keywords || heading == .speakers) && taken == 1 { break }
                 index += 1
                 taken += 1
@@ -567,7 +490,6 @@ private enum OtterLayout {
         return sawMarker ? index : firstRow
     }
 
-    /// The names under a `SPEAKERS` heading near the top.
     private static func listedSpeakers(_ rows: [String]) -> [String] {
         let top = rows.prefix(80)
         guard let heading = top.firstIndex(where: { OtterHeading($0) == .speakers }),
@@ -575,8 +497,6 @@ private enum OtterLayout {
         return OtterSpeakers.split(list)
     }
 
-    /// "Ana Petrović  0:07": the name, whether two spaces or a tab part it
-    /// from the time, and the time. Read from the end, without a pattern.
     static func nameAndTime(_ row: String) -> (name: String, wide: Bool, start: TimeInterval)? {
         let line = trimmedEnd(row)
         guard let gap = line.lastIndex(where: { $0 == " " || $0 == "\t" }) else { return nil }
@@ -592,7 +512,6 @@ private enum OtterLayout {
         return (name, separator.count >= 2 || separator.contains("\t"), start)
     }
 
-    /// `0:07`, `12:30`, `75:12`, or `1:02:10`: whole minutes and seconds.
     private static func isClock<S: StringProtocol>(_ text: S) -> Bool {
         let parts = text.split(separator: ":", omittingEmptySubsequences: false)
         guard (2...3).contains(parts.count) else { return false }
@@ -601,15 +520,11 @@ private enum OtterLayout {
         }
     }
 
-    /// A name-alone header ends with the two spaces Otter writes after each
-    /// part of a header; a paragraph's line doesn't.
     private static func hasWideTrailingGap(_ row: String) -> Bool {
         let trailing = row[trimmedEnd(row).endIndex...]
         return trailing.count >= 2 || trailing.contains("\t")
     }
 
-    /// "A Ana Petrović" in a layout that puts a speaker's initial before
-    /// their name, as Otter's PDF does, read as "Ana Petrović".
     private static func stripInitial(_ name: String, known: Set<String>) -> String {
         let parts = name.split(separator: " ", maxSplits: 1)
         guard parts.count == 2, parts[0].count == 1, let rest = parts.last,
@@ -637,9 +552,6 @@ private enum OtterLayout {
 }
 
 private extension OtterExport {
-    /// Reads the opening block, or summary sections after the transcript:
-    /// the title (the first row, before anything else), the date line, the
-    /// keyword and speaker lists, and sections by their headings.
     mutating func readSections(_ rows: ArraySlice<String>, allowTitle: Bool) {
         enum State: Equatable {
             case none, keywords, speakers, transcript
@@ -678,7 +590,6 @@ private extension OtterExport {
                 continue
             }
             if startedAt == nil, OtterDate.isDateLine(trimmed) {
-                // An old export's date has no year; its length still counts.
                 let parsed = OtterDate.parse(trimmed)
                 startedAt = parsed.date
                 duration = parsed.duration ?? duration
@@ -702,7 +613,6 @@ private extension OtterExport {
     }
 }
 
-/// A heading Otter writes in an export's opening block or summary.
 private enum OtterHeading: Equatable {
     case keywords, speakers, transcript, actionItems
     case notes(String)
@@ -724,8 +634,6 @@ private enum OtterHeading: Equatable {
         }
     }
 
-    /// Distinct enough to end a transcript when one stands after a blank
-    /// line, as a summary exported after the transcript does.
     var endsTranscript: Bool {
         switch self {
         case .keywords, .actionItems: true
@@ -736,22 +644,18 @@ private enum OtterHeading: Equatable {
 }
 
 private enum OtterSpeakers {
-    /// "Unknown Speaker" is someone Otter couldn't tell apart, so the line
-    /// has no speaker; "Speaker 2" is a distinct voice without a name.
     static func name(_ raw: String) -> String? {
         let name = raw.trimmingCharacters(in: .whitespaces)
         let lower = name.lowercased()
         return name.isEmpty || lower == "unknown speaker" || lower == "unknown" ? nil : name
     }
 
-    /// Labels that name nobody, kept off the participant list.
     static func isGeneric(_ name: String) -> Bool {
         let lower = name.trimmingCharacters(in: .whitespaces).lowercased()
         return lower == "unknown" || lower == "unknown speaker"
             || lower.range(of: #"^speaker \d+$"#, options: .regularExpression) != nil
     }
 
-    /// Short, starting with a letter, without sentence punctuation.
     static func nameLike(_ text: String) -> Bool {
         guard (1...60).contains(text.count), text.first?.isLetter == true,
               !text.contains(where: { ":?!;\"".contains($0) }),
@@ -766,8 +670,6 @@ private enum OtterSpeakers {
     }
 }
 
-/// Otter's date line: `Wed, Mar 4, 2026 10:15AM • 32:15`, in the time zone
-/// of whoever exported it, which LokalBot takes to be this computer's.
 private enum OtterDate {
     static func isDateLine(_ row: String) -> Bool {
         let text = row.trimmingCharacters(in: .whitespaces)
@@ -786,7 +688,6 @@ private enum OtterDate {
             value = value[..<bullet].trimmingCharacters(in: .whitespaces)
         }
         if let date = date(value) { return (date, duration) }
-        // "… 10:15AM 32:15" when the bullet was lost on the way.
         if duration == nil, let space = value.lastIndex(of: " "),
            let length = ExternalImportText.timestamp(String(value[value.index(after: space)...])),
            let date = date(String(value[..<space])) {
@@ -816,8 +717,6 @@ private enum OtterDate {
     }
 }
 
-/// Action items under an `Action Items` heading: one per bulleted row, an
-/// owner from a trailing "(Name)" or a name row heading the rows under it.
 private enum OtterActionItems {
     static func parse(_ rows: [String]) -> [ExternalMeeting.ActionItem] {
         let filled = rows.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
@@ -874,11 +773,7 @@ private enum OtterActionItems {
     }
 }
 
-// MARK: - SRT
-
 private enum OtterSubRip {
-    /// Otter names the speaker on the first cue of a turn only, so cues
-    /// without a name continue the turn before them.
     static func lines(_ text: String) -> [ExternalMeeting.Line] {
         let cues = SubtitleTranscript.parse(text)
         guard cues.first?.speaker != nil else { return cues.map(unnamingUnknown) }
@@ -904,11 +799,6 @@ private enum OtterSubRip {
     }
 }
 
-// MARK: - DOCX
-
-/// A Word file's paragraphs, one per row, read from `word/document.xml`
-/// with the `tar` that ships with macOS (bsdtar reads ZIP), which streams
-/// the one entry without writing to disk and takes the path literally.
 private enum OtterDocx {
     static func text(_ url: URL) throws -> String {
         let process = Process()
@@ -952,8 +842,6 @@ private final class OtterDocxParagraphs: NSObject, XMLParserDelegate {
         case "p": open.append("")
         case "r": runDepth += 1
         case "t": inText = true
-        // Tab stops in a paragraph's properties are `tab` too; only a run's
-        // tab is text.
         case "tab" where runDepth > 0: append("\t")
         case "br" where runDepth > 0, "cr" where runDepth > 0: append("\n")
         default: break
@@ -980,9 +868,6 @@ private final class OtterDocxParagraphs: NSObject, XMLParserDelegate {
     }
 }
 
-// MARK: - Peeking
-
-/// A file's first and last bytes as text, for `recognizes`.
 private struct OtterPeek {
     var head: String
     var tail: String
@@ -994,7 +879,6 @@ private struct OtterPeek {
         var tailData = headData
         if let size = try? handle.seekToEnd(), size > UInt64(headData.count) {
             let start = size - min(UInt64(tailBytes), size - UInt64(headData.count))
-            // Keep a UTF-16 file's tail on a character boundary.
             try? handle.seek(toOffset: start - start % 2)
             tailData = (try? handle.read(upToCount: tailBytes + 1)) ?? Data()
         }

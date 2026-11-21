@@ -1,7 +1,3 @@
-//! "Try it…" on Autocomplete and Dictation (`AutocompleteTrySheet`,
-//! `DictationTrySheet`): the try-out opens over its page as a sheet, so the
-//! page leads with its settings. Opening one turns nothing on; Done closes it.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Sizable as _, WindowExt as _, v_flex};
@@ -22,7 +18,6 @@ pub enum TryKind {
     Dictation,
 }
 
-/// Opens the sheet over the Settings window.
 pub fn open(
     page: Entity<SettingsPage>,
     kind: TryKind,
@@ -48,7 +43,6 @@ impl TrySheet {
             cx.observe(&page, |_, _, cx| cx.notify()),
             cx.observe(&data, |_, _, cx| cx.notify()),
         ];
-        // The suggestion in the editor comes from the autocomplete engine.
         if let Some(autocomplete) = crate::autocomplete::global(cx) {
             subscriptions.push(cx.observe(&autocomplete, |_, _, cx| cx.notify()));
         }

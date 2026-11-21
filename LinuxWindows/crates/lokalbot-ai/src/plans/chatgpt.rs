@@ -1,22 +1,3 @@
-//! The ChatGPT plan (`ChatGPTPlanOAuth.swift`, `ChatGPTPlanAccount.swift`,
-//! `ChatGPTPlanEngine.swift`).
-//!
-//! Sign-in is OpenAI's Sign in with ChatGPT for open-source apps ("token
-//! sharing"): the first sign-in registers this PC's LokalBot as a client
-//! (`dynamic_agent_client`), OpenAI returns the issued client id in the
-//! callback, and later sign-ins and refreshes use that id. There is no client
-//! secret or API key. The browser returns to a listener on 127.0.0.1 that
-//! accepts only that redirect; the code is exchanged with PKCE and the ID
-//! token is checked against OpenAI's published keys. Tokens, the
-//! registration and a random per-PC id live only in the system credential
-//! store: without one, sign-in fails before the browser opens.
-//!
-//! Think requests go to OpenAI's Responses API with `store: false` and
-//! `stream: true`. The token-sharing route rejects sampling and output-cap
-//! fields, so neither temperature nor `max_output_tokens` is ever sent.
-//! Agent Mode reaches the same API through [`relay`], which holds the tokens
-//! for the agent runtime.
-
 use std::collections::{BTreeSet, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, OnceLock};
@@ -42,16 +23,11 @@ pub const REGISTRATION_CLIENT_ID: &str = "dynamic_agent_client";
 pub const AGENT_NAME: &str = "LokalBot";
 pub const SCOPE: &str =
     "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct";
-/// The grant that lets requests draw on the ChatGPT plan. A valid sign-in
-/// without it identifies the user but authorizes no inference.
 pub const PLAN_SCOPE: &str = "chatgpt.tokens.use.direct";
 pub const CALLBACK_PATH: &str = "/auth/callback";
-/// OpenAI's example port. Any port works; only the port may vary.
 pub const PREFERRED_CALLBACK_PORT: u16 = 1455;
-/// Refresh this long before the access token expires.
 const REFRESH_MARGIN_SECONDS: i64 = 120;
 const SIGN_IN_TIMEOUT: Duration = Duration::from_secs(300);
-/// The model list changes rarely; settings views share one fetch.
 const MODEL_LIST_SECONDS: i64 = 600;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(900);
 
@@ -59,17 +35,13 @@ const HOST_ACCOUNT: &str = "chatgpt-plan-host-id";
 const REGISTRATION_ACCOUNT: &str = "chatgpt-plan-registration";
 const CREDENTIALS_ACCOUNT: &str = "chatgpt-plan-credentials";
 
-/// OpenAI's sign-in and API addresses. Tests point them at a local server.
 #[derive(Clone, Debug)]
 pub struct Endpoints {
     pub issuer: String,
     pub authorize: String,
     pub token: String,
     pub discovery: String,
-    /// The API root requests and the token's `resource` name.
     pub resource: String,
-    /// Besides `https://*.openai.com`, an origin trusted to serve signing
-    /// keys and the revocation endpoint (tests only).
     pub extra_trusted_origin: Option<String>,
 }
 
@@ -87,7 +59,6 @@ impl Default for Endpoints {
 }
 
 impl Endpoints {
-    /// Only OpenAI's own hosts may serve its keys or revoke its tokens.
     fn trusted(&self, url: &str) -> bool {
         if let Some(origin) = &self.extra_trusted_origin
             && lokalbot_core::access::origin_of(url).as_deref() == Some(origin.as_str())
@@ -108,8 +79,6 @@ impl Endpoints {
 pub fn redirect_uri(port: u16) -> String {
     format!("http://127.0.0.1:{port}{CALLBACK_PATH}")
 }
-
-// ------------------------------------------------------------------- OAuth
 
 pub fn random_token(bytes: usize) -> String {
     use ring::rand::SecureRandom as _;
@@ -153,14 +122,12 @@ impl Default for Pkce {
 
 #[derive(Clone, Debug)]
 pub struct AuthorizationRequest {
-    /// The issued client id, or `None` for a first registration.
     pub client_id: Option<String>,
     pub host_id: String,
     pub redirect_uri: String,
     pub state: String,
     pub nonce: String,
     pub pkce: Pkce,
-    /// A previous ID token skips OpenAI's account picker on return.
     pub id_token_hint: Option<String>,
     pub login_hint: Option<String>,
 }
@@ -204,7 +171,6 @@ impl AuthorizationRequest {
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CallbackOutcome {
-    /// `client_id` is the issued id when the callback names one.
     Code {
         code: String,
         client_id: Option<String>,
@@ -212,8 +178,6 @@ pub enum CallbackOutcome {
     Denied,
 }
 
-/// Validates `state` before anything else, so a forged request from another
-/// local process can neither complete nor cancel a sign-in.
 pub fn parse_callback(
     query: &HashMap<String, String>,
     expected_state: &str,
@@ -304,8 +268,6 @@ impl TokenResponse {
     }
 }
 
-/// Refresh errors after which the refresh token is unusable and the user
-/// must sign in again with the saved registration.
 pub const TERMINAL_REFRESH_ERRORS: [&str; 6] = [
     "invalid_grant",
     "invalid_refresh_token",
@@ -315,7 +277,6 @@ pub const TERMINAL_REFRESH_ERRORS: [&str; 6] = [
     "refresh_token_reused",
 ];
 
-/// The OAuth `error` code from a token-endpoint failure body.
 pub fn oauth_error_code(body: &[u8]) -> Option<String> {
     let json: Value = serde_json::from_slice(body).ok()?;
     match json.get("error") {
@@ -327,8 +288,6 @@ pub fn oauth_error_code(body: &[u8]) -> Option<String> {
         None => None,
     }
 }
-
-// ---------------------------------------------------------------- ID token
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Claims {
@@ -417,9 +376,6 @@ fn invalid_token(reason: &str) -> PlanError {
     ))
 }
 
-/// Validates an OpenID Connect ID token from OpenAI: the signature against
-/// the issuer's published keys (RS256 or ES256), then issuer, audience,
-/// expiry and nonce.
 pub fn validate_id_token(
     token: &str,
     keys: &[JsonWebKey],
@@ -511,32 +467,23 @@ fn claims(
     })
 }
 
-// ------------------------------------------------------------------- store
-
-/// Where the sign-in lives: the system credential store in the app
-/// (`lokalbot_engine::secrets`), memory in tests.
 pub trait Store: Send + Sync {
-    /// `Ok(None)` when nothing is stored; `Err` when the store can't be reached.
     fn get(&self, account: &str) -> Result<Option<String>>;
-    /// Stores, or with `None` removes, one item.
     fn set(&self, account: &str, value: Option<&str>) -> Result<()>;
 }
 
 static INSTALLED_STORE: OnceLock<Arc<dyn Store>> = OnceLock::new();
 
-/// Sets the store the shared account uses. The first call wins.
 pub fn install_store(store: Arc<dyn Store>) {
     let _ = INSTALLED_STORE.set(store);
 }
 
-/// A store kept in memory (tests and previews).
 #[derive(Default)]
 pub struct MemoryStore {
     items: Mutex<HashMap<String, String>>,
 }
 
 impl MemoryStore {
-    /// A store holding one signed-in session.
     pub fn signed_in(credentials: &Credentials) -> Self {
         let store = Self::default();
         let text = serde_json::to_string(credentials).expect("credentials serialize");
@@ -560,9 +507,6 @@ impl Store for MemoryStore {
     }
 }
 
-/// Splits long values across several items, for stores with a small item
-/// size: Windows Credential Manager keeps at most 1,280 characters, less than
-/// one session's tokens. The first item names how many parts follow.
 pub struct Chunked<S> {
     inner: S,
     chunk_chars: usize,
@@ -608,7 +552,6 @@ impl<S: Store> Store for Chunked<S> {
         for index in 1..=count {
             match self.inner.get(&Self::part(account, index))? {
                 Some(part) => value.push_str(&part),
-                // An interrupted write: as good as nothing stored.
                 None => return Ok(None),
             }
         }
@@ -644,8 +587,6 @@ impl<S: Store> Store for Chunked<S> {
     }
 }
 
-/// This PC's registration with OpenAI. It survives sign-out so the next
-/// sign-in reuses the issued client id instead of registering again.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Registration {
@@ -655,7 +596,6 @@ pub struct Registration {
     pub email: Option<String>,
 }
 
-/// One signed-in session.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Credentials {
@@ -666,7 +606,6 @@ pub struct Credentials {
     pub id_token: String,
     pub access_token: String,
     pub refresh_token: Option<String>,
-    /// Unix seconds.
     pub expires_at: i64,
     pub scopes: BTreeSet<String>,
 }
@@ -711,8 +650,6 @@ pub struct PlanModel {
 }
 
 impl PlanModel {
-    /// The token-sharing model list (`models` with `slug`, `display_name` and
-    /// `visibility`), or the classic `data` list of ids.
     pub fn parse_list(body: &[u8]) -> Vec<PlanModel> {
         let Ok(json) = serde_json::from_slice::<Value>(body) else {
             return Vec::new();
@@ -753,19 +690,13 @@ impl PlanModel {
     }
 }
 
-// ----------------------------------------------------------------- account
-
 #[derive(Clone, Debug, Default)]
 struct Discovery {
     jwks: Option<String>,
     revocation: Option<String>,
 }
 
-/// Signs in with ChatGPT, keeps the session's tokens fresh, and signs out.
-/// One shared instance serializes refreshes, so two requests never race a
-/// rotating refresh token.
 pub struct Account {
-    /// `None`: the store the app installed ([`install_store`]).
     store: Option<Arc<dyn Store>>,
     endpoints: Endpoints,
     clock: fn() -> i64,
@@ -779,7 +710,6 @@ fn unix_now() -> i64 {
     chrono::Utc::now().timestamp()
 }
 
-/// The account Think and Settings share.
 pub fn shared() -> Arc<Account> {
     static SHARED: OnceLock<Arc<Account>> = OnceLock::new();
     SHARED
@@ -834,8 +764,6 @@ impl Account {
         Ok(stored.and_then(|text| serde_json::from_str(&text).ok()))
     }
 
-    /// Writes and reads back: a store that silently drops secrets must not
-    /// look signed in.
     fn write<T: Serialize>(&self, account: &str, value: Option<&T>) -> Result<()> {
         let store = self.store()?;
         let text = value.map(serde_json::to_string).transpose()?;
@@ -855,9 +783,6 @@ impl Account {
         self.read(REGISTRATION_ACCOUNT)
     }
 
-    /// An opaque per-PC id OpenAI uses to tell this host's sessions apart.
-    /// Random, never derived from the account. Creating it also proves the
-    /// credential store works before anything is signed in.
     pub fn host_id(&self) -> Result<String> {
         let store = self.store()?;
         if let Some(existing) = store
@@ -895,18 +820,11 @@ impl Account {
         http::agent(url, Duration::from_secs(60))
     }
 
-    // ------------------------------------------------------------ sign-in
-
-    /// Opens OpenAI's sign-in page and completes the authorization code
-    /// exchange when the browser returns to the loopback listener. Blocks
-    /// until then (at most five minutes) or [`cancel_sign_in`](Self::cancel_sign_in).
-    /// `new_registration` registers again, for signing in to another account.
     pub fn sign_in(
         &self,
         new_registration: bool,
         open_browser: &dyn Fn(&str) -> Result<()>,
     ) -> Result<PlanStatus> {
-        // Fail closed before the browser opens: no credential store, no sign-in.
         let host_id = self.host_id()?;
         let cancel = Arc::new(AtomicBool::new(false));
         if let Some(previous) = self.sign_in.lock().replace(cancel.clone()) {
@@ -972,8 +890,6 @@ impl Account {
             )
             .into());
         };
-        // The registration is recorded before the exchange, so a failed
-        // exchange never strands a client OpenAI already issued.
         if registration.is_none()
             && let Some(returned) = &returned
         {
@@ -1062,16 +978,12 @@ impl Account {
         self.status()
     }
 
-    /// Stops a sign-in waiting for the browser.
     pub fn cancel_sign_in(&self) {
         if let Some(active) = self.sign_in.lock().take() {
             active.store(true, Ordering::Relaxed);
         }
     }
 
-    /// Stops using the session, asks OpenAI to revoke it, and clears its
-    /// tokens. The registration and host id stay for the next sign-in.
-    /// Returns false when revocation could not be confirmed.
     pub fn sign_out(&self) -> bool {
         let _refresh = self.refresh.lock();
         *self.models.lock() = None;
@@ -1112,16 +1024,12 @@ impl Account {
         false
     }
 
-    /// Forgets this PC's registration so the next sign-in registers anew.
     pub fn forget_registration(&self) -> bool {
         let confirmed = self.sign_out();
         let _ = self.write::<Registration>(REGISTRATION_ACCOUNT, None);
         confirmed
     }
 
-    // ------------------------------------------------------------- tokens
-
-    /// A current access token that may draw on the ChatGPT plan.
     pub fn access_token(&self) -> Result<String> {
         let Some(credentials) = self.credentials()? else {
             return Err(PlanError::SignedOut.into());
@@ -1135,14 +1043,10 @@ impl Account {
         Ok(self.refreshed(&credentials.access_token)?.access_token)
     }
 
-    /// A token the API rejected may have been revoked or rotated early.
-    /// Refreshes once unless another caller already replaced it.
     pub fn access_token_after_rejection(&self, rejected: &str) -> Result<String> {
         Ok(self.refreshed(rejected)?.access_token)
     }
 
-    /// Refreshes the session whose access token is `stale`. Refreshes are
-    /// serialized; one that finds the token already replaced uses that.
     fn refreshed(&self, stale: &str) -> Result<Credentials> {
         let _refresh = self.refresh.lock();
         let Some(credentials) = self.credentials()? else {
@@ -1172,7 +1076,6 @@ impl Account {
                 .filter(|c| TERMINAL_REFRESH_ERRORS.contains(c))
             {
                 log::info!("chatgpt plan refresh rejected code={code}");
-                // The session is over; the registration stays for sign-in.
                 self.write::<Credentials>(CREDENTIALS_ACCOUNT, None)?;
                 return Err(PlanError::SignInRequired.into());
             }
@@ -1187,7 +1090,6 @@ impl Account {
         let tokens = TokenResponse::parse(&reply.body)?;
         let mut next = credentials;
         next.access_token = tokens.access_token;
-        // A rotating refresh token is replaced together with the access token.
         if let Some(refresh) = tokens.refresh_token {
             next.refresh_token = Some(refresh);
         }
@@ -1202,9 +1104,6 @@ impl Account {
         Ok(next)
     }
 
-    // ------------------------------------------------------------- models
-
-    /// The signed-in account's models, fetched at most every ten minutes.
     pub fn models(&self, refresh: bool) -> Result<Vec<PlanModel>> {
         let Some(subject) = self.credentials()?.map(|c| c.subject) else {
             return Err(PlanError::SignedOut.into());
@@ -1239,8 +1138,6 @@ impl Account {
         }
         Err(PlanError::SignInRequired.into())
     }
-
-    // ---------------------------------------------------------- discovery
 
     fn discovery(&self) -> Result<Discovery> {
         if let Some(cached) = self.discovery.lock().clone() {
@@ -1289,8 +1186,6 @@ impl Account {
     }
 }
 
-// ------------------------------------------------------------------ errors
-
 fn error_object(body: &[u8]) -> (Option<String>, Option<String>, Option<String>) {
     let Ok(json) = serde_json::from_slice::<Value>(body) else {
         return (None, None, None);
@@ -1304,8 +1199,6 @@ fn error_object(body: &[u8]) -> (Option<String>, Option<String>, Option<String>)
     )
 }
 
-/// The documented recovery for one plan error code: limits and eligibility
-/// stop without retrying, temporary unavailability is retryable.
 fn plan_error_for(
     code: Option<&str>,
     message: Option<&str>,
@@ -1365,21 +1258,15 @@ fn stream_failure(code: Option<&str>, message: Option<&str>, param: Option<&str>
     })
 }
 
-// ------------------------------------------------------------------ engine
-
-/// Accumulates one Responses stream. Success requires `response.completed`;
-/// an incomplete, failed, or cut-off stream fails.
 #[derive(Default)]
 pub(crate) struct StreamAccumulator {
     pub text: String,
     refusal: String,
     usage: Option<Usage>,
-    /// `Some(false)` completed, `Some(true)` cut off at the output limit.
     pub outcome: Option<bool>,
 }
 
 impl StreamAccumulator {
-    /// Feeds one SSE line; the new text, if any.
     pub fn consume(&mut self, line: &str) -> Result<Option<String>> {
         let Some(payload) = line.strip_prefix("data:").map(str::trim) else {
             return Ok(None);
@@ -1500,15 +1387,12 @@ fn output_text(output: &[Value]) -> String {
         .collect()
 }
 
-/// Request fields a model or account may not accept. A rejection naming one
-/// retries once without it; generation never started.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum OptionalField {
     Reasoning,
     TextFormat,
 }
 
-/// Think on the ChatGPT plan through the Responses API.
 #[derive(Clone)]
 pub(crate) struct Engine {
     pub model: String,
@@ -1536,7 +1420,6 @@ impl Engine {
         fields
     }
 
-    /// Pure request construction, covered offline without a sign-in.
     fn body(&self, request: &ChatRequest, omitted: &BTreeSet<OptionalField>) -> Value {
         let mut content: Vec<Value> = request
             .context
@@ -1553,8 +1436,6 @@ impl Engine {
             "store": false,
             "stream": true,
         });
-        // System messages are rejected on this route; `instructions` is the
-        // documented replacement.
         if !request.system.is_empty() {
             body["instructions"] = json!(request.system);
         }
@@ -1573,8 +1454,6 @@ impl Engine {
         model_json::sort_keys(body)
     }
 
-    /// One request, streamed. A revoked or early-rotated token gets one
-    /// refresh; a rejected optional field one retry without it.
     pub fn respond(
         &self,
         request: &ChatRequest,
@@ -1655,7 +1534,6 @@ impl Engine {
     }
 }
 
-/// The optional fields a rejection names, limited to those the request sent.
 fn rejected_fields(err: &anyhow::Error, sent: &BTreeSet<OptionalField>) -> BTreeSet<OptionalField> {
     let Some(PlanError::UnsupportedRequest(detail)) = err.downcast_ref::<PlanError>() else {
         return BTreeSet::new();
@@ -1671,14 +1549,11 @@ fn rejected_fields(err: &anyhow::Error, sent: &BTreeSet<OptionalField>) -> BTree
     rejected.intersection(sent).copied().collect()
 }
 
-/// OpenAI's documented windows by model family; every model a ChatGPT plan
-/// offers has at least 128K.
 pub fn context_tokens(model: &str) -> u32 {
     let name = model.to_lowercase();
     if name.starts_with("gpt-4.1") {
         1_000_000
     } else if name.starts_with("gpt-6") {
-        // Every GPT-6 model takes at most 922K input tokens of a 1.05M window.
         922_000
     } else {
         128_000

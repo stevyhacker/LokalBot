@@ -1,13 +1,7 @@
 import Foundation
 
-/// One actor owns when the shared llama-server runtimes start and stop.
-/// Consumers take leases instead of calling `ensureRunning` directly: a
-/// lease boots on demand, pins the model during use, and makes the server
-/// eligible for an idle unload after the final release.
 actor InferenceBroker {
 
-    /// Start/stop hooks for one role. Tests inject recorders rather than
-    /// launching real llama-server processes.
     struct RuntimeHooks {
         let ensure: (URL) async throws -> Void
         let stop: () async -> Void
@@ -32,8 +26,6 @@ actor InferenceBroker {
     }
     private var modelWaiters: [InferenceRole: [ModelWaiter]] = [:]
     private var nextWaiterOrder: UInt64 = 0
-    /// Claims the role for a model before the first lease record is inserted,
-    /// closing the actor-reentrancy gap between waking a cohort and acquisition.
     private var selectedModelPaths: [InferenceRole: String] = [:]
 
     init(hooks: [InferenceRole: RuntimeHooks]? = nil,
@@ -57,8 +49,6 @@ actor InferenceBroker {
         }
     }
 
-    /// Records and publishes the pin before ensuring the runtime. If ensure
-    /// fails, the record is removed and the original runtime error propagates.
     func lease(_ role: InferenceRole, model: URL, priority: InferencePriority,
                purpose: String,
                expiresAfter ttl: TimeInterval? = nil) async throws -> InferenceLease {
@@ -91,9 +81,6 @@ actor InferenceBroker {
             book.release(id: lease.id)
             await pushLeaseState()
             if book.activeCount(for: role) == 0 {
-                // ensure may already have started the runtime before the task
-                // was cancelled. Treat rollback like the final release so a
-                // zero-lease server cannot remain resident indefinitely.
                 scheduleLinger(for: role)
                 releaseModelTurnIfUnused(role)
             }
@@ -114,7 +101,6 @@ actor InferenceBroker {
         }
     }
 
-    /// Acquires one scoped lease and releases it on success or error.
     nonisolated func withLease<T>(_ role: InferenceRole, model: URL,
                                   priority: InferencePriority, purpose: String,
                                   _ body: () async throws -> T) async throws -> T {
@@ -176,9 +162,6 @@ actor InferenceBroker {
         if modelWaiters[role]?.isEmpty == true { modelWaiters[role] = nil }
     }
 
-    /// When a role becomes free, admit one model cohort. All callers waiting
-    /// for those same weights can share the server; different weights remain
-    /// queued until the cohort releases every lease.
     private func resumeEligibleWaiters(for role: InferenceRole) {
         guard selectedModelPaths[role] == nil,
               book.activeCount(for: role) == 0,

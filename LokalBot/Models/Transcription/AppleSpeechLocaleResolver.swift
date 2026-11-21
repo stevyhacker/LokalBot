@@ -4,12 +4,6 @@ import Foundation
 import Speech
 #endif
 
-/// Deterministic locale and module selector for macOS `SpeechAnalyzer`.
-///
-/// Apple's `supportedLocales` and `supportedLocale(equivalentTo:)` iterate an
-/// unordered set and can return arbitrary regional variants (such as `en_IN` or
-/// `en_ZA` for `"en"`). Resolving over sorted locale lists keeps selection
-/// deterministic across runs and matches LokalBot's language picker.
 enum AppleSpeechLocaleResolver {
     enum ModuleKind: String, Equatable, Sendable {
         case speechTranscriber
@@ -37,9 +31,6 @@ enum AppleSpeechLocaleResolver {
 
     static let modelDisplayName = "Apple Speech"
 
-    /// Canonical fallback locale identifiers for the 22 LokalBot languages
-    /// covered by `SpeechTranscriber` or `DictationTranscriber`. Serbian (`sr`)
-    /// is unsupported by both modules and omitted.
     static let canonicalLocale: [String: String] = [
         "en": "en_US",
         "de": "de_DE",
@@ -65,12 +56,10 @@ enum AppleSpeechLocaleResolver {
         "vi": "vi_VN",
     ]
 
-    /// True when Apple Speech covers `language` (all picker choices except Serbian).
     static func isLanguageSupported(_ language: TranscriptionLanguage) -> Bool {
         language != .language(.sr)
     }
 
-    /// Rejects unsupported explicit languages before touching audio or models.
     static func validateLanguage(_ code: String?, modelName: String = modelDisplayName) throws {
         guard let normalized = normalizedCode(code) else { return }
         guard normalized != "sr", canonicalLocale[normalized] != nil else {
@@ -80,8 +69,6 @@ enum AppleSpeechLocaleResolver {
         }
     }
 
-    /// Resolves `language` (or `nil`/`"auto"` via `preferredLanguages`) against
-    /// sorted `SpeechTranscriber` and `DictationTranscriber` locale inventories.
     static func resolve(
         language: String?,
         preferredLanguages: [String],
@@ -171,8 +158,6 @@ enum AppleSpeechLocaleResolver {
             dictationInstalled: dictationInstalled)
     }
     #endif
-
-    // MARK: - Helpers
 
     private static func resolveExplicit(
         code: String,

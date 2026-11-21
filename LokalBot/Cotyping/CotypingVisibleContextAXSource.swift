@@ -1,9 +1,6 @@
 import AppKit
 import ApplicationServices
 
-/// Used only on the serialized background focus worker. No pixels, OCR, saved
-/// screen history, whole document values, or reads on the consuming Tab path.
-/// Window text (`CotypingWindowTextCapture`) uses only its `target`.
 final class CotypingVisibleContextAXSource: CotypingVisibleContextSource {
     private let field: AXUIElement
     private let processID: pid_t
@@ -26,10 +23,6 @@ final class CotypingVisibleContextAXSource: CotypingVisibleContextSource {
 
     func target() -> CotypingVisibleContext.Target? { target(requiringScope: true) }
 
-    /// The focused field's window and the privacy facts about it. Window text
-    /// reads the whole window, so it does not need a pane with room above the
-    /// field and falls back to the window itself. It also climbs further:
-    /// fields in web apps often sit more than 16 levels below their window.
     func target(requiringScope: Bool) -> CotypingVisibleContext.Target? {
         guard withinBudget, processID != ProcessInfo.processInfo.processIdentifier,
               NSWorkspace.shared.frontmostApplication?.processIdentifier == processID,
@@ -93,8 +86,6 @@ final class CotypingVisibleContextAXSource: CotypingVisibleContextSource {
 
     func text(_ id: String) -> String? {
         guard withinBudget, let node = elements[id], let role = string(node, kAXRoleAttribute) else { return nil }
-        // The traversal has already proved full visibility and excluded editable
-        // elements. A static label is the only AXValue read by this feature.
         if role == "AXStaticText" { return string(node, kAXValueAttribute) ?? string(node, kAXTitleAttribute) }
         if role == "AXLink" { return string(node, kAXTitleAttribute) }
         return nil

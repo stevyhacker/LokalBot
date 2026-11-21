@@ -1,7 +1,5 @@
 import Foundation
 
-/// Text formats shared by every screen. Each takes its locale and calendar so
-/// tests can pin them.
 public struct LBFormat: Sendable {
     public var locale: Locale
     public var calendar: Calendar
@@ -13,37 +11,28 @@ public struct LBFormat: Sendable {
 
     public static let current = LBFormat()
 
-    // MARK: Offsets and durations
-
-    /// A transcript offset as the Mac shows it: `00:12:01`.
     public static func stamp(_ seconds: Double) -> String {
         let total = max(0, Int(seconds))
         return String(format: "%02d:%02d:%02d", total / 3600, (total % 3600) / 60, total % 60)
     }
 
-    /// A meeting's length as the Mac's meeting list shows it: "42 min", "1 hr 5 min".
     public static func meetingDuration(_ seconds: Double) -> String {
         let minutes = max(0, Int(seconds)) / 60
         return minutes >= 60 ? "\(minutes / 60) hr \(minutes % 60) min" : "\(minutes) min"
     }
 
-    /// Tracked time as the Mac's Timeline shows it: "<1m", "42m", "1h 5m".
     public static func hm(_ seconds: Double) -> String {
         if seconds > 0, seconds < 60 { return "<1m" }
         let minutes = max(0, Int(seconds)) / 60
         return minutes >= 60 ? "\(minutes / 60)h \(minutes % 60)m" : "\(minutes)m"
     }
 
-    // MARK: Times
-
-    /// A time of day, in `timeZone` (the Mac's offset for a meeting).
     public func time(_ date: Date, in timeZone: TimeZone? = nil) -> String {
         var style = Date.FormatStyle(date: .omitted, time: .shortened, locale: locale, calendar: calendar)
         style.timeZone = timeZone ?? calendar.timeZone
         return date.formatted(style)
     }
 
-    /// The local time of a moment in a meeting, as it was on the Mac.
     public func time(in meeting: Meeting, at offset: Double) -> String {
         time(meeting.startedAt.addingTimeInterval(offset), in: meeting.timeZone)
     }
@@ -52,9 +41,6 @@ public struct LBFormat: Sendable {
         "\(time(start, in: timeZone))–\(time(end, in: timeZone))"
     }
 
-    // MARK: Days
-
-    /// "Today", "Yesterday", the weekday within the last week, otherwise a date.
     public func dayTitle(_ day: DayKey, today: DayKey) -> String {
         let distance = day.days(until: today, calendar: calendar)
         switch distance {
@@ -65,12 +51,10 @@ public struct LBFormat: Sendable {
         }
     }
 
-    /// "Friday, 31 October" for page subtitles.
     public func longDay(_ day: DayKey) -> String {
         format(day, .dateTime.weekday(.wide).day().month(.wide))
     }
 
-    /// "Thu 30" for the day strip.
     public func weekday(_ day: DayKey) -> String {
         format(day, .dateTime.weekday(.abbreviated))
     }
@@ -93,15 +77,11 @@ public struct LBFormat: Sendable {
         return day.date(in: calendar).formatted(style)
     }
 
-    // MARK: Due dates
-
     public struct Due: Sendable, Hashable {
         public var text: String
         public var isOverdue: Bool
     }
 
-    /// "Overdue · Thu", "Due today", "Due Mon", "Due Wed, 12 Nov". Only open
-    /// actions can be overdue.
     public func due(_ dueDate: String?, status: ActionStatus, today: DayKey) -> Due? {
         guard let dueDate, let day = DayKey(dueDate) else { return nil }
         let distance = today.days(until: day, calendar: calendar)
@@ -117,9 +97,6 @@ public struct LBFormat: Sendable {
         }
     }
 
-    // MARK: Sync
-
-    /// "just now", "2 min ago", "3 hr ago", "yesterday", "28 Oct".
     public func ago(_ date: Date, now: Date) -> String {
         let seconds = now.timeIntervalSince(date)
         if seconds < 60 { return "just now" }

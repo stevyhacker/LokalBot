@@ -3,8 +3,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Local learning
-
 final class CotypingLearningRankerTests: XCTestCase {
     private func field(
         preceding: String,

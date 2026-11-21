@@ -3,17 +3,6 @@ import Darwin
 import FluidAudio
 import Foundation
 
-/// Transcription via the bundled sherpa-onnx ONNX runtime, invoked as a
-/// subprocess (the same engine family Handy uses; mirrors the `LlamaServer`
-/// subprocess pattern). Covers languages WhisperKit/FluidAudio handle poorly:
-/// **SenseVoice** (Chinese / Japanese / Korean / Cantonese) and **GigaAM**
-/// (Russian). The `sherpa-onnx-offline` binary + its onnxruntime dylibs ship in
-/// the app bundle; the chosen model is downloaded on first use.
-///
-/// The track is split into VAD speech regions and decoded in a single batch
-/// call (one model load), so each region carries the real start/end time of its
-/// span — the same timestamp-exact approach as `CohereEngine` — and no model is
-/// left resident afterwards.
 actor OnnxTranscriptionEngine: TranscriptionEngine {
 
     enum Model: Sendable {
@@ -26,7 +15,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
             case .gigaamRussian: "GigaAM Russian (ONNX)"
             }
         }
-        /// Tarball top-level directory == the model-zoo archive base name.
         var folderName: String {
             switch self {
             case .senseVoice: "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09"
@@ -36,8 +24,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         var archiveURL: URL {
             URL(string: "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/\(folderName).tar.bz2")!
         }
-        // Publisher release-asset metadata, independently pinned here so a
-        // replaced asset cannot silently change the installed model.
         var archiveBytes: Int64 {
             switch self {
             case .senseVoice: 165_783_878
@@ -50,7 +36,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
             case .gigaamRussian: "e1291d704460cab4a01716081170c86c12f6b15338a1534f71cc5956922adb52"
             }
         }
-        /// `--model-type` value, passed so the binary skips its load-twice probe.
         var modelType: String {
             switch self {
             case .senseVoice: "sense_voice"
@@ -82,8 +67,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         let work = try Self.makeWorkDir()
         defer { try? FileManager.default.removeItem(at: work) }
 
-        // VAD speech regions give real per-utterance timing; fall back to the
-        // whole track as a single region when VAD is unavailable.
         let spans = try await SpeechActivity.shared.spans(in: url, maxSegmentSeconds: nil)
         let reader = try SpanAudioReader(url: url)
         var regions: [(span: SpeechSpan, wav: URL)] = []
@@ -108,9 +91,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         return Transcript(segments: segments, engine: "\(model.folderName) (sherpa-onnx)")
     }
 
-    /// Settings "Download" action: install the runtime + fetch the model.
-    /// `URLSession.download` gives no granular fraction here, so we surface
-    /// status text (the model row shows it).
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
         _ = try SherpaOnnxRuntime.installedRuntime(executableName: "sherpa-onnx-offline")
         report(.init(fractionCompleted: nil, status: "Downloading model..."), to: progress)
@@ -123,8 +103,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         guard let handler else { return }
         Task { @MainActor in handler(update) }
     }
-
-    // MARK: - Model download / extract
 
     func preparedModelDir() async throws -> URL {
         let dir = Self.modelsRoot.appendingPathComponent(model.folderName, isDirectory: true)
@@ -139,8 +117,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
     }
 
     private func installModel(in dir: URL) async throws {
-        // A waiter may enter after the first caller finished but before it
-        // observed the result; keep this operation idempotent as well.
         if Self.isModelInstalled(in: dir, model: model) { return }
 
         try FileManager.default.createDirectory(at: Self.modelsRoot, withIntermediateDirectories: true)
@@ -166,8 +142,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         guard flock(publicationLock, LOCK_EX) == 0 else { throw EngineError.modelUnavailable }
         defer { flock(publicationLock, LOCK_UN) }
         if Self.isModelInstalled(in: dir, model: model) { return }
-        // The live directory appears only after extraction and validation.
-        // An incomplete old cache is kept until its replacement is complete.
         let backup = stage.appendingPathComponent("previous", isDirectory: true)
         if FileManager.default.fileExists(atPath: dir.path) {
             try FileManager.default.moveItem(at: dir, to: backup)
@@ -180,15 +154,11 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         }
     }
 
-    // MARK: - Paths
-
     private static var appSupport: URL { AppDirectories.applicationSupport }
     private static var modelsRoot: URL {
         appSupport.appendingPathComponent("sherpa-models", isDirectory: true)
     }
 
-    /// SenseVoice ships `model.int8.onnx`; NeMo-CTC tarballs ship `model.onnx`
-    /// and/or `model.int8.onnx`. Prefer int8.
     private nonisolated static func locateModel(in dir: URL) throws -> URL {
         guard validFile(dir.appendingPathComponent("tokens.txt")) else { throw EngineError.modelUnavailable }
         for name in ["model.int8.onnx", "model.onnx"] {
@@ -245,8 +215,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         return dir
     }
 
-    // MARK: - Subprocess
-
     private struct ResultLine: Decodable { let text: String }
 
     private static func transcribeBatch(runtime: (binary: URL, libDir: URL),
@@ -287,9 +255,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
                 id: runtimeID, role: "Transcribe", label: label,
                 estimatedBytes: estimatedBytes)
             do {
-                // Cancellation can arrive while the MainActor reservation call
-                // is suspended. Keep every subsequent exit inside this cleanup
-                // scope so a helper that never attaches cannot strand a row.
                 try Task.checkCancellation()
                 let process = Process()
                 process.executableURL = binary
@@ -299,9 +264,7 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
                 process.environment = env
                 let out = Pipe()
                 process.standardOutput = out
-                process.standardError = FileHandle.nullDevice   // verbose logging — discard
-                // The awaits below can move this task off the launching thread,
-                // where `waitUntilExit()` could wait forever.
+                process.standardError = FileHandle.nullDevice
                 let exitSignal = ProcessExitSignal(process)
                 guard processController.attach(process) else { throw CancellationError() }
                 defer { processController.detach(process) }
@@ -341,8 +304,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         return texts
     }
 
-    /// `sherpa-onnx-offline` prints one JSON object per wav, in input order, on
-    /// stdout: `{"lang": …, "text": "…", "timestamps": […], …}`.
     private static func parseTexts(_ stdout: String) -> [String] {
         stdout.split(separator: "\n").compactMap { line -> String? in
             let trimmed = line.trimmingCharacters(in: .whitespaces)
@@ -361,14 +322,10 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         }
     }
 
-    // MARK: - WAV writer (16 kHz mono 16-bit PCM, what sherpa-onnx expects)
-
     static func writeWav(_ samples: [Float], to url: URL) throws {
         try wavData(samples).write(to: url, options: .atomic)
     }
 
-    /// The same WAV in memory, for engines that upload a span instead of
-    /// handing a file to a local runtime.
     static func wavData(_ samples: [Float]) -> Data {
         let rate = UInt32(sampleRate)
         let dataBytes = samples.count * 2
@@ -379,13 +336,13 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
         data.append(le32(UInt32(36 + dataBytes)))
         data.append(Data("WAVE".utf8))
         data.append(Data("fmt ".utf8))
-        data.append(le32(16))                            // PCM fmt chunk size
-        data.append(le16(1))                             // format = PCM
-        data.append(le16(1))                             // channels = mono
-        data.append(le32(rate))                          // sample rate
-        data.append(le32(rate * 2))                      // byte rate
-        data.append(le16(2))                             // block align
-        data.append(le16(16))                            // bits per sample
+        data.append(le32(16))
+        data.append(le16(1))
+        data.append(le16(1))
+        data.append(le32(rate))
+        data.append(le32(rate * 2))
+        data.append(le16(2))
+        data.append(le16(16))
         data.append(Data("data".utf8))
         data.append(le32(UInt32(dataBytes)))
         for sample in samples {
@@ -411,10 +368,6 @@ actor OnnxTranscriptionEngine: TranscriptionEngine {
     }
 }
 
-/// Bridges structured Swift cancellation to the blocking sherpa subprocess.
-/// Cancellation sends SIGTERM immediately and escalates to SIGKILL only if the
-/// helper ignores it, guaranteeing that `readDataToEndOfFile` eventually
-/// unblocks and model memory is released.
 private final class ONNXProcessController: @unchecked Sendable {
     private let lock = NSLock()
     private var process: Process?

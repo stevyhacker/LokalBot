@@ -1,9 +1,3 @@
-//! The Files grant for external agents (`FilesAccessGate`, `FilesAccessManager`):
-//! a marker the app sets from Settings → AI agents or Settings → Files,
-//! plus a list of the chosen folders, so the CLI and its MCP server can search
-//! the index with the app closed and without reading the app's settings. Separate
-//! from every other grant; no Agent Mode capability satisfies it.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Result, bail};
@@ -17,8 +11,6 @@ pub const MARKER: &str = "files-access-enabled";
 pub const PROJECTION: &str = "files-access.json";
 const CURRENT_VERSION: u32 = 1;
 
-/// What Files lets agents search, as the app last wrote it. Keys sort the way
-/// the Mac writes them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FilesProjection {
@@ -61,7 +53,6 @@ fn restrict(path: &Path) {
     let _ = path;
 }
 
-/// Turns the grant on or off. Revoking removes the folder list too.
 pub fn set_enabled(paths: &LibraryPaths, enabled: bool) -> Result<()> {
     let marker = marker_path(paths);
     if enabled {
@@ -84,8 +75,6 @@ pub fn remove_projection(paths: &LibraryPaths) {
     let _ = std::fs::remove_file(projection_path(paths));
 }
 
-/// The chosen folders, or `None` when the grant is off, Files is off, or the app
-/// hasn't written them.
 pub fn read_projection(paths: &LibraryPaths) -> Option<FilesProjection> {
     if !is_enabled(paths) {
         return None;
@@ -104,8 +93,6 @@ fn write_projection(paths: &LibraryPaths, projection: &FilesProjection) -> Resul
     Ok(())
 }
 
-/// Files' settings changed: rewrite the folder list, or remove it
-/// (`FilesAccessManager.refresh`). `folders` is `None` while Files is off.
 pub fn refresh(paths: &LibraryPaths, folders: Option<&[String]>) -> Result<()> {
     let chosen = match folders {
         Some(chosen) if is_enabled(paths) && !chosen.is_empty() => chosen,
@@ -175,7 +162,6 @@ mod tests {
         let (_dir, paths) = paths();
         set_enabled(&paths, true).unwrap();
         ensure_private_dir(&paths.control_dir()).unwrap();
-        // `JSONEncoder` with sorted keys, ISO 8601 dates and unescaped slashes.
         let mac = r#"{
   "folders" : [
     "/Users/me/Documents"
@@ -195,7 +181,6 @@ mod tests {
             written,
             r#"{"folders":["/Users/me/Documents"],"generatedAt":"2026-10-31T09:15:00Z","version":1}"#
         );
-        // A newer version isn't trusted.
         std::fs::write(
             projection_path(&paths),
             r#"{"folders":["/x"],"generatedAt":"2026-10-31T09:15:00Z","version":2}"#,

@@ -1,8 +1,6 @@
 import Foundation
 @testable import LokalBot
 
-/// A scriptable transport: records sent lines and lets the test inject
-/// incoming lines.
 final class FakeTransport: PiLineTransport, @unchecked Sendable {
     private(set) var sent: [String] = []
     private let lock = NSLock()

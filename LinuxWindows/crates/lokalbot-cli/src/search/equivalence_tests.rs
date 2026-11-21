@@ -1,9 +1,3 @@
-//! The search must return exactly what it did before the prefilter: same
-//! hits, same order, same snippets and timestamps. `old_hits` is a copy of
-//! `hits` from before it (master e1d8997b), changed only to sum meeting
-//! weights in a fixed order; random libraries with tricky text are searched
-//! both ways.
-
 use std::path::Path;
 
 use chrono::{Duration, TimeZone as _, Utc};
@@ -12,7 +6,6 @@ use lokalbot_core::{LibraryPaths, Meeting, Segment, Transcript, ids::fold, libra
 use super::prefilter::tests::{Random, json_string, tricky_text};
 use super::*;
 
-/// `hits` as it was before the prefilter.
 fn old_hits(
     session: &Session,
     query: &str,
@@ -113,7 +106,6 @@ fn old_hits(
         }
     }
 
-    // A word found in few meetings says more than one found in most.
     let mut meetings_with_term: HashMap<&String, usize> = HashMap::new();
     for words in coverage.values() {
         for word in words {
@@ -130,9 +122,6 @@ fn old_hits(
     };
     let meeting_weights: HashMap<usize, f64> = coverage
         .iter()
-        // The one change from the original: sum in query order, as `hits`
-        // now does. Summing in a set's order made the order of meetings
-        // that match the same words change from run to run.
         .map(|(meeting, words)| {
             let mut matched = terms.iter().filter(|t| words.contains(*t));
             (*meeting, weight(&mut matched))
@@ -191,7 +180,6 @@ fn old_hits(
     out
 }
 
-/// Words that fold, split and match in tricky ways.
 const WORDS: &[&str] = &[
     "Izveštaj",
     "IZVESTAJ",
@@ -264,9 +252,6 @@ fn sentence(random: &mut Random) -> String {
     text
 }
 
-/// A few meetings, each with or without a summary, and a transcript that is
-/// missing, written by the app, written with escapes, broken, UTF-16 or
-/// behind a byte-order mark. Returns the texts written, for queries.
 fn library(random: &mut Random, root: &Path) -> Vec<String> {
     let paths = LibraryPaths::new(root);
     let start = Utc.with_ymd_and_hms(2026, 11, 1, 9, 0, 0).unwrap();
@@ -370,7 +355,6 @@ fn query(random: &mut Random, texts: &[String]) -> String {
     }
 }
 
-/// Every way the CLI, MCP and Ask call the search.
 fn assert_same_hits(session: &Session, meetings: &[Meeting], query: &str) -> bool {
     let ask = crate::ask::search_terms(query).join(" ");
     let mut found = false;
@@ -411,7 +395,6 @@ fn hits_match_the_old_search_on_random_libraries() {
             found += usize::from(assert_same_hits(&session, &meetings, &query));
         }
     }
-    // Most queries found something, so the comparison means something.
     assert!(found * 2 > queries, "{found} of {queries}");
 }
 
@@ -422,7 +405,6 @@ fn hits_match_the_old_search_on_the_macos_fixture() {
     if !fixture.is_dir() {
         return;
     }
-    // A copy, so opening its database leaves nothing in the repository.
     fn copy_dir(from: &Path, to: &Path) {
         std::fs::create_dir_all(to).unwrap();
         for entry in std::fs::read_dir(from).unwrap().flatten() {
@@ -464,8 +446,6 @@ fn hits_match_the_old_search_on_the_macos_fixture() {
 
 #[test]
 fn meetings_that_match_the_same_words_keep_recency_on_every_run() {
-    // The two newest meetings have every word; older ones fewer, so each
-    // word weighs differently and the order of a sum shows in its last bits.
     let words = [
         "alpha", "bravo", "charlie", "delta", "echo", "foxtrot", "golf", "hotel",
     ];

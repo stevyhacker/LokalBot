@@ -1,15 +1,11 @@
 import Foundation
 
-/// A page that a row of a Settings page opens in its place, with a way
-/// back: Autocomplete's writing profile, skipped apps, usage and advanced
-/// settings, and Dictation's writing profile and recent dictations.
 enum SettingsSubpage: String, CaseIterable, Identifiable, Sendable {
     case autocompleteProfile, autocompleteExclusions, autocompleteUsage, autocompleteAdvanced
     case dictationProfile, dictationRecent
 
     var id: String { rawValue }
 
-    /// The Settings page the row is on.
     var page: AppState.SettingsTab {
         switch self {
         case .autocompleteProfile, .autocompleteExclusions, .autocompleteUsage, .autocompleteAdvanced: .writing
@@ -27,8 +23,6 @@ enum SettingsSubpage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The settings that are edited on this page, so settings search and
-    /// deep links open it and land on them.
     var settingIDs: [String] {
         switch self {
         case .autocompleteProfile:
@@ -48,15 +42,11 @@ enum SettingsSubpage: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The page that holds a setting, when it is not on its Settings page
-    /// itself. The writing profile's fields are Autocomplete's settings, so
-    /// they open there.
     static func containing(settingID: String, on page: AppState.SettingsTab) -> SettingsSubpage? {
         allCases.first { $0.page == page && $0.settingIDs.contains(settingID) }
     }
 }
 
-/// How many apps and sites a comma-separated exclusion list names.
 enum ExclusionRuleCount {
     static func count(_ lists: String...) -> Int {
         lists.reduce(0) { total, list in

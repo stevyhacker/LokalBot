@@ -1,10 +1,3 @@
-//! Windows: the foreground window's visible bounds (DWM's extended frame,
-//! without the drop shadow) copied from the screen with GDI `BitBlt`. The
-//! copy is what the user sees, it never waits on the target app (unlike
-//! `PrintWindow`, which a hung app can block), and it works for DirectX and
-//! browser windows. Coordinates are physical pixels: the capturing thread
-//! is per-monitor DPI aware for the duration of each call.
-
 use std::ffi::c_void;
 
 use anyhow::{Context as _, bail};
@@ -41,13 +34,10 @@ impl GdiCapture {
     }
 }
 
-/// Per-monitor DPI awareness for the current thread until dropped, so
-/// window rectangles and screen pixels agree on every monitor.
 struct DpiScope(DPI_AWARENESS_CONTEXT);
 
 impl DpiScope {
     fn enter() -> Self {
-        // SAFETY: changes only this thread's DPI awareness; restored in `drop`.
         Self(unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) })
     }
 }
@@ -55,7 +45,6 @@ impl DpiScope {
 impl Drop for DpiScope {
     fn drop(&mut self) {
         if !self.0.0.is_null() {
-            // SAFETY: restores the context returned by the matching call.
             unsafe { SetThreadDpiAwarenessContext(self.0) };
         }
     }
@@ -67,14 +56,11 @@ fn hwnd(id: u64) -> HWND {
 
 fn window_pid(window: HWND) -> Option<u32> {
     let mut pid = 0u32;
-    // SAFETY: `pid` outlives the call; an invalid window leaves it 0.
     unsafe { GetWindowThreadProcessId(window, Some(&mut pid)) };
     (pid != 0).then_some(pid)
 }
 
 fn window_title(window: HWND) -> String {
-    // SAFETY: reads the caption into a buffer of the reported length. For
-    // other processes this never sends WM_GETTEXT, so a hung app cannot block.
     unsafe {
         let length = GetWindowTextLengthW(window);
         if length <= 0 {
@@ -86,11 +72,7 @@ fn window_title(window: HWND) -> String {
     }
 }
 
-/// The visible frame (no drop shadow), in physical pixels; `None` when the
-/// window is minimized, hidden or cloaked (another virtual desktop).
 fn visible_rect(window: HWND) -> Option<WindowRect> {
-    // SAFETY: plain queries on a window handle; the out-parameters are
-    // properly sized locals.
     unsafe {
         if IsIconic(window).as_bool() || !IsWindowVisible(window).as_bool() {
             return None;
@@ -129,7 +111,6 @@ fn visible_rect(window: HWND) -> Option<WindowRect> {
 }
 
 fn virtual_screen() -> WindowRect {
-    // SAFETY: metrics queries without side effects.
     unsafe {
         WindowRect {
             x: GetSystemMetrics(SM_XVIRTUALSCREEN),
@@ -140,12 +121,8 @@ fn virtual_screen() -> WindowRect {
     }
 }
 
-/// Copies a screen rectangle into RGBA.
 fn copy_screen(area: WindowRect) -> anyhow::Result<CapturedImage> {
     let (width, height) = (area.width as i32, area.height as i32);
-    // SAFETY: every GDI object created here is selected out and deleted
-    // before returning; `pixels` is sized for the 32-bit top-down DIB that
-    // GetDIBits writes.
     unsafe {
         let screen = GetDC(None);
         if screen.is_invalid() {
@@ -169,7 +146,6 @@ fn copy_screen(area: WindowRect) -> anyhow::Result<CapturedImage> {
             bmiHeader: BITMAPINFOHEADER {
                 biSize: size_of::<BITMAPINFOHEADER>() as u32,
                 biWidth: width,
-                // Negative: rows top to bottom.
                 biHeight: -height,
                 biPlanes: 1,
                 biBitCount: 32,
@@ -200,7 +176,6 @@ fn copy_screen(area: WindowRect) -> anyhow::Result<CapturedImage> {
         if lines != height {
             bail!("reading the copied pixels failed");
         }
-        // BGRA to RGBA; the screen has no alpha.
         for pixel in pixels.as_chunks_mut::<4>().0 {
             pixel.swap(0, 2);
             pixel[3] = 255;
@@ -220,7 +195,6 @@ impl WindowCapture for GdiCapture {
 
     fn focused(&mut self) -> anyhow::Result<Option<FocusedWindow>> {
         let _dpi = DpiScope::enter();
-        // SAFETY: no arguments; returns a possibly null window handle.
         let window = unsafe { GetForegroundWindow() };
         if window.0.is_null() {
             return Ok(None);
@@ -239,7 +213,6 @@ impl WindowCapture for GdiCapture {
     fn capture(&mut self, window: &FocusedWindow) -> anyhow::Result<CapturedImage> {
         let _dpi = DpiScope::enter();
         let handle = hwnd(window.id);
-        // SAFETY: no arguments; returns a possibly null window handle.
         if unsafe { GetForegroundWindow() } != handle {
             bail!("another window came to the front");
         }
@@ -248,7 +221,6 @@ impl WindowCapture for GdiCapture {
             .intersection(&virtual_screen())
             .context("the window is outside the screen")?;
         let image = copy_screen(area)?;
-        // A secure desktop (UAC, the lock screen) or protected content reads back black.
         if image.is_uniform() {
             bail!("the window's pixels could not be read");
         }
@@ -260,12 +232,9 @@ impl WindowCapture for GdiCapture {
     }
 }
 
-/// `WTSSessionInfoEx` reports the lock state of this session (Windows 10 and later).
 pub(super) fn session_locked() -> bool {
     let mut buffer = PWSTR::null();
     let mut bytes = 0u32;
-    // SAFETY: WTS allocates `buffer`, which is read as the documented
-    // WTSINFOEXW when large enough and freed with WTSFreeMemory.
     unsafe {
         if WTSQuerySessionInformationW(
             Some(WTS_CURRENT_SERVER_HANDLE),
@@ -295,7 +264,6 @@ mod tests {
 
     #[test]
     fn works_without_a_desktop() {
-        // Over SSH (session 0) there is no foreground window; nothing fails.
         let mut capture = GdiCapture::new();
         let focused = capture.focused().unwrap();
         eprintln!("focused window: {focused:?}");

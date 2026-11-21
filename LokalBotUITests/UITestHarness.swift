@@ -31,10 +31,6 @@ enum UITestHarness {
         _ = CFPreferencesAppSynchronize(suiteName as CFString)
         seedAppLaunchDefaults(storageRoot: storageRoot, defaultsSuiteName: suiteName)
 
-        // Split views autosave divider positions in the host's own defaults,
-        // which every test shares. A fresh launch asks the host to start from
-        // each pane's opening width; relaunches keep positions so persistence
-        // tests still observe them.
         let app = try launchAndVerify(
             storageRoot: storageRoot,
             defaultsSuiteName: suiteName,
@@ -77,9 +73,6 @@ enum UITestHarness {
             file: file,
             line: line)
 
-        // The first launch on a fresh runner is slow, and so is the system's
-        // answer about it: a hosted run failed here with the host open and
-        // drawn four seconds after it started.
         let found = waitForRunningApp(process: process, timeout: 20)
         let runningApp = try XCTUnwrap(
             found,
@@ -120,15 +113,8 @@ enum UITestHarness {
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
-        // A background browser or notification can briefly make otherwise
-        // visible sidebar labels non-hittable. Bring the tested app forward,
-        // then click the unique text coordinate. `firstMatch` also avoids the
-        // identifier propagated to the Label's SF Symbol on newer macOS.
         app.activate()
         _ = app.wait(for: .runningForeground, timeout: 3)
-        // Settings has its own window, which opens over the main one. Its
-        // row brings an open Settings window forward, so there is nothing to
-        // click then; any other destination is reached after closing it.
         if id == "sidebar.settings" {
             if settingsWindow(in: app).exists { return }
         } else {
@@ -154,9 +140,6 @@ enum UITestHarness {
             .firstMatch
     }
 
-    /// Select a SwiftUI segmented-picker item across the two accessibility
-    /// mappings macOS currently emits (button on newer SDKs, radio button on
-    /// older ones). Keeping this in one place makes tab tests less brittle.
     static func selectSegment(
         _ name: String,
         pickerIdentifier: String,
@@ -191,14 +174,11 @@ enum UITestHarness {
             XCUIElement.ElementType.checkBox.rawValue, XCUIElement.ElementType.switch.rawValue)).firstMatch
     }
 
-    /// The Settings window: the one the UI-test host builds, or the app's scene.
     static func settingsWindow(in app: XCUIApplication) -> XCUIElement {
         app.windows.matching(NSPredicate(format: "identifier == %@ OR identifier == %@",
                                          "settings.window", "settings")).firstMatch
     }
 
-    /// Closes the Settings window when it is open, so the main window behind
-    /// it can be clicked.
     static func closeSettings(in app: XCUIApplication) {
         let window = settingsWindow(in: app)
         guard window.exists else { return }
@@ -208,8 +188,6 @@ enum UITestHarness {
 
     static func selectSettingsCategory(_ name: String, in app: XCUIApplication,
                                        file: StaticString = #filePath, line: UInt = #line) {
-        // Earlier names of the pages keep working here. Overview is opened
-        // from the LokalBot row at the top of the list.
         let renamed = ["Recording": "Meetings", "Privacy": "Privacy & permissions", "Privacy & Data": "Privacy & permissions",
                        "Privacy & Permissions": "Privacy & permissions",
                        "Writing": "Autocomplete", "Advanced": "Diagnostics", "Day Memory": "Screen & activity",
@@ -232,9 +210,6 @@ enum UITestHarness {
         return picker.buttons[name].exists ? picker.buttons[name] : picker.radioButtons[name]
     }
 
-    /// Scroll a lazy SwiftUI Form/ScrollView until an element can be clicked.
-    /// `exists` alone is insufficient because off-screen Form rows are often
-    /// present in the AX tree while remaining non-hittable.
     static func scrollTo(
         _ element: XCUIElement,
         in app: XCUIApplication,
@@ -242,11 +217,6 @@ enum UITestHarness {
         upward: Bool = false,
         attempts: Int = 12
     ) {
-        // Fallback for lazily-created rows that are not yet in the AX tree.
-        // Prefer the widest scroll view so a split-view sidebar is not moved
-        // while the content Form remains stationary.
-        // While Settings is open it is the window being used, in front of
-        // the main window and its larger scroll views.
         let settings = settingsWindow(in: app)
         let candidates = (settings.exists ? settings.scrollViews : app.scrollViews).allElementsBoundByIndex
         let scrollArea = viewport ?? candidates.max {
@@ -257,8 +227,6 @@ enum UITestHarness {
             if element.exists {
                 let frame = element.frame
                 let visible = scrollArea.frame.insetBy(dx: 0, dy: 4)
-                // macOS can report a clipped SwiftUI row as hittable even
-                // when its click lands on the fixed footer below its viewport.
                 if element.isHittable && (viewport == nil || visible.contains(frame)) { return }
                 if viewport != nil { scrollUp = frame.minY < visible.minY }
             }
@@ -267,8 +235,6 @@ enum UITestHarness {
         }
     }
 
-    /// Poll lightweight UI state that XCTest cannot express as an element
-    /// predicate, such as a dynamic query count after an async tab close.
     @discardableResult
     static func waitUntil(
         timeout: TimeInterval = 5,
@@ -314,8 +280,6 @@ enum UITestHarness {
         process.executableURL = executableURL
         process.arguments = [
             "-ApplePersistenceIgnoreState", "YES",
-            // Follow System is the default; pin English so label assertions
-            // don't depend on the runner's macOS language.
             "-AppleLanguages", "(en)",
             "--lokalbot-ui-test",
             "--lokalbot-storage-root", storageRoot.path,
@@ -397,9 +361,6 @@ enum UITestHarness {
         }
     }
 
-    /// The host once the system lists it as an application. It is looked up
-    /// through the process just started as well as by bundle identifier, and
-    /// once more after the deadline, so one slow answer does not end the wait.
     private static func waitForRunningApp(process: Process, timeout: TimeInterval) -> NSRunningApplication? {
         let deadline = Date().addingTimeInterval(timeout)
         var pastDeadline = false

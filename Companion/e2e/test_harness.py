@@ -68,7 +68,6 @@ class PortTests(unittest.TestCase):
             self.assertFalse(own_emulator.is_free(server.getsockname()[1]))
 
     def test_other_adb_servers_never_look_at_the_emulator_ports(self):
-        # adb servers scan up to 5585; the emulator refuses anything above 5682.
         self.assertGreater(min(own_emulator.CONSOLE_PORTS), 5585)
         self.assertLess(max(own_emulator.CONSOLE_PORTS) + 1, 5682)
         self.assertTrue(all(port % 2 == 0 for port in own_emulator.CONSOLE_PORTS))

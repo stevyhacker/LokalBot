@@ -1,40 +1,23 @@
-//! A suggestion on screen and what happens to it as the user types
-//! (`CotypingSession`, `CotypingSessionReconciler`,
-//! `CotypingSuggestionExtension`, `CotypingSuggestionAnchorCache`).
-
 use std::time::{Duration, Instant};
 
 use super::stop::ends_sentence;
 use super::text::is_control;
 
-/// What a suggestion does when accepted (`CotypingSuggestionKind`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SuggestionKind {
-    /// Continues the text (the normal case).
     Continuation,
-    /// Replaces the `:shortcode` before the caret with its glyph.
     Emoji,
-    /// Replaces the `/query` before the caret with the result; `preview` is
-    /// what to draw (`= 10` for an insertion of `10`).
     Macro { query: String, preview: String },
-    /// Replaces the misspelled word before the caret.
     Correction { typo: String },
 }
 
-/// An active suggestion: the field text it was made for, the suggestion,
-/// and how much of it is accepted or typed through.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Session {
-    /// Text before the caret when the suggestion was made.
     pub before: String,
-    /// Text after the caret then; any change to it ends the suggestion.
     pub after: String,
     pub full_text: String,
-    /// Bytes of `full_text` accepted or typed through.
     pub consumed: usize,
     pub kind: SuggestionKind,
-    /// The model's output was cut by the length limit, so there is more to
-    /// say; only such a suggestion is topped up.
     pub open_ended: bool,
 }
 
@@ -62,7 +45,6 @@ impl Session {
         self.consumed >= self.full_text.len()
     }
 
-    /// The text before the caret once everything accepted is in the field.
     pub fn expected_before(&self) -> String {
         format!("{}{}", self.before, self.accepted())
     }
@@ -76,8 +58,6 @@ impl Session {
         next
     }
 
-    /// `sessionAdvancedByTypedCharacters`: typing the suggestion's next
-    /// characters walks through it.
     pub fn advanced_by_typing(&self, typed: &str) -> Option<Self> {
         if self.kind != SuggestionKind::Continuation
             || typed.is_empty()
@@ -90,25 +70,16 @@ impl Session {
     }
 }
 
-/// How a newer read of the field relates to the suggestion on screen.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reconciled {
-    /// Everything accepted so far is in the field and nothing else changed.
     Unchanged,
-    /// The user typed the suggestion's next characters (or the field showed
-    /// accepted text with the space a new sentence needs).
     Advanced(Session),
-    /// The field moved away from the suggestion.
     Stale,
 }
 
-/// Fields longer than this may arrive as a sliding window of their end.
 const WINDOWED_TEXT_BYTES: usize = 1_024;
-/// How far a window may slide between two reads.
 const MAX_WINDOW_SHIFT: usize = 512;
 
-/// `sessionReconciledByPublishedTyping`, for a reader that reports whole
-/// field snapshots rather than key presses.
 pub fn reconcile(session: &Session, before: &str, after: &str) -> Reconciled {
     if after != session.after {
         return Reconciled::Stale;
@@ -117,8 +88,6 @@ pub fn reconcile(session: &Session, before: &str, after: &str) -> Reconciled {
     let (session, typed) = match typed_since(&expected, before) {
         Some(typed) => (session.clone(), typed),
         None => {
-            // A new sentence got its separating space when it was typed in
-            // (`insertion_chunk`); the suggestion itself did not have it.
             let accepted = session.accepted();
             let spaced = format!("{} {accepted}", session.before);
             match (!accepted.is_empty())
@@ -147,8 +116,6 @@ pub fn reconcile(session: &Session, before: &str, after: &str) -> Reconciled {
     }
 }
 
-/// What was typed after `expected`, when `before` still starts with it. A
-/// long field read as a window of its end may have slid by a few characters.
 pub fn typed_since<'a>(expected: &str, before: &'a str) -> Option<&'a str> {
     if let Some(rest) = before.strip_prefix(expected) {
         return Some(rest);
@@ -161,8 +128,6 @@ pub fn typed_since<'a>(expected: &str, before: &'a str) -> Option<&'a str> {
         .find_map(|shift| before.strip_prefix(&expected[shift..]))
 }
 
-/// `isStaleAcceptanceEcho`: a new suggestion that only repeats the chunk just
-/// accepted, while the field has not shown it yet, is not shown.
 pub fn is_stale_acceptance_echo(
     result: &str,
     accepted_chunk: &str,
@@ -173,18 +138,12 @@ pub fn is_stale_acceptance_echo(
     !chunk.is_empty() && result.trim() == chunk && current_before == accepted_before
 }
 
-// ----------------------------------------------------------------- extension
-
-/// A suggestion is topped up once this many words, or fewer, are left.
 pub const EXTENSION_THRESHOLD_WORDS: usize = 2;
 
-/// Words left at which a top-up starts. A one-word limit never tops up.
 pub fn extension_threshold(word_limit: usize) -> usize {
     EXTENSION_THRESHOLD_WORDS.min(word_limit.saturating_sub(1))
 }
 
-/// Words asked for in one top-up: one fewer than a fresh suggestion, so the
-/// ghost never grows past the limit plus one.
 pub fn top_up_word_limit(word_limit: usize) -> usize {
     word_limit.saturating_sub(1).max(1)
 }
@@ -195,9 +154,6 @@ pub fn word_count(text: &str) -> usize {
         .count()
 }
 
-/// Whether output stopped at the length limit rather than at the end of a
-/// thought. One word short still counts: the token budget can run out
-/// before the last word is whole.
 pub fn is_open_ended(chunk: &str, word_limit: usize) -> bool {
     !chunk.contains(super::text::is_newline)
         && !ends_sentence(chunk)
@@ -213,15 +169,10 @@ pub fn should_extend(session: &Session, word_limit: usize) -> bool {
         && word_count(session.remaining()) <= threshold
 }
 
-/// The text a top-up continues from: what stood before the caret when the
-/// suggestion was made, then the whole suggestion.
 pub fn continuation_prefix(session: &Session) -> String {
     format!("{}{}", session.before, session.full_text)
 }
 
-/// The part of `output` that may be appended to `suggestion`. Words already
-/// on screen must not change, so the addition starts a new word (or adds
-/// punctuation) and does not repeat what the suggestion just said.
 pub fn addition(output: &str, suggestion: &str) -> Option<String> {
     let first = output.chars().next()?;
     let last = suggestion.chars().next_back()?;
@@ -242,11 +193,6 @@ pub fn addition(output: &str, suggestion: &str) -> Option<String> {
     (!added.is_empty() && !said.ends_with(&added)).then(|| output.to_string())
 }
 
-// -------------------------------------------------------------- anchor cache
-
-/// Recently shown suggestions, so common edits re-show a still-valid tail
-/// without a model call: focus bounce, backspace, typing through after the
-/// session was cleared.
 pub struct AnchorCache {
     entries: Vec<AnchorEntry>,
 }
@@ -260,7 +206,6 @@ struct AnchorEntry {
     recorded: Instant,
 }
 
-/// A still-valid tail, and whether its suggestion may be topped up.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Restoration {
     pub text: String,
@@ -317,7 +262,6 @@ impl AnchorCache {
         }
     }
 
-    /// The deepest still-valid tail for the text now before the caret.
     pub fn restoration(
         &mut self,
         identity: &str,
@@ -367,7 +311,6 @@ fn tail(text: &str) -> String {
         .collect()
 }
 
-/// How many characters of `full_text` the live text has typed through.
 fn consumed_prefix(live: &[char], anchor_tail: &str, full_text: &str) -> Option<usize> {
     let composed: Vec<char> = anchor_tail.chars().chain(full_text.chars()).collect();
     let anchor_count = anchor_tail.chars().count();
@@ -402,14 +345,12 @@ mod tests {
             reconcile(&walked, &format!("{draft} up"), ""),
             Reconciled::Unchanged
         );
-        // Any other edit leaves the suggestion behind.
         assert_eq!(reconcile(&s, &format!("{draft} x"), ""), Reconciled::Stale);
         assert_eq!(
             reconcile(&s, &draft[..draft.len() - 1], ""),
             Reconciled::Stale
         );
         assert_eq!(reconcile(&s, draft, "!"), Reconciled::Stale);
-        // Typed to its end, the suggestion is used up.
         let Reconciled::Advanced(done) = reconcile(&s, &format!("{draft} up on"), "") else {
             panic!("typed through")
         };

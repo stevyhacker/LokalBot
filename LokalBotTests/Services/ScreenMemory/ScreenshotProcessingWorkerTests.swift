@@ -69,9 +69,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
     }
 
-    /// Every relaunch used to run a full retention pass, and each pass
-    /// revoked derived journals and Dream reports. The last pass now survives
-    /// a relaunch, so the daily bound holds across restarts.
     func testRetentionScheduleSurvivesRelaunch() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("retention-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -92,8 +89,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertTrue(nextDay.shouldPrune(at: start.addingTimeInterval(3_600 + 86_400)))
     }
 
-    /// A pass that hit a busy database used to count as the day's pass, so
-    /// expired screen data stayed another 24 hours, across relaunches too.
     func testFailedRetentionPassIsRetriedWithinTheHour() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("retention-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -112,22 +107,16 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertTrue(relaunched.shouldPrune(at: start.addingTimeInterval(hour)), "a relaunch retries too")
         XCTAssertTrue(schedule.shouldPrune(at: start.addingTimeInterval(hour)))
 
-        // The service checks once an hour, and its timer is not exact: the
-        // check after a failed pass arrives about one interval later, a
-        // moment early or a few minutes late. Due "in an hour" was missed by
-        // the early ones, and the retry slipped to two hours.
         var checked = ScreenshotRetentionSchedule()
         XCTAssertTrue(checked.shouldPrune(at: start))
         checked.passFailed(at: start)
         XCTAssertTrue(checked.shouldPrune(
             at: start.addingTimeInterval(ScreenshotRetentionSchedule.checkInterval - 1)))
 
-        // A pass that works restores the daily rhythm.
         schedule.passSucceeded()
         XCTAssertFalse(schedule.shouldPrune(at: start.addingTimeInterval(2 * hour)))
         XCTAssertFalse(schedule.shouldPrune(at: start.addingTimeInterval(hour + 86_399)))
 
-        // A failure that never clears stops being retried hourly.
         var stuck = ScreenshotRetentionSchedule()
         var now = start
         for _ in 0..<ScreenshotRetentionSchedule.maximumRetries {
@@ -150,9 +139,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertFalse(schedule.shouldPrune(at: start.addingTimeInterval(86_399)))
         XCTAssertTrue(schedule.shouldPrune(at: start.addingTimeInterval(86_400)))
 
-        // A shorter retention window is an explicit privacy action, so it can
-        // bypass the daily bound. A clock rollback must also not suspend
-        // cleanup until wall time catches up with the old timestamp.
         XCTAssertTrue(schedule.shouldPrune(
             at: start.addingTimeInterval(86_460),
             force: true
@@ -281,8 +267,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
             XCTAssertEqual(dates, [expired])
             XCTAssertTrue(FileManager.default.fileExists(atPath: pixels.path))
             XCTAssertEqual(store.ocrText(snapshotID: expiredID), "expired evidence")
-            // Data discovered after the revocation scope was established must
-            // wait for its own reviewed pass, not a broader cutoff deletion.
             lateID = try store.insertScreenshot(
                 ts: expired.addingTimeInterval(-3 * 86_400), path: "",
                 app: "Notes", ocr: "later discovered evidence")
@@ -297,9 +281,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(store.ocrText(snapshotID: lateID), "later discovered evidence")
     }
 
-    /// A hand off package is kept 7 days. Only writing the next package used
-    /// to remove old ones, so after a single handoff the window's text and
-    /// screenshot stayed in the library.
     func testDailyRetentionRemovesHandOffPackagesOlderThanTheirLimit() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("HandoffRetentionTests-\(UUID())", isDirectory: true)
@@ -418,8 +399,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
             XCTAssertEqual(dates, [vectorDay, old])
             XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM ocr_fts WHERE rowid = 501"))
             XCTAssertTrue(try database.hasRowChecked("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 9003"))
-            // Even expired orphan rows added after review require their own
-            // revocation scope and cannot be swept into this mutation.
             try database.runChecked("""
                 INSERT INTO ocr_fts (rowid, text, window_title, ts, app, text_source, snapshot_id)
                 VALUES (504, 'late orphan', '', ?1, 'Notes', 'ocr', 0)
@@ -514,8 +493,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
             return XCTFail("The initial capture should store")
         }
 
-        // ScreenshotService calls this after its SQLite transaction fails and
-        // removes the encrypted file. The same screen must be allowed to retry.
         await worker.discardStored(contentHash: stored.contentHash)
         let retry = try await worker.process(.init(
             image: image, trigger: .interval, key: key,
@@ -526,8 +503,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         }
     }
 
-    /// A frame of the same window that differs only by its blinking caret
-    /// stores nothing; any other change still stores.
     func testCaretOnlyFramesOfTheSameWindowAreNotStoredAgain() async throws {
         let key = SymmetricKey(data: Data(repeating: 0x66, count: 32))
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("unused-\(UUID()).heic.enc")
@@ -601,7 +576,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
     }
 
-    /// A worker whose text recognition never answers, until `unanswered` is signalled.
     private static func workerWithSilentTextRecognition(
         _ unanswered: DispatchSemaphore
     ) -> ScreenshotProcessingWorker {
@@ -618,7 +592,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
             textRecognitionLimit: 0.1)
     }
 
-    /// The outcome, or nil when the worker is still waiting after ten seconds.
     private func outcomeWithinTenSeconds(
         of worker: ScreenshotProcessingWorker, accessibleText: String
     ) async throws -> ScreenshotProcessingWorker.Outcome? {
@@ -635,9 +608,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         return await processing.value
     }
 
-    /// 2026-11-09: one text-recognition request never returned. The capture
-    /// waiting for it kept its turn, so every capture after it was skipped as
-    /// already in flight for the rest of the day.
     func testACaptureGoesOnWithoutTextRecognitionThatNeverAnswers() async throws {
         let unanswered = DispatchSemaphore(value: 0)
         defer { unanswered.signal() }
@@ -653,7 +623,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         XCTAssertEqual(stored.textSource, "accessibility")
         XCTAssertTrue(stored.missedOCR)
         XCTAssertFalse(stored.usedOCR)
-        // The credential check reads the pixels' text. Without it they are not kept.
         XCTAssertFalse(stored.hasPixels)
         XCTAssertNil(stored.sealedPixels)
     }
@@ -669,7 +638,6 @@ final class ScreenshotProcessingWorkerTests: XCTestCase {
         guard case .unreadable = outcome else {
             return XCTFail("with no text from either source there is nothing to store")
         }
-        // The same frame is read again, not skipped as already stored.
         guard let again = try await outcomeWithinTenSeconds(of: worker, accessibleText: "Budget review") else {
             return XCTFail("the capture is still waiting for text recognition")
         }

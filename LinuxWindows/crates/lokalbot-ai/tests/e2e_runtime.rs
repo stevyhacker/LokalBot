@@ -1,10 +1,3 @@
-//! Real downloads and a real `llama-server`. Needs the network and ~1 GB of
-//! disk; run on a development machine:
-//!
-//! ```sh
-//! LOKALBOT_E2E_ROOT=~/scratch-root cargo test -p lokalbot-ai --test e2e_runtime -- --ignored --nocapture
-//! ```
-
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::time::Instant;
@@ -194,8 +187,6 @@ fn copy_dir(from: &std::path::Path, to: &std::path::Path) {
     }
 }
 
-/// A library set up by a version pinned to another llama.cpp build, on this
-/// platform's real archives.
 #[test]
 #[ignore = "needs the runtime from installs_runtime_downloads_models_and_answers"]
 fn an_update_replaces_the_runtime_an_older_version_installed() {
@@ -248,7 +239,6 @@ fn an_update_replaces_the_runtime_an_older_version_installed() {
     assert!(!manager.has_other_builds());
 }
 
-/// The macOS upgrade fixture, copied so nothing writes into it.
 pub fn fixture_library() -> (tempfile::TempDir, lokalbot_core::Library) {
     let source = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../../LokalBotTests/Fixtures/upgrade/0.10.9/library");

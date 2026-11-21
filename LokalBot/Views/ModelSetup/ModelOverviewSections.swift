@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The overview exposes saved approvals without choosing or approving a server.
-/// Connection editing and its full data disclosure remain in the existing editor.
 struct ModelRemoteOverview: View {
     @ObservedObject var app: AppState
     @State private var revokingOrigin: String?

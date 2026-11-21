@@ -1,11 +1,3 @@
-//! What the Actions page decides before it draws (`ActionsListPresentation.swift`
-//! and `ActionAttentionOrder` in `ActionThreads.swift`): which threads the
-//! status, search and Filter menu list, in what order and under which
-//! headings, the wording of every row, the chips of the active filters, the
-//! people and projects an action belongs to, which rows are selected, and the
-//! corrections the details pane saves. Display-only: nothing here is stored
-//! or sent.
-
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Local, NaiveDate, Utc};
@@ -16,22 +8,16 @@ use uuid::Uuid;
 use crate::ui::action_row::DueTone;
 use lokalbot_i18n::fill;
 
-/// Meetings the Filter menu offers, newest first.
 pub(super) const MAXIMUM_MEETING_CHOICES: usize = 40;
-/// The Done list's first heading reaches back this many days, today included.
 pub(super) const RECENTLY_DONE_DAYS: i64 = 7;
-/// People or projects the details pane names for one action.
 pub(super) const MAXIMUM_LINKS: usize = 4;
 
-/// The statuses the page lists, in the order of its segmented control.
 pub(super) const STATUSES: [ActionStatus; 3] = [
     ActionStatus::Open,
     ActionStatus::Deferred,
     ActionStatus::Done,
 ];
 
-/// The catalog key for a status as a state. "Open" on its own is the verb on
-/// buttons, which most languages translate differently (`stateKey`).
 pub(super) fn state_key(status: ActionStatus) -> &'static str {
     match status {
         ActionStatus::Open => "Open (status)",
@@ -39,8 +25,6 @@ pub(super) fn state_key(status: ActionStatus) -> &'static str {
         ActionStatus::Done => "Done",
     }
 }
-
-// ----------------------------------------------------------------- filter
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) enum DueFilter {
@@ -59,8 +43,6 @@ pub(super) enum Grouping {
     None,
 }
 
-/// What the page lists: one status, a search, and the choices of its Filter
-/// menu (`ActionsListFilter`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ListFilter {
     pub status: ActionStatus,
@@ -68,9 +50,7 @@ pub(super) struct ListFilter {
     pub due: DueFilter,
     pub person_id: Option<String>,
     pub project_id: Option<String>,
-    /// Every meeting with this title, so a weekly standup is one choice.
     pub meeting_title: Option<String>,
-    /// Open actions nobody has mentioned for three weeks.
     pub stale_only: bool,
     pub grouping: Grouping,
 }
@@ -99,7 +79,6 @@ pub(super) enum ChipKind {
     Stale,
 }
 
-/// One active Filter menu choice, shown as a removable chip.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Chip {
     pub kind: ChipKind,
@@ -107,7 +86,6 @@ pub(super) struct Chip {
 }
 
 impl ListFilter {
-    /// The stale review only exists among open actions.
     pub fn is_stale_review(&self) -> bool {
         self.status == ActionStatus::Open && self.stale_only
     }
@@ -116,7 +94,6 @@ impl ListFilter {
         self.query.trim()
     }
 
-    /// Filter menu choices that narrow the list; each shows as a chip.
     pub fn has_menu_filters(&self) -> bool {
         self.due != DueFilter::Any
             || self.person_id.is_some()
@@ -138,9 +115,6 @@ impl ListFilter {
         self.stale_only = false;
     }
 
-    /// Done actions are outside the People and Projects read models, and the
-    /// stale review is about open work, so leaving Open drops what cannot
-    /// apply.
     pub fn show(&mut self, status: ActionStatus) {
         self.status = status;
         if status != ActionStatus::Open {
@@ -152,7 +126,6 @@ impl ListFilter {
         }
     }
 
-    /// The active Filter menu choices, in the order the menu lists them.
     pub fn chips(&self, links: &ThreadLinks) -> Vec<Chip> {
         let mut chips = Vec::new();
         let due = match self.due {
@@ -211,41 +184,27 @@ impl ListFilter {
     }
 }
 
-// ------------------------------------------------------------------ links
-
-/// A person or project an action belongs to.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Link {
     pub id: String,
     pub name: String,
 }
 
-/// What one person or project contributes to [`ThreadLinks`]: its own open
-/// and deferred work for the user, as action reference ids.
 #[derive(Clone, Debug, Default)]
 pub(super) struct LinkSource {
     pub id: String,
     pub name: String,
-    /// Ids folded into this person.
     pub aliases: Vec<String>,
     pub references: HashSet<String>,
     pub tracked: bool,
 }
 
-/// The people and projects an action belongs to, looked up backwards from the
-/// People and Projects read models (`ActionThreadLinks`). Those models list
-/// the user's open and deferred work per person and per project; nothing new
-/// is derived here.
 #[derive(Clone, Debug, Default)]
 pub(super) struct ThreadLinks {
-    /// People and projects with at least one of the user's actions.
     pub people: Vec<Link>,
     pub projects: Vec<Link>,
-    /// Action reference id to positions in `people` and `projects`. A thread
-    /// is found by its references, so re-threading does not lose the link.
     people_by_reference: HashMap<String, Vec<usize>>,
     projects_by_reference: HashMap<String, Vec<usize>>,
-    /// Ids of people folded into another person.
     person_aliases: HashMap<String, String>,
 }
 
@@ -296,7 +255,6 @@ impl ThreadLinks {
                 name: person.name,
             });
         }
-        // Projects the user tracks lead; suggested ones follow.
         let (tracked, suggested): (Vec<_>, Vec<_>) =
             projects.into_iter().partition(|project| project.tracked);
         for project in tracked
@@ -374,8 +332,6 @@ impl ThreadLinks {
     }
 }
 
-// ---------------------------------------------------------------- wording
-
 fn format_day(date: NaiveDate, pattern: &str) -> String {
     date.format_localized(
         lokalbot_i18n::date_pattern(pattern),
@@ -384,28 +340,20 @@ fn format_day(date: NaiveDate, pattern: &str) -> String {
     .to_string()
 }
 
-/// "Thu, Nov 12".
 pub(super) fn weekday_date(date: NaiveDate) -> String {
     format_day(date, "%a, %b %-d")
 }
 
-/// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
-/// "Oct 27" (`lokalbot_i18n::day_label`), for a moment on its local day.
 pub(super) fn day(at: DateTime<Utc>, today: NaiveDate) -> String {
     lokalbot_i18n::day_label(lokalbot_core::time::local_day(at), today)
 }
 
-/// The due words on a row and how they read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct DueLabel {
     pub text: String,
     pub tone: DueTone,
 }
 
-/// The due text on a row. Overdue open work reads as "Was due", due today or
-/// within the week keeps the amber tone, and a later date, a phrase that
-/// names no day, and work that is no longer open stay quiet. The Done list
-/// shows when the action was completed instead.
 pub(super) fn due_label(
     thread: &ActionThread,
     listing: ActionStatus,
@@ -453,7 +401,6 @@ pub(super) fn due_label(
     Some(DueLabel { text, tone })
 }
 
-/// When the action's last mention was marked done.
 pub(super) fn completion_date(thread: &ActionThread) -> DateTime<Utc> {
     thread
         .references
@@ -464,7 +411,6 @@ pub(super) fn completion_date(thread: &ActionThread) -> DateTime<Utc> {
         .unwrap_or(thread.latest().state_updated_at)
 }
 
-/// "Design review meeting", or "In 2 meetings" for an action said twice.
 pub(super) fn source(thread: &ActionThread) -> String {
     if thread.meeting_count() > 1 {
         fill(
@@ -476,7 +422,6 @@ pub(super) fn source(thread: &ActionThread) -> String {
     }
 }
 
-/// Under a meeting heading the row only says where else it was said.
 pub(super) fn other_meetings(thread: &ActionThread) -> String {
     match thread.meeting_count().saturating_sub(1) {
         0 => String::new(),
@@ -488,7 +433,6 @@ pub(super) fn other_meetings(thread: &ActionThread) -> String {
     }
 }
 
-/// "8 open actions haven’t been mentioned in 3 weeks."
 pub(super) fn stale_summary(count: usize) -> String {
     if count == 1 {
         lokalbot_i18n::tr("1 open action hasn’t been mentioned in 3 weeks.").to_string()
@@ -515,7 +459,6 @@ pub(super) fn empty_text(filter: &ListFilter) -> &'static str {
     }
 }
 
-/// "Mon 5:48 PM", when the screen showed the cue.
 fn hint_time(hint: &CompletionHint) -> String {
     let at = hint.captured_at.with_timezone(&Local);
     let locale = lokalbot_i18n::date_locale();
@@ -526,7 +469,6 @@ fn hint_time(hint: &CompletionHint) -> String {
     )
 }
 
-/// "Mail showed “Message sent” · Mon 5:48 PM" beside "Looks done?" on a row.
 pub(super) fn completion_hint(hint: &CompletionHint) -> String {
     format!(
         "{} · {}",
@@ -538,7 +480,6 @@ pub(super) fn completion_hint(hint: &CompletionHint) -> String {
     )
 }
 
-/// The same evidence as a sentence, for the details pane.
 pub(super) fn completion_hint_sentence(hint: &CompletionHint) -> String {
     fill(
         lokalbot_i18n::tr("%1$@ showed “%2$@” on %3$@, after this was said."),
@@ -546,22 +487,13 @@ pub(super) fn completion_hint_sentence(hint: &CompletionHint) -> String {
     )
 }
 
-// ------------------------------------------------------------- controls
-
-/// How the row of controls above the list arranges itself in its width
-/// (`ActionsFilterBar`'s `ViewThatFits`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum BarLayout {
-    /// Status, Filter, the chips and the search field on one row.
     OneRow,
-    /// The chips on a row of their own under the others.
     ChipsBelow,
-    /// The search field on a row of its own as well.
     SearchBelow,
 }
 
-/// Chooses the first arrangement whose rows fit in `width`; widths are the
-/// controls' own, without the bar's 16-point sides and 8-point gaps.
 pub(super) fn filter_bar_layout(
     width: f32,
     status: f32,
@@ -582,16 +514,10 @@ pub(super) fn filter_bar_layout(
     }
 }
 
-// ------------------------------------------------------------------- list
-
-/// One listed thread with its wording made.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Row {
-    /// Position in the threads the list was built from.
     pub thread: usize,
     pub id: String,
-    /// The meeting it came from, with a day where the group does not already
-    /// give one. Empty under a meeting heading.
     pub source: String,
     pub due: Option<DueLabel>,
 }
@@ -599,30 +525,21 @@ pub(super) struct Row {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct Section {
     pub id: String,
-    /// `None` for a list without headings.
     pub title: Option<String>,
     pub is_late: bool,
     pub rows: Vec<Row>,
 }
 
-/// The list as it is drawn: filtered, ordered and grouped threads with each
-/// row's wording already made, so rows do no work of their own
-/// (`ActionsListContent`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct ListContent {
     pub sections: Vec<Section>,
-    /// Row ids from top to bottom, for the arrow keys and range selection.
     pub order: Vec<String>,
-    /// The user's open actions, whatever the list is showing.
     pub open_count: usize,
-    /// Open actions the stale review would list.
     pub stale_count: usize,
-    /// Meeting titles the user's actions came from, newest first.
     pub meeting_titles: Vec<String>,
     rows_by_id: HashMap<String, (usize, usize)>,
 }
 
-/// Overdue, due within the week, then later or undated (`ActionAttentionOrder.Bucket`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(super) enum Bucket {
     Overdue,
@@ -630,7 +547,6 @@ pub(super) enum Bucket {
     Later,
 }
 
-/// A due phrase that names no day counts as no date.
 pub(super) fn bucket(thread: &ActionThread, today: NaiveDate) -> Bucket {
     let Some(due) = thread.resolved_due_date else {
         return Bucket::Later;
@@ -659,9 +575,6 @@ impl ListContent {
         self.sections.get(section)?.rows.get(row)
     }
 
-    /// `kept`: threads whose status the user just changed in this view. They
-    /// stay listed until the view or its filters change, so a ticked row does
-    /// not vanish under the pointer.
     pub fn build(
         threads: &[ActionThread],
         filter: &ListFilter,
@@ -683,7 +596,6 @@ impl ListContent {
             due: due_label(&threads[index], filter.status, today),
         };
         let newest_first = |mut indexes: Vec<usize>| {
-            // Stable: threads from the same moment keep their order.
             indexes.sort_by(|a, b| {
                 threads[*b]
                     .latest()
@@ -839,7 +751,6 @@ impl ListContent {
                     .into_iter()
                     .map(|ix| (ix, completion_date(&threads[ix])))
                     .collect();
-                // Threads done at the same moment keep their list order.
                 dated.sort_by_key(|item| std::cmp::Reverse(item.1));
                 let (mut recent, mut earlier) = (Vec::new(), Vec::new());
                 for (ix, date) in dated {
@@ -886,8 +797,6 @@ impl ListContent {
     }
 }
 
-/// Whether the filter lists this thread, before the rows the user just
-/// changed are added back.
 pub(super) fn matches(
     thread: &ActionThread,
     filter: &ListFilter,
@@ -960,18 +869,10 @@ fn meeting_titles(threads: &[ActionThread]) -> Vec<String> {
     titles
 }
 
-// -------------------------------------------------------------- selection
-
-/// Which rows the list acts on (`ActionListSelection`). One row is always
-/// current, as in a mail list: the chosen rows that are still listed, or else
-/// the first row. Ctrl-click adds or removes a row and Shift-click takes a
-/// range.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Selection {
     pub chosen: HashSet<String>,
-    /// Where a Shift range starts.
     pub anchor: Option<String>,
-    /// The row the arrow keys move from.
     pub lead: Option<String>,
 }
 
@@ -1013,7 +914,6 @@ impl Selection {
             if !next.remove(id) {
                 next.insert(id.to_string());
             }
-            // The last row cannot be deselected: one row is always current.
             if next.is_empty() {
                 next.insert(id.to_string());
             }
@@ -1026,7 +926,6 @@ impl Selection {
         self.lead = Some(id.to_string());
     }
 
-    /// Moves up or down one row and returns the row to keep in view.
     pub fn step(&mut self, by: isize, extending: bool, order: &[String]) -> Option<String> {
         let current = self.current(order);
         let start = self
@@ -1070,7 +969,6 @@ impl Selection {
         self.lead = order.last().cloned();
     }
 
-    /// Back to one row: the one the keyboard was on, or the first chosen.
     pub fn collapse(&mut self, order: &[String]) {
         let current = self.current(order);
         let Some(keep) = self
@@ -1087,16 +985,11 @@ impl Selection {
     }
 }
 
-// ---------------------------------------------------------------- details
-
-/// "2026-11-12": a day someone chose rather than said.
 fn is_explicit_date(phrase: &str) -> bool {
     let phrase = phrase.trim();
     phrase.len() == 10 && NaiveDate::parse_from_str(phrase, "%Y-%m-%d").is_ok()
 }
 
-/// The Due control: the resolved day, "Pick a date" for a phrase that names
-/// no day, or "No date".
 pub(super) fn due_title(thread: &ActionThread) -> String {
     match thread.resolved_due_date {
         Some(date) => weekday_date(date),
@@ -1105,8 +998,6 @@ pub(super) fn due_title(thread: &ActionThread) -> String {
     }
 }
 
-/// Due phrases as they were said, newest meeting first, without the days
-/// someone typed in.
 pub(super) fn said_due_phrases(thread: &ActionThread) -> Vec<String> {
     let mut phrases: Vec<String> = Vec::new();
     for phrase in thread
@@ -1126,7 +1017,6 @@ pub(super) fn said_due_phrases(thread: &ActionThread) -> Vec<String> {
     phrases
 }
 
-/// "You said “by Thursday”. Before that, “next week”."
 pub(super) fn due_note(thread: &ActionThread) -> Option<String> {
     let phrases = said_due_phrases(thread);
     let latest = phrases.first()?;
@@ -1138,7 +1028,6 @@ pub(super) fn due_note(thread: &ActionThread) -> Option<String> {
     Some(note)
 }
 
-/// "Said in 2 meetings", or "What was said" for one meeting.
 pub(super) fn mentions_heading(thread: &ActionThread) -> String {
     if thread.meeting_count() > 1 {
         fill(
@@ -1150,7 +1039,6 @@ pub(super) fn mentions_heading(thread: &ActionThread) -> String {
     }
 }
 
-/// One saved correction of one meeting's action.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Correction {
     pub meeting_id: Uuid,
@@ -1158,9 +1046,6 @@ pub(super) struct Correction {
     pub change: ActionCorrection,
 }
 
-/// A due day chosen in the details pane, or none. It is saved on the newest
-/// mention, whose correction a thread takes as its due date. Text and owner
-/// keep whatever they are.
 pub(super) fn due_correction(date: Option<NaiveDate>, thread: &ActionThread) -> Correction {
     let latest = thread.latest();
     Correction {
@@ -1173,8 +1058,6 @@ pub(super) fn due_correction(date: Option<NaiveDate>, thread: &ActionThread) -> 
     }
 }
 
-/// "Not mine": every mention of the user's loses its owner, so the action
-/// leaves the user's list in each meeting it was said in.
 pub(super) fn not_mine_corrections(thread: &ActionThread) -> Vec<Correction> {
     thread
         .references
@@ -1191,7 +1074,6 @@ pub(super) fn not_mine_corrections(thread: &ActionThread) -> Vec<Correction> {
         .collect()
 }
 
-/// The threads a status change actually changes.
 pub(super) fn changing(threads: Vec<ActionThread>, status: ActionStatus) -> Vec<ActionThread> {
     threads
         .into_iter()
@@ -1199,8 +1081,6 @@ pub(super) fn changing(threads: Vec<ActionThread>, status: ActionStatus) -> Vec<
         .collect()
 }
 
-/// Titles of the meetings a change reaches beyond one meeting, each meeting
-/// once, for the question asked first.
 pub(super) fn confirmation_meetings(threads: &[ActionThread]) -> Vec<String> {
     let mut seen: HashSet<Uuid> = HashSet::new();
     threads
@@ -1296,7 +1176,6 @@ mod tests {
                 thread_ids(&["later-new", "later-old"])
             ]
         );
-        // Later rows name their day; the dated groups do not.
         assert_eq!(content.sections[0].rows[0].source, "Meeting 5");
         assert_eq!(content.sections[2].rows[1].source, "Meeting 20 · Oct 20");
         assert_eq!(content.open_count, 5);
@@ -1319,14 +1198,12 @@ mod tests {
         let later = at(NaiveDate::from_ymd_opt(2026, 11, 7).unwrap()).unwrap();
         assert_eq!(later.text, "Due Sat, Nov 7");
         assert_eq!(later.tone, DueTone::Calm);
-        // A phrase that names no day keeps its words.
         let mut vague = open("b", None, 20);
         vague.due = Some(" after the offsite ".into());
         assert_eq!(
             due_label(&vague, ActionStatus::Open, today()).unwrap().text,
             "Due “after the offsite”"
         );
-        // Deferred work is never late.
         let deferred = thread(vec![reference(
             "c",
             ActionStatus::Deferred,
@@ -1463,7 +1340,6 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(listed(&meeting, &none), [threads[1].id.clone()]);
-        // A row just marked done stays in the open list until the view changes.
         let kept = HashSet::from([threads[3].id.clone()]);
         assert!(listed(&ListFilter::default(), &kept).contains(&threads[3].id));
         assert!(!listed(&ListFilter::default(), &none).contains(&threads[3].id));
@@ -1561,13 +1437,11 @@ mod tests {
         assert_eq!(selection.current(&order), ["b", "c", "d"]);
         selection.click("c", true, false, &order);
         assert_eq!(selection.current(&order), ["b", "d"]);
-        // The last chosen row cannot be removed.
         let mut one = Selection::default();
         one.click("a", true, false, &order);
         assert_eq!(one.current(&order), ["a"]);
         one.click("a", true, false, &order);
         assert_eq!(one.current(&order), ["a"]);
-        // Arrows move from the lead and stop at the ends; Shift extends.
         let mut keys = Selection::default();
         assert_eq!(keys.step(1, false, &order).as_deref(), Some("b"));
         assert_eq!(keys.step(1, true, &order).as_deref(), Some("c"));
@@ -1578,7 +1452,6 @@ mod tests {
         assert_eq!(keys.step(-9, false, &order).as_deref(), Some("a"));
         keys.select_all(&order);
         assert_eq!(keys.current(&order).len(), 4);
-        // Rows that leave the list fall out of the selection.
         assert_eq!(keys.current(&order[2..]), ["c", "d"]);
     }
 
@@ -1616,12 +1489,10 @@ mod tests {
 
     #[test]
     fn the_control_row_gives_way_like_view_that_fits() {
-        // 32 sides + 250 status + 8 + 80 filter = 370 before chips and search.
         assert_eq!(
             filter_bar_layout(700., 250., 80., &[], 230.),
             BarLayout::OneRow
         );
-        // 370 + 80 chip + 8 + 8 + 230 search = 696.
         assert_eq!(
             filter_bar_layout(700., 250., 80., &[80.], 230.),
             BarLayout::OneRow

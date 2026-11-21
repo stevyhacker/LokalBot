@@ -2,19 +2,15 @@ import { Action, ActionPanel, Detail, Icon, Keyboard } from "@raycast/api";
 import { AskSource, describeAskError, revealMeeting } from "./cli";
 import type { AnswerState } from "./use-lokalbot-answer";
 
-/** A finished answer or draft can be pasted into the frontmost app or copied. */
 export interface ResultAction {
   kind: "paste" | "copy";
   title: string;
 }
 
-/** Shared Detail screen for Ask LokalBot and Draft Reply. */
 export function AnswerView(props: {
   state: AnswerState;
   loadingMarkdown: string;
-  /** Shown above the sources, such as the question asked. */
   labels: { title: string; text: string }[];
-  /** The first is the primary action; Try Again and the sources follow. */
   resultActions: ResultAction[];
   retry: () => void;
 }) {

@@ -2,9 +2,6 @@ import Darwin
 import XCTest
 @testable import LokalBot
 
-/// End-to-end ranged downloads against an in-process server, so the bytes
-/// that reach the partial file (and how many times they are written) are
-/// checked through the same URLSession path the app uses.
 final class ParallelRangeDownloaderTests: XCTestCase {
     private let url = URL(string: "https://models.example/model.gguf")!
     private var stashDirectory: URL!
@@ -27,10 +24,6 @@ final class ParallelRangeDownloaderTests: XCTestCase {
         super.tearDown()
     }
 
-    /// macOS flags an app once it dirties gigabytes of file-backed memory a
-    /// day. Each byte of a model must be written once: landing every part in
-    /// a download task's temp file and then copying it into the partial wrote
-    /// it twice (137 GB in one 0.10.8 session).
     func testRangedDownloadWritesEachByteToDiskOnce() async throws {
         let blob = Self.numberedBytes(count: 48 * 1024 * 1024)
         RangeServerStub.configure(blob: blob)
@@ -45,15 +38,12 @@ final class ParallelRangeDownloaderTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: staged), blob)
     }
 
-    /// A failed part stops the attempt, completed parts survive it, and the
-    /// retry fetches only what is missing while still assembling exact bytes.
     func testRetryFetchesOnlyMissingPartsAndAssemblesExactBytes() async throws {
         let partSize: Int64 = 256 * 1024
         let blob = Self.numberedBytes(count: 3 * 1024 * 1024 + 123)
         let failingStart = partSize * 2
         RangeServerStub.configure(blob: blob, failingRangeStarts: [failingStart])
 
-        // One part at a time, so parts 0 and 1 finish before part 2 fails.
         do {
             _ = try await download(partSize: partSize, maxConcurrentParts: 1)
             XCTFail("the failing part must stop the first attempt")
@@ -79,8 +69,6 @@ final class ParallelRangeDownloaderTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: staged), blob)
     }
 
-    /// A server that answers a ranged GET with the whole file must be
-    /// refused before any of that body lands at the part's offset.
     func testWholeFileAnswerToARangeIsRejectedBeforeWriting() async throws {
         let blob = Self.numberedBytes(count: 1024 * 1024)
         RangeServerStub.configure(blob: blob, ignoresRanges: true)
@@ -108,8 +96,6 @@ final class ParallelRangeDownloaderTests: XCTestCase {
             progress: { _ in })
     }
 
-    /// Every 4-byte word holds its own index, so a part written at the wrong
-    /// offset cannot compare equal.
     private static func numberedBytes(count: Int) -> Data {
         var data = Data(count: count)
         data.withUnsafeMutableBytes { buffer in
@@ -121,8 +107,6 @@ final class ParallelRangeDownloaderTests: XCTestCase {
         return data
     }
 
-    /// The counter macOS's disk-writes report reads: bytes of file-backed
-    /// memory this process has dirtied.
     private static func logicalWriteBytes() throws -> UInt64 {
         var info = rusage_info_v4()
         let result = withUnsafeMutablePointer(to: &info) { pointer in
@@ -137,8 +121,6 @@ final class ParallelRangeDownloaderTests: XCTestCase {
     }
 }
 
-/// Serves HEAD and `Range: bytes=a-b` GETs for one in-memory file, like the
-/// Hugging Face CDN, in 64 KB chunks so each part arrives in many callbacks.
 private final class RangeServerStub: URLProtocol {
     private struct State {
         var blob = Data()

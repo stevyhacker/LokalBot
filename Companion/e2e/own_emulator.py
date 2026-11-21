@@ -30,11 +30,9 @@ from harness import Failure, free_port, step, wait_until
 SYSTEM_IMAGE = "system-images;android-36;google_apis;x86_64"
 PROFILE = "pixel_7"
 AVD = "own"
-# The emulator takes even console ports up to 5682 and uses the next one for adb.
 CONSOLE_PORTS = range(5600, 5682, 2)
 BOOT_TIMEOUT = 300
 EMULATOR_OPTIONS = "-no-window -no-snapshot -no-audio -no-boot-anim -gpu swiftshader_indirect -accel on".split()
-# What android-emulator-runner does on GitHub's runners, so the test sees the same.
 AFTER_BOOT = (
     "input keyevent 82",
     "settings put global window_animation_scale 0.0",
@@ -67,7 +65,6 @@ def environment(sdk, work):
         "PATH": os.pathsep.join([*map(str, tools), os.environ["PATH"]]),
         "ANDROID_AVD_HOME": str(work / "avd"),
         "ANDROID_ADB_SERVER_PORT": str(free_port()),
-        # Below the first emulator's port, it makes the server look at none.
         "ADB_LOCAL_TRANSPORT_MAX_PORT": "0",
         "ANDROID_SERIAL": f"emulator-{console}",
     }
@@ -131,7 +128,6 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("command", nargs="+", help="what to run once the emulator is up, after --")
     args = parser.parse_args()
-    # A cancelled CI job ends with SIGTERM, and the emulator shouldn't outlive it.
     signal.signal(signal.SIGTERM, lambda *_: sys.exit(143))
     with tempfile.TemporaryDirectory(prefix="own-emulator-", dir=os.environ.get("RUNNER_TEMP")) as work:
         try:

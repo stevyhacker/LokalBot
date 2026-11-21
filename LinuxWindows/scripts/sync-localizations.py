@@ -16,8 +16,6 @@ ROOT = Path(__file__).resolve().parents[2]
 OUTPUT = ROOT / "LinuxWindows/crates/lokalbot-i18n/src/catalogs.rs"
 FIELDS = re.compile(r'\{\w+\}|%(?:\d+\$)?(?:lld|ld|[diufgs@])')
 BIDI_CONTROLS = re.compile('[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]')
-# Zero-width space, soft hyphen and word joiner: invisible, usually left by a
-# translation tool, and denied by clippy in the generated Rust.
 INVISIBLE = re.compile('[\u200b\u00ad\u2060]')
 KEYBOARD_TOKENS = re.compile(r'\b(?:Ctrl|Alt|Shift)(?:\+[A-Za-z]+)+|\b(?:Return|Tab|Esc)\b', re.ASCII)
 
@@ -73,8 +71,6 @@ def read_strings(path):
 
 
 def rust_string(value):
-    # JSON's Unicode escapes differ from Rust's. Keep non-ASCII text literal,
-    # except invisible characters, which Rust gets as escapes.
     literal = json.dumps(value, ensure_ascii=False).replace("\\b", "\\u{8}").replace("\\f", "\\u{c}")
     return INVISIBLE.sub(lambda m: f"\\u{{{ord(m.group()):x}}}", literal)
 
@@ -111,7 +107,6 @@ def generate():
         catalog.update(desktop[code])
         name = re.sub(r"[^A-Z0-9]", "_", code.upper())
         tables.append((code, name))
-        # Python orders str by code point, which is Rust's UTF-8 byte order.
         lines.append(f"static {name}: &[(&str, &str)] = &[")
         lines.extend(f"    ({rust_string(key)}, {rust_string(value)})," for key, value in sorted(catalog.items()))
         lines.extend(["];", ""])

@@ -1,22 +1,11 @@
-//! Evidence markers in Ask answers (`ChatCitationParser.swift`).
-//!
-//! The assistant writes `[meeting:<id>@m:ss]`, `[meeting:<id>]` or
-//! `[screen:<n>]`, `[file:<n>]` or `[note:<hex id>]` inline. The UI shows them as numbered `[n]` references,
-//! deduped in order of first appearance, so a repeated source keeps its number.
-
 use std::collections::HashMap;
 use std::sync::{LazyLock, Mutex};
 
 use lokalbot_core::{Meeting, ScreenMoment};
 use uuid::Uuid;
 
-/// Screen moments that citations name, loaded off the UI thread; `None`
-/// once a moment is known to be gone (deleted or expired).
 pub type ScreenCitations = HashMap<i64, Option<ScreenMoment>>;
 
-/// Files that citations name, loaded off the UI thread; `None` once a file has
-/// left the index. Files never change with a conversation, so one table serves
-/// every answer on screen.
 static FILE_CITATIONS: LazyLock<Mutex<HashMap<i64, Option<lokalbot_core::files::FileHit>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
@@ -30,8 +19,6 @@ pub fn remember_file_citation(id: i64, hit: Option<lokalbot_core::files::FileHit
     }
 }
 
-/// Saved coding-agent notes that citations name, loaded off the UI thread;
-/// `None` once a note has left the saved copy.
 static NOTE_CITATIONS: LazyLock<
     Mutex<HashMap<String, Option<lokalbot_core::agent_notes::NoteHit>>>,
 > = LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -46,28 +33,15 @@ pub fn remember_note_citation(id: &str, hit: Option<lokalbot_core::agent_notes::
     }
 }
 
-/// One cited source. Meeting ids may be full UUIDs or short-id prefixes.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CitationSource {
-    Meeting {
-        id: String,
-        at: Option<f64>,
-    },
-    Screen {
-        snapshot_id: i64,
-    },
-    /// A passage from the folders chosen under Files.
-    File {
-        id: i64,
-    },
-    /// A note one of the person's coding agents saved, by its lowercase hex id.
-    Note {
-        id: String,
-    },
+    Meeting { id: String, at: Option<f64> },
+    Screen { snapshot_id: i64 },
+    File { id: i64 },
+    Note { id: String },
 }
 
 impl CitationSource {
-    /// The meeting this citation names, if it resolves against `meetings`.
     pub fn meeting<'a>(&self, meetings: &'a [Meeting]) -> Option<&'a Meeting> {
         let CitationSource::Meeting { id, .. } = self else {
             return None;
@@ -76,25 +50,19 @@ impl CitationSource {
     }
 }
 
-/// Text with markers replaced by `[n]`, plus where each `[n]` landed.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CitedText {
     pub text: String,
-    /// Byte range of each `[n]` in `text`, with its 0-based citation index.
     pub markers: Vec<(std::ops::Range<usize>, usize)>,
     pub citations: Vec<CitationSource>,
 }
 
-/// A piece of answer text: plain text or a citation reference.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Piece {
     Text(String),
     Cite(usize),
 }
 
-/// Splits `text` into plain pieces and numbered citations. Invalid markers
-/// stay as written. Spaces before punctuation and doubled spaces left around
-/// markers are tidied the way the macOS parser does.
 pub fn split(text: &str) -> (Vec<Piece>, Vec<CitationSource>) {
     let mut pieces = Vec::new();
     let mut citations: Vec<CitationSource> = Vec::new();
@@ -147,7 +115,6 @@ pub fn split(text: &str) -> (Vec<Piece>, Vec<CitationSource>) {
     (tidied, citations)
 }
 
-/// Replaces markers with `[n]` and records their ranges.
 pub fn extract(text: &str) -> CitedText {
     let (pieces, citations) = split(text);
     let mut out = CitedText {
@@ -167,12 +134,10 @@ pub fn extract(text: &str) -> CitedText {
     out
 }
 
-/// Plain answer text for the clipboard: markers become `[n]`.
 pub fn display_text(text: &str) -> String {
     extract(text).text
 }
 
-/// Full UUIDs, or a unique prefix of the dashless id (`SessionLookup.find`).
 pub fn resolve_meeting<'a>(id: &str, meetings: &'a [Meeting]) -> Option<&'a Meeting> {
     if let Ok(uuid) = Uuid::parse_str(id.trim()) {
         return meetings.iter().find(|m| m.id == uuid);
@@ -188,7 +153,6 @@ pub fn resolve_meeting<'a>(id: &str, meetings: &'a [Meeting]) -> Option<&'a Meet
     matches.next().is_none().then_some(first)
 }
 
-/// Parses one marker at the start of `text`; returns its byte length.
 fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
     let body = text.strip_prefix('[')?;
     let (kind, rest) = ["meeting", "file", "note", "screen"]
@@ -228,7 +192,6 @@ fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
         }
         CitationSource::File { id }
     } else if kind == "note" {
-        // At least eight hex characters, never with a time.
         if stamp.is_some() || id.len() < 8 || !id.bytes().all(|b| b.is_ascii_hexdigit()) {
             return None;
         }
@@ -253,7 +216,6 @@ fn parse_marker(text: &str) -> Option<(usize, CitationSource)> {
     Some((consumed, source))
 }
 
-/// `M:SS`, `MM:SS` or `HH:MM:SS`.
 fn valid_stamp(raw: &str) -> bool {
     let parts: Vec<&str> = raw.split(':').collect();
     if !(2..=3).contains(&parts.len()) {
@@ -265,8 +227,6 @@ fn valid_stamp(raw: &str) -> bool {
         && parts.iter().all(|p| p.bytes().all(|b| b.is_ascii_digit()))
 }
 
-/// Drops spaces before punctuation and collapses repeated spaces after text.
-/// `after_text` says whether the piece follows visible text (a marker).
 fn tidy(text: &str, after_text: bool) -> String {
     let mut out = String::with_capacity(text.len());
     let chars: Vec<char> = text.chars().collect();

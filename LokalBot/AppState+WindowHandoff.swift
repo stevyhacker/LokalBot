@@ -1,7 +1,6 @@
 import AppKit
 
 extension WindowHandoffTarget {
-    /// Agent Mode and Copy always; Claude Code and Codex when installed.
     @MainActor static var availableOnThisMac: [WindowHandoffTarget] {
         allCases.filter { target in
             target.agent.map { ActionAgentAvailability.route(for: $0) != nil } ?? true
@@ -9,10 +8,7 @@ extension WindowHandoffTarget {
     }
 }
 
-/// Hand off: the shortcut, and delivering a reviewed handoff to its target.
 extension AppState {
-    /// `previous` is the shortcut to fall back to when a newly chosen one is
-    /// refused; without one, a refused shortcut turns Hand off off.
     func applyWindowHandoffSetting(replacing previous: DictationShortcut? = nil) {
         guard settings.windowHandoffEnabled else {
             windowHandoffHotKey.setShortcut(nil)
@@ -28,7 +24,6 @@ extension AppState {
         }
     }
 
-    /// Delivers `package` to `target`. Returns why it could not, or nil.
     func deliverWindowHandoff(_ package: WindowHandoffPackage, to target: WindowHandoffTarget) -> String? {
         switch target {
         case .agentMode:
@@ -48,9 +43,6 @@ extension AppState {
         }
     }
 
-    /// A new Agent Mode task with the brief in its composer and a copy of the
-    /// package in its working folder, so the agent reads it without asking.
-    /// "Start handoffs automatically" sends it right away.
     private func handOffWindowToAgentMode(_ package: WindowHandoffPackage) -> String? {
         let folder = "handoffs/\(package.folder.lastPathComponent)"
         let attachesPage = package.pageCharacters <= WindowHandoffPackage.agentModeAttachmentLimit
@@ -59,8 +51,6 @@ extension AppState {
             source: nil, title: package.title,
             prompt: package.agentModePrompt(folder: folder, attachesPage: attachesPage),
             attachments: [], folder: folder)
-        // The task starts only after the copy and the attachment are in
-        // place: its prompt points at them.
         guard let id = agentSessions.handOff([handoff], start: false).first,
               let tab = agentSessions.tabs.first(where: { $0.id == id }) else {
             return "Couldn't open an Agent Mode task."
@@ -70,8 +60,6 @@ extension AppState {
             try package.copy(into: destination)
         } catch {
             lokalbotLog("hand off copy into agent workspace failed: \(error.localizedDescription)")
-            // Its prompt names files that are not there. Put the task away
-            // instead of leaving it among the tasks waiting to be sent.
             Task { await agentSessions.setArchived(id, true) }
             return "Couldn't copy the handoff into Agent Mode's working folder: \(error.localizedDescription)"
         }

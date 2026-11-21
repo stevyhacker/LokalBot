@@ -3,13 +3,11 @@ import Foundation
 import XCTest
 @testable import LokalBot
 
-/// An in-memory Keychain for email tests.
 final class MemoryEmailSecrets: EmailSecretStore, @unchecked Sendable {
     private let lock = NSLock()
     private var client: GoogleOAuthClient?
     private var stored: [UUID: EmailCredentials] = [:]
     private var credentialReads = 0
-    /// Every credential read throws this, as a locked keychain would.
     var readError: Error?
     var reads: Int { lock.withLock { credentialReads } }
 
@@ -78,7 +76,6 @@ enum GmailFixtures {
     }
 }
 
-/// One message in the fake mailbox.
 struct FakeGmailMessage {
     var id: String
     var labels: [String] = ["INBOX"]
@@ -140,8 +137,6 @@ struct FakeGmailMessage {
     }
 }
 
-/// A Gmail API that answers from an in-memory mailbox and records every
-/// request. It understands the two kinds of search LokalBot sends.
 final class FakeGmailServer: @unchecked Sendable {
     private let lock = NSLock()
     private var threads: [String: [FakeGmailMessage]] = [:]
@@ -149,11 +144,8 @@ final class FakeGmailServer: @unchecked Sendable {
     private(set) var historyID = 100
     var historyExpired = false
     var aliases: [String] = [GmailFixtures.alias]
-    /// Answer this many thread fetches, then keep answering rate limits.
     var failThreadFetchesAfter: Int?
-    /// These threads always answer HTTP 500.
     var failingThreads: Set<String> = []
-    /// The next request loses its connection.
     var dropNextConnection = false
     private var threadFetches = 0
     private(set) var requests: [URLRequest] = []
@@ -174,7 +166,6 @@ final class FakeGmailServer: @unchecked Sendable {
         }
     }
 
-    /// Forget changes so far, as if a sync had read them.
     func markRead() { lock.withLock { changedThreads.removeAll() } }
 
     var queries: [String] {

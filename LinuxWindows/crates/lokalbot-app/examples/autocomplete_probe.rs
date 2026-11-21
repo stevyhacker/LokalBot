@@ -1,28 +1,3 @@
-//! Checks autocomplete's desktop path in a real app, without the engine or a
-//! model: opens Notepad on Windows (the GTK test field from
-//! `lokalbot-platform/scripts` on Linux), types a sentence into it, prints
-//! what the field watcher reads, shows a fixed suggestion in the ghost
-//! window after the caret and saves a screenshot, presses Tab, and prints
-//! the field's text after the accept. Then Esc dismisses the rest.
-//!
-//! ```text
-//! cargo run -p lokalbot-app --example autocomplete_probe -- [--out <dir>] [--keep-open]
-//! ```
-//!
-//! Needs an interactive desktop session (not a service or SSH session).
-//! Screenshots go to `<dir>` (default `autocomplete-probe`); the last line
-//! is `PROBE PASS` or `PROBE FAIL: <reason>`, with exit status 0 or 1.
-//! Notepad is emptied and closed at the end unless `--keep-open` is given.
-//! On Windows each ghost is also checked to fill exactly the frame it was
-//! placed at, with no window frame around it.
-//!
-//! `--overlay-only` skips the app and the keys: it shows and moves the ghost
-//! for a made-up field and checks its window, which works without a desktop
-//! app in front.
-
-// The app's own layout and ghost window; `layout` reaches `overlay` as
-// `super::overlay`, so both sit at the root here as they sit side by side
-// in the app.
 #[allow(dead_code)]
 #[path = "../src/autocomplete/layout.rs"]
 mod layout;
@@ -44,7 +19,6 @@ use parking_lot::{Condvar, Mutex};
 const SENTENCE: &str = "Thanks for the update. I wanted to follow";
 const SUGGESTION: &str = " up on the migration timeline";
 
-/// What the script asks the UI thread to do.
 enum Ui {
     Show {
         field: Box<FieldSnapshot>,
@@ -54,7 +28,6 @@ enum Ui {
     Hide,
 }
 
-/// The newest focus the watcher reported.
 #[derive(Default)]
 struct Focus {
     latest: Mutex<Option<FocusSnapshot>>,
@@ -62,7 +35,6 @@ struct Focus {
 }
 
 impl Focus {
-    /// Waits until `pick` finds what it wants in a snapshot.
     fn wait<T>(
         &self,
         timeout: Duration,
@@ -148,7 +120,6 @@ fn main() {
     });
 }
 
-/// Lays `text` out after the field's caret and shows it, as the app does.
 fn show(
     ghost: &mut overlay::Overlay,
     field: &FieldSnapshot,
@@ -248,7 +219,6 @@ fn script(
 
     let opened = Target::open()?;
     let app_id = opened.app_id.to_lowercase();
-    // Kept before raising it, so it is closed again whatever fails next.
     let opened = target.insert(opened);
     opened.raise()?;
     let field = focus
@@ -273,7 +243,6 @@ fn script(
         field.app_name, field.app_id, field.window_title, field.before
     );
 
-    // Typed the way an accept types, so the field holds exactly this.
     platform::insert(
         &field,
         &Edit {
@@ -372,7 +341,6 @@ fn script(
     Ok(())
 }
 
-/// Shows and moves the ghost for a made-up field and checks its window.
 fn overlay_script(ui: &smol::channel::Sender<Ui>) -> anyhow::Result<()> {
     let style = platform::FieldStyle {
         font_family: Some(String::from(if cfg!(windows) {
@@ -418,8 +386,6 @@ fn overlay_script(ui: &smol::channel::Sender<Ui>) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// On Windows, that the ghost's window is exactly `frame` with nothing
-/// around it: no caption or border, its client area its whole window.
 fn check_ghost_window(frame: Rect) -> anyhow::Result<()> {
     #[cfg(windows)]
     {
@@ -507,7 +473,6 @@ fn print_read(label: &str, field: &FieldSnapshot) {
     );
 }
 
-/// The whole screen with the ghost, and a close-up around the caret.
 fn screenshot(
     options: &Options,
     name: &str,
@@ -540,15 +505,12 @@ enum Key {
     Escape,
 }
 
-/// The app the probe types into, closed again at the end.
 struct Target {
     app_id: String,
     #[cfg(windows)]
     pid: u32,
     #[cfg(windows)]
     hwnd: isize,
-    /// What was started: the field app on Linux; on Windows 11 a launcher
-    /// that hands over to the Notepad owning the window.
     child: std::process::Child,
 }
 
@@ -596,7 +558,6 @@ mod win {
                     wScan: 0,
                     dwFlags: flags,
                     time: 0,
-                    // Unmarked, so the interceptor treats it as the user's.
                     dwExtraInfo: 0,
                 },
             },
@@ -605,7 +566,6 @@ mod win {
 
     pub(super) fn send(keys: &[(VIRTUAL_KEY, bool)]) -> anyhow::Result<()> {
         let inputs: Vec<INPUT> = keys.iter().map(|&(vk, up)| key(vk, up)).collect();
-        // SAFETY: a valid slice of INPUT structures.
         let sent = unsafe { SendInput(&inputs, size_of::<INPUT>() as i32) };
         anyhow::ensure!(
             sent as usize == inputs.len(),
@@ -627,7 +587,6 @@ mod win {
     }
 
     fn notepad() -> Option<HWND> {
-        // SAFETY: plain window lookup.
         unsafe { FindWindowW(w!("Notepad"), PCWSTR::null()) }
             .ok()
             .filter(|hwnd| !hwnd.is_invalid())
@@ -635,19 +594,16 @@ mod win {
 
     fn window_pid(hwnd: HWND) -> u32 {
         let mut pid = 0;
-        // SAFETY: `pid` outlives the call; a stale window gives 0.
         unsafe { GetWindowThreadProcessId(hwnd, Some(&mut pid)) };
         pid
     }
 
     fn in_front(target: &Target) -> bool {
-        // SAFETY: no arguments.
         let front = unsafe { GetForegroundWindow() };
         !front.is_invalid() && window_pid(front) == target.pid
     }
 
     pub(super) fn open() -> anyhow::Result<Target> {
-        // Never touch a Notepad the user has open.
         anyhow::ensure!(
             notepad().is_none(),
             "a Notepad window is already open; close it first"
@@ -681,9 +637,7 @@ mod win {
     pub(super) fn raise(target: &Target) -> anyhow::Result<()> {
         std::thread::sleep(Duration::from_millis(800));
         if !in_front(target) {
-            // A tap of Alt lets this process bring another window forward.
             send(&[(VK_MENU, false), (VK_MENU, true)])?;
-            // SAFETY: a top-level window handle; a stale one is refused.
             let _ = unsafe { SetForegroundWindow(HWND(target.hwnd as *mut _)) };
             std::thread::sleep(Duration::from_millis(300));
         }
@@ -695,9 +649,6 @@ mod win {
     }
 
     pub(super) fn close(mut target: Target) {
-        // Empty it first, so a Notepad that restores its last session
-        // brings nothing back; only while it is in front, so the keys never
-        // reach another app.
         if in_front(&target) {
             let _ = send(&[
                 (VK_CONTROL, false),
@@ -709,11 +660,9 @@ mod win {
             ]);
             std::thread::sleep(Duration::from_millis(300));
         }
-        // Notepad, the helper processes it started, and the launcher.
         let mut pids = vec![target.pid];
         pids.extend(children_of(&[target.pid, target.child.id()]));
         for pid in pids {
-            // SAFETY: the handle is closed before moving on.
             unsafe {
                 if let Ok(process) = OpenProcess(PROCESS_TERMINATE, false, pid) {
                     let _ = TerminateProcess(process, 0);
@@ -726,11 +675,8 @@ mod win {
         println!("NOTEPAD closed");
     }
 
-    /// Processes whose parent is one of `parents`.
     fn children_of(parents: &[u32]) -> Vec<u32> {
         let mut found = Vec::new();
-        // SAFETY: the snapshot handle is closed before returning; `entry`
-        // carries its size as the API requires.
         unsafe {
             let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
                 return found;
@@ -751,12 +697,8 @@ mod win {
         found
     }
 
-    /// This process's visible click-through window (the ghost): its window
-    /// rect, its client size, and whether it has no caption or border.
     pub(super) fn ghost_window() -> Option<(Rect, Rect, bool)> {
         unsafe extern "system" fn visit(window: HWND, lparam: LPARAM) -> BOOL {
-            // SAFETY: `lparam` is the vector `ghost_window` keeps alive for
-            // the whole enumeration; the rest are plain queries.
             unsafe {
                 let found = &mut *(lparam.0 as *mut Vec<HWND>);
                 let mut pid = 0u32;
@@ -772,8 +714,6 @@ mod win {
             BOOL(1)
         }
         let mut found: Vec<HWND> = Vec::new();
-        // SAFETY: the callback only runs during this call, while `found`
-        // lives; the rects outlive their calls.
         unsafe {
             let _ = EnumWindows(Some(visit), LPARAM(&mut found as *mut Vec<HWND> as isize));
             let window = *found.first()?;
@@ -795,7 +735,6 @@ mod win {
     }
 
     pub(super) fn origin() -> (f32, f32) {
-        // SAFETY: no arguments.
         unsafe {
             (
                 GetSystemMetrics(SM_XVIRTUALSCREEN) as f32,
@@ -804,9 +743,7 @@ mod win {
         }
     }
 
-    /// The virtual screen through GDI, layered windows included.
     pub(super) fn capture(path: &Path) -> anyhow::Result<()> {
-        // SAFETY: every GDI object made here is released before returning.
         unsafe {
             let x = GetSystemMetrics(SM_XVIRTUALSCREEN);
             let y = GetSystemMetrics(SM_YVIRTUALSCREEN);

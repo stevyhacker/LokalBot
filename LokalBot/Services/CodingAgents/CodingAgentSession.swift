@@ -1,8 +1,5 @@
 import Foundation
 
-/// A coding agent whose local session transcripts LokalBot can read as
-/// work evidence. Transcripts are the agent's own files; LokalBot reads an
-/// explicit allowlist of transcript paths and never the agent's credentials.
 enum CodingAgentKind: String, CaseIterable, Codable, Sendable {
     case claudeCode = "claude-code"
     case codex
@@ -15,12 +12,9 @@ enum CodingAgentKind: String, CaseIterable, Codable, Sendable {
     }
 }
 
-/// An outcome parsed from a command the agent ran. These are recorded
-/// actions, unlike the agent's own report, which is only a claim.
 enum CodingAgentAction: Hashable, Codable, Sendable {
     case commit(message: String)
     case openedPullRequest(title: String)
-    /// `nil` when the command merged the current branch's PR.
     case mergedPullRequest(number: Int?)
     case release(tag: String)
     case pushed
@@ -38,7 +32,6 @@ enum CodingAgentAction: Hashable, Codable, Sendable {
     }
 }
 
-/// An event's time and kind, as activity compaction reads them.
 protocol CodingAgentTimedEvent {
     var at: Date { get }
     var kind: CodingAgentEvent.Kind { get }
@@ -51,8 +44,6 @@ extension CodingAgentTimedEvent {
     }
 }
 
-/// One timestamped fact from a transcript. Tool output, file contents,
-/// reasoning, and injected system or developer text never become events.
 struct CodingAgentEvent: CodingAgentTimedEvent, Equatable, Sendable {
     enum Kind: Equatable, Sendable {
         case prompt(String)
@@ -60,45 +51,27 @@ struct CodingAgentEvent: CodingAgentTimedEvent, Equatable, Sendable {
         case toolCall
         case fileChange(String)
         case action(CodingAgentAction)
-        /// A PR the agent associated with the session. Claude Code re-emits
-        /// these links every turn, so they annotate work but never start,
-        /// extend, or keep alive a burst on their own.
         case pullRequest(String)
-        /// Timestamp-only evidence that the agent was working, such as a
-        /// tool result whose content is deliberately not read.
         case activity
     }
 
     var at: Date
     var kind: Kind
-    /// The source record's hashed id, for dropping copies a fork or resumed
-    /// session carries. Hashes are per process and never persisted.
     var recordKey: Int?
-    /// The folder and branch the source record names, for readers whose
-    /// records carry them. A burst is labeled from its own records, so a
-    /// session that moves on never relabels work that already settled.
     var workingDirectory: String?
     var branch: String?
 }
 
-/// One parsed session, with events already clipped to the requested day.
 struct CodingAgentTranscript: Equatable, Sendable {
     var agent: CodingAgentKind
     var sessionID: String
     var title: String?
-    /// Session-wide labels, for bursts whose events carry none.
     var workingDirectory: String?
     var branch: String?
-    /// The session read LokalBot's own library through its CLI or MCP.
-    /// Its replies may restate library content, so they are withheld to
-    /// keep the digest from consuming its own output.
     var consultedLokalBot = false
     var events: [CodingAgentEvent]
 }
 
-/// A contiguous run of agent work inside one session. A new burst starts
-/// after the same idle gap the day digest uses to split segments, so a
-/// session left open all day never merges the whole day into one item.
 struct CodingAgentBurst: Equatable, Codable, Sendable {
     var agent: CodingAgentKind
     var sessionID: String
@@ -117,34 +90,20 @@ struct CodingAgentBurst: Equatable, Codable, Sendable {
     var pullRequests: [String]
     var toolCallCount: Int
 
-    /// Stable within a day: bursts are keyed by session and first event.
     var id: String { "\(agent.rawValue):\(sessionID):\(Int(start.timeIntervalSince1970))" }
 
-    /// A burst idle for the full inactivity gap can never grow again: any
-    /// later event starts a new burst. Only settled bursts become evidence,
-    /// so a saved digest's inputs cannot change underneath it.
     func isSettled(at now: Date) -> Bool {
         now.timeIntervalSince(end) >= CodingAgentBurstBuilder.inactivityGap
     }
 
-    /// Every request came from a schedule, not from the person at the time.
-    /// Such runs often report on earlier days.
     var isScheduledRun: Bool {
         !prompts.isEmpty && prompts.allSatisfy {
             $0.hasPrefix("Scheduled automation:") || $0.hasPrefix("Scheduled task:")
         }
     }
 
-    /// The burst committed, opened or merged a pull request, released,
-    /// pushed, ran tests, or linked a pull request.
     var recordedOutcome: Bool { !actions.isEmpty || !pullRequests.isEmpty }
 
-    /// The same requests, reply, actions, pull requests, and tool calls in
-    /// the same session. A settled burst's work never changes, but how it is
-    /// presented can: a session is renamed, and bursts saved by earlier
-    /// readers carry the session's folder and branch, file names relative to
-    /// another folder, and edges moved by activity on the other side of
-    /// midnight.
     func hasSameWork(as other: CodingAgentBurst) -> Bool {
         agent == other.agent && sessionID == other.sessionID
             && prompts == other.prompts && promptCount == other.promptCount
@@ -152,8 +111,6 @@ struct CodingAgentBurst: Equatable, Codable, Sendable {
             && pullRequests == other.pullRequests && toolCallCount == other.toolCallCount
     }
 
-    /// Every field the digest can read, in a fixed order, for evidence
-    /// signatures that change exactly when the burst's content does.
     var signatureFields: [String] {
         [
             id, agent.rawValue, sessionID, title, project, branch ?? "",
@@ -165,15 +122,11 @@ struct CodingAgentBurst: Equatable, Codable, Sendable {
         ]
     }
 
-    /// Model-facing evidence in the same shape as the digest's other work
-    /// sources: substantive content first, trace metadata last and labeled.
     func evidenceText(calendar: Calendar = .current, maxPrompts: Int = 4) -> String {
         var lines = [
             "WORK SOURCE: AGENT SESSION [agent:\(agent.rawValue):\(sessionID.prefix(8))]",
             "Agent: \(agent.displayName)",
         ]
-        // A request or placeholder title names no work; the requests below
-        // already say what was asked.
         if titleNamesWork { lines.append("Session: \(title)") }
         lines.append("Project: \(workProject ?? "unknown")" + (branch.map { " (branch \($0))" } ?? ""))
         if isScheduledRun {
@@ -217,7 +170,6 @@ struct CodingAgentBurst: Equatable, Codable, Sendable {
     }
 }
 
-/// A GitHub-style pull request a session linked.
 struct CodingAgentPullRequest: Hashable, Sendable {
     var owner: String
     var repository: String
@@ -233,23 +185,13 @@ struct CodingAgentPullRequest: Hashable, Sendable {
     }
 }
 
-// MARK: - Naming the work
-
 extension CodingAgentBurst {
-    /// The title came from the transcript and names the work. A session the
-    /// transcript leaves untitled is labeled with its first request or a
-    /// placeholder, which name a conversation instead.
     var titleNamesWork: Bool {
         guard title != CodingAgentBurstBuilder.untitled else { return false }
         if let first = prompts.first, title == CodingAgentBurstBuilder.requestTitle(first) { return false }
         return !CodingAgentText.readsAsRequest(title)
     }
 
-    /// A short work title for a task list: the session's own title when it
-    /// names the work, otherwise the deliverable its recorded actions name
-    /// (an opened pull request, then a commit), then its request when that is
-    /// a short instruction. "can you add a demo to the PR?" and "Untitled
-    /// session" never become a task.
     var workTitle: String {
         if titleNamesWork { return title }
         var opened: String?
@@ -281,10 +223,6 @@ extension CodingAgentBurst {
         return "\(agent.displayName) session"
     }
 
-    /// The repository the work belongs to. A session started in a folder that
-    /// names no project, such as a scratch folder or the folder holding every
-    /// checkout, takes it from its pull requests, as does a sibling checkout
-    /// such as `LokalBot-port`. `nil` when nothing names one.
     var workProject: String? {
         var repositories: [String] = []
         for pullRequest in pullRequestReferences
@@ -305,8 +243,6 @@ extension CodingAgentBurst {
         pullRequests.compactMap(CodingAgentPullRequest.init(url:))
     }
 
-    /// A commit or pull request title as a work title, without a
-    /// conventional-commit type such as `feat(onchain):`.
     private static func workSubject(_ message: String) -> String? {
         var subject = message.trimmingCharacters(in: .whitespacesAndNewlines)
         if let type = subject.range(of: #"^[a-z]+(\([^)]*\))?!?:\s+"#, options: .regularExpression) {
@@ -317,8 +253,6 @@ extension CodingAgentBurst {
         return first.uppercased() + subject.dropFirst()
     }
 
-    /// Scaffolding that names a step rather than the work: temporary and
-    /// work-in-progress commits, fixups, merges, and reverts.
     private static func isProvisionalCommit(_ message: String) -> Bool {
         message.range(
             of: #"^\s*((temporary|temp|tmp|wip|merge|revert)\b|(fixup|squash|amend)!)"#,
@@ -327,16 +261,12 @@ extension CodingAgentBurst {
 }
 
 enum CodingAgentBurstBuilder {
-    /// Matches `DayDigestEvidence.summarySegments(inactivityGap:)`.
     static let inactivityGap: TimeInterval = 10 * 60
-    /// Longer gaps between events count as waiting, not active work.
     static let activeGapCap: TimeInterval = 5 * 60
     static let storedPrompts = 6
     static let storedFiles = 16
-    /// The title of a session with neither a title nor a request.
     static let untitled = "Untitled session"
 
-    /// The title of a session its transcript leaves untitled: its first request.
     static func requestTitle(_ prompt: String) -> String {
         CodingAgentText.truncated(prompt, maxCharacters: 80)
     }
@@ -356,8 +286,6 @@ enum CodingAgentBurstBuilder {
                 groups.append([event])
             }
         }
-        // Annotations join the burst that was active when they were written;
-        // a link re-emitted while nothing else happened is dropped.
         for annotation in ordered where annotation.isAnnotation {
             guard let index = groups.lastIndex(where: { group in
                 guard let first = group.first, let last = group.last else { return false }
@@ -414,9 +342,6 @@ enum CodingAgentBurstBuilder {
         let active = zip(times, times.dropFirst()).reduce(0) { total, pair in
             total + min(pair.1.timeIntervalSince(pair.0), activeGapCap)
         }
-        // A scan reads a window of days, and a long session changes branch
-        // and folder within it. Labels from the session as a whole would
-        // relabel this burst on every such change and as the window slides.
         let workingDirectory = events.lazy.compactMap(\.workingDirectory).first
             ?? transcript.workingDirectory
         let branch = events.reversed().lazy.compactMap(\.branch).first ?? transcript.branch
@@ -439,8 +364,6 @@ enum CodingAgentBurstBuilder {
             toolCallCount: toolCalls)
     }
 
-    /// One session's bursts as a single view, for a summary that should see
-    /// the session once rather than once per burst. `nil` for no bursts.
     static func merging(_ bursts: [CodingAgentBurst]) -> CodingAgentBurst? {
         let ordered = bursts.sorted { $0.start < $1.start }
         guard var merged = ordered.first else { return nil }
@@ -466,19 +389,6 @@ enum CodingAgentBurstBuilder {
         return merged
     }
 
-    /// Drops timestamp-only events that change neither a burst boundary nor
-    /// its active time. A ping is redundant when the events either side of it
-    /// are within `activeGapCap` of each other: the gaps it splits count in
-    /// full either way. Busy sessions log thousands of tool results, so this
-    /// keeps cached transcripts small without changing any burst.
-    ///
-    /// Bursts are cut at midnight, so a ping is kept when its neighbors fall
-    /// on different days: otherwise the next day's first event, or the
-    /// scan window's start, would move the edge of a burst already saved.
-    /// So compacting a whole file and then clipping it to whole days of
-    /// `calendar` keeps the same events as clipping first, and compacting
-    /// again after later events are appended keeps the same as compacting
-    /// once at the end.
     static func compactingActivity<Event: CodingAgentTimedEvent>(
         _ events: [Event], calendar: Calendar = .current
     ) -> [Event] {
@@ -504,8 +414,6 @@ enum CodingAgentBurstBuilder {
         return kept + annotations
     }
 
-    /// The repository name, not the checkout folder: agent worktrees live
-    /// under `<repo>/.claude/worktrees/<name>`.
     static func projectName(for workingDirectory: String?) -> String {
         guard let workingDirectory, !workingDirectory.isEmpty else { return unknownProject }
         let components = URL(fileURLWithPath: workingDirectory).standardizedFileURL.pathComponents
@@ -518,9 +426,6 @@ enum CodingAgentBurstBuilder {
 
     static let unknownProject = "Unknown project"
 
-    /// A folder that holds work without naming it: no folder at all, a Claude
-    /// scratch folder such as `scratch-2026-10-19-6f7eb7`, or a folder that
-    /// holds checkouts, such as `~/Documents/GitHub` or the home folder.
     static func namesNoProject(_ name: String) -> Bool {
         let lowered = name.lowercased()
         return name == unknownProject

@@ -5,23 +5,13 @@ import AVFoundation
 import CoreGraphics
 import AppKit
 
-/// Process entry point. Parses any headless subcommand before SwiftUI exists,
-/// and disables AppKit window restoration *before* SwiftUI launches when
-/// starting menu-bar-only — `applicationWillFinishLaunching` runs after AppKit
-/// has already read the flag, so a previously-open window would be restored
-/// and force the Dock icon back on. Setting it pre-launch is the only
-/// reliable point.
 @main
 enum LokalBotMain {
-    /// Held for the process lifetime; see `LibraryInstanceLock`.
     @MainActor private static var libraryLock: LibraryInstanceLock?
 
     @MainActor
     static func main() {
         configureDependencyLogging()
-        // Explicit synthetic replay runs before migration, AppState, permissions,
-        // learning, or capture. Only the supplied fixture and model are read; a
-        // remote replay sends the fixture's prompts to the endpoint it names.
         if case .cotypingReplay(let input, let engine)? = HeadlessCommand.parse(CommandLine.arguments) {
             Task { @MainActor in exit(await CotypingQualityReplay.run(input: input, engine: engine)) }
             RunLoop.main.run()
@@ -37,7 +27,6 @@ enum LokalBotMain {
             RunLoop.main.run()
             return
         }
-        // Public or synthetic transcripts only; reads no library and no Keychain.
         if let replay = MeetingRadarReplay.parse(CommandLine.arguments) {
             Task { @MainActor in
                 exit(await MeetingRadarReplay.run(replay))
@@ -50,11 +39,9 @@ enum LokalBotMain {
             RunLoop.main.run()
             return
         }
-        // Reads one saved preferences value; needs no library, lock or window.
         if case .cotypingMeasurements? = HeadlessCommand.parse(CommandLine.arguments) {
             exit(CotypingStatsStore.printSaved())
         }
-        // Lists the system's event taps; needs no library, lock or window.
         if case .eventTaps? = HeadlessCommand.parse(CommandLine.arguments) {
             exit(EventTapAudit.printCurrent())
         }
@@ -115,16 +102,11 @@ enum LokalBotMain {
             })
     }
 
-    /// FluidAudio debug/notice lines can contain recognized words. Filter them
-    /// from both unified logging and stderr, including headless commands.
     static func configureDependencyLogging() {
         AppLogger.minimumLevel = .warning
         AppLogger.mirrorsToConsole = false
     }
 
-    /// Never construct `AppState` after an incomplete migration: its stored
-    /// `StorageManager` creates the destination library and turns a transient
-    /// failure into a persistent old/new conflict on the next launch.
     @discardableResult
     static func routeStartup(
         migrate: () -> DataMigration.StartupOutcome,
@@ -142,8 +124,6 @@ enum LokalBotMain {
     }
 }
 
-/// A minimal process mode for retained migration failures. It deliberately has
-/// no `AppState`, storage, indexes, capture services, or background workers.
 private struct MigrationRecoveryApp: App {
     @MainActor static var initialOutcome: DataMigration.StartupOutcome =
         .retryRequired("Migration has not completed.")
@@ -254,8 +234,6 @@ private struct MigrationRecoveryView: View {
 }
 
 struct LokalBotApp: App {
-    /// Held, not observed: the scenes and menus read `scene`, and each window
-    /// root observes AppState itself. Created once, as the App is.
     private let app: AppState
     @StateObject private var scene: AppSceneState
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
@@ -275,10 +253,6 @@ struct LokalBotApp: App {
             mainWindow
         }
         .defaultSize(width: 1180, height: 740)
-        // Meetings, Timeline, People, Projects and Agent remove the system
-        // title to put their own in the toolbar. Left to itself the toolbar
-        // then turns compact (38 pt, not 52), so the sidebar and content
-        // jumped 14 pt when switching sections. One style keeps one height.
         .windowToolbarStyle(.unified)
         .commands {
             SidebarCommands()
@@ -321,9 +295,6 @@ struct LokalBotApp: App {
                 }
 #endif
             }
-            // ⌘K opens Quick Recall, the window the system-wide shortcut opens:
-            // search, commands and Ask in one place. Registered at the app
-            // level so it works from any LokalBot window.
             CommandGroup(after: .toolbar) {
                 Button(language.localized("Quick Recall…")) {
                     app.openQuickRecall()
@@ -337,8 +308,6 @@ struct LokalBotApp: App {
                 .keyboardShortcut("f", modifiers: .command)
                 .disabled(!scene.values.agentActive && !scene.values.canSearchSelectedMeeting)
             }
-            // The standard Settings item and ⌘, open LokalBot's own Settings
-            // window; `openSettings` also lands deep links on a page of it.
             CommandGroup(replacing: .appSettings) {
                 Button(language.localized("Settings…")) {
                     app.openSettings()
@@ -347,10 +316,6 @@ struct LokalBotApp: App {
             }
         }
 
-        // Settings has its own window, so the main window stays on your work.
-        // A `Window` with an id, not a `Settings` scene: `WindowAccess` opens
-        // it by id from the menu bar extra, deep links and the app delegate,
-        // also while LokalBot runs with only its menu bar icon.
         Window(language.localized("Settings"), id: WindowAccess.settingsID) {
             SettingsView()
                 .environmentObject(app)
@@ -360,7 +325,6 @@ struct LokalBotApp: App {
         }
         .defaultSize(width: SettingsView.defaultSize.width, height: SettingsView.defaultSize.height)
         .windowResizability(.contentMinSize)
-        // The category list runs to the top edge, under the traffic lights.
         .windowStyle(.hiddenTitleBar)
         .defaultPosition(.center)
 
@@ -371,11 +335,8 @@ struct LokalBotApp: App {
                 .appLanguageRoot(app.settingsStore)
         }
         .windowResizability(.contentSize)
-        // The steps sit in the window's top bar, beside the traffic lights.
         .windowStyle(.hiddenTitleBar)
 
-        // Quick Recall: search, commands and Ask in one small window, opened
-        // by the system-wide shortcut, ⌘K or the View menu.
         Window(language.localized("Quick Recall"), id: "quick-recall") {
             QuickRecallView()
                 .environmentObject(app)
@@ -409,7 +370,6 @@ struct LokalBotApp: App {
         .windowStyle(.hiddenTitleBar)
         .defaultPosition(.center)
 
-        // An agent's `setup start` request.
         Window(language.localized("Set Up with Your Agent"), id: "agent-setup") {
             AgentSetupView()
                 .environmentObject(app)
@@ -420,7 +380,6 @@ struct LokalBotApp: App {
         .windowResizability(.contentSize)
         .defaultPosition(.center)
 
-        // Terminal requests that need the person: one card per request.
         Window(language.localized("Approve Settings Change"), id: "settings-approval") {
             SettingsApprovalView()
                 .environmentObject(app)
@@ -455,9 +414,6 @@ struct LokalBotApp: App {
     }
 }
 
-/// One long-lived utility worker owns the background FTS connection. A
-/// dictionary keeps only the latest pending snapshot for each meeting, while
-/// the actor serializes SQLite writes across the entire queue.
 actor SearchIndexWorkQueue {
     private let databaseURL: URL
     private let rootURL: URL
@@ -495,9 +451,6 @@ actor SearchIndexWorkQueue {
         return (searchClean, embeddingClean)
     }
 
-    /// Reopens a source folded into a merged meeting and queues its existing
-    /// evidence for indexing again. The actor serializes this with any late
-    /// cleanup request from the original merge.
     func restore(_ meeting: Meeting) throws -> Meeting {
         guard !stopped else { throw CancellationError() }
         let restored = try workerStorage.restoreMergedSource(meeting)
@@ -523,8 +476,6 @@ actor SearchIndexWorkQueue {
         drainTask = nil
     }
 
-    /// Test/diagnostic seam: wait for the currently scheduled drain and any
-    /// follow-up work that arrived while it yielded between meetings.
     func waitUntilIdle() async {
         while let drainTask {
             await drainTask.value
@@ -556,8 +507,6 @@ actor SearchIndexWorkQueue {
         while !Task.isCancelled, !stopped, let (meetingID, meeting) = pending.first {
             pending.removeValue(forKey: meetingID)
             searchIndex.reindex(meeting, storage: workerStorage)
-            // Let enqueues, deletions, and shutdown coalesce or cancel work
-            // between meetings without allowing concurrent SQLite writers.
             await Task.yield()
         }
         drainTask = nil

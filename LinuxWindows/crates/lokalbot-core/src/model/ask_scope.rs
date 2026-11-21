@@ -1,8 +1,3 @@
-//! What one Ask question may draw on, as saved with its turns (`AskSourceScope`,
-//! `AskDateScope`, `ChatViewModel.QuestionScope`), and what that means for the
-//! turns around it: earlier, wider answers stay out of a narrower question's
-//! model context, and a reopened conversation never widens.
-
 use std::collections::BTreeSet;
 
 use chrono::{Datelike as _, NaiveDate};
@@ -11,22 +6,17 @@ use uuid::Uuid;
 
 use super::chat::{ChatMessage, ChatRole};
 
-/// A source a question may read. The raw values are the Mac's; `Today` is the
-/// Activity source, a name kept so saved conversations still decode.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
 pub enum AskSourceScope {
     Meetings,
     Today,
     Screen,
     Files,
-    /// Notes the person's coding agents saved for themselves. Offered only
-    /// while Read coding agent notes is on.
     #[serde(rename = "Agent notes")]
     AgentNotes,
 }
 
 impl AskSourceScope {
-    /// In the order questions save them.
     pub const ALL: [AskSourceScope; 5] = [
         AskSourceScope::Meetings,
         AskSourceScope::Today,
@@ -35,33 +25,24 @@ impl AskSourceScope {
         AskSourceScope::AgentNotes,
     ];
 
-    /// Every source. Files and Agent notes are part of "All sources" whether or
-    /// not they are on, so turning one on or off never makes an earlier question
-    /// look narrowed.
     pub fn defaults() -> BTreeSet<AskSourceScope> {
         Self::ALL.into_iter().collect()
     }
 }
 
-/// `YYYY-MM-DD` with zero padding, naming a real day.
 pub fn is_canonical_day_key(key: &str) -> bool {
     key.len() == 10
         && NaiveDate::parse_from_str(key, "%Y-%m-%d").is_ok_and(|day| day_key(day) == key)
 }
 
-/// `AskDayScope.key`: a civil day, so a change of time zone can't move it.
 pub fn day_key(day: NaiveDate) -> String {
     format!("{:04}-{:02}-{:02}", day.year(), day.month(), day.day())
 }
 
-/// The key as a question saves it, or `None` if it is not one.
 pub(super) fn canonical_scope_key(key: &str) -> Option<String> {
     AskDateScope::from_storage_key(key).map(|_| key.to_string())
 }
 
-/// `AskDateScope`: one civil-day range shared by search, answers and saved
-/// questions. Single days are `YYYY-MM-DD`; ranges include both ends and are
-/// `YYYY-MM-DD...YYYY-MM-DD`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AskDateScope {
     pub first_day: NaiveDate,
@@ -106,23 +87,17 @@ impl AskDateScope {
     }
 }
 
-/// `ChatViewModel.QuestionScope`, plus the days of its attached screens: what is
-/// saved on both turns of a question.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct QuestionScope {
-    /// In `AskSourceScope::ALL` order.
     pub sources: Vec<AskSourceScope>,
     pub day_scope_key: Option<String>,
     pub attached_screen_day_keys: Vec<String>,
     pub meeting_ids: Option<Vec<Uuid>>,
     pub screen_snapshot_ids: Option<Vec<i64>>,
-    /// Here the screen-app filter also limits the model's screen search, so it
-    /// is part of the boundary. The Mac ignores the key.
     pub screen_app: Option<String>,
 }
 
 impl QuestionScope {
-    /// The sources as a question sends them: all of them when none were named.
     pub fn allowed_sources(&self) -> BTreeSet<AskSourceScope> {
         if self.sources.is_empty() {
             AskSourceScope::defaults()
@@ -131,8 +106,6 @@ impl QuestionScope {
         }
     }
 
-    /// `ChatViewModel.currentQuestionScope`: what the latest question asked
-    /// within. A conversation with no question has none.
     pub fn current(messages: &[ChatMessage]) -> Option<Self> {
         let question = messages.iter().rev().find(|m| m.role == ChatRole::User)?;
         Some(Self {
@@ -156,10 +129,6 @@ fn is_subset<T: PartialEq>(saved: &Option<Vec<T>>, allowed: &[T]) -> bool {
         .is_some_and(|saved| saved.iter().all(|item| allowed.contains(item)))
 }
 
-/// `ChatViewModel.finalizedHistoryForKey` with its evidence filter: the
-/// question/answer pairs that may reach the model for a question within `scope`.
-/// A pair whose question reached further than `scope` stays out, as does one
-/// that failed, was stopped, or only saved a "Remember …" statement.
 pub fn finalized_history(messages: &[ChatMessage], scope: &QuestionScope) -> Vec<ChatMessage> {
     let allowed = scope.allowed_sources();
     let within_evidence = |message: &&ChatMessage| {
@@ -195,14 +164,12 @@ pub fn finalized_history(messages: &[ChatMessage], scope: &QuestionScope) -> Vec
     history
 }
 
-/// A question limited to one app's screens doesn't hear answers from others'.
 fn within_screen_app(user: &ChatMessage, screen_app: Option<&str>) -> bool {
     let read_screens =
         user.source_scopes.is_empty() || user.source_scopes.contains(&AskSourceScope::Screen);
     screen_app.is_none() || !read_screens || user.screen_app.as_deref() == screen_app
 }
 
-/// `ChatViewModel.historyPairAllowed`.
 fn history_pair_allowed(
     user: &ChatMessage,
     allowed: &BTreeSet<AskSourceScope>,
@@ -233,9 +200,6 @@ fn history_pair_allowed(
     }
 }
 
-/// `ChatViewModel.canRetry`. Only the failed last turn can be asked again, and a
-/// question with attached screens only while their ids are still in memory
-/// (`has_live_attachments`): the captured text never reaches disk.
 pub fn can_retry(messages: &[ChatMessage], assistant_id: Uuid, has_live_attachments: bool) -> bool {
     let Some((index, message)) = messages
         .iter()
@@ -261,8 +225,6 @@ pub fn can_retry(messages: &[ChatMessage], assistant_id: Uuid, has_live_attachme
         && (user.attached_screen_day_keys.is_empty() || has_live_attachments)
 }
 
-/// `ChatViewModel.retry`: the question behind a failed turn, and the scope it
-/// was asked within. Sources default to all only for a legacy turn with none.
 pub fn retry_question(
     messages: &[ChatMessage],
     assistant_id: Uuid,
@@ -289,8 +251,6 @@ pub fn retry_question(
     ))
 }
 
-/// Takes a failed turn and its question out of the conversation, so asking it
-/// again doesn't repeat them. `false` if it isn't the failed last turn.
 pub fn remove_failed_turn(messages: &mut Vec<ChatMessage>, assistant_id: Uuid) -> bool {
     let is_failed_last = messages
         .last()
@@ -334,7 +294,6 @@ mod tests {
         messages.iter().map(|m| m.text.as_str()).collect()
     }
 
-    /// What `JSONEncoder` writes for a current Mac turn, with sorted keys.
     fn mac_conversation() -> serde_json::Value {
         json!({
             "createdAt": "2026-10-01T09:00:00Z",
@@ -447,7 +406,6 @@ mod tests {
             )),
             ["Q", "A"]
         );
-        // Nor retried: its real scope is unknown.
         let failed = {
             let mut failed = answer.clone();
             failed.is_error = true;
@@ -531,7 +489,6 @@ mod tests {
             "Meetings?",
             "From meetings",
         ));
-        // Narrow: only the pair asked within it.
         assert_eq!(
             texts(&finalized_history(
                 &messages,
@@ -539,7 +496,6 @@ mod tests {
             )),
             ["Meetings?", "From meetings"]
         );
-        // Wider still sees narrower answers.
         assert_eq!(
             texts(&finalized_history(&messages, &scope(&AskSourceScope::ALL))),
             ["Everything?", "Secret", "Meetings?", "From meetings"]
@@ -560,7 +516,6 @@ mod tests {
             texts(&finalized_history(&messages, &on(Some("2026-10-01")))),
             ["That day?", "B"]
         );
-        // An unscoped question may reuse dated answers, as on the Mac.
         assert_eq!(finalized_history(&messages, &on(None)).len(), 6);
     }
 
@@ -661,7 +616,6 @@ mod tests {
         assert_eq!(current.sources, [AskSourceScope::Screen]);
         assert_eq!(current.day_scope_key.as_deref(), Some("2026-10-01"));
         assert_eq!(current.screen_snapshot_ids, Some(vec![3]));
-        // Attachments are for one question; the boundary carries on without them.
         assert!(current.attached_screen_day_keys.is_empty());
     }
 
@@ -682,7 +636,6 @@ mod tests {
         let (question, scope) = retry_question(&messages, failed).unwrap();
         assert_eq!(question, "Q");
         assert_eq!(scope, bound);
-        // A later turn supersedes it.
         messages.extend(pair(&bound, "Next", "Fine"));
         assert!(!can_retry(&messages, failed, false));
     }

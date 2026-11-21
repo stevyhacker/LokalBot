@@ -2,10 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// `SpanAudioReader` is the memory fix for transcription: engines decode one
-/// span's window at a time instead of holding a whole decoded track. These
-/// tests pin the window arithmetic (position, clamping, resampling) against
-/// real files written to a temp directory.
 final class SpanAudioReaderTests: XCTestCase {
     private var tempDir: URL!
 
@@ -19,9 +15,6 @@ final class SpanAudioReaderTests: XCTestCase {
         try? FileManager.default.removeItem(at: tempDir)
     }
 
-    /// A 2 s ramp at 16 kHz: sample i encodes i, so a window's first decoded
-    /// sample proves the seek landed on the right frame (16-bit WAV quantizes,
-    /// hence the tolerance).
     func testWindowReadsTheRequestedRegion() throws {
         let rate = 16_000
         let ramp = (0..<(2 * rate)).map { Float($0) / Float(2 * rate) }
@@ -50,10 +43,6 @@ final class SpanAudioReaderTests: XCTestCase {
         XCTAssertEqual(reader.duration, 1.0, accuracy: 0.001)
     }
 
-    /// A 32 kHz source must come out resampled to 16 kHz. AVAudioConverter's
-    /// rate-conversion filter withholds a tail of ~100 frames (a few ms) even
-    /// when drained — immaterial for ASR, where VAD pads every span by 100 ms —
-    /// so the count assertion carries a matching tolerance.
     func testResamplesNon16kSources() throws {
         let sourceRate = 32_000.0
         guard let format = AVAudioFormat(
@@ -86,8 +75,6 @@ final class SpanAudioReaderTests: XCTestCase {
             let format = try XCTUnwrap(AVAudioFormat(
                 commonFormat: .pcmFormatFloat32, sampleRate: sourceRate,
                 channels: 1, interleaved: false))
-            // PCM16 matches the speaker-region WAVs and avoids a partial
-            // float-CAF read hiding the converter's extra tail samples.
             let url = tempDir.appendingPathComponent("resampler-tail-\(Int(sourceRate)).wav")
             let frameCount = AVAudioFrameCount(sourceRate * 31)
             let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frameCount))
@@ -109,8 +96,6 @@ final class SpanAudioReaderTests: XCTestCase {
             XCTAssertEqual(spans.count, 2, "resampling must not manufacture a third, sub-frame ASR span")
         }
     }
-
-    // MARK: - SpeechActivity.split (pure span arithmetic)
 
     func testSuccessfulVADSilenceIsDistinctFromUnavailableVAD() {
         XCTAssertEqual(SpeechActivity.vadSpans(from: [], maxSegmentSeconds: 15), [])
@@ -156,8 +141,6 @@ final class SpanAudioReaderTests: XCTestCase {
         XCTAssertTrue(SpeechActivity.split(start: 5, end: 5, maxSegmentSeconds: 14).isEmpty)
         XCTAssertTrue(SpeechActivity.split(start: 9, end: 5, maxSegmentSeconds: nil).isEmpty)
     }
-
-    // MARK: - SpanTranscription (the shared per-span engine loop)
 
     func testSpanTranscriptionStampsSpansAndDropsEmptyResults() async throws {
         let rate = 16_000

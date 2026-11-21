@@ -35,7 +35,6 @@ test('a rollout counts requests, tool calls, tokens and what the commands did', 
   const lastYear = new Date(Date.UTC(YEAR - 1, 11, 31, 22)).toISOString();
   writeLines(rollout(root, PARENT), [
     meta(lastYear, PARENT),
-    // A running total from before the year is the baseline, not this year's use.
     tokens(lastYear, 1000, 800, 100),
     line(at(3, 14, 9, 0), 'turn_context', { cwd: CWD, model: 'gpt-6-astra' }),
     line(at(3, 14, 9, 0, 1), 'response_item', {
@@ -47,13 +46,11 @@ test('a rollout counts requests, tool calls, tokens and what the commands did', 
     }),
     line(at(3, 14, 9, 0, 2), 'event_msg', { type: 'item_completed', item: { type: 'UserMessage', id: 'u1', content: [] } }),
     line(at(3, 14, 9, 0, 5), 'response_item', { type: 'reasoning', id: 'r1', summary: [], encrypted_content: 'zzz' }),
-    // The edit is logged as a patch and again as a file change: one edit.
     line(at(3, 14, 9, 1), 'response_item', {
       type: 'custom_tool_call', name: 'apply_patch', call_id: 'c1',
       input: '*** Begin Patch\n*** Update File: src/importer.rs\n@@\n-old\n+new\n*** End Patch',
     }),
     line(at(3, 14, 9, 1, 5), 'event_msg', { type: 'item_completed', item: { type: 'FileChange', id: 'f1', changes: { 'src/importer.rs': { diff: '…' } } } }),
-    // The command is logged when asked for and again when it has run: one commit.
     line(at(3, 14, 9, 2), 'response_item', {
       type: 'function_call', name: 'shell', call_id: 'c2',
       arguments: JSON.stringify({ command: ['/bin/zsh', '-lc', 'cargo test && git commit -m "Make the importer idempotent"'] }),
@@ -116,13 +113,11 @@ test('subagent threads add to the session a person started', async (t) => {
     line(at(3, 14, 9, 1, 5), 'response_item', { type: 'function_call', name: 'shell', call_id: 'c1', arguments: '{"command":"ls"}' }),
     tokens(at(3, 14, 9, 1, 6), 2000, 0, 200),
   ]);
-  // A subagent's own subagent is still credited to the person's session.
   writeLines(rollout(root, GRANDCHILD), [
     meta(at(3, 14, 9, 2), GRANDCHILD, spawned(CHILD)),
     line(at(3, 14, 9, 2, 5), 'response_item', { type: 'function_call', name: 'shell', call_id: 'c1', arguments: '{"command":"ls"}' }),
     tokens(at(3, 14, 9, 2, 6), 300, 0, 30),
   ]);
-  // An approval reviewer has no parent: its tokens count, its hours do not.
   writeLines(rollout(root, REVIEWER), [
     meta(at(3, 14, 9, 3), REVIEWER, { subagent: { other: 'guardian' } }),
     line(at(3, 14, 9, 3, 1), 'turn_context', { cwd: CWD, model: 'codex-auto-review' }),
@@ -152,13 +147,11 @@ test('a running total that starts again is counted in full', async (t) => {
     meta(at(3, 14, 9, 0), PARENT),
     tokens(at(3, 14, 9, 1), 1000, 0, 100),
     tokens(at(3, 14, 9, 2), 3000, 0, 300),
-    // Resumed in a new process: the total begins again.
     tokens(at(3, 15, 9, 0), 500, 0, 50),
   ]);
   assert.deepEqual((await collect(root)).sessions.get(`codex:${PARENT}`).tokens, { input: 3500, cached: 0, output: 350 });
 });
 
-/** Compresses a rollout the way Codex does once it is old: `.jsonl` becomes `.jsonl.zst`. */
 function compress(file, { keep = false } = {}) {
   fs.writeFileSync(`${file}.zst`, zlib.zstdCompressSync(fs.readFileSync(file)));
   if (!keep) fs.rmSync(file);
@@ -199,7 +192,6 @@ test('a rollout kept both plain and compressed is counted once', needsZstd, asyn
     tokens(at(3, 14, 9, 1), 1000, 0, 100),
   ]);
   const packed = compress(plain, { keep: true });
-  // The plain copy was written last, so it is the one read.
   const later = new Date(Date.UTC(YEAR, 2, 15));
   fs.utimesSync(packed, new Date(Date.UTC(YEAR, 2, 14, 10)), new Date(Date.UTC(YEAR, 2, 14, 10)));
   fs.utimesSync(plain, later, later);

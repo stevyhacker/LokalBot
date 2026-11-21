@@ -1,8 +1,3 @@
-//! Peak envelope of a meeting's tracks for the player's waveform
-//! (`WaveformAnalysis.swift`): per bucket the loudest sample of any track,
-//! normalised so the loudest bucket is 1. Bins follow time on the longest
-//! track, so a shorter track never stretches to fill the bar.
-
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 
@@ -20,8 +15,6 @@ struct CacheEntry {
     peaks: Vec<f32>,
 }
 
-/// Peaks in 0…1, one per bucket. Cached next to the audio, keyed by each
-/// file's size and modification time.
 pub fn waveform_peaks(paths: &[&Path], buckets: usize) -> Result<Vec<f32>> {
     if buckets == 0 {
         return Ok(Vec::new());
@@ -39,7 +32,6 @@ pub fn waveform_peaks(paths: &[&Path], buckets: usize) -> Result<Vec<f32>> {
     }
     let peaks = compute_peaks(&paths, buckets)?;
     if let (Some(cache), Some(key)) = (cache, key) {
-        // A read-only folder must never prevent drawing the waveform.
         let entry = CacheEntry {
             key,
             peaks: peaks.clone(),
@@ -155,7 +147,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mic = dir.path().join("mic.wav");
         let system = dir.path().join("system.wav");
-        // Mic: loud in its first half second only; system: quieter for 2 s.
         let mut mic_samples = vec![0.8f32; 8_000];
         mic_samples.extend(vec![0.0f32; 24_000]);
         write_wav_16k(&mic, &mic_samples).unwrap();
@@ -166,7 +157,6 @@ mod tests {
         assert!((peaks[3] - 0.25).abs() < 0.01, "{peaks:?}");
         assert!(dir.path().join(CACHE_FILE).is_file());
         assert_eq!(waveform_peaks(&[&mic, &system], 8).unwrap(), peaks);
-        // A different bucket count is recomputed, not misread.
         assert_eq!(waveform_peaks(&[&mic, &system], 4).unwrap().len(), 4);
     }
 }

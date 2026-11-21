@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Marker selection synthesis
-
 final class CotypingMarkerSelectionSynthesizerTests: XCTestCase {
     func testCaretInMiddleProducesZeroLengthSelectionAtBeforeLength() {
         let result = CotypingMarkerSelectionSynthesizer.make(
@@ -162,11 +160,7 @@ final class CotypingAXHitTestFocusValidatorTests: XCTestCase {
     }
 }
 
-// MARK: - Chromium paragraph breaks
-
 final class CotypingParagraphBreakAlignmentTests: XCTestCase {
-    /// Chromium's value has a line break between paragraphs; its selection
-    /// and `AXStringForRange` count the text without it.
     private let value = "On Sunday morning I sent one message.\nI made a elabor\nSome details from the Claude Code side:"
     private let plainBeforeCaret = "On Sunday morning I sent one message.I made a elabor"
 
@@ -174,9 +168,6 @@ final class CotypingParagraphBreakAlignmentTests: XCTestCase {
         CotypingAcceptanceContentBounds.context(in: value, selection: NSRange(location: location, length: 0))
     }
 
-    /// 2026-10-21, Reddit in Chrome: split at the reported offset, the caret
-    /// came out one character early, so the suggestion after "elabor" began
-    /// "rate" and showed in a popup over the text.
     func testTheCaretLandsAfterTheLastTypedCharacter() throws {
         let location = try XCTUnwrap(CotypingParagraphBreakAlignment.caretLocation(
             in: value, textBeforeCaret: plainBeforeCaret))
@@ -200,8 +191,6 @@ final class CotypingParagraphBreakAlignmentTests: XCTestCase {
             in: "one line", textBeforeCaret: "one"), 3)
     }
 
-    /// A `<br>` is a line break in both counts; a paragraph break next to it
-    /// is only in the value.
     func testALineBreakNextToAParagraphBreakIsMatchedOnce() {
         XCTAssertEqual(CotypingParagraphBreakAlignment.caretLocation(
             in: "A\n\nB", textBeforeCaret: "A\nB"), 4)
@@ -217,10 +206,6 @@ final class CotypingParagraphBreakAlignmentTests: XCTestCase {
             in: "Hello\nworld", textBeforeCaret: "Help"))
     }
 
-    /// Tab is checked against a second read of the field. Read the way the
-    /// suggestion's snapshot was, it matches; the `AXStringForRange` windows
-    /// the accept used to read have no paragraph breaks and never match when
-    /// paragraphs surround the caret, so Tab was refused there.
     func testAnAcceptReadLikeTheSnapshotMatchesIt() throws {
         let location = try XCTUnwrap(CotypingParagraphBreakAlignment.caretLocation(
             in: value, textBeforeCaret: plainBeforeCaret))
@@ -247,11 +232,7 @@ final class CotypingParagraphBreakAlignmentTests: XCTestCase {
     }
 }
 
-// MARK: - Field style from web text attributes
-
 final class CotypingWebFieldStyleTests: XCTestCase {
-    /// Chromium's marker-based attributed string has an `AXFont` with only a
-    /// size, and the text color as a `CGColor`.
     func testChromiumFontSizeAndColorAreRead() throws {
         let style = try XCTUnwrap(CotypingAXHelper.extractFieldStyle(from: [
             NSAttributedString.Key("AXFont"): ["AXFontSize": NSNumber(value: 16)],
@@ -270,7 +251,6 @@ final class CotypingWebFieldStyleTests: XCTestCase {
         XCTAssertEqual(style?.fontPointSize, 15)
     }
 
-    /// Without extended accessibility Chromium sends an empty font.
     func testAnEmptyChromiumFontIsNoStyle() {
         XCTAssertNil(CotypingAXHelper.extractFieldStyle(from: [NSAttributedString.Key("AXFont"): [String: Any]()]))
     }

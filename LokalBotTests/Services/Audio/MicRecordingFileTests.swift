@@ -2,10 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// The capture file is opened with a bitrate the AAC encoder has to accept at
-/// whatever rate the input device runs. These tests need no microphone — only
-/// the encoder — which is why the original defect went unnoticed: nothing
-/// exercised the combination a Bluetooth headset produces.
 final class MicRecordingFileTests: XCTestCase {
 
     private func format(_ sampleRate: Double, channels: AVAudioChannelCount = 1) -> AVAudioFormat {
@@ -20,9 +16,6 @@ final class MicRecordingFileTests: XCTestCase {
             .appendingPathComponent("mic-file-\(UUID().uuidString).\(ext)")
     }
 
-    /// A Bluetooth headset in HFP mode runs at 16 kHz, where the encoder
-    /// refuses 64 kbit/s. That threw '!dat' (560226676) out of
-    /// `AVAudioFile(forWriting:)`, so the meeting did not record at all.
     func testOpensAFileAtEveryRateAMacInputCanRun() throws {
         for rate in [8_000.0, 16_000, 22_050, 24_000, 32_000, 44_100, 48_000] {
             let url = temporaryURL("m4a")
@@ -43,8 +36,6 @@ final class MicRecordingFileTests: XCTestCase {
         }
     }
 
-    /// The chosen bitrate is the one the ladder starts from, so a healthy
-    /// device never pays for the fallback.
     func testBitRateTracksTheSampleRate() {
         XCTAssertEqual(MicRecorder.aacBitRate(forSampleRate: 8_000), 24_000)
         XCTAssertEqual(MicRecorder.aacBitRate(forSampleRate: 16_000), 32_000)
@@ -52,8 +43,6 @@ final class MicRecordingFileTests: XCTestCase {
         XCTAssertEqual(MicRecorder.aacBitRate(forSampleRate: 48_000), 64_000)
     }
 
-    /// Descending only: at 8 kHz everything above 24 kbit/s is refused, so
-    /// retrying upwards would swap one rejection for another.
     func testLadderOnlyEverStepsDown() {
         for rate in [8_000.0, 16_000, 44_100, 48_000] {
             let ladder = MicRecorder.aacBitRateLadder(forSampleRate: rate)
@@ -63,7 +52,6 @@ final class MicRecordingFileTests: XCTestCase {
         }
     }
 
-    /// Dictation scratch files are PCM and carry no bitrate to negotiate.
     func testPCMScratchFileIsUntouchedByTheLadder() throws {
         let url = temporaryURL("caf")
         defer { try? FileManager.default.removeItem(at: url) }

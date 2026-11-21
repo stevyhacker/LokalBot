@@ -2,12 +2,8 @@ import Foundation
 import FluidAudio
 
 struct TranscriptionModelStore {
-    /// Folders of transcription models the app no longer offers, relative to
-    /// Application Support: Granite Speech 5 TurboCTC (about 0.95 GB, MLX).
     static let retiredModelFolders = ["granite-turbo"]
 
-    /// Deletes the retired models' folders by exact path. Never follows a
-    /// symlink in a folder's place. Returns the folders it removed.
     @discardableResult
     static func removeRetiredModels(appSupport: URL) -> [URL] {
         var removed: [URL] = []
@@ -40,8 +36,6 @@ struct TranscriptionModelStore {
             let fluidAudioRoot = AppDirectories.fluidAudioRoot
             let fluidAudioModelsRoot = fluidAudioRoot
                 .appendingPathComponent("Models", isDirectory: true)
-            // Unit tests never look in the user's Documents folder: macOS
-            // asks a freshly built test host for access every time.
             let legacyWhisperKitRepoRoot = UITestRuntime.isUnitTesting ? nil : fileManager.urls(
                 for: .documentDirectory,
                 in: .userDomainMask
@@ -85,8 +79,6 @@ struct TranscriptionModelStore {
         }.map(\.id))
     }
 
-    /// A transcription server has nothing on disk; it counts as available
-    /// once it is configured and approved (`RemoteTranscriptionConfiguration.isReady`).
     static func isDownloaded(_ choice: TranscriptionModelChoice,
                              environment: Environment = .live,
                              graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
@@ -185,7 +177,7 @@ struct TranscriptionModelStore {
         case .cohere:
             [cohereDirectory(environment: environment)]
         case .funASRNano:
-            [] // A user-selected folder is never an app-owned cache.
+            []
         case .senseVoice:
             [onnxDirectory(folderName: "sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09",
                            environment: environment)]
@@ -193,9 +185,9 @@ struct TranscriptionModelStore {
             [onnxDirectory(folderName: "sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16",
                            environment: environment)]
         case .appleSpeech:
-            [] // macOS manages SpeechAnalyzer's system assets.
+            []
         case .remoteServer:
-            [] // Server settings are not an app-owned cache.
+            []
         }
     }
 
@@ -215,16 +207,11 @@ struct TranscriptionModelStore {
     }
 
     private static func onnxModelExists(model: OnnxTranscriptionEngine.Model, environment: Environment) -> Bool {
-        // UI reads the successful-install receipt and sizes; preparation does
-        // the full digest pass off the MainActor before using any weights.
         OnnxTranscriptionEngine.isModelInstalled(
             in: onnxDirectory(folderName: model.folderName, environment: environment),
             model: model, verifyContents: false)
     }
 
-    /// Only the Application Support cache. Readiness checks run at launch, and
-    /// listing the legacy `~/Documents` cache there made macOS ask for
-    /// Documents access; preparing Whisper migrates that cache instead.
     private static func whisperModelDirectories(environment: Environment) -> [URL] {
         whisperModelDirectories(at: environment.whisperKitRepoRoot)
     }
@@ -243,12 +230,6 @@ struct TranscriptionModelStore {
         }
     }
 
-    /// Move a valid cache created by older builds out of `~/Documents` before
-    /// WhisperKit checks the new Application Support download root. Migration
-    /// is deliberately best-effort at the call site: an MDM-denied legacy
-    /// folder must never prevent a clean download into the correct location.
-    /// A complete Application Support cache skips the legacy folder entirely,
-    /// so only the first preparation after an upgrade touches `~/Documents`.
     static func migrateLegacyWhisperKitModels(
         environment: Environment = .live,
         fileManager: FileManager = .default
@@ -282,9 +263,6 @@ struct TranscriptionModelStore {
                 try fileManager.removeItem(at: destination)
             }
             try fileManager.moveItem(at: staging, to: destination)
-            // The destination is now complete and recoverable. Removing the
-            // old cache avoids cloud re-upload; a managed provider may deny
-            // deletion, which is harmless and should not undo the migration.
             try? fileManager.removeItem(at: source)
         }
     }

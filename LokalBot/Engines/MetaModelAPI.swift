@@ -1,24 +1,15 @@
 import Foundation
 
-/// Meta's Model API (`https://api.meta.ai/v1`, OpenAI-compatible chat
-/// completions). Live Radar and Follow-through began here, for the Meta
-/// Global AI Developer Hackathon (2026), and now run on the Think model
-/// (`ThinkChat`); the hosted film of them and the replay harnesses still
-/// speak this wire format. In the app, only fast live text (`MuseLiveText`)
-/// still uses Meta: it shares this key and origin approval.
 enum MetaModelAPI {
     static let baseURL = URL(string: "https://api.meta.ai/v1")!
     static var origin: String { RemoteInferenceGate.origin(for: baseURL) }
     static let apiKeyAccount = "meta-model-api-key"
     static let consoleURL = URL(string: "https://dev.meta.ai")!
 
-    /// Standard models only. Contributor variants trade a discount for Meta's
-    /// right to train on the content, which meeting text must never grant.
     struct Model: Identifiable, Equatable, Sendable {
         let id: String
         let displayName: String
         let summary: String
-        /// US dollars per million tokens (dev.meta.ai pricing, Oct 2026).
         let inputPrice: Double
         let cachedInputPrice: Double
         let outputPrice: Double
@@ -38,7 +29,6 @@ enum MetaModelAPI {
 
     static func displayName(for id: String) -> String { model(id: id)?.displayName ?? id }
 
-    /// Reasoning and visible output are billed at the output rate.
     static func cost(of usage: MuseChatClient.Usage, model id: String) -> Double {
         guard let model = model(id: id) else { return 0 }
         let uncached = max(0, usage.inputTokens - usage.cachedInputTokens)
@@ -61,9 +51,6 @@ enum MetaModelAPI {
         }
     }
 
-    /// The key and approval a request needs, or why it can't be sent. The
-    /// origin approval is the same list Think servers use, so revoking it in
-    /// either place stops both.
     static func client(settings: AppSettings, model: String, reasoningEffort: String,
                        maxTokens: Int, priority: InferencePriority, purpose: String) throws -> MuseChatClient {
         guard settings.metaModelAPIApproved else { throw ConnectionError.notApproved }
@@ -78,18 +65,10 @@ enum MetaModelAPI {
     }
 }
 
-/// One `/chat/completions` call with optional function tools or a strict JSON
-/// schema, with token use, for the hosted film and the replay harnesses. Its
-/// reply and message shapes are also what `ThinkChat` hands the radar and
-/// Follow-through loops. Requests share the origin's `RemoteInferenceGate`
-/// with Think and stay on the approved origin (`InferenceURLSession` rejects
-/// cross-origin redirects).
 struct MuseChatClient {
     struct ToolCall: Equatable, Sendable {
         let id: String
         let name: String
-        /// The JSON object string the model produced. It is not guaranteed to
-        /// match the tool's schema, so callers validate it.
         let arguments: String
 
         var decodedArguments: [String: Any] {
@@ -125,16 +104,13 @@ struct MuseChatClient {
     var baseURL = MetaModelAPI.baseURL
     var apiKey: String
     var model: String
-    /// minimal, low, medium, high, xhigh or max. Muse models reject "none".
     var reasoningEffort: String
-    /// Reasoning tokens count against this limit too.
     var maxTokens: Int
     var priority: InferencePriority
     var purpose: String
     var gate: RemoteInferenceGate? = .shared
     var transport: Transport = { request in try await sendInferenceRequest(request, base: MetaModelAPI.baseURL) }
 
-    /// Pure construction, so the wire format is covered by offline tests.
     func makeRequest(messages: [[String: Any]], tools: [[String: Any]] = [],
                      schema: (name: String, schema: [String: Any])? = nil) throws -> URLRequest {
         var request = URLRequest(url: baseURL.appendingPathComponent("chat/completions"))
@@ -149,7 +125,6 @@ struct MuseChatClient {
         ]
         if !tools.isEmpty {
             body["tools"] = tools
-            // The only value Meta accepts; anything else is HTTP 400.
             body["tool_choice"] = "auto"
         }
         if let schema {
@@ -219,8 +194,6 @@ struct MuseChatClient {
             finishReason: finishReason)
     }
 
-    /// The assistant message to append before tool results, as the API
-    /// requires: its text plus every tool call it made.
     static func assistantMessage(for reply: Reply) -> [String: Any] {
         var message: [String: Any] = ["role": "assistant", "content": reply.content]
         if !reply.toolCalls.isEmpty {

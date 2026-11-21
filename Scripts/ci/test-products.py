@@ -16,18 +16,12 @@ spec.loader.exec_module(stamp)
 
 
 def identity():
-    # Not the attempt: a failed-jobs-only rerun keeps the build job that passed,
-    # so its consumers use products from an earlier attempt of the same run,
-    # built from the same commit, toolchain and dependency lock.
     value = stamp.identity()
     for key in ('root', 'job', 'attempt'):
         value.pop(key)
     return value
 
 
-# UI products are built with the release toolchain on macOS 26 and run on the
-# oldest supported macOS, whose image has an older Xcode. Everything else about
-# the candidate must still match; unit-test products stay on one toolchain.
 CROSS_TOOLCHAIN_KEYS = {'ui': {'xcode', 'sdk'}}
 
 

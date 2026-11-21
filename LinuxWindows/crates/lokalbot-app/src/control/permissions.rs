@@ -1,9 +1,3 @@
-//! What LokalBot needs from this computer (`AppControlHandler.permissionNeeds`,
-//! `PermissionRow.swift`). Linux and Windows have no permission prompts like
-//! macOS, so each entry says what this desktop allows instead, read the way
-//! setup reads it (`crate::access`), so Settings, setup and `lokalbot-cli
-//! permissions` say the same. Shared by Settings and `lokalbot-cli permissions`.
-
 use gpui_kit::{App, Entity};
 use lokalbot_core::{ScreenContextMode, Settings};
 use lokalbot_engine::CalendarStatus;
@@ -11,41 +5,30 @@ use lokalbot_engine::CalendarStatus;
 use crate::access::{Observed, Permission, Probe, State};
 use crate::state::{AppData, SettingsCategory};
 
-/// What the person can do about a permission here, if anything.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Fix {
-    /// Windows' own switch (Privacy & security → Microphone).
     SystemSettings,
-    /// The calendar links under Meetings.
     CalendarLinks,
-    /// GNOME's Window Calls extension, for the window in front.
     WindowCalls,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct PermissionNeed {
-    /// `microphone`, `accessibility`, …, as `permissions request` takes them.
     pub name: &'static str,
     pub title: String,
-    /// Allowed now. False both when it isn't and when that can't be known.
     pub granted: bool,
-    /// False where nothing can be read before the feature first runs.
     pub checked: bool,
-    /// The enabled features that need it.
     pub needed_by: Vec<String>,
-    /// What this desktop allows.
     pub detail: String,
     pub fix: Option<Fix>,
 }
 
 impl PermissionNeed {
-    /// A feature that is on uses it, and it is known not to be allowed.
     pub fn missing(&self) -> bool {
         self.checked && !self.granted && !self.needed_by.is_empty()
     }
 }
 
-/// Everything the needs are worked out from, read from the app.
 #[derive(Clone, Debug, Default)]
 pub struct Inputs {
     pub settings: Settings,
@@ -53,8 +36,6 @@ pub struct Inputs {
     pub observed: Observed,
     pub linux: bool,
     pub windows: bool,
-    /// Autocomplete reads other apps through the input method, not
-    /// accessibility (Linux on Wayland).
     pub autocomplete_by_input_method: bool,
     pub shortcuts_ready: bool,
     pub calendar_ok: bool,
@@ -115,7 +96,6 @@ pub fn needs_from(inputs: &Inputs) -> Vec<PermissionNeed> {
         input.push(tr("Selection actions"));
     }
 
-    // Read the way setup reads it, so the two never disagree.
     let shared = |permission: Permission, needed_by: Vec<String>, about: Option<String>| {
         let state = permission.state(&inputs.probe, &inputs.observed, inputs.linux);
         let fix = match (permission, state) {
@@ -150,7 +130,6 @@ pub fn needs_from(inputs: &Inputs) -> Vec<PermissionNeed> {
             screen,
             Some(tr("This desktop lets LokalBot capture the active window.")),
         ),
-        // It keeps more than the screenshot key here.
         shared(
             Permission::CredentialStore,
             key,
@@ -177,7 +156,6 @@ pub fn needs_from(inputs: &Inputs) -> Vec<PermissionNeed> {
             name: "calendar",
             title: tr("Calendar"),
             granted: inputs.calendar_ok,
-            // No calendar is read while calendar use is off.
             checked: settings.calendar_detection_enabled,
             needed_by: if settings.calendar_detection_enabled {
                 vec![tr("Calendar detection")]
@@ -190,9 +168,6 @@ pub fn needs_from(inputs: &Inputs) -> Vec<PermissionNeed> {
     ]
 }
 
-/// Shows the person where they can decide: the system's own switch where it
-/// has one, GNOME's Window Calls extension when that is what's missing,
-/// otherwise the row in Settings that says what this desktop allows.
 pub fn request(name: &str, data: &Entity<AppData>, cx: &mut App) {
     if cfg!(target_os = "windows") && name == "microphone" {
         cx.open_url("ms-settings:privacy-microphone");
@@ -251,8 +226,6 @@ mod tests {
         Permission::CredentialStore,
     ];
 
-    /// Every permission setup asks about is read from the same check here,
-    /// whatever that check says.
     #[test]
     fn settings_reads_each_permission_as_setup_does() {
         let checks = [
@@ -298,8 +271,6 @@ mod tests {
                 "{permission:?}"
             );
         }
-        // The microphone says when it is checked instead; Windows also names
-        // its own privacy switch.
         let expected = if cfg!(target_os = "windows") {
             "Checked when you first record. Windows keeps its own switch under Privacy & security → Microphone."
         } else {
@@ -336,7 +307,6 @@ mod tests {
             need(&needs, "accessibility").detail,
             crate::access::gap_text(Gap::AccessibilityService)
         );
-        // Off Windows the microphone has no switch to open.
         input.windows = false;
         assert_eq!(need(&needs_from(&input), "microphone").fix, None);
     }
@@ -362,7 +332,6 @@ mod tests {
         ] {
             assert!(need(&needs, name).needed_by.is_empty(), "{name}");
         }
-        // Text capture and autocomplete on X11 read through accessibility.
         input.settings.tracking_enabled = true;
         input.settings.screen_context_capture_mode = ScreenContextMode::Text;
         input.settings.cotyping_enabled = true;
@@ -370,7 +339,6 @@ mod tests {
         assert_eq!(need(&needs, "accessibility").needed_by.len(), 2);
         assert!(need(&needs, "accessibility").missing());
         assert!(need(&needs, "screen-recording").needed_by.is_empty());
-        // On Wayland autocomplete goes through the input method instead.
         input.autocomplete_by_input_method = true;
         input.settings.tracking_enabled = false;
         assert!(!need(&needs_from(&input), "accessibility").missing());

@@ -1,25 +1,9 @@
 import Foundation
 
-// In-app meeting assistant (the "Chat" section). A small agent loop on top of
-// the same `TextEngine` the summariser uses: the model answers questions about
-// the user's on-device meetings and may call tools (search / list / read) to
-// ground its answers. Inspired by the `lokalbot-cli` tool surface — same
-// `list` / `get` / `search` capabilities, exposed to the LLM as callable tools.
-//
-// The local backends only speak single-shot `generate(system:prompt:context:)`
-// (no native function-calling), so tool use is a prompt-driven ReAct loop with
-// a deliberately simple JSON protocol and tolerant parsing — smaller local
-// GGUFs may emit sloppy output, so the protocol degrades to a plain answer
-// rather than fail.
-
-// MARK: - Value types
-
 enum ChatRole: String, Equatable, Sendable, Codable {
     case user, assistant
 }
 
-/// One callable tool advertised to the model. Pure value type so the system
-/// prompt can be built and unit-tested without an engine or the file system.
 struct ChatToolSpec: Equatable, Sendable {
     struct Argument: Equatable, Sendable {
         let name: String
@@ -27,19 +11,14 @@ struct ChatToolSpec: Equatable, Sendable {
         let required: Bool
     }
     let name: String
-    /// One-line description of what the tool does (shown to the model).
     let summary: String
     let arguments: [Argument]
 }
 
-/// A parsed tool invocation. Arguments are coerced to strings on parse (numbers
-/// and bools stringified) so every tool reads them the same way regardless of
-/// how the model quoted them.
 struct ChatToolCall: Equatable, Sendable {
     let name: String
     let arguments: [String: String]
 
-    /// Trimmed, non-empty argument value, or nil.
     func string(_ key: String) -> String? {
         guard let value = arguments[key]?.trimmingCharacters(in: .whitespacesAndNewlines),
               !value.isEmpty else { return nil }
@@ -48,11 +27,6 @@ struct ChatToolCall: Equatable, Sendable {
 
     func int(_ key: String) -> Int? { string(key).flatMap(Int.init) }
 
-    /// The IDs of a scope the host put on the call (`ScopedChatToolRunner`):
-    /// nil when the call carries no such scope, and an empty list when the
-    /// scope is there and holds nothing. The two must never read alike: an
-    /// empty scope means nothing may be read. `string` reports an empty value
-    /// as missing, which read a scope of no meetings as every meeting.
     func scope(_ key: String) -> [String]? {
         guard let raw = arguments[key] else { return nil }
         return raw.split(separator: ",")
@@ -60,8 +34,6 @@ struct ChatToolCall: Equatable, Sendable {
             .filter { !$0.isEmpty }
     }
 
-    /// Canonical JSON re-serialisation, so the running transcript records exactly
-    /// one well-formed tool call back to the model regardless of how it was typed.
     var json: String {
         let pairs = arguments.keys.sorted().map { key in
             "\(Self.encode(key)): \(Self.encode(arguments[key] ?? ""))"
@@ -77,70 +49,47 @@ struct ChatToolCall: Equatable, Sendable {
     }
 }
 
-/// What the model produced this step: a tool call, or its final answer.
 enum ChatAction: Equatable {
     case call(ChatToolCall)
     case answer(String)
 }
 
-/// Result of running a tool: the full `text` fed back to the model, plus a short
-/// `summary` surfaced in the UI activity row.
 struct ChatToolResult: Sendable {
     let text: String
     let summary: String
     var evidence = ChatEvidence()
 }
 
-/// UI-facing progress events emitted while the agent runs.
 enum ChatAgentEvent: Sendable {
     case toolStarted(ChatToolCall)
     case toolFinished(name: String, summary: String)
     case answerPartial(String)
 }
 
-/// Executes tools and supplies their catalogue + ambient library context.
 @MainActor
 protocol ChatToolRunner: AnyObject {
     var specs: [ChatToolSpec] { get }
-    /// Compact, always-available context (e.g. recent meeting titles) folded into
-    /// the system prompt so simple questions can be answered without a tool call.
     func libraryOverview() -> String
-    /// What this question is limited to, written for the model (see
-    /// `ChatPrompt.questionScope`). Empty when it may look at everything.
     func questionScope() -> String
     func run(_ call: ChatToolCall) async -> ChatToolResult
-    /// Which screens the user attached to the question the answer may cite.
     func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence
 }
 
 extension ChatToolRunner {
     func questionScope() -> String { "" }
 
-    /// A runner without a screen store can't check attachments; keep them all.
     func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence {
         ChatEvidence(screenIDs: ids)
     }
 }
 
-// MARK: - Prompt + parsing (pure, unit-tested)
-
-/// Builds the system prompt and parses the model's output into a `ChatAction`.
-/// Everything here is pure and `nonisolated static` so the protocol can be
-/// tested without an engine.
 enum ChatPrompt {
 
-    /// The dream-maintained work memory as ambient chat context. Empty unless
-    /// dreaming is enabled and the memory actually holds something, so the
-    /// prompt never grows a vacant section.
     static func workMemoryContext(memory: DreamMemory?, dreamingEnabled: Bool) -> String {
         guard dreamingEnabled, let memory, !memory.isEmpty else { return "" }
         return PromptContextSanitizer.sanitize(memory.markdown(), maxCharacters: 6_000)
     }
 
-    /// Lets the model resolve "yesterday" or "last Tuesday". It opens each
-    /// step's instruction, after the cached prefix: Anthropic caches whole
-    /// blocks, so a per-minute line in the system prompt made every new
-    /// message miss the cached system prompt and replayed history.
     static func currentTimeLine(now: Date = Date(), timeZone: TimeZone = .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -150,10 +99,6 @@ enum ChatPrompt {
             + "Resolve relative dates such as \"yesterday\" or \"last Tuesday\" from it."
     }
 
-    /// What a limited question can see. Without it the model took the one
-    /// meeting a question limited to today could find for the whole library
-    /// ("the only one in your library"). `limit` completes "limited to", e.g.
-    /// "what happened on 4 Nov 2026".
     static func questionScope(limit: String, datesCanBeRemoved: Bool) -> String {
         """
         This question is limited to \(limit). The tools return only what falls inside that limit, \
@@ -163,8 +108,6 @@ enum ChatPrompt {
         """ + (datesCanBeRemoved ? ", and that they can remove the date limit to ask about other days." : ".")
     }
 
-    /// Where a question asked from a day or a meeting starts. It must not
-    /// read as a limit: the tools still reach the whole library.
     static func questionFocus(_ subject: String) -> String {
         """
         The user started this conversation from \(subject), so a question that names no other time, \
@@ -294,13 +237,8 @@ enum ChatPrompt {
         return "This response uses the user-approved remote inference server at \(url.host ?? "the configured host"). Questions and supplied context are sent there; do not claim that all processing stays on this Mac."
     }
 
-    /// Interpret one model turn. Treated as a tool call only when the output
-    /// contains a JSON object whose tool name is one of `tools`; otherwise it is
-    /// the final answer. The known-tool gate stops prose answers that merely
-    /// quote JSON from being mistaken for tool calls.
     static func parse(_ output: String, tools: Set<String>) -> ChatAction {
         let cleaned = strippingReasoning(output).trimmingCharacters(in: .whitespacesAndNewlines)
-        // 1. JSON object form: {"tool": "...", "arguments": { … }}.
         if let object = jsonObject(in: cleaned) {
             let callObject = toolCallObject(in: object)
             if let name = toolName(in: callObject), tools.contains(name) {
@@ -310,16 +248,12 @@ enum ChatPrompt {
                         in: callObject, toolNameKeys: nameKeys)))
             }
         }
-        // 2. Native function-call form some local models emit instead of JSON,
-        //    e.g. <|tool_call_start|>[get_meeting(id='abc', include='summary')]<|tool_call_end|>
         if let call = pythonicCall(in: cleaned, tools: tools) {
             return .call(call)
         }
         return .answer(removingAnswerMarker(stripToolTokens(cleaned)))
     }
 
-    /// Forced final pass: take whatever the model wrote as the answer. If it is
-    /// still only a tool call, we can no longer satisfy it, so fall back.
     static func finalText(_ output: String) -> String {
         let cleaned = stripToolTokens(strippingReasoning(output))
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -334,8 +268,6 @@ enum ChatPrompt {
         return String(text.dropFirst(answerMarker.count)).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Only an explicit final-answer prefix commits the stream to prose. An
-    /// incomplete reasoning block, tool JSON, or wrapper stays completely hidden.
     static func streamingAnswer(_ text: String) -> String? {
         var cleaned = text.trimmingCharacters(in: .whitespacesAndNewlines)
         while cleaned.hasPrefix("<think>") {
@@ -344,8 +276,6 @@ enum ChatPrompt {
         }
         guard cleaned.hasPrefix(answerMarker) else { return nil }
         var answer = removingAnswerMarker(cleaned)
-        // Hold an incomplete tag/tool payload rather than painting it and then
-        // retracting it. The final parser still validates the complete response.
         if let boundary = answer.firstIndex(where: { $0 == "<" || $0 == "{" || $0 == "`" }) {
             answer = String(answer[..<boundary])
         }
@@ -358,22 +288,12 @@ enum ChatPrompt {
     static let fallbackAnswer =
         "I couldn't find enough information in your meetings to answer that."
 
-    /// True when a turn that did NOT parse into a tool call still looks like
-    /// the model was attempting one — wrapper tokens, a `{"tool": …` fragment
-    /// that never balanced, or a bare call form with a misspelled name. The
-    /// agent answers this with one schema-constrained retry instead of
-    /// surfacing the garbled attempt as the answer.
     static func looksLikeToolAttempt(_ output: String) -> Bool {
         let cleaned = strippingReasoning(output).trimmingCharacters(in: .whitespacesAndNewlines)
         let stripped = stripToolTokens(cleaned)
-        // Wrapper tokens around nothing usable. (Tokens around plain prose stay
-        // an answer — some models wrap their answer in stray tokens.)
         if stripped.isEmpty, !cleaned.isEmpty { return true }
-        // Balanced JSON carrying a tool-name key (parse() already rejected it,
-        // so the name must be unknown — e.g. "search_meeting" for "search_meetings").
         if let object = jsonObject(in: stripped),
            toolName(in: toolCallObject(in: object)) != nil { return true }
-        // Truncated JSON: an opening brace plus a tool-name key that never closed.
         if stripped.contains("{"),
            stripped.range(of: #""(tool|tool_name|action)"\s*:"#, options: .regularExpression) != nil {
             return true
@@ -381,9 +301,6 @@ enum ChatPrompt {
         return looksLikeBareToolCall(stripped)
     }
 
-    /// JSON schema forcing exactly one valid tool call, used for the
-    /// constrained retry. The root stays an object for OpenAI strict Structured
-    /// Outputs; the nested `call` is an anyOf over closed per-tool shapes.
     static func toolCallSchema(_ tools: [ChatToolSpec]) -> [String: Any] {
         let variants: [[String: Any]] = tools.map { tool in
             var properties: [String: Any] = [:]
@@ -395,8 +312,6 @@ enum ChatPrompt {
             let argumentsSchema: [String: Any] = [
                 "type": "object",
                 "properties": properties,
-                // Strict Structured Outputs requires optional fields to be
-                // required-but-nullable rather than omitted.
                 "required": tool.arguments.map(\.name),
                 "additionalProperties": false,
             ]
@@ -417,8 +332,6 @@ enum ChatPrompt {
             "additionalProperties": false,
         ]
     }
-
-    // MARK: Parsing helpers (pure)
 
     private static let nameKeys = ["tool", "name", "action", "tool_name"]
     private static let argumentKeys = ["arguments", "args", "parameters", "params", "input"]
@@ -451,7 +364,6 @@ enum ChatPrompt {
         if let key = argumentKeys.first(where: { object[$0] != nil }) {
             return coerce(object[key])
         }
-        // Flat shape: {"tool": "x", "query": "y"} — arguments alongside the name.
         var flat = object
         for key in toolNameKeys { flat.removeValue(forKey: key) }
         return coerce(flat)
@@ -481,9 +393,6 @@ enum ChatPrompt {
         return result
     }
 
-    /// First balanced `{ … }` object in `text`, skipping over string literals so
-    /// braces inside quoted values don't end the scan early. Returns nil when no
-    /// balanced object exists.
     static func extractJSONObject(_ text: String) -> String? {
         let characters = Array(text)
         guard let start = characters.firstIndex(of: "{") else { return nil }
@@ -510,25 +419,17 @@ enum ChatPrompt {
         return nil
     }
 
-    // MARK: Native function-call form
-
-    /// Wrapper tokens local chat templates emit around tool calls.
     private static let toolTokens = [
         "<|tool_call_start|>", "<|tool_call_end|>", "<|tool_calls_begin|>", "<|tool_calls_end|>",
         "<tool_call>", "</tool_call>", "<|tool_call|>", "[TOOL_CALLS]", "<|python_tag|>",
     ]
 
-    /// Remove tool-call wrapper tokens so they never leak into a displayed answer.
     static func stripToolTokens(_ text: String) -> String {
         var result = text
         for token in toolTokens { result = result.replacingOccurrences(of: token, with: "") }
         return result.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Parse the function-call form many small models emit instead of JSON, e.g.
-    /// `get_meeting(id='abc', include='summary')` (optionally bracketed and
-    /// wrapped in tool tokens). Returns the first call whose name is a known
-    /// tool. Arguments are read as `key=value` pairs.
     static func pythonicCall(in text: String, tools: Set<String>) -> ChatToolCall? {
         let stripped = stripToolTokens(text)
         let pattern = "([A-Za-z_][A-Za-z0-9_]*)\\s*\\(([^()]*)\\)"
@@ -545,8 +446,6 @@ enum ChatPrompt {
         return nil
     }
 
-    /// `key='value', limit=5` → `["key": "value", "limit": "5"]`. A lone
-    /// positional value is stored under `arg0` (tools read named keys).
     static func parseKwargs(_ body: String) -> [String: String] {
         var result: [String: String] = [:]
         var positional = 0
@@ -571,7 +470,6 @@ enum ChatPrompt {
         return String(text.dropFirst().dropLast())
     }
 
-    /// Split on top-level commas, ignoring commas inside single/double quotes.
     private static func splitTopLevelCommas(_ text: String) -> [String] {
         var parts: [String] = []
         var current = ""
@@ -594,8 +492,6 @@ enum ChatPrompt {
         return parts
     }
 
-    /// True when the whole text is just one bare tool call (JSON or native) with
-    /// no prose — used by `finalText` to fall back instead of echoing a call.
     static func looksLikeBareToolCall(_ text: String) -> Bool {
         let cleaned = stripToolTokens(text).trimmingCharacters(in: .whitespacesAndNewlines)
         if let object = jsonObject(in: cleaned),
@@ -608,34 +504,17 @@ enum ChatPrompt {
     }
 }
 
-// MARK: - Agent loop
-
-/// Runs the question → (tool calls) → answer loop against a resolved engine.
 @MainActor
 struct ChatAgent {
-    /// Answer budget for each streamed turn (tool call or final answer).
     static let answerTokens = 2_048
 
     let engine: TextEngine
     let runner: ChatToolRunner
-    /// The clock behind the prompt's current-time line. Tests and replays of
-    /// an older library can fix it; interactive callers keep the wall clock.
     var now: () -> Date = Date.init
-    /// Hard cap on tool calls before we force a final synthesis pass. Six
-    /// leaves room to search, then read a long meeting in a few transcript
-    /// windows; see `adaptLimits(to:)` for small-window engines.
     var maxSteps = 6
-    /// Most recent prior messages (each user or assistant message counts
-    /// once) replayed as context, bounded again by `historyCharacters`.
     var historyWindow = 16
-    /// Character budget for replayed messages, so a few long answers cannot
-    /// crowd the tools' observations out of the context window.
     var historyCharacters = 12_000
-    /// Ambient work-memory context (see `ChatPrompt.workMemoryContext`);
-    /// empty when dreaming is off or has nothing yet.
     var workMemory = ""
-    /// What the person told LokalBot about themselves, already selected for
-    /// this question (see `PersonalContextBuilder`); empty when none applies.
     var personalContext = ""
     var initialEvidence = ChatEvidence()
 
@@ -644,8 +523,6 @@ struct ChatAgent {
         let text: String
     }
 
-    /// Apple's on-device model has a window of about 4K tokens, so it keeps
-    /// the earlier, smaller loop and history.
     mutating func adaptLimits(to engine: TextEngine) {
         var base = engine
         while true {
@@ -659,8 +536,6 @@ struct ChatAgent {
         historyCharacters = 4_000
     }
 
-    /// The newest messages that fit both budgets, oldest first. A replay never
-    /// starts with an assistant message whose question was cut off.
     static func replayedHistory(_ history: [Turn], maxMessages: Int, maxCharacters: Int) -> [Turn] {
         var kept: [Turn] = []
         var characters = 0
@@ -673,8 +548,6 @@ struct ChatAgent {
         return kept.reversed()
     }
 
-    /// Produce the assistant's answer to `latest`, given prior `history`.
-    /// `onEvent` fires on the main actor as tools start and finish.
     func respond(history: [Turn], latest: String,
                  onEvent: @escaping @MainActor (ChatAgentEvent) -> Void) async throws -> String {
         let toolNames = Set(runner.specs.map(\.name))
@@ -709,9 +582,6 @@ struct ChatAgent {
             try Task.checkCancellation()
 
             var action = ChatPrompt.parse(output, tools: toolNames)
-            // Garbled tool attempt → one retry with decode-time constraints.
-            // Backends without grammar support fall back to a plain generate,
-            // so this stays a best-effort second chance, never a hard gate.
             if case .answer = action, ChatPrompt.looksLikeToolAttempt(output) {
                 let retried = try await engine.generate(
                     system: system,
@@ -743,7 +613,6 @@ struct ChatAgent {
             }
         }
 
-        // Out of tool budget — force a final answer from what we gathered.
         let finalEvidence = evidence
         let forced = try await engine.generateStreaming(
             system: system,

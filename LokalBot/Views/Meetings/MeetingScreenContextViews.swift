@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Documents, pages, and windows the user had on screen while the meeting
-/// recorded. The thumbnail opens the retained capture in Timeline, the time
-/// plays the recording from when it first appeared, and a page whose address
-/// was captured can be reopened in the browser.
 struct MeetingScreenMaterialsSection: View {
     let context: MeetingScreenContext
     let onPlay: (MeetingScreenContext.Material) -> Void
@@ -11,7 +7,6 @@ struct MeetingScreenMaterialsSection: View {
     @Environment(\.openURL) private var openURL
 
     var body: some View {
-        // Shown as written, like the rest of this section's wording.
         SectionPanel(
             title: Text(verbatim: "On Screen During the Meeting"),
             systemImage: "rectangle.on.rectangle",
@@ -69,8 +64,6 @@ struct MeetingScreenMaterialsSection: View {
         }
     }
 
-    /// "Gmail · 4 min on screen"; the source is left out when the title
-    /// already names it (an app with one window).
     static func detail(_ material: MeetingScreenContext.Material) -> String {
         let source = material.site ?? material.app
         let minutes = Int((material.secondsOnScreen / 60).rounded())
@@ -86,8 +79,6 @@ struct MeetingScreenMaterialsSection: View {
     }
 }
 
-/// A one-line strip above the transcript that follows the playhead and
-/// shows which window was on screen at that point in the call.
 struct MeetingOnScreenNowBar: View {
     let context: MeetingScreenContext
     @ObservedObject var player: MeetingPlayer

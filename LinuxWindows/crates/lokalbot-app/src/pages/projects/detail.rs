@@ -1,11 +1,3 @@
-//! One project's page (`ProjectDetailView`). A tracked project leads with
-//! "Where it stands", the only block a model wrote, marked with the sparkle
-//! and one line saying when, by which model and where. Everything outside
-//! that card is a fact from the library: your actions, what is waiting on
-//! others, decisions, and the meetings with the line that names the project.
-//! Window time, people and names sit in a side column. A suggestion opens on
-//! the decision instead, and a project nothing names yet is one message.
-
 use chrono::{DateTime, Utc};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::menu::DropdownMenu as _;
@@ -34,7 +26,6 @@ use crate::ui::side_column::{self, decision_row, label_chip, section_heading, si
 use crate::ui::{self, Ico, profile};
 use lokalbot_i18n::fill;
 
-/// "Show 3 more" / "Show all 12" / "Show fewer" under a list.
 fn more_link(
     id: impl Into<ElementId>,
     label: String,
@@ -56,7 +47,6 @@ fn more_link(
     .into_any_element()
 }
 
-/// The sparkle that marks what a model wrote; it says so on hover.
 fn sparkle(id: impl Into<ElementId>, cx: &App) -> AnyElement {
     let lb = cx.lb();
     div()
@@ -69,7 +59,6 @@ fn sparkle(id: impl Into<ElementId>, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// A bulleted line of the note.
 fn bulleted(content: AnyElement, cx: &App) -> AnyElement {
     let lb = cx.lb();
     h_flex()
@@ -149,8 +138,6 @@ impl ProjectsPage {
         if project.is_tracked() {
             side.push(self.names(project, settling, cx));
         }
-        // Beside the page while the pane has room for both, under it
-        // otherwise (`PageWithSideColumn`).
         side_column::page(
             "project-detail",
             main,
@@ -162,8 +149,6 @@ impl ProjectsPage {
         )
     }
 
-    /// Nothing names the project yet: one centred message and the way to
-    /// give it the names the work goes by.
     fn empty_project(&self, project: &ProjectProfile, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let page = cx.entity();
@@ -221,14 +206,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------- the card
-
-    /// The tracked project's "Where it stands" note, the only model-written
-    /// text on the page: overview, points with the meeting each comes from,
-    /// and open questions. Its heading says when it was written, by which
-    /// model and where that ran. A note whose evidence has changed stays,
-    /// marked, until the person updates it or an approved automatic update
-    /// replaces it.
     fn where_it_stands(
         &self,
         project: &ProjectProfile,
@@ -248,7 +225,6 @@ impl ProjectsPage {
             .contains(&project.id);
         let can_write = !evidence.is_empty() && !settling;
 
-        // Who wrote the note and the button.
         let control_label: &str = if writing {
             if summary.is_some() {
                 lokalbot_i18n::tr("Updating…")
@@ -344,7 +320,6 @@ impl ProjectsPage {
                 .children(control)
                 .into_any_element()
         } else {
-            // Too narrow for one line: the provenance goes under the title.
             v_flex()
                 .w_full()
                 .gap(px(4.))
@@ -395,8 +370,6 @@ impl ProjectsPage {
                                 ))),
                         )
                     })
-                    // The note being replaced stays readable while the new
-                    // one is written.
                     .child(
                         self.note_text(summary, now, cx)
                             .when(writing, |this| this.opacity(0.5)),
@@ -423,8 +396,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    /// The note's text. Each point ends with the meeting it comes from as a
-    /// link; a point from the overnight review says so and links nowhere.
     fn note_text(
         &self,
         summary: &ProjectSummary,
@@ -520,8 +491,6 @@ impl ProjectsPage {
         column
     }
 
-    // ------------------------------------------------------- the facts
-
     fn thread_rows(
         &self,
         threads: &[&ActionThread],
@@ -565,8 +534,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    /// Other people's open work, recent first: three rows, then the rest on
-    /// request.
     fn others_actions(
         &self,
         project: &ProjectProfile,
@@ -612,8 +579,6 @@ impl ProjectsPage {
         )
     }
 
-    /// Decisions from the project's meetings that name it, each with its
-    /// meeting and date as a link.
     fn decisions(
         &self,
         project: &ProjectProfile,
@@ -655,8 +620,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    /// Each meeting with the line that names the project, so it is clear why
-    /// it is linked. A line from the transcript plays from its moment.
     fn meetings(
         &self,
         project: &ProjectProfile,
@@ -778,11 +741,6 @@ impl ProjectsPage {
         )
     }
 
-    // ------------------------------------------------------- suggestion
-
-    /// A suggestion's page opens on the decision: where it came up, then the
-    /// answers. When a tracked project already has at least half of its
-    /// meetings, adding it there is the first answer; otherwise tracking is.
     fn suggestion_card(
         &self,
         project: &ProjectProfile,
@@ -903,10 +861,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------- side column
-
-    /// Window time over the last seven days: the total, a bar a day, and the
-    /// longest windows.
     fn time(&self, project: &ProjectProfile, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let today = lokalbot_core::time::local_day(Utc::now());
@@ -987,8 +941,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    /// Up to eight people from the project's meetings, each opening their
-    /// page.
     fn people(&self, project: &ProjectProfile, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         side_block(lokalbot_i18n::tr("People"), None, cx)
@@ -1031,7 +983,6 @@ impl ProjectsPage {
             .into_any_element()
     }
 
-    /// The name and other names the project is matched by.
     fn names(
         &self,
         project: &ProjectProfile,
@@ -1069,8 +1020,6 @@ impl ProjectsPage {
     }
 }
 
-/// The overnight review's own words about a suggestion, which a model
-/// wrote, so they carry the sparkle too.
 fn review_note(index: usize, note: &ReviewNote, now: DateTime<Utc>, cx: &App) -> AnyElement {
     let lb = cx.lb();
     h_flex()
@@ -1108,7 +1057,6 @@ fn review_note(index: usize, note: &ReviewNote, now: DateTime<Utc>, cx: &App) ->
         .into_any_element()
 }
 
-/// A window and its time, or the line that sums the windows not listed.
 fn time_row(
     title: String,
     detail: Option<String>,

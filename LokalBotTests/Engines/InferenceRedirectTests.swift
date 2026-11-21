@@ -78,8 +78,6 @@ final class InferenceRedirectTests: XCTestCase {
     }
 }
 
-/// Loopback-only HTTP fixture. It waits for the full request body before
-/// replying, making 307/308 replay observable without real work data.
 private final class RedirectHTTPFixture: @unchecked Sendable {
     enum Reply {
         case ok

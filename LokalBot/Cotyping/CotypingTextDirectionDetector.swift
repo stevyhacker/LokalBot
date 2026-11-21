@@ -1,8 +1,5 @@
 import Foundation
 
-/// Detects the strong writing direction near the caret. We walk backwards
-/// because the characters closest to the caret are the best signal for ghost
-/// placement and post-accept drift direction.
 nonisolated enum CotypingTextDirectionDetector {
     static func isRightToLeft(_ text: String) -> Bool {
         for scalar in text.unicodeScalars.reversed() {

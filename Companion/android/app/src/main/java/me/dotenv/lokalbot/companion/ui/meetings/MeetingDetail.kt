@@ -85,7 +85,6 @@ enum class MeetingTab(val title: Int) {
 
 private val ReadingWidth = LokalBotTokens.Spacing.readingMaxWidth + 56.dp
 
-/** One meeting: header, then Summary, Transcript and Notes behind the capsule tabs. */
 @Composable
 fun MeetingDetail(
     repository: CompanionRepository,
@@ -211,7 +210,6 @@ fun MeetingDetail(
 
 private const val HEADER_ITEMS = 2
 
-/** The segment containing [at], or the last one starting before it. */
 fun segmentIndexAt(transcript: Transcript, at: Double): Int {
     val segments = transcript.segments
     val containing = segments.indexOfFirst { at >= it.start - 0.5 && at < it.end + 0.5 }
@@ -309,7 +307,6 @@ private fun EmptyRow(text: String) {
     Text(text, style = LokalBotType.secondary, color = LokalBotTheme.supportingText, modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp))
 }
 
-/** A transcript line: time, the speaker's colour and name on a new turn, then the words. */
 @Composable
 fun TranscriptLine(segment: TranscriptSegment, showSpeaker: Boolean, highlighted: Boolean) {
     val palette = LokalBotTheme.palette

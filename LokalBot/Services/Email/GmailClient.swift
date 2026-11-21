@@ -1,32 +1,23 @@
 import Foundation
 
-/// Read-only Gmail API calls for one account. Every request is a `GET` to
-/// `gmail.googleapis.com`; the client has no way to change mail, and Google
-/// would refuse it under the `gmail.readonly` grant anyway.
 struct GmailClient: Sendable {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     static let host = "gmail.googleapis.com"
     static let baseURL = URL(string: "https://gmail.googleapis.com/gmail/v1/users/me/")!
-    /// Retries after rate limits and server errors, with exponential backoff.
     static let maxAttempts = 4
 
     enum ThreadFormat: String, Sendable {
-        /// Headers and labels only, for deciding whether a thread qualifies.
         case metadata
-        /// Bodies too, for threads that qualified.
         case full
     }
 
-    /// Headers a `metadata` fetch returns.
     static let metadataHeaders = [
         "From", "To", "Cc", "Subject", "Date", "Message-ID", "List-Unsubscribe", "List-Id",
         "Precedence", "Auto-Submitted",
     ]
 
-    /// A current access token for this account.
     let accessToken: @Sendable () async throws -> String
-    /// A fresh token after Gmail rejected `rejected` with HTTP 401.
     let tokenRejected: @Sendable (_ rejected: String) async throws -> String
     let transport: Transport
     var sleep: @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) }
@@ -35,13 +26,11 @@ struct GmailClient: Sendable {
         try await get("profile")
     }
 
-    /// Verified "Send mail as" addresses, the account's own included.
     func sendAsAddresses() async throws -> [String] {
         let list: GmailSendAsList = try await get("settings/sendAs")
         return list.addresses
     }
 
-    /// Thread ids matching a Gmail search, newest first, up to `limit`.
     func threadIDs(query: String, limit: Int) async throws -> [String] {
         var ids: [String] = []
         var pageToken: String?
@@ -58,7 +47,6 @@ struct GmailClient: Sendable {
         return Array(ids.prefix(limit))
     }
 
-    /// One thread, or nil when Gmail no longer has it.
     func thread(id: String, format: ThreadFormat) async throws -> GmailThreadResource? {
         var items = [URLQueryItem(name: "format", value: format.rawValue)]
         if format == .metadata {
@@ -76,8 +64,6 @@ struct GmailClient: Sendable {
         var historyID: String
     }
 
-    /// Threads changed since `historyID`. Throws `GmailError.historyExpired`
-    /// when Gmail no longer keeps history that old.
     func changes(since historyID: String) async throws -> Changes {
         var threadIDs: Set<String> = []
         var latest = historyID
@@ -104,12 +90,9 @@ struct GmailClient: Sendable {
         return Changes(threadIDs: threadIDs, historyID: latest)
     }
 
-    // MARK: Requests
-
     static func request(_ path: String, query: [URLQueryItem] = [], token: String) -> URLRequest {
         var components = URLComponents(url: baseURL.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { components.queryItems = query }
-        // URLComponents leaves "+" alone, which Google reads as a space.
         components.percentEncodedQuery = components.percentEncodedQuery?
             .replacingOccurrences(of: "+", with: "%2B")
         var request = URLRequest(url: components.url!)
@@ -119,7 +102,6 @@ struct GmailClient: Sendable {
         return request
     }
 
-    /// Gmail ids are hex; anything else is refused rather than escaped.
     static func pathSafe(_ id: String) -> String {
         id.allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-" || $0 == "_") } ? id : "invalid"
     }
@@ -135,7 +117,6 @@ struct GmailClient: Sendable {
             do {
                 (data, response) = try await transport(Self.request(path, query: query, token: token))
             } catch let error as URLError where Self.isTransient(error.code) && attempt + 1 < Self.maxAttempts {
-                // A dropped connection or a Mac waking up: wait and try again.
                 attempt += 1
                 try await sleep(Self.backoff(attempt: attempt, retryAfter: nil))
                 continue
@@ -171,7 +152,6 @@ struct GmailClient: Sendable {
 
     static func isRetryable(status: Int, reason: String?) -> Bool {
         if status == 429 || (500...599).contains(status) { return true }
-        // Gmail reports per-user rate limits as 403 with a reason.
         return status == 403 && ["rateLimitExceeded", "userRateLimitExceeded"].contains(reason ?? "")
     }
 
@@ -182,7 +162,6 @@ struct GmailClient: Sendable {
         return .seconds(Double(1 << min(attempt, 5)))
     }
 
-    /// Google's `error.errors[0].reason`, else `error.status`.
     static func errorReason(_ data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let error = json["error"] as? [String: Any] else { return nil }

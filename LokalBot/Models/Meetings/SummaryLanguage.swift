@@ -1,11 +1,6 @@
 import Foundation
 import NaturalLanguage
 
-/// Target language for AI-generated summary notes. Distinct from
-/// `TranscriptionLanguage`: that controls what WhisperKit/Parakeet listens
-/// for, this controls what the LLM writes notes in. Default `.matchTranscript`
-/// resolves the transcript text to a concrete language before prompt
-/// construction. Ported from Seminarly's `SummaryLanguage`.
 enum SummaryLanguage: Equatable, Hashable, Sendable {
     case matchTranscript
     case language(LanguageCode)
@@ -36,8 +31,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
     static let th: SummaryLanguage = .language(.th)
     static let vi: SummaryLanguage = .language(.vi)
 
-    /// Stable preset cases (excludes `.matchTranscript` and `.custom`) - used
-    /// to drive Pickers without exposing two-mode logic.
     static let presets: [SummaryLanguage] = LanguageCode.summaryPresets.map { .language($0) }
 
     var displayName: String {
@@ -48,8 +41,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         }
     }
 
-    /// Name to drop into the LLM prompt (e.g. "Korean", "Klingon"). Returns
-    /// nil for `.matchTranscript`, signalling the caller to inject no directive.
     var promptLanguageName: String? {
         switch self {
         case .matchTranscript:
@@ -62,8 +53,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         }
     }
 
-    /// Resolve `.matchTranscript` against a transcript by running language
-    /// detection; concrete languages are returned as-is.
     static func resolvedForTranscript(_ language: SummaryLanguage, transcript: String) -> SummaryLanguage {
         guard language == .matchTranscript else { return language }
         return detectTranscriptLanguage(transcript)
@@ -78,10 +67,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         detectTranscriptLanguage(detectionWindows(in: text))
     }
 
-    /// Detect each bounded passage independently, then choose the language
-    /// with the most material support. `NLLanguageRecognizer` can lock onto a
-    /// foreign-language opening even when the rest of a long string is in a
-    /// different language, so a single prefix must never decide a meeting.
     private static func detectTranscriptLanguage(_ passages: [String]) -> SummaryLanguage {
         let samples = distributedSamples(
             passages.flatMap(detectionWindows(in:)),
@@ -116,9 +101,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         }.first?.key ?? .en
     }
 
-    /// Whether most of a transcript is English, sampled across the meeting
-    /// for the same reason as above. Languages outside the summary presets
-    /// count as themselves here instead of falling back to English.
     static func isMostlyEnglish(_ transcript: Transcript) -> Bool {
         let samples = distributedSamples(detectionWindows(in: transcript.languageDetectionText), limit: maximumDetectionSamples)
         var english = 0.0
@@ -207,12 +189,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         }
     }
 
-    // MARK: - Chinese script detection
-    //
-    // Simplified vs Traditional vs Cantonese is script, not language code - we
-    // look at the character set to pick the right Mandarin variant (or
-    // Cantonese when bopomofo appears).
-
     private static func chineseScriptLanguage(in text: String, allowLowSignal: Bool = false) -> SummaryLanguage? {
         var hanCount = 0
         var bopomofoCount = 0
@@ -272,8 +248,6 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
     ]
 }
 
-// MARK: - RawRepresentable / Codable
-
 extension SummaryLanguage: RawRepresentable {
     init?(rawValue: String) {
         switch rawValue {
@@ -320,12 +294,8 @@ extension SummaryLanguage: Codable {
 }
 
 
-/// Daily evidence has no single transcript. Explicit note language wins;
-/// otherwise use the resolved interface language. Existing reports stay intact.
 struct DailySummaryLanguage: Equatable, Sendable {
     let name: String
-    /// Model-free output uses an existing catalog. A custom language, or a
-    /// note language without a catalog, falls back to the interface catalog.
     let fallbackLanguage: AppLanguage
 
     static let english = Self(notes: .en, interface: .english)

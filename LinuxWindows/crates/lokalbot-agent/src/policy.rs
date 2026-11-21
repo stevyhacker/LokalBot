@@ -1,26 +1,14 @@
-//! Tool approvals (`AgentApprovalPolicy.swift`).
-//!
-//! The bundled extension raises an approval request for every tool call
-//! except a read inside the working folder and outside the private library.
-//! This decides whether a raised request is answered automatically (a
-//! read-only lookup of the user's own library with a model on this computer,
-//! the approval mode, "Allow for Session" choices) or shown to the user.
-
 use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
 
-/// How the user scoped an approval on its card.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ApprovalScope {
     Once,
     Session,
 }
 
-/// Approval levels, ordered from least to most permissive so the UI asks to
-/// confirm only escalations. Remembered app-wide; per-tool exceptions are
-/// session-only. Stored as the macOS raw values (0…3).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ApprovalMode {
     #[default]
@@ -82,7 +70,6 @@ impl ApprovalMode {
     }
 }
 
-/// `approval-mode.json`: `{"mode": 0…3}`.
 #[derive(Serialize, Deserialize)]
 struct StoredMode {
     mode: u8,
@@ -113,16 +100,12 @@ pub enum Verdict {
     Ask,
 }
 
-/// Pure approval policy for gated tools.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ApprovalPolicy {
     pub mode: ApprovalMode,
     pub protected_write_roots: Vec<PathBuf>,
     session_allowed_tools: BTreeSet<String>,
     automation_approves_workspace_file_changes: bool,
-    /// True only while the task's model is known to run on this computer. A
-    /// lookup's output is fed to the model, so with a model anywhere else,
-    /// or one whose place is not known, a lookup is not let through here.
     pub model_runs_on_this_computer: bool,
 }
 
@@ -147,14 +130,7 @@ impl ApprovalPolicy {
         if is_file_change(&tool) && is_protected(path, &self.protected_write_roots) {
             return Verdict::Ask;
         }
-        // Automatic modes only apply to structured approvals from the process
-        // for this working folder; stale or malformed requests fail closed.
         if request_matches_selected_workspace(request_workspace, selected_workspace) {
-            // A lone read-only lookup of the user's own library runs in every
-            // mode, the default included, when the model runs on this
-            // computer. With a model elsewhere it asks. Anything
-            // `is_library_lookup` cannot prove to be a lookup falls through
-            // and follows the mode.
             if tool == "bash" && self.model_runs_on_this_computer && is_library_lookup(command) {
                 return Verdict::Allow;
             }
@@ -170,13 +146,9 @@ impl ApprovalPolicy {
                         return Verdict::Allow;
                     }
                 }
-                // Every tool, including MCP tools and tools later pi releases
-                // add. Protected file changes already asked above.
                 ApprovalMode::FullAccess => return Verdict::Allow,
             }
         }
-        // "Allow for Session" stays narrower than the modes: only canonical
-        // write/edit paths inside the matching workspace inherit it.
         if !Self::can_persist_approval(
             &tool,
             path,
@@ -212,13 +184,10 @@ impl ApprovalPolicy {
         }
     }
 
-    /// The headless harness has nobody to click file-change cards. It may
-    /// opt into workspace-contained write/edit calls only.
     pub fn approve_workspace_file_changes_for_automation(&mut self) {
         self.automation_approves_workspace_file_changes = true;
     }
 
-    /// Keeps the mode and where the model runs, which belong to the task.
     pub fn reset_session(&mut self) {
         self.session_allowed_tools.clear();
         self.automation_approves_workspace_file_changes = false;
@@ -248,10 +217,6 @@ impl ApprovalPolicy {
     }
 }
 
-/// The options `lokalbot-cli brief`, `list`, `get` and `search` take. None
-/// of them writes a file or reaches the network. A word that starts with `-`
-/// and is not listed here keeps the command from counting as a lookup, so an
-/// option a later release adds asks until it is added.
 const LOOKUP_OPTIONS: [(&str, &[&str]); 4] = [
     ("brief", &[]),
     (
@@ -269,11 +234,6 @@ const LOOKUP_OPTIONS: [(&str, &[&str]); 4] = [
     ("search", &["--limit", "--table"]),
 ];
 
-/// One `lokalbot-cli brief`, `list`, `get` or `search` call made of plain and
-/// quoted words, so nothing can chain, redirect, substitute or expand into
-/// another command. Those four only read the library and print, and only with
-/// the options in [`LOOKUP_OPTIONS`]. A trailing `2>&1` and `| head` or
-/// `| tail` with a line count are allowed.
 pub fn is_library_lookup(command: Option<&str>) -> bool {
     let Some(words) = plain_command_words(command) else {
         return false;
@@ -292,17 +252,12 @@ pub fn is_library_lookup(command: Option<&str>) -> bool {
     })
 }
 
-/// The words of a command that is a single call made of plain and quoted
-/// words, after an optional `2>&1` and `| head` or `| tail` with a line
-/// count. `None` when the text holds anything a shell could use to chain,
-/// redirect, substitute or expand.
 pub fn plain_command_words(command: Option<&str>) -> Option<Vec<String>> {
     let command = strip_allowed_suffix(command?);
     let allowed = |c: char| c.is_alphanumeric() || " -_.,:=\"'".contains(c);
     if !command.chars().all(allowed) {
         return None;
     }
-    // With `$`, backticks and backslashes excluded, quotes only group words.
     let mut words = Vec::new();
     let mut word: Option<String> = None;
     let mut quote: Option<char> = None;
@@ -329,8 +284,6 @@ pub fn plain_command_words(command: Option<&str>) -> Option<Vec<String>> {
     Some(words)
 }
 
-/// Removes what `(\s+2>&1)?(\s*\|\s*(head|tail)(\s+-n\s+[0-9]+|\s+-[0-9]+))?\s*$`
-/// matches, as the macOS app does with that expression.
 fn strip_allowed_suffix(command: &str) -> &str {
     let mut rest = command.trim_end();
     if let Some(before) = strip_line_limit(rest) {
@@ -344,17 +297,14 @@ fn strip_allowed_suffix(command: &str) -> &str {
     rest
 }
 
-/// `| head -n 20`, `|tail -5` and the like at the end, with the space before.
 fn strip_line_limit(text: &str) -> Option<&str> {
     let digits = text.trim_end_matches(|c: char| c.is_ascii_digit());
     if digits.len() == text.len() {
         return None;
     }
     let before_count = if let Some(dash) = digits.strip_suffix('-') {
-        // `-5`, after at least one space.
         dash.ends_with(char::is_whitespace).then_some(dash)?
     } else {
-        // `-n 5`: spaces, `-n`, at least one space.
         let spaced = digits.trim_end();
         if spaced.len() == digits.len() {
             return None;
@@ -388,7 +338,6 @@ fn is_file_change(tool: &str) -> bool {
     tool == "write" || tool == "edit"
 }
 
-/// Missing or unresolvable paths count as protected (fail closed).
 fn is_protected(path: Option<&str>, roots: &[PathBuf]) -> bool {
     if roots.is_empty() {
         return false;
@@ -402,10 +351,6 @@ fn is_protected(path: Option<&str>, roots: &[PathBuf]) -> bool {
     })
 }
 
-/// Resolves symlinks through the nearest existing ancestor, then appends the
-/// not-yet-created rest, matching the extension's rule: a symlinked parent
-/// cannot turn an apparently local write into an outside one. A dangling
-/// link fails closed.
 pub fn canonical_path(path: &Path) -> Option<PathBuf> {
     let absolute = if path.is_absolute() {
         path.to_path_buf()
@@ -429,7 +374,6 @@ pub fn canonical_path(path: &Path) -> Option<PathBuf> {
     Some(resolved)
 }
 
-/// `.` and `..` removed without touching the disk (`standardizedFileURL`).
 pub(crate) fn lexically_normalized(path: &Path) -> PathBuf {
     let mut out = PathBuf::new();
     for component in path.components() {
@@ -446,7 +390,6 @@ pub(crate) fn lexically_normalized(path: &Path) -> PathBuf {
     out
 }
 
-/// Component-wise; Windows paths compare case-insensitively.
 pub fn is_within(path: &Path, root: &Path) -> bool {
     let path: Vec<String> = comparable_components(path);
     let root: Vec<String> = comparable_components(root);
@@ -471,8 +414,6 @@ fn comparable_components(path: &Path) -> Vec<String> {
         .collect()
 }
 
-/// Private app data is never an implicit working folder
-/// (`AgentWorkspacePolicy`). File tools may still request individual reads.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct WorkspacePolicy {
     pub private_roots: Vec<PathBuf>,
@@ -553,7 +494,6 @@ mod tests {
             policy.verdict("write", Some(&outside_file), None, Some(&ws), &f.workspace),
             Verdict::Ask
         );
-        // A read from another working folder never inherits the mode.
         let other = s(&f.outside);
         assert_eq!(
             policy.verdict(
@@ -603,7 +543,6 @@ mod tests {
             policy.verdict("write", Some(&private_file), None, Some(&ws), &f.workspace),
             Verdict::Ask
         );
-        // Missing paths are protected too.
         policy.mode = ApprovalMode::FullAccess;
         assert_eq!(
             policy.verdict("edit", None, None, Some(&ws), &f.workspace),
@@ -626,7 +565,6 @@ mod tests {
             policy.verdict("edit", Some(&file), None, Some(&ws), &f.workspace),
             Verdict::Ask
         );
-        // Outside the working folder a session grant does not apply.
         let outside = s(&f.outside.join("o.txt"));
         assert_eq!(
             policy.verdict("write", Some(&outside), None, Some(&ws), &f.workspace),
@@ -679,7 +617,6 @@ mod tests {
             policy.verdict("write", Some(&escaped), None, Some(&ws), &f.workspace),
             Verdict::Ask
         );
-        // A dangling link fails closed as well.
         std::os::unix::fs::symlink(f.outside.join("missing"), f.workspace.join("dangling"))
             .unwrap();
         let dangling = s(&f.workspace.join("dangling/new.txt"));
@@ -751,8 +688,6 @@ mod tests {
         assert!(!is_library_lookup(None));
     }
 
-    /// Only the options the four lookups take pass. An output flag, or any
-    /// option a later release might add, asks.
     #[test]
     fn library_lookups_take_only_their_known_options() {
         for command in [
@@ -772,8 +707,6 @@ mod tests {
         }
     }
 
-    /// Commands that read LokalBot but are not one of the four lookups, or
-    /// that change it, are not lookups.
     #[test]
     fn other_cli_commands_are_not_lookups() {
         for command in [
@@ -806,7 +739,6 @@ mod tests {
                 "design review".into()
             ])
         );
-        // A count must follow its flag after a space; the redirect needs one before.
         for command in [
             "lokalbot-cli list | head -n5",
             "lokalbot-cli list | head - 5",
@@ -843,9 +775,6 @@ mod tests {
         "lokalbot-cli get eb749eed --include transcript 2>&1 | head -200",
     ];
 
-    /// The owner's decision: a read-only lookup of the user's own library
-    /// runs without a request at the default level, and so at every level,
-    /// when the task's model runs on this computer.
     #[test]
     fn each_library_lookup_runs_without_asking_at_the_default_level_with_a_local_model() {
         let f = fixture();
@@ -863,9 +792,6 @@ mod tests {
         }
     }
 
-    /// A lookup's output goes to the model. With a model on a server or a
-    /// subscription plan, or one whose place is not known, the same lookups
-    /// ask wherever they asked before lookups could skip approval.
     #[test]
     fn the_same_lookups_ask_when_the_model_is_not_on_this_computer() {
         let f = fixture();
@@ -886,11 +812,9 @@ mod tests {
                     "{mode:?} {lookup}"
                 );
             }
-            // Full access runs every command, as it did before.
             let full = ApprovalPolicy::new(ApprovalMode::FullAccess, Vec::new());
             assert_eq!(command(&full, &f, lookup), Verdict::Allow, "{lookup}");
         }
-        // Learning that the model left this computer takes the lookup back.
         let mut policy = local_model_policy(ApprovalMode::AskBeforeChanges);
         assert_eq!(command(&policy, &f, "lokalbot-cli brief"), Verdict::Allow);
         policy.model_runs_on_this_computer = false;
@@ -904,8 +828,6 @@ mod tests {
         );
     }
 
-    /// With a model on this computer, everything that is not a proven lookup
-    /// still asks at the default level.
     #[test]
     fn everything_else_still_asks_at_the_default_level() {
         let f = fixture();
@@ -913,7 +835,6 @@ mod tests {
         let ws = s(&f.workspace);
         let note = s(&f.workspace.join("note.md"));
         let outside = s(&f.outside.join("notes.txt"));
-        // A write, an edit, a read outside the folder, and another tool.
         for (tool, path) in [
             ("write", Some(note.as_str())),
             ("edit", Some(note.as_str())),
@@ -926,7 +847,6 @@ mod tests {
                 "{tool}"
             );
         }
-        // An arbitrary command, and commands that only look like a lookup.
         for other in [
             "ls -la",
             "cat notes.md",
@@ -958,7 +878,6 @@ mod tests {
                 "remote model: {other}"
             );
         }
-        // The lookup rule is for the shell tool only, with its command present.
         assert_eq!(
             policy.verdict(
                 "write",
@@ -973,7 +892,6 @@ mod tests {
             policy.verdict("bash", None, None, Some(&ws), &f.workspace),
             Verdict::Ask
         );
-        // PowerShell (Windows without Bash) keeps asking: the rule reads Bash words.
         assert_eq!(
             policy.verdict(
                 "powershell",
@@ -986,8 +904,6 @@ mod tests {
         );
     }
 
-    /// A request from a folder other than the task's working folder is stale
-    /// or malformed, and asks even when it is a lookup.
     #[test]
     fn lookup_from_another_working_folder_still_asks() {
         let f = fixture();

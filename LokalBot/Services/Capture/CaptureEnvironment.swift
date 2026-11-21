@@ -2,9 +2,6 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-/// A running application as a value, so traces can record and replay it.
-/// Property names match `NSRunningApplication`, so detection helpers compile
-/// unchanged when their parameter type switches.
 struct RunningApp: Codable, Equatable, Hashable, Sendable {
     var processIdentifier: pid_t
     var bundleIdentifier: String?
@@ -22,8 +19,6 @@ struct RunningApp: Codable, Equatable, Hashable, Sendable {
     }
 }
 
-/// One accessibility read of a process's focused window, with the reason
-/// when no snapshot was produced.
 struct AccessibilityRead: Codable, Equatable, Sendable {
     var snapshot: ScreenAccessibilitySnapshot?
     var failure: ScreenAccessibilityReader.TextReadFailure?
@@ -39,11 +34,7 @@ protocol WorkspaceSource: Sendable {
 protocol AccessibilitySource: Sendable {
     func isTrusted() -> Bool
     func read(processID: pid_t, includeText: Bool) -> AccessibilityRead
-    /// The focused window's title, frame, document, and focused-field state,
-    /// without walking its contents for web pages.
     func readWindow(processID: pid_t) -> AccessibilityRead
-    /// Secure fields and page addresses without text, over at most
-    /// `nodeLimit` elements: a capture's recheck after its pixels were taken.
     func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead
     func focusedWindowTitle(processID: pid_t) -> String?
     func browserMeetingSnapshot(processID: pid_t, expectedURL: URL?) -> BrowserMeetingSession.Snapshot?
@@ -51,12 +42,10 @@ protocol AccessibilitySource: Sendable {
 }
 
 extension AccessibilitySource {
-    /// Recorded and replayed environments answer with their metadata read.
     func readWindow(processID: pid_t) -> AccessibilityRead {
         read(processID: processID, includeText: false)
     }
 
-    /// Recorded and replayed environments answer with their full read.
     func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead {
         read(processID: processID, includeText: true)
     }
@@ -65,7 +54,6 @@ extension AccessibilitySource {
 protocol WindowSource: Sendable {
     func screenCaptureGranted() -> Bool
     func onScreenWindows() async throws -> [ScreenshotCaptureLayout.Window]
-    /// Captures a window returned by the most recent `onScreenWindows()`.
     func captureImage(windowID: CGWindowID) async throws -> CGImage
 }
 
@@ -91,9 +79,6 @@ enum CaptureEnvironmentError: Error, Equatable {
     case windowUnavailable(CGWindowID)
 }
 
-/// Every OS boundary the capture, tracking, and detection services read.
-/// Live wraps today's calls; tests and the UI background host install a
-/// replay; Debug builds can install a recorder. Services read `current`.
 struct CaptureEnvironment: Sendable {
     var workspace: any WorkspaceSource
     var accessibility: any AccessibilitySource

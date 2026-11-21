@@ -1,18 +1,7 @@
-//! Spell checking for autocomplete's typo offers and seam guard, the
-//! counterpart of `NSSpellChecker`: the system's Hunspell dictionaries through
-//! spellbook on Linux, `ISpellChecker` on Windows. Only non-words are flagged.
-//!
-//! Dictionaries load in the background. Until they have, and without any, no
-//! word is a typo and [`SpellChecker::languages`] is empty, so every rule that
-//! depends on a verdict stands down.
-
 use std::sync::Arc;
 
-/// At most this many languages are checked, the user's own first: a word is a
-/// typo only if every one of them flags it.
 const MAX_LANGUAGES: usize = 4;
 
-/// A dictionary name's language: "en" for "en_US" or "en-GB".
 fn base_language(name: &str) -> String {
     name.split(['_', '-'])
         .next()
@@ -20,8 +9,6 @@ fn base_language(name: &str) -> String {
         .to_lowercase()
 }
 
-/// Which installed dictionaries to use: at most one per language, the
-/// `preferred` ones first, then the most usual variant of each other language.
 fn choose_languages(mut available: Vec<String>, preferred: &[String]) -> Vec<String> {
     available.sort();
     available.dedup();
@@ -49,7 +36,6 @@ fn choose_languages(mut available: Vec<String>, preferred: &[String]) -> Vec<Str
             add(name, &mut chosen);
         }
     }
-    // "en_US" before "en_AU": a language's own country first, then US English.
     for name in &available {
         let base = base_language(name);
         let usual = name.to_lowercase() == format!("{base}_{base}") || name == "en_US";
@@ -64,9 +50,6 @@ fn choose_languages(mut available: Vec<String>, preferred: &[String]) -> Vec<Str
     chosen
 }
 
-/// Words a checker can judge whole. `NSSpellChecker` finds the misspelled word
-/// inside a token, so "wrld," or "foo-bar" is not flagged whole there; a
-/// checker asked about the token would call it a typo.
 fn is_checkable(word: &str) -> bool {
     !word.is_empty()
         && word
@@ -74,7 +57,6 @@ fn is_checkable(word: &str) -> bool {
             .all(|c| c.is_alphabetic() || c == '\'' || c == '\u{2019}')
 }
 
-/// Whether a longer word in `sorted` starts with `word`.
 #[cfg(any(target_os = "linux", test))]
 fn is_prefix_of_any(sorted: &[String], word: &str) -> bool {
     let word = word.to_lowercase();
@@ -85,27 +67,22 @@ fn is_prefix_of_any(sorted: &[String], word: &str) -> bool {
         .any(|stem| stem.len() > word.len())
 }
 
-/// Whether this computer has a dictionary to check against, for Settings.
 pub fn has_dictionaries() -> bool {
     backend::has_dictionaries()
 }
 
-/// A cheap handle on the system's spell checker. Calls never block for long.
 #[derive(Clone)]
 pub struct SpellChecker {
     inner: Arc<backend::Backend>,
 }
 
 impl SpellChecker {
-    /// Starts loading in the background.
     pub fn start() -> Self {
         Self {
             inner: Arc::new(backend::Backend::start()),
         }
     }
 
-    /// The languages in use, as `en_US` or `en-US`. Empty while loading and
-    /// when this computer has no dictionary.
     pub fn languages(&self) -> Vec<String> {
         self.inner.languages()
     }
@@ -114,12 +91,10 @@ impl SpellChecker {
         is_checkable(word) && self.inner.is_typo(word)
     }
 
-    /// Suggestions, best first.
     pub fn guesses(&self, word: &str) -> Vec<String> {
         self.inner.guesses(word)
     }
 
-    /// A longer word starts with `word`.
     pub fn is_completable_prefix(&self, word: &str) -> bool {
         self.inner.is_completable_prefix(word)
     }
@@ -137,7 +112,6 @@ mod backend {
     struct Hunspell {
         language: String,
         dictionary: spellbook::Dictionary,
-        /// The dictionary's stems, lowercased and sorted.
         stems: Vec<String>,
     }
 
@@ -200,13 +174,11 @@ mod backend {
         }
     }
 
-    /// Settings asks on every redraw, so the folders are looked at once.
     pub(super) fn has_dictionaries() -> bool {
         static FOUND: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
         *FOUND.get_or_init(|| !installed().is_empty())
     }
 
-    /// The folders Hunspell itself searches.
     fn search_paths() -> Vec<PathBuf> {
         let mut paths: Vec<PathBuf> = std::env::var_os("DICPATH")
             .map(|value| std::env::split_paths(&value).collect())
@@ -265,7 +237,6 @@ mod backend {
             .collect()
     }
 
-    /// Dictionaries are UTF-8 or say otherwise on their `SET` line.
     fn decode(bytes: &[u8], encoding: &str) -> Option<String> {
         match encoding.to_ascii_uppercase().as_str() {
             "UTF-8" | "UTF8" => String::from_utf8(bytes.to_vec()).ok(),
@@ -350,7 +321,6 @@ mod backend {
             assert!(backend.guesses("wrld").iter().any(|g| g == "world"));
         }
 
-        /// How the system's own dictionary behaves, when there is one.
         #[test]
         #[ignore = "needs a system dictionary; prints timings"]
         fn system_dictionary_timing() {
@@ -412,10 +382,8 @@ mod backend {
 
     use super::choose_languages;
 
-    /// A slow answer counts as "not a typo": this runs on the worker.
     const REPLY_TIMEOUT: Duration = Duration::from_millis(150);
 
-    /// Windows brings its own dictionaries.
     pub(super) fn has_dictionaries() -> bool {
         true
     }
@@ -426,7 +394,6 @@ mod backend {
         Completable(String, Sender<bool>),
     }
 
-    /// COM objects stay on one thread behind this handle.
     pub(super) struct Backend {
         questions: Sender<Question>,
         languages: Arc<RwLock<Vec<String>>>,
@@ -440,7 +407,6 @@ mod backend {
             let spawned = std::thread::Builder::new()
                 .name("lokalbot-spell".into())
                 .spawn(move || {
-                    // SAFETY: paired with CoUninitialize at the end of this thread.
                     if unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.is_err() {
                         return;
                     }
@@ -449,7 +415,6 @@ mod backend {
                             answer(&checkers, question);
                         }
                     }
-                    // SAFETY: matches the CoInitializeEx above.
                     unsafe { CoUninitialize() };
                 });
             if let Err(err) = spawned {
@@ -492,12 +457,10 @@ mod backend {
         loop {
             let mut item = [PWSTR::null()];
             let mut fetched = 0u32;
-            // SAFETY: the buffer holds the one element asked for.
             let result = unsafe { strings.Next(&mut item, Some(&mut fetched)) };
             if result.is_err() || fetched == 0 {
                 return out;
             }
-            // SAFETY: Next returned a valid string, ours to free.
             unsafe {
                 if let Ok(text) = item[0].to_string() {
                     out.push(text);
@@ -509,7 +472,6 @@ mod backend {
 
     fn preferred_language() -> Vec<String> {
         let mut buffer = [0u16; 85];
-        // SAFETY: the buffer outlives the call.
         let length = unsafe { GetUserDefaultLocaleName(&mut buffer) };
         if length <= 1 {
             return Vec::new();
@@ -518,7 +480,6 @@ mod backend {
     }
 
     fn checkers(languages: &RwLock<Vec<String>>) -> Option<Vec<ISpellChecker>> {
-        // SAFETY: COM calls on this thread, which initialized COM.
         unsafe {
             let factory: ISpellCheckerFactory =
                 CoCreateInstance(&SpellCheckerFactory, None, CLSCTX_INPROC_SERVER).ok()?;
@@ -539,7 +500,6 @@ mod backend {
 
     fn flags_whole_word(checker: &ISpellChecker, word: &str) -> bool {
         let length = word.encode_utf16().count() as u32;
-        // SAFETY: COM calls on the thread that made the checker.
         unsafe {
             let Ok(errors) = checker.Check(&HSTRING::from(word)) else {
                 return false;
@@ -556,7 +516,6 @@ mod backend {
     }
 
     fn suggestions(checker: &ISpellChecker, word: &str) -> Vec<String> {
-        // SAFETY: COM calls on the thread that made the checker.
         unsafe {
             checker
                 .Suggest(&HSTRING::from(word))

@@ -1,17 +1,3 @@
-//! The Claude plan through the user's own Claude Code (`ClaudeCodeCLI.swift`,
-//! `ClaudePlanEngine.swift`).
-//!
-//! The user signs in to Claude Code through Anthropic's own flow (`claude`,
-//! then `/login`); LokalBot never reads, stores, or forwards Claude
-//! credentials and never offers a Claude login of its own. Every request
-//! runs `claude -p` in an empty private folder with tools, MCP servers,
-//! slash commands, settings files and customizations off, and without
-//! session persistence, so the prompt is never written to
-//! `~/.claude/projects`, which LokalBot itself reads as coding-agent
-//! evidence. Content goes over stdin and a private file, never the command
-//! line, and so does a request's JSON schema, which can hold meeting text.
-//! `--bare` is never used: it ignores the subscription sign-in.
-
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
@@ -33,15 +19,11 @@ use crate::json as model_json;
 use crate::think::{ChatRequest, Completion, ReasoningSupport, Usage, ceiling_for_budget};
 
 pub const SYSTEM_PROMPT_FILE: &str = "system-prompt.txt";
-/// Claude Code's own coding-agent prompt would otherwise apply.
 const FALLBACK_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(900);
 const STATUS_TIMEOUT: Duration = Duration::from_secs(20);
-/// Where Claude Code's installers put it; the page Settings links to.
 pub const SETUP_URL: &str = "https://code.claude.com/docs/en/setup";
 
-/// The names `claude` has on this platform. npm installs a `.cmd` shim on
-/// Windows; the native installer an `.exe`.
 fn executable_names() -> &'static [&'static str] {
     if cfg!(windows) {
         &["claude.exe", "claude.cmd"]
@@ -50,7 +32,6 @@ fn executable_names() -> &'static [&'static str] {
     }
 }
 
-/// Where Claude Code's installers put `claude`, checked after PATH.
 pub fn candidate_paths(home: &Path) -> Vec<PathBuf> {
     let mut dirs = vec![
         home.join(".local/bin"),
@@ -73,7 +54,6 @@ pub fn candidate_paths(home: &Path) -> Vec<PathBuf> {
         .collect()
 }
 
-/// The first `claude` on `path` or in a known install location.
 pub fn locate_in(
     path: Option<&std::ffi::OsStr>,
     home: Option<&Path>,
@@ -106,9 +86,6 @@ fn is_executable(path: &Path) -> bool {
     path.is_file()
 }
 
-/// A desktop session started from a launcher can have a minimal PATH, so a
-/// Claude Code under a Node version manager is only found through the
-/// user's login shell.
 #[cfg(unix)]
 fn locate_with_login_shell() -> Option<PathBuf> {
     let shell = std::env::var_os("SHELL")
@@ -122,7 +99,6 @@ fn locate_with_login_shell() -> Option<PathBuf> {
     (path.is_absolute() && is_executable(&path)).then_some(path)
 }
 
-/// Finds Claude Code once per launch; `refresh` looks again.
 pub fn locate(refresh: bool) -> Option<PathBuf> {
     static CACHED: OnceLock<Mutex<Option<PathBuf>>> = OnceLock::new();
     let cache = CACHED.get_or_init(|| Mutex::new(None));
@@ -140,14 +116,10 @@ pub fn locate(refresh: bool) -> Option<PathBuf> {
     found
 }
 
-/// How to start Claude Code. An npm `.cmd` shim is resolved to the script it
-/// runs, so arguments never pass through `cmd.exe`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Launch {
     pub program: PathBuf,
     pub prefix: Vec<OsString>,
-    /// Put first on the child's PATH, so an npm-installed `claude` finds its
-    /// `node`.
     pub folder: PathBuf,
 }
 
@@ -170,8 +142,6 @@ impl Launch {
         }
     }
 
-    /// npm's cmd-shim names its target as `"%dp0%\…"`: a `.js` entry run by
-    /// `node` (next to the shim, else on PATH) or a native `.exe`.
     fn from_shim(shim: &Path, folder: &Path) -> Option<Self> {
         let text = std::fs::read_to_string(shim).ok()?;
         let target = text
@@ -182,7 +152,6 @@ impl Launch {
             })
             .map(|relative| folder.join(relative.replace('\\', "/")))
             .find(|path| {
-                // The shim also names the `node.exe` it may run the script with.
                 let is_node = path
                     .file_stem()
                     .is_some_and(|stem| stem.eq_ignore_ascii_case("node"));
@@ -215,9 +184,6 @@ impl Launch {
         })
     }
 
-    /// The command, with LokalBot's environment minus `CLAUDECODE` (started
-    /// from inside a Claude Code session the child would otherwise refuse to
-    /// run as a nested session) and the executable's folder first on PATH.
     pub fn command(&self, arguments: &[String]) -> Command {
         let mut command = Command::new(&self.program);
         command.args(&self.prefix).args(arguments);
@@ -238,7 +204,6 @@ impl Launch {
     }
 }
 
-/// `claude auth status`: the sign-in without credentials.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AuthStatus {
     pub logged_in: bool,
@@ -259,13 +224,10 @@ impl AuthStatus {
         })
     }
 
-    /// True when requests draw on a Claude subscription rather than an API
-    /// key or cloud provider configured for Claude Code.
     pub fn uses_subscription(&self) -> bool {
         self.auth_method.as_deref() == Some("claude.ai")
     }
 
-    /// "Max", "Pro".
     pub fn plan_name(&self) -> Option<String> {
         let kind = self
             .subscription_type
@@ -284,7 +246,6 @@ fn run_short(executable: &Path, arguments: &[&str]) -> Result<crate::process::Ca
         .map_err(|err| PlanError::ClaudeFailed(format!("Claude Code couldn't start: {err}")).into())
 }
 
-/// Whether Claude Code is signed in, from `claude auth status`.
 pub fn auth_status(executable: &Path) -> Result<AuthStatus> {
     let output = run_short(executable, &["auth", "status"])?;
     AuthStatus::parse(&output.stdout).ok_or_else(|| {
@@ -302,10 +263,6 @@ pub fn version(executable: &Path) -> Option<String> {
     (!text.is_empty()).then(|| text.chars().take(80).collect())
 }
 
-// ----------------------------------------------------------------- engine
-
-/// Aliases and the default follow the newest models, which take effort low
-/// through max and think by default.
 pub(crate) fn traits(model: &str) -> (ReasoningSupport, bool) {
     use ReasoningLevel::*;
     let name = model.trim().to_lowercase();
@@ -323,9 +280,6 @@ pub(crate) fn traits(model: &str) -> (ReasoningSupport, bool) {
     (traits.reasoning_support(), traits.thinks_by_default)
 }
 
-/// As for Anthropic's API: a chosen level, capped by the task's budget; on
-/// Automatic a model that thinks by default gets the level its task budget
-/// implies, so notes and digests don't spend minutes thinking.
 fn effort(model: &str, level: ReasoningLevel, task_budget: Option<u32>) -> Option<ReasoningLevel> {
     let (support, thinks_by_default) = traits(model);
     if let Some(level) = support.request_level(level, task_budget) {
@@ -335,11 +289,6 @@ fn effort(model: &str, level: ReasoningLevel, task_budget: Option<u32>) -> Optio
     support.clamp(ceiling_for_budget(budget))
 }
 
-/// The isolation flags, copied from the Mac. Nothing the caller supplies is
-/// among them: a command line can be read by every process of the same user,
-/// and a schema can hold meeting text (the notes repair lists the meeting's
-/// action items as allowed values). A structured request reads its schema
-/// from stdin instead, in Claude Code's stream-json input ([`input`]).
 pub fn arguments(
     model: &str,
     level: ReasoningLevel,
@@ -360,7 +309,6 @@ pub fn arguments(
         }
         .into(),
     ]);
-    // Claude Code refuses stream-json output without --verbose.
     if streaming || structured {
         arguments.push("--verbose".into());
     }
@@ -397,11 +345,6 @@ pub fn arguments(
     arguments
 }
 
-/// Stdin: context blocks, then the instruction. A structured request sends
-/// one JSON object per line: the `initialize` request Claude Code's own SDK
-/// sends, carrying the schema unchanged (`maxItems`, `minimum` included),
-/// then the same text as a user message (`structuredInput`, checked on the
-/// Mac against Claude Code 2.1.318).
 pub fn input(request: &ChatRequest) -> String {
     let text = request
         .context
@@ -429,7 +372,6 @@ pub fn input(request: &ChatRequest) -> String {
     format!("{initialize}\n{message}\n")
 }
 
-/// The final `result` object of `--output-format json` or `stream-json`.
 pub(crate) fn parse_result(json: &Value, wants_structured: bool) -> Result<Completion> {
     let message = json
         .get("result")
@@ -492,8 +434,6 @@ pub(crate) fn parse_result(json: &Value, wants_structured: bool) -> Result<Compl
     })
 }
 
-/// Plan limits and a missing sign-in stop without retrying; overloads and
-/// server errors keep a status the caller may retry.
 pub(crate) fn failure(message: &str, api_status: Option<u64>) -> anyhow::Error {
     let lowered = message.to_lowercase();
     if lowered.contains("not logged in")
@@ -526,7 +466,6 @@ pub(crate) fn failure(message: &str, api_status: Option<u64>) -> anyhow::Error {
     AiError::BadResponse(format!("Claude Code: {detail}")).into()
 }
 
-/// One `stream-json` line: a text delta, the final result, or neither.
 pub(crate) fn parse_stream_line(line: &str) -> (Option<String>, Option<Value>) {
     let Ok(json) = serde_json::from_str::<Value>(line.trim()) else {
         return (None, None);
@@ -548,7 +487,6 @@ pub(crate) fn parse_stream_line(line: &str) -> (Option<String>, Option<Value>) {
     }
 }
 
-/// What a finished run left behind.
 #[derive(Debug, Default)]
 pub struct Output {
     pub status: Option<i32>,
@@ -557,10 +495,7 @@ pub struct Output {
     pub cancelled: bool,
 }
 
-/// Runs one `claude -p`. Tests replace the child process.
 pub trait Runner: Send + Sync {
-    /// `files` are written into a fresh private working directory, which
-    /// `arguments` may name by relative path; it is removed afterwards.
     fn run(
         &self,
         arguments: &[String],
@@ -571,7 +506,6 @@ pub trait Runner: Send + Sync {
     ) -> Result<Output>;
 }
 
-/// The installed Claude Code, or one at a fixed path (tests).
 #[derive(Default)]
 pub struct LiveRunner {
     pub executable: Option<PathBuf>,
@@ -589,8 +523,6 @@ impl Runner for LiveRunner {
         let Some(executable) = self.executable.clone().or_else(|| locate(false)) else {
             return Err(PlanError::ClaudeNotInstalled.into());
         };
-        // An empty folder of its own: no project instructions or settings to
-        // pick up, and the system prompt never appears in a process list.
         let directory = tempfile::Builder::new()
             .prefix("LokalBot-claude-")
             .tempdir()
@@ -625,9 +557,6 @@ fn write_private(path: &Path, contents: &str) -> std::io::Result<()> {
     options.open(path)?.write_all(contents.as_bytes())
 }
 
-/// Writes stdin, hands stdout over line by line, keeps a bounded stderr
-/// tail, and stops the child (with anything it started) on cancel or
-/// timeout. The child dies with LokalBot.
 fn run_child(
     #[cfg_attr(not(unix), allow(unused_mut))] mut command: Command,
     input: &str,
@@ -638,7 +567,6 @@ fn run_child(
     #[cfg(unix)]
     {
         use std::os::unix::process::CommandExt as _;
-        // Its own process group, so stopping it also stops its helpers.
         command.process_group(0);
     }
     let mut child = crate::process::spawn_tied(command).map_err(|err| {
@@ -652,7 +580,6 @@ fn run_child(
     let stdout = child.stdout.take();
     let stderr = child.stderr.take();
     let input = input.to_string();
-    // A child that exits early closes its end; the write then fails quietly.
     std::thread::spawn(move || {
         if let Some(mut stdin) = stdin {
             let _ = stdin.write_all(input.as_bytes());
@@ -673,8 +600,6 @@ fn run_child(
             tail.drain(..excess);
         }
     });
-    // Lines arrive through a channel, so a stopped run returns at once even
-    // if something it started still holds the pipe open.
     let (lines, received) = std::sync::mpsc::channel::<String>();
     std::thread::spawn(move || {
         let Some(stdout) = stdout else { return };
@@ -727,14 +652,10 @@ fn run_child(
     }
 }
 
-/// SIGTERM to the child's process group, then SIGKILL; on Windows the child
-/// is terminated.
 fn stop(child: &mut std::process::Child) {
     #[cfg(unix)]
     {
         let group = child.id() as libc::pid_t;
-        // SAFETY: signal delivery to the process group we created for our
-        // own, not yet reaped, child.
         unsafe { libc::kill(-group, libc::SIGTERM) };
         let deadline = Instant::now() + Duration::from_secs(2);
         while Instant::now() < deadline {
@@ -743,13 +664,11 @@ fn stop(child: &mut std::process::Child) {
             }
             std::thread::sleep(Duration::from_millis(50));
         }
-        // SAFETY: as above; helpers that ignored SIGTERM end here.
         unsafe { libc::kill(-group, libc::SIGKILL) };
     }
     crate::process::stop_child(child, Duration::ZERO);
 }
 
-/// Think on the Claude plan, through the user's signed-in Claude Code.
 #[derive(Clone)]
 pub(crate) struct Engine {
     pub model: String,
@@ -800,8 +719,6 @@ impl Engine {
     }
 }
 
-/// `streaming` says the output is stream-json: one object per line, the
-/// result last.
 pub(crate) fn reply(
     output: &Output,
     streaming: bool,

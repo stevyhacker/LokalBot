@@ -1,16 +1,5 @@
 import SwiftUI
 
-/// The detail pane for the meeting being recorded right now, shown when the
-/// in-progress row is selected (and as the Meetings empty state while
-/// recording). Live Radar fills the main area; beside it, the rolling
-/// transcript preview (undiarized — the full pipeline transcript replaces it
-/// after the meeting) sits above a quick-notes pad, whose notes are saved to
-/// `notes.md` in the meeting folder and folded into the summary.
-///
-/// Starting preview is an explicit ASR opt-in. Opening a live meeting alone
-/// does not load a model or start speech inference. With fast live text on,
-/// the preview streams to Muse Voice Transcribe and shows each turn as it is
-/// spoken.
 struct LiveMeetingDetailView: View {
     @EnvironmentObject var app: AppState
     let meeting: Meeting
@@ -24,7 +13,6 @@ struct LiveMeetingDetailView: View {
     @State private var saveTask: Task<Void, Never>?
 
     private var folder: URL { meeting.folderURL(in: app.storage) }
-    /// Starting the preview now would stream to Muse rather than run locally.
     private var usesMuse: Bool {
         transcriber.state == .off ? MuseLiveText.unavailableReason(app.settings) == nil : transcriber.engine == .muse
     }
@@ -78,8 +66,6 @@ struct LiveMeetingDetailView: View {
         }
     }
 
-    // MARK: - Header
-
     private var header: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(meeting.title).font(.scaled(.largeTitle).bold())
@@ -105,8 +91,6 @@ struct LiveMeetingDetailView: View {
             RecordingHealthStrip(recording: app.recording)
         }
     }
-
-    // MARK: - Transcript
 
     private var previewControls: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -199,7 +183,6 @@ struct LiveMeetingDetailView: View {
                             ForEach(transcriber.lines) { line in
                                 lineView(line).id(line.id)
                             }
-                            // Turns still being spoken, word by word.
                             ForEach(transcriber.partials) { line in
                                 lineView(line).opacity(0.6)
                             }
@@ -259,8 +242,6 @@ struct LiveMeetingDetailView: View {
         }
     }
 
-    // MARK: - Notes
-
     private var notesColumn: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Meeting Notes").font(.scaled(.headline))
@@ -282,8 +263,6 @@ struct LiveMeetingDetailView: View {
         let total = max(0, Int(time))
         return String(format: "%d:%02d", total / 60, total % 60)
     }
-
-    // MARK: - Notes persistence
 
     private func loadNotes() {
         guard !notesLoaded else { return }

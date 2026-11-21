@@ -6,10 +6,6 @@ import org.junit.Test
 
 class BrandColorsTest {
 
-    /**
-     * The Mac's `CaptureStyle.color` (LokalBot/Views/CaptureView.swift):
-     * `var hash: UInt64 = 5381; hash = hash &* 33 &+ UInt64(byte)`, hue = hash % 360.
-     */
     private fun macHue(name: String): Int {
         val modulus = BigInteger.ONE.shiftLeft(64)
         var hash = BigInteger.valueOf(5381)
@@ -21,7 +17,6 @@ class BrandColorsTest {
 
     @Test
     fun `name hue matches the Mac`() {
-        // Hues the Mac computes for these names.
         val mac = mapOf(
             "Onboarding" to 304, "Pricing" to 25, "Xcode" to 224, "Zoom" to 82, "Other" to 207,
             "Safari" to 339, "Google Meet" to 21, "Claude Code" to 270, "" to 341, "Café Zürich" to 186,
@@ -56,7 +51,6 @@ class BrandColorsTest {
 
     @Test
     fun `avatar colours match the Mac's InitialsAvatar`() {
-        // The Mac folds case and diacritics, then hashes Unicode scalars with h * 31 + v, masked to 16 bits.
         fun macIndex(normalized: String): Int {
             var hash = 0
             normalized.codePoints().forEach { hash = (hash * 31 + it) and 0xFFFF }

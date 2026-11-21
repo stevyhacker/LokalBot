@@ -4,56 +4,24 @@ import FluidAudio
 import XCTest
 @testable import LokalBot
 
-/// Opt-in measurement, run by hand: how soon after a speaker stops could the
-/// live preview show that turn's text with a model on this Mac?
-///
-/// It replays a finished recording as if it were being recorded. A "turns"
-/// pass cuts each track at pauses with the voice-activity model and the app's
-/// `LiveTurnCutter`, and transcribes a turn once its pause is long enough. A "windows" pass repeats
-/// what the preview does today: 4 to 12 second windows, track after track.
-/// Decoding is timed for real; the recording's clock is simulated, so a
-/// 3½-minute recording takes as long as its decoding.
-///
-/// A recording is `label=mixed[|track|track]`: the mixed file alone stands for
-/// one track that carries several voices, and the optional files are the same
-/// call with one voice per track, as the microphone and call audio are
-/// recorded. Benchmarks/transcribe/LiveTurns has the scripts and the last results.
-///
-///     TEST_RUNNER_LOKALBOT_LIVE_TURN_BENCH=/folder/for/results \
-///     TEST_RUNNER_LOKALBOT_LIVE_TURN_AUDIO='en=/p/mixed.m4a|/p/a.wav|/p/b.wav' \
-///     TEST_RUNNER_LOKALBOT_LIVE_TURN_MODELS=parakeet-v3,qwen3-asr-1.7b \
-///     TEST_RUNNER_LOKALBOT_LIVE_TURN_LANGUAGES=sr=hr \
-///     TEST_RUNNER_LOKALBOT_LIVE_TURN_RULES=2:4,2:off \
-///     xcodebuild test-without-building ... \
-///       -only-testing:LokalBotTests/LiveTurnLatencyBenchmarkTests
-///
-/// Only models already downloaded are run; nothing is fetched.
 final class LiveTurnLatencyBenchmarkTests: XCTestCase {
 
-    /// A turn or a window: one piece of one track handed to the model.
     struct Piece: Codable {
         var track: Int
         var start: Double
         var end: Double
-        /// Recording time at which the piece could be handed over: the pause
-        /// was long enough, or the window was full.
         var decision: Double
-        /// Cut by length, not by a pause.
         var forced: Bool
         var decodeSeconds = 0.0
         var cpuSeconds = 0.0
-        /// Recording time at which the text exists, pieces decoded one at a time.
         var ready = 0.0
         var text = ""
     }
 
-    /// How turns are closed: quiet chunks in a row, and the turn length from
-    /// which one quiet chunk is enough (nil: never).
     struct Rule: Codable, Hashable {
         var quietChunks: Int
         var eagerAfterSeconds: Double?
 
-        /// `2:4` is two quiet chunks, one once the turn is 4 s long; `2:off` never.
         init?(_ text: Substring) {
             let parts = text.split(separator: ":")
             guard let chunks = parts.first.flatMap({ Int($0) }), chunks > 0 else { return nil }
@@ -73,7 +41,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
             return settings
         }
 
-        /// Safe in a file name on every system.
         var label: String { "\(quietChunks)q" + (eagerAfterSeconds.map { "-\(String(format: "%g", $0))s" } ?? "") }
     }
 
@@ -113,9 +80,7 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         var audioSeconds: Double
         var loadSeconds: Double
         var chunkMilliseconds: Int
-        /// Time to take in 160 ms of audio; most steps only buffer, one in every few runs the model.
         var stepSeconds: [Double]
-        /// Seconds from the end of a word to its text existing, one entry per token.
         var tokenAges: [Double]
         var footprintMegabytes: Double
         var optimized: Bool
@@ -124,13 +89,10 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
 
     struct Replay: Codable {
         struct Arrival: Codable {
-            /// Seconds into the replay at which the preview showed this.
             var at: Double
-            /// Where the line starts in the recording.
             var time: Double
             var speaker: String
             var text: String
-            /// A turn still being spoken, not a finished line.
             var partial: Bool
         }
 
@@ -144,13 +106,11 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
 
     private struct Recording {
         var label: String
-        /// "mixed" and, when the per-voice files were given, "tracks".
         var layouts: [(name: String, tracks: [[Float]])]
         var language: String { label.split(separator: "-").first.map(String.init) ?? label }
     }
 
     private static let rate = Double(VadManager.sampleRate)
-    /// Pause rules compared without a model, beside the app's own.
     private static let studied = ["1:off", "2:off", "3:off", "4:off", "2:3", "2:4", "2:6"].compactMap { Rule($0[...]) }
     private static let englishOnly: Set<TranscriptionModelChoice> = [.parakeetV2, .graniteSpeech]
     private static let candidates: [TranscriptionModelChoice] = [
@@ -171,7 +131,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: scratch) }
 
         let wanted = environment["LOKALBOT_LIVE_TURN_MODELS"].map { Set($0.split(separator: ",").map(String.init)) }
-        // The rules a model is timed with; the app's own unless others are named.
         let rules = Self.rules(environment)
 
         let recordings = try Self.recordings(audio)
@@ -181,7 +140,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         }
         let hints = Self.hints(environment)
 
-        // Pause detection alone, for every setting: no model involved.
         var cuts: [String: [Piece]] = [:]
         for recording in recordings {
             for layout in recording.layouts {
@@ -211,7 +169,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
                 let hint = hints[recording.label] ?? recording.language
                 let language: String? = hint == "auto" ? nil : hint
                 guard let mixed = recording.layouts.first?.tracks.first else { continue }
-                // The first decode after a load pays for compilation and caches.
                 let warm = try await Self.decode(Array(mixed.prefix(Int(6 * Self.rate))), engine: engine,
                                                  language: language, scratch: scratch)
                 var passes: [Pass] = []
@@ -257,17 +214,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         }
     }
 
-    /// The same replay through a streaming recognizer, which reads the audio
-    /// as it arrives and puts words out while the speaker is still talking.
-    /// The speech library the app links has one (Nemotron 3.5 streaming); the
-    /// app does not use or download it, so point this at a folder that holds
-    /// one variant's compiled models (Benchmarks/transcribe/LiveTurns/fetch_stream_model.py):
-    ///
-    ///     TEST_RUNNER_LOKALBOT_LIVE_STREAM_MODEL=/folder/multilingual-560ms \
-    ///     TEST_RUNNER_LOKALBOT_LIVE_TURN_LANGUAGES=en=en-US,sr=hr-HR
-    ///
-    /// Each turn is a fresh stream, opened a little before its first word and
-    /// closed when the pause after it is long enough.
     func testStreamingRecognizerDelay() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let outputPath = environment["LOKALBOT_LIVE_TURN_BENCH"],
@@ -350,14 +296,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         }
     }
 
-    /// The call played into the app's own live preview at the speed it was
-    /// recorded. The two tracks grow as the recorder writes them, and
-    /// `LiveMeetingTranscriber` runs turn by turn as it does in a meeting,
-    /// with the real speech detection and the first model named. It shows
-    /// that the feature works end to end and when each line reached the
-    /// preview; it takes as long as the stretch it plays.
-    ///
-    ///     TEST_RUNNER_LOKALBOT_LIVE_REPLAY_SECONDS=90
     @MainActor
     func testPreviewReplayInRealTime() async throws {
         let environment = ProcessInfo.processInfo.environment
@@ -372,7 +310,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         let output = URL(fileURLWithPath: outputPath, isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let hints = Self.hints(environment)
-        // A meeting's first line pays for loading the model; this measures the ones after it.
         try await choice.engine.prepare(progress: nil)
         _ = try await SpeechActivity.shared.liveProbability(
             of: [Float](repeating: 0, count: SpeechActivity.liveChunkFrames), state: LiveVoiceState())
@@ -406,7 +343,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
             var written = 0
             let total = min(layout.tracks[0].count, Int(seconds * Self.rate))
             let started = ContinuousClock.now
-            // Three more seconds after the last sample, for the last turn's text.
             while Self.seconds(since: started) < Double(total) / Self.rate + 3 {
                 let due = min(total, Int(Self.seconds(since: started) * Self.rate))
                 if due > written {
@@ -438,7 +374,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         }
     }
 
-    /// A growing 16 kHz file like the ones the recorder keeps for the preview.
     private static func liveFile(at url: URL) throws -> AVAudioFile {
         let settings: [String: Any] = [
             AVFormatIDKey: kAudioFormatLinearPCM,
@@ -461,15 +396,11 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         try file.write(from: buffer)
     }
 
-    // MARK: - Setup
-
     private static func recordings(_ audio: String) throws -> [Recording] {
         var recordings: [Recording] = []
         for pair in audio.split(separator: ";") {
             let parts = pair.split(separator: "=", maxSplits: 1)
             guard parts.count == 2 else { continue }
-            // A second of quiet after the last word, so the last turn can close
-            // as it would while a recording goes on.
             let files = try parts[1].split(separator: "|").map {
                 try AudioConverter().resampleAudioFile(URL(fileURLWithPath: String($0)))
                     + [Float](repeating: 0, count: Int(rate))
@@ -482,7 +413,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return recordings
     }
 
-    /// The voice-activity model the app already has, or nil before its first download.
     private static func voiceActivity() throws -> VadManager? {
         let file = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
             .appendingPathComponent(Repo.vad.folderName)
@@ -493,13 +423,11 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return VadManager(vadModel: try MLModel(contentsOf: file, configuration: configuration))
     }
 
-    /// `LOKALBOT_LIVE_TURN_RULES=2:4,1:off` times those pause rules; without it, the app's own.
     private static func rules(_ environment: [String: String]) -> [Rule] {
         let named = (environment["LOKALBOT_LIVE_TURN_RULES"] ?? "").split(separator: ",").compactMap { Rule($0) }
         return named.isEmpty ? [Rule(LiveTurnCutter.Settings())] : named
     }
 
-    /// `sr=hr` hands the model another language code for a recording; `sr=auto` hands it none.
     private static func hints(_ environment: [String: String]) -> [String: String] {
         var hints: [String: String] = [:]
         for pair in (environment["LOKALBOT_LIVE_TURN_LANGUAGES"] ?? "").split(separator: ",") {
@@ -509,13 +437,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return hints
     }
 
-    // MARK: - Turns
-
-    /// Streams each track through the voice-activity model one 256 ms chunk
-    /// at a time, as a live feed arrives, and lets the app's `LiveTurnCutter`
-    /// close the turns. A turn that runs to the maximum length is cut at the
-    /// quietest point of its last 1.5 s, as the preview cuts its windows.
-    /// Pieces come back in the order they close.
     private static func cut(_ tracks: [[Float]], vad: VadManager,
                             rule: Rule) async throws -> (pieces: [Piece], secondsPerChunk: Double) {
         var pieces: [Piece] = []
@@ -536,7 +457,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
                     return to - search + Int64(LiveTranscriptChunker.refinedCutOffset(tail: tail, sampleRate: rate))
                 }
                 if let turn {
-                    // The verdict on a chunk exists once the whole chunk has been recorded.
                     pieces.append(Piece(track: track, start: Double(turn.start) / rate, end: Double(turn.end) / rate,
                                         decision: Double(end) / rate, forced: turn.forced))
                 }
@@ -547,13 +467,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return (pieces, seconds(since: started) / Double(max(1, chunks)))
     }
 
-    // MARK: - Windows, as the preview cuts them today
-
-    /// `LiveMeetingTranscriber.run` and
-    /// `LiveMeetingAudioPreparationWorker.prepareNextChunk` on a simulated
-    /// clock: each track in turn gives up a window once 4 s are waiting (12 s
-    /// at most), cut at a quiet point and checked for speech; with nothing to
-    /// do the preview looks again a second later.
     private static func windows(_ tracks: [[Float]], engine: TranscriptionEngine, language: String?,
                                 scratch: URL) async throws -> [Piece] {
         var pieces: [Piece] = []
@@ -597,15 +510,12 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
                 clock += decode
             }
             if !didWork {
-                // The last few seconds of a track wait for the recording to stop.
                 guard waiting else { break }
                 clock += 1
             }
         }
         return pieces
     }
-
-    // MARK: - Helpers
 
     private static func slice(_ samples: [Float], _ start: Double, _ end: Double) -> [Float] {
         let lower = max(0, min(samples.count, Int(start * rate)))
@@ -625,7 +535,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return (text, seconds(since: wallStart), cpuSeconds() - cpuStart)
     }
 
-    /// 16 kHz mono float, the format the preview hands a model.
     private static func write(_ samples: [Float], to url: URL) throws {
         guard !samples.isEmpty else { throw CocoaError(.fileWriteUnknown) }
         try append(samples, to: try liveFile(at: url))
@@ -642,8 +551,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
     }
 
-    /// CPU time this process has used, all threads. A model that runs in a
-    /// helper process (Granite Speech) is not counted.
     private static func cpuSeconds() -> Double {
         var usage = rusage()
         getrusage(RUSAGE_SELF, &usage)
@@ -662,7 +569,6 @@ final class LiveTurnLatencyBenchmarkTests: XCTestCase {
         return result == KERN_SUCCESS ? Double(info.phys_footprint) / 1_048_576 : 0
     }
 
-    /// `assert` is compiled out of optimized builds, whatever flags are set.
     private static var isOptimized: Bool {
         var unoptimized = false
         assert({ unoptimized = true; return true }())

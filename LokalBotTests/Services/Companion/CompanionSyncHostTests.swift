@@ -4,9 +4,6 @@ import os
 import XCTest
 @testable import LokalBot
 
-/// The app's adapter over the `lokalbot-sync` crate: keys, records, and a
-/// pairing offer through the real host store. The listener is never started,
-/// so the test binds no port.
 final class CompanionSyncHostTests: XCTestCase {
     private var fixture: CompanionFixtureLibrary!
 
@@ -48,7 +45,6 @@ final class CompanionSyncHostTests: XCTestCase {
         XCTAssertTrue(try server.recordKeys(kind: "meeting").contains(meetingKey))
         XCTAssertTrue(try server.recordKeys(kind: "day").contains(fixture.dayKey))
 
-        // Identical bodies are no-ops; a deleted meeting becomes a tombstone.
         publisher.reconcileAll()
         XCTAssertEqual(publisher.flush().changed, 0)
         try FileManager.default.removeItem(at: fixture.designReview.folderURL(in: StorageManager(rootURL: fixture.root)))
@@ -66,8 +62,6 @@ final class CompanionSyncHostTests: XCTestCase {
     }
 }
 
-/// A recording's whole trip over loopback: a real listener and `SyncClient`,
-/// the receiver, and the import.
 final class CompanionRecordingTripTests: XCTestCase {
     @MainActor
     func testARecordingFromAPairedDeviceBecomesAMeeting() async throws {
@@ -100,7 +94,6 @@ final class CompanionRecordingTripTests: XCTestCase {
         let sample = root.appendingPathComponent("sample.aac")
         try CompanionTripEvents.writeSpeechlessADTS(to: sample)
 
-        // The crate blocks, and the receiver needs this actor, so hop off it.
         let (id, report) = try await Task.detached {
             _ = try client.pair(payload: offer.qrPayload)
             let draft = try client.beginRecording(title: "Site visit")
@@ -130,7 +123,6 @@ private final class CompanionTripEvents: CompanionServerEvents, @unchecked Senda
         self.receiver = receiver
     }
 
-    /// Two seconds of tone, because the import measures real audio.
     static func writeSpeechlessADTS(to url: URL) throws {
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
         let buffer = try XCTUnwrap(AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 88_200))

@@ -1,8 +1,3 @@
-//! The approval window (`SettingsApprovalView.swift`): one card for each terminal
-//! request waiting for the person, listing every change it makes in full. Approve
-//! applies exactly those changes through the same paths as Settings; Deny changes
-//! nothing. Only this window can approve, and no key press does it.
-
 use chrono::Utc;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::{Sizable as _, TitleBar, v_flex};
@@ -24,7 +19,6 @@ use crate::ui::{self, Ico};
 const WIDTH: f32 = 560.;
 const HEIGHT: f32 = 480.;
 
-/// Opens the window, or brings it forward.
 pub fn open(cx: &mut App) {
     let existing = super::secondary(cx).settings_approval;
     if super::activate(existing, cx) {
@@ -51,7 +45,6 @@ pub fn open(cx: &mut App) {
 
 pub struct SettingsApproval {
     host: Option<Entity<ControlHost>>,
-    /// Whether this window has shown a request, so it can go with the last one.
     showed_request: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -62,7 +55,6 @@ impl SettingsApproval {
         let mut subscriptions = Vec::new();
         if let Some(host) = &host {
             subscriptions.push(cx.observe_in(host, window, |this, host, window, cx| {
-                // The window goes away with the last request it was showing.
                 let empty = host.read(cx).approvals.pending.is_empty();
                 if this.showed_request && empty {
                     super::secondary(cx).settings_approval = None;
@@ -141,7 +133,6 @@ impl SettingsApproval {
                                                 .child(ui::text::paragraph(detail)),
                                         )
                                     })
-                                    // Every value in full: this is what the person approves.
                                     .children(row.change.into_iter().map(|line| {
                                         div()
                                             .text_size(ty::SECONDARY)
@@ -290,8 +281,6 @@ fn card_rows(request: &ApprovalRequest) -> Vec<CardRow> {
         .collect()
 }
 
-/// The same counts the retention review in Settings shows. Approving deletes
-/// exactly this.
 fn retention_lines(review: &RetentionReview, cx: &App) -> impl IntoElement + use<> {
     let lb = cx.lb().clone();
     let keep = if review.keep_text_forever {

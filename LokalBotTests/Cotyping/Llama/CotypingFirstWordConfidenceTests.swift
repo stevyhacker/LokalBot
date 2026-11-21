@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The confidence gate keeps quiet when the model is unsure of a suggestion's
-/// first word.
 final class CotypingFirstWordConfidenceTests: XCTestCase {
     func testHybridKeepsCurrentWhenFallbackFailsAndNeverRevivesIt() {
         var gate = CotypingConfidenceDecision(minimum: 0.1, boundaryMode: .selectedToken, selectiveOneWordHybrid: true)
@@ -145,8 +143,6 @@ final class CotypingFirstWordConfidenceTests: XCTestCase {
             return try XCTUnwrap(CotypingRequestBuilder.build(field: field, config: .standard, personalization: .none,
                                                               generation: 1, wordPrefixIsValidWord: !prefix.hasSuffix("tomor")))
         }
-        // Isolate confidence-gate composition under each shared healing policy.
-        // The app switch intentionally changes midword healing as well as the gate.
         for healingMode in [CotypingHealingMode.wordBoundary, .prefixSearch] {
             var current: [CotypingNormalizationResult] = []
             var boundary: [CotypingNormalizationResult] = []
@@ -220,8 +216,6 @@ final class CotypingFirstWordConfidenceTests: XCTestCase {
         XCTAssertTrue(gate.accept(piece: " fol", probability: 0.5))
         XCTAssertTrue(gate.accept(piece: "low", probability: 0.3))
         XCTAssertFalse(gate.isSettled, "the word could still go on")
-        // The token that ends the word counts, as in the measurement the
-        // threshold was chosen on: 0.5 × 0.3 × 0.5 = 0.075.
         XCTAssertFalse(gate.accept(piece: " up", probability: 0.5))
     }
 
@@ -267,7 +261,6 @@ final class CotypingFirstWordConfidenceTests: XCTestCase {
     }
 }
 
-/// The runtime calls the callback serially; the test reads only after awaiting it.
 private final class HybridCapturedResults: @unchecked Sendable {
     var values: [CotypingNormalizationResult] = []
 }

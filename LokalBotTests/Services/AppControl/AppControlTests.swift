@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The CLI ↔ app control socket: wire format, socket placement, and a real
-/// round trip through `AppControlServer` and `AppControlClient`.
 final class AppControlTests: XCTestCase {
     private var roots: [URL] = []
 
@@ -92,11 +90,8 @@ final class AppControlTests: XCTestCase {
         try server.start()
         defer { server.stop() }
 
-        // The client blocks on the socket; keep it off the main actor that
-        // runs the server's handler.
         let reply = try await Task.detached { try client.request(.hello, launch: false) }.value
         XCTAssertEqual(reply["echo"], "hello")
-        // The server identifies its peer: here, this test process.
         XCTAssertEqual(reply["pid"]?.intValue, Int(ProcessInfo.processInfo.processIdentifier))
 
         let refused = await Task.detached { () -> String? in

@@ -5,8 +5,6 @@ extension Notification.Name {
     static let retainedScreenTextChanged = Notification.Name("retainedScreenTextChanged")
 }
 
-/// FTS indexes words, not its UNINDEXED identity/timestamp columns. Keep an
-/// ordinary index of FTS row IDs; historical row IDs are not screenshot IDs.
 enum OCRMetadataIndex {
     static func migrate(_ database: SQLiteDatabase) throws {
         guard !database.hasRow("SELECT 1 FROM sqlite_master WHERE name = 'ocr_metadata'") else { return }
@@ -21,16 +19,12 @@ enum OCRMetadataIndex {
         }
     }
 
-    /// Called inside the same transaction as FTS deletion. No text is retained
-    /// here, and stale identities must not outlive retention or explicit delete.
     static func removeDeletedRows(_ database: SQLiteDatabase) throws {
         try database.execute("DELETE FROM ocr_metadata WHERE rowid NOT IN (SELECT rowid FROM ocr_fts)")
     }
 }
 
 extension ActivityStore {
-    /// Bounded batches preserve substring matching and the earliest FTS row
-    /// semantics of point lookup, including migrated libraries with duplicate rows.
     func matchingSnapshotIDs(_ ids: [Int64], query: String) -> Set<Int64> {
         guard !query.isEmpty, let database = SQLiteDatabase(url: databaseURL, readOnly: true) else { return [] }
         var matches: Set<Int64> = []

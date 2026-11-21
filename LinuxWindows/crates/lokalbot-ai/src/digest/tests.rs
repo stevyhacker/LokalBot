@@ -99,8 +99,6 @@ fn evidence_attaches_screen_text_and_splits_at_idle_gaps() {
     );
     assert_eq!(evidence.standalone_contexts.len(), 1);
     let segments = evidence.summary_segments();
-    // 09:00–11:15 is one session of 2h15m (two segments); the meeting after
-    // a 25-minute gap, 14:20 and 16:00 start their own.
     assert_eq!(
         segments.len(),
         5,
@@ -226,7 +224,6 @@ fn two_passes_build_tasks_and_follow_ups() {
     );
     assert!(summary.contains("### Decisions and next steps\n- Decision: Keep Redis as the cache.\n- Next — Caching review: Benchmark failover."), "{summary}");
     let first_run = calls.load(Ordering::SeqCst);
-    // A second run reuses the cached answers for unchanged evidence.
     generate_overview(
         &think,
         &synthetic(),
@@ -363,7 +360,6 @@ fn agent_work_has_its_own_section_with_recorded_facts_only() {
         .split("## Time allocation")
         .next()
         .unwrap();
-    // One entry per session, with what was recorded and not what it claimed.
     assert_eq!(section.matches("### ").count(), 1);
     assert!(section.contains("- Project: lokalbot (branch main)"));
     assert!(section.contains("- Recorded actions: pushed; merged PR #12"));
@@ -371,7 +367,6 @@ fn agent_work_has_its_own_section_with_recorded_facts_only() {
     assert!(section.contains("(+6 more)"));
     assert!(section.contains("- Changed files (12): a.rs, b.rs, +10 more"));
     assert!(!section.contains("trust me"));
-    // The lossless log lists every burst.
     let log = document.split("## Full activity log").nth(1).unwrap();
     assert_eq!(log.matches("**Claude Code**").count(), 2);
 }
@@ -391,7 +386,6 @@ fn days_without_agent_work_keep_their_shape_and_signature() {
     assert!(!plain.render_document("").contains("Agent sessions"));
     let worked = with_bursts(vec![burst("s1", 0, Vec::new())]);
     assert_ne!(plain.content_signature(), worked.content_signature());
-    // Bursts of other days don't join this one.
     let mut elsewhere = burst("s1", 0, Vec::new());
     elsewhere.start = end + chrono::Duration::hours(1);
     assert!(with_bursts(vec![elsewhere]).is_empty());
@@ -429,8 +423,6 @@ fn screen_text_in_a_host_app_defers_to_the_session_covering_it() {
     assert!(text.contains("A coding-agent session covers this interval"));
     assert!(text.contains("WORK SOURCE: AGENT SESSION [agent:claude-code:s1]"));
     assert!(text.contains("Agent's final report (a claim; corroborate with actions)"));
-    // The standalone capture at 09:40 is outside the block but also after the
-    // burst, so it stays; only one capture from the covered block remains.
     assert_eq!(text.matches("terminal text").count(), 2, "{text}");
 }
 
@@ -472,7 +464,6 @@ fn a_session_with_outcomes_always_reaches_the_summary_and_settles_its_status() {
         "{rendered}"
     );
 
-    // Named by the model already: the session merges in, adding only what's new.
     let mut tasks = vec![NormalizedTask {
         title: "acme/lokalbot#12 review".into(),
         status: "in_progress".into(),
@@ -486,7 +477,6 @@ fn a_session_with_outcomes_always_reaches_the_summary_and_settles_its_status() {
     merge_session_candidate(&candidates[0], &mut tasks, &DailySummaryLanguage::default());
     assert_eq!(tasks[0].summary.matches("acme/lokalbot#12").count(), 1);
 
-    // With no model at all, the fallback still names the session's work.
     let fallback = fallback_summary(&evidence, &DailySummaryLanguage::default());
     assert!(fallback.contains("Speed up the export"), "{fallback}");
     assert!(
@@ -559,7 +549,6 @@ fn sessions_in_the_library_wait_for_the_users_choice() {
     library.upsert_coding_agent_bursts(&[recorded]).unwrap();
     let settings_file = library.paths().settings_file();
 
-    // A library moved from a Mac has them, with the key saved as true.
     Settings::default().save(&settings_file).unwrap();
     let evidence = DayEvidence::load(&library, day).unwrap();
     assert!(evidence.coding_agent_bursts.is_empty());
@@ -624,7 +613,6 @@ fn language_reaches_all_digest_stages_and_retries_and_separates_the_cache() {
     });
     let think = ThinkClient::llama_server(&server.url("/v1"), "t", "language-test");
     let mut evidence = synthetic();
-    // Give this synthetic run its own cache day, independent of other tests.
     evidence.day = day() + Duration::days(800);
     let russian = DailySummaryLanguage::resolve("ru", "en", &["en"]);
     let result = generate_overview(&think, &evidence, "", &russian, &mut |_| {}).unwrap();

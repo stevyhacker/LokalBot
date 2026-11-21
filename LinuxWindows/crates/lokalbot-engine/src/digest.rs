@@ -1,9 +1,3 @@
-//! The day digest: written automatically after `dayDigestHour`, or on request
-//! (`DayDigestScheduler.swift`). Past days are finalized once after the local date
-//! changes, oldest first and at most seven days back: rewriting a journal after
-//! its day ended is a durable marker, so late work after the evening preview is
-//! included, and a past day's new digest reopens that day's overnight review.
-
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -18,12 +12,9 @@ use parking_lot::Mutex;
 use crate::models::Models;
 use crate::{BackgroundItem, BackgroundKind, EngineEvent, Shared};
 
-/// Wait this long after a failed automatic run before trying again.
 const FAILURE_BACKOFF: Duration = Duration::from_secs(15 * 60);
-/// Yesterday plus the six days before it.
 const CATCH_UP_DAYS: i64 = 7;
 
-/// Oldest past day still needing its final digest (`generationDay`).
 fn pending_past_day(
     days: &[PastDay],
     skipped: &HashSet<NaiveDate>,
@@ -59,11 +50,8 @@ impl DigestScheduler {
             .name("lokalbot-digest".into())
             .spawn(move || {
                 let last_failure: Mutex<Option<Instant>> = Mutex::new(None);
-                // Past days with nothing to digest, skipped until evidence changes.
                 let mut deferred: HashSet<NaiveDate> = HashSet::new();
-                // A degraded past day backs off alone, so later days still run.
                 let mut repair_after: HashMap<NaiveDate, Instant> = HashMap::new();
-                // Days before yesterday proven final, so ticks don't re-read them.
                 let mut settled: HashSet<NaiveDate> = HashSet::new();
                 let mut scan_today: Option<NaiveDate> = None;
                 while !stop.load(Ordering::Relaxed) {
@@ -78,7 +66,6 @@ impl DigestScheduler {
                     {
                         continue;
                     }
-                    // Not downtime yet: don't burn the backoff.
                     if !lokalbot_ai::think::allows_automatic_main_inference(&settings)
                         || shared.capture_active.load(Ordering::Relaxed)
                         || shared.dictation_working.load(Ordering::Relaxed)
@@ -105,7 +92,6 @@ impl DigestScheduler {
                         repair_after.clear();
                         settled.retain(|day| !changed.contains(day));
                     }
-                    // Past days take priority until each is final.
                     let past_days: Vec<PastDay> = (1..=CATCH_UP_DAYS)
                         .map(|back| today - chrono::Duration::days(back))
                         .filter(|day| !settled.contains(day))
@@ -184,19 +170,13 @@ impl DigestScheduler {
     }
 }
 
-/// `DayDigestScheduler.GenerationOutcome`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Outcome {
     Completed,
-    /// Nothing to digest yet.
     Deferred,
-    /// A degraded journal stays readable and is quietly repaired later.
     NeedsRepair,
 }
 
-/// `automaticCompletionAt` and the day's evidence, for `needs_finalization`. An
-/// edited journal is the person's, so it is never replaced; a degraded one isn't
-/// final; a changed source reopens the day when its signature no longer matches.
 fn past_day(library: &lokalbot_core::Library, day: NaiveDate, changed: bool) -> PastDay {
     let digest = library.day_digest(day).ok().flatten();
     let meta = digest.as_ref().and_then(|d| d.meta.as_ref());
@@ -204,17 +184,13 @@ fn past_day(library: &lokalbot_core::Library, day: NaiveDate, changed: bool) -> 
         .latest_evidence_at(day)
         .ok()
         .flatten()
-        // A deleted last meeting still leaves an owned journal to repair.
         .or(meta.map(|m| m.generated_at));
     let journal = library.journal_path(day);
     let owned = lokalbot_core::evidence::journal_is_generated(&journal);
     let completed = match (&digest, meta) {
         (None, _) => None,
         (Some(digest), None) => digest.modified_at,
-        (Some(_), Some(_)) if !owned => {
-            // Far in the future: past any midnight.
-            Some(chrono::DateTime::<chrono::Utc>::MAX_UTC)
-        }
+        (Some(_), Some(_)) if !owned => Some(chrono::DateTime::<chrono::Utc>::MAX_UTC),
         (Some(digest), Some(meta)) => {
             let matches = !changed
                 || lokalbot_ai::digest::evidence_signatures(library, day)
@@ -255,7 +231,6 @@ fn generate(
         progress: None,
     });
     let result = (|| -> Result<Outcome> {
-        // Sessions that settled since the last refresh belong in this digest.
         crate::coding_agents::refresh(shared, Some(day));
         if automatic
             && lokalbot_ai::digest::DayEvidence::load(&shared.library, day)?.is_empty()
@@ -282,7 +257,6 @@ fn generate(
         )?;
         shared.library.save_digest(day, &markdown, &meta)?;
         shared.companion.day_digest_changed(day);
-        // Export may have run while the replacement digest was awaiting a model.
         shared
             .exports
             .digest_did_change(day, settings.retention_days);
@@ -327,19 +301,16 @@ mod tests {
     fn late_work_reopens_a_day_until_its_digest_is_written_after_it_ended() {
         let none = |_: NaiveDate| false;
         let days = [
-            // Previewed that evening, then more work: not final yet.
             past(
                 "2026-10-19",
                 Some("2026-10-19 20:00"),
                 Some("2026-10-19 18:00"),
             ),
-            // Written the next morning: final.
             past(
                 "2026-10-18",
                 Some("2026-10-18 20:00"),
                 Some("2026-10-20 01:00"),
             ),
-            // Nothing happened that day.
             past("2026-10-17", None, None),
         ];
         assert_eq!(

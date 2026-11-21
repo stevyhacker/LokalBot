@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The dictation HUD's shapes and placement. The HUD used to jump at startup
-/// and between states: the panel and its SwiftUI content were sized by two
-/// separate rules, starting showed a different capsule from recording, and a
-/// resized panel re-centered whatever was drawn inside it.
 @MainActor
 final class DictationOverlayLayoutTests: XCTestCase {
 
@@ -56,8 +52,6 @@ final class DictationOverlayLayoutTests: XCTestCase {
         XCTAssertNil(content(state: .idle), "an idle HUD shows nothing")
     }
 
-    /// 2026-11-10: a dictation the server refused ended with nothing typed
-    /// and a message only LokalBot's own window shows.
     func testAProblemShowsOnceDictationIsIdle() throws {
         let problem = DictationProblemNotice.failed("The transcription server rejected the API key (HTTP 401).")
         let shown = try XCTUnwrap(content(state: .idle, problem: problem))
@@ -67,8 +61,6 @@ final class DictationOverlayLayoutTests: XCTestCase {
             try XCTUnwrap(content(state: .idle, problem: .noSpeech)).layout, .notice,
             "a title alone fits the one-line notice")
 
-        // The next dictation's own states come first, and so does text that
-        // may be lost.
         XCTAssertEqual(
             try XCTUnwrap(content(state: .transcribing(startedAt: Date()), problem: problem)).layout, .pill)
         let notInserted = DictationDeliveryNotice(text: "Hi")
@@ -83,8 +75,6 @@ final class DictationOverlayLayoutTests: XCTestCase {
             state: .transcribing(startedAt: Date()), microphoneLive: true)).microphoneLive)
     }
 
-    /// The canvas never moves on screen, whatever size the panel takes, and
-    /// every capsule sits with its bottom-center on the anchor.
     func testCanvasStaysPutOnScreenAcrossPanelSizes() {
         let anchor = DictationOverlayGeometry.anchor(in: NSRect(x: 0, y: 25, width: 1511, height: 920))
         XCTAssertEqual(anchor, CGPoint(x: 756, y: 73))
@@ -100,7 +90,6 @@ final class DictationOverlayLayoutTests: XCTestCase {
             XCTAssertEqual(panel.minX, panel.minX.rounded(), "\(layout) panel stays on whole points")
             XCTAssertEqual(origin.x, origin.x.rounded(), "\(layout) canvas stays on whole points")
 
-            // The capsule, bottom-centered in the canvas above the bottom margin.
             let capsule = CGRect(
                 x: canvasOnScreen.x + (canvas.width - size.width) / 2,
                 y: canvasOnScreen.y + margins.bottom,

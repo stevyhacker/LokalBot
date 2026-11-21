@@ -1,12 +1,7 @@
-//! Builders for unit tests: action references and threads with only what a
-//! test sets, the rest neutral.
-
 use chrono::{NaiveDate, TimeZone as _, Utc};
 use lokalbot_core::{ActionItem, ActionReference, ActionStatus, ActionThread};
 use uuid::Uuid;
 
-/// One action from a meeting on 2026-10-`started`, the user's unless
-/// `for_user` is false.
 pub fn reference(
     id: &str,
     status: ActionStatus,
@@ -45,7 +40,6 @@ pub fn reference(
     }
 }
 
-/// A thread of `references`, newest first, due when its newest is.
 pub fn thread(references: Vec<ActionReference>) -> ActionThread {
     let latest = references[0].clone();
     ActionThread {

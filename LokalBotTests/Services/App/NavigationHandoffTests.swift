@@ -36,8 +36,6 @@ final class NavigationHandoffTests: XCTestCase {
         XCTAssertNil(handoff.consumeAsk()?.screenSnapshotIDs)
     }
 
-    /// Quick Recall's "Show all" opens Ask on the search, narrowed to one
-    /// kind's source. Every other handoff leaves the chosen sources alone.
     func testAskHandoffCanNarrowTheSources() {
         let handoff = NavigationHandoff()
         handoff.stageAsk(query: "atlas", dayScope: nil, screenSnapshotIDs: nil, submit: false,

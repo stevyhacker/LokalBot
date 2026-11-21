@@ -1,7 +1,3 @@
-// Thin wrapper around Node.js's built-in `node:sqlite` (Node 22.5+).
-// Returns `{ db: null, unsupported: true }` on older Node.js versions so
-// SQLite-backed readers (OpenCode, Cursor) skip gracefully with zero deps.
-
 let sqliteModule;
 
 export async function openReadOnlyDatabase(filePath) {

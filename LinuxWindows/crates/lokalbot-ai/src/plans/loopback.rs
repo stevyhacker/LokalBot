@@ -1,9 +1,3 @@
-//! A one-shot HTTP listener on 127.0.0.1 that receives an OAuth redirect
-//! (`LoopbackRedirectListener.swift`). It binds to the loopback address only,
-//! answers the first request for its path with a short page, and hands the
-//! query to the waiting sign-in. Other paths (a browser's favicon request)
-//! get a 404 and are ignored.
-
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::net::{Ipv4Addr, SocketAddrV4, TcpListener, TcpStream};
@@ -21,7 +15,6 @@ pub(crate) struct LoopbackListener {
 }
 
 impl LoopbackListener {
-    /// Listens on `preferred_port`, or on any free port when it is taken.
     pub fn start(preferred_port: u16, path: &str) -> Result<Self> {
         let bind = |port: u16| TcpListener::bind(SocketAddrV4::new(Ipv4Addr::LOCALHOST, port));
         let listener = match bind(preferred_port) {
@@ -45,7 +38,6 @@ impl LoopbackListener {
         self.port
     }
 
-    /// The redirect's query items. Fails on timeout or when `cancel` is set.
     pub fn wait_for_callback(
         &self,
         timeout: Duration,
@@ -81,7 +73,6 @@ impl LoopbackListener {
         }
     }
 
-    /// Answers one connection; the query when it was the redirect.
     fn handle(&self, mut stream: TcpStream) -> Option<HashMap<String, String>> {
         let _ = stream.set_nonblocking(false);
         let _ = stream.set_read_timeout(Some(Duration::from_secs(5)));
@@ -118,8 +109,6 @@ impl LoopbackListener {
     }
 }
 
-/// The request-target of a complete `GET` request head; empty for another
-/// method; `None` until the head is complete.
 pub(crate) fn request_target(buffer: &[u8]) -> Option<String> {
     let end = buffer.windows(4).position(|w| w == b"\r\n\r\n")?;
     let head = String::from_utf8_lossy(&buffer[..end]);
@@ -131,8 +120,6 @@ pub(crate) fn request_target(buffer: &[u8]) -> Option<String> {
     Some(parts[1].to_string())
 }
 
-/// Query items of a request-target, percent-decoded; the first value of a
-/// repeated name wins.
 pub(crate) fn query_of(target: &str) -> HashMap<String, String> {
     let mut query = HashMap::new();
     let Some((_, raw)) = target.split_once('?') else {

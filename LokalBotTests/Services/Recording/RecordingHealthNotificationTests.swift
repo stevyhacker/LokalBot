@@ -2,10 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// On 2026-10-01 a 33-minute Meet recording raised two "Recording needs
-/// attention" notifications mid-call (a 1.9-second accessibility hiccup and
-/// one dropped buffer) and was then marked "Audio capture was interrupted"
-/// although every frame was saved.
 final class RecordingHealthNotificationTests: XCTestCase {
     private let callStatus = CaptureWarningNotifications.callStatusUnavailableWarning
     private let dropped = CaptureWarningNotifications.droppedBuffersWarning
@@ -63,8 +59,6 @@ final class RecordingHealthNotificationTests: XCTestCase {
         XCTAssertEqual(BrowserMeetingSession.webAccessibilityPrimingAttribute(bundleID: "org.mozilla.firefox"),
                        "AXEnhancedUserInterface")
     }
-
-    // MARK: - Lock-free buffer ring
 
     private func buffers(_ count: Int) throws -> [AVAudioPCMBuffer] {
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2))

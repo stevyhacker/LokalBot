@@ -37,7 +37,6 @@ final class GmailSyncTests: XCTestCase {
         return syncer
     }
 
-    /// A mailbox with one thread of each kind.
     private func seedMailbox() {
         server.put("a1", [message("a1-1", from: "ana@x.com"),
                           message("a1-2", from: GmailFixtures.me, labels: ["SENT"], to: "ana@x.com")])
@@ -48,8 +47,6 @@ final class GmailSyncTests: XCTestCase {
         server.put("f6", [message("f6-1", from: "ana@x.com", labels: ["TRASH"])])
         server.markRead()
     }
-
-    // MARK: First pass
 
     func testFirstPassStoresConversationsAndSkipsEverythingElse() async throws {
         seedMailbox()
@@ -66,7 +63,6 @@ final class GmailSyncTests: XCTestCase {
         XCTAssertFalse(synced.sync.capped)
         XCTAssertEqual(try store.thread(accountID: synced.id, threadID: "b2")?.messages.first?.body,
                        "Agenda for Thursday")
-        // The bulk and stranger threads were never downloaded with bodies.
         XCTAssertFalse(server.requests.contains { request in
             request.url?.path.hasSuffix("/threads/c3") == true || request.url?.path.hasSuffix("/threads/d4") == true
         })
@@ -87,14 +83,11 @@ final class GmailSyncTests: XCTestCase {
         }
     }
 
-    // MARK: Later passes
-
     func testLaterPassRechecksOnlyChangedThreads() async throws {
         seedMailbox()
         let first = try await syncer().sync(account(), attendees: ["ana@x.com"])
         let fetchesBefore = server.requestCount(pathSuffix: "/threads/a1")
 
-        // Ana's thread is trashed, a new one arrives, and a newsletter lands.
         server.put("b2", [message("b2-1", from: "ana@x.com", labels: ["TRASH"])])
         server.put("h8", [message("h8-1", from: "ana@x.com", plain: "New date: Friday")])
         server.put("i9", [message("i9-1", from: "ana@x.com", labels: ["CATEGORY_UPDATES"])])
@@ -142,7 +135,6 @@ final class GmailSyncTests: XCTestCase {
         let first = try await syncer().sync(account(), attendees: ["ana@x.com"])
         XCTAssertEqual(store.threadIDs(accountID: first.id).count, 3)
 
-        // 89.5 days later every seeded message is outside the window.
         let later = try await syncer(at: now.addingTimeInterval(89.5 * 86_400)).sync(first, attendees: ["ana@x.com"])
 
         XCTAssertEqual(store.threadIDs(accountID: later.id), [])
@@ -170,7 +162,6 @@ final class GmailSyncTests: XCTestCase {
     func testABrieflyEmptyCalendarDeletesNothingAndSearchesNothing() async throws {
         seedMailbox()
         let first = try await syncer().sync(account(), attendees: ["ana@x.com"])
-        // Ana replies while the calendar can't be read (launch, calendar use paused).
         server.put("b2", [message("b2-1", from: "Ana <ana@x.com>", plain: "Agenda for Thursday"),
                           message("b2-2", from: "ana@x.com", plain: "Moved to 10:00")])
         let queriesBefore = server.queries.count
@@ -194,7 +185,6 @@ final class GmailSyncTests: XCTestCase {
 
     func testACappedScanLeavesPeopleItNeverSearched() async throws {
         seedMailbox()
-        // The two threads you wrote in fill the limit; Ana's search never runs.
         let capped = try await syncer(limit: 2).sync(account(), attendees: ["ana@x.com"])
         XCTAssertTrue(capped.sync.capped)
         XCTAssertEqual(capped.sync.searchedAddresses, [])
@@ -221,7 +211,6 @@ final class GmailSyncTests: XCTestCase {
         XCTAssertEqual(second.sync.historyID, String(server.historyID), "the other changes still move the cursor")
         XCTAssertEqual(second.sync.retryThreadIDs, ["b2"])
 
-        // Next pass, with no new changes, the thread is read again.
         server.failingThreads = []
         server.markRead()
         let third = try await syncer().sync(second, attendees: ["ana@x.com"])
@@ -273,8 +262,6 @@ final class GmailSyncTests: XCTestCase {
         let later = try await syncer(at: now.addingTimeInterval(2 * 86_400)).sync(first, attendees: [])
         XCTAssertEqual(store.threadIDs(accountID: later.id), [], "only the newsletter's message was left")
     }
-
-    // MARK: Client
 
     func testRateLimitsAreRetriedAndAnExpiredTokenIsRefreshedOnce() async throws {
         let attempts = AttemptLog()

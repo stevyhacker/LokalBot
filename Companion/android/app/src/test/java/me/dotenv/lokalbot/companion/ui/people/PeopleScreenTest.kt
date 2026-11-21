@@ -22,7 +22,6 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.annotation.Config
 
-/** The People list, on Robolectric. */
 @RunWith(AndroidJUnit4::class)
 @Config(qualifiers = "en-rGB-w411dp-h891dp-hdpi")
 class PeopleScreenTest {
@@ -32,7 +31,6 @@ class PeopleScreenTest {
     @Test
     fun `a last-met date that isn't an instant leaves the list readable`() {
         val sample = TestLibrary.repository()
-        // A bare day, which Instant.parse refuses.
         val library = object : CompanionRepository by sample {
             override suspend fun people(): List<Person> = sample.people().map { it.copy(lastMetAt = "2026-10-30") }
         }

@@ -1,7 +1,5 @@
 import Foundation
 
-/// Lightweight metadata for one durable Pi session. Conversation contents
-/// stay in Pi's JSONL file and are loaded only when the user opens the session.
 struct AgentSavedSession: Identifiable, Equatable, Sendable {
     let id: String
     let sessionID: String
@@ -18,8 +16,6 @@ struct AgentSavedSession: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Bounded, streaming reader for the local session directory. It intentionally
-/// extracts only list metadata instead of retaining full prompts or responses.
 enum AgentSessionHistory {
     private static let readChunkBytes = 64 * 1_024
     private static let maximumJSONLineBytes = 4 * 1_024 * 1_024
@@ -53,8 +49,6 @@ enum AgentSessionHistory {
         }
     }
 
-    /// Re-reads the selected file immediately before launch so a stale list
-    /// item, replaced file, or symlink cannot redirect an exact-session open.
     static func validated(
         _ session: AgentSavedSession,
         in directory: URL

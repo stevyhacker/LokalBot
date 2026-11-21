@@ -1,8 +1,3 @@
-//! Calendar providers (`CalendarEventProviding`): private iCalendar/CalDAV
-//! links on both systems, and Evolution Data Server on Linux. Each returns
-//! recordable meetings ([`lokalbot_core::calendar::CalendarEvent`]) in a time
-//! window; the policy that uses them lives in `lokalbot_core::calendar`.
-
 #[cfg(target_os = "linux")]
 mod eds;
 pub mod feed;
@@ -13,12 +8,9 @@ use lokalbot_core::calendar::CalendarEvent;
 pub use feed::{LinkRefused, normalize as normalize_link, redacted as redacted_link};
 pub use ics::ParseOptions;
 
-/// Where events come from.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CalendarSources {
-    /// Private links (secrets from the credential store).
     pub links: Vec<String>,
-    /// Linux: read Evolution Data Server too.
     pub evolution: bool,
 }
 
@@ -32,18 +24,13 @@ impl CalendarSources {
     }
 }
 
-/// The outcome of one refresh.
 #[derive(Clone, Debug, Default)]
 pub struct FetchReport {
-    /// Recordable meetings from every source that answered, by start.
     pub events: Vec<CalendarEvent>,
-    /// Sources that were read.
     pub sources_read: usize,
-    /// One line per source that failed; links appear only redacted.
     pub problems: Vec<String>,
 }
 
-/// Reads every source. Blocking: network requests for links, D-Bus for EDS.
 pub fn fetch(sources: &CalendarSources, options: &ParseOptions) -> FetchReport {
     let mut report = FetchReport::default();
     for link in &sources.links {
@@ -77,7 +64,6 @@ pub fn fetch(sources: &CalendarSources, options: &ParseOptions) -> FetchReport {
     report
         .events
         .sort_by(|a, b| a.start.cmp(&b.start).then(a.end.cmp(&b.end)));
-    // The same invitation can sit in two calendars; keep one.
     let mut seen = std::collections::HashSet::new();
     report
         .events

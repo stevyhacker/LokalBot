@@ -1,8 +1,3 @@
-//! Add a model from Hugging Face (`ModelImportSheet`). Adding only edits
-//! `customBuiltInModels`; the model then appears in Think's and Autocomplete's
-//! choices, and downloads when chosen. Search goes to huggingface.co whichever
-//! download source is chosen.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -25,7 +20,6 @@ pub struct BrowseState {
     query: Entity<InputState>,
     results: Vec<ModelSummary>,
     searching: bool,
-    /// Bumped by each search, so a newer one wins.
     generation: u64,
     error: Option<SharedString>,
     selected: Option<String>,
@@ -70,7 +64,6 @@ impl BrowseState {
     }
 }
 
-/// `customBuiltInModels` with `record` replacing any entry with its id.
 fn with_added(records: &[Value], record: Value) -> Vec<Value> {
     let mut next: Vec<Value> = records
         .iter()
@@ -326,7 +319,6 @@ impl SettingsPage {
         list.into_any_element()
     }
 
-    /// Models added so far, with Remove from List once nothing depends on them.
     fn added_models_section(&mut self, cx: &mut Context<Self>) -> Option<Section> {
         let lb = cx.lb().clone();
         let (settings, installed) = {
@@ -420,7 +412,6 @@ mod tests {
         assert_eq!(removed[0]["id"], "b");
     }
 
-    /// Both apps read the record: what's added here parses as a catalog entry.
     #[test]
     fn an_added_file_becomes_a_usable_model() {
         let digest = "aabbccddeeff00112233445566778899aabbccddeeff00112233445566778899";

@@ -2,8 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Personal Context → Learn from my dictation: the short-lived encrypted log, which
-/// pastes may be kept, and how dictated lines reach the learning pass.
 @MainActor
 final class DictationLearningLogTests: XCTestCase {
     private final class Clock {

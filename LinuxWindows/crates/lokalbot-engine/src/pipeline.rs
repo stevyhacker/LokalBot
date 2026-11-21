@@ -1,6 +1,3 @@
-//! The processing queue: transcribe, then write notes and actions, one meeting
-//! at a time (`ProcessingPipeline.swift`, `PipelineJobStore.swift`).
-
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,16 +24,10 @@ struct Inner {
     queue: Mutex<VecDeque<Job>>,
     signal: Condvar,
     stop: AtomicBool,
-    /// The meeting being worked on right now.
     active: Mutex<Option<Uuid>>,
-    /// Automatic jobs parked because a model was missing. Their saved rows
-    /// stay pending, and they go back into the queue once what they waited
-    /// for is here (`waitingForModelsJobs`).
     waiting: Mutex<Vec<(Job, Need)>>,
 }
 
-/// How often the idle worker looks for a stop request and for parked jobs
-/// whose models have arrived.
 const IDLE_WAKE: Duration = if cfg!(test) {
     Duration::from_millis(50)
 } else {
@@ -48,16 +39,12 @@ struct Job {
     meeting_id: Uuid,
     transcribe: bool,
     summarize: bool,
-    /// The summary was asked for automatically, so it runs only while
-    /// automatic summaries are on.
     summary_follows_setting: bool,
     user_initiated: bool,
-    /// Picked up at launch, so it transcribes with the terms saved earlier.
     resumed: bool,
 }
 
 impl Job {
-    /// A saved job picked up at launch (`ProcessingPipeline.resumedWork`).
     fn resumed(saved: &lokalbot_core::PipelineJob) -> Self {
         Self {
             meeting_id: saved.meeting_id,
@@ -69,15 +56,10 @@ impl Job {
         }
     }
 
-    /// Whether to write notes now. An automatic summary follows the setting
-    /// as it is at this point, so turning automatic summaries off also stops
-    /// a job queued earlier, even one that waited through a restart.
     fn writes_notes(&self, auto_summarize: bool) -> bool {
         self.summarize && (!self.summary_follows_setting || auto_summarize)
     }
 
-    /// Folds another request for the same meeting into this queued job. The
-    /// user's request decides the summary and makes it explicit.
     fn merge(&mut self, transcribe: bool, summarize: bool, user_initiated: bool) {
         self.transcribe |= transcribe;
         self.summarize = if user_initiated {
@@ -95,12 +77,9 @@ enum Outcome {
     WaitingForModels(Need),
 }
 
-/// What a parked job is waiting for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Need {
-    /// The transcription models, or a transcription server's approval.
     Transcription,
-    /// The Think model and its runtime.
     Think,
 }
 
@@ -115,7 +94,6 @@ impl Pipeline {
             active: Mutex::new(None),
             waiting: Mutex::new(Vec::new()),
         });
-        // Meetings deleted between the crash and this launch (`resumePending`).
         match shared.library.list_meetings().and_then(|meetings| {
             let existing: Vec<Uuid> = meetings.iter().map(|meeting| meeting.id).collect();
             shared.library.prune_jobs(&existing)
@@ -137,8 +115,6 @@ impl Pipeline {
             }
             Err(err) => log::warn!("could not read pending jobs: {err:#}"),
         }
-        // A job that used up its automatic attempts stays parked until the
-        // user retries it; show why it stopped again (`parkedJobs`).
         match shared.library.parked_jobs() {
             Ok(jobs) => {
                 for job in jobs {
@@ -160,8 +136,6 @@ impl Pipeline {
             .expect("spawning the pipeline thread");
         crate::speech::start_idle_release(shared.speech.clone(), shared.clone());
         let pipeline = Self { inner };
-        // Finished recordings a run never transcribed, off the engine thread:
-        // this reads every meeting folder (`enqueueMissingTranscriptions`).
         let settings = shared.settings();
         if settings.auto_transcribe {
             let repair = pipeline.clone();
@@ -175,9 +149,6 @@ impl Pipeline {
         pipeline
     }
 
-    /// Queues finished recordings whose transcript is missing or incomplete and
-    /// that have no queued, parked or running job. A merged gap is marked first,
-    /// so it is repaired at most once. Returns what it queued.
     pub fn enqueue_missing_transcriptions(&self, summarize: bool) -> Vec<Uuid> {
         let shared = &self.inner.shared;
         let library = &shared.library;
@@ -216,8 +187,6 @@ impl Pipeline {
         queued
     }
 
-    /// Whether the transcription models are here, so a job would start now
-    /// rather than park (`ModelReadinessSnapshot.transcriptionReady`).
     pub fn transcription_ready(&self) -> bool {
         let models = &self.inner.models;
         models
@@ -226,8 +195,6 @@ impl Pipeline {
             && !models.transcription_server_blocked()
     }
 
-    /// Saves a job for the next launch and leaves this run's queue alone. A
-    /// request already saved stays as it is (`deferUntilNextLaunch`).
     pub fn defer_until_next_launch(&self, meeting_id: Uuid, summarize: bool) -> Result<()> {
         let library = &self.inner.shared.library;
         if library.job(meeting_id)?.is_none() {
@@ -236,8 +203,6 @@ impl Pipeline {
         Ok(())
     }
 
-    /// Queues a meeting. False when the job could not be saved: it is not
-    /// queued, since a job that isn't saved would be lost on quit.
     pub fn enqueue(
         &self,
         meeting_id: Uuid,
@@ -260,7 +225,6 @@ impl Pipeline {
             });
             return false;
         }
-        // A new request takes over a job parked for models and keeps its work.
         let parked = {
             let mut waiting = self.inner.waiting.lock();
             waiting
@@ -294,7 +258,6 @@ impl Pipeline {
         true
     }
 
-    /// Nothing is queued or being processed.
     pub fn is_idle(&self) -> bool {
         self.inner.active.lock().is_none() && self.inner.queue.lock().is_empty()
     }
@@ -363,18 +326,12 @@ impl Inner {
                 .clear_background(&format!("meeting:{meeting_id}"));
             let more = !self.queue.lock().is_empty();
             self.shared.pipeline_busy.store(more, Ordering::Relaxed);
-            // A finished meeting has a note and a follow-up due.
             self.shared.exports.reconsider_notes();
             self.shared.routines.reconsider_evidence();
             self.shared.emit(EngineEvent::LibraryChanged);
         }
     }
 
-    /// Sets a job aside until what it waits for is here. A job that got as
-    /// far as its notes has committed its transcript, so it goes on without
-    /// asking for one: transcribing the meeting a second time would cost as
-    /// long as the first and replace a transcript people may have corrected.
-    /// `Job::resumed` drops a finished transcription the same way at launch.
     fn park(&self, mut job: Job, need: Need) {
         if need == Need::Think {
             job.transcribe = false;
@@ -382,8 +339,6 @@ impl Inner {
         self.waiting.lock().push((job, need));
     }
 
-    /// Whether the models for `need` are here, so a job parked for them
-    /// would get past that point now. Nothing downloads from here.
     fn ready(&self, need: Need) -> bool {
         match need {
             Need::Transcription => {
@@ -399,9 +354,6 @@ impl Inner {
         }
     }
 
-    /// Puts parked jobs back in the queue once their models are installed,
-    /// the selection changed to ones that are, the server was approved, or
-    /// the job no longer needs what it waited for.
     fn requeue_ready(&self) {
         let needs: Vec<Need> = {
             let waiting = self.waiting.lock();
@@ -413,10 +365,7 @@ impl Inner {
                 .filter(|need| waiting.iter().any(|(_, parked)| parked == need))
                 .collect()
         };
-        // Looks at files, so no lock is held meanwhile.
         let ready: Vec<Need> = needs.into_iter().filter(|need| self.ready(*need)).collect();
-        // With automatic summaries turned off, a job that waited for the
-        // Think model only to write one has nothing left to wait for.
         let auto_summarize = self.shared.settings().auto_summarize;
         let jobs: Vec<Job> = {
             let mut waiting = self.waiting.lock();
@@ -441,7 +390,6 @@ impl Inner {
             let meeting_id = job.meeting_id;
             {
                 let mut queue = self.queue.lock();
-                // A request made meanwhile is already queued and covers it.
                 if queue.iter().all(|queued| queued.meeting_id != meeting_id) {
                     queue.push_back(job);
                 }
@@ -480,7 +428,6 @@ impl Inner {
         });
     }
 
-    /// Heavy work never runs while a meeting or dictation is capturing.
     fn yield_to_capture(&self) {
         while self.shared.capture_active.load(Ordering::Relaxed)
             && !self.stop.load(Ordering::Relaxed)
@@ -489,9 +436,6 @@ impl Inner {
         }
     }
 
-    /// A summary-only retry still gets the names an interrupted run decided.
-    /// Speaker identity is optional: it must not block notes from a saved
-    /// transcript or use up an automatic retry.
     fn recover_speakers(&self, meeting: &Meeting, transcript: Transcript) -> Result<Transcript> {
         let library = &self.shared.library;
         let sealed = library
@@ -531,7 +475,6 @@ impl Inner {
             if !self.models.ensure(&requirements, job.user_initiated)? {
                 return Ok(Outcome::WaitingForModels(Need::Transcription));
             }
-            // Audio waits for an approval; asking directly says what's missing.
             if !job.user_initiated && self.models.transcription_server_blocked() {
                 return Ok(Outcome::WaitingForModels(Need::Transcription));
             }
@@ -579,8 +522,6 @@ impl Inner {
                         &options,
                         &mut |progress| match progress {
                             lokalbot_speech::TranscribeProgress::Transcribing { fraction } => {
-                                // Reported after each span: a dictation or a
-                                // preview waiting for the model goes first.
                                 self.shared.speech.stand_aside();
                                 self.stage(
                                     &meeting,
@@ -605,8 +546,6 @@ impl Inner {
                 range.apply(&mut transcript);
             }
             let previous = library.transcript(&meeting)?;
-            // Names remembered voices and carries over what people decided.
-            // Identity errors never fail audio transcription.
             let memory = crate::voice::memory(library);
             let evidence = crate::voice::microphone_evidence(
                 library,
@@ -630,7 +569,6 @@ impl Inner {
                 Err(err) => {
                     log::warn!("speaker identity skipped meeting={}: {err}", meeting.id);
                     memory.note_unavailable(meeting.id, &err);
-                    // Names the user gave speakers survive a new transcription.
                     if let Some(previous) = &previous {
                         transcript.carry_speaker_names_from(previous);
                     }
@@ -658,8 +596,6 @@ impl Inner {
             let Some(mut transcript) = library.transcript(&meeting)? else {
                 return Ok(Outcome::Done);
             };
-            // The vocabulary this meeting was transcribed with, so rows that
-            // only repeat it never become notes evidence.
             let saved_prompt = lokalbot_core::vocabulary::saved_prompt(
                 &settings.transcription_prompt,
                 &library.meeting_dir(&meeting),
@@ -695,7 +631,6 @@ impl Inner {
                 checkpoint_dir: Some(folder.clone()),
                 retrying_stopped_parts: job.user_initiated,
                 cancel: None,
-                // On-screen titles as secondary, source-labeled context.
                 screen_titles: if settings.meeting_notes_use_screen_titles && !meeting.is_imported()
                 {
                     library.meeting_screen_context(&meeting).material_titles()
@@ -717,7 +652,6 @@ impl Inner {
                 started.elapsed().as_secs_f64(),
                 &notes.summary_markdown,
             );
-            // Notes for a transcript that changed meanwhile would be wrong.
             if library.transcript(&meeting)?.as_ref() != Some(&transcript) {
                 anyhow::bail!(
                     "Speaker attribution changed during generation. Refresh the meeting notes."
@@ -737,7 +671,6 @@ impl Inner {
                 );
                 library.save_outcome_state(&meeting, &reconciled)?;
             }
-            // Explicit user edits stay the authority for the sections beside them.
             let authoritative = library
                 .outcome_projection(&meeting)?
                 .map(|projection| projection.corrected_outcomes())
@@ -750,7 +683,6 @@ impl Inner {
             lokalbot_core::library::write_json(&folder.join("summary-claims.json"), &notes.claims)?;
             library.save_summary(&meeting, &summary)?;
             lokalbot_ai::notes::remove_checkpoint(&folder);
-            // Notes match the transcript again (`MeetingAttributionArtifacts`).
             let _ = std::fs::remove_file(folder.join(lokalbot_core::library::REFRESH_MARKER));
             library.reindex_meeting(&meeting)?;
             if settings.semantic_search_enabled
@@ -768,9 +700,6 @@ impl Inner {
     }
 }
 
-/// The transcript to commit: rows a merged meeting's transcript-only sources
-/// keep, then the cleanup every source of rows must pass, kept or new
-/// (`transcript cleanup after merge`).
 fn finished_transcript(
     meeting: &Meeting,
     folder: &std::path::Path,
@@ -799,7 +728,6 @@ fn finished_transcript(
 mod tests {
     use super::*;
 
-    /// A finished recording with audio on disk and no transcript.
     fn finished_recording(library: &lokalbot_core::Library, title: &str) -> Meeting {
         let started = chrono::Utc::now() - chrono::Duration::hours(2);
         let mut meeting = library.create_meeting(title, "Zoom", started).unwrap();
@@ -827,7 +755,6 @@ mod tests {
         Pipeline::start(shared, models)
     }
 
-    /// Waits for the launch repair, which runs on a thread of its own.
     fn wait_for_jobs(library: &lokalbot_core::Library, count: usize) {
         let deadline = std::time::Instant::now() + Duration::from_secs(10);
         while library.pending_jobs().unwrap().len() < count {
@@ -913,7 +840,6 @@ mod tests {
             .unwrap(),
         )
         .unwrap();
-        // The transcript has nothing at all in the second source's span.
         let transcript = lokalbot_core::Transcript {
             segments: vec![lokalbot_core::Segment {
                 start: 1.0,
@@ -961,7 +887,6 @@ mod tests {
         assert!(library.job(kept.id).unwrap().is_some());
     }
 
-    /// A merged meeting whose first source had a transcript and no audio.
     fn merged_with_transcript_only_source(folder: &std::path::Path) -> Meeting {
         let started = chrono::Utc::now();
         let mut meeting = Meeting::new("Both", "Merged meetings", started, "both");
@@ -1082,8 +1007,6 @@ mod tests {
         );
     }
 
-    /// A finished meeting whose audio is gone, so a job that gets past the
-    /// model check stops at "No recording available." and loads nothing.
     fn finished_without_audio(library: &lokalbot_core::Library) -> Meeting {
         let started = chrono::Utc::now() - chrono::Duration::hours(2);
         let mut meeting = library
@@ -1094,7 +1017,6 @@ mod tests {
         meeting
     }
 
-    /// Makes a speech model count as installed without real model files.
     fn pretend_installed(library: &lokalbot_core::Library, id: &str) {
         let model = lokalbot_speech::models::find(id).unwrap();
         for file in model.files {
@@ -1142,7 +1064,6 @@ mod tests {
 
         assert!(pipeline.enqueue(meeting.id, true, false, false));
         wait_for_stage(&stages, |stage| *stage == Some(Stage::WaitingForModels));
-        // Several idle wakes later it is still parked and has used no attempt.
         std::thread::sleep(IDLE_WAKE * 4);
         assert_eq!(
             *stages.lock(),
@@ -1171,19 +1092,15 @@ mod tests {
         assert_eq!(library.job(meeting.id).unwrap().unwrap().attempts, 1);
     }
 
-    /// A pipeline whose worker has stopped, so a test can look at what a
-    /// request left in the queue.
     fn stopped(settings: lokalbot_core::Settings) -> (tempfile::TempDir, Pipeline, Meeting) {
         let (dir, library) = library();
         let meeting = finished_without_audio(&library);
         let pipeline = pipeline(library, settings);
         pipeline.stop();
-        // Past its last wake, so nothing takes a job out of the queue.
         std::thread::sleep(IDLE_WAKE * 4);
         (dir, pipeline, meeting)
     }
 
-    /// An automatic job as it is when its transcription has just finished.
     fn transcribed(meeting: &Meeting) -> Job {
         Job {
             meeting_id: meeting.id,
@@ -1195,14 +1112,10 @@ mod tests {
         }
     }
 
-    /// Transcription models here, the Think model still downloading: the
-    /// meeting was transcribed and waits for its notes. It must not be
-    /// transcribed again, by the model arriving or by a request for notes.
     #[test]
     fn a_job_that_waits_for_its_notes_never_transcribes_again() {
         let settings = lokalbot_core::Settings {
             auto_transcribe: false,
-            // A server needs no download, so Think counts as ready.
             summarizer_backend: lokalbot_core::settings::SummarizerBackend::Ollama,
             ..Default::default()
         };
@@ -1219,7 +1132,6 @@ mod tests {
             queue.clear();
         }
 
-        // Asking for notes while it waits takes the job over.
         inner.park(transcribed(&meeting), Need::Think);
         assert!(pipeline.enqueue(meeting.id, false, true, true));
         {
@@ -1232,19 +1144,16 @@ mod tests {
             queue.clear();
         }
 
-        // Asking for a new transcript is still honoured.
         inner.park(transcribed(&meeting), Need::Think);
         assert!(pipeline.enqueue(meeting.id, true, true, true));
         assert!(inner.queue.lock()[0].transcribe);
 
-        // A job that never got to transcribe keeps that work.
         inner.park(transcribed(&meeting), Need::Transcription);
         assert!(inner.waiting.lock()[0].0.transcribe);
     }
 
     #[test]
     fn a_job_waiting_for_think_goes_on_when_automatic_summaries_are_turned_off() {
-        // The built-in Think model is not installed in this library.
         let settings = lokalbot_core::Settings {
             auto_transcribe: false,
             auto_summarize: true,
@@ -1252,7 +1161,6 @@ mod tests {
         };
         let (_dir, pipeline, meeting) = stopped(settings.clone());
         let inner = &pipeline.inner;
-        // One summary follows the setting, the other was asked for.
         let other = Uuid::new_v4();
         inner.park(transcribed(&meeting), Need::Think);
         inner.park(
@@ -1299,7 +1207,6 @@ mod tests {
         };
         let pipeline = pipeline(library, settings);
         pipeline.stop();
-        // Past its last wake, so nothing takes the job out of the queue.
         std::thread::sleep(IDLE_WAKE * 4);
         let parked = Job {
             meeting_id: meeting.id,

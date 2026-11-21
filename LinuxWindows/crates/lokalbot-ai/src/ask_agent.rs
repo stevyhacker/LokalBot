@@ -1,15 +1,3 @@
-//! Ask's tool loop (`Services/Chat/ChatAgent.swift`, `MeetingChatTools.swift`).
-//!
-//! The model answers by calling tools — search, list and read meetings,
-//! action items, screen text, app activity — one at a time, through a
-//! prompt-driven JSON protocol (no native function calling), and writes its
-//! answer once it has enough. Output is parsed tolerantly, a garbled tool
-//! call gets one schema-constrained retry, and after six calls a final answer
-//! is forced. Only sources a tool returned may be cited.
-//!
-//! `uses_tool_loop` decides when to use it: a CPU-only model or a small
-//! context window keeps the single-turn, retrieve-first answer in `ask`.
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -35,9 +23,7 @@ use crate::embeddings::semantic_meeting_hits;
 use crate::json::extract_json_object;
 use crate::think::{ChatRequest, EmbeddingClient, ThinkClient};
 
-/// Tool calls before a final answer is forced (`ChatAgent.maxSteps`).
 pub const MAX_STEPS: usize = 6;
-/// Below this window a few observations crowd out the answer.
 pub const MIN_TOOL_LOOP_CONTEXT: u32 = 16_384;
 const ANSWER_TOKENS: u32 = 2_048;
 const HISTORY_MESSAGES: usize = 16;
@@ -45,16 +31,10 @@ const HISTORY_CHARACTERS: usize = 12_000;
 const TRANSCRIPT_WINDOW: usize = 6_000;
 pub const ANSWER_MARKER: &str = "FINAL_ANSWER:";
 
-/// Whether this Think model should answer with the tool loop. Each step is a
-/// model call, so a model on the CPU, or one with a small window, answers in
-/// one retrieve-first turn instead.
 pub fn uses_tool_loop(think: &ThinkClient) -> bool {
     !think.runs_on_cpu() && think.context_tokens() >= MIN_TOOL_LOOP_CONTEXT
 }
 
-// ------------------------------------------------------------- protocol
-
-/// One callable tool advertised to the model.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToolSpec {
     pub name: &'static str,
@@ -62,7 +42,6 @@ pub struct ToolSpec {
     pub arguments: &'static [(&'static str, &'static str, bool)],
 }
 
-/// A parsed tool call; every argument value is a string.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToolCall {
     pub name: String,
@@ -70,7 +49,6 @@ pub struct ToolCall {
 }
 
 impl ToolCall {
-    /// Trimmed, non-empty argument value.
     pub fn string(&self, key: &str) -> Option<&str> {
         self.arguments
             .get(key)
@@ -82,9 +60,6 @@ impl ToolCall {
         self.string(key).and_then(|v| v.parse().ok())
     }
 
-    /// One canonical call back into the running transcript, written out by
-    /// hand like macOS so key order never depends on serde_json's
-    /// `preserve_order` feature (which GPUI turns on).
     pub fn json(&self) -> String {
         let encode = |text: &str| Value::from(text).to_string();
         let pairs: Vec<String> = self
@@ -120,7 +95,6 @@ const TOOL_TOKENS: [&str; 9] = [
     "<|python_tag|>",
 ];
 
-/// Removes `<think>…</think>` blocks, and everything after an unclosed one.
 pub fn stripping_reasoning(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut rest = text;
@@ -175,7 +149,6 @@ fn tool_name(object: &Map<String, Value>) -> Option<String> {
     })
 }
 
-/// Every value as a string: numbers and bools stringified, nulls dropped.
 fn coerce(value: Option<&Value>) -> BTreeMap<String, String> {
     let Some(Value::Object(map)) = value else {
         return BTreeMap::new();
@@ -198,7 +171,6 @@ fn arguments(object: &Map<String, Value>) -> BTreeMap<String, String> {
     if let Some(key) = ARGUMENT_KEYS.iter().find(|k| object.contains_key(**k)) {
         return coerce(object.get(*key));
     }
-    // Flat form: {"tool": "x", "query": "y"}.
     let mut flat = object.clone();
     for key in NAME_KEYS {
         flat.remove(key);
@@ -206,8 +178,6 @@ fn arguments(object: &Map<String, Value>) -> BTreeMap<String, String> {
     coerce(Some(&Value::Object(flat)))
 }
 
-/// `get_meeting(id='abc', include='summary')`, as many small models write
-/// calls, optionally bracketed and wrapped in tool tokens.
 pub fn pythonic_call(text: &str, tools: &BTreeSet<&str>) -> Option<ToolCall> {
     static CALL: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"(?s)([A-Za-z_][A-Za-z0-9_]*)\s*\(([^()]*)\)").expect("valid regex")
@@ -222,7 +192,6 @@ pub fn pythonic_call(text: &str, tools: &BTreeSet<&str>) -> Option<ToolCall> {
     })
 }
 
-/// `key='value', limit=5`; a lone positional value is kept as `arg0`.
 pub fn parse_kwargs(body: &str) -> BTreeMap<String, String> {
     let unquote = |text: &str| -> String {
         let text = text.trim();
@@ -276,8 +245,6 @@ pub fn parse_kwargs(body: &str) -> BTreeMap<String, String> {
     result
 }
 
-/// One model turn as a tool call or the final answer. A call counts only for
-/// a known tool, so an answer quoting JSON stays an answer.
 pub fn parse(output: &str, tools: &BTreeSet<&str>) -> Action {
     let cleaned = stripping_reasoning(output).trim().to_string();
     if let Some(object) = json_object(&cleaned) {
@@ -295,7 +262,6 @@ pub fn parse(output: &str, tools: &BTreeSet<&str>) -> Action {
     Action::Answer(removing_answer_marker(&strip_tool_tokens(&cleaned)))
 }
 
-/// The whole text is one tool call with no prose around it.
 pub fn looks_like_bare_tool_call(text: &str) -> bool {
     static BARE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"^\[?\s*[A-Za-z_][A-Za-z0-9_]*\s*\([^()]*\)\s*\]?$")
@@ -311,8 +277,6 @@ pub fn looks_like_bare_tool_call(text: &str) -> bool {
     BARE.is_match(&cleaned)
 }
 
-/// A turn that did not parse as a call but still looks like an attempt at
-/// one: bare wrapper tokens, a call to an unknown name, or a call cut off.
 pub fn looks_like_tool_attempt(output: &str) -> bool {
     static TRUNCATED: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r#""(tool|tool_name|action)"\s*:"#).expect("valid regex")
@@ -333,7 +297,6 @@ pub fn looks_like_tool_attempt(output: &str) -> bool {
     looks_like_bare_tool_call(&stripped)
 }
 
-/// The forced final pass: whatever prose the model wrote.
 pub fn final_text(output: &str) -> String {
     let cleaned = strip_tool_tokens(&stripping_reasoning(output));
     if cleaned.is_empty() || looks_like_bare_tool_call(&cleaned) {
@@ -342,8 +305,6 @@ pub fn final_text(output: &str) -> String {
     removing_answer_marker(&cleaned)
 }
 
-/// Prose to show while a turn streams: only after `FINAL_ANSWER:`, and never
-/// a reasoning block, a tool call or a payload still being written.
 pub fn streaming_answer(text: &str) -> Option<String> {
     static CALL_START: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
         regex::Regex::new(r"^\[?\s*[A-Za-z_][A-Za-z0-9_]*\s*\(").expect("valid regex")
@@ -367,8 +328,6 @@ pub fn streaming_answer(text: &str) -> Option<String> {
     usable.then_some(answer)
 }
 
-/// Forces exactly one valid call: `{"call": {"tool", "arguments"}}`, an
-/// `anyOf` of closed per-tool shapes, as OpenAI strict outputs require.
 pub fn tool_call_schema(tools: &[ToolSpec]) -> Value {
     let variants: Vec<Value> = tools
         .iter()
@@ -412,8 +371,6 @@ pub fn tool_call_schema(tools: &[ToolSpec]) -> Value {
         "additionalProperties": false,
     })
 }
-
-// ----------------------------------------------------------------- tools
 
 const SEARCH_MEETINGS: ToolSpec = ToolSpec {
     name: "search_meetings",
@@ -507,8 +464,6 @@ const ACTIVITY_SUMMARY: ToolSpec = ToolSpec {
     )],
 };
 
-/// What a tool returned: the observation for the model, a short summary for
-/// the activity row, and the sources it showed.
 pub struct ToolResult {
     pub text: String,
     pub summary: String,
@@ -525,8 +480,6 @@ impl ToolResult {
     }
 }
 
-/// The tools for one question, limited to its scope
-/// (`MeetingChatTools` + `ScopedChatToolRunner`).
 pub struct Tools<'a> {
     library: &'a Library,
     embedder: Option<EmbeddingClient>,
@@ -585,19 +538,16 @@ impl<'a> Tools<'a> {
         specs
     }
 
-    /// Files is on with a folder, and this question may read it.
     fn files_available(&self) -> bool {
         self.scope.include_files && !self.scope.file_folders.is_empty()
     }
 
-    /// The newest meetings in scope, so list questions need no call.
     pub fn library_overview(&self) -> String {
         if !self.scope.include_meetings {
             return String::new();
         }
         let count = self.meetings.len();
         let plural = if count == 1 { "" } else { "s" };
-        // Within a limit the count is only what the limit lets through.
         let header = match (&self.scope.limit, count) {
             (Some(_), 0) => return "No meetings are inside this question's limit.".into(),
             (Some(_), _) => {
@@ -646,8 +596,6 @@ impl<'a> Tools<'a> {
                 format!("{} failed", call.name),
             )
         });
-        // A short list read as the whole library ("the only one in your
-        // library"), so the meeting lists say what they were held to.
         match &self.scope.limit {
             Some(limit)
                 if self.scope.include_meetings
@@ -1118,8 +1066,6 @@ impl<'a> Tools<'a> {
         })
     }
 
-    /// Saved coding-agent notes that match, with their text. A note is an
-    /// agent's own record, so the heading says so.
     fn search_agent_notes(&self, call: &ToolCall) -> ToolResult {
         let index = NotesIndex::new(self.library.paths().root());
         if !index.exists() {
@@ -1158,8 +1104,6 @@ impl<'a> Tools<'a> {
         }
     }
 
-    /// Files that match, with the passage that matched. Recordings and video are
-    /// transcribed on demand: only the first two moments, to keep an answer quick.
     fn search_files(&self, call: &ToolCall) -> Result<ToolResult> {
         let Some(query) = call.string("query") else {
             return Ok(ToolResult::plain(
@@ -1235,8 +1179,6 @@ impl<'a> Tools<'a> {
                 (start, end, day.format("%A, %b %-d, %Y").to_string())
             }
         };
-        // A scope with only a start (a paired device's history window) still
-        // reaches no earlier day through the `day` argument.
         let before_scope = self.scope.since.is_some_and(|since| end <= since);
         let blocks = if before_scope {
             Vec::new()
@@ -1324,9 +1266,6 @@ impl<'a> Tools<'a> {
     }
 }
 
-/// One window of a transcript from `start`: whole lines up to `limit`
-/// characters, and where the next window starts when the rest did not fit
-/// (`MeetingChatFormat.transcriptObservation`).
 pub struct TranscriptWindow {
     pub text: String,
     pub seconds: Vec<f64>,
@@ -1374,7 +1313,6 @@ pub fn transcript_window(transcript: &Transcript, start: f64, limit: usize) -> T
             window.next_start = Some(segment.start);
             return window;
         }
-        // A line longer than a window is cut, and reading moves past it.
         window.text = line
             .chars()
             .take(limit.saturating_sub(1))
@@ -1386,8 +1324,6 @@ pub fn transcript_window(transcript: &Transcript, start: f64, limit: usize) -> T
     window
 }
 
-/// The whole utterance around a keyword match, not just the FTS snippet,
-/// so a nearby "not" is never cut away (`MeetingChatFormat.keywordPassage`).
 fn keyword_passage(snippet: &str, source: &str) -> String {
     let anchor = snippet
         .replace(['«', '»'], "")
@@ -1414,7 +1350,6 @@ fn keyword_passage(snippet: &str, source: &str) -> String {
     }
 }
 
-/// Without FTS markers, on one line, at most 220 characters.
 fn clean(text: &str) -> String {
     let collapsed = text
         .replace(['«', '»'], "")
@@ -1434,7 +1369,6 @@ fn date_label(at: DateTime<Utc>) -> String {
         .to_string()
 }
 
-/// "2h 05m", "12m", "40s".
 fn activity_duration(seconds: f64) -> String {
     let total = seconds.max(0.0) as u64;
     let (hours, minutes) = (total / 3_600, (total % 3_600) / 60);
@@ -1447,7 +1381,6 @@ fn activity_duration(seconds: f64) -> String {
     }
 }
 
-/// 'today', 'yesterday' or `YYYY-MM-DD`.
 fn parse_day(argument: &str, now: DateTime<Utc>) -> Option<NaiveDate> {
     let today = now.with_timezone(&Local).date_naive();
     match argument.trim().to_lowercase().as_str() {
@@ -1457,8 +1390,6 @@ fn parse_day(argument: &str, now: DateTime<Utc>) -> Option<NaiveDate> {
     }
 }
 
-/// One line per file: its citation marker, name, kind and date, folder, then the
-/// matched passage or the words that matched (`MeetingChatFormat.fileResults`).
 fn file_line(hit: &FileHit, passage: Option<&str>) -> String {
     let body: String = passage
         .or(hit.excerpt.as_deref())
@@ -1489,8 +1420,6 @@ fn file_line(hit: &FileHit, passage: Option<&str>) -> String {
     )
 }
 
-/// One line per note: its citation marker, title, agent and project, date,
-/// then its text (`MeetingChatFormat.agentNoteResults`).
 fn note_line(hit: &NoteHit, text: Option<&str>) -> String {
     let body: String = text.unwrap_or(&hit.snippet).chars().take(1_200).collect();
     format!(
@@ -1503,10 +1432,6 @@ fn note_line(hit: &NoteHit, text: Option<&str>) -> String {
     )
 }
 
-// ---------------------------------------------------------------- prompt
-
-/// `ChatPrompt.systemPrompt`: the tool catalogue, how to call tools and
-/// how to cite.
 pub fn system_prompt(tools: &[ToolSpec], overview: &str, inference_privacy: &str) -> String {
     let mut lines = vec![format!(
         "You are LokalBot's assistant. You answer questions about the user's on-device meeting recordings, transcripts and summaries, and about their workday context — text seen on screen and time spent in apps. The source library is stored on this PC. {inference_privacy} Be concise and specific, and cite meetings by their title and date. Never invent content — if the tools return nothing relevant, say so plainly."
@@ -1585,7 +1510,6 @@ pub fn system_prompt(tools: &[ToolSpec], overview: &str, inference_privacy: &str
     lines.join("\n")
 }
 
-/// Lets the model resolve "yesterday" (`ChatPrompt.currentTimeLine`).
 pub fn current_time_line(now: DateTime<Utc>) -> String {
     format!(
         "Current local time: {} ({}). Resolve relative dates such as \"yesterday\" or \"last Tuesday\" from it.",
@@ -1594,8 +1518,6 @@ pub fn current_time_line(now: DateTime<Utc>) -> String {
     )
 }
 
-/// The newest messages within both budgets, oldest first, never starting
-/// with an answer whose question was cut off (`ChatAgent.replayedHistory`).
 pub fn replayed_history(
     history: &[ChatMessage],
     messages: usize,
@@ -1641,7 +1563,6 @@ fn icon(tool: &str) -> &'static str {
     }
 }
 
-/// `ChatViewModel.startLabel`.
 fn start_label(call: &ToolCall) -> String {
     match call.name.as_str() {
         "search_meetings" => format!(
@@ -1677,7 +1598,6 @@ fn start_label(call: &ToolCall) -> String {
     }
 }
 
-/// `ChatViewModel.finishLabel`.
 fn finish_label(tool: &str, summary: &str) -> String {
     match tool {
         "search_meetings" => format!("Searched meetings — {summary}"),
@@ -1692,11 +1612,6 @@ fn finish_label(tool: &str, summary: &str) -> String {
     }
 }
 
-// ------------------------------------------------------------------ loop
-
-/// Answers `question` with the tool loop (`ChatAgent.respond`). The visible
-/// answer streams through `AskEvent::Answer`, with citations checked against
-/// the sources tools returned so far.
 pub fn answer_with_tools(
     think: &ThinkClient,
     library: &Library,
@@ -1772,7 +1687,6 @@ pub fn answer_with_tools(
         }
         let mut action = parse(&output, &names);
         if matches!(action, Action::Answer(_)) && looks_like_tool_attempt(&output) {
-            // One decode-constrained second chance, never a hard gate.
             let retry = ChatRequest::new(
                 system.clone(),
                 format!(
@@ -1824,7 +1738,6 @@ pub fn answer_with_tools(
         }
     }
 
-    // Out of tool calls: answer from what was gathered.
     on_event(AskEvent::Status("Writing the answer…".into()));
     let (output, _) = turn(
         &format!(
@@ -1900,7 +1813,6 @@ mod tests {
             ),
             call("search_screen", &[("query", "{brace}")])
         );
-        // An unknown name, or prose quoting JSON, stays an answer.
         assert_eq!(
             parse(r#"Use {"tool": "delete_everything"} carefully."#, &tools),
             Action::Answer(r#"Use {"tool": "delete_everything"} carefully."#.into())
@@ -2056,8 +1968,6 @@ mod tests {
         Reply::Json(200, json!({"n_ctx": context}))
     }
 
-    /// `text` as the request asked for it. A rejected stream is retried
-    /// without streaming, so replies depend on the prompt, never on a count.
     fn reply(body: &Value, text: &str) -> Reply {
         if body["stream"] == json!(true) {
             sse(text)
@@ -2145,8 +2055,6 @@ mod tests {
         );
         let prompts = prompts.lock();
         assert_eq!(prompts.len(), 3);
-        // The summary hit alone doesn't make the 0:15 moment citable; reading
-        // the transcript does.
         assert!(!prompts[1].contains("@ 00:00:15"));
         assert!(prompts[2].contains("**[00:00:15] Me:** SSO is on the Q3 roadmap."));
         assert!(prompts[0].starts_with("User: What does Northwind need before rollout?"));
@@ -2239,8 +2147,6 @@ mod tests {
         assert!(!uses_tool_loop(&think));
     }
 
-    /// A paired device's history window has a start and no end, and the model
-    /// still chooses the day it asks about.
     #[test]
     fn a_scope_start_also_limits_the_day_activity_summary_may_read() {
         let dir = tempfile::tempdir().unwrap();
@@ -2318,9 +2224,6 @@ mod tests {
         assert!(listed.text.contains(&one.short_id()));
     }
 
-    /// A question limited to one day once answered "the library has only one
-    /// meeting": the overview and the meeting lists now say what they were
-    /// held to, and the prompt names the limit.
     #[test]
     fn a_limited_question_names_its_limit() {
         let dir = tempfile::tempdir().unwrap();
@@ -2486,7 +2389,6 @@ mod tests {
         });
         assert!(result.text.contains("Unknown tool"), "{}", result.text);
         assert!(result.evidence.files.is_empty());
-        // A folder off the list can't be reached even with the source on.
         let tools = Tools::new(&library, None, files_scope("/elsewhere"), Utc::now()).unwrap();
         let result = tools.run(&ToolCall {
             name: "search_files".into(),
@@ -2611,7 +2513,6 @@ mod tests {
         assert!(cited.contains("[note:c0ffee000001]"));
         assert!(!cited.contains("[note:c0ffee0000ff]"));
         assert!(cited.contains("(source not verified)"));
-        // Any case cites the same note; a time or a made-up id never does.
         assert_eq!(
             verified(
                 "[note:C0FFEE000001] [note:c0ffee000001@00:10] [note:xyz]",
@@ -2628,7 +2529,6 @@ mod tests {
         evidence.merge(&result.evidence);
         assert!(evidence.notes.contains("c0ffee000001"));
 
-        // Turned off after the question was scoped: the saved copy is gone.
         assert!(lokalbot_core::agent_notes::store::delete_all(dir.path()));
         let off = tools.run(&notes_call("release"));
         assert_eq!(off.summary, "agent notes off");

@@ -1,13 +1,3 @@
-//! Optional CUDA runtimes. The NVIDIA driver stays system-managed; the math
-//! libraries are reused from the system when the actual backend loads.
-//!
-//! Two upstream builds cover different GPUs and drivers. A driver runs a
-//! build's prebuilt kernels when it supports the same CUDA major version, but
-//! compiles PTX only from a toolkit no newer than itself. CUDA 13.5 has
-//! prebuilt kernels for 8.6, 8.9 and 12.x and PTX from Turing (7.5); the
-//! CUDA 12 builds add PTX for Maxwell, Pascal and Volta.
-//! https://docs.nvidia.com/deploy/cuda-compatibility/minor-version-compatibility.html
-
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Duration;
@@ -16,22 +6,14 @@ use anyhow::{Context as _, Result, anyhow, bail};
 
 use super::{LlamaBackend, RuntimeAsset};
 
-/// One upstream CUDA build: its server, its companion runtime libraries,
-/// and the GPUs it runs on with a given driver.
 #[derive(Debug)]
 pub(super) struct Build {
-    /// The CUDA toolkit it was compiled with.
     pub(super) version: &'static str,
     pub(super) server: RuntimeAsset,
-    /// RuntimeAsset also describes this companion archive; it is never
-    /// selected independently as an executable runtime.
     pub(super) libraries: RuntimeAsset,
     pub(super) library_names: [&'static str; 3],
-    /// `version` as `cuDriverGetVersion` reports it. PTX needs this driver.
     toolkit: i32,
-    /// Compute capabilities (major × 10 + minor) with prebuilt kernels.
     prebuilt: &'static [u32],
-    /// The oldest compute capability with PTX.
     oldest: u32,
 }
 
@@ -127,16 +109,12 @@ const OLDER: Build = Build {
     oldest: 50,
 };
 
-/// Newest first: selection takes the first build every GPU can run.
 pub(super) static BUILDS: [Build; 2] = [NEWEST, OLDER];
 
-/// The server archives, for the platform's asset list.
 pub(super) const SERVERS: [RuntimeAsset; 2] = [NEWEST.server, OLDER.server];
 
-/// The build the last setup selected, for download estimates.
 static SELECTED: AtomicUsize = AtomicUsize::new(0);
 
-/// Lets support or validation force one build, e.g. `LOKALBOT_CUDA_RUNTIME=12.8`.
 const OVERRIDE: &str = "LOKALBOT_CUDA_RUNTIME";
 
 impl Build {
@@ -152,8 +130,6 @@ impl Build {
         })
     }
 
-    /// Both upstream archives use their own layout. Move only the three pinned
-    /// runtime libraries next to llama-server, never a driver or a system file.
     pub(super) fn place_libraries(&self, extracted: &Path, server_dir: &Path) -> Result<()> {
         let files: Vec<_> = self
             .library_names
@@ -176,12 +152,10 @@ impl Build {
     }
 }
 
-/// The installed build an install record names.
 pub(super) fn build_for(asset: &str) -> Option<&'static Build> {
     BUILDS.iter().find(|build| build.server.name == asset)
 }
 
-/// The build a download would fetch: the last selection, else the newest.
 pub(super) fn likely() -> &'static Build {
     &BUILDS[SELECTED.load(Ordering::Relaxed).min(BUILDS.len() - 1)]
 }
@@ -195,9 +169,6 @@ pub(super) fn is_runtime_dir(dir: &Path) -> bool {
     .is_file()
 }
 
-/// Checks the driver and GPUs before fetching hundreds of MB, then picks the
-/// newest build every NVIDIA GPU here can run. The bounded llama-server
-/// device probe and model offload still decide whether it works.
 pub(super) fn select() -> Result<&'static Build> {
     let driver = driver_version()?;
     if let Some(wanted) = std::env::var(OVERRIDE)
@@ -229,8 +200,6 @@ pub(super) fn select() -> Result<&'static Build> {
     Ok(build)
 }
 
-/// Without known compute capabilities, only a build whose PTX this driver
-/// can compile is safe.
 fn choose(driver: i32, capabilities: Option<&[u32]>) -> Result<&'static Build> {
     if let Some(build) = BUILDS.iter().find(|build| match capabilities {
         Some(capabilities) => capabilities.iter().all(|c| build.runs(driver, *c)),
@@ -257,14 +226,11 @@ fn cuda_version(driver: i32) -> String {
     format!("{}.{}", driver / 1000, (driver % 1000) / 10)
 }
 
-/// The installed driver's CUDA version. No CUDA toolkit is loaded here.
 pub(super) fn driver_version() -> Result<i32> {
     #[cfg(windows)]
     let driver = system32().join("nvcuda.dll");
     #[cfg(not(windows))]
     let driver = PathBuf::from("libcuda.so.1");
-    // SAFETY: load the installed CUDA driver and call its documented version
-    // query, retaining the library until the function pointer is no longer used.
     let version = unsafe {
         let library = libloading::Library::new(&driver)
             .context("CUDA needs an NVIDIA driver. Install a current NVIDIA driver or choose Auto, Vulkan or CPU in Settings → Models.")?;
@@ -304,8 +270,6 @@ fn system32() -> PathBuf {
         .join("System32")
 }
 
-/// Every NVIDIA GPU's compute capability, or `None` when `nvidia-smi` is
-/// missing or too old to report it.
 fn compute_capabilities() -> Option<Vec<u32>> {
     #[cfg(windows)]
     let candidates = [
@@ -339,9 +303,6 @@ fn parse_compute_capabilities(text: &str) -> Option<Vec<u32>> {
     (!capabilities.is_empty()).then_some(capabilities)
 }
 
-/// Use normal system loader paths plus explicit toolkit locations. Never
-/// search another application's private runtime. A real device probe, not
-/// file presence, decides whether these libraries are usable.
 pub(super) fn library_dirs() -> Vec<PathBuf> {
     let versioned: Vec<String> = BUILDS
         .iter()
@@ -398,22 +359,18 @@ mod tests {
     #[test]
     fn prebuilt_kernels_need_only_the_major_driver_version() {
         let (newest, older) = (&BUILDS[0], &BUILDS[1]);
-        // RTX 30/40/50 run CUDA 13.5 on any CUDA 13 driver (R580+).
         for capability in [86, 89, 120] {
             assert_eq!(
                 version_of(13_000, Some(&[capability])),
                 Some(newest.version)
             );
         }
-        // An RTX 30 on a CUDA 12.6 driver runs the CUDA 12 build's prebuilt kernels.
         assert_eq!(version_of(12_060, Some(&[86])), Some(older.version));
     }
 
     #[test]
     fn ptx_needs_a_driver_as_new_as_the_toolkit() {
         let (newest, older) = (&BUILDS[0], &BUILDS[1]);
-        // Turing and A100 have only PTX in CUDA 13.5: a 13.0-13.4 driver
-        // cannot compile it, so they get the CUDA 12 build.
         for capability in [75, 80, 90] {
             assert_eq!(version_of(13_040, Some(&[capability])), Some(older.version));
             assert_eq!(
@@ -421,7 +378,6 @@ mod tests {
                 Some(newest.version)
             );
         }
-        // Maxwell, Pascal and Volta need CUDA 12 and a driver for its PTX.
         for capability in [52, 61, 70] {
             assert_eq!(version_of(13_050, Some(&[capability])), Some(older.version));
             assert_eq!(

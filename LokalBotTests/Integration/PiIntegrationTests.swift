@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// End-to-end: real Bun, real pinned pi runtime, our real extension, talking to a
-/// stub OpenAI server. Skips when the vendored runtime isn't installed
-/// (enable Agent Mode in the app once to install it).
 final class PiIntegrationTests: XCTestCase {
 
     private var stub: Process?
@@ -63,8 +60,6 @@ final class PiIntegrationTests: XCTestCase {
         try FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: workspace) }
 
-        // The host app bundles LokalBot/Resources/pi, so the test never
-        // reads the checkout.
         let resources = try XCTUnwrap(Bundle.main.resourceURL)
         let endpoint = AgentLLMEndpoint(
             baseURL: URL(string: "http://127.0.0.1:\(stubPort)/v1")!,
@@ -85,9 +80,6 @@ final class PiIntegrationTests: XCTestCase {
         let client = PiRPCClient(transport: process)
         await client.run()
 
-        // No mutable capture: the collector Task RETURNS the verdict.
-        // If the reply never arrives, the deadline task cancels the collector,
-        // the for-await loop ends, and `collector.value` resolves to false.
         let events = await client.events
         let collector = Task { () -> Bool in
             for await event in events {
@@ -114,10 +106,7 @@ final class PiIntegrationTests: XCTestCase {
     }
 }
 
-// MARK: - Small helpers
-
 private extension FileHandle {
-    /// Blocking single-line read with a deadline; fine for test setup.
     func availableLine(timeout: TimeInterval) -> String? {
         let deadline = Date().addingTimeInterval(timeout)
         var buffer = Data()

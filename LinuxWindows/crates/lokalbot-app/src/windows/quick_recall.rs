@@ -1,11 +1,3 @@
-//! Quick Recall (`QuickRecallView.swift`): the window Ctrl+K and the
-//! system-wide shortcut open. Type to search meetings, screen history, files
-//! and agent notes, run a command, or ask. Results are grouped by kind, three
-//! of each with Show all. Return opens the selected row; Ctrl+Return asks, and
-//! the answer shows here with numbered sources and Continue in main window.
-//! Before anything is typed it lists recent items and every command. Escape
-//! or leaving the window closes it.
-
 mod answer;
 mod model;
 mod rows;
@@ -41,19 +33,13 @@ use crate::ui::screen_thumbnail::ScreenThumbnails;
 use crate::ui::{self, Ico};
 use crate::windows::screen_image::ScreenImage;
 
-/// The window (`QuickRecallView.size`).
 const WIDTH: f32 = 660.;
 const HEIGHT: f32 = 512.;
 
-/// Opens Quick Recall from the system-wide shortcut, the tray or the command
-/// line, or brings the open window forward with its text selected.
 pub fn open(cx: &mut App) {
     open_from(false, cx);
 }
 
-/// Ctrl+K. Opened from the main window, the window also offers the commands
-/// of the page it shows (`quickRecallOpenedFromMainWindow`). Pressing it again
-/// inside the window keeps what it was opened from.
 pub fn open_from_shortcut(cx: &mut App) {
     let main = crate::desktop::desktop(cx).and_then(|desktop| *desktop.main_window.lock());
     let from_main = main.is_some() && cx.active_window() == main;
@@ -88,8 +74,6 @@ fn open_from(from_main_window: bool, cx: &mut App) {
         window_decorations: Some(gpui_kit::WindowDecorations::Client),
         ..Default::default()
     };
-    // Windows takes a borderless, topmost tool window; X11 only gives
-    // keyboard focus to managed windows, so Linux uses a normal one.
     let window_kind = || {
         if cfg!(target_os = "windows") {
             WindowKind::PopUp
@@ -97,8 +81,6 @@ fn open_from(from_main_window: bool, cx: &mut App) {
             WindowKind::Normal
         }
     };
-    // On Wayland, a centered layer surface that takes the keyboard: a tiling
-    // compositor would otherwise split the screen with it.
     #[cfg(target_os = "linux")]
     let layer = super::layer_surface(
         "lokalbot-quick-recall",
@@ -135,24 +117,18 @@ pub struct QuickRecall {
     data: Entity<AppData>,
     input: Entity<InputState>,
     query: String,
-    /// Opened with Ctrl+K from the main window: the commands of its page are
-    /// offered too.
     in_workspace: bool,
     results: search::Results,
     saved: Vec<ScreenMoment>,
     cursor: Cursor,
-    /// Groups whose heading was asked to list everything here (commands).
     expanded: HashSet<GroupKind>,
     searching: bool,
     search_task: Option<Task<()>>,
-    /// Ctrl+Return arrived while a word's matches were still being found.
     pending_question: Option<String>,
     scroll: ScrollHandle,
     was_active: bool,
     thumbnails: ScreenThumbnails,
-    /// The answer showing in place of the results.
     answer: Option<Entity<QuickRecallAnswer>>,
-    /// The search that led to the answer, for the back arrow.
     recalled_query: String,
     copied: bool,
     _answer_subscriptions: Vec<Subscription>,
@@ -199,7 +175,6 @@ impl QuickRecall {
                 },
             ),
             cx.observe_in(&data, window, |this, data, window, cx| {
-                // A question asked elsewhere moves the window to its answer.
                 let streaming = data
                     .read(cx)
                     .ask_stream
@@ -220,12 +195,10 @@ impl QuickRecall {
                 if window.is_window_active() {
                     this.was_active = true;
                 } else if this.was_active {
-                    // Like the macOS panel, leaving Quick Recall dismisses it.
                     this.close(window, cx);
                 }
             }),
         ];
-        // The answer already being written, as on the Mac.
         let responding = data
             .read(cx)
             .ask_stream
@@ -311,15 +284,10 @@ impl QuickRecall {
         self.query.trim()
     }
 
-    // ---------------------------------------------------------------- rows
-
-    /// Every command, those of the main window's page included when it was
-    /// opened from there.
     fn commands(&self, cx: &App) -> Vec<palette::PaletteCommand> {
         palette::commands(self.data.read(cx), self.in_workspace, cx)
     }
 
-    /// The groups on show (`QuickRecallContent.groups`).
     fn groups(&self, cx: &App) -> Vec<Group<RowModel>> {
         if self.answer.is_some() {
             return Vec::new();
@@ -327,7 +295,6 @@ impl QuickRecall {
         let data = self.data.read(cx);
         let query = self.trimmed();
         if query.is_empty() {
-            // The newest meetings; one merged into another is listed by it.
             let meetings = data
                 .meetings
                 .iter()
@@ -381,7 +348,6 @@ impl QuickRecall {
         self.groups(cx).iter().map(|group| group.rows.len()).sum()
     }
 
-    /// Rows Return may land on as a list appears (`model::selectable_rows`).
     fn selectable_count(&self, cx: &App) -> usize {
         model::selectable_rows(&self.groups(cx))
     }
@@ -397,8 +363,6 @@ impl QuickRecall {
             || !self.results.notes.is_empty()
     }
 
-    // -------------------------------------------------------------- search
-
     fn search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.trimmed().to_string();
         self.results = search::Results::default();
@@ -412,7 +376,6 @@ impl QuickRecall {
             return;
         }
         self.searching = true;
-        // Matching commands are listed at once; Return runs the first.
         let count = self.selectable_count(cx);
         self.cursor.reset(count);
         let (library, meetings, file_folders, agent_notes) = {
@@ -465,7 +428,6 @@ impl QuickRecall {
             if !query.wants_meaning() {
                 return;
             }
-            // Meaning second, so words show at once.
             let refined = cx
                 .background_spawn(async move {
                     let vector = lokalbot_engine::query_vector(query.text.trim())?;
@@ -486,10 +448,6 @@ impl QuickRecall {
         cx.notify();
     }
 
-    // ---------------------------------------------------------------- keys
-
-    /// Up and Down go round the rows and the Ask row. Inside an answer the
-    /// field keeps them.
     fn move_selection(&mut self, offset: isize, cx: &mut Context<Self>) -> bool {
         if self.answer.is_some() {
             return false;
@@ -503,7 +461,6 @@ impl QuickRecall {
         true
     }
 
-    /// Return opens the selected row; on the Ask row it asks.
     fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let groups = self.groups(cx);
         let rows = rows::flatten(&groups);
@@ -522,8 +479,6 @@ impl QuickRecall {
 
     fn run(&mut self, destination: Destination, window: &mut Window, cx: &mut Context<Self>) {
         match destination {
-            // Recording and dictation act on the app the person came from,
-            // which gets the keyboard back as this window closes.
             Destination::Command(command) => {
                 self.close(window, cx);
                 cx.defer(move |cx| palette::run(&command, cx));
@@ -542,13 +497,11 @@ impl QuickRecall {
             Destination::RecentMeeting(id) => self.data.update(cx, |data, cx| {
                 data.open_meeting(id, Default::default(), None, cx)
             }),
-            // Files open in their own app, not in LokalBot's main window.
             Destination::File(hit) => {
                 search::open_file(&hit);
                 self.close(window, cx);
                 return;
             }
-            // A note opens the agent's own file.
             Destination::Note(hit) => {
                 search::open_note(&hit);
                 self.close(window, cx);
@@ -559,8 +512,6 @@ impl QuickRecall {
         self.close(window, cx);
     }
 
-    /// "Show all N": commands list here; a kind of result opens Ask on this
-    /// search, narrowed to that kind's source.
     fn show_all(&mut self, kind: GroupKind, window: &mut Window, cx: &mut Context<Self>) {
         let Some(source) = kind.ask_source() else {
             let count = self.row_count(cx);
@@ -590,8 +541,6 @@ impl QuickRecall {
         self.close(window, cx);
     }
 
-    // -------------------------------------------------------------- asking
-
     fn is_remember_statement(&self, text: &str, cx: &App) -> bool {
         self.data.read(cx).settings.ask_memory_enabled
             && lokalbot_core::personal::remember_statement(text).is_some()
@@ -605,16 +554,12 @@ impl QuickRecall {
             .is_some_and(|stream| stream.error.is_none())
     }
 
-    /// Asks here. From the results this starts a new conversation; inside an
-    /// answer it is a follow-up within the scope of the question before it.
     fn ask(&mut self, question: String, window: &mut Window, cx: &mut Context<Self>) {
         let value = question.trim().to_string();
         if value.is_empty() {
             return;
         }
         if self.responding(cx) {
-            // An answer is already being written (asked here or in the main
-            // window): show it instead of dropping the key.
             let streaming = self
                 .data
                 .read(cx)
@@ -628,7 +573,6 @@ impl QuickRecall {
             return;
         }
         if let Some(answer) = self.answer.clone() {
-            // Until the question before it is known, nothing is sent.
             let Some(scope) = answer.read(cx).follow_up_scope() else {
                 return;
             };
@@ -643,11 +587,8 @@ impl QuickRecall {
             return;
         }
         let remembers = self.is_remember_statement(&value, cx);
-        // A word or short phrase is answered from its matches, so it waits for
-        // them. A full question does not depend on what is listed.
         if self.searching && !remembers && !AnswerScope::is_full_question(&value) {
             self.pending_question = Some(value);
-            // Show that the key was taken while the matches arrive.
             let count = self.row_count(cx);
             self.cursor.select(Target::Ask, count);
             cx.notify();
@@ -701,7 +642,6 @@ impl QuickRecall {
         cx.notify();
     }
 
-    /// The back arrow: the results, with the search that led to the answer.
     fn show_recall(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.answer = None;
         self._answer_subscriptions.clear();
@@ -713,7 +653,6 @@ impl QuickRecall {
         self.focus_input(window, cx);
     }
 
-    /// Both windows share the conversation; opening it never asks again.
     fn continue_in_main_window(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(id) = self.answer.as_ref().map(|a| a.read(cx).conversation_id()) else {
             return;
@@ -752,9 +691,6 @@ impl QuickRecall {
         window.remove_window();
     }
 
-    // ------------------------------------------------------------- drawing
-
-    /// The field, in the window's top bar.
     fn render_field(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let in_answer = self.answer.is_some();
@@ -836,8 +772,6 @@ impl QuickRecall {
         let lb = cx.lb().clone();
         let row_count: usize = groups.iter().map(|group| group.rows.len()).sum();
         let selected = self.cursor.target(row_count, self.has_ask_row());
-        // The scroll handle reveals rows by child index, so a group's heading
-        // is drawn inside its first row's element.
         let mut elements: Vec<AnyElement> = Vec::new();
         let mut index = 0;
         for group in groups {
@@ -904,8 +838,6 @@ impl QuickRecall {
             .into_any_element()
     }
 
-    /// Nothing in memory matched. Under matching commands it is one quiet
-    /// line; alone it also says what was searched.
     fn render_no_matches(&self, beside_commands: bool, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let color = if beside_commands {
@@ -953,7 +885,6 @@ impl QuickRecall {
             .into_any_element()
     }
 
-    /// Pinned under the results. Ctrl+Return asks from anywhere in the window.
     fn render_ask_row(&self, row_count: usize, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let query = self.trimmed().to_string();
         let place = model::place(&self.data.read(cx).settings);
@@ -978,8 +909,6 @@ impl QuickRecall {
             )
     }
 
-    /// The foot of an answer: where it was answered and what it read, Copy,
-    /// and the way into the full Ask screen (`QuickRecallAnswerFoot`).
     fn render_answer_foot(
         &self,
         answer: &Entity<QuickRecallAnswer>,
@@ -1014,7 +943,6 @@ impl QuickRecall {
             .items_center()
             .pl(px(22.))
             .pr(px(12.))
-            // A "Remember …" receipt was saved here without any model.
             .when(!receipt, |this| {
                 this.child(ui::icon(icon, px(12.), icon_color)).child(
                     div()

@@ -74,7 +74,6 @@ final class PiLaunchPlannerTests: XCTestCase {
     }
 
     func testCompiledCopiesOutsideTheVerifiedRuntimeAreDisabled() {
-        // Scripts/tests/pi-runtime.test.ts checks that these leave no cache.
         let env = makePlan(inheritedEnvironment: [
             "BUN_RUNTIME_TRANSPILER_CACHE_PATH": "/Users/x/Library/Caches/bun",
             "JITI_FS_CACHE": "true",

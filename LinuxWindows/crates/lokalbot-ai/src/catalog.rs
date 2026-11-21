@@ -1,8 +1,3 @@
-//! The GGUF models LokalBot can download (`Engines/ModelCatalog.swift`,
-//! `Services/Search/EmbeddingIndex.swift`). Files, revisions, sizes and SHA-256
-//! digests are the macOS pins, so a library moved between platforms reuses
-//! its `models/` folder.
-
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 
@@ -12,12 +7,8 @@ use crate::download::{self, DownloadSpec};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModelKind {
-    /// Chat/completion models for Think and Autocomplete.
     Text,
-    /// The embedder for "Search by meaning".
     Embedding,
-    /// The embedder's image and audio projector, for Files and pictures of
-    /// saved screens. Not a model anyone picks, so it isn't in the catalog list.
     Projector,
 }
 
@@ -25,9 +16,7 @@ pub enum ModelKind {
 pub struct ModelEntry {
     pub id: &'static str,
     pub display_name: &'static str,
-    /// Hugging Face `owner/repo`.
     pub repo: &'static str,
-    /// Immutable 40-hex commit the file is pinned to.
     pub revision: &'static str,
     pub file: &'static str,
     pub quant: &'static str,
@@ -35,17 +24,11 @@ pub struct ModelEntry {
     pub sha256: &'static str,
     pub blurb: &'static str,
     pub kind: ModelKind,
-    /// Offered for Think (summaries, Ask, digests).
     pub think: bool,
-    /// Offered in the Autocomplete picker (`keystrokeScaleEntries`).
     pub autocomplete: bool,
     pub license: Option<&'static str>,
-    /// Sampling the vendor requires, merged last into built-in chat requests
-    /// (`MainLLMRuntimePolicy.requestOverrides`).
     pub request_overrides: &'static [(&'static str, f64)],
-    /// The model has no thinking-budget control on llama-server.
     pub no_reasoning_control: bool,
-    /// A custom entry's stored download URL; catalog models build theirs from the pin.
     pub custom_url: Option<&'static str>,
 }
 
@@ -60,7 +43,6 @@ impl ModelEntry {
         )
     }
 
-    /// Decimal gigabytes, as the pickers show them.
     pub fn size_gb(&self) -> f64 {
         self.size_bytes as f64 / 1e9
     }
@@ -81,14 +63,12 @@ pub const RECOMMENDED_SUMMARIZATION_ID: &str = "qwen3.6-35b-a3b";
 pub const QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-base-q6";
 pub const LIGHTWEIGHT_AUTOCOMPLETE_ID: &str = "lfm2.5-1.2b-instruct";
 pub const EMBEDDING_ID: &str = "embeddinggemma-2-q8";
-/// Alias the engine uses.
 pub const EMBEDDING_MODEL_ID: &str = EMBEDDING_ID;
 pub const EMBEDDING_DIMENSIONS: usize = 768;
 
-/// Models above this size are too slow for keystroke-latency completion.
 const KEYSTROKE_SCALE_MAX_GB: f64 = 7.0;
 
-#[allow(clippy::too_many_arguments)] // a table row constructor
+#[allow(clippy::too_many_arguments)]
 const fn text(
     id: &'static str,
     display_name: &'static str,
@@ -340,8 +320,6 @@ static CATALOG: [ModelEntry; 15] = [
     },
 ];
 
-/// EmbeddingGemma 2's image and audio projector, the one extra file Files needs
-/// (`FileSearchModels`), from the same pinned revision as the embedder.
 pub const PROJECTOR_ID: &str = "embeddinggemma-2-mmproj-q8";
 
 static PROJECTOR: ModelEntry = ModelEntry {
@@ -365,19 +343,14 @@ pub fn projector_entry() -> &'static ModelEntry {
     &PROJECTOR
 }
 
-/// Every downloadable model, text models roughly smallest first, then the embedder.
 pub fn catalog() -> &'static [ModelEntry] {
     &CATALOG
 }
 
-/// Models added from Hugging Face, from `customBuiltInModels`.
 static CUSTOM: parking_lot::RwLock<Vec<&'static ModelEntry>> = parking_lot::RwLock::new(Vec::new());
-/// Every custom entry made so far: entries are handed out as `&'static` like
-/// the catalog's, so one is built once and reused.
 static CUSTOM_MADE: parking_lot::Mutex<Vec<&'static ModelEntry>> =
     parking_lot::Mutex::new(Vec::new());
 
-/// The Mac's `ModelCatalog.Entry` as `customBuiltInModels` stores it.
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct StoredEntry {
@@ -402,15 +375,11 @@ fn leaked(text: &str) -> &'static str {
     Box::leak(text.to_string().into_boxed_str())
 }
 
-/// An entry usable from the stored record. A record with no digest or size
-/// still parses, and the download refuses it with the Mac's message. A file
-/// name that isn't a plain name can't reach the models folder.
 fn custom_entry(stored: StoredEntry) -> Option<ModelEntry> {
     let name = stored.file_name.trim();
     if name.is_empty() || name == "." || name == ".." || name.contains(['/', '\\']) {
         return None;
     }
-    // Older entries carried the digest in the URL's fragment.
     let (url, fragment) = stored
         .url
         .split_once('#')
@@ -425,7 +394,6 @@ fn custom_entry(stored: StoredEntry) -> Option<ModelEntry> {
                 .and_then(normalized_sha256)
         })
         .unwrap_or_default();
-    // Entries from an earlier build recover the bytes from the decimal size.
     let size_bytes = stored
         .size_bytes
         .filter(|size| *size > 0)
@@ -455,7 +423,6 @@ fn custom_entry(stored: StoredEntry) -> Option<ModelEntry> {
     })
 }
 
-/// Takes the current `customBuiltInModels`; the engine calls it on every change.
 pub fn set_custom(records: &[serde_json::Value]) {
     let mut made = CUSTOM_MADE.lock();
     let mut custom = Vec::new();
@@ -463,7 +430,6 @@ pub fn set_custom(records: &[serde_json::Value]) {
         let Some(stored) = serde_json::from_value::<StoredEntry>(record.clone()).ok() else {
             continue;
         };
-        // A catalog id always means the catalog's own pin.
         if CATALOG.iter().any(|e| e.id == stored.id) {
             continue;
         }
@@ -481,12 +447,10 @@ pub fn set_custom(records: &[serde_json::Value]) {
     *CUSTOM.write() = custom;
 }
 
-/// Models added from Hugging Face.
 pub fn custom_entries() -> Vec<&'static ModelEntry> {
     CUSTOM.read().clone()
 }
 
-/// The catalog and the custom models.
 pub fn all_entries() -> impl Iterator<Item = &'static ModelEntry> {
     CATALOG.iter().chain(custom_entries())
 }
@@ -501,8 +465,6 @@ pub fn entry(id: &str) -> Option<&'static ModelEntry> {
         .or_else(|| CUSTOM.read().iter().find(|e| e.id == id).copied())
 }
 
-/// Why a custom model can't leave the list yet (`customModelRemoval`), so it
-/// never orphans a downloaded file or a saved role choice.
 pub fn custom_removal_blocker(
     id: &str,
     settings: &lokalbot_core::Settings,
@@ -527,16 +489,6 @@ pub fn custom_removal_blocker(
     downloaded.then(|| "Remove its download in Model Storage first.".to_string())
 }
 
-/// Run at launch. Through 0.12.3 the port saved LFM2.5 1.2B as everyone's
-/// Autocomplete model, though the Mac and this catalog recommend Gemma 4 E2B,
-/// and a saved choice outlives a changed default. Setup's "Also prepare
-/// Autocomplete" and turning autocomplete on both downloaded that default, so
-/// a downloaded LFM2.5 isn't a choice either. Moves settings that hold it
-/// while autocomplete is off, and Think isn't the Lightweight preset's, to
-/// Gemma 4 E2B. With autocomplete on, LFM2.5 stays. A downloaded LFM2.5 file
-/// stays on disk, listed as unused in Model Storage, where it can be deleted.
-/// It runs once per library, so choosing LFM2.5 afterwards sticks. Returns
-/// whether the settings changed and need saving.
 pub fn adopt_default_autocomplete(settings: &mut lokalbot_core::Settings) -> bool {
     if settings.autocomplete_default_adopted {
         return false;
@@ -555,14 +507,10 @@ pub fn embedding_entry() -> &'static ModelEntry {
     entry(EMBEDDING_ID).expect("the embedder is in the catalog")
 }
 
-/// Think picker entries (`mainLLMEntries`).
 pub fn think_entries() -> impl Iterator<Item = &'static ModelEntry> {
     all_entries().filter(|e| e.kind == ModelKind::Text && e.think)
 }
 
-/// Autocomplete picker entries (`keystrokeScaleEntries`): under 7 GB and not
-/// an always-reasoning or legacy model, plus every custom model. A stored
-/// choice stays visible.
 pub fn autocomplete_entries(keeping: Option<&str>) -> impl Iterator<Item = &'static ModelEntry> {
     let keeping = keeping.map(str::to_string);
     all_entries().filter(move |e| {
@@ -573,19 +521,14 @@ pub fn autocomplete_entries(keeping: Option<&str>) -> impl Iterator<Item = &'sta
     })
 }
 
-/// The pinned download of `entry` into `<root>/models/`.
 pub fn download_spec(paths: &LibraryPaths, entry: &ModelEntry) -> DownloadSpec {
     entry.download_spec(paths)
 }
 
-/// `<root>/models/<file>`.
 pub fn model_path(paths: &LibraryPaths, entry: &ModelEntry) -> PathBuf {
     paths.models_dir().join(entry.file)
 }
 
-/// Cheap check for the UI: the exact size and GGUF magic, plus a matching
-/// `.sha256` sidecar when one exists. [`verify_downloaded`] hashes a file that
-/// has no sidecar yet.
 pub fn is_downloaded(paths: &LibraryPaths, entry: &ModelEntry) -> bool {
     let path = model_path(paths, entry);
     if !has_size_and_magic(&path, entry.size_bytes) {
@@ -597,10 +540,6 @@ pub fn is_downloaded(paths: &LibraryPaths, entry: &ModelEntry) -> bool {
     }
 }
 
-/// Full integrity check before a model is loaded. A file without a sidecar
-/// (copied in by hand, or written by an older build) is hashed once and the
-/// sidecar recorded. A file that fails is left in place; the caller decides
-/// whether to delete it.
 pub fn verify_downloaded(paths: &LibraryPaths, entry: &ModelEntry) -> anyhow::Result<bool> {
     let path = model_path(paths, entry);
     if !has_size_and_magic(&path, entry.size_bytes) {
@@ -617,7 +556,6 @@ pub fn verify_downloaded(paths: &LibraryPaths, entry: &ModelEntry) -> anyhow::Re
     Ok(true)
 }
 
-/// Removes a downloaded model and its sidecar.
 pub fn delete_model(paths: &LibraryPaths, entry: &ModelEntry) -> std::io::Result<()> {
     let path = model_path(paths, entry);
     for file in [path.clone(), download::sidecar_path(&path)] {
@@ -636,7 +574,6 @@ fn has_size_and_magic(path: &Path, size: u64) -> bool {
     meta.len() == size && looks_like_gguf(path)
 }
 
-/// `ModelFileValidator.looksLikeGGUF`: the first four bytes are `GGUF`.
 pub fn looks_like_gguf(path: &Path) -> bool {
     let mut magic = [0u8; 4];
     std::fs::File::open(path)
@@ -645,7 +582,6 @@ pub fn looks_like_gguf(path: &Path) -> bool {
         && &magic == b"GGUF"
 }
 
-/// A one-click local setup (`ModelStackPreset`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Preset {
     pub id: &'static str,
@@ -673,7 +609,6 @@ pub const PRESETS: [Preset; 2] = [
 ];
 
 impl Preset {
-    /// Bytes still to download to apply this preset.
     pub fn missing_bytes(&self, paths: &LibraryPaths) -> u64 {
         let mut ids = vec![self.think, self.autocomplete];
         ids.dedup();
@@ -695,7 +630,6 @@ mod custom_tests {
         custom_entry(serde_json::from_str(json).unwrap())
     }
 
-    /// What `JSONEncoder` writes for `ModelCatalog.Entry` on the Mac.
     #[test]
     fn a_mac_record_reads() {
         let entry = record(&format!(
@@ -724,7 +658,6 @@ mod custom_tests {
         .unwrap();
         assert_eq!(entry.sha256, DIGEST);
         assert_eq!(entry.size_bytes, 2_500_000_000);
-        // A branch instead of a commit is refused with the Mac's message.
         assert_eq!(
             download::source_refusal(&entry.url(), entry.sha256, false).as_deref(),
             Some(download::UNPINNED_HUGGING_FACE_MESSAGE)
@@ -760,7 +693,6 @@ mod custom_tests {
         assert_ne!(entry(DEFAULT_THINK_ID).unwrap().display_name, "Fake");
         assert!(think_entries().any(|e| e.id == "hf:o/r/custom.gguf"));
         assert!(autocomplete_entries(None).any(|e| e.id == "hf:o/r/custom.gguf"));
-        // Reloading the same record reuses the entry.
         let first = entry("hf:o/r/custom.gguf").unwrap() as *const ModelEntry;
         set_custom(&[added]);
         assert_eq!(
@@ -833,8 +765,6 @@ mod tests {
         assert!(autocomplete_entries(Some("gemma4-12b")).any(|e| e.id == "gemma4-12b"));
     }
 
-    /// 0.12.3 on Windows offered LFM2.5 1.2B for autocomplete because the
-    /// port's settings default disagreed with the Mac and this catalog.
     #[test]
     fn autocomplete_defaults_to_gemma_e2b_as_on_macos() {
         let settings = lokalbot_core::Settings::default();
@@ -850,12 +780,9 @@ mod tests {
             ..Default::default()
         };
 
-        // Downloaded or not: 0.12.3's setup and autocomplete switch both
-        // fetched the default, so neither tells a choice apart.
         let mut settings = older();
         assert!(adopt_default_autocomplete(&mut settings));
         assert_eq!(settings.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
-        // Once per library: LFM2.5 chosen afterwards stays.
         settings.cotyping_built_in_model_id = LIGHTWEIGHT_AUTOCOMPLETE_ID.into();
         assert!(!adopt_default_autocomplete(&mut settings));
         assert_eq!(
@@ -863,7 +790,6 @@ mod tests {
             LIGHTWEIGHT_AUTOCOMPLETE_ID
         );
 
-        // Autocomplete in use, or the Lightweight preset: LFM2.5 stays.
         let mut on = lokalbot_core::Settings {
             cotyping_enabled: true,
             ..older()
@@ -880,7 +806,6 @@ mod tests {
             LIGHTWEIGHT_AUTOCOMPLETE_ID
         );
 
-        // Any other model stays, and new settings only record that it ran.
         let mut other = lokalbot_core::Settings {
             cotyping_built_in_model_id: "qwen3.5-2b".into(),
             ..Default::default()
@@ -906,7 +831,6 @@ mod tests {
         assert!(!is_downloaded(&paths, &entry));
         std::fs::write(&path, b"GGUFxxxx").unwrap();
         assert!(is_downloaded(&paths, &entry));
-        // A sidecar that disagrees with the pinned digest means another file.
         download::write_sidecar(&path, &"0".repeat(64)).unwrap();
         assert!(!is_downloaded(&paths, &entry));
         assert!(!verify_downloaded(&paths, &entry).unwrap());

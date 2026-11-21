@@ -1,26 +1,15 @@
 import SwiftUI
 
-/// Shared outcome-first building blocks used by Today, Timeline, People and
-/// Projects. They read the same `OutcomeIndex` as Meetings, so status changes
-/// are immediately reflected everywhere without modifying extracted source
-/// files.
-///
-/// Today's open actions as a panel: the most urgent rows on the page itself,
-/// how many are overdue beside the count, and the rest one link away.
 struct NeedsAttentionSection: View {
     @EnvironmentObject var app: AppState
     let threads: [ActionThread]
     var limit = 3
-    /// The moment the page shows, for the overdue count.
     var now = Date()
 
-    /// Open threads the section leaves to the Actions page.
     static func remainder(total: Int, limit: Int) -> Int {
         max(0, total - max(0, limit))
     }
 
-    /// Nothing to act on means no panel at all: an empty "Needs attention"
-    /// is dead weight on a glanceable page.
     var body: some View {
         if !threads.isEmpty { panel }
     }
@@ -59,14 +48,10 @@ struct NeedsAttentionSection: View {
     }
 }
 
-/// How the Actions page shows the shared row: its own source and due wording,
-/// a selection it owns, and status changes it confirms and keeps in view.
-/// The links a row has elsewhere live in that page's details pane.
 struct ActionListRowStyle {
     let source: String
     let due: ActionsListContent.DueLabel?
     var isSelected = false
-    /// Several rows are selected: a row's menu shows only under the pointer.
     var isBatch = false
     let onStatus: (OutcomeStatus) -> Void
     let onEdit: () -> Void
@@ -78,18 +63,10 @@ struct ActionThreadRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorSchemeContrast) private var contrast
     let thread: ActionThread
-    /// Projects show whose work it is when it is someone else's.
     var showsOwner = false
-    /// People show deferred work as deferred and ask about open work nobody
-    /// has mentioned for weeks.
     var showsStaleness = false
-    /// Timeline's meeting preview lists that meeting's actions, so a row from
-    /// one meeting does not name it again.
     var hidesSingleMeetingLink = false
-    /// People show the moment as a ▶ time that opens the meeting playing
-    /// from there, like the notes beside it.
     var playsEvidence = false
-    /// Set by the Actions page; every other page shows the row with its links.
     var list: ActionListRowStyle?
     @State private var showingSources = false
     @State private var showingStatusConfirmation = false
@@ -117,8 +94,6 @@ struct ActionThreadRow: View {
         .accessibilityValue(thread.text)
         .accessibilityIdentifier("outcome.thread.toggle.\(thread.id)")
     }
-
-    // MARK: Actions page
 
     private func listBody(_ list: ActionListRowStyle) -> some View {
         HStack(alignment: .top, spacing: 10) {
@@ -166,9 +141,6 @@ struct ActionThreadRow: View {
                     .accessibilityIdentifier("outcome.thread.completionHint")
                 }
             }
-            // The menu shows on the selected row and under the pointer. It
-            // stays in the view tree either way, so it cannot go away while
-            // it is open and the pointer has moved onto its items.
             let showsMenu = hovered || (list.isSelected && !list.isBatch)
             optionsMenu(listMenu(list))
                 .opacity(showsMenu ? 1 : 0)
@@ -226,9 +198,6 @@ struct ActionThreadRow: View {
         Menu("Hand off") { Self.handOffItems(for: thread, app: app) }
     }
 
-    /// The row's "…" menu. SwiftUI's Menu proxy leaves out the Press and Show
-    /// Menu accessibility actions, so VoiceOver and Switch Control could not
-    /// open it; `WorkspaceMenu` is the app's native pull-down that has them.
     private func optionsMenu(_ items: [WorkspaceMenu.Item]) -> some View {
         WorkspaceMenu(title: text("Action thread options"), symbol: "ellipsis",
                       label: text("Action thread options") + ": " + thread.text,
@@ -237,7 +206,6 @@ struct ActionThreadRow: View {
             .fixedSize()
     }
 
-    /// A catalog string in the app's chosen language, for the native menu.
     private func text(_ key: String) -> String { app.settings.appLanguage.localized(key) }
 
     private var separateOrAllowItem: WorkspaceMenu.Item {
@@ -252,7 +220,6 @@ struct ActionThreadRow: View {
         }
     }
 
-    /// The menu on Today, Timeline, People and Projects.
     private var defaultMenu: [WorkspaceMenu.Item] {
         var items = OutcomeStatus.allCases.map { status in
             WorkspaceMenu.Item(title: status.label, selected: !thread.hasMixedStatus && thread.status == status,
@@ -275,7 +242,6 @@ struct ActionThreadRow: View {
         return items
     }
 
-    /// The menu on the Actions page; the same entries as its context menu.
     private func listMenu(_ list: ActionListRowStyle) -> [WorkspaceMenu.Item] {
         var items: [WorkspaceMenu.Item] = [
             .init(title: text(thread.status == .done ? "Mark open" : "Mark Done"),
@@ -304,7 +270,6 @@ struct ActionThreadRow: View {
         return items
     }
 
-    /// Agent, then the external agents installed on this Mac.
     @ViewBuilder static func handOffItems(for thread: ActionThread, app: AppState) -> some View {
         Button("Agent") { app.openAgent(agentContext(for: thread)) }
         ForEach(ActionAgentAvailability.installed) { target in
@@ -341,8 +306,6 @@ struct ActionThreadRow: View {
             app.lastError = app.outcomeIndex.lastError
         }
     }
-
-    // MARK: Today, Timeline, People and Projects
 
     private var standardBody: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -455,7 +418,6 @@ struct ActionThreadRow: View {
         }
     }
 
-    /// Overdue reads red, due within the week amber, anything later quiet.
     private var dueColor: Color {
         if thread.isOverdue() { return LBTokens.Palette.recordingText }
         return thread.isDueSoon() ? LBTokens.Palette.attentionText : .secondary
@@ -471,8 +433,6 @@ struct ActionThreadRow: View {
     }
 
     private func apply(_ status: OutcomeStatus) {
-        // A completed thread leaves open-only lists; animate the change so
-        // the rows below close the gap.
         let updated = withAnimation(WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion)) {
             app.outcomeIndex.setStatus(status, thread: thread)
         }
@@ -485,8 +445,6 @@ struct ActionThreadRow: View {
     }
 }
 
-/// "Looks done?" evidence from a later screen capture. It never changes
-/// status by itself; Mark Done goes through the normal status path.
 private struct ActionCompletionHintLine: View {
     let hint: ActionCompletionHint
     let onDone: () -> Void
@@ -521,8 +479,6 @@ private struct ActionCompletionHintLine: View {
     }
 }
 
-/// Asks about open work nobody has mentioned for weeks. Either answer goes
-/// through the normal status path; deferred work stops asking.
 private struct StillOpenLine: View {
     let lastMentioned: Date
     let onDone: () -> Void

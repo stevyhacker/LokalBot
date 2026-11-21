@@ -3,9 +3,6 @@ import XCTest
 
 final class LlamaCotypingRuntimeTests: XCTestCase {
 
-    /// Resolves the compact fallback model from the local cache or
-    /// `LOKALBOT_COTYPING_TEST_MODEL`, or skips. Never from the checkout:
-    /// macOS asks each new test host for access to ~/Documents.
     private func bundledModelPath() throws -> String {
         let entry = ModelCatalog.entry(id: ModelCatalog.compactFallbackID)!
         let storage = StorageManager()
@@ -21,8 +18,6 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
 
     private let standardSpecs = LlamaSamplerSpec.specs(from: .standard)
 
-    /// A memory warning while suggestions are coming leaves the model loaded,
-    /// so the next keystroke does not wait for a reload.
     func testAMemoryWarningFreesTheModelOnlyAfterAMinuteIdle() {
         XCTAssertTrue(LlamaCotypingRuntime.isIdle(lastUsedUptime: nil, now: 100))
         XCTAssertFalse(LlamaCotypingRuntime.isIdle(lastUsedUptime: 90, now: 100))
@@ -67,8 +62,7 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
             promptTokens: prompt, maxTokens: 8, samplerSpecs: standardSpecs) { _ in true }
         XCTAssertFalse(first.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
-        // Same prompt + fixed seed (0x00C0FFEE in standardSpecs) → identical output.
-        try await runtime.loadIfNeeded(modelPath: path) // no-op reload
+        try await runtime.loadIfNeeded(modelPath: path)
         let second = try await runtime.generate(
             promptTokens: prompt, maxTokens: 8, samplerSpecs: standardSpecs) { _ in true }
         XCTAssertEqual(first, second, "fixed seed must produce deterministic output")
@@ -78,7 +72,7 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
         let runtime = LlamaCotypingRuntime()
         let before = await runtime.isLoaded
         XCTAssertFalse(before)
-        await runtime.handleMemoryPressure()   // safe no-op when nothing is loaded
+        await runtime.handleMemoryPressure()
         let after = await runtime.isLoaded
         XCTAssertFalse(after)
     }
@@ -102,7 +96,6 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
             try await load.value
             XCTFail("A load admitted before unload must not resume and install weights.")
         } catch is CancellationError {
-            // Expected: the unload epoch invalidates the suspended load.
         } catch {
             XCTFail("Expected cancellation from the unload epoch, got \(error).")
         }
@@ -111,14 +104,6 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
     }
 
     func testReusedPrefixIsReflectedInPrefillTokenCount() async throws {
-        // Validates the IncrementalPrefill reuse SIGNAL — the logical
-        // `lastPrefillTokenCount` (prompt.count - sharedPrefix) — not the physical
-        // reuse branch. The bundled CI model is hybrid SSM, so it always takes the
-        // full-reprefill fallback; the arithmetic below holds on BOTH that fallback
-        // and the production attention model's partial-reuse branch, so it cannot
-        // observe physical suffix-only prefill on this fixture. The pure-attention
-        // partial-reuse branch is exercised only on the production Gemma-4 model /
-        // a manual run.
         let path = try bundledModelPath()
         let runtime = LlamaCotypingRuntime()
         try await runtime.loadIfNeeded(modelPath: path)
@@ -128,7 +113,6 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
         let firstPrefill = await runtime.lastPrefillTokenCount
         XCTAssertEqual(firstPrefill, base.count, "cold prompt prefills every token")
 
-        // Extend the prompt: the reuse signal must subtract the shared prefix.
         let extended = base + (await runtime.tokenize(" up tomorrow", addBOS: false))
         _ = try await runtime.generate(promptTokens: extended, maxTokens: 2, samplerSpecs: standardSpecs) { _ in true }
         let secondPrefill = await runtime.lastPrefillTokenCount
@@ -210,8 +194,6 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
         XCTAssertFalse(out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
     }
 
-    /// Readying the model after a pause must never load one: a model freed
-    /// under memory pressure stays freed until a suggestion is asked for.
     func testTouchNeverLoadsAModel() async {
         let runtime = LlamaCotypingRuntime()
         let touched = await runtime.touch()
@@ -220,8 +202,6 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
         XCTAssertFalse(loaded)
     }
 
-    /// The throwaway token goes after the cached prompt and comes out again,
-    /// so the next keystroke reads only what was typed and suggests the same.
     func testTouchKeepsTheCachedPromptAndTheSuggestion() async throws {
         let path = try bundledModelPath()
         let runtime = LlamaCotypingRuntime()
@@ -264,18 +244,15 @@ final class LlamaCotypingRuntimeTests: XCTestCase {
         let counter = TokenCounter()
         let out = try await runtime.generate(
             promptTokens: prompt, maxTokens: 20, samplerSpecs: standardSpecs
-        ) { _ in counter.increment() < 3 }   // stop after 3 tokens
+        ) { _ in counter.increment() < 3 }
         XCTAssertLessThanOrEqual(counter.value, 3)
         XCTAssertFalse(out.isEmpty)
     }
 }
 
-/// Thread-safe counter so the `@Sendable` onToken closure can tally tokens
-/// without tripping Swift's concurrent-capture diagnostics.
 private final class TokenCounter: @unchecked Sendable {
     private let lock = NSLock()
     private var count = 0
-    /// Increments and returns the new count (so the first call returns 1).
     @discardableResult
     func increment() -> Int {
         lock.lock(); defer { lock.unlock() }

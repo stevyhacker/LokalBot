@@ -68,7 +68,6 @@ def compare(committed_root, fresh_root):
     for key, recording in fresh.items():
         model, case = key
         calls = recording["calls"]
-        # The same purpose's nth call answers the same request in both runs.
         recorded = {}
         for call in committed[key]["calls"] if key in committed else []:
             recorded.setdefault(call["purpose"], []).append(call)

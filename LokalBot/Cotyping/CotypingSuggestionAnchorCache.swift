@@ -1,10 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// Bounded memory of recently shown continuation suggestions. It lets common
-/// editing paths re-show the still-valid tail instantly, without debounce or a
-/// model call: focus bounce, backspace rollback, and typing through a suggestion
-/// after the active session was cleared.
 nonisolated struct CotypingSuggestionAnchorCache {
     static let prefixTailLength = 256
     static let capacity = 16
@@ -23,8 +19,6 @@ nonisolated struct CotypingSuggestionAnchorCache {
         let isOpenEnded: Bool
     }
 
-    /// A still-valid tail, and whether the suggestion it came from may be
-    /// topped up as it is accepted or typed through.
     struct Restoration: Equatable {
         let text: String
         let isOpenEnded: Bool
@@ -144,11 +138,6 @@ nonisolated struct CotypingSuggestionAnchorCache {
     }
 }
 
-/// Stable, deterministic identity for the parts of a generation request that
-/// are allowed to outlive the active session in `CotypingSuggestionAnchorCache`.
-/// The live caret prefix is intentionally excluded: typing through a displayed
-/// suggestion is exactly what the cache accelerates. Everything else that can
-/// change the model or its output is included.
 enum CotypingSuggestionCacheFingerprint {
     static func make(request: CotypingRequest, settings: AppSettings) -> String {
         let selectedModel = ModelCatalog.entry(
@@ -190,7 +179,6 @@ enum CotypingSuggestionCacheFingerprint {
             String(request.seed),
         ]
 
-        // Length-prefix every component so embedded separators cannot collide.
         let payload = components
             .map { "\($0.utf8.count):\($0)" }
             .joined(separator: "|")

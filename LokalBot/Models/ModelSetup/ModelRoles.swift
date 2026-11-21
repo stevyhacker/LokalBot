@@ -89,9 +89,6 @@ struct ModelRolesSnapshot: Equatable, Sendable {
     }
 }
 
-/// Owns selection readiness, model preparation, progress, failures, and the
-/// wake-up signal for work parked behind missing models. Onboarding, Settings,
-/// and automation all read the same role lifecycle through this interface.
 @MainActor
 final class ModelRoles: ObservableObject {
     struct TranscriptionPreparation: Equatable, Sendable {
@@ -128,7 +125,6 @@ final class ModelRoles: ObservableObject {
     @Published private var preparationErrors: [TranscriptionConfiguration: String] = [:]
     @Published private(set) var revision = 0
 
-    /// A draft folder's failure belongs to that folder, not the working selection.
     var transcriptionErrors: [String: String] {
         let current = settings()
         return Dictionary(uniqueKeysWithValues: TranscriptionModelChoice.allCases.compactMap { choice in
@@ -183,7 +179,6 @@ final class ModelRoles: ObservableObject {
             .sink { [weak self] progress, errors in
                 guard let self else { return }
                 let completedDownloads = !self.downloadProgress.isEmpty && progress.isEmpty
-                // A progress tick alone is not a readiness change.
                 let changed = Set(progress.keys) != Set(self.downloadProgress.keys)
                     || errors != self.downloadErrors
                 self.downloadProgress = progress
@@ -197,15 +192,10 @@ final class ModelRoles: ObservableObject {
         refreshDiskState()
     }
 
-    /// What is downloading, preparing, failed or ready, without progress.
-    /// AppState relays only these: relaying every progress tick (up to 5 Hz
-    /// per download) re-rendered every window for the whole of a
-    /// multi-gigabyte download. Views that draw progress observe this object.
     var readinessChanges: AnyPublisher<Void, Never> {
         Publishers.CombineLatest3(
             $transcriptionPreparations.map { Set($0.keys) },
             $preparationErrors,
-            // Bumped when a download starts, ends or fails, never by progress.
             $revision)
             .map { ReadinessSignature(preparing: $0, preparationErrors: $1, revision: $2) }
             .removeDuplicates()
@@ -342,8 +332,6 @@ final class ModelRoles: ObservableObject {
         }
     }
 
-    /// Stops the downloads `startCoreModelDownloads` began for the selected
-    /// models. Each stops the way its own Cancel on Downloaded stops it.
     func cancelCoreModelDownloads() {
         let settings = settings()
         var ids = settings.cotypingBackend == .onDevice ? [settings.cotypingBuiltInModelID] : []
@@ -396,8 +384,6 @@ final class ModelRoles: ObservableObject {
         preparationTask = (choice.id, token, key, task)
     }
 
-    /// Selection sheets prepare against their draft, keeping the current
-    /// model and its settings intact until the replacement is available.
     func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
         let key = TranscriptionConfiguration(choice, configuration)
         if choice != .funASRNano && choice != .appleSpeech,
@@ -412,8 +398,6 @@ final class ModelRoles: ObservableObject {
         prepareTranscriptionModel(choice, configuration: configuration)
         if let preparationTask {
             let failure = await preparationTask.task.value
-            // Some backends finish their file writes after cancellation. That
-            // completion must not turn a cancelled download into an activation.
             guard !preparationTask.task.isCancelled else { throw CancellationError() }
             try Task.checkCancellation()
             if let failure { throw ModelDownloadManager.PreparationError.failed(failure) }
@@ -422,8 +406,6 @@ final class ModelRoles: ObservableObject {
         if let error = preparationErrors[key] {
             throw ModelDownloadManager.PreparationError.failed(error)
         }
-        // Apple Speech preparation already verified the selected locale using
-        // AssetInventory. The disk snapshot is refreshed after activation.
         guard choice == .appleSpeech || downloadedTranscriptionModels(configuration).contains(choice.id) else {
             throw ModelDownloadManager.PreparationError.failed(
                 "The transcription model is not available yet. Retry its download.")
@@ -449,7 +431,6 @@ final class ModelRoles: ObservableObject {
         }
     }
 
-    /// A server route has nothing to download; one that is not set up says why.
     private func autocompleteStatus(settings: AppSettings, ready: Bool) -> ModelRoleStatus {
         if case .unavailable(let reason) = settings.cotypingRoute(includingCredentials: false) {
             return .needsAttention(reason)

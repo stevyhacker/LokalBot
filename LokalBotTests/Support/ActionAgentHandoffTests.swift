@@ -4,11 +4,8 @@ import XCTest
 final class ActionAgentHandoffTests: XCTestCase {
     private let utc = TimeZone(identifier: "UTC")!
     private let meetingID = UUID(uuidString: "1A2B3C4D-0000-4000-8000-000000000001")!
-    /// Monday 2026-10-26 14:00 UTC.
     private let startedAt = Date(timeIntervalSince1970: 1_793_023_200)
     private let folder = URL(fileURLWithPath: "/Users/ana/Library/Application Support/LokalBot/meetings/2026/10/26/design-review")
-
-    // MARK: Detection
 
     func testClaudeCodePrefersTheClaudeAppThenItsTerminalLink() {
         let both = handlers(["claude-cli", "claude"])
@@ -32,7 +29,6 @@ final class ActionAgentHandoffTests: XCTestCase {
                        "codex://new?prompt=Hi")
     }
 
-    /// Paths with spaces, line breaks, `&` and `+` must survive query parsing.
     func testPromptSurvivesQueryParsing() throws {
         let prompt = ActionAgentHandoff.prompt(brief(text: "Ship C++ fix & Q&A = 100%"), timeZone: utc)
         for route in [ActionAgentHandoff.Route.claudeCodeTerminal, .claudeDesktop, .codexApp] {
@@ -43,8 +39,6 @@ final class ActionAgentHandoffTests: XCTestCase {
             XCTAssertEqual(String(value).removingPercentEncoding, prompt)
         }
     }
-
-    // MARK: Prompt
 
     func testPromptCarriesTheActionMeetingAndFiles() {
         let prompt = ActionAgentHandoff.prompt(brief(), timeZone: utc)
@@ -131,8 +125,6 @@ final class ActionAgentHandoffTests: XCTestCase {
         XCTAssertTrue(cut.hasSuffix("[Cut short to fit.]"))
     }
 
-    // MARK: Sources
-
     func testSourcesListOnlyFilesThatExistOncePerMeeting() {
         let older = UUID()
         let references = [
@@ -157,8 +149,6 @@ final class ActionAgentHandoffTests: XCTestCase {
             folder: { _ in nil }, fileExists: { _ in true })
         XCTAssertEqual(sources, [])
     }
-
-    // MARK: Helpers
 
     private func handlers(_ schemes: Set<String>) -> (URL) -> URL? {
         { url in schemes.contains(url.scheme ?? "") ? URL(fileURLWithPath: "/Applications/Handler.app") : nil }

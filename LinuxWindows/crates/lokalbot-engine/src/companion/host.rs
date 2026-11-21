@@ -1,7 +1,3 @@
-//! Owns the sync host while sharing is on (`CompanionHost.swift`): this
-//! computer's static key, the listener, the mDNS announcement, the publisher
-//! that keeps records current, and the device list Settings shows.
-
 use std::collections::HashSet;
 use std::net::IpAddr;
 use std::path::{Path, PathBuf};
@@ -29,17 +25,12 @@ use super::{
     PairingRequest,
 };
 
-/// How often the host looks for a new day, moved network or changed notes.
 const TICK: Duration = Duration::from_secs(60);
-/// Today's record is rebuilt this often while there is activity.
 const REFRESH_MINUTES: i64 = 15;
-/// An unanswered prompt expires with the device's pairing request.
 const APPROVAL_TIMEOUT: Duration = Duration::from_secs(120);
 const REPUBLISH_TIMEOUT: Duration = Duration::from_secs(30);
-/// A burst of edits costs one pass.
 const PUBLISH_DEBOUNCE: Duration = Duration::from_secs(2);
 
-/// Set to 1 by development runs: listens on loopback only and never announces.
 const LOOPBACK_VARIABLE: &str = "LOKALBOT_COMPANION_LOOPBACK";
 
 pub(super) enum HostMessage {
@@ -53,22 +44,14 @@ pub(super) enum HostMessage {
     Stop,
 }
 
-/// What the host needs from the machine, so its lifecycle can run in tests
-/// without the credential store, a real interface, or the local network.
 pub(super) trait Environment: Send + Sync {
     fn settings(&self) -> Settings;
-    /// Only the private half of the key is kept.
     fn static_key(&self) -> Result<[u8; 32]>;
-    /// This machine's private LAN and Tailscale addresses.
     fn addresses(&self) -> Vec<String>;
     fn computer_name(&self) -> String;
-    /// Listen on loopback only.
     fn loopback_only(&self) -> bool;
-    /// Whether the local network announcement may run at all.
     fn announces(&self) -> bool;
     fn advertiser(&self) -> Box<dyn Advertiser>;
-    /// A device's recording is now this meeting: queue it for processing and
-    /// show it, wherever the person is in the app.
     fn recording_stored(&self, meeting_id: Uuid);
 }
 
@@ -109,8 +92,6 @@ impl Environment for LiveEnvironment {
         Box::new(MdnsAdvertiser::default())
     }
 
-    /// Queued like a recording finished on this computer, which waits for
-    /// missing models rather than downloading them with nobody here to see it.
     fn recording_stored(&self, meeting_id: Uuid) {
         let summarize = self.shared.settings().auto_summarize;
         if !self.pipeline.enqueue(meeting_id, true, summarize, false) {
@@ -124,8 +105,6 @@ pub(super) fn loopback_requested(value: Option<&str>) -> bool {
     value.is_some_and(|value| !value.is_empty() && value != "0")
 }
 
-/// The computer's name, as the pairing code and phones show it. It's never
-/// announced on the network.
 pub(super) fn computer_name() -> String {
     configured_computer_name()
         .map(|name| name.trim().to_string())
@@ -177,7 +156,6 @@ impl RecordSink for SyncServer {
     }
 }
 
-/// What the sync host's callbacks reach, from its own threads.
 struct Bridge {
     library: Library,
     environment: Arc<dyn Environment>,
@@ -186,17 +164,13 @@ struct Bridge {
     publisher: RwLock<Option<Arc<Publisher>>>,
     approval: Mutex<Option<(u64, Sender<bool>)>>,
     next_approval: AtomicU64,
-    /// Outlives the sync host, which restarts when sharing is switched off and
-    /// on while an import goes on.
     importing: Mutex<HashSet<String>>,
 }
 
 impl Bridge {
-    /// Blocks until the person answers or the prompt expires.
     fn approve(&self, device_name: &str, platform: &str) -> bool {
         let (answer, answered) = bounded(1);
         let id = self.next_approval.fetch_add(1, Ordering::SeqCst);
-        // A newer request drops the older answer channel, which refuses it.
         *self.approval.lock() = Some((id, answer));
         let _ = self
             .host
@@ -252,7 +226,6 @@ impl ServerDelegate for Delegate {
             return turned_off();
         };
         let outcome = ops::apply(&bridge.library, &op_json);
-        // The changed records reach the device before the op's result.
         if outcome.result.status == "applied"
             && let Some(meeting_id) = outcome.meeting_id
         {
@@ -288,7 +261,6 @@ impl ServerDelegate for Delegate {
     }
 
     fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome {
-        // The sync host keeps a whole file, so waiting costs no second transfer.
         let turned_off = || {
             recordings::deferred("Sharing with phones and tablets is turned off on your computer.")
         };
@@ -323,7 +295,6 @@ impl ServerDelegate for Delegate {
         bridge.importing.lock().remove(&id);
         if let Some(meeting_id) = received.new_meeting {
             bridge.environment.recording_stored(meeting_id);
-            // Its record is there for the sync that follows the upload.
             publisher.republish_now(meeting_id, REPUBLISH_TIMEOUT);
         }
         received.outcome
@@ -343,11 +314,9 @@ pub(super) struct Host {
     bridge: Arc<Bridge>,
     emit: Box<dyn Fn(CompanionSnapshot) + Send>,
     advertiser: Box<dyn Advertiser>,
-    /// What is being announced, so a tick restarts it only when that changes.
     announced: Option<(u16, Vec<String>)>,
     running: Option<Running>,
     snapshot: CompanionSnapshot,
-    /// What Settings last heard, so a tick that changed nothing stays quiet.
     emitted: Option<CompanionSnapshot>,
     reconciled_day: Option<NaiveDate>,
     last_refresh: DateTime<Utc>,
@@ -428,14 +397,9 @@ impl Host {
         }
     }
 
-    // ------------------------------------------------------------ lifecycle
-
-    /// Start, reconfigure, or stop to match the settings.
     pub fn apply(&mut self, sharing: Sharing) {
         if !sharing.enabled {
             self.stop();
-            // Nothing can finish arriving, so audio on its way has no reason to
-            // stay. The devices still have their copies.
             let _ = std::fs::remove_dir_all(self.uploads_dir());
             return;
         }
@@ -557,7 +521,6 @@ impl Host {
             .join("companion.sqlite")
     }
 
-    /// What the sync host calls, for tests of the answers themselves.
     #[cfg(test)]
     pub fn delegate(&self) -> Delegate {
         Delegate {
@@ -565,8 +528,6 @@ impl Host {
         }
     }
 
-    /// Today's record while there is activity, and a full reconcile once a
-    /// day, which also withdraws records that left the history window.
     fn tick(&mut self) {
         let Some(running) = &self.running else {
             return;
@@ -618,15 +579,12 @@ impl Host {
                 self.snapshot.discovery_error = None;
             }
             Err(err) => {
-                // Devices paired before still try the addresses they saved.
                 log::warn!("companion mDNS could not start: {err:#}");
                 self.announced = None;
                 self.snapshot.discovery_error = Some(format!("{err:#}"));
             }
         }
     }
-
-    // -------------------------------------------------------------- devices
 
     fn command(&mut self, command: CompanionCommand) {
         match command {
@@ -697,7 +655,6 @@ impl Host {
             })
             .collect();
         devices.sort_by_key(|device| std::cmp::Reverse(device.paired_at));
-        // A successful pairing consumes the offer.
         if devices.len() > self.snapshot.devices.len() {
             self.snapshot.pairing = None;
         }
@@ -715,7 +672,6 @@ impl Host {
     }
 }
 
-/// The addresses worth announcing: real IP addresses, in the order given.
 fn routable(addresses: &[String]) -> Vec<String> {
     addresses
         .iter()

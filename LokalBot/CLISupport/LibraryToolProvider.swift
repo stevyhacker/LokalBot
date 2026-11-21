@@ -1,6 +1,5 @@
 import Foundation
 
-/// One tool as advertised by `tools/list`.
 struct ToolDefinition {
     var name: String
     var description: String
@@ -15,7 +14,6 @@ struct ToolDefinition {
     }
 }
 
-/// Stable machine-readable failure codes for MCP tool calls.
 enum ToolErrorCode: String {
     case accessDisabled = "access_disabled"
     case screenAccessDisabled = "screen_access_disabled"
@@ -36,9 +34,6 @@ enum ToolErrorCode: String {
     case invalidArguments = "invalid_arguments"
 }
 
-/// A refusal a CLI command prints as `[code] message`, the form the MCP
-/// tools, `ask` and the settings commands use, so an agent can tell which
-/// switch is off whichever way it asked.
 struct CodedCommandError: LocalizedError, Equatable {
     let code: ToolErrorCode
     let message: String
@@ -46,7 +41,6 @@ struct CodedCommandError: LocalizedError, Equatable {
     var errorDescription: String? { "[\(code.rawValue)] \(message)" }
 }
 
-/// Outcome of a `tools/call` in MCP content-result form.
 struct ToolResult {
     var text: String
     var isError: Bool
@@ -69,7 +63,6 @@ struct ToolResult {
     }
 }
 
-/// Separates the MCP wire layer from the owner of the meeting library.
 protocol LibraryToolProvider {
     var tools: [ToolDefinition] { get }
     func call(name: String, arguments: JSONValue?) async -> ToolResult

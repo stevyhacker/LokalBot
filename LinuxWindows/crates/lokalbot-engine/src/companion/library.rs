@@ -1,6 +1,3 @@
-//! What one companion build reads from the library (`CompanionLibrary.swift`).
-//! Nothing here writes: a build never repairs metadata.
-
 use std::collections::HashMap;
 
 use chrono::{DateTime, Utc};
@@ -16,15 +13,10 @@ pub struct CompanionLibrary {
     pub library: Library,
     pub scope: RecordScope,
     pub now: DateTime<Utc>,
-    /// Every meeting on disk, merged sources included.
     pub all_meetings: Vec<Meeting>,
-    /// The person's own finished meetings inside the history window, newest
-    /// first. Merged sources, the sample meeting, and a meeting still being
-    /// recorded are left out.
     pub meetings: Vec<Meeting>,
     pub projections: HashMap<Uuid, OutcomeProjection>,
     pub people: Vec<PersonProfile>,
-    /// Tracked projects only: their UUIDs are the record keys.
     pub projects: Vec<ProjectProfile>,
     pub project_summaries: HashMap<Uuid, ProjectSummary>,
 }
@@ -33,8 +25,6 @@ pub fn is_shared(meeting: &Meeting, history: HistoryWindow, now: DateTime<Utc>) 
     meeting.is_own_work() && meeting.ended_at.is_some() && history.contains(meeting.started_at, now)
 }
 
-/// Every meeting on disk with its merge marker resolved in memory only,
-/// newest first (`SessionLookup.loadAllMeetings`).
 pub fn read_all_meetings(library: &Library) -> Vec<Meeting> {
     let mut meetings = library.list_all_meetings().unwrap_or_else(|err| {
         log::warn!("companion: could not read the meetings: {err:#}");
@@ -49,8 +39,6 @@ pub fn read_all_meetings(library: &Library) -> Vec<Meeting> {
 }
 
 impl CompanionLibrary {
-    /// `all`, when given, is used instead of reading the meetings again, and
-    /// outcomes are reused from `known` where present.
     pub fn load(
         library: &Library,
         scope: RecordScope,
@@ -73,9 +61,6 @@ impl CompanionLibrary {
         };
         let (mut people, mut projects) = (Vec::new(), Vec::new());
         if needs_outcomes {
-            // Dream memory is never read: its projects and review notes stay
-            // on this computer, so only tracked projects and recurring topics
-            // remain.
             match lokalbot_core::projects::build_people_and_projects_from(library, shared.clone()) {
                 Ok((built_people, built_projects)) => {
                     people = built_people;
@@ -103,9 +88,6 @@ impl CompanionLibrary {
         }
     }
 
-    /// The library again after a change: meetings re-read, outcomes reused
-    /// from `cached` where present, people and projects rebuilt only when
-    /// asked.
     pub fn reloading(
         previous: Self,
         now: DateTime<Utc>,

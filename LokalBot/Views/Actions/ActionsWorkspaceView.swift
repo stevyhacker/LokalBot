@@ -1,10 +1,5 @@
 import SwiftUI
 
-/// The user's own actions from meetings, each said once however many
-/// meetings it came up in. The list shows one status at a time in attention
-/// order; the pane beside it shows the selected action and the evidence
-/// behind it. Status changes and corrections go through `OutcomeIndex` and
-/// never alter what was extracted.
 struct ActionsWorkspaceView: View {
     @EnvironmentObject private var app: AppState
 
@@ -13,8 +8,6 @@ struct ActionsWorkspaceView: View {
     }
 }
 
-/// People and Projects publish on their own object, so the page observes it
-/// to show an action's people and project as soon as they are known.
 private struct ActionsWorkspace: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var connections: WorkMemoryConnections
@@ -29,15 +22,12 @@ private struct ActionsWorkspace: View {
     @SceneStorage("actions.group") private var grouping = ActionsListFilter.Grouping.due.rawValue
     @SceneStorage("actions.detailsHidden") private var detailsHidden = false
     @State private var cache = ActionsListCache()
-    /// Threads whose status just changed here; they stay listed until the
-    /// view or its filters change.
     @State private var kept: Set<String> = []
     @State private var anchor: String?
     @State private var lead: String?
     @State private var correction: OutcomeActionReference?
     @State private var pendingStatus: PendingStatusChange?
 
-    /// A status change that reaches into several meetings waits for a yes.
     private struct PendingStatusChange {
         let status: OutcomeStatus
         let threads: [ActionThread]
@@ -87,8 +77,6 @@ private struct ActionsWorkspace: View {
     }
 
     var body: some View {
-        // One list serves the rows, the selection and the details pane, and
-        // is rebuilt only when what it is made of changes.
         let filter = filter
         let language = app.settings.appLanguage
         let links = cache.links(people: connections.people, projects: connections.projects)
@@ -145,7 +133,6 @@ private struct ActionsWorkspace: View {
         .navigationSubtitle(Text("\(content.openCount) open"))
         .toolbar {
             ToolbarItemGroup(placement: .primaryAction) {
-                // Planning the open actions with Agent moved here from Today.
                 if content.openCount > 0 {
                     Button(action: planInAgent) {
                         Label("Plan in Agent…", systemImage: "wand.and.sparkles")
@@ -190,8 +177,6 @@ private struct ActionsWorkspace: View {
         }
     }
 
-    /// One action said in several meetings changes in each of them, so that
-    /// change is confirmed first, for one row or for a batch.
     private func requestStatus(_ status: OutcomeStatus, for threads: [ActionThread]) {
         let changing = threads.filter { $0.status != status || $0.hasMixedStatus }
         guard !changing.isEmpty else { return }
@@ -205,7 +190,6 @@ private struct ActionsWorkspace: View {
     private func applyStatus(_ status: OutcomeStatus, to threads: [ActionThread]) {
         var failed: [String] = []
         var reason: String?
-        // Changed rows stay where they are; the list closes up when the view changes.
         kept.formUnion(threads.map(\.id))
         withAnimation(WorkspaceMotion.animation(.selection, reduceMotion: reduceMotion)) {
             for thread in threads where !app.outcomeIndex.setStatus(status, thread: thread) {
@@ -222,8 +206,6 @@ private struct ActionsWorkspace: View {
         }
     }
 
-    /// "Not mine" clears the owner of every mention through the same
-    /// correction path as the editor, so the action leaves this list.
     private func markNotMine(_ thread: ActionThread) {
         for change in ActionDetailsPresentation.notMineCorrections(for: thread)
         where !app.outcomeIndex.correctAction(actionID: change.actionID, meetingID: change.meetingID,
@@ -241,16 +223,11 @@ private struct ActionsWorkspace: View {
     }
 }
 
-/// Keeps the built list between renders. The page redraws for every change
-/// to the app's state; filtering, ordering and wording run again only when
-/// the threads, the filter, the people and projects, the day or the
-/// interface language change.
 @MainActor
 private final class ActionsListCache {
     private struct Key: Equatable {
         let threads: [ActionThread]
         let filter: ActionsListFilter
-        /// Which build of the links, so two dictionaries are never compared.
         let linksRevision: Int
         let kept: Set<String>
         let day: Date

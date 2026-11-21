@@ -2,8 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Phase 2 of the personal world model: the Personal context grant, the
-/// shared projection the app keeps in step, and `get_personal_context`.
 @MainActor
 final class PersonalContextAccessTests: XCTestCase {
     private var root: URL!
@@ -172,7 +170,6 @@ final class PersonalContextToolTests: XCTestCase {
         let refused = await provider.call(name: "get_personal_context", arguments: ["task": "Plan my week"])
         XCTAssertTrue(refused.text.hasPrefix("[personal_context_disabled]"), refused.text)
 
-        // A projection left on disk without the marker is never served.
         let gate = PersonalContextAccessGate(root: root)
         try gate.enable()
         try gate.writeProjection(PersonalContextProjection(generatedAt: base, claims: [claim("x", .fact, minutes: 0)]))

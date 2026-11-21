@@ -18,9 +18,6 @@ enum MeetingOutcomeStore {
         try write(draft, to: folder.appendingPathComponent(FollowUpDraft.fileName))
     }
 
-    /// Carry user-owned workflow state across a safe re-extraction. A transfer requires
-    /// an unambiguous match in both directions and compatible source evidence.
-    /// Unmatched edits remain available for review.
     static func reconcileState(
         _ state: MeetingOutcomeState,
         from previous: MeetingOutcomes,
@@ -29,8 +26,6 @@ enum MeetingOutcomeStore {
         var reconciled = MeetingOutcomeState()
         var consumed: Set<String> = []
         let oldActions = previous.actionItems.filter { state.actions[$0.id] != nil }
-        // An action's ID is a hash of its text, owner, due date and sources,
-        // so one the model returned twice arrives here under one ID.
         let matches = Dictionary(next.actionItems.map { action in
             (action.id, oldActions.filter { matchScore($0, action) >= 0.8 })
         }, uniquingKeysWith: { first, _ in first })
@@ -79,8 +74,6 @@ enum MeetingOutcomeStore {
         try encoder.encode(value).write(to: url, options: .atomic)
     }
 
-    /// Preserve sub-second edits while continuing to read the second-precision
-    /// ISO-8601 dates written by LokalBot before the outcome-state overlay.
     private static let fractionalISO8601: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]

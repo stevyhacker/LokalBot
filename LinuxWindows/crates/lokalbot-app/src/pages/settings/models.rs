@@ -1,12 +1,3 @@
-//! Models (`ModelsView.swift`, `ModelConnectionsView.swift`): the model
-//! catalog helpers, the pages Models opens, the "Change…" menus and Online
-//! services (the servers and plan sign-ins Think can use, and what is
-//! approved to receive data). The first page is `model_overview`.
-//!
-//! Names and sizes come from the catalogs: `lokalbot_ai::catalog` for text
-//! models, `lokalbot_speech::models` for speech, `lokalbot_ai::runtime` for
-//! the llama.cpp binaries.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -30,17 +21,12 @@ use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// A picker entry: label, whether it is current, what choosing it changes, and
-/// its name while it prepares.
 type ModelChoice = (SharedString, bool, ModelPatch, String);
 
-/// The default transcription model on Linux and Windows.
 const DEFAULT_SPEECH_MODEL: &str = lokalbot_speech::models::DEFAULT_TRANSCRIPTION_MODEL;
 
-/// The engine's id for the llama.cpp binaries (`lokalbot_engine` `RUNTIME_ID`).
 pub const RUNTIME_ID: &str = "llama-runtime";
 
-/// Display name of a speech or text model id.
 pub fn model_name(id: &str) -> String {
     if let Some(entry) = lokalbot_ai::catalog::entry(id) {
         return entry.display_name.to_string();
@@ -62,8 +48,6 @@ pub fn model_name(id: &str) -> String {
         .unwrap_or_else(|| id.to_string())
 }
 
-/// What Transcribe downloads: its model, unless a server does the work, with
-/// voice detection and speaker separation when on.
 pub fn speech_needs(settings: &Settings) -> Vec<String> {
     let mut ids = Vec::new();
     if !lokalbot_speech::models::is_remote(&settings.transcription_model) {
@@ -75,8 +59,6 @@ pub fn speech_needs(settings: &Settings) -> Vec<String> {
     ids
 }
 
-/// Download size of a model id from its catalog. The llama.cpp runtime is
-/// includes the optional CUDA libraries until system reuse is established.
 pub fn model_bytes(id: &str, settings: &Settings) -> u64 {
     if let Some(entry) = lokalbot_ai::catalog::entry(id) {
         return entry.size_bytes;
@@ -95,9 +77,6 @@ pub fn model_bytes(id: &str, settings: &Settings) -> u64 {
         .unwrap_or(0)
 }
 
-/// Model ids the current settings use on this PC: the engine's meeting,
-/// dictation, search and screen text requirements, and Autocomplete's model
-/// while autocomplete is on.
 pub fn models_in_use(settings: &Settings) -> Vec<String> {
     let mut ids = speech_needs(settings);
     let built_in = settings.summarizer_backend == SummarizerBackend::BuiltIn;
@@ -122,8 +101,6 @@ pub fn models_in_use(settings: &Settings) -> Vec<String> {
     ids
 }
 
-/// What Autocomplete downloads: its model and the llama.cpp runtime. A
-/// server needs no download.
 pub fn autocomplete_needs(settings: &Settings) -> Vec<String> {
     if settings.cotyping_backend != lokalbot_core::settings::CotypingBackend::OnDevice {
         return Vec::new();
@@ -134,18 +111,15 @@ pub fn autocomplete_needs(settings: &Settings) -> Vec<String> {
     ]
 }
 
-/// Downloaded models the current settings don't use, in catalog order.
 pub fn unused_models(settings: &Settings, installed: &[String]) -> Vec<String> {
     let in_use = models_in_use(settings);
     installed
         .iter()
-        // Read aloud's voice has its own row, and no setting turns it off.
         .filter(|id| !in_use.contains(id) && id.as_str() != lokalbot_speech::models::KOKORO_MODEL)
         .cloned()
         .collect()
 }
 
-/// What a downloaded model is for, for the storage list.
 pub(super) fn model_purpose(id: &str) -> &'static str {
     if id == RUNTIME_ID {
         return lokalbot_i18n::tr("Runs Think, Autocomplete and search models");
@@ -178,7 +152,6 @@ pub(super) fn model_purpose(id: &str) -> &'static str {
     }
 }
 
-/// "2.7 GB", "730 MB".
 pub fn size_label(bytes: u64) -> String {
     let gb = bytes as f64 / 1_000_000_000.0;
     if gb >= 1.0 {
@@ -214,9 +187,6 @@ impl Preset {
         }
     }
 
-    /// Transcribe and Think model ids (`lokalbot_ai::catalog::PRESETS`).
-    /// Autocomplete keeps its own model here: its lighter default suits
-    /// suggestions on a CPU, and a preset should not swap it unasked.
     pub fn models(self) -> (&'static str, &'static str) {
         let index = match self {
             Preset::Balanced => 0,
@@ -292,25 +262,14 @@ pub(super) const BUDGETS: [GenerationBudget; 4] = [
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ModelsPage {
-    /// What each model does, More and Advanced (`ModelStackOverviewView`).
     Active,
-    /// Online services: what is approved, then the connections
-    /// (`ModelRemoteOverview`, `ModelConnectionsView`).
     Connections,
-    /// The models on this computer (`ModelDownloadsView`).
     Downloaded,
-    /// Dictation's Compose, Read aloud and search by meaning
-    /// (`ModelOtherModelsView`).
     Other,
-    /// Voice, speed and the sample (`ModelSpeechSettingsSheet`).
     ReadAloud,
-    /// `ModelTranscriptionOptionsSheet`.
     TranscriptionOptions,
-    /// `ModelPickerSheet.remoteTranscriptionSetup`.
     TranscriptionServer,
-    /// `ModelChecksSheet`.
     Checks,
-    /// `ModelImportSheet`.
     Browse,
 }
 
@@ -335,14 +294,10 @@ impl ModelsPage {
     }
 }
 
-/// The Models subpage and the connection form drafts.
 pub struct ModelsState {
     pub page: ModelsPage,
-    /// Advanced, under More, is open (`settings.models.advancedOpen`).
     pub(super) advanced_open: bool,
-    /// The connection form shown: OpenAI-compatible, Ollama, or a plan.
     connection: SummarizerBackend,
-    /// ChatGPT and Claude plan accounts, loaded when their form shows.
     pub(super) plans: super::plans::PlansState,
     openai_url: Entity<InputState>,
     openai_model: Entity<InputState>,
@@ -353,9 +308,7 @@ pub struct ModelsState {
     pub(super) options: super::model_options::OptionsState,
     pub(super) setup: ModelSetup,
     pub(super) browse: super::model_browse::BrowseState,
-    /// The model last asked about for its reasoning levels.
     reasoning_asked: Option<String>,
-    /// What the saved Ollama server has installed, once asked.
     ollama_models: Vec<String>,
     listing_ollama: bool,
     ollama_list_problem: Option<SharedString>,
@@ -443,7 +396,6 @@ impl ModelsState {
         subscriptions
     }
 
-    /// Follows connection settings changed elsewhere, unless the user is editing.
     pub fn sync(
         &mut self,
         old: &Settings,
@@ -512,8 +464,6 @@ impl SettingsPage {
         }
     }
 
-    /// Asks the Think server what the selected model accepts, once per model; the
-    /// picker shows the answer when it comes (`ModelStackOverviewView`).
     pub(super) fn look_up_reasoning(&mut self, cx: &mut Context<Self>) {
         let settings = self.data.read(cx).settings.clone();
         let key = lokalbot_ai::think::reasoning_lookup_key(&settings);
@@ -531,10 +481,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// "Change…" beside a role (`ModelPickerSheet`): the models to choose
-    /// from, then what sets the role up beyond its model. A model is
-    /// prepared before the switch, so the current one stays until then
-    /// (`ModelSetup`). Autocomplete's servers are set up on its own page.
     pub(super) fn change_button(&self, role: Role, cx: &mut Context<Self>) -> AnyElement {
         let settings = self.data.read(cx).settings.clone();
         let page = cx.entity();
@@ -619,7 +565,6 @@ impl SettingsPage {
             .collect(),
         };
         let options = std::rc::Rc::new(options);
-        // What the menu opens beyond choosing a model.
         let links: &'static [(&'static str, ChangeLink)] = match role {
             Role::Transcribe => &[
                 (
@@ -632,7 +577,6 @@ impl SettingsPage {
                 ),
             ],
             Role::Think => &[("Browse Hugging Face…", ChangeLink::Page(ModelsPage::Browse))],
-            // Servers for autocomplete are set up on Autocomplete's page.
             Role::Autocomplete => &[(
                 "Where autocomplete runs…",
                 ChangeLink::Reveal("settings.cotypingBackend"),
@@ -706,9 +650,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// How long Think reasons (`ModelStackOverviewView.reasoningRow`): only
-    /// the levels the selected model accepts; a stored level it lacks shows
-    /// as the one it maps to (`ReasoningSupport`).
     pub(super) fn reasoning_control(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -768,7 +709,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// Think processing budget as a menu (`budgetRow`).
     pub(super) fn budget_control(&self, cx: &mut Context<Self>) -> AnyElement {
         let settings = self.data.read(cx).settings.clone();
         let data = self.data.clone();
@@ -867,7 +807,6 @@ impl SettingsPage {
             },
             cx,
         );
-        // A plan is used only once its own consent is on.
         let usable = plan.is_none_or(|plan| plan.is_approved(&settings));
         let use_data = self.data.clone();
         let used_row = h_flex()
@@ -1024,8 +963,6 @@ impl SettingsPage {
         ]
     }
 
-    /// What is approved to receive data, each with Revoke… and what it
-    /// covers (`ModelRemoteOverview`). Nothing is approved or chosen here.
     fn approvals_section(&self, cx: &mut Context<Self>) -> Section {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -1135,7 +1072,6 @@ impl SettingsPage {
         section
     }
 
-    /// Loopback, blocked HTTP, or a remote origin with its consent toggle.
     fn endpoint_disclosure(&self, raw_url: &str, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -1238,8 +1174,6 @@ impl SettingsPage {
             )
     }
 
-    /// "List server models" and the picker it fills (`refreshOllama`). It asks the
-    /// saved server, which must already be allowed to receive context.
     fn ollama_model_list(&self, has_changes: bool, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let listing = self.models.listing_ollama;
@@ -1323,7 +1257,6 @@ impl SettingsPage {
                 .await;
             let _ = page.update(cx, |page, cx| {
                 page.models.listing_ollama = false;
-                // The server changed meanwhile: this answer is about another one.
                 if page.data.read(cx).settings.ollama_base_url != url {
                     cx.notify();
                     return;
@@ -1363,7 +1296,6 @@ impl SettingsPage {
     }
 }
 
-/// "gpt-5.5 · ChatGPT plan", or the plan alone before a model is chosen.
 fn plan_model_name(settings: &Settings) -> String {
     let Some(plan) = settings.think_plan() else {
         return String::new();
@@ -1377,15 +1309,12 @@ fn plan_model_name(settings: &Settings) -> String {
     }
 }
 
-/// What "Change…" opens beyond a model: a page of Models, or a setting on
-/// another page.
 #[derive(Clone, Copy)]
 enum ChangeLink {
     Page(ModelsPage),
     Reveal(&'static str),
 }
 
-/// The catalog setting a role's row stands for, so search and links land on it.
 pub(super) fn role_setting(role: Role) -> &'static str {
     match role {
         Role::Transcribe => "settings.transcriptionModel",
@@ -1394,8 +1323,6 @@ pub(super) fn role_setting(role: Role) -> &'static str {
     }
 }
 
-/// Think's model as people know it: a built-in model, a server's model or the
-/// server, or a plan (`ModelSettingsPresentation.assistantName`).
 pub(super) fn think_name(settings: &Settings) -> String {
     match settings.summarizer_backend {
         SummarizerBackend::BuiltIn => model_name(&settings.built_in_model_id),
@@ -1469,7 +1396,6 @@ pub(super) fn confirm_preset(
     });
 }
 
-/// Asks before deleting a downloaded model the settings don't use.
 pub(super) fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Window, cx: &mut App) {
     let name = model_name(&id);
     let size = size_label(model_bytes(&id, &data.read(cx).settings));
@@ -1486,7 +1412,6 @@ pub(super) fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Win
             .on_ok(move |_, _, cx| {
                 let id = id.clone();
                 data.update(cx, |data, cx| {
-                    // Settings may have changed while the dialog was open.
                     if !models_in_use(&data.settings).contains(&id) {
                         data.request(AppEvent::DeleteModel(id), cx);
                     }
@@ -1496,8 +1421,6 @@ pub(super) fn confirm_remove(data: Entity<AppData>, id: String, window: &mut Win
     });
 }
 
-/// An approved Think origin as people know it: a plan by its name and
-/// host, a server by its origin (`SubscriptionPlan.approvalDisplayName`).
 pub(super) fn origin_display_name(origin: &str) -> String {
     match SubscriptionPlan::for_consent_key(origin) {
         Some(plan) => format!(
@@ -1535,14 +1458,12 @@ pub(super) fn confirm_revoke(
     });
 }
 
-/// What approving a Think server covers (`ModelConnectionsView`).
 fn remote_processing_notice() -> &'static str {
     lokalbot_i18n::tr(
         "Think may send meeting transcripts, screen text, what you told Ask to remember about you, Agent context, and inherited dictation requests to this server when you use those features. Scheduled daily summaries and overnight review also run here and can send activity titles, captured screen text, meeting evidence, and retained Dream memory without a prompt each time.",
     )
 }
 
-/// Under an approved origin in Overview (`ModelOverviewSections`).
 pub(super) fn approved_origin_notice() -> &'static str {
     lokalbot_i18n::tr(
         "Includes scheduled daily summaries and overnight review, which can send activity titles, captured screen text, meeting evidence, and retained Dream memory to this origin without a prompt each time.",
@@ -1555,7 +1476,6 @@ pub(super) fn approved_audio_origin_notice() -> &'static str {
     )
 }
 
-/// Audio stops going there. A Think approval for the same server stays apart.
 fn revoke_audio_origin(settings: &mut Settings, origin: &str) {
     settings
         .approved_remote_transcription_origins
@@ -1592,7 +1512,6 @@ pub(super) fn confirm_revoke_audio(
 mod tests {
     use super::*;
 
-    /// The Think approval names what actually leaves: digests send screen text.
     #[test]
     fn the_think_approval_names_what_is_sent() {
         let notice = remote_processing_notice();

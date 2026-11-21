@@ -3,8 +3,6 @@ import XCTest
 
 final class RemoteInferenceGateTests: XCTestCase {
 
-    // MARK: - Admission policy
-
     func testBackgroundWorkCannotTakeTheLastSlot() {
         var queue = RemoteRequestQueue()
         let digest = UUID(), dream = UUID(), notes = UUID()
@@ -89,8 +87,6 @@ final class RemoteInferenceGateTests: XCTestCase {
                        "http://localhost:11434")
     }
 
-    // MARK: - Gate actor
-
     func testNotesStartWhileBackgroundWorkQueuesBehindTheBackgroundSlot() async throws {
         let gate = RemoteInferenceGate()
         let origin = "https://provider.example"
@@ -128,11 +124,6 @@ final class RemoteInferenceGateTests: XCTestCase {
         await gate.release(held)
     }
 
-    // MARK: - Gated engine
-
-    /// Tonight's meeting notes failed after one replay seven seconds later
-    /// while the day digest and Dream kept the provider rate limited. Notes now
-    /// wait on the origin's cooldown and retry until the provider recovers.
     func testMeetingNotesSurviveARunOfRateLimits() async throws {
         let clock = VirtualClock()
         let gate = RemoteInferenceGate(now: { clock.now }, sleep: { clock.advance($0) })
@@ -179,8 +170,6 @@ final class RemoteInferenceGateTests: XCTestCase {
         } catch {}
         XCTAssertEqual(calls.count, 1)
     }
-
-    // MARK: - Helpers
 
     private func waitUntil(_ condition: @escaping () async -> Bool) async throws {
         for _ in 0..<500 {

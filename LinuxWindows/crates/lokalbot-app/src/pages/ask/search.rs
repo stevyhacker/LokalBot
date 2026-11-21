@@ -1,7 +1,3 @@
-//! Results for Ask and Quick Recall (`RecallSearch`): meeting hits grouped by
-//! meeting, then screen moments. Words first; for Ask, meaning is then fused in at
-//! the level of meetings. Runs on a background thread.
-
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -16,21 +12,16 @@ use lokalbot_core::search::{DocKind, SearchQuery};
 use lokalbot_core::{Library, Meeting, ScreenMoment};
 use uuid::Uuid;
 
-/// One matching document in a meeting.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Hit {
     pub kind: DocKind,
-    /// Transcript time for segment hits.
     pub start: Option<f64>,
     pub speaker: Option<String>,
-    /// Snippet with «matched» words.
     pub snippet: String,
-    /// Found by meaning, without the query's words.
     pub is_semantic: bool,
 }
 
 impl Hit {
-    /// "Title", "Summary", "Your notes", "Outcome" or "▶ 00:12:04 · Maya".
     pub fn kind_label(&self) -> String {
         match self.kind {
             DocKind::Title => lokalbot_i18n::tr("Title").into(),
@@ -58,37 +49,29 @@ impl Hit {
         }
     }
 
-    /// Where opening this hit lands: a transcript moment, or `None` for the summary.
     pub fn moment(&self) -> Option<f64> {
         (self.kind == DocKind::Segment).then(|| self.start.unwrap_or(0.0))
     }
 }
 
-/// Meetings, or screen sources, that Ask lists for one search (`displayLimit`).
 pub const DISPLAY_LIMIT: usize = 40;
-/// Passages by meaning read for one search (`EmbeddingIndex.search`'s limit here).
 const SEMANTIC_PASSAGES: usize = 200;
-/// Keyword rows read for one search, before grouping.
 const KEYWORD_ROWS: usize = 2_000;
 
-/// All matches in one meeting; `hits[0]` is the best one.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeetingGroup {
     pub meeting: Meeting,
     pub hits: Vec<Hit>,
 }
 
-/// A screen moment and how many similar captures it stands for.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScreenResult {
     pub moment: ScreenMoment,
     pub snippet: String,
     pub captures: usize,
-    /// Found by meaning, without the query's words.
     pub is_semantic: bool,
 }
 
-/// Result-type filter (`AskFacet`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Facet {
     #[default]
@@ -144,18 +127,13 @@ pub struct Query {
     pub facet: Facet,
     pub meetings: bool,
     pub screen: bool,
-    /// The folders chosen under Files; empty while Files is off.
     pub file_folders: Vec<String>,
-    /// Saved coding-agent notes are searched: the source is chosen and Read
-    /// coding agent notes is on.
     pub agent_notes: bool,
-    /// Limit screen results to one app.
     pub screen_app: Option<String>,
     pub screen_ids: Option<Vec<i64>>,
     pub meeting_ids: Option<Vec<Uuid>>,
     pub since: Option<DateTime<Utc>>,
     pub until: Option<DateTime<Utc>>,
-    /// Maximum meeting groups and screen moments.
     pub limit: usize,
 }
 
@@ -164,9 +142,7 @@ pub struct Results {
     pub meetings: Vec<MeetingGroup>,
     pub screens: Vec<ScreenResult>,
     pub files: Vec<FileHit>,
-    /// Notes the person's coding agents saved, matched by their words.
     pub notes: Vec<NoteHit>,
-    /// More meetings or notes matched than `limit`.
     pub truncated: bool,
 }
 
@@ -204,18 +180,14 @@ impl Query {
         }
     }
 
-    /// Keyword hits for every kind of document can be fused with meaning. A facet
-    /// asks for one kind, and a meaning match can't say it's of that kind.
     fn searches_meeting_meaning(&self) -> bool {
         self.meetings && self.facet == Facet::All
     }
 
-    /// Meaning adds something where meetings, screens or files are searched.
     pub fn wants_meaning(&self) -> bool {
         self.searches_meeting_meaning() || self.searches_screens() || self.searches_files()
     }
 
-    /// The meetings this search may read: an evidence boundary and a date scope.
     fn meeting_scope(&self, meetings: &[Meeting]) -> Option<HashSet<Uuid>> {
         let dated = self.since.is_some() || self.until.is_some();
         if self.meeting_ids.is_none() && !dated {
@@ -237,7 +209,6 @@ impl Query {
     }
 }
 
-/// The apps the listed screens came from, for the screen-app filter.
 pub fn screen_apps(screens: &[ScreenResult], selected: Option<&str>) -> Vec<String> {
     let mut apps: Vec<String> = screens
         .iter()
@@ -258,8 +229,6 @@ fn screen_result(hit: lokalbot_core::search::ScreenHit, is_semantic: bool) -> Sc
     }
 }
 
-/// Saved moments whose note or window title holds the query, among the hits as
-/// their own results (`keywordScreens`): a note is searched even with no text.
 fn saved_matches(
     saved: &[ScreenMoment],
     found: &[lokalbot_core::search::ScreenHit],
@@ -285,10 +254,6 @@ fn saved_matches(
         .collect()
 }
 
-/// `QuickRecallRowModel.screens` with a query: saved moments lead, in the order
-/// they were saved, then the other hits. A match by meaning alone isn't a saved
-/// match, and a saved moment keeps its place in the rest. Without a query the
-/// list is just the latest saved moments.
 pub fn screens_with_saved_first(
     screens: &[ScreenResult],
     saved: &[ScreenMoment],
@@ -315,11 +280,8 @@ pub fn screens_with_saved_first(
     rows
 }
 
-/// Libraries whose stale search documents were brought up to date this run.
 static INDEXED: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
-/// Indexes meetings whose files changed since they were last indexed, once
-/// per library and run, so a fresh or imported library is searchable.
 fn ensure_indexed(library: &Library) {
     let root = library.paths().root().to_path_buf();
     let Ok(mut indexed) = INDEXED.lock() else {
@@ -405,7 +367,6 @@ pub fn run(library: &Library, meetings: &[Meeting], query: &Query) -> Results {
             Err(err) => log::warn!("screen search failed: {err:#}"),
         }
     }
-    // Files match words first; the query vector adds meaning in `refine`.
     if query.searches_files() {
         results.files = FileReader::shared(library.paths().root()).search(
             text,
@@ -423,9 +384,6 @@ pub fn run(library: &Library, meetings: &[Meeting], query: &Query) -> Results {
     results
 }
 
-/// Saved coding-agent notes matching the query's words, and whether more
-/// matched than are listed. A date scope keeps the notes last changed inside
-/// it. Notes have no vectors, so meaning never changes this list.
 fn note_hits(library: &Library, query: &Query, text: &str) -> (Vec<NoteHit>, bool) {
     let limit = query.limit.max(1);
     let dated = query.since.is_some() || query.until.is_some();
@@ -447,8 +405,6 @@ fn note_hits(library: &Library, query: &Query, text: &str) -> (Vec<NoteHit>, boo
     (notes, truncated)
 }
 
-/// What a note row shows under its title: the matched words, or the agent's
-/// own description, or where the note is.
 pub fn note_snippet(hit: &NoteHit) -> String {
     if !hit.snippet.trim().is_empty() {
         return hit.snippet.clone();
@@ -456,8 +412,6 @@ pub fn note_snippet(hit: &NoteHit) -> String {
     hit.summary.clone().unwrap_or_else(|| hit.path.clone())
 }
 
-/// Opens the agent's own file for a note in its default app. LokalBot keeps a
-/// copy for search only and never edits the file.
 pub fn open_note(hit: &NoteHit) {
     let path = std::path::Path::new(&hit.path);
     if !path.exists() {
@@ -469,9 +423,6 @@ pub fn open_note(hit: &NoteHit) {
     }
 }
 
-/// Screens and files again, with the query's vector: text and picture vectors on
-/// one scale, ranked with the keyword hits. With no vectors yet the keyword results
-/// stay. The first search by meaning is what starts their backfill.
 pub fn refine(library: &Library, query: &Query, vector: &[f32], results: &mut Results) {
     let text = query.text.trim();
     if query.searches_screens() {
@@ -510,8 +461,6 @@ pub fn refine(library: &Library, query: &Query, vector: &[f32], results: &mut Re
     }
 }
 
-/// Ask's meetings again, with passages found by meaning fused in (`fusedMeetings`).
-/// With no vectors yet the keyword results stay.
 pub fn fuse_meetings(
     library: &Library,
     meetings: &[Meeting],
@@ -566,15 +515,11 @@ pub fn fuse_meetings(
     results.truncated |= truncated;
 }
 
-/// The order of one ranked list: each meeting once, at its first appearance.
 fn first_appearances(ids: impl Iterator<Item = Uuid>) -> Vec<Uuid> {
     let mut seen = HashSet::new();
     ids.filter(|id| seen.insert(*id)).collect()
 }
 
-/// Fuses at the level of meetings, so a meeting with many keyword rows can't bury
-/// a relevant one found by meaning alone. Keyword snippets stay, and one passage
-/// found both ways is listed once. Says whether more meetings matched than `limit`.
 fn fused_meetings(
     keyword: Vec<MeetingGroup>,
     semantic: Vec<(Uuid, Hit)>,
@@ -602,8 +547,6 @@ fn fused_meetings(
     order.sort_by(|a, b| {
         scores[b]
             .total_cmp(&scores[a])
-            // Keyword evidence goes first only for equal relevance, never ahead
-            // of a higher-ranked meeting found by meaning alone.
             .then_with(|| is_lexical.contains(b).cmp(&is_lexical.contains(a)))
             .then_with(|| first_ranks[a].cmp(&first_ranks[b]))
             .then_with(|| a.cmp(b))
@@ -636,8 +579,6 @@ fn fused_meetings(
     (fused, truncated)
 }
 
-/// `MeetingRecallGroup.primary`: a transcript passage matched by its words, else
-/// any passage matched by its words, else the first one.
 fn primary(hits: &[Hit]) -> usize {
     hits.iter()
         .position(|hit| !hit.is_semantic && hit.kind == DocKind::Segment)
@@ -645,8 +586,6 @@ fn primary(hits: &[Hit]) -> usize {
         .unwrap_or(0)
 }
 
-/// What kind of file a result is, at a glance. The Mac shows the file's own icon
-/// from the system, which has no equivalent across Linux desktops and Windows here.
 pub fn file_icon(kind: lokalbot_core::files::FileKind) -> crate::ui::Ico {
     use crate::ui::Ico;
     use lokalbot_core::files::FileKind;
@@ -659,7 +598,6 @@ pub fn file_icon(kind: lokalbot_core::files::FileKind) -> crate::ui::Ico {
     }
 }
 
-/// "PDF · page 3", "Recording · 00:01:15" in the interface's language.
 pub fn file_kind_label(hit: &FileHit) -> String {
     use lokalbot_core::files::FileKind;
     let stamp = |seconds: f64| lokalbot_core::time::stamp(seconds).to_string();
@@ -683,8 +621,6 @@ pub fn file_kind_label(hit: &FileHit) -> String {
     }
 }
 
-/// Opens a file found by search in its default app. The Mac's own PDF window and
-/// player, which open at the matched page or moment, aren't here.
 pub fn open_file(hit: &FileHit) {
     if !std::path::Path::new(&hit.path).exists() {
         return;
@@ -694,7 +630,6 @@ pub fn open_file(hit: &FileHit) {
     }
 }
 
-/// `SpeakerDisplayName.label`: "Them" reads as "Other speaker", "Them 2" as "Speaker 2".
 pub fn speaker_label(name: &str) -> String {
     let trimmed = name.trim();
     let lower = trimmed.to_lowercase();
@@ -760,10 +695,8 @@ mod tests {
         );
         let ids: Vec<i64> = rows.iter().map(|row| row.moment.id).collect();
         assert_eq!(ids, [9, 3, 1, 7]);
-        // It shows as saved, with what the search found in it.
         assert_eq!(rows[0].moment.saved_note.as_deref(), Some("Invoice"));
         assert_eq!(rows[0].snippet, "snippet 9");
-        // Found only by meaning, a saved moment doesn't jump the queue.
         let rows = screens_with_saved_first(&[screen(1, false), screen(9, true)], &saved);
         let ids: Vec<i64> = rows.iter().map(|row| row.moment.id).collect();
         assert_eq!(ids, [1, 9]);
@@ -843,11 +776,9 @@ mod tests {
             group(&meetings[1], vec![hit(DocKind::Summary, None, false)]),
             group(&meetings[2], vec![hit(DocKind::Summary, None, false)]),
         ];
-        // The fourth is first by meaning and has no words in common.
         let semantic = vec![(meetings[3].id, hit(DocKind::Segment, Some(10.0), true))];
         let (fused, truncated) = fused_meetings(keyword, semantic, &meetings, 40);
         let order: Vec<Uuid> = fused.iter().map(|g| g.meeting.id).collect();
-        // Equal fused scores go to keyword evidence, then to the earlier rank.
         assert_eq!(
             order,
             [
@@ -881,7 +812,6 @@ mod tests {
         let (fused, _) = fused_meetings(keyword, semantic, &meetings, 40);
         assert_eq!(fused[0].meeting.id, meetings[1].id);
         let hits = &fused[0].hits;
-        // The transcript hit by words leads; the same passage isn't listed twice.
         assert_eq!(hits.len(), 3);
         assert_eq!(
             (hits[0].kind, hits[0].is_semantic),
@@ -967,7 +897,6 @@ mod tests {
         assert_eq!(hit.kind, DocKind::Summary);
         assert_eq!(hit.snippet, passage);
 
-        // A boundary around another meeting keeps this one out.
         let bounded = Query {
             meeting_ids: Some(vec![other.id]),
             ..query.clone()
@@ -976,7 +905,6 @@ mod tests {
         fuse_meetings(&library, &meetings, &bounded, &vector, &mut results);
         assert!(results.meetings.is_empty());
 
-        // A facet asks for one kind of document, and stays keyword-only.
         let summaries = Query {
             facet: Facet::Summaries,
             ..query
@@ -1003,7 +931,6 @@ mod tests {
             ..Default::default()
         };
         let results = run(&library, &meetings, &query);
-        // Windows can't delete the database while the library holds it open.
         drop(library);
         let _ = std::fs::remove_dir_all(&dir);
         assert!(!results.meetings.is_empty(), "meeting hits for captions");

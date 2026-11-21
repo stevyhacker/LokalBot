@@ -58,9 +58,6 @@ final class OutcomeEvidencePolicyTests: XCTestCase {
         }
     }
 
-    /// A condition says when a task happens, not whose it is. In run-on
-    /// speech an "if" from a neighboring clause used to cost the speaker a
-    /// plain "I'll" (2026-10-05).
     func testAConditionOrAHedgeDoesNotChangeWhoseTaskItIs() {
         for text in ["If approved, I have to review it.", "I need to review it unless it is cancelled.",
                      "I plan to send the draft if approved.", "If approved, I do plan to send the draft.",
@@ -136,8 +133,6 @@ final class OutcomeEvidencePolicyTests: XCTestCase {
         }
     }
 
-    /// The model tidies what it copies. A quote without the stumble still
-    /// points at the words that were said.
     func testATidiedQuoteStillFindsTheSpokenCommitment() {
         let spoken = "The export change is something I I have to update and and confirm."
         XCTAssertEqual(resolve(spoken, quote: "the export change is something I have to update and confirm").resolution, .other)

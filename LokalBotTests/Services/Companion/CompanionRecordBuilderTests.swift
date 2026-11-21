@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Companion records built from a synthetic library: their shape, the data
-/// classes and history window, and the privacy exclusions records.md
-/// promises.
 final class CompanionRecordBuilderTests: XCTestCase {
     private var fixture: CompanionFixtureLibrary!
 
@@ -27,12 +24,6 @@ final class CompanionRecordBuilderTests: XCTestCase {
 
     private var designKey: String { fixture.designReview.id.uuidString.lowercased() }
 
-    // MARK: - Privacy
-
-    /// The exclusion contract: no record carries attendee emails, speaker
-    /// evidence, calendar identity links, screenshot paths, OCR text, agenda
-    /// or meeting links, Dream memory, or Personal Context. Deliberately
-    /// leaking any one of them fails this test.
     func testNoRecordContainsExcludedData() throws {
         let records = fixture.records()
         XCTAssertFalse(records.isEmpty)
@@ -42,10 +33,8 @@ final class CompanionRecordBuilderTests: XCTestCase {
                                "\(record.kind.rawValue) \(record.key) leaks “\(secret)”")
             }
         }
-        // The window title is shared while that class is on…
         XCTAssertTrue(records.contains { $0.bodyJSON.contains(CompanionFixtureLibrary.windowTitleSecret) },
                       "the fixture must exercise window titles")
-        // …and appears nowhere once it is off.
         var sharing = CompanionSharing()
         sharing.dataClasses.windowTitles = false
         for record in fixture.records(sharing) {
@@ -68,13 +57,10 @@ final class CompanionRecordBuilderTests: XCTestCase {
         XCTAssertEqual(manifest["recordingsEnabled"] as? Bool, false)
         let classes = try XCTUnwrap(manifest["dataClasses"] as? [String: Bool])
         XCTAssertEqual(classes["meetings"], false)
-        // A transcript needs its meeting.
         XCTAssertEqual(classes["transcripts"], false)
         XCTAssertEqual(classes["windowTitles"], true)
         XCTAssertFalse(json.contains(":null"), "optional fields are omitted, never null")
     }
-
-    // MARK: - Meetings
 
     func testMeetingRecordCarriesCorrectedOutcomesAndDisplayNames() throws {
         let records = fixture.records()
@@ -141,8 +127,6 @@ final class CompanionRecordBuilderTests: XCTestCase {
         XCTAssertFalse(keys.contains(fixture.sampleMeeting.id.uuidString.lowercased()))
     }
 
-    // MARK: - Classes and history
-
     func testDisabledClassesBuildNoRecords() {
         var sharing = CompanionSharing()
         sharing.dataClasses = .init(meetings: false, transcripts: true, digests: false, timeline: false,
@@ -172,8 +156,6 @@ final class CompanionRecordBuilderTests: XCTestCase {
         XCTAssertNil(record(recent, .day, olderDay))
         XCTAssertNotNil(record(recent, .meeting, designKey))
     }
-
-    // MARK: - Days
 
     func testDayRecordHasDigestSectionsTimelineAndScreenTimes() throws {
         let day = try body(record(fixture.records(), .day, fixture.dayKey))
@@ -215,10 +197,6 @@ final class CompanionRecordBuilderTests: XCTestCase {
         XCTAssertEqual(text, "Drafted the tiers (screen moment at 14:32). Gone. Bare.")
     }
 
-    // MARK: - Release fixtures
-
-    /// Every committed release's library (0.6.2 … current) builds records
-    /// that decode as schema v1, one meeting record per own finished meeting.
     func testEveryReleaseFixtureBuildsSchemaRecords() throws {
         let root = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "upgrade", withExtension: nil, subdirectory: "Fixtures"))
@@ -255,8 +233,6 @@ final class CompanionRecordBuilderTests: XCTestCase {
             }
         }
     }
-
-    // MARK: - People and projects
 
     func testPeopleAndProjectsCarryNamesWorkAndMeetings() throws {
         let records = fixture.records()

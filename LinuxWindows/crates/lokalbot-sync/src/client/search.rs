@@ -1,7 +1,3 @@
-//! Full-text search over the phone's copy: SQLite FTS5 with the unicode61
-//! tokenizer, like the Mac's `SearchIndex`, plus the Mac's substring
-//! fallback for Chinese, Japanese and Korean text (`CJKSearch.swift`).
-
 use std::collections::HashMap;
 
 use rusqlite::{Connection, Transaction, params, params_from_iter};
@@ -11,26 +7,17 @@ use super::store::is_indexed;
 use crate::error::Result;
 use crate::records::{DAY, MEETING, TRANSCRIPT, str_field};
 
-/// One search result.
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct SearchHit {
-    /// The record kind: `meeting`, `transcript` or `day`.
     pub kind: String,
-    /// The record key: the meeting id, or the day for digests.
     pub key: String,
     pub meeting_id: Option<String>,
-    /// The meeting title; the date for a day digest.
     pub title: String,
-    /// Words around the match, matched terms in « ».
     pub snippet: String,
-    /// Segment start in seconds, for transcript hits.
     pub at: Option<f64>,
-    /// The meeting's day, or the digest's date.
     pub date: Option<String>,
 }
 
-/// Function words dropped from natural-language queries in OR mode
-/// (`lokalbot-core::search::STOP_WORDS`).
 const STOP_WORDS: &[&str] = &[
     "a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "for", "with",
     "about", "as", "by", "from", "into", "is", "are", "was", "were", "be", "been", "being", "do",
@@ -40,7 +27,6 @@ const STOP_WORDS: &[&str] = &[
     "may", "might", "must", "any", "some", "there",
 ];
 
-/// Search documents for one record. Merged meetings are not indexed.
 struct Document {
     field: &'static str,
     text: String,
@@ -121,7 +107,6 @@ fn documents(kind: &str, key: &str, body: &Value) -> Vec<Document> {
     docs
 }
 
-/// Replaces a record's documents; `None` removes them.
 pub(crate) fn reindex(
     tx: &Transaction<'_>,
     kind: &str,
@@ -162,14 +147,10 @@ pub(crate) fn reindex(
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum MatchMode {
-    /// Every term, the last as a prefix (search as you type).
     All,
-    /// Any term, stop words dropped unless every term is one.
     Any,
 }
 
-/// The FTS5 expression for `raw`, terms quoted so punctuation cannot cause
-/// syntax errors (`lokalbot-core::search::fts_query`).
 fn fts_query(raw: &str, mode: MatchMode) -> Option<String> {
     let mut terms: Vec<String> = raw
         .split_whitespace()
@@ -213,7 +194,6 @@ fn fts_query(raw: &str, mode: MatchMode) -> Option<String> {
     })
 }
 
-/// Documents of meetings merged into another are hidden like the meetings.
 const NOT_MERGED: &str = "(m.meeting_id IS NULL OR m.meeting_id NOT IN \
     (SELECT key FROM records WHERE kind = 'meeting' AND deleted = 0 AND json_extract(body, '$.mergedInto') IS NOT NULL))";
 
@@ -226,8 +206,6 @@ struct Row {
     snippet: String,
 }
 
-/// Keyword search: all terms first, then any term, then (for CJK text) a
-/// substring match, as on the Mac.
 pub(crate) fn search(db: &Connection, query: &str, limit: usize) -> Result<Vec<SearchHit>> {
     let rows = if cjk::contains_cjk(query) {
         let mut rows = substring_search(db, query, limit, true, false)?;
@@ -241,8 +219,6 @@ pub(crate) fn search(db: &Connection, query: &str, limit: usize) -> Result<Vec<S
             rows = fts_search(db, query, MatchMode::Any, limit)?;
         }
         if rows.is_empty() {
-            // A Latin word glued to CJK text ("比如logo再大") is part of that
-            // run's token, so FTS cannot see it.
             rows = substring_search(db, query, limit, true, true)?;
         }
         rows
@@ -321,9 +297,6 @@ fn fts_search(db: &Connection, query: &str, mode: MatchMode, limit: usize) -> Re
     Ok(rows)
 }
 
-/// Substring counterpart of `fts_search` (`SearchIndex.substringSearch`).
-/// Shorter documents first, as bm25 favours them; relaxed (OR) results rank
-/// by how many pieces matched.
 fn substring_search(
     db: &Connection,
     query: &str,
@@ -404,9 +377,6 @@ fn substring_search(
     Ok(rows.into_iter().map(|(_, row)| row).collect())
 }
 
-/// Chinese, Japanese and Korean text has no spaces between words, so
-/// unicode61 indexes a whole run as one token. Queries with CJK text match
-/// by substring instead (`CJKSearch.swift`).
 pub(crate) mod cjk {
     pub const ROW_GLOB: &str = "*[\u{1100}-\u{11FF}\u{3040}-\u{30FF}\u{3100}-\u{318F}\u{31A0}-\u{31FF}\u{3400}-\u{4DBF}\u{4E00}-\u{9FFF}\u{AC00}-\u{D7AF}\u{F900}-\u{FAFF}\u{FF66}-\u{FF9F}]*";
 
@@ -435,7 +405,6 @@ pub(crate) mod cjk {
         text.chars().any(is_cjk)
     }
 
-    /// Distinct terms in order; every one must occur.
     pub fn terms(query: &str) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();
         query
@@ -445,9 +414,6 @@ pub(crate) mod cjk {
             .collect()
     }
 
-    /// Terms for OR matching of a spaceless question: CJK runs of three or
-    /// more characters become overlapping two-character pieces; single
-    /// characters are dropped unless nothing else is left.
     pub fn relaxed_terms(query: &str) -> Vec<String> {
         let mut seen = std::collections::HashSet::new();
         let mut pieces: Vec<String> = Vec::new();
@@ -491,8 +457,6 @@ pub(crate) mod cjk {
             .collect()
     }
 
-    /// A `LIKE` pattern matching `term` anywhere, with `%`, `_` and `\`
-    /// escaped for `ESCAPE '\'`.
     pub fn like_pattern(term: &str) -> String {
         let mut escaped = String::with_capacity(term.len() + 2);
         escaped.push('%');
@@ -514,8 +478,6 @@ pub(crate) mod cjk {
             .count()
     }
 
-    /// An excerpt around the first match with « » around every match in it
-    /// and … where text was cut; `None` when no term occurs.
     pub fn snippet(text: &str, terms: &[String]) -> Option<String> {
         const BEFORE: usize = 18;
         const AFTER: usize = 54;
@@ -545,8 +507,6 @@ pub(crate) mod cjk {
         Some(excerpt)
     }
 
-    /// Every occurrence of every term (case-insensitive), sorted, with
-    /// overlapping and touching matches merged.
     fn match_ranges(text: &[char], terms: &[String]) -> Vec<(usize, usize)> {
         let mut found: Vec<(usize, usize)> =
             terms.iter().flat_map(|term| find_all(text, term)).collect();

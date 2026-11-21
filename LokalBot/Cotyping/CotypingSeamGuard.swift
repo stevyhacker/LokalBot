@@ -5,9 +5,6 @@
 
 import Foundation
 
-/// Final guard for visible failures at the caret seam. Ported from Cotabby's
-/// `CompletionSeamGuard`: showing no suggestion is better than showing a junk
-/// punctuation run or a mid-word splice that misspells the word being typed.
 enum CotypingSeamGuard {
     enum Verdict: Equatable {
         case allow

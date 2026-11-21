@@ -1,9 +1,5 @@
 import Foundation
 
-/// One definition of active time for every day surface: the union of valid,
-/// non-system intervals, clipped to the selected civil day (including DST).
-/// The day's coding-agent bursts, when there are any, name and cut the work
-/// sessions by project.
 struct DayActivityProjection {
     let blocks: [ActivityBlock]
     let sessions: [TimelineWorkSession]

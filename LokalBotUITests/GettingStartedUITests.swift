@@ -1,8 +1,5 @@
 import XCTest
 
-/// Pins down Today's first-day steps: on an empty library they are the page,
-/// hiding them must leave a useful home, and the choice must survive a fresh
-/// app process.
 final class GettingStartedUITests: XCTestCase {
     private var root: URL!
     private var app: XCUIApplication!

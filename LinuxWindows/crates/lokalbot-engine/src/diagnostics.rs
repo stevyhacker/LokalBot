@@ -1,10 +1,3 @@
-//! Export Diagnostics (`DiagnosticsExporter.swift`,
-//! `DiagnosticsSettingsSanitizer.swift`): recent logs, health reports, settings
-//! without secrets, library row counts and capture traces in one zip the person
-//! saves themselves. It never reads the meetings folder, screenshots or screen
-//! text, so meeting audio, transcripts, notes and screen content can't end up in
-//! the archive.
-
 use std::collections::BTreeMap;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -73,7 +66,6 @@ fn sanitize_value(value: Value, key: Option<&str>) -> Value {
     }
 }
 
-/// Sorted keys at every depth, as the Mac's `.sortedKeys` writes them.
 fn sorted(value: Value) -> Value {
     match value {
         Value::Object(entries) => {
@@ -88,8 +80,6 @@ fn sorted(value: Value) -> Value {
     }
 }
 
-/// Settings without any key that names a credential, and with URLs reduced to
-/// their host and path. A deny-list, as on the Mac.
 pub fn sanitized_settings(settings: &Settings) -> Result<Vec<u8>> {
     let value = serde_json::to_value(settings)?;
     Ok(serde_json::to_vec_pretty(&sorted(sanitize_value(
@@ -107,13 +97,11 @@ pub struct Manifest {
     pub missing: Vec<String>,
 }
 
-/// Row counts only; never row contents.
 fn library_counts(library: &Library) -> Option<BTreeMap<String, i64>> {
     let counts = library
         .with_db(|db| {
             let mut counts = BTreeMap::new();
             for table in COUNTED_TABLES {
-                // A table this library doesn't have just isn't counted.
                 let count = db.query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
                     row.get::<_, i64>(0)
                 });
@@ -145,7 +133,6 @@ fn files_with_extensions(directory: &Path, extensions: &[&str]) -> Vec<PathBuf> 
     files
 }
 
-/// The current log and its rotations.
 fn log_files(library: &Library) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(library.paths().logs_dir()) else {
         return Vec::new();
@@ -164,8 +151,6 @@ fn log_files(library: &Library) -> Vec<PathBuf> {
     files
 }
 
-/// Writes the archive beside `destination`, then swaps it in: an earlier archive
-/// is replaced only once the new one exists. A folder is an error.
 pub fn export(library: &Library, settings: &Settings, destination: &Path) -> Result<Manifest> {
     export_at(library, settings, destination, Utc::now())
 }
@@ -366,7 +351,6 @@ mod tests {
         assert!(files.contains_key("LokalBot Diagnostics/logs/lokalbot.log.1"));
         assert!(files.contains_key("LokalBot Diagnostics/settings.json"));
         assert!(files.contains_key("LokalBot Diagnostics/counts.json"));
-        // The newest 28 reports.
         let reports = files
             .keys()
             .filter(|name| name.contains("/health/"))
@@ -385,13 +369,11 @@ mod tests {
             assert!(!contents.contains("PRIVATE SUMMARY"), "{name} leaked");
             assert!(!contents.contains("Secret plans"), "{name} leaked");
         }
-        // A second export replaces the first; nothing else is left beside it.
         export(&library, &Settings::default(), &destination).unwrap();
         assert_eq!(
             std::fs::read_dir(dir.path().join("out")).unwrap().count(),
             1
         );
-        // A folder is refused and left alone.
         assert!(export(&library, &Settings::default(), dir.path()).is_err());
     }
 }

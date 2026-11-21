@@ -19,8 +19,6 @@ final class CodingAgentSessionTests: XCTestCase {
         try? FileManager.default.removeItem(at: root)
     }
 
-    // MARK: - Claude Code
-
     func testClaudeReaderKeepsRequestsRepliesEditsAndActionsButNeverToolOutput() throws {
         try writeClaudeSession("S1", lines: claudeWorkday, created: "2026-09-29T08:00:00Z")
 
@@ -97,8 +95,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(unchanged.filesRead, 0, "an unchanged file is reused, not parsed")
         XCTAssertEqual(unchanged.transcripts, first.transcripts)
 
-        // The fork arrives after the original was cached; its copied
-        // history must still be credited to the original.
         try writeClaudeSession(
             "FORK",
             lines: original + [claudeUser(uuid: "u11", at: "2026-09-29T08:30:00Z", text: "Fork-only request")],
@@ -110,8 +106,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(bursts.map(\.prompts), [["Original request"], ["Fork-only request"]])
     }
 
-    /// 2026-10-31: every refresh re-parsed each transcript still being written
-    /// in full, and every new day re-parsed the whole window.
     func testARefreshParsesOnlyAppendedBytesAndMatchesAFullRead() throws {
         let reader = ClaudeCodeSessionReader(root: root.appendingPathComponent("claude"))
         let cache = CodingAgentParseCache()
@@ -183,7 +177,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(reachingBack.bytesRead, window.bytesRead, "days the cache no longer holds are parsed again")
         XCTAssertEqual(reachingBack.bursts, window.bursts)
 
-        // The agent rewrites the file instead of appending to it.
         try write(Array(labeledSession.suffix(2)) + labeledSession.prefix(4),
                   to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
                   created: "2026-09-29T08:00:00Z", modified: "2026-09-30T11:00:00Z")
@@ -205,8 +198,6 @@ final class CodingAgentSessionTests: XCTestCase {
     func testCompactingActivityNeverChangesABurst() throws {
         let start = try utc("2026-09-29T09:00:00Z")
         var events = [CodingAgentEvent(at: start, kind: .prompt("Build it"))]
-        // Tool results every 20 s for four minutes, a 7-minute wait, more
-        // results, then an idle gap long enough to start a new burst.
         for second in stride(from: 20, through: 240, by: 20) {
             events.append(CodingAgentEvent(at: start.addingTimeInterval(TimeInterval(second)), kind: .activity))
         }
@@ -223,7 +214,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(CodingAgentBurstBuilder.bursts(from: compacted), CodingAgentBurstBuilder.bursts(from: transcript))
     }
 
-    /// A saved burst must not change when the session goes on past midnight.
     func testCompactingKeepsADaysLastEventWhateverFollowsMidnight() throws {
         let request = try utc("2026-09-29T23:57:00Z")
         let events = [
@@ -243,9 +233,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(firstDay(compacted).first?.end, request.addingTimeInterval(120))
     }
 
-    /// 2026-10-20 and 21: a session's folder and branch were read across the
-    /// whole scan window, so a session that moved on relabeled the work it
-    /// had saved on earlier days, and each relabel rebuilt those days' digests.
     func testClaudeBurstsAreLabeledByTheirOwnRecordsWhateverTheScanWindow() throws {
         try write(labeledSession, to: root.appendingPathComponent("claude/-Users-me-Code-LokalBot/S1.jsonl"),
            created: "2026-09-29T08:00:00Z", modified: "2026-09-30T10:05:00Z")
@@ -276,8 +263,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(burst.prompts, ["What did I promise Ana?"])
         XCTAssertNil(burst.finalReply, "a reply may restate library content")
     }
-
-    // MARK: - Codex
 
     func testCodexReaderFindsResumedRolloutAndSkipsSubagentsAndStaleFiles() throws {
         let codex = root.appendingPathComponent("codex", isDirectory: true)
@@ -357,8 +342,6 @@ final class CodingAgentSessionTests: XCTestCase {
         }
     }
 
-    // MARK: - Codex, compressed
-
     func testCodexReaderReadsCompressedRolloutsLikePlainOnes() throws {
         let name = "sessions/2026/09/03/rollout-2026-09-03T10-00-00-T1.jsonl"
         let plain = root.appendingPathComponent("plain", isDirectory: true)
@@ -366,7 +349,6 @@ final class CodingAgentSessionTests: XCTestCase {
         try write(codexResumedRollout, to: plain.appendingPathComponent(name),
                   created: "2026-09-03T10:00:00Z", modified: "2026-09-29T18:00:00Z")
         let text = codexResumedRollout.joined(separator: "\n") + "\n"
-        // Compressing gives the file the creation date of its last write.
         try writeCompressed(text, to: packed.appendingPathComponent(name + ".zst"),
                             created: "2026-09-29T18:00:00Z", modified: "2026-09-29T18:00:00Z")
         let expected = CodexSessionReader(root: plain).transcripts(in: dayInterval).transcripts
@@ -420,7 +402,6 @@ final class CodingAgentSessionTests: XCTestCase {
     }
 
     func testDecompressionHandsOverWholeLinesAcrossFramesAndBuffers() throws {
-        // Lines longer than the decoder's 4 MiB output buffer, split over many frames.
         let lines = [
             String(repeating: "a", count: 3 << 20), "{\"short\":1}",
             String(repeating: "b", count: 5 << 20), "", "{\"short\":2}\r",
@@ -455,8 +436,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(CodingAgentCompressedTranscript.startBound(of: URL(fileURLWithPath: "/x/other.jsonl.zst")), .distantPast)
         XCTAssertFalse(CodingAgentCompressedTranscript.isCompressed(URL(fileURLWithPath: "/x/notes.zst")))
     }
-
-    // MARK: - Scanner and bursts
 
     func testScannerDropsSessionsInsideExcludedFolders() throws {
         try writeClaudeSession("S1", lines: claudeWorkday, created: "2026-09-29T08:00:00Z")
@@ -575,8 +554,6 @@ final class CodingAgentSessionTests: XCTestCase {
             """)
     }
 
-    // MARK: - Text rules
-
     func testPromptKeepsOnlyWhatThePersonWrote() {
         XCTAssertEqual(
             CodingAgentText.prompt("<system-reminder>ctx</system-reminder>\nShip it"), "Ship it")
@@ -637,7 +614,6 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertEqual(
             CodingAgentText.actions(inCommand: #"["/bin/zsh","-lc","npm run test && git push"]"#),
             [.pushed, .ranTests])
-        // The UI-test runner moved to Scripts/test/; older sessions still name the old path.
         XCTAssertEqual(CodingAgentText.actions(inCommand: "Scripts/test/ui-tests.sh --remote"), [.ranTests])
         XCTAssertEqual(CodingAgentText.actions(inCommand: "bash Scripts/ui-tests.sh --remote"), [.ranTests])
         XCTAssertEqual(CodingAgentText.actions(inCommand: "git status && git log --oneline"), [])
@@ -705,8 +681,6 @@ final class CodingAgentSessionTests: XCTestCase {
             LokalBot --agent-sessions: 2026-09-29 — 0 sessions, 0 bursts, 0 evidence chars from 3 files (2 MB) in 0.4s; 1 excluded
             """)
     }
-
-    // MARK: - Fixtures
 
     private func workBurst(
         title: String = "Fix digest freshness",
@@ -804,8 +778,6 @@ final class CodingAgentSessionTests: XCTestCase {
         ]
     }
 
-    /// A user record in Claude Code's key order, which the tool-result
-    /// fast path depends on.
     private func claudeUser(
         uuid: String, at timestamp: String, text: String,
         cwd: String = "/Users/me/Code/LokalBot", branch: String = "claude/fix-badge"
@@ -831,7 +803,6 @@ final class CodingAgentSessionTests: XCTestCase {
             + #","cwd":"# + json(cwd) + #","gitBranch":"# + json(branch) + #","sessionId":"S"}"#
     }
 
-    /// `value` as a quoted JSON string.
     private func json(_ value: String) -> String {
         let data = (try? JSONSerialization.data(withJSONObject: [value])) ?? Data("[\"\"]".utf8)
         return String((String(data: data, encoding: .utf8) ?? "[\"\"]").dropFirst().dropLast())
@@ -857,9 +828,6 @@ final class CodingAgentSessionTests: XCTestCase {
             ofItemAtPath: url.path)
     }
 
-    /// Writes `text` as zstd frames of uncompressed blocks, which is what
-    /// zstd writes for bytes it cannot shrink. Decoding real compression is
-    /// libzstd's own, tested upstream; these frames test the reader around it.
     private func writeCompressed(_ text: String, to url: URL, created: String, modified: String) throws {
         let data = Data(text.utf8)
         let frameSize = 1 << 20
@@ -868,13 +836,12 @@ final class CodingAgentSessionTests: XCTestCase {
         var frameStart = 0
         repeat {
             let frameEnd = min(frameStart + frameSize, data.count)
-            out.append(contentsOf: [0x28, 0xB5, 0x2F, 0xFD])  // magic number
-            out.append(0x00)  // no content size, checksum or dictionary
-            out.append(0x38)  // window: 128 KiB
+            out.append(contentsOf: [0x28, 0xB5, 0x2F, 0xFD])
+            out.append(0x00)
+            out.append(0x38)
             var blockStart = frameStart
             repeat {
                 let blockEnd = min(blockStart + blockSize, frameEnd)
-                // A raw block: size, type 0, and whether it is the frame's last.
                 let header = UInt32(blockEnd - blockStart) << 3 | (blockEnd == frameEnd ? 1 : 0)
                 out.append(contentsOf: [UInt8(header & 0xFF), UInt8(header >> 8 & 0xFF), UInt8(header >> 16 & 0xFF)])
                 out.append(data[blockStart..<blockEnd])

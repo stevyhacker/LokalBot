@@ -1,9 +1,3 @@
-//! Selection actions (`SelectionActionsController.swift`): a system-wide
-//! shortcut reads the text selected in the frontmost app, the panel runs the
-//! Think model on it (optionally with matching work memory), and the result
-//! replaces the selection, goes in at the cursor, or is copied. Nothing here is
-//! persisted or logged.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -24,7 +18,6 @@ use crate::{EngineEvent, SelectionCommand, Shared};
 pub enum SelectionPhase {
     #[default]
     Idle,
-    /// Reading the selection before the panel opens.
     Capturing,
     Choosing,
     Generating,
@@ -32,11 +25,9 @@ pub enum SelectionPhase {
     Failed(String),
 }
 
-/// Everything the panel shows. Lives in memory while the panel is open.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SelectionView {
     pub phase: SelectionPhase,
-    /// The app the text came from.
     pub source: Option<FrontApp>,
     pub text: String,
     pub issue: Option<SelectionIssue>,
@@ -45,7 +36,6 @@ pub struct SelectionView {
     pub output: String,
     pub memory_sources: Vec<MemorySource>,
     pub model_name: Option<String>,
-    /// Why the last result could not be pasted back; shown above it.
     pub notice: Option<String>,
 }
 
@@ -65,11 +55,9 @@ impl SelectionView {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum DeliveryOutcome {
     Inserted,
-    /// Not pasted, for this reason; the result is on the clipboard.
     Copied(String),
 }
 
-/// Streams one reply. Stops early when `cancel` is set.
 pub trait Generator: Send {
     fn display_name(&self) -> String;
     fn generate(
@@ -80,9 +68,7 @@ pub trait Generator: Send {
     ) -> Result<String>;
 }
 
-/// What the controller needs from the rest of the app.
 pub trait Host: Send + Sync + 'static {
-    /// The setting is on. Off means nothing is read.
     fn enabled(&self) -> bool;
     fn is_lokalbot_frontmost(&self) -> bool;
     fn capture(&self) -> SelectionCapture;
@@ -97,7 +83,6 @@ pub trait Host: Send + Sync + 'static {
 
 #[derive(Default)]
 struct Inner {
-    /// Bumped by every new request, so a superseded one never writes state.
     generation: u64,
     view: SelectionView,
     capture: SelectionCapture,
@@ -105,7 +90,6 @@ struct Inner {
 }
 
 impl Inner {
-    /// Cancels the running request and starts a new generation.
     fn begin(&mut self, keep_capture: bool) -> u64 {
         if let Some(cancel) = self.cancel.take() {
             cancel.store(true, Ordering::Relaxed);
@@ -178,8 +162,6 @@ impl<H: Host> Controller<H> {
         }
     }
 
-    /// The shortcut was pressed. Reads the selection first, because opening
-    /// the panel moves focus away from it.
     fn invoke(&self) {
         if !self.host.enabled() {
             return;
@@ -187,7 +169,6 @@ impl<H: Host> Controller<H> {
         let (host, inner) = (self.host.clone(), self.inner.clone());
         std::thread::spawn(move || {
             if host.is_lokalbot_frontmost() {
-                // Pressed while LokalBot is in front: keep any open panel's state.
                 let mut inner = inner.lock();
                 if inner.view.phase == SelectionPhase::Idle {
                     inner.view.phase = SelectionPhase::Choosing;
@@ -283,7 +264,6 @@ impl<H: Host> Controller<H> {
                     (phase, Some(text))
                 }
                 Err(err) => {
-                    // The error can quote the prompt, which holds the selection.
                     log::warn!("selection action failed");
                     (SelectionPhase::Failed(format!("{err:#}")), None)
                 }
@@ -301,8 +281,6 @@ impl<H: Host> Controller<H> {
         });
     }
 
-    /// Copies the result and hands focus back to the app it came from, ready
-    /// for Ctrl+V. The panel closes.
     fn copy_output(&self) {
         let mut inner = self.inner.lock();
         if inner.view.output.is_empty() {
@@ -318,9 +296,6 @@ impl<H: Host> Controller<H> {
         }
     }
 
-    /// Replaces the selection with the result, or inserts it at the cursor
-    /// when nothing was selected. The panel closes; if the field changed
-    /// meanwhile, the panel comes back with the result already copied.
     fn insert_output(&self) {
         let (text, captured, chosen, sources, model) = {
             let mut inner = self.inner.lock();
@@ -346,7 +321,6 @@ impl<H: Host> Controller<H> {
             DeliveryOutcome::Inserted => {}
             DeliveryOutcome::Copied(reason) => {
                 let mut inner = inner.lock();
-                // Nothing newer took the panel meanwhile.
                 if inner.view.phase != SelectionPhase::Idle {
                     drop(inner);
                     host.report(reason);
@@ -365,7 +339,6 @@ impl<H: Host> Controller<H> {
         });
     }
 
-    /// Closes without using a result and returns to the source app.
     fn dismiss(&self) {
         let mut inner = self.inner.lock();
         let source = inner.capture.source.clone();
@@ -378,7 +351,6 @@ impl<H: Host> Controller<H> {
     }
 }
 
-/// The running engine's host.
 pub(crate) struct LiveHost {
     shared: Arc<Shared>,
     models: Models,
@@ -487,7 +459,6 @@ impl Host for LiveHost {
     }
 }
 
-/// Lets the app give keyboard focus back to its field before checking it.
 const FOCUS_SETTLE: Duration = Duration::from_millis(120);
 const FOCUS_DEADLINE: Duration = Duration::from_millis(400);
 
@@ -498,7 +469,6 @@ fn copied(text: &str, reason: &str) -> DeliveryOutcome {
     DeliveryOutcome::Copied(lokalbot_i18n::tr(reason).to_string())
 }
 
-/// `SelectionDelivery.message(for:)`.
 fn check_message(check: DeliveryCheck) -> &'static str {
     match check {
         DeliveryCheck::Deliverable | DeliveryCheck::FieldUnreadable => {
@@ -516,8 +486,6 @@ fn check_message(check: DeliveryCheck) -> &'static str {
     }
 }
 
-/// Replacement requires the exact selection, including a range having been
-/// cleared to a caret. Dictation's app-only fallback is less strict.
 fn field_check(capture: &SelectionCapture) -> DeliveryCheck {
     let Some(target) = capture.target.as_ref() else {
         return DeliveryCheck::FieldUnreadable;
@@ -528,7 +496,6 @@ fn field_check(capture: &SelectionCapture) -> DeliveryCheck {
     }
 }
 
-/// Puts a result back into the field it came from.
 fn deliver(text: &str, capture: &SelectionCapture) -> DeliveryOutcome {
     const NO_RETURN: &str =
         "LokalBot could not return to the app, so the result was copied to the clipboard.";
@@ -538,7 +505,6 @@ fn deliver(text: &str, capture: &SelectionCapture) -> DeliveryOutcome {
     if !focus::activate_window(source) {
         return copied(text, NO_RETURN);
     }
-    // The panel is still closing for a moment after the click that got here.
     let mut check = DeliveryCheck::FieldUnreadable;
     for _ in 0..4 {
         std::thread::sleep(FOCUS_SETTLE);
@@ -709,7 +675,6 @@ mod tests {
     }
 
     impl Harness {
-        /// Waits for a publish in this phase.
         fn wait_for(&self, phase: SelectionPhase) -> bool {
             let deadline = std::time::Instant::now() + Duration::from_secs(5);
             while let Some(left) = deadline.checked_duration_since(std::time::Instant::now()) {

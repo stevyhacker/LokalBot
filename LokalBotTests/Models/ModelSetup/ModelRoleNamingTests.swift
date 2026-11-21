@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// CONTEXT.md names the model roles Transcribe, Think, and Autocomplete. Every
-/// surface that labels a role must use those names.
 @MainActor
 final class ModelRoleNamingTests: XCTestCase {
     func testRoleTitlesMatchTheGlossary() {
@@ -30,8 +28,6 @@ final class ModelStorageCopyTests: XCTestCase {
         XCTAssertNil(TranscriptionModelChoice.graniteSpeech.sizeLabel)
     }
 
-    /// Each stated size must round to the bytes the engine actually downloads,
-    /// at the label's own precision (decimal GB, matching the README).
     func testTranscriptionSizesMatchPinnedDownloads() throws {
         func total(_ snapshots: [PinnedModelSnapshot]) -> Int64 {
             snapshots.flatMap(\.files).reduce(0) { $0 + $1.bytes }

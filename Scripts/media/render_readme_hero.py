@@ -56,9 +56,6 @@ THEMES = {
 """,
 }
 
-# Positions are in CSS px on a 1600x900 page. Quick Recall's 4x capture is
-# cropped 104 px at the top (24.4 CSS px), and the brackets follow its two
-# result groups when each holds two rows.
 PAGE = """<!doctype html>
 <html>
 <head>
@@ -142,7 +139,6 @@ def main():
              f"--user-data-dir={Path(work) / 'profile'}", "--virtual-time-budget=3000",
              f"--screenshot={shot}", html.as_uri()],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Headless Chrome keeps running after it writes the screenshot.
         deadline = time.monotonic() + 30
         while not (shot.exists() and shot.stat().st_size) and time.monotonic() < deadline:
             time.sleep(0.25)

@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// What the Ask page shows: a new question or a conversation, and whether the
-/// field's text lists matches. Typing never replaces the conversation.
 @MainActor
 final class AskRoutingTests: XCTestCase {
 
@@ -230,7 +228,6 @@ final class AskRoutingTests: XCTestCase {
                                          meetingIDs: [UUID()], meetingScope: "the meeting “Standup”")
         XCTAssertEqual(named.limit, "what happened \(dates.phrase), and to the meeting “Standup”")
 
-        // Where a device's question started is a focus, never a limit.
         let focused = ScopedChatToolRunner(base: base, scopes: [.meetings], focus: "the day 4 Nov 2026")
         XCTAssertNil(focused.limit)
         XCTAssertTrue(focused.questionScope().hasPrefix(

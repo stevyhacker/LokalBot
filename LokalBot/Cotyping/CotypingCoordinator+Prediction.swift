@@ -1,12 +1,7 @@
 import CoreGraphics
 import Foundation
 
-/// Debounce, generation, streamed partials, stale-result handling, and preview commands.
 extension CotypingCoordinator {
-    // MARK: - Generation
-
-    /// `withSuggestionShown` also prewarms while a suggestion is on screen and
-    /// nothing is being generated, for a prompt that changed under it.
     func scheduleFocusPrewarm(for focus: CotypingFocus, withSuggestionShown: Bool = false) {
         guard isRunning,
               !isMeetingRecordingActive(),
@@ -41,9 +36,6 @@ extension CotypingCoordinator {
         focusPrewarmTask = Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(50))
             guard let self, !Task.isCancelled else { return }
-            // Read the field as the first keystroke will, which also caches its
-            // font and the text above it, and have the model read that prompt
-            // now, so the first suggestion only adds what was typed.
             let settings = self.settingsProvider()
             let live = await self.refreshFocusForPrediction(settings: settings)
             guard !Task.isCancelled, let field = live.field,
@@ -55,17 +47,12 @@ extension CotypingCoordinator {
         }
     }
 
-    /// A background read of the focused window changed the text the prompt
-    /// starts with, which happens once typing pauses. While nothing is being
-    /// generated, including with a suggestion on screen, the model reads the
-    /// new prompt now, so the next keystroke does not wait for it.
     func windowTextDidChange() {
         guard isRunning, isSettled else { return }
         focusPrewarmFieldIdentity = nil
         scheduleFocusPrewarm(for: focusTracker.focus, withSuggestionShown: true)
     }
 
-    /// Nothing is waiting to be generated: idle, or a suggestion on screen.
     var isSettled: Bool {
         switch state {
         case .idle, .ready: true
@@ -148,7 +135,6 @@ extension CotypingCoordinator {
         guard !isPausedByEscape(in: field) else { state = .idle; return }
         prepareVisualCaret(for: field, host: focus.host, settings: settings)
 
-        // Emoji: an explicit `:shortcode` intent wins over autocorrect and the LLM.
         if settings.cotypingEmoji, let emoji = CotypingEmoji.match(trailing: field.precedingText) {
             present(
                 CotypingSession(field: field, fullText: emoji.glyph, kind: .emoji(shortcode: emoji.shortcode)),
@@ -157,7 +143,6 @@ extension CotypingCoordinator {
             return
         }
 
-        // Macros: an explicit `/expr` (math, date, unit, currency, random) wins too.
         if settings.cotypingMacros, let macro = CotypingMacro.match(trailing: field.precedingText) {
             present(
                 CotypingSession(
@@ -169,7 +154,6 @@ extension CotypingCoordinator {
             return
         }
 
-        // Autocorrect: offer to fix the trailing word before spending an LLM call.
         switch typoDecision(for: field.precedingText, enabled: settings.cotypingAutocorrect) {
         case .offerCorrection(let word, let corrected):
             present(
@@ -186,7 +170,6 @@ extension CotypingCoordinator {
 
         var memory = latestSavedContext(for: field, settings: settings)
         if !memory.isCurrent(settings: settingsProvider()) {
-            // A source changed or was withdrawn since the lookup: look again.
             memoryLookup.reset()
             memory = .empty
         }
@@ -213,7 +196,6 @@ extension CotypingCoordinator {
         state = .generating
         let start = Date()
         do {
-            // The whole suggestion appears at once, as in Cotypist.
             let result = try await engine.generate(request)
             await completeGeneration(
                 result,
@@ -225,7 +207,6 @@ extension CotypingCoordinator {
         }
     }
 
-    /// Validates a finished generation against the live field before applying it.
     private func completeGeneration(
         _ result: CotypingNormalizationResult,
         targetField: CotypingField,
@@ -243,8 +224,6 @@ extension CotypingCoordinator {
             clearStaleGeneratedResult()
             return
         }
-        // A caret already placed needs no wait: a find still running only
-        // measures it again, and the suggestion is ready now.
         if !displayField(liveField).caretIsExact {
             await visualCaret.waitForPending(milliseconds: Self.visualCaretWaitMilliseconds)
             guard work == generation, isRunning else { return }
@@ -259,7 +238,6 @@ extension CotypingCoordinator {
             pendingAcceptedTail: pendingAcceptedTail)
     }
 
-    /// Cancellation is expected when newer input supersedes this request.
     private func handleGenerationFailure(_ error: Error, work: UInt64) {
         if error is CancellationError { return }
         if let urlError = error as? URLError, urlError.code == .cancelled { return }
@@ -282,8 +260,6 @@ extension CotypingCoordinator {
             for: field,
             config: cfg,
             enabled: settings.cotypingUseClipboard)
-        // Ranked on finished words only: a half-typed word reordering the
-        // examples would change the prompt, and the model would read it again.
         var rankingField = field
         rankingField.precedingText = CotypingMemoryLookup.finishedWords(of: field.precedingText)
         let learnedExamples = settings.cotypingUseLocalLearning
@@ -347,9 +323,6 @@ extension CotypingCoordinator {
             maxAgeMilliseconds: Self.freshSnapshotReuseWindowMilliseconds)
     }
 
-    /// One quick read of the field before painting: the suggestion is shown
-    /// only if the text it continues is still exactly what is there. The
-    /// field's font and the text above it come from the request's own read.
     private func validatedLiveFieldForGeneratedResult(
         originalField: CotypingField,
         settings: AppSettings,
@@ -479,7 +452,6 @@ extension CotypingCoordinator {
             isKnownWord: { verdictsApply ? !spellChecker.isTypo($0) : true })
     }
 
-    /// Resolves the typo gate for the trailing word using the native spell checker.
     private func typoDecision(for precedingText: String, enabled: Bool) -> CotypingTypoDecision {
         guard spellChecker.verdictsApply(context: precedingText) else { return .proceed }
         return CotypingTypoGate.resolve(
@@ -489,15 +461,10 @@ extension CotypingCoordinator {
             isCompletableWordPrefix: { spellChecker.isCompletableWordPrefix($0) })
     }
 
-    /// Whether the word fragment at the caret is a valid standalone word — the
-    /// normalizer's signal for accepting a whitespace-leading continuation
-    /// after a fragment ("the" may be complete; "follo" must be extended).
     private func wordPrefixIsValidWord(for precedingText: String) -> Bool {
         spellChecker.wordPrefixIsValidWord(context: precedingText)
     }
 
-    /// Starts finding the caret on screen for a field whose app reports
-    /// none, unless the field may not be captured.
     func prepareVisualCaret(for field: CotypingField, host: String?, settings: AppSettings) {
         guard !field.caretIsExact else { return }
         let permitted = CotypingVisualCaretLocator.permitsCapture(
@@ -509,14 +476,10 @@ extension CotypingCoordinator {
         visualCaret.refreshIfNeeded(for: field)
     }
 
-    /// `field` as the ghost is placed for it: with the caret found on screen
-    /// when its app reports none.
     func displayField(_ field: CotypingField) -> CotypingField {
         visualCaret.resolve(field)
     }
 
-    /// Bundles the caret-geometry + mid-line + preference signals the overlay
-    /// needs to pick inline vs popup rendering, derived from a field snapshot.
     func placement(for field: CotypingField) -> CotypingOverlayPlacement {
         let field = displayField(field)
         return CotypingOverlayPlacement(
@@ -542,7 +505,6 @@ extension CotypingCoordinator {
             style: field.fieldStyle,
             placement: placement ?? self.placement(for: field),
             acceptanceText: acceptanceText,
-            // A correction, emoji or calculation is shown whole or not at all.
             mayShowPart: session.map { $0.kind == .continuation } ?? true,
             isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(field.precedingText),
             precedingText: field.precedingText,
@@ -551,8 +513,6 @@ extension CotypingCoordinator {
             backgroundKey: CotypingFieldIdentity.background(for: field))
     }
 
-    /// A quick re-read of the field leaves out its font. The suggestion keeps
-    /// the font it was first drawn in, so it does not change size mid-line.
     private func sessionStyle(for field: CotypingField) -> CotypingFieldStyle? {
         guard let session,
               CotypingFieldIdentity.suggestionAnchor(for: session.field)
@@ -560,8 +520,6 @@ extension CotypingCoordinator {
         return session.field.fieldStyle
     }
 
-    /// Characters of `text` the next accept keypress takes, which the ghost
-    /// draws a little stronger. Nil when one accept takes the whole suggestion.
     func acceptEmphasisLength(for text: String) -> Int? {
         guard let session, case .continuation = session.kind else { return nil }
         let settings = settingsProvider()
@@ -572,13 +530,6 @@ extension CotypingCoordinator {
         return chunk.isEmpty ? nil : chunk.count
     }
 
-    // MARK: - Saved memory
-
-    /// Saved facts for a live keystroke. Looking them up reads the library,
-    /// which takes tens of milliseconds, so the suggestion uses the newest
-    /// lookup that has finished for this field. Another starts in the
-    /// background when the finished words before the caret could name
-    /// something new, and the following keystroke picks it up.
     private func latestSavedContext(for field: CotypingField, settings: AppSettings)
         -> CotypingMemoryContextProvider.Snapshot {
         guard CotypingMemoryContext.Policy(settings: settings).enabled else {
@@ -601,23 +552,16 @@ extension CotypingCoordinator {
         return memoryLookup.snapshot
     }
 
-    // MARK: - In-app preview
-
     private func savedContext(for field: CotypingField, settings: AppSettings) async
         -> CotypingMemoryContextProvider.Snapshot {
         guard CotypingMemoryContext.Policy(settings: settings).enabled else { return .empty }
         return await memoryContextProvider(field, settings)
     }
 
-    /// Runs the real pipeline (prompt + model + normalizer) on synthetic text for
-    /// the in-app preview playground. No Accessibility / Input Monitoring needed.
     func previewSuggestion(precedingText: String, trailingText: String = "", sampleOnly: Bool = false) async throws -> String {
         try await preview(precedingText: precedingText, trailingText: trailingText, sampleOnly: sampleOnly).text
     }
 
-    /// The same pipeline, also reporting which optional sources shaped the
-    /// result. With the visible-text grant on, `conversation` stands in for the
-    /// text above a live field; the screen is never read.
     func preview(
         precedingText: String,
         trailingText: String = "",

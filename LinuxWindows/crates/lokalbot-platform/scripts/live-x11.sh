@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-# Runs the ignored live tests on a private Xvfb display and D-Bus session:
-# the X11 sampler, idle time, shortcuts (press and release), paste and typing
-# into GTK and terminal windows, and notification and tray round trips.
-# Needs Xvfb, xfwm4, xdotool, xmessage (x11-apps), zenity, xsel,
-# xfce4-terminal and dbus-run-session.
-# Usage: crates/lokalbot-platform/scripts/live-x11.sh [display number]
 set -euo pipefail
 if [ -z "${LOKALBOT_LIVE_BUS:-}" ]; then
   exec env LOKALBOT_LIVE_BUS=1 dbus-run-session -- "$0" "$@"

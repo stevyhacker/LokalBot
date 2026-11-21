@@ -1,25 +1,17 @@
 import Foundation
 
-/// A built-in action on text selected in another app, or a typed instruction.
-/// Actions that rewrite the selection can replace it in place; the others
-/// produce new text (an answer, a summary, a reply) that is copied instead.
 struct SelectionAction: Identifiable, Equatable, Sendable {
     enum Result: Equatable, Sendable {
-        /// A new version of the selection, offered as a replacement.
         case replacement
-        /// Text that does not stand in for the selection.
         case newText
     }
 
     let id: String
     let title: String
     let icon: String
-    /// What the model is asked to do, in the prompt's words.
     let instruction: String
     let result: Result
-    /// Reads matching meetings and work memory before writing.
     let usesMemory: Bool
-    /// False for actions that only make sense on selected text.
     var worksWithoutSelection = false
 
     static let fixGrammar = Self(
@@ -66,14 +58,11 @@ struct SelectionAction: Identifiable, Equatable, Sendable {
 
     static let customID = "custom"
 
-    /// A typed instruction. With a selection it can replace it; without one
-    /// it writes new text at the cursor.
     static func custom(_ instruction: String, usesMemory: Bool) -> Self {
         Self(id: customID, title: instruction, icon: "sparkles", instruction: instruction,
              result: .replacement, usesMemory: usesMemory, worksWithoutSelection: true)
     }
 
-    /// Built-in actions whose title contains every typed word.
     static func matching(_ query: String, hasSelection: Bool, language: AppLanguage = .english) -> [Self] {
         let available = builtIn.filter { hasSelection || $0.worksWithoutSelection }
         let tokens = query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
@@ -85,8 +74,6 @@ struct SelectionAction: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Retrieved work memory for one request: prompt-ready excerpts plus the
-/// meetings they came from, which the panel lists so the result can be checked.
 struct SelectionMemoryContext: Equatable, Sendable {
     struct Source: Identifiable, Equatable, Sendable {
         let id: UUID
@@ -101,17 +88,9 @@ struct SelectionMemoryContext: Equatable, Sendable {
     var isEmpty: Bool { excerpts.isEmpty }
 }
 
-/// Prompt text for selection actions. Pure, so tests can pin what the model
-/// is told without an engine.
 enum SelectionActionPrompt {
-    /// No thinking turn: someone is waiting to paste. The output ceiling fits
-    /// a long rewritten passage.
     static let options = TextGenerationOptions(maxTokens: 4_096, reasoningBudgetTokens: 0, temperature: 0.3)
-    /// The selection sent to the model. Longer selections are cut, and the
-    /// panel says so.
     static let selectionCharacterLimit = 12_000
-    /// What the memory search looks for: the start of the selection is where
-    /// a message usually says what it is about.
     static let memoryQueryCharacterLimit = 400
 
     static let system = """
@@ -155,7 +134,6 @@ enum SelectionActionPrompt {
         return String(trimmed.prefix(selectionCharacterLimit))
     }
 
-    /// The text the memory search runs on.
     static func memoryQuery(action: SelectionAction, selection: String) -> String {
         let selected = selection.trimmingCharacters(in: .whitespacesAndNewlines)
         let base = selected.isEmpty ? action.instruction : selected
@@ -163,8 +141,6 @@ enum SelectionActionPrompt {
         return String(collapsed.prefix(memoryQueryCharacterLimit))
     }
 
-    /// Strips reasoning, code fences, and quotation marks the model wrapped
-    /// around the whole answer. Applied to partial output too.
     static func normalizedOutput(_ raw: String, selection: String) -> String {
         var output = DictationComposePrompt.normalizedOutput(raw)
         let quotes: [(Character, Character)] = [("\"", "\""), ("“", "”"), ("'", "'")]

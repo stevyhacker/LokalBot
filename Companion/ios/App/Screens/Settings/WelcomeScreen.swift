@@ -1,7 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// First launch: pair with the Mac, or look around the sample library.
 struct WelcomeScreen: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppNavigator.self) private var navigator

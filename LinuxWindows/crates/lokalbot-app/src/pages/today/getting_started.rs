@@ -1,7 +1,3 @@
-//! The first-day steps (`GettingStartedCard.swift`). On a day with nothing to
-//! show yet they are Today's content; after that they stay under the day
-//! until hidden.
-
 use gpui_kit::component::button::ButtonVariants as _;
 use gpui_kit::component::{Disableable as _, Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -82,8 +78,6 @@ impl TodayPage {
                         button("welcome-calendar", lokalbot_i18n::tr("Connect Calendar…"))
                             .on_click({
                                 let data = self.data.clone();
-                                // The switch while calendar use is off, else
-                                // the calendar links it reads.
                                 let focus = if calendar_on {
                                     "settings.calendarLinks"
                                 } else {
@@ -102,7 +96,6 @@ impl TodayPage {
                 },
                 cx,
             ),
-            // Timeline is where day tracking is explained and turned on.
             step(
                 false,
                 lokalbot_i18n::tr("See where your time goes").into(),
@@ -128,8 +121,6 @@ impl TodayPage {
                 ],
                 cx,
             ),
-            // Get the transcription model onto disk before the first recap
-            // needs it.
             step(
                 model_ready,
                 if model_ready {
@@ -216,7 +207,6 @@ impl TodayPage {
     }
 }
 
-/// One step: done or not, what it is, and the buttons that do it.
 fn step(done: bool, label: SharedString, actions: Vec<AnyElement>, cx: &App) -> AnyElement {
     let lb = cx.lb();
     h_flex()

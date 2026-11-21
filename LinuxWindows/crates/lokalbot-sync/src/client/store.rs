@@ -1,7 +1,3 @@
-//! The phone's local copy: records, a full-text index, the pairing, the
-//! cursor, queued ops and questions, Ask history and recordings on their way
-//! to the Mac.
-
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -96,7 +92,6 @@ const PAIRING: &str = "pairing";
 const LAST_SYNC_AT: &str = "last_sync_at";
 const LAST_ADDRESS: &str = "last_address";
 
-/// The paired Mac, as stored.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Pairing {
@@ -116,7 +111,6 @@ impl Pairing {
     }
 }
 
-/// A recording as stored; the file's path comes from its id.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RecordingRow {
     pub id: String,
@@ -150,20 +144,17 @@ fn recording_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<RecordingRow> {
     })
 }
 
-/// A queued op waiting for the Mac.
 pub(crate) struct QueuedOp {
     pub op_id: String,
     pub body: Value,
 }
 
-/// A local status change waiting for the Mac, or the note an op left.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct ActionState {
     pub pending_status: Option<String>,
     pub note: Option<Value>,
 }
 
-/// What applying a batch changed.
 #[derive(Default)]
 pub(crate) struct Applied {
     pub received: u32,
@@ -246,15 +237,11 @@ impl ClientStore {
         self.set_meta(LAST_ADDRESS, address)
     }
 
-    /// Erases everything: records, index, pairing, queues and history.
-    /// Empties everything, recordings included. The caller deletes their files.
     pub fn wipe(&self) -> Result<()> {
         self.db.execute("DELETE FROM recordings", [])?;
         self.wipe_library()
     }
 
-    /// Empties everything that came from a Mac, and the pairing. Recordings
-    /// stay: they exist nowhere else until they reach a computer.
     pub fn wipe_library(&self) -> Result<()> {
         self.db.execute_batch(
             "BEGIN;
@@ -263,14 +250,10 @@ impl ClientStore {
              DELETE FROM doc_meta; DELETE FROM docs;
              COMMIT;",
         )?;
-        // Rebuild the file without the freed pages, then move the result out
-        // of the WAL into the main file and empty the WAL.
         self.db
             .execute_batch("VACUUM; PRAGMA wal_checkpoint(TRUNCATE);")?;
         Ok(())
     }
-
-    // Recordings
 
     pub fn insert_recording(&self, id: &str, title: &str, started_at: &str) -> Result<()> {
         self.db.execute(
@@ -291,9 +274,6 @@ impl ClientStore {
             .optional()?)
     }
 
-    /// Everything still worth showing, newest first. A recording that reached
-    /// the Mac leaves once its meeting arrived, or after `prune_before` when
-    /// the Mac doesn't share it back.
     pub fn recordings(&self, prune_before: &str) -> Result<Vec<RecordingRow>> {
         self.db.execute(
             "DELETE FROM recordings WHERE state = ?1 AND (uploaded_at < ?2 OR lower(id) IN \
@@ -303,12 +283,10 @@ impl ClientStore {
         self.recordings_where("1 = 1", "started_at DESC")
     }
 
-    /// What can go to the Mac now, oldest first.
     pub fn recordings_waiting(&self) -> Result<Vec<RecordingRow>> {
         self.recordings_where(&format!("state = '{RECORDING_WAITING}'"), "started_at ASC")
     }
 
-    /// Recordings a recorder was writing when the app last stopped.
     pub fn recordings_active(&self) -> Result<Vec<RecordingRow>> {
         self.recordings_where(&format!("state = '{RECORDING_ACTIVE}'"), "started_at ASC")
     }
@@ -323,7 +301,6 @@ impl ClientStore {
         Ok(rows)
     }
 
-    /// The recorder stopped: the recording can go to the Mac.
     pub fn finish_recording(
         &self,
         id: &str,
@@ -359,7 +336,6 @@ impl ClientStore {
         Ok(())
     }
 
-    /// Stays waiting; `message` says why it hasn't gone yet.
     pub fn set_recording_message(&self, id: &str, message: Option<&str>) -> Result<()> {
         self.db.execute(
             "UPDATE recordings SET message = ?2 WHERE id = ?1",
@@ -392,9 +368,6 @@ impl ClientStore {
         Ok(())
     }
 
-    // Records
-
-    /// Upserts a batch, keeping the higher version of each record.
     pub fn apply(&mut self, items: &[Envelope]) -> Result<Applied> {
         let tx = self.db.transaction()?;
         let mut applied = Applied::default();
@@ -435,7 +408,6 @@ impl ClientStore {
         Ok(version.map(|v| v as u64))
     }
 
-    /// Live bodies of one kind, in `ORDER BY` order.
     pub fn bodies(&self, kind: &str, order_by: &str) -> Result<Vec<(String, Value)>> {
         let mut statement = self.db.prepare(&format!(
             "SELECT key, body FROM records WHERE kind = ?1 AND deleted = 0 ORDER BY {order_by}"
@@ -451,9 +423,6 @@ impl ClientStore {
             .collect())
     }
 
-    /// Live bodies of one kind that meet `condition`, in `ORDER BY` order, at
-    /// most `limit` of them (`0`: all). SQLite filters and stops, so only the
-    /// returned rows are parsed. `condition` binds `values` as `?3` onwards.
     pub fn bodies_matching(
         &self,
         kind: &str,
@@ -466,7 +435,6 @@ impl ClientStore {
             "SELECT key, body FROM records WHERE kind = ?1 AND deleted = 0 AND ({condition}) \
              ORDER BY {order_by} LIMIT ?2"
         ))?;
-        // SQLite reads a negative LIMIT as none.
         let limit = if limit == 0 { -1 } else { i64::from(limit) };
         let mut bound: Vec<&dyn rusqlite::ToSql> = vec![&kind, &limit];
         bound.extend_from_slice(values);
@@ -481,7 +449,6 @@ impl ClientStore {
             .collect())
     }
 
-    /// Writes a body in place (sample library edits only; no new version).
     pub fn replace_body(&self, kind: &str, key: &str, body: &Value) -> Result<()> {
         self.db.execute(
             "UPDATE records SET body = ?3 WHERE kind = ?1 AND key = ?2",
@@ -490,10 +457,6 @@ impl ClientStore {
         Ok(())
     }
 
-    // Ops and pending action states
-
-    /// Queues an op and shows its status locally until the Mac answers.
-    /// Unsent ops for the same action are replaced.
     pub fn queue_op(
         &mut self,
         meeting_id: &str,
@@ -525,7 +488,6 @@ impl ClientStore {
         Ok(())
     }
 
-    /// Queued ops in the order they were made; marks them sent.
     pub fn take_ops_for_sending(&self) -> Result<Vec<QueuedOp>> {
         let mut statement = self.db.prepare("SELECT op_id, body FROM ops ORDER BY id")?;
         let ops = statement
@@ -551,9 +513,6 @@ impl ClientStore {
         Ok(count as u32)
     }
 
-    /// Records the Mac's answer to an op. `applied` clears the pending
-    /// status (the rebuilt meeting has already arrived); `unmatched` and
-    /// `rejected` revert it and keep a note.
     pub fn finish_op(
         &mut self,
         op_id: &str,
@@ -599,7 +558,6 @@ impl ClientStore {
         Ok(())
     }
 
-    /// Pending statuses and notes by `(meeting id, action id)`.
     pub fn action_states(&self) -> Result<HashMap<(String, String), ActionState>> {
         let mut states: HashMap<(String, String), ActionState> = HashMap::new();
         let mut statement = self
@@ -639,8 +597,6 @@ impl ClientStore {
         Ok(states)
     }
 
-    // Questions and answers
-
     pub fn queue_question(&self, request_id: &str, request: &Value, now: &str) -> Result<()> {
         self.db.execute(
             "INSERT INTO questions (request_id, request, queued_at) VALUES (?1, ?2, ?3) \
@@ -660,9 +616,6 @@ impl ClientStore {
         Ok(questions)
     }
 
-    /// Saves an answer and drops the question from the queue. An answer
-    /// picked up twice (two attempts attached to the same answer) is kept
-    /// once.
     pub fn save_answer(
         &self,
         request_id: &str,
@@ -702,9 +655,6 @@ impl ClientStore {
     }
 }
 
-/// Stores one envelope unless an equal or newer version is present. Keeps the
-/// search index and pending action states in step. Returns whether it
-/// changed anything.
 fn upsert(tx: &Transaction<'_>, envelope: &Envelope) -> Result<bool> {
     let stored: Option<i64> = tx
         .query_row(
@@ -752,8 +702,6 @@ fn upsert(tx: &Transaction<'_>, envelope: &Envelope) -> Result<bool> {
     Ok(true)
 }
 
-/// A newer meeting record settles local action states: a pending status the
-/// Mac now shows is no longer pending, and notes from older versions go.
 fn settle_actions(
     tx: &Transaction<'_>,
     meeting_id: &str,
@@ -796,7 +744,6 @@ fn settle_actions(
     Ok(())
 }
 
-/// Record kinds the search index covers.
 pub(crate) fn is_indexed(kind: &str) -> bool {
     matches!(kind, MEETING | TRANSCRIPT | DAY)
 }

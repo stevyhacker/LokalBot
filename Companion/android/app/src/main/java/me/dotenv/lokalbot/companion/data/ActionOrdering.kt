@@ -5,7 +5,6 @@ import me.dotenv.lokalbot.companion.data.model.ActionRow
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.data.model.MeetingAction
 
-/** Action ordering and filters shared by every screen (ffi.md, `ActionRow`). */
 object ActionOrdering {
 
     fun isOverdue(action: MeetingAction, today: LocalDate): Boolean {
@@ -14,7 +13,6 @@ object ActionOrdering {
         return due.isBefore(today)
     }
 
-    /** Overdue first, then by due date (none last), then the newest meeting first. */
     fun sorted(rows: List<ActionRow>, today: LocalDate): List<ActionRow> = rows.sortedWith(
         compareBy<ActionRow> { if (isOverdue(it.action, today)) 0 else 1 }
             .thenBy { it.action.dueDate == null }
@@ -37,7 +35,6 @@ object ActionOrdering {
 
     enum class Group { Overdue, ThisWeek, Later, NoDate, Closed }
 
-    /** Sections for the Actions list: overdue, due within a week, later, undated, then closed. */
     fun grouped(rows: List<ActionRow>, today: LocalDate): List<Pair<Group, List<ActionRow>>> {
         val weekEnd = today.plusDays(7)
         return sorted(rows, today).groupBy { row ->
@@ -53,7 +50,6 @@ object ActionOrdering {
         }.toList().sortedBy { it.first.ordinal }
     }
 
-    /** Today's "Needs attention": your open actions, as on the Mac. */
     fun needsAttention(rows: List<ActionRow>, today: LocalDate, limit: Int = 3): List<ActionRow> =
         sorted(rows.filter { it.action.status == ActionStatus.Open && it.action.ownerIsUser }, today)
             .take(limit)

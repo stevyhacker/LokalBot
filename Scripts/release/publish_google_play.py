@@ -62,7 +62,6 @@ def format_release_notes(markdown: str, version: str, *, limit: int = PLAY_NOTES
             if heading:
                 lines.append(heading)
             continue
-        # Convert markdown links `[label](url)` -> `label`, drop bold/code markers.
         line = re.sub(r"\[([^\]]+)\]\([^)]+\)", r"\1", line)
         line = re.sub(r"\*\*([^*]+)\*\*", r"\1", line)
         line = line.replace("`", "")
@@ -78,7 +77,6 @@ def format_release_notes(markdown: str, version: str, *, limit: int = PLAY_NOTES
 
     cutoff = limit - 1
     trimmed = combined[:cutoff]
-    # Prefer cutting cleanly at a newline or space when it keeps most of the text.
     nl = trimmed.rfind("\n")
     if nl >= int(limit * 0.6):
         return trimmed[:nl].rstrip() + "…"

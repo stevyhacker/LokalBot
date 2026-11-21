@@ -26,11 +26,6 @@ import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.model.ActionStatus
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 
-/**
- * The round, Reminders-style action toggle (`ActionItemToggleStyle`): an
- * empty circle when open, a teal check when done, a dash when deferred.
- * Toggling marks an open action done and anything else open.
- */
 @Composable
 fun ActionToggle(status: ActionStatus, onToggle: (ActionStatus) -> Unit, modifier: Modifier = Modifier) {
     val palette = LokalBotTheme.palette

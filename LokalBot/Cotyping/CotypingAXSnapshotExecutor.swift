@@ -1,7 +1,5 @@
 import Foundation
 
-/// Options for one Accessibility snapshot. Keeping these as an option set lets
-/// the executor merge queued requests into one superset capture.
 struct CotypingAXCaptureOptions: OptionSet, Sendable {
     let rawValue: UInt8
 
@@ -18,11 +16,6 @@ struct CotypingAXCaptureResult: Sendable {
     static let timeout = Self(focus: nil, timedOut: true)
 }
 
-/// Runs all routine AX snapshots on one background queue. There can be at most
-/// one active capture and one latest-wins pending batch; callers that arrive
-/// while a compatible capture is active share its result. Each caller has one
-/// wall-clock deadline for the *whole* snapshot, rather than multiplying the AX
-/// per-message timeout by every attribute read.
 final class CotypingAXSnapshotExecutor: @unchecked Sendable {
     typealias Resolver = @Sendable (CotypingAXCaptureOptions) -> CotypingFocus
 

@@ -1,8 +1,5 @@
 import Foundation
 
-/// One block in the Capture day track: an app activity block, or a meeting
-/// rendered as a first-class teal block (spec §2.2). Pure so the
-/// interleaving and the in-progress-meeting end rule are unit-testable.
 enum CaptureTrackItem: Identifiable {
     case activity(ActivityBlock)
     case meeting(Meeting, end: Date)
@@ -28,8 +25,6 @@ enum CaptureTrackItem: Identifiable {
         }
     }
 
-    /// Merge a day's activity blocks and meetings into one start-ordered
-    /// track.
     static func items(blocks: [ActivityBlock], meetings: [Meeting],
                       now: Date) -> [CaptureTrackItem] {
         let meetingItems = meetings.map {
@@ -39,9 +34,6 @@ enum CaptureTrackItem: Identifiable {
             .sorted { $0.start < $1.start }
     }
 
-    /// A meeting's track end: `endedAt`, else the recorded audio length,
-    /// else "now" for a live meeting — never less than a minute past start
-    /// so a just-started meeting still gets a visible block.
     static func meetingEnd(_ meeting: Meeting, now: Date) -> Date {
         if let ended = meeting.endedAt { return ended }
         if let recorded = meeting.recordedDuration {

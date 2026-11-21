@@ -1,7 +1,3 @@
-//! Seconds since the last input on Linux. X11 asks MIT-SCREEN-SAVER; GNOME
-//! asks Mutter's IdleMonitor; other Wayland compositors use the
-//! `ext-idle-notify-v1` protocol, then `org.freedesktop.ScreenSaver`.
-
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -34,7 +30,6 @@ pub(super) fn probe_for(desktop: &Desktop) -> Option<Box<dyn IdleProbe>> {
     None
 }
 
-/// GNOME: `org.gnome.Mutter.IdleMonitor.GetIdletime`, in milliseconds.
 struct MutterIdle {
     bus: Connection,
 }
@@ -69,9 +64,6 @@ impl IdleProbe for MutterIdle {
     }
 }
 
-/// `org.freedesktop.ScreenSaver.GetSessionIdleTime`. The specification says
-/// seconds; KDE answers in milliseconds. The unit is learned from how fast
-/// the value grows while the user is away.
 struct ScreenSaverIdle {
     bus: Connection,
     units: IdleUnits,
@@ -112,7 +104,6 @@ impl IdleProbe for ScreenSaverIdle {
     }
 }
 
-/// Learns whether an idle counter counts seconds or milliseconds.
 #[derive(Debug)]
 struct IdleUnits {
     milliseconds: bool,
@@ -148,9 +139,6 @@ impl IdleUnits {
     }
 }
 
-/// `ext-idle-notify-v1`: the compositor says when input has been quiet for a
-/// second and when it resumes, which gives the idle time exactly. Version 2
-/// ignores idle inhibitors such as a playing video, like macOS input idle.
 struct IdleNotify {
     idle_since: Arc<Mutex<Option<Instant>>>,
 }
@@ -259,7 +247,6 @@ impl IdleNotify {
             .name("lokalbot-idle".into())
             .spawn(move || {
                 let _alive = (seat, notifier, notification, conn);
-                // Ends with the source (or the session) at the next event.
                 while Arc::strong_count(&state.idle_since) > 1 {
                     if queue.blocking_dispatch(&mut state).is_err() {
                         break;
@@ -290,12 +277,10 @@ mod tests {
         let start = Instant::now();
         let mut units = IdleUnits::new(true);
         assert_eq!(units.seconds(10, start), 0.01);
-        // Grew by 5 over 5 s: seconds after all.
         assert_eq!(units.seconds(15, start + Duration::from_secs(5)), 15.0);
         assert_eq!(units.seconds(20, start + Duration::from_secs(10)), 20.0);
         let mut units = IdleUnits::new(false);
         assert_eq!(units.seconds(1, start), 1.0);
-        // Grew by 5000 over 5 s: milliseconds.
         assert_eq!(units.seconds(5001, start + Duration::from_secs(5)), 5.001);
     }
 }

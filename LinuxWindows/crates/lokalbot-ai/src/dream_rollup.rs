@@ -1,10 +1,3 @@
-//! After the overnight review: one line for each recent finished week and month,
-//! condensed from that period's daily reviews, so the agent briefing can show
-//! older time at lower detail (`DreamRollupService`). A line records a stamp of
-//! the reviews it came from; a deleted or regenerated review makes it stale, and
-//! stale lines are removed here and never shown. At most a few model calls a
-//! night, newest periods first.
-
 use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 
@@ -53,7 +46,6 @@ pub fn prompt(period: &Period, reviews: &[&DayReview]) -> String {
     )
 }
 
-/// The first non-empty line, without a label or quotation marks.
 pub fn line_from(output: &str) -> Option<String> {
     let visible = strip_reasoning(output);
     let first = visible.lines().map(str::trim).find(|l| !l.is_empty())?;
@@ -68,9 +60,6 @@ pub fn line_from(output: &str) -> Option<String> {
     (!clean.is_empty()).then_some(clean)
 }
 
-/// Removes stale lines and lines for periods the briefing no longer shows, then
-/// writes up to `limit` due lines, unless lines were written within the minimum
-/// interval. The engine is made only when something is due.
 pub fn run(
     library: &Library,
     now: DateTime<Utc>,
@@ -132,7 +121,6 @@ pub fn run(
     Ok(outcome)
 }
 
-/// The most new lines one night may write.
 pub const fn nightly_limit(showable: bool) -> usize {
     if showable { MAXIMUM_PER_NIGHT } else { 0 }
 }

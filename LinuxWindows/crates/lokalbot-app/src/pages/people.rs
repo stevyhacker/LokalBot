@@ -1,10 +1,3 @@
-//! People (`PeopleWorkspaceView.swift`, `PersonPageView.swift`): everyone
-//! from your meetings, listed by time only (Coming up, Last 2 weeks,
-//! Earlier), and each person's page. The page leads with the next calendar
-//! meeting together and Prepare, then what is open between you, what the
-//! last meeting said and what you decided together; projects, meetings and
-//! other names sit in a side column. People stays apart from voice profiles.
-
 mod detail;
 mod list;
 pub(crate) mod model;
@@ -40,12 +33,8 @@ use crate::ui::{self, Ico};
 
 const PROVENANCE: &str = "Built on this PC from calendar attendees, names you gave speakers, action owners, and meeting notes. Email addresses are used only to tell people apart and are never shown or shared.";
 
-/// How often the coming week is matched again while People is open: a
-/// meeting that has started or ended still has to leave "Coming up" without
-/// a visit elsewhere.
 const UPCOMING_REFRESH: Duration = Duration::from_secs(60);
 
-/// What the list was last built from (`PeopleListCache.Key`).
 #[derive(Clone, PartialEq)]
 struct ListKey {
     generation: u64,
@@ -54,11 +43,8 @@ struct ListKey {
     language: &'static str,
 }
 
-/// What the coming week was last matched from, so a page redraw does not
-/// match it again.
 #[derive(Clone, PartialEq)]
 struct UpcomingKey {
-    /// `PeoplePage::people_generation`.
     people: u64,
     enabled: bool,
     ready: bool,
@@ -73,7 +59,6 @@ pub struct PeoplePage {
     data: Entity<AppData>,
     people: Vec<PersonProfile>,
     curation: PeopleCuration,
-    /// The user's own names, left out of Coming up.
     self_names: Vec<String>,
     loaded: bool,
     loaded_revision: Option<u64>,
@@ -81,30 +66,19 @@ pub struct PeoplePage {
     search: Entity<InputState>,
     query: String,
     rename_input: Entity<InputState>,
-    /// "Looks done?" suggestions, by thread.
     hints: HashMap<String, CompletionHint>,
-    /// The newest small meeting with outcomes for each person, for "Draft
-    /// follow-up".
     follow_ups: HashMap<String, Meeting>,
-    /// Each person's next calendar meeting in the coming week, by person ID.
-    /// Empty without calendar use.
     upcoming: HashMap<String, PersonUpcomingMeeting>,
     upcoming_key: Option<UpcomingKey>,
-    /// Bumped each time the people are loaded.
     people_generation: u64,
-    /// Bumped whenever the people, the hidden entries or the coming week
-    /// change, so the list is built again.
     generation: u64,
     list_cache: RefCell<Option<(ListKey, Rc<ListContent>)>>,
-    /// The page's own state, reset when another person is chosen.
     shows_all_decisions: bool,
     shows_all_series: bool,
     expanded_series: HashSet<String>,
     list_scroll: ScrollHandle,
     detail_scroll: ScrollHandle,
-    /// The whole page, for the toolbar's compact form.
     page_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// The person's pane, for where the side column goes.
     detail_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     _refresh: Task<()>,
     _subscriptions: Vec<Subscription>,
@@ -231,9 +205,6 @@ impl PeoplePage {
         .detach();
     }
 
-    /// Reads the coming week only while calendar use is on and the calendar
-    /// has been read, and matches its meetings to people by the directory's
-    /// keys (`refreshUpcoming`). Nothing is stored.
     fn refresh_upcoming(&mut self, force: bool, cx: &mut Context<Self>) {
         let now = Utc::now();
         let data = self.data.read(cx);
@@ -254,7 +225,6 @@ impl PeoplePage {
             return;
         }
         let events = upcoming::readable_events(key.enabled, key.ready, &data.calendar.events);
-        // A recording that stores its calendar event stands in for it.
         let recorded: HashSet<String> = data
             .meetings
             .iter()
@@ -302,7 +272,6 @@ impl PeoplePage {
         cx.notify();
     }
 
-    /// `PeopleStore.rename`: an empty name goes back to the name from meetings.
     fn rename(
         &mut self,
         person_id: &str,
@@ -321,15 +290,12 @@ impl PeoplePage {
         self.save_curation(curation, cx);
     }
 
-    /// The name the person chose for someone, if any (`PeopleStore.chosenName`).
     fn chosen_name(&self, person: &PersonProfile) -> Option<&String> {
         std::iter::once(&person.id)
             .chain(person.member_ids.iter())
             .find_map(|id| self.curation.names.get(id))
     }
 
-    /// `PeopleStore.merge`: the target keeps its name, and the selection
-    /// follows the person the source joined.
     fn merge(&mut self, source: &PersonProfile, target: &PersonProfile, cx: &mut Context<Self>) {
         let mut curation = self.curation.clone();
         if curation.merge(source, target) {
@@ -365,7 +331,6 @@ impl PeoplePage {
         self.save_curation(curation, cx);
     }
 
-    /// Chooses a person; their page starts at the top with its lists folded.
     fn select(&mut self, id: Option<String>) {
         if self.selected != id {
             self.shows_all_decisions = false;
@@ -377,8 +342,6 @@ impl PeoplePage {
             .set_offset(gpui_kit::point(px(0.), px(0.)));
     }
 
-    /// Selects a person another page asked to show; they may sit far down
-    /// the list.
     fn take_focus(&mut self, cx: &mut Context<Self>) {
         if let Some(id) = self.data.update(cx, |data, _| data.person_focus.take()) {
             let shown = self
@@ -398,8 +361,6 @@ impl PeoplePage {
         self.curation.hidden.iter().map(|h| h.id.clone()).collect()
     }
 
-    /// The list as drawn, built again only when what it shows changed
-    /// (`PeopleListCache`).
     fn list_content(&self) -> Rc<ListContent> {
         let now = Utc::now();
         let key = ListKey {
@@ -424,8 +385,6 @@ impl PeoplePage {
         content
     }
 
-    /// A merge keeps the selection: an ID folded into someone else finds the
-    /// person it joined. With nothing chosen, the first row's person.
     fn selected_person(&self) -> Option<&PersonProfile> {
         let hidden = self.hidden_ids();
         let visible = |p: &&PersonProfile| !hidden.contains(&p.id);
@@ -459,8 +418,6 @@ impl PeoplePage {
             .is_some_and(|b| b.size.width < px(model::COMPACT_TOOLBAR_WIDTH))
     }
 
-    /// Rename, merge, separate and hide, shared by a row's context menu and
-    /// the page's More menu (`PersonMenuItems`).
     fn person_menu_items(
         page: &Entity<Self>,
         merges: Vec<PersonMerge>,
@@ -518,9 +475,6 @@ impl PeoplePage {
         )
     }
 
-    /// Ask about the person, words and icon while the toolbar has room and
-    /// the icon alone when it does not; then the page's "…" menu: Prepare and
-    /// follow-up first, then the corrections.
     fn render_toolbar(&self, person: &PersonProfile, cx: &mut Context<Self>) -> AnyElement {
         let first = model::first_name(person).to_string();
         let ask_label: SharedString =
@@ -605,7 +559,6 @@ impl PeoplePage {
     }
 }
 
-/// "Looks done?" for each person's open work of yours, only with consent.
 fn hints_for(
     library: &lokalbot_core::Library,
     people: &[PersonProfile],
@@ -625,8 +578,6 @@ fn hints_for(
     library.action_completion_hints(&threads, Utc::now())
 }
 
-/// The newest meeting with outcomes that was small enough to be with each
-/// person, rather than a team call they happened to attend (`followUpMeeting`).
 fn follow_up_meetings(
     library: &lokalbot_core::Library,
     people: &[PersonProfile],
@@ -654,8 +605,6 @@ fn follow_up_meetings(
 }
 
 impl Page for PeoplePage {
-    /// The selected person is the window's title, with how long you have
-    /// been meeting under it.
     fn title(&self, _cx: &App) -> SharedString {
         match self.selected_person() {
             Some(person) => person.name.clone().into(),

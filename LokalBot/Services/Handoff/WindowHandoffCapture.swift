@@ -3,21 +3,12 @@ import CoreGraphics
 import ImageIO
 import UniformTypeIdentifiers
 
-/// What Hand off read from the focused window on one press: its whole text,
-/// a screenshot when Screen Recording is allowed, and where it came from.
-/// It lives in memory until the person hands it off or closes the panel.
 struct WindowHandoffCapture: Equatable, Sendable {
     enum Issue: Equatable, Sendable {
-        /// LokalBot lacks Accessibility access, so it cannot read the window.
         case accessibilityNeeded
-        /// The app is on the exclusion list; nothing was read.
         case excludedApp
-        /// The page, or a page framed in it, is on the site exclusion list,
-        /// or its address could not be read while site exclusions are set.
         case excludedSite
-        /// A password field is focused or visible; nothing was kept.
         case secureField
-        /// The window could not be read, or focus moved while reading it.
         case unreadable
     }
 
@@ -25,16 +16,9 @@ struct WindowHandoffCapture: Equatable, Sendable {
     var windowTitle: String?
     var sourceURL: String?
     var documentName: String?
-    /// The window's text in reading order, with credentials, card numbers,
-    /// and IBANs redacted.
     var text = ""
-    /// What was selected in the window, redacted the same way.
     var selection: String?
-    /// A PNG of the window. Dropped when anything was redacted, because the
-    /// pixels would still show it.
     var screenshot: Data?
-    /// The text came from reading the screenshot, because the app shares
-    /// little or no text through Accessibility.
     var textFromScreenshot = false
     var redactions = 0
     var capturedAt = Date()
@@ -43,13 +27,8 @@ struct WindowHandoffCapture: Equatable, Sendable {
     var hasContent: Bool { issue == nil && !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 }
 
-/// Reads the focused window once, on an explicit Hand off press. The same
-/// exclusions and secure-field checks as screen memory apply; the read is
-/// never stored in screen memory.
 @MainActor
 enum WindowHandoffCapturer {
-    /// Below this many characters of Accessibility text, the screenshot's
-    /// text is read instead.
     static let thinTextCharacters = 200
 
     struct Dependencies {
@@ -139,9 +118,6 @@ enum WindowHandoffCapturer {
         return result
     }
 
-    /// Why the window's content must not be read, or nil. Unlike screen
-    /// memory, an unknown focus with no secure field in the window is fine:
-    /// the person pressed the shortcut on purpose.
     static func issue(for snapshot: ScreenAccessibilitySnapshot, source: SelectionSource,
                       excludedApps: [String], excludedDomains: [String]) -> WindowHandoffCapture.Issue? {
         guard ScreenContextPrivacy.focusPermitsCapture(
@@ -156,8 +132,6 @@ enum WindowHandoffCapturer {
         return nil
     }
 
-    /// The focused window's pixels, kept only when the same window is still
-    /// focused afterwards and still passes the privacy checks.
     private static func screenshot(of snapshot: ScreenAccessibilitySnapshot, source: SelectionSource,
                                    excludedApps: [String], excludedDomains: [String],
                                    dependencies: Dependencies) async -> CGImage? {

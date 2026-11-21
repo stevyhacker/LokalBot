@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// The same selectable, linked presentation for every section of a dream.
 struct DreamBriefText: View {
     @EnvironmentObject private var app: AppState
     let text: String

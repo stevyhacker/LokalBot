@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Sends a synthetic two-voice `say` clip to OpenRouter. Runs only when
-/// `OPENROUTER_API_KEY` is set (pass `TEST_RUNNER_OPENROUTER_API_KEY` through
-/// xcodebuild); `LOKALBOT_OPENROUTER_TRANSCRIPTION_MODEL` overrides
-/// `microsoft/mai-transcribe-2`.
 final class RemoteTranscriptionLiveTests: XCTestCase {
     func testServerWordTimesSplitTwoVoicesOnTheTrackTimeline() async throws {
         let environment = ProcessInfo.processInfo.environment
@@ -18,7 +14,6 @@ final class RemoteTranscriptionLiveTests: XCTestCase {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: directory) }
 
-        // The second voice starts 5 s into a window that starts 1 s into the track.
         let first = try spoken("The quarterly plan is ready for review.", voice: "Samantha", in: directory)
         let second = try spoken("Thanks, I will send my notes tomorrow.", voice: "Daniel", in: directory)
         let rate = 16_000
@@ -66,7 +61,6 @@ final class RemoteTranscriptionLiveTests: XCTestCase {
             + "words \(words.map { "\($0.text)@\(String(format: "%.2f", $0.start))" }.joined(separator: " "))")
     }
 
-    /// 16 kHz mono samples of `text` read by a built-in macOS voice.
     private func spoken(_ text: String, voice: String, in directory: URL) throws -> [Float] {
         let url = directory.appendingPathComponent("\(voice).wav")
         let process = Process()

@@ -1,16 +1,11 @@
 import AppKit
 import SwiftUI
 
-// The menu bar panel's rows, shaped like a system status menu: an icon, the
-// words, and a shortcut or a time at the far side. The pointer highlights
-// the whole row, and the icon follows the text's colour in every state.
-
 private struct MenuBarRowHighlightedKey: EnvironmentKey {
     static let defaultValue = false
 }
 
 extension EnvironmentValues {
-    /// The pointer is over the menu row this view sits in.
     var menuBarRowHighlighted: Bool {
         get { self[MenuBarRowHighlightedKey.self] }
         set { self[MenuBarRowHighlightedKey.self] = newValue }
@@ -18,7 +13,6 @@ extension EnvironmentValues {
 }
 
 enum MenuBarMetric {
-    /// The panel at the default text size. It widens with larger text.
     static let panelWidth: CGFloat = 312
     static let rowHeight: CGFloat = 26
     static let rowInset: CGFloat = 5
@@ -26,11 +20,9 @@ enum MenuBarMetric {
     static let rowRadius: CGFloat = 5
     static let iconWidth: CGFloat = 16
     static let iconSpacing: CGFloat = 9
-    /// Where a separator and a group heading start and end.
     static let separatorInset: CGFloat = 12
 }
 
-/// A row that does something when clicked.
 struct MenuBarRowStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         MenuBarRowChrome(configuration: configuration)
@@ -58,15 +50,12 @@ private struct MenuBarRowChrome: View {
             .padding(.horizontal, MenuBarMetric.rowInset)
             .contentShape(Rectangle())
             .onHover { hovered = $0 }
-            // A row that turns disabled under the pointer gets no exit event.
             .onChange(of: isEnabled) { _, enabled in
                 if !enabled { hovered = false }
             }
     }
 }
 
-/// What a row shows: icon, title, an optional second line, and what sits at
-/// the far side. Also used by the rows that are not buttons.
 struct MenuBarRowLabel<Trailing: View>: View {
     enum DetailTone {
         case quiet
@@ -127,8 +116,6 @@ extension MenuBarRowLabel where Trailing == EmptyView {
     }
 }
 
-/// A row's icon: quiet beside the text, and the text's colour when the row is
-/// highlighted or disabled.
 struct MenuBarRowIcon: View {
     let name: String
     @Environment(\.menuBarRowHighlighted) private var highlighted
@@ -145,7 +132,6 @@ struct MenuBarRowIcon: View {
     }
 }
 
-/// A keyboard shortcut at the far side of a row, such as "⌘,".
 struct MenuBarShortcutText: View {
     let label: String
 
@@ -154,7 +140,6 @@ struct MenuBarShortcutText: View {
     }
 }
 
-/// The thin line between groups of rows.
 struct MenuBarSeparator: View {
     var body: some View {
         Divider()
@@ -163,7 +148,6 @@ struct MenuBarSeparator: View {
     }
 }
 
-/// The small heading over a group of rows.
 struct MenuBarGroupHeading: View {
     let title: LocalizedStringKey
 
@@ -177,8 +161,6 @@ struct MenuBarGroupHeading: View {
     }
 }
 
-/// A row holding a switch. It is not a button, so the pointer does not
-/// highlight it; the switch is the control.
 struct MenuBarSwitchRow: View {
     let title: LocalizedStringKey
     let icon: String
@@ -204,9 +186,6 @@ struct MenuBarSwitchRow: View {
     }
 }
 
-/// Reports whether the window this view sits in is on screen. The menu bar
-/// extra keeps its panel's views after the panel closes, so appearing and
-/// disappearing do not say whether it is open; the window's own state does.
 struct WindowVisibilityReader: NSViewRepresentable {
     let onChange: (Bool) -> Void
 
@@ -240,8 +219,6 @@ struct WindowVisibilityReader: NSViewRepresentable {
             reportCurrent()
         }
 
-        /// On the next turn, with the state the window has by then: this
-        /// can run inside the view update that moved the view.
         private func reportCurrent() {
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }

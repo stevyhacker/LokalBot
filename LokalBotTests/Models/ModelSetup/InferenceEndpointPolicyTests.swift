@@ -61,21 +61,21 @@ final class InferenceEndpointPolicyTests: XCTestCase {
         for value in [
             "http://192.168.1.20:8080/v1",
             "http://10.0.0.5:1234/v1",
-            "http://172.20.10.2:8080",          // a USB or hotspot network
-            "http://169.254.12.7:8080",         // link-local
-            "http://100.101.102.103:11434",     // a Tailscale address
+            "http://172.20.10.2:8080",
+            "http://169.254.12.7:8080",
+            "http://100.101.102.103:11434",
             "http://windows-box.tail1234.ts.net:1234/v1",
-            "http://windows-box:1234/v1",       // a MagicDNS short name
+            "http://windows-box:1234/v1",
             "http://studio.local:8080",
             "http://nas.home.arpa:8080",
-            "http://[fd7a:115c:a1e0::1]:8080",  // Tailscale IPv6
+            "http://[fd7a:115c:a1e0::1]:8080",
             "http://[fe80::1]:8080",
         ] {
             let url = try XCTUnwrap(URL(string: value))
             XCTAssertTrue(InferenceEndpointPolicy.isPrivateNetwork(url), value)
         }
         for value in [
-            "http://localhost:8080",            // loopback has its own rule
+            "http://localhost:8080",
             "http://127.0.0.1:8080",
             "http://0.0.0.0:8080",
             "http://8.8.8.8",

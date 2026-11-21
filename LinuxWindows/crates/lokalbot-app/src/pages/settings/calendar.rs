@@ -1,7 +1,3 @@
-//! Meetings → Calendar (`SettingsView.swift` "Calendar"): calendar-assisted
-//! detection, the private links it reads (kept in the credential store and
-//! shown only by host), Evolution on Linux, and how matches are used.
-
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -23,9 +19,7 @@ use crate::ui::{self, Ico, settings_row};
 pub struct CalendarState {
     link: Entity<InputState>,
     addresses: Entity<InputState>,
-    /// Saved links, read from the credential store when Settings opens.
     links: Option<Vec<String>>,
-    /// A read of the credential store is under way.
     loading_links: bool,
     error: Option<SharedString>,
 }
@@ -90,7 +84,6 @@ impl CalendarState {
         }
     }
 
-    /// Reads the saved links off the main thread, once.
     fn load_links(&mut self, cx: &mut Context<SettingsPage>) {
         if self.links.is_some() || self.loading_links {
             return;
@@ -327,7 +320,6 @@ impl SettingsPage {
 
     fn calendar_status_row(&self, cx: &mut Context<Self>) -> gpui_kit::AnyElement {
         let snapshot = self.data.read(cx).calendar.clone();
-        // Counted as Today lists them: personal appointments are not meetings.
         let meetings_today = lokalbot_core::calendar::upcoming::schedule(
             &snapshot.events,
             chrono::Local::now().date_naive(),

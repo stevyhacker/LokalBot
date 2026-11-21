@@ -1,8 +1,5 @@
 import Foundation
 
-/// What one night's synthesis proposed: the retrospective sections plus the
-/// full updated memory lists. Pure data — `DreamService` turns it into a
-/// `DreamReport` and merges the memory update deterministically.
 struct DreamSynthesis: Equatable {
     var narrative: String
     var attention: [String]
@@ -37,10 +34,6 @@ struct DreamSynthesis: Equatable {
     }
 }
 
-/// Prompt, JSON schema, and tolerant parsing for the overnight dream pass.
-/// Same split as `OutcomesExtractor`: grammar-constrained backends get the
-/// schema, unconstrained ones rely on the prompt's shape plus the tolerant
-/// parse, and everything here is pure so it tests without an engine.
 enum DreamPrompts {
     static let maxListItems = 8
     static let maxTopActions = 3
@@ -107,7 +100,6 @@ enum DreamPrompts {
     qualifies — generic advice is worse than an empty list.
     """
 
-    /// JSON schema matching `system`'s shape for grammar-constrained backends.
     static var schema: [String: Any] {
         let stringList: [String: Any] = ["type": "array", "items": ["type": "string"]]
         return [
@@ -145,9 +137,6 @@ enum DreamPrompts {
                             "reinforced_today": ["type": "boolean"],
                             "expired": ["type": "boolean"],
                         ],
-                        // Strict structured outputs require every declared
-                        // property. The prompt tells the model to return false
-                        // when the goal is still active.
                         "required": ["text", "horizon", "reinforced_today", "expired"],
                     ],
                 ],
@@ -177,11 +166,6 @@ enum DreamPrompts {
         return context
     }
 
-    /// Tolerant extraction of the model's JSON object followed by strict typed
-    /// decoding. Every declared field must be present with the right type and
-    /// every supplied string must remain meaningful after cleanup. Hard caps
-    /// keep a rambling but otherwise valid model from oversizing artifacts.
-    /// Nil sends the service down the deterministic fallback path.
     static func parse(_ output: String) -> DreamSynthesis? {
         guard let json = ChatPrompt.extractJSONObject(strippingReasoning(output)),
               let data = json.data(using: .utf8),
@@ -190,9 +174,6 @@ enum DreamPrompts {
               let recurringPatterns = cleanedList(payload.recurringPatterns) else {
             return nil
         }
-        // Report sections are advice, not memory: a blank bullet carries no
-        // claim, so drop it instead of discarding the whole night's work.
-        // Memory lists stay strict because they replace stored entries.
         let attention = reportList(payload.attention)
         let repeatedWork = reportList(payload.repeatedWork)
         let suggestedChecks = reportList(payload.suggestedChecks)
@@ -289,9 +270,6 @@ enum DreamPrompts {
         }
     }
 
-    /// Strips candidate handles ("[A2] …") from top actions and maps each to
-    /// its action thread. Unknown or out-of-range handles are removed without
-    /// inventing a link; duplicates keep only their first link.
     static func linkTopActions(_ actions: [String], threadIDs: [String]) -> (texts: [String], ids: [String?]) {
         var texts: [String] = []
         var ids: [String?] = []

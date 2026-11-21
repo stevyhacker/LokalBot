@@ -42,10 +42,6 @@ def prepare(kind):
     if kind not in ('unit', 'ui'):
         raise ValueError('Expected unit or ui')
     files = [Path(p) for p in output('git', 'ls-files', '-z').split('\0') if p]
-    # project.yml is the generated project/scheme authority in both workflows.
-    # Raw PBX bytes are unstable: XcodeGen can assign different object IDs to
-    # equivalent copy phases. Pin the specification and generator instead.
-    # Build scripts/workflows cover every argument; dependency pins stay exact.
     build_scripts = {'Scripts/ci/compiler-cache.py', 'Scripts/test/ui-tests.sh',
                      'Scripts/build/fetch-llama.sh', 'Scripts/build/fetch-sherpa.sh',
                      '.github/workflows/build.yml', '.github/workflows/ui-tests.yml'}
@@ -121,8 +117,6 @@ def validate():
 
 
 def clean_products():
-    # Always build the checked-out revision. A cache can never supply a stamp,
-    # xctestrun, executable, or incremental build database from another run.
     dd = Path('.build/dd')
     if dd.exists():
         shutil.rmtree(dd)
@@ -189,7 +183,6 @@ def seal():
         emit(save='true')
         print(f'Compiler cache: {size} bytes, sealed in {time.monotonic() - started:.2f}s')
     except (OSError, ValueError) as error:
-        # An oversized/unusable accelerator is optional, never a build failure.
         print(f'::notice::Not saving compiler cache: {error}')
         emit(save='false')
         discard()

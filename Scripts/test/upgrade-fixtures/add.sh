@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Add a published release's upgrade fixture to LokalBotTests/Fixtures/upgrade.
-# The release run builds it once the DMG is published and keeps it for 90
-# days; a dispatched Upgrade fixtures run on master works too:
-#   gh workflow run upgrade-fixtures.yml --ref master -f versions=VERSION
-# Only runs of master or the release's own tag in this repository count.
 set -euo pipefail
 VERSION="${1:?Usage: Scripts/test/upgrade-fixtures/add.sh VERSION}"
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Not a stable release version: $VERSION" >&2; exit 1; }
@@ -33,7 +28,6 @@ if tar -tf "$TAR" | grep -Eq '^/|(^|/)\.\.(/|$)'; then
 fi
 mkdir -p "$DEST"
 tar -xf "$TAR" -C "$DEST"
-# Fixtures built before generate.sh folded the write-ahead log.
 for db in "$DEST"/library/*.sqlite; do
   sqlite3 "$db" 'PRAGMA wal_checkpoint(TRUNCATE)' >/dev/null
   rm -f "$db-wal" "$db-shm"

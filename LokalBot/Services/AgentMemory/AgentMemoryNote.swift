@@ -1,26 +1,17 @@
 import CryptoKit
 import Foundation
 
-/// A note a coding agent wrote for its own later sessions, as LokalBot keeps
-/// it for search. The agent's file stays the source and is never changed.
 struct AgentMemoryNote: Codable, Equatable, Identifiable, Sendable {
-    /// Stable across scans: the agent, the file, and the section inside it.
     var id: String
     var agent: CodingAgentKind
     var title: String
-    /// The agent's own one-line description of the note, when it wrote one.
     var summary: String?
-    /// Claude Code's label for the note: user, feedback, project, or reference.
     var category: String?
-    /// The folder the note is about, when the agent recorded it.
     var workingDirectory: String?
-    /// The agent's file, for opening the note.
     var path: String
     var modifiedAt: Date
-    /// The note's text with detected credentials redacted.
     var text: String
 
-    /// The last folder name of `workingDirectory`, for a short label.
     var projectName: String? {
         guard let workingDirectory else { return nil }
         let name = (workingDirectory as NSString).lastPathComponent
@@ -33,14 +24,10 @@ struct AgentMemoryNote: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-/// What one scan of the agents' memory files found.
 struct AgentMemoryScan: Sendable {
     var notes: [AgentMemoryNote] = []
     var filesRead = 0
-    /// Files that exist but could not be read. While any are listed, notes
-    /// missing from the scan are not taken as deleted.
     var unreadableFiles: [String] = []
-    /// Notes left out by "Never read sessions in these folders".
     var excludedNotes = 0
 
     mutating func merge(_ other: AgentMemoryScan) {
@@ -51,10 +38,7 @@ struct AgentMemoryScan: Sendable {
     }
 }
 
-/// The person's project-folder exclusions, applied to notes. A note about a
-/// folder inside an excluded one never leaves the reader.
 struct AgentMemoryExclusions: Equatable, Sendable {
-    /// Standardized absolute folder paths.
     let folders: [String]
 
     init(folders: [String] = []) {
@@ -71,10 +55,6 @@ struct AgentMemoryExclusions: Equatable, Sendable {
         return folders.contains { path == $0 || path.hasPrefix($0 + "/") }
     }
 
-    /// Claude Code names a project folder after its working directory with
-    /// every character that is not a letter or digit turned into "-". That
-    /// loses which dashes were slashes, so a sibling such as `app-old` reads
-    /// as inside `app` and is left out too: the safe direction.
     func excludes(claudeProjectSlug slug: String) -> Bool {
         folders.contains { folder in
             let excluded = Self.claudeProjectSlug(for: folder)
@@ -82,13 +62,10 @@ struct AgentMemoryExclusions: Equatable, Sendable {
         }
     }
 
-    /// Whether `text` (a heading or a header line) names an excluded folder.
     func mentionsExcludedFolder(_ text: String) -> Bool {
         folders.contains { folder in
             var search = text.startIndex..<text.endIndex
             while let found = text.range(of: folder, range: search) {
-                // The folder itself or something inside it, not a sibling
-                // whose name merely starts the same (`app-old`, `app.bak`).
                 let rest = text[found.upperBound...]
                 let continuesName: Bool
                 switch rest.first {
@@ -111,14 +88,11 @@ struct AgentMemoryExclusions: Equatable, Sendable {
     }
 }
 
-/// Shared limits and text handling for the memory readers.
 enum AgentMemoryText {
-    /// A memory file larger than this is not a note someone wrote.
     static let maxFileBytes = 4 * 1_024 * 1_024
     static let maxNoteCharacters = 24_000
     static let maxTitleCharacters = 160
     static let maxSummaryCharacters = 400
-    /// Per agent, so a runaway folder cannot fill the library.
     static let maxNotesPerAgent = 5_000
 
     enum ReadFailure: Error { case unreadable, tooLarge }
@@ -130,8 +104,6 @@ enum AgentMemoryText {
         return .success(String(decoding: data, as: UTF8.self))
     }
 
-    /// Credentials redacted, line endings folded, edges trimmed, capped at a
-    /// line end. Markdown layout is kept so a quoted passage reads as written.
     static func body(_ raw: String) -> String {
         var text = ScreenContextPrivacy.redact(raw).text
             .replacingOccurrences(of: "\r\n", with: "\n")
@@ -154,17 +126,12 @@ enum AgentMemoryText {
             ?? Date(timeIntervalSince1970: 0)
     }
 
-    /// One heading and the text under it, up to the next heading that starts
-    /// a section.
     struct Section: Equatable {
         var level: Int
         var heading: String
         var body: String
     }
 
-    /// Splits Markdown at headings of the given levels. Text before the first
-    /// such heading comes back with level 0 and an empty heading. Headings
-    /// inside fenced code are text.
     static func sections(of markdown: String, levels: Set<Int>) -> [Section] {
         var result: [Section] = []
         var current = Section(level: 0, heading: "", body: "")
@@ -202,7 +169,6 @@ enum AgentMemoryText {
         return result
     }
 
-    /// The value of a `key: value` line, without surrounding quotes.
     static func value(of key: String, in line: Substring) -> String? {
         guard line.hasPrefix(key + ":") else { return nil }
         return unquoted(line.dropFirst(key.count + 1).trimmingCharacters(in: .whitespaces))

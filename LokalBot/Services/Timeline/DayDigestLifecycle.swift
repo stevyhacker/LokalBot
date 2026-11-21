@@ -1,12 +1,7 @@
 import Foundation
 
-/// Owns the complete Day Digest lifecycle shared by manual, scheduled, and
-/// headless entry points. Callers choose when to request a digest; this module
-/// owns what evidence belongs to that request, where the journal lives, how
-/// freshness is derived, and how automatic repair is scheduled.
 @MainActor
 final class DayDigestLifecycle: ObservableObject {
-    /// A digest generation in flight, from any entry point.
     struct ActiveRun: Identifiable, Equatable, Sendable {
         let id: UUID
         let day: Date
@@ -47,8 +42,6 @@ final class DayDigestLifecycle: ObservableObject {
     private let blocks: (Date) -> [ActivityBlock]
     private let screenContexts: (Date) -> [DayScreenContext]
     private let codingAgentBursts: (Date) -> [CodingAgentBurst]
-    /// Brings slower sources, such as coding-agent transcripts, up to date
-    /// before a day's evidence is read for generation.
     private let prepareEvidence: @MainActor (Date) async -> Void
     private let meetings: () -> [Meeting]
     private let latestActivityEvidenceAt: (Date) -> Date?
@@ -59,11 +52,8 @@ final class DayDigestLifecycle: ObservableObject {
     private let now: () -> Date
     private let scheduler: DayDigestScheduler
     private var invalidatedDays: Set<String> = []
-    /// Runs in start order; manual and scheduled runs may overlap.
     @Published private(set) var activeRuns: [ActiveRun] = []
 
-    /// True while any entry point is generating the digest for `day`, so a
-    /// second request cannot race the first one's journal write.
     func isGenerating(on day: Date) -> Bool {
         activeRuns.contains { calendar.isDate($0.day, inSameDayAs: day) }
     }
@@ -109,7 +99,6 @@ final class DayDigestLifecycle: ObservableObject {
     ) {
         self.init(
             storageRoot: storage.rootURL,
-            // The app settles evidence for 20 s before a fresh automatic run.
             scheduler: DayDigestScheduler(evidenceSettleDelay: 20),
             blocks: { activityStore.blocks(on: $0) },
             screenContexts: { activityStore.screenContexts(on: $0) },
@@ -132,9 +121,6 @@ final class DayDigestLifecycle: ObservableObject {
         storageRoot.appendingPathComponent("journal/\(DreamDay.key(for: day, calendar: calendar)).md")
     }
 
-    /// An unchanged generated digest is a derived copy of its evidence. Remove
-    /// it before withdrawing that evidence; edited and unsigned journals are
-    /// user-owned documents with an explicitly independent lifetime.
     func retractGeneratedJournals(for days: [Date]) throws {
         for day in Set(days.map { calendar.startOfDay(for: $0) }) {
             let url = journalURL(for: day)
@@ -166,17 +152,11 @@ final class DayDigestLifecycle: ObservableObject {
             } == true)
     }
 
-    /// Scheduled retention thins a day's sources after its digest was written,
-    /// and the digest outlives them (PRIVACY.md). Past the window a fingerprint
-    /// mismatch is expiry, not new activity, so it must not invite a rewrite
-    /// from what is left.
     private func evidenceHasExpired(on day: Date) -> Bool {
         let retainedSince = now().addingTimeInterval(-Double(settings().retentionDays) * 86_400)
         return calendar.startOfDay(for: day) < retainedSince
     }
 
-    /// Capture the meeting list on its owner, then validate files and complete
-    /// evidence fingerprints on the worker that owns the day read connection.
     func backgroundSnapshotLoader(for day: Date) -> @Sendable (ActivityStore) -> Snapshot {
         let root = storageRoot, calendar = calendar
         let finished = meetings(for: day, includeInProgress: false)
@@ -268,7 +248,6 @@ final class DayDigestLifecycle: ObservableObject {
             },
             latestEvidenceAt: { [weak self] day in
                 guard let self else { return nil }
-                // A deleted last meeting still leaves an owned journal to repair.
                 return self.latestEvidenceAt(for: day)
                     ?? DayDigestGenerationMetadataStore.load(for: self.journalURL(for: day))?.generatedAt
             },
@@ -305,9 +284,6 @@ final class DayDigestLifecycle: ObservableObject {
         scheduler.stop()
     }
 
-    /// A user correction or completion can make the current journal stale
-    /// without changing meeting metadata. Re-evaluate immediately instead of
-    /// waiting for the next minute tick.
     func reconsiderEvidence(for day: Date? = nil) {
         reconsiderEvidence(for: day.map { [$0] } ?? [])
     }
@@ -327,18 +303,11 @@ final class DayDigestLifecycle: ObservableObject {
             includeScreenSummary: false)
     }
 
-    /// Revalidate the original sources at the final commit boundary. New
-    /// activity, captures, and meetings may arrive while generation is running;
-    /// they make the saved snapshot stale, but do not invalidate its sources.
-    /// The validator is synchronous and main-actor isolated, so evidence cannot
-    /// change between this check and the journal write that immediately follows.
     private func evidenceValidator(for original: DailyEvidenceSnapshot) -> EvidenceValidator {
         let expectedSignature = original.digestEvidence(calendar: calendar).contentSignature
         let blockIDs = Set(original.activityBlocks.map(\.id))
         let contextIDs = Set(original.screenContexts.map(\.snapshotID))
         let meetingIDs = Set(original.meetings.map { $0.meeting.id })
-        // Stored bursts are settled, so a new id is new work; only the
-        // original set must be unchanged.
         let burstIDs = Set(original.codingAgentBursts.map(\.id))
         let day = original.day
         return { [weak self] in
@@ -346,9 +315,6 @@ final class DayDigestLifecycle: ObservableObject {
                 throw TextEngineError.unavailable("LokalBot is shutting down.")
             }
             var current = try self.evidenceInput(for: day)
-            // Filter before building the digest projection: a newly closed
-            // block can otherwise absorb an originally standalone context,
-            // and a new capture can alter context deduplication.
             current.activityBlocks.removeAll { !blockIDs.contains($0.id) }
             current.screenContexts.removeAll { !contextIDs.contains($0.snapshotID) }
             current.meetings.removeAll { !meetingIDs.contains($0.meeting.id) }
@@ -360,9 +326,6 @@ final class DayDigestLifecycle: ObservableObject {
         }
     }
 
-    /// Summaries, outcomes, and the user's outcome overlay are consumed by
-    /// `ProcessingPipeline.generateDayDigest`. Their writes must therefore
-    /// advance the evidence watermark even when `endedAt` is unchanged.
     private func latestArtifactWriteAt(for meeting: Meeting) -> Date? {
         let folder = storageRoot.appendingPathComponent(
             meeting.relativePath,
@@ -370,20 +333,13 @@ final class DayDigestLifecycle: ObservableObject {
         return DayDigestMeetingArtifacts.latestModifiedAt(in: folder)
     }
 
-    /// Preserve the scheduler's once-per-evening policy for ordinary activity,
-    /// but invalidate its completion marker when a digest predates meeting
-    /// artifacts it actually consumes. This makes the next quiet tick repair
-    /// the journal without regenerating it for every later activity sample.
     private func automaticCompletionAt(for day: Date) -> Date? {
         let url = journalURL(for: day)
         if let metadata = DayDigestGenerationMetadataStore.load(for: url), metadata.journalDigest != nil {
-            // Preserve manual edits even if the file's timestamp is restored.
             guard DayDigestGenerationMetadataStore.journalMatches(metadata, at: url) else {
                 return .distantFuture
             }
         }
-        // Ownership is checked before quality: editing even a degraded digest
-        // must opt it out of automatic replacement.
         guard let completedAt = DayDigestGenerationMetadataStore.completedAt(for: url) else { return nil }
         if let metadata = DayDigestGenerationMetadataStore.load(for: url), metadata.journalDigest != nil {
             if let evidence = try? evidenceInput(for: day).digestEvidence(calendar: calendar) {

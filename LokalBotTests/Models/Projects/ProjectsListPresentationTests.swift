@@ -1,11 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// The Projects list as drawn (tracked by last activity, then suggestions
-/// with their source) and the wording, time and suggestion rules of a
-/// project's page. Names are synthetic.
 final class ProjectsListPresentationTests: XCTestCase {
-    private let now = Date(timeIntervalSince1970: 1_794_312_000) // Tuesday 2026-11-10 12:00 UTC
+    private let now = Date(timeIntervalSince1970: 1_794_312_000)
     private let locale = Locale(identifier: "en_US")
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -46,8 +43,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         ProjectsListContent.build(projects: projects, query: query, now: now, calendar: calendar, locale: locale)
     }
 
-    // MARK: - List
-
     func testTrackedRowsRunFromMostRecentlyActiveAndSayWhen() {
         let content = build([
             profile("Borealis", lastActive: daysAgo(19)),
@@ -80,7 +75,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         XCTAssertEqual(ProjectsListContent.activity(lastActive: firstQuietDay, now: now, calendar: calendar),
                        .quiet(since: firstQuietDay))
         XCTAssertEqual(ProjectsListContent.activity(lastActive: nil, now: now, calendar: calendar), .nothingLinked)
-        // Days are calendar days: late yesterday is yesterday, not "today".
         let lateYesterday = calendar.startOfDay(for: now).addingTimeInterval(-60)
         XCTAssertEqual(ProjectsListContent.activity(lastActive: lateYesterday, now: now, calendar: calendar),
                        .yesterday)
@@ -177,8 +171,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         XCTAssertEqual(ProjectsWorkspaceView.listProjects([atlas] + suggestions, settling: nil), [atlas] + suggestions)
     }
 
-    // MARK: - A suggestion's first answer
-
     func testASuggestionBelongsWhereAtLeastHalfOfItsMeetingsAre() {
         let ids = (0..<6).map { _ in UUID() }
         let suggestion = Set(ids[0..<4])
@@ -240,8 +232,6 @@ final class ProjectsListPresentationTests: XCTestCase {
                        "Overnight review")
     }
 
-    // MARK: - Time
-
     func testTheLastSevenDaysShowDaysWithoutTimeAsZero() {
         let days = ProjectTimePresentation.days(
             [.init(dayKey: "2026-11-10", seconds: 3_000), .init(dayKey: "2026-11-08", seconds: 600),
@@ -299,7 +289,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         let few = profile("Borealis", days: [.init(dayKey: "2026-11-10", seconds: 115_500)],
                           windows: Array(windows.prefix(3)), windowCount: 3)
         XCTAssertNil(ProjectTimePresentation.rest(of: few))
-        // A profile built without the count still sums what it lists.
         let uncounted = profile("Cinder", days: [.init(dayKey: "2026-11-10", seconds: 127_500)], windows: windows)
         XCTAssertEqual(ProjectTimePresentation.rest(of: uncounted)?.count, 1)
     }
@@ -312,8 +301,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         let atlas = profile("Atlas", otherNames: ["Larkspur"])
         XCTAssertEqual(ProjectsWording.timeSource(for: atlas), "Time in windows whose titles name Atlas, Larkspur")
     }
-
-    // MARK: - Where it stands
 
     private func summary(writtenAt: Date, engine: String = "Qwen3.5 4B",
                          location: String = ProjectStatusSummary.localLocation) -> ProjectStatusSummary {
@@ -333,7 +320,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         XCTAssertEqual(
             ProjectsWording.provenance(summary(writtenAt: daysAgo(18)), now: now, calendar: calendar, locale: locale),
             "Written Oct 23 by Qwen3.5 4B on this Mac")
-        // A model that ran elsewhere is named with its server, never as local.
         let remote = summary(writtenAt: morning, engine: "Muse Spark 1.1", location: "api.example.com")
         XCTAssertEqual(ProjectsWording.provenance(remote, now: now, calendar: calendar, locale: locale),
                        "Written today, \(time), by Muse Spark 1.1 on api.example.com")
@@ -363,8 +349,6 @@ final class ProjectsListPresentationTests: XCTestCase {
         XCTAssertNil(ProjectNoteLink.meetingID(
             from: try XCTUnwrap(URL(string: ProjectNoteLink.scheme + "://meeting/not-an-id"))))
     }
-
-    // MARK: - Page
 
     func testToolbarSubtitleSaysActivityOrSinceWhenItIsTracked() {
         let active = profile("Atlas", lastActive: now)

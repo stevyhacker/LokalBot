@@ -275,7 +275,6 @@ final class LeasedTextEngineTests: XCTestCase {
             _ = try await engine.generate(system: "s", prompt: "p", context: [])
             XCTFail("expected cancellation")
         } catch is CancellationError {
-            // expected
         } catch {
             XCTFail("unexpected error: \(error)")
         }

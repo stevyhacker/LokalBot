@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The publisher keeps the host's records equal to what the library shares:
-/// it publishes everything, withdraws what disappeared, and rebuilds only
-/// what a change touched.
 final class CompanionPublisherTests: XCTestCase {
     private var fixture: CompanionFixtureLibrary!
     private var sink: InMemoryCompanionSink!
@@ -41,7 +38,6 @@ final class CompanionPublisherTests: XCTestCase {
         XCTAssertFalse(sink.records["person", default: [:]].isEmpty)
         XCTAssertNotNil(sink.manifest)
 
-        // Identical bodies are no-ops on the host.
         publisher.reconcileAll()
         XCTAssertEqual(publisher.flush().changed, 0)
     }

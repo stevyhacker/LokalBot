@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Settings → Meetings → Meta Muse: the key and the api.meta.ai approval for
-/// fast live text, the one thing that still uses Meta's models. Live Radar
-/// and Follow-through run on the Think model.
 struct MetaMuseSettingsSection: View {
     @EnvironmentObject var app: AppState
     @State private var keyDraft = ""
@@ -78,7 +75,6 @@ struct MetaMuseSettingsSection: View {
                         .accessibilityIdentifier("settings.metaMuse.key")
                     Button("Save key") {
                         app.settings.metaModelAPIKey = keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-                        // Acknowledge only what reads back from Keychain.
                         savedKey = app.settings.metaModelAPIKey
                         let saved = savedKey == keyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
                         if saved { editingKey = false }

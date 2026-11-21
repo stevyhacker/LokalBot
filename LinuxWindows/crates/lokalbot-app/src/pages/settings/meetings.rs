@@ -1,5 +1,3 @@
-//! Meetings: detection, processing, summaries, speakers and note export.
-
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
 use gpui_kit::{Context, SharedString};
@@ -9,7 +7,6 @@ use super::{Section, SettingsPage};
 use crate::state::SettingsCategory;
 use crate::ui::settings_row;
 
-/// `LanguageCode.summaryPresets` with their display names.
 pub const SUMMARY_LANGUAGES: [(&str, &str); 24] = [
     ("en", "English"),
     ("zh", "Simplified Chinese (Mandarin)"),
@@ -73,7 +70,6 @@ fn template_description(template: NoteTemplate) -> &'static str {
     }
 }
 
-/// Apps whose calls LokalBot notices on Linux and Windows.
 const DETECTED_APPS: &str = "Zoom, Microsoft Teams, Slack, Webex, and Google Meet in a browser";
 
 impl SettingsPage {

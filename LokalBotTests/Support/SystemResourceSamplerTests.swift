@@ -28,8 +28,8 @@ final class SystemResourceSamplerTests: XCTestCase {
             usage(pid: 2, start: 200, cpuSeconds: 2),
         ])
         let current = Snapshot(capturedAt: 12, processes: [
-            usage(pid: 1, start: 999, cpuSeconds: 50), // reused PID
-            usage(pid: 3, start: 300, cpuSeconds: 20), // new helper
+            usage(pid: 1, start: 999, cpuSeconds: 50),
+            usage(pid: 3, start: 300, cpuSeconds: 20),
         ])
 
         XCTAssertNil(SystemResourceSampler.cpuUsagePercent(from: previous, to: current))
@@ -176,8 +176,6 @@ final class ResourceMonitorPresentationTests: XCTestCase {
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.graniteASR.residencyID), "Transcribe")
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaServerRole.mediaEmbedder.residencyID), "File search")
         XCTAssertEqual(ResourceMonitorPresentation.role(for: LlamaCotypingRuntime.residencyID), "Autocomplete")
-        // A port-keyed id names no role: labels must not depend on which app
-        // copy's ports are in use.
         XCTAssertEqual(ResourceMonitorPresentation.role(for: "llama-server:17872"), "Local model")
     }
 

@@ -20,7 +20,6 @@ import me.dotenv.lokalbot.companion.ui.components.rowSelection
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** Title over "Zoom · 10:30 · 42 min", as in the Mac's meeting list. */
 @Composable
 fun MeetingRow(meeting: Meeting, onClick: () -> Unit, modifier: Modifier = Modifier, selected: Boolean = false) {
     val formats = LocalFormats.current

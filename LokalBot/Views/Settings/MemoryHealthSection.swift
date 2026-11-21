@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// One operational view across activity, screen context, meeting audio,
-/// processing, retention, routines, permissions, and local storage.
 struct MemoryHealthSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject private var permissions = PermissionManager.shared
@@ -214,7 +212,6 @@ struct MemoryHealthSection: View {
         ]
     }
 
-    /// "hybrid_redacted" → "Hybrid, redacted", so the status reads like its neighbours.
     static func textSourceLabel(_ source: String) -> String {
         let redacted = source.hasSuffix("_redacted")
         let base = redacted ? String(source.dropLast("_redacted".count)) : source
@@ -273,23 +270,18 @@ struct MemoryHealthSection: View {
     }
 }
 
-/// How a memory-health value reads at a glance: running as intended, needing
-/// the user, deliberately off or waiting, or a plain measurement.
 enum MemoryHealthTone: Equatable {
     case good
     case attention
     case idle
     case neutral
 
-    /// Status strings outside both lists are unexpected, so they ask for a look.
     static func status(_ value: String, good: Set<String>, idle: Set<String>) -> Self {
         if good.contains(value) { return .good }
         if idle.contains(value) { return .idle }
         return .attention
     }
 
-    /// Meeting audio: only live input is good; quiet states between meetings
-    /// are idle; stalls, recovery, degradation, and a missing tap need a look.
     static func audio(_ status: String) -> Self {
         Self.status(status, good: ["Receiving audio"], idle: ["Idle", "Silent", "Waiting for audio"])
     }
@@ -304,9 +296,6 @@ struct MemoryHealthItem: Identifiable {
     let tone: MemoryHealthTone
 }
 
-/// Health rows in aligned columns: symbol, name, when it last happened, and
-/// status. One grid keeps the columns straight whatever the text lengths;
-/// each row reads to assistive technology as one element on its name.
 private struct MemoryHealthTable: View {
     let items: [MemoryHealthItem]
 
@@ -321,7 +310,6 @@ private struct MemoryHealthTable: View {
                         .foregroundStyle(Brand.teal)
                         .frame(width: 20)
                         .accessibilityHidden(true)
-                    // A shared minimum lines the detail column up across sections.
                     Text(item.title)
                         .fixedSize()
                         .frame(minWidth: 130, alignment: .leading)
@@ -344,9 +332,6 @@ private struct MemoryHealthTable: View {
     }
 }
 
-/// A status shared by health readouts: a toned dot and a word, the word
-/// keeping its meaning without color. Only states that need the user get a
-/// filled capsule, so a healthy page stays quiet.
 struct MemoryHealthStatus: View {
     @Environment(\.colorScheme) private var scheme
     let value: String
@@ -379,7 +364,6 @@ struct MemoryHealthStatus: View {
     }
 }
 
-/// One line at the top of Advanced that answers "is everything working?"
 private struct MemoryHealthSummary: View {
     let attention: [MemoryHealthItem]
 

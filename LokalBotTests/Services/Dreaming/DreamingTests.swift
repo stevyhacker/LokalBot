@@ -120,7 +120,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(russian.fallbackReason, .engineUnavailable)
     }
 
-    // MARK: - Scheduler
 
     func testShouldRunWaitsForHourAndSkipsDreamedDays() throws {
         XCTAssertFalse(DreamScheduler.shouldRun(
@@ -135,7 +134,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertFalse(DreamScheduler.shouldRun(
             at: try date("2026-07-19T09:30:00Z"), hour: 4,
             hasReportForPreviousDay: true, calendar: calendar))
-        // Defensive hour clamp: 99 behaves as 23, not as "always due".
         XCTAssertFalse(DreamScheduler.shouldRun(
             at: try date("2026-07-19T12:00:00Z"), hour: 99,
             hasReportForPreviousDay: false, calendar: calendar))
@@ -371,8 +369,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertNil(legacy.dreamingFirstEligibleDayKey)
     }
 
-    // MARK: - Store
-
     func testStoreRoundTripPermissionsAndLatest() throws {
         let root = try temporaryRoot()
         let store = DreamStore(root: root)
@@ -426,8 +422,6 @@ final class DreamingTests: XCTestCase {
             narrative: "A focused day.")
         let memory = DreamMemory(updatedAt: try date("2026-07-19T04:01:00Z"))
 
-        // A regular file where the memory directory belongs forces the first
-        // persistence phase to fail. The scheduler marker must remain absent.
         try Data("blocked".utf8).write(to: store.memoryDirectory)
         XCTAssertThrowsError(try store.save(report: report, memory: memory))
         XCTAssertFalse(store.hasReport(forDayKey: report.day))
@@ -630,13 +624,8 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(selected, latest)
     }
 
-    // MARK: - Prompts / parsing
-
     func testDreamPromptRequestsHumanMorningBriefCopy() {
-        // Catch-up dreams cover older days, and the brief is read later, so
-        // the narrative names no relative day.
         XCTAssertTrue(DreamPrompts.system.contains("never write \"yesterday\", \"today\", or a raw ISO date"))
-        // The pass may run on an approved remote model.
         XCTAssertFalse(DreamPrompts.system.contains("Mac"))
         XCTAssertTrue(DreamPrompts.system.contains("never say \"the user\""))
         XCTAssertTrue(DreamPrompts.system.contains("never invent generic productivity advice"))
@@ -794,8 +783,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertFalse(fallback.provenanceDescription.contains("No model was reachable"))
     }
 
-    // MARK: - Fallback compilation
-
     func testFallbackReportIsEvidenceOnlyAndDeterministic() throws {
         let evidence = try sampleEvidence()
         let generatedAt = try date("2026-07-19T04:01:00Z")
@@ -810,8 +797,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertTrue(report.narrative.contains("4h 0m"))
         XCTAssertEqual(report.attention,
                        ["Who owns the release notes? — `abcd1234`"])
-        // The user's own commitment leads; analysis sections stay empty
-        // because the fallback never infers.
         XCTAssertEqual(report.topActions.count, 1)
         XCTAssertTrue(try XCTUnwrap(report.topActions.first)
             .contains("Send the launch checklist"))
@@ -870,8 +855,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(DreamCompiler.digestForDream("## Day summary\n\n- Short day."), "## Day summary\n\n- Short day.")
     }
 
-    // MARK: - Memory merge
-
     func testMemoryMergeInsertsUpdatesPrunesAndKeepsUnchangedStamps() throws {
         let existing = DreamMemory(
             updatedAt: try date("2026-07-18T04:00:00Z"),
@@ -907,13 +890,11 @@ final class DreamingTests: XCTestCase {
         XCTAssertTrue(names.contains("Atlas"))
         XCTAssertTrue(names.contains("Beacon"))
         XCTAssertTrue(names.contains("Steady"))
-        // Untouched for 78 days — aged out.
         XCTAssertFalse(names.contains("Dusty"))
 
         let atlas = try XCTUnwrap(merged.activeProjects.first { $0.name == "Atlas" })
         XCTAssertEqual(atlas.status, "merged, awaiting release")
         XCTAssertEqual(atlas.lastActiveDay, "2026-07-18")
-        // Proposed identically → not "activity"; the stamp must not refresh.
         let steady = try XCTUnwrap(merged.activeProjects.first { $0.name == "Steady" })
         XCTAssertEqual(steady.lastActiveDay, "2026-07-16")
 
@@ -922,7 +903,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(merged.workGoals.first?.horizon, "next week")
         XCTAssertEqual(merged.recurringPatterns, ["Deep work lands after 15:00"])
 
-        // The model returns a full replacement list, so [] intentionally clears.
         let cleared = merged.merging(DreamMemoryUpdate(), dreamDay: "2026-07-19",
                                      at: try date("2026-07-20T04:01:00Z"),
                                      calendar: calendar)
@@ -955,8 +935,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(merged.workGoals.first?.lastReinforcedDay, "2026-07-10")
     }
 
-    // MARK: - Empty days
-
     func testSubstantivelyEmptyDayIsDetected() throws {
         var evidence = try sampleEvidence()
         XCTAssertFalse(evidence.isSubstantivelyEmpty)
@@ -969,13 +947,11 @@ final class DreamingTests: XCTestCase {
             screenshotCount: 0, savedMomentCount: 0)
         XCTAssertTrue(evidence.isSubstantivelyEmpty)
 
-        // A brief wake to glance at something is still an empty day…
         evidence.stats = ScreenMemoryDaySummary(
             trackedSeconds: 200, appCount: 1, activityBlockCount: 1,
             screenshotCount: 2, savedMomentCount: 0)
         XCTAssertTrue(evidence.isSubstantivelyEmpty)
 
-        // …but real tracked time, a digest, or a saved moment is not.
         evidence.stats = ScreenMemoryDaySummary(
             trackedSeconds: 3_600, appCount: 4, activityBlockCount: 6,
             screenshotCount: 20, savedMomentCount: 0)
@@ -985,7 +961,6 @@ final class DreamingTests: XCTestCase {
             screenshotCount: 0, savedMomentCount: 0)
         evidence.digest = "## What I worked on"
         XCTAssertFalse(evidence.isSubstantivelyEmpty)
-        // The comparison window alone never makes a day substantive.
         evidence.digest = nil
         XCTAssertFalse(evidence.priorMeetings.isEmpty)
         XCTAssertFalse(evidence.openActions.isEmpty)
@@ -1011,9 +986,7 @@ final class DreamingTests: XCTestCase {
         XCTAssertTrue(report.isFallback)
         XCTAssertEqual(report.fallbackReason, .emptyDay)
         let store = DreamStore(root: root)
-        // The stub is still the durable "day was dreamed" marker…
         XCTAssertTrue(store.hasReport(forDayKey: target.dayKey))
-        // …and advances the memory watermark so catch-up moves past the day.
         XCTAssertEqual(try store.loadMemory()?.lastDreamDay, target.dayKey)
     }
 
@@ -1034,8 +1007,6 @@ final class DreamingTests: XCTestCase {
             narrative: "Nothing was recorded.")
         try store.save(emptyStub)
 
-        // Yesterday was empty (and 07-17 is missing) → surface the newest
-        // substantive brief instead of the stub or nothing.
         let selected = TodayDreamSelection.report(
             referenceDate: try date("2026-07-19T08:00:00Z"),
             latest: nil,
@@ -1043,8 +1014,6 @@ final class DreamingTests: XCTestCase {
             calendar: calendar)
         XCTAssertEqual(selected?.day, "2026-07-16")
 
-        // Beyond the lookback the card goes quiet instead of resurrecting
-        // stale briefs.
         XCTAssertNil(TodayDreamSelection.report(
             referenceDate: try date("2026-07-25T08:00:00Z"),
             latest: nil,
@@ -1083,7 +1052,7 @@ final class DreamingTests: XCTestCase {
         report.fallbackReason = .unparseableResponse
         XCTAssertTrue(TodayDreamSelection.isRetryableFailure(
             report, referenceDate: referenceDate, calendar: calendar))
-        report.fallbackReason = nil // Legacy evidence-only report.
+        report.fallbackReason = nil
         XCTAssertTrue(TodayDreamSelection.isRetryableFailure(
             report, referenceDate: referenceDate, calendar: calendar))
 
@@ -1109,7 +1078,6 @@ final class DreamingTests: XCTestCase {
             narrative: "A real working day.",
             topActions: ["Fix CI first"])
 
-        // Yesterday's brief really is today's priorities.
         XCTAssertEqual(
             TodayDreamSelection.prioritiesHeading(
                 for: report,
@@ -1117,8 +1085,6 @@ final class DreamingTests: XCTestCase {
                 calendar: calendar),
             "Priorities for today")
 
-        // A Thursday brief surfacing on Sunday must carry its own day —
-        // never "for today".
         let staleHeading = TodayDreamSelection.prioritiesHeading(
             for: report,
             referenceDate: try date("2026-07-19T08:00:00Z"),
@@ -1129,7 +1095,6 @@ final class DreamingTests: XCTestCase {
             staleHeading,
             "Priorities from \(day.formatted(.dateTime.weekday(.wide)))")
 
-        // Beyond a week, a bare weekday would be ambiguous — use the date.
         XCTAssertEqual(
             TodayDreamSelection.prioritiesHeading(
                 for: report,
@@ -1138,8 +1103,6 @@ final class DreamingTests: XCTestCase {
             "Priorities from \(day.formatted(date: .abbreviated, time: .omitted))")
     }
 
-    /// The Yesterday panel's label is the same rule, as a value the page
-    /// can show in the app's language.
     func testPrioritiesSourceIsTodayOnlyForYesterdaysBrief() throws {
         let report = DreamReport(
             day: "2026-07-16",
@@ -1173,8 +1136,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertTrue(stub.provenanceDescription.contains("no model ran"))
         XCTAssertFalse(stub.provenanceDescription.contains("No model was reachable"))
     }
-
-    // MARK: - Expired goals
 
     func testExpiredGoalIsRemovedAndNeverInserted() throws {
         let existing = DreamMemory(
@@ -1225,8 +1186,6 @@ final class DreamingTests: XCTestCase {
         XCTAssertTrue(required.contains("expired"))
     }
 
-    // MARK: - Pinned memory
-
     func testPinnedEntriesSurviveRetentionCapsAndExpiry() throws {
         let existing = DreamMemory(
             updatedAt: try date("2026-07-18T04:00:00Z"),
@@ -1235,8 +1194,6 @@ final class DreamingTests: XCTestCase {
                                    pinned: true)],
             workGoals: [.init(text: "North star", horizon: "always",
                               lastReinforcedDay: "2026-01-01", pinned: true)])
-        // Cap pressure: a full slate of fresh proposals, none matching the
-        // pinned entries, plus an expiry attempt against the pinned goal.
         var update = DreamMemoryUpdate(
             activeProjects: (1...DreamMemory.maxProjects).map {
                 .init(name: "Project \($0)", status: "active", evidence: [])
@@ -1314,21 +1271,16 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(reloaded.updatedAt, try date("2026-07-19T05:01:00Z"))
     }
 
-    // MARK: - Power gate
-
     func testDreamingRequiresACPower() {
         XCTAssertTrue(DreamScheduler.powerAllowsDreaming(isOnBattery: false))
         XCTAssertFalse(DreamScheduler.powerAllowsDreaming(isOnBattery: true))
     }
-
-    // MARK: - Headless flag
 
     func testHeadlessDreamFlagParsesOptionalDay() {
         XCTAssertEqual(HeadlessCommand.parse(["LokalBot", "--dream"]),
                        .dream(dayKey: nil))
         XCTAssertEqual(HeadlessCommand.parse(["LokalBot", "--dream", "2026-07-18"]),
                        .dream(dayKey: "2026-07-18"))
-        // A following flag is not a day key.
         XCTAssertEqual(HeadlessCommand.parse(["LokalBot", "--dream", "--verbose"]),
                        .dream(dayKey: nil))
     }
@@ -1377,8 +1329,6 @@ final class DreamingTests: XCTestCase {
                 XCTAssertEqual(error as? DreamDayArgumentError, .invalidFormat("2026-7-18"))
             }
     }
-
-    // MARK: - Redaction
 
     func testRedactionScrubsCredentialsFromReportAndMemory() throws {
         let report = DreamReport(

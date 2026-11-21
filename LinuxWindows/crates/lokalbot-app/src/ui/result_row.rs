@@ -1,12 +1,7 @@
-//! Search snippets shared by Ask and Quick Recall (`ResultRow.swift`):
-//! «matched» words in bold, and no lines that only repeat the row's title.
-
 use std::ops::Range;
 
 use gpui_kit::{FontWeight, HighlightStyle, Hsla, StyledText};
 
-/// Splits an FTS snippet on «» markers (`SnippetHighlighter.segments`).
-/// Returns the plain text and the byte ranges of the matched runs.
 pub fn snippet_matches(snippet: &str) -> (String, Vec<Range<usize>>) {
     let mut text = String::with_capacity(snippet.len());
     let mut matches = Vec::new();
@@ -30,8 +25,6 @@ pub fn snippet_matches(snippet: &str) -> (String, Vec<Range<usize>>) {
     (text, matches)
 }
 
-/// Drops leading snippet lines that only repeat the row title and collapses
-/// whitespace (`SnippetCleaner.withoutTitleEcho`). Markers survive.
 pub fn without_title_echo(snippet: &str, title: &str) -> Option<String> {
     fn normalize(text: &str) -> String {
         text.replace(['«', '»', '…'], "")
@@ -68,7 +61,6 @@ pub fn without_title_echo(snippet: &str, title: &str) -> Option<String> {
     (!joined.is_empty()).then_some(joined)
 }
 
-/// A snippet with bold matches in `emphasis` over `base` text.
 pub fn highlighted(snippet: &str, emphasis: Hsla) -> StyledText {
     let (text, matches) = snippet_matches(snippet);
     let highlights = matches.into_iter().map(|range| {

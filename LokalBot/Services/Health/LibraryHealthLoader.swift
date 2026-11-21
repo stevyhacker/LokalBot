@@ -1,7 +1,5 @@
 import Foundation
 
-/// Gathers `LibraryHealthInput` for one day from the app's stores. Reads
-/// counts and timestamps only; never window text or meeting content.
 @MainActor
 struct LibraryHealthLoader {
     let activityStore: ActivityStore

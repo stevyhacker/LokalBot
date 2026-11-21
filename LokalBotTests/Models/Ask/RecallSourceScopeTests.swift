@@ -41,7 +41,6 @@ final class RecallSourceScopeTests: XCTestCase {
         state.chooseSources([.meetings, .screen])
         state.selectEvidence(meetingIDs: [UUID()], screenIDs: [])
         XCTAssertEqual(state.sources, [.meetings])
-        // A second handoff or a restored conversation must retain the original choice.
         state.selectEvidence(meetingIDs: [], screenIDs: [42], sources: [.screen])
         state.clearEvidence()
         XCTAssertEqual(state.sources, [.meetings, .screen])

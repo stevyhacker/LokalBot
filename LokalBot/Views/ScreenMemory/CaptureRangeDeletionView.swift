@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// Deletes the screen captures retained in a time range of one day. Times snap
-/// to captured scenes, and a review sheet lists exactly what will be removed
-/// before anything is deleted. The page's "Delete screen moments…" button
-/// opens and closes it.
 struct CaptureRangeDeletionView: View {
     @EnvironmentObject private var app: AppState
 

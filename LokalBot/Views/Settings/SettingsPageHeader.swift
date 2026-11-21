@@ -1,16 +1,11 @@
 import AppKit
 import SwiftUI
 
-// MARK: - Live status
-
 extension SettingsStatus.Input {
-    /// The state Settings describes, read from the running app.
     @MainActor
     init(app: AppState, permissions: PermissionManager, downloadMinutesLeft: Int? = nil) {
         let settings = app.settings
         let snapshot = app.modelRoles.snapshot
-        // The download plan already knows each role's model, its size and
-        // whether anything downloads for it.
         let plan = OnboardingDownloadPlan(
             settings: settings, statuses: snapshot.statuses, includeAutocomplete: true,
             started: true, readyBefore: [], availableBytes: snapshot.readiness.availableBytes)
@@ -19,7 +14,6 @@ extension SettingsStatus.Input {
                                  downloads: model.downloads, status: snapshot[model.role])
         }
         if !models.contains(where: { $0.role == .autocomplete }) {
-            // Autocomplete on a server: nothing downloads, so the plan leaves it out.
             models.append(.init(role: .autocomplete, name: settings.cotypingModelDisplayName, bytes: nil,
                                 downloads: false, status: snapshot[.autocomplete]))
         }
@@ -44,9 +38,6 @@ extension SettingsStatus.Input {
     }
 }
 
-/// Keeps a `SettingsStatus` current. It observes everything the status is
-/// derived from, so the window's root does not have to, and writes the
-/// status only when it changes.
 struct SettingsStatusObserver: View {
     @ObservedObject var app: AppState
     @ObservedObject var permissions: PermissionManager
@@ -58,7 +49,6 @@ struct SettingsStatusObserver: View {
     @ObservedObject var calendar: EventKitCalendarEventProvider
     @ObservedObject var checks: ModelCheckController
     @Binding var status: SettingsStatus
-    /// Watches the bytes arrive, to say how long a download still takes.
     @State private var estimator = DownloadTimeEstimator()
     @State private var minutesLeft: Int?
 
@@ -82,10 +72,6 @@ struct SettingsStatusObserver: View {
     }
 }
 
-// MARK: - Fixes
-
-/// What a status line's button, an Overview row and a Privacy & permissions
-/// row all do, so a permission is asked for the same way everywhere.
 @MainActor
 enum SettingsStatusActions {
     static func perform(_ action: SettingsStatusLine.Action, in app: AppState, from frame: CGRect? = nil) {
@@ -93,7 +79,6 @@ enum SettingsStatusActions {
         case .allow(let permission):
             allow(permission, in: app, from: frame)
         case .download:
-            // Autocomplete's model comes along only while Autocomplete is on.
             app.modelRoles.startCoreModelDownloads(includeAutocomplete: app.settings.cotypingEnabled)
         case .relaunch:
             app.settingsStore.flush()
@@ -118,8 +103,6 @@ enum SettingsStatusActions {
     }
 }
 
-/// A button that runs a status action. It reports where it is on screen, so
-/// the permission walkthrough can start from it.
 struct SettingsFixButton: View {
     @EnvironmentObject private var app: AppState
     let title: String
@@ -148,29 +131,14 @@ struct SettingsFixButton: View {
     }
 }
 
-// MARK: - Header
-
-/// How every Settings page opens: the page's icon, name and one-line
-/// description, "Try it…" where the feature has something to try, the
-/// page's main switch where it has one, and under them one status line for
-/// each thing to know, with the button that fixes it.
-///
-/// In a grouped `Form`, put it in a `Section` of its own as the first row.
-/// On a page that is not a form, add `.settingsPageHeaderCard()`.
 struct SettingsPageHeader<Accessory: View>: View {
     @EnvironmentObject private var app: AppState
     let page: AppState.SettingsTab
     let status: SettingsStatus
-    /// Opens the page's "Try it…" sheet. Nil where there is nothing to try.
     var tryIt: (() -> Void)?
-    /// The page's main switch. Nil where the page has none.
     var isOn: Binding<Bool>?
-    /// The main switch's accessibility label, such as "Enable autocomplete".
     var switchLabel: String?
-    /// The setting the main switch stands for, so settings search and
-    /// deep links land on it.
     var switchSettingID: String?
-    /// A page's own leading control, such as Models' download button.
     @ViewBuilder var accessory: Accessory
 
     var body: some View {
@@ -215,7 +183,6 @@ struct SettingsPageHeader<Accessory: View>: View {
 
     private var summary: String {
         let localized = app.settings.appLanguage.catalog
-        // Dictation's line names its shortcut.
         return page == .dictation
             ? String(format: localized(page.summary), app.settings.dictationShortcut.displayLabel)
             : localized(page.summary)
@@ -231,13 +198,11 @@ extension SettingsPageHeader where Accessory == EmptyView {
 }
 
 extension View {
-    /// The header's own surface, for a page that is not a grouped form.
     func settingsPageHeaderCard() -> some View {
         padding(.horizontal, 14).padding(.vertical, 10).settingsPanel()
     }
 }
 
-/// One status line: a sign for its tone, the sentence, and its fix.
 struct SettingsStatusLineRow: View {
     @EnvironmentObject private var app: AppState
     let line: SettingsStatusLine
@@ -286,10 +251,6 @@ struct SettingsStatusLineRow: View {
     }
 }
 
-// MARK: - Library size
-
-/// How much the library holds without the downloaded models, read off the
-/// main thread: a long-used library has many thousands of files.
 enum SettingsLibrarySize {
     static func measure(root: URL) async -> Int64 {
         await Task.detached(priority: .utility) {

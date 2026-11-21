@@ -3,12 +3,8 @@ import Carbon.HIToolbox
 import XCTest
 @testable import LokalBot
 
-/// Recording feedback (real levels, first-audio cue), paste read-back, Esc,
-/// Tap or hold, microphone choice and the Secure Input warning.
 @MainActor
 final class DictationFeedbackTests: XCTestCase {
-
-    // MARK: - Levels and first audio
 
     func testLevelMeterMapsLoudnessAndKeepsRecentHistory() throws {
         XCTAssertEqual(AudioLevelMeter.normalized(rms: 0), 0)
@@ -46,8 +42,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertGreaterThan(recorder.levelMeter.recent(1)[0], 0.3, "the 0.2-amplitude tone registers")
     }
 
-    // MARK: - Paste read-back
-
     func testInsertionCheckToleratesReformattingButNotAbsence() {
         let sent = "Thanks, I'll bring the 4 copies tomorrow :)"
         XCTAssertEqual(DictationInsertionCheck.verdict(
@@ -62,8 +56,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertEqual(DictationInsertionCheck.verdict(textBeforeCaret: "x", inserted: "  …  "), .unknown)
     }
 
-    /// Review finding on 719b3dc: Chinese has no spaces between words, so a
-    /// correct continuation looked like a failed paste.
     func testInsertionCheckMatchesScriptsWithoutWordSpaces() {
         XCTAssertEqual(DictationInsertionCheck.verdict(textBeforeCaret: "我们明天开会。", inserted: "开会。"), .landed)
         XCTAssertEqual(DictationInsertionCheck.verdict(
@@ -71,8 +63,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertEqual(DictationInsertionCheck.verdict(textBeforeCaret: "我们明天", inserted: "开会。"), .missing)
     }
 
-    /// Review finding on 719b3dc: an app-only target (no field identity) let
-    /// the read-back inspect whatever field had focus, including a secure one.
     func testReadBackRequiresTheBoundFieldAndNeverASecureOne() {
         XCTAssertFalse(DictationInsertionCheck.allowsReadBack(boundIdentity: nil, liveIdentity: "field", isSecure: false))
         XCTAssertFalse(DictationInsertionCheck.allowsReadBack(boundIdentity: "", liveIdentity: "", isSecure: false))
@@ -81,8 +71,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertTrue(DictationInsertionCheck.allowsReadBack(boundIdentity: "field", liveIdentity: "field", isSecure: false))
     }
 
-    /// Review finding on 719b3dc: levels never expired, so a stalled
-    /// microphone froze the bars at its last loudness.
     func testStaleLevelsReadAsSilence() {
         let meter = AudioLevelMeter()
         meter.record(0.8, at: 1_000_000_000)
@@ -90,10 +78,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertEqual(meter.recent(1, now: 1_700_000_000), [0], "older than half a second")
     }
 
-    // MARK: - Esc
-
-    /// Review finding on 719b3dc: Esc pressed while holding ⌥ Space carries
-    /// ⌥, was not recognized, and releasing the shortcut then transcribed.
     func testEscWhileHoldingThePushToTalkShortcutCancelsWithoutFinishing() throws {
         let monitor = DictationInputMonitor()
         var active = false
@@ -155,8 +139,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertEqual(escapes, 1)
     }
 
-    // MARK: - Tap or hold
-
     func testTapOrHoldKeyTapKeepsRecordingAndHoldFinishesOnRelease() async throws {
         let (monitor, calls) = tapHoldMonitor(shortcut: .handyDefault)
         let space = CGKeyCode(kVK_Space)
@@ -199,8 +181,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertEqual(calls.stops, 2, "holding past the threshold finishes on release")
     }
 
-    // MARK: - Microphone and Secure Input
-
     func testMicrophoneChoiceKeepsADisconnectedPreferenceVisible() {
         let connected = [DictationMicrophone.Option(id: "built-in", name: "MacBook Pro Microphone")]
         let rows = DictationMicrophone.options(preferredID: "airpods", available: connected, defaultName: "System default")
@@ -230,8 +210,6 @@ final class DictationFeedbackTests: XCTestCase {
         XCTAssertEqual(decoded.dictationTriggerMode, .tapOrHold)
         XCTAssertTrue(DictationView.readyText(triggerMode: .tapOrHold, shortcut: .handyDefault).contains("hold"))
     }
-
-    // MARK: - Helpers
 
     private final class Calls {
         var starts = 0

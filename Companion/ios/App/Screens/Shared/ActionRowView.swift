@@ -1,15 +1,9 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// One action item wherever it appears: the round toggle, the text, then
-/// owner, due date, meeting and evidence. A change made here shows "Waiting
-/// for your computer" until the computer confirms it, and "Not changed on your
-/// computer" if it didn't make it.
 struct ActionRowView: View {
     enum Evidence {
-        /// Opens the meeting at the cited moment.
         case openMeeting
-        /// Handled by the screen (the meeting page jumps to its transcript).
         case handle((Citation) -> Void)
         case hidden
     }
@@ -17,7 +11,6 @@ struct ActionRowView: View {
     let action: ActionItem
     let meetingID: String
     var meetingTitle: String?
-    /// Off inside rows that are links themselves.
     var linksMeeting = true
     var pending = false
     var note: ActionSyncNote?
@@ -62,7 +55,6 @@ struct ActionRowView: View {
                                 .lineLimit(1)
                         }
                     }
-                    // The pill's own padding is its touch target; align its icon with the text.
                     evidencePill.padding(.horizontal, -6)
                 }
                 .font(LBTokens.Typography.secondary)
@@ -71,7 +63,6 @@ struct ActionRowView: View {
                         .font(LBTokens.Typography.caption)
                         .foregroundStyle(LBTokens.Palette.attentionText)
                 } else if note != nil {
-                    // Without this the change made here just disappears at the next sync.
                     Label("Not changed on your computer", systemImage: "exclamationmark.circle")
                         .font(LBTokens.Typography.caption)
                         .foregroundStyle(LBTokens.Palette.attentionText)
@@ -112,7 +103,6 @@ struct ActionRowView: View {
     }
 }
 
-/// A list of action rows with hairlines between them, inside a section.
 struct ActionRowList: View {
     @Environment(CompanionSession.self) private var session
     let rows: [ActionRow]

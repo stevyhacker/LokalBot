@@ -1,8 +1,5 @@
 import Foundation
 
-/// How much time and compute one summary + outcomes job may spend before it
-/// checkpoints and asks the user to summarize again. Applies to every Think
-/// backend (built-in, Apple Intelligence, Ollama, OpenAI-compatible).
 enum GenerationBudgetPreset: String, Codable, CaseIterable, Identifiable, Sendable {
     case conservative
     case standard
@@ -38,25 +35,17 @@ enum GenerationBudgetPreset: String, Codable, CaseIterable, Identifiable, Sendab
         case .generous:
             .init(seconds: 1_800, requests: 36, inputTokens: 750_000, outputTokens: 73_728, scalesWithParts: true)
         case .unlimited:
-            // Finite on purpose: run() races a Task.sleep deadline and
-            // allowance() converts seconds * 35 to Int, and a stalled server
-            // must not wedge the serialized job queue forever.
             .init(seconds: 21_600, requests: 10_000, inputTokens: 100_000_000, outputTokens: 10_000_000)
         }
     }
 }
 
-/// One allowance for the entire summary + outcomes job, including transport
-/// replays. Task-local propagation keeps provider and runtime retries inside it.
 actor MeetingGenerationBudget {
     struct Limits: Sendable {
         var seconds: Double = 600
         var requests: Int = 12
         var inputTokens: Int = 250_000
         var outputTokens: Int = 24_576
-        /// Treat these limits as covering `partsPerBudget` meeting parts and
-        /// grow them for longer meetings. Otherwise a long meeting spends the
-        /// whole allowance before its last parts get their repairs.
         var scalesWithParts = false
     }
 
@@ -103,10 +92,6 @@ actor MeetingGenerationBudget {
 
     func allowance(remainingParts: Int, desired: Int = 4_096, minimum: Int = 512) throws -> Int {
         try Task.checkCancellation()
-        // Allocate useful output to the parts this run can actually process,
-        // reserving one possible repair per part. Very long meetings continue
-        // from verified checkpoints instead of starving every part with a tiny
-        // allowance divided across work that cannot fit the request limit.
         let processableParts = max(1, (requestLimit - requests + 1) / 2)
         let parts = min(max(1, remainingParts), processableParts)
         let available = min(desired, (outputTokenLimit - outputTokens) / parts,
@@ -128,7 +113,6 @@ actor MeetingGenerationBudget {
     }
 
     func finish(_ reservation: Reservation, metric: GenerationCallTelemetry) {
-        // Unknown usage retains the reservation; absence is never zero usage.
         if let actual = metric.outputTokens {
             outputTokens += actual - reservation.outputTokens
         }
@@ -141,9 +125,6 @@ actor MeetingGenerationBudget {
         phases[phase, default: 0] += seconds
     }
 
-    /// `standardParts` counts the work in standard-size parts, so a model
-    /// that plans fewer, larger parts keeps the allowance the same meeting
-    /// gets in standard parts.
     func recordPlan(model: String, transcriptRevision: String, parts: Int, standardParts: Double? = nil) {
         self.model = model
         self.transcriptRevision = transcriptRevision
@@ -164,14 +145,11 @@ actor MeetingGenerationBudget {
 
     func recordValidation(_ value: ValidationTelemetry) { validations.append(value) }
 
-    /// URLSession and the inference lease both respond to task cancellation.
-    /// Structured concurrency waits for their cleanup before another job starts.
     func run<T>(_ operation: @escaping () async throws -> T) async throws -> T {
         try await Self.$current.withValue(self) {
             try await withThrowingTaskGroup(of: T.self) { group in
                 group.addTask { try await operation() }
                 group.addTask {
-                    // Re-read the deadline: planning a long meeting extends it.
                     while true {
                         let seconds = await self.remainingSeconds
                         guard seconds > 0 else { throw Exhausted() }
@@ -212,8 +190,6 @@ actor MeetingGenerationBudget {
         encoder.dateEncodingStrategy = .iso8601
         if let data = try? encoder.encode(report) {
             let runs = folder.appendingPathComponent("notes-generation-runs", isDirectory: true)
-            // Never recreate a meeting root after deletion. Creating only the
-            // direct child fails safely if the root disappeared concurrently.
             guard FileManager.default.fileExists(atPath: folder.path) else { return }
             try? FileManager.default.createDirectory(at: runs, withIntermediateDirectories: false)
             try? data.write(to: runs.appendingPathComponent("\(attemptID.uuidString).json"), options: .atomic)
@@ -222,8 +198,6 @@ actor MeetingGenerationBudget {
     }
 }
 
-/// Content-free diagnostics. Optional runtime values stay absent when a
-/// provider does not report them (especially cache and reasoning usage).
 struct GenerationCallTelemetry: Codable, Equatable, Sendable {
     var stage: String = "generation"
     var outcome: String
@@ -244,8 +218,6 @@ struct GenerationCallTelemetry: Codable, Equatable, Sendable {
     }
 }
 
-/// Only the structured notes validator may salvage this content. Other text
-/// consumers continue to receive the ordinary outputTruncated error.
 struct TruncatedStructuredResponse: LocalizedError {
     let content: String
     var errorDescription: String? { TextEngineError.outputTruncated.errorDescription }

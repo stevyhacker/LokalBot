@@ -1,13 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// Screen text reaches semantic search without waiting for a screen search,
-/// and a failed backfill pass is retried with backoff. On 2026-10-12 four
-/// days of screens had no vectors: only a search started a pass, and the one
-/// pass that ran failed once (another embedder held port 17873) and stopped.
 @MainActor
 final class EmbeddingIndexScreenBackfillTests: XCTestCase {
-    /// Fails its first `failures` calls the way a blocked embedder port does.
     private final class FlakyEmbedder {
         var failuresLeft: Int
         private(set) var documentCalls: [[String]] = []
@@ -45,8 +40,6 @@ final class EmbeddingIndexScreenBackfillTests: XCTestCase {
         super.tearDown()
     }
 
-    /// `searchedScreens` seeds one embedded screen, the state of a library
-    /// that has already searched screens by meaning.
     private func makeLibrary(searchedScreens: Bool, failures: Int = 0) throws -> Library {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("screen-backfill-\(UUID().uuidString)", isDirectory: true)
@@ -115,7 +108,6 @@ final class EmbeddingIndexScreenBackfillTests: XCTestCase {
         XCTAssertEqual(index.screenReindexFailures, 1)
         XCTAssertFalse(isEmbedded(screen, in: library))
 
-        // Nobody searches again: the retries alone must finish the job.
         try await waitUntil("the retried pass embeds the screen") { isEmbedded(screen, in: library) }
         XCTAssertEqual(library.embedder.documentCalls.count, 3)
         XCTAssertEqual(index.screenReindexFailures, 0)

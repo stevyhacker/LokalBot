@@ -1,12 +1,9 @@
 import XCTest
 @testable import LokalBot
 
-/// Whole-window text for autocomplete: which recognized lines reach the
-/// prompt, when a reread replaces them, and the grant that allows it.
 final class CotypingWindowTextTests: XCTestCase {
     private typealias Line = CotypingWindowText.Line
     private static let window = CGRect(x: 0, y: 0, width: 1200, height: 900)
-    /// A chat layout: a sidebar on the left, the conversation above the reply box.
     private static let field = CGRect(x: 300, y: 800, width: 860, height: 60)
 
     private static func target(title: String = "Juniper launch", url: String? = nil,
@@ -26,8 +23,8 @@ final class CotypingWindowTextTests: XCTestCase {
         line("Sarah: The migration timeline still works for my team.", y: 600),
         line("Daniel can start the database cutover on Thursday.", y: 640),
         line("Can you confirm the cutover today?", y: 700),
-        line("Sure, I'll confirm", y: 820),                 // the draft in the reply box
-        line("Press Enter to send", y: 870, width: 160),   // below the field
+        line("Sure, I'll confirm", y: 820),
+        line("Press Enter to send", y: 870, width: 160),
     ]
 
     private static func snapshot(_ lines: [Line], title: String = "Juniper launch") -> CotypingVisibleContext.Snapshot {
@@ -36,8 +33,6 @@ final class CotypingWindowTextTests: XCTestCase {
                      excerpts: CotypingWindowText.excerpts(from: lines, fieldFrame: field, windowFrame: window),
                      source: .windowText)
     }
-
-    // MARK: - Selection
 
     func testWholeWindowIsReadExceptTheDraftAndTheConversationEndsAtTheField() throws {
         let text = try XCTUnwrap(Self.snapshot(Self.chat).windowText)
@@ -97,22 +92,15 @@ final class CotypingWindowTextTests: XCTestCase {
             candidate(42, "Inbox", frame.offsetBy(dx: 1, dy: 0)),
         ]
         XCTAssertEqual(CotypingWindowText.windowIndex(in: candidates, processID: 42, title: "Inbox", frame: frame), 3)
-        // Two windows of the same app over each other: only the title can tell.
         let stacked = candidates + [candidate(42, "Drafts", frame)]
         XCTAssertEqual(CotypingWindowText.windowIndex(in: stacked, processID: 42, title: "Drafts", frame: frame), 4)
         XCTAssertNil(CotypingWindowText.windowIndex(in: stacked, processID: 42, title: "Archive", frame: frame))
         XCTAssertNil(CotypingWindowText.windowIndex(in: candidates, processID: 99, title: "Inbox", frame: frame))
     }
 
-    // MARK: - Rereading
-
-    /// A reread reuses the last lines when the window image is unchanged
-    /// outside the field: the caret blinking in the field does not count, a
-    /// changed word elsewhere or a moved window or field does.
     func testFingerprintIgnoresTheFieldButNotTheRestOfTheWindow() throws {
         let window = CGRect(x: 100, y: 50, width: 750, height: 500)
         let field = CGRect(x: 150, y: 450, width: 600, height: 40)
-        // 2 pixels per point; rectangles in pixels from the image's top left.
         func image(_ marks: [CGRect]) throws -> CGImage {
             let context = try XCTUnwrap(CGContext(
                 data: nil, width: 1_500, height: 1_000, bitsPerComponent: 8, bytesPerRow: 0,
@@ -154,7 +142,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertNil(recognized.lines(forKey: "field", fingerprint: Data([9])))
         recognized.clear()
         XCTAssertNil(recognized.lines(forKey: "field", fingerprint: fingerprint))
-        // A recognition that started before the text was forgotten cannot store.
         recognized.store(lines, forKey: "field", fingerprint: fingerprint, ifGeneration: generation)
         XCTAssertNil(recognized.lines(forKey: "field", fingerprint: fingerprint))
     }
@@ -162,10 +149,8 @@ final class CotypingWindowTextTests: XCTestCase {
     func testRereadingKeepsThePromptUnlessNewTextAppears() {
         let current = Self.snapshot(Self.chat)
         XCTAssertFalse(CotypingWindowText.shouldReplace(current, with: Self.snapshot(Self.chat), heldFor: 5))
-        // The reply box grew and the oldest message scrolled away.
         XCTAssertFalse(CotypingWindowText.shouldReplace(
             current, with: Self.snapshot(Array(Self.chat.dropFirst(3))), heldFor: 5))
-        // A timestamp or typing indicator is too little to read everything again.
         XCTAssertFalse(CotypingWindowText.shouldReplace(
             current, with: Self.snapshot(Self.chat + [Self.line("10:42", x: 1100, y: 700, width: 40)]), heldFor: 5))
         let reply = Self.chat + [Self.line("Sarah: Thanks, I'll tell Daniel.", y: 760)]
@@ -185,8 +170,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertEqual(CotypingWindowText.key(processID: 42, role: "AXTextArea", windowTitle: "Inbox", fieldFrame: grown), key)
         XCTAssertNotEqual(CotypingWindowText.key(processID: 42, role: "AXTextArea", windowTitle: "Drafts", fieldFrame: Self.field), key)
     }
-
-    // MARK: - Capture
 
     private final class Clock: @unchecked Sendable {
         var now: TimeInterval = 100
@@ -209,7 +192,6 @@ final class CotypingWindowTextTests: XCTestCase {
         .init(key: key, processID: 42, target: Self.target())
     }
 
-    /// Runs `action` and waits for the read it starts to change the text.
     private func expectUpdate(_ capture: CotypingWindowTextCapture, changes: Bool = true, _ action: () -> Void) {
         let updated = expectation(description: "window text updated")
         updated.isInverted = !changes
@@ -243,8 +225,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertEqual(reads.count, 1)
     }
 
-    /// Reading a chat window and then clicking into another app without
-    /// typing never asked for a new read, so the chat's text stayed in memory.
     func testFocusInAnotherAppOrFieldForgetsTheTextWithoutARead() {
         let clock = Clock()
         let reads = Reads([Self.chat, Self.chat, Self.chat])
@@ -253,7 +233,6 @@ final class CotypingWindowTextTests: XCTestCase {
         let key = CotypingWindowText.key(processID: 42, role: "AXTextArea", windowTitle: "Team chat", fieldFrame: frame)
         expectUpdate(capture) { _ = capture.snapshot(forKey: key) { Self.request(key) } }
 
-        // The reply box grows and moves down as you type: still the same field.
         capture.forget(unlessForProcess: 42, role: "AXTextArea",
                        fieldFrame: CGRect(x: 320, y: 60, width: 640, height: 88))
         XCTAssertNotNil(capture.cachedSnapshot())
@@ -315,14 +294,10 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true)
     }
 
-    /// 2026-10-16: rereads added new text every few seconds while typing, and
-    /// each one made the next keystroke read the whole prompt again (268 ms
-    /// instead of 41). New text now waits for a pause in typing.
     func testNewTextWaitsForAPauseInTyping() {
         let clock = Clock()
         let reply = Self.chat + [Self.line("Sarah: Thanks, I'll tell Daniel.", y: 760)]
         let reads = Reads([Self.chat, reply])
-        // The wait never ends on its own here; the test steps the clock.
         let capture = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in reads.next() },
                                                 sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) })
         defer { capture.removeAll() }
@@ -362,7 +337,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertTrue(capture.cachedSnapshot()?.windowText?.hasSuffix("Sarah: Thanks, I'll tell Daniel.") == true,
                       "The wait for the pause ends on its own")
 
-        // Held text that a later read no longer has is never used.
         let heldReads = Reads([Self.chat, reply, Self.chat])
         let held = CotypingWindowTextCapture(clock: { clock.now }, reader: { _ in heldReads.next() },
                                              sleep: { _ in try? await Task.sleep(for: .seconds(3_600)) })
@@ -378,8 +352,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertEqual(held.cachedSnapshot(), first)
         XCTAssertEqual(heldReads.count, 3)
     }
-
-    // MARK: - Grant, settings and prompt
 
     func testWindowTextHasItsOwnGrant() {
         let target = Self.target()
@@ -401,7 +373,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertFalse(CotypingVisibleContext.Policy(settings: settings).permits(Self.snapshot(Self.chat)))
     }
 
-    /// On for everyone, including settings saved before the switch existed.
     @MainActor
     func testWindowTextIsOnForEveryoneUnlessTurnedOff() throws {
         let decoder = JSONDecoder()
@@ -447,7 +418,6 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertFalse(preface.contains("Ignored nearby text"))
         XCTAssertTrue(rendered.prompt.hasSuffix("\n\nSure, I'll confirm"))
 
-        // Words from the screen are fair to suggest; the label is scaffolding.
         XCTAssertFalse(CotypingPromptLeakGuard.detectsLeak(in: "Daniel can start", conditioningPreface: preface))
         XCTAssertFalse(CotypingPromptLeakGuard.detectsLeak(in: "Nadja", conditioningPreface: preface))
         XCTAssertTrue(CotypingPromptLeakGuard.detectsLeak(in: "Visible in this window", conditioningPreface: preface))

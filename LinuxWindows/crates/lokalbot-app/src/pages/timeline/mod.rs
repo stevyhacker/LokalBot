@@ -1,14 +1,3 @@
-//! Timeline: one day at a time (`CaptureView.swift`'s `TimelineContentView`).
-//! The date is the toolbar's title and opens a calendar; arrows, Ask about
-//! this day and one … menu sit at the trailing edge. The day's page fills the
-//! main area as panels (Highlights, the actions from the day's meetings, the
-//! work summary, decisions); a rail on the trailing side, a pane whose width
-//! the divider changes and the app remembers, holds the tracked time with its
-//! hour strip, the day's sessions and meetings, and All captured activity.
-//! Choosing something in the rail shows its page as panels while the rail
-//! stays (`TimelineRail.swift`, `TimelineDigestPage.swift`,
-//! `CaptureDetailView.swift`, `ScreenMomentDetailView.swift`).
-
 mod agent_work;
 mod context;
 mod day_list;
@@ -52,28 +41,21 @@ use crate::ui::action_row;
 use crate::ui::section_panel::panel_column;
 use crate::ui::{self, Ico};
 
-/// The rail's divider position, kept with the other panes' (`pane_widths`).
 const RAIL_PANE_KEY: &str = "timeline.rail";
-/// The page's panels, widest, without its gutters (`TimelinePageMetric`).
 const PAGE_MAXIMUM_WIDTH: f32 = 1100.;
 const PAGE_GUTTER: f32 = 24.;
 
-/// One day's data, loaded off the main thread.
 pub(crate) struct DayModel {
     pub activity: DayActivity,
     pub digest: Option<DayDigest>,
-    /// The user's actions from this day's meetings, open ones first.
     pub threads: Vec<ActionThread>,
-    /// "Looks done?" suggestions, by thread.
     pub hints: HashMap<String, lokalbot_core::action_completion::CompletionHint>,
     pub meetings: Vec<Meeting>,
     pub moments: Vec<ScreenMoment>,
-    /// The rail's sessions and meetings.
     pub list: DayList,
 }
 
 impl DayModel {
-    /// A day whose captures have expired can still have its digest.
     fn has_day(&self) -> bool {
         !self.activity.blocks.is_empty()
             || !self.meetings.is_empty()
@@ -86,59 +68,42 @@ impl DayModel {
 pub(crate) enum Selection {
     Session(String),
     Meeting(Uuid),
-    /// All captured activity: every activity block and screen moment.
     RawCapture,
-    /// One screen moment (`ScreenMoment::id`).
     Moment(i64),
-    /// One activity block (`ActivityBlock::id`).
     Block(i64),
 }
 
 pub struct TimelinePage {
-    /// "Delete screen moments…" while it is open.
     range_deletion: Option<range_delete::RangeDeletion>,
     data: Entity<AppData>,
     day: NaiveDate,
     model: Option<Rc<DayModel>>,
     load_generation: u64,
     loaded_key: Option<(u64, NaiveDate)>,
-    /// What the main area shows; `None` is the day's page.
     selection: Option<Selection>,
-    /// What Back returns to, nearest last ("Back to work session").
     selection_trail: Vec<Selection>,
-    /// "Show all N" in a session's Screen moments, with its Find and app filter.
     moments_browsing: bool,
     moment_search: Entity<InputState>,
     moment_app: Option<String>,
-    /// The day's small moment images: `None` while one is being decrypted.
     thumbnails: std::cell::RefCell<
         std::collections::HashMap<i64, Option<crate::windows::screen_image::ScreenImage>>,
     >,
     meeting_preview: Option<MeetingPreview>,
     expanded_tasks: HashSet<usize>,
     expanded_titles: HashSet<String>,
-    /// An action was open while this day's page showed, so its rows stay
-    /// after the last one is ticked.
     actions_had_open: bool,
     calendar: Entity<CalendarState>,
     calendar_open: bool,
-    /// The page's own bounds, for the rail's opening width.
     bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// The hour strip's width, for its bars and labels.
     strip_width: Rc<Cell<f32>>,
-    /// The rail takes Up and Down.
     rail_focus: FocusHandle,
     rail_scroll: ScrollHandle,
-    /// A row to scroll into view on the next frame (a strip bar or an arrow key chose it).
     rail_reveal: Option<String>,
-    /// The selected moment's decrypted image.
     moment_image: Option<moment::MomentImage>,
-    /// Images no longer shown; their textures are freed on the next frame.
     released_images: Vec<Arc<RenderImage>>,
     moment_text_expanded: bool,
     moment_details_open: bool,
     moment_note: Entity<InputState>,
-    /// The moment whose saved note is in `moment_note`.
     moment_note_for: Option<i64>,
     _subscriptions: Vec<Subscription>,
 }
@@ -241,7 +206,6 @@ impl TimelinePage {
         }
     }
 
-    /// Changing the day always returns to its page.
     fn set_day(&mut self, day: NaiveDate, cx: &mut Context<Self>) {
         self.calendar_open = false;
         self.range_deletion = None;
@@ -276,7 +240,6 @@ impl TimelinePage {
                         library.action_threads(None).unwrap_or_default(),
                         day,
                     );
-                    // Suggestions only, and only from text kept with consent.
                     let hints = if suggest_done {
                         let open: Vec<ActionThread> = threads
                             .iter()
@@ -326,7 +289,6 @@ impl TimelinePage {
         .detach();
     }
 
-    /// Opens something inside the current selection, so Back returns to it.
     pub(crate) fn open_child(&mut self, child: Selection, cx: &mut Context<Self>) {
         if self.selection.as_ref() == Some(&child) {
             return;
@@ -337,7 +299,6 @@ impl TimelinePage {
         self.selection_trail = trail;
     }
 
-    /// Back: to what opened this selection, else to the day.
     pub(crate) fn go_back(&mut self, cx: &mut Context<Self>) {
         let mut trail = std::mem::take(&mut self.selection_trail);
         let parent = trail.pop();
@@ -345,8 +306,6 @@ impl TimelinePage {
         self.selection_trail = trail;
     }
 
-    /// Shows `selection` in the main area; choosing what it shows again
-    /// returns to the day's page.
     pub(crate) fn select(&mut self, selection: Option<Selection>, cx: &mut Context<Self>) {
         self.selection_trail.clear();
         self.moments_browsing = false;
@@ -364,8 +323,6 @@ impl TimelinePage {
         cx.notify();
     }
 
-    /// What the rail shows as chosen: the row or All captured activity that
-    /// the main area's page came from.
     fn list_selection(&self) -> ListSelection {
         let root = self.selection_trail.first().or(self.selection.as_ref());
         match root {
@@ -382,9 +339,6 @@ impl TimelinePage {
         }
     }
 
-    /// Chooses a row of the rail, All captured activity or the day's page.
-    /// Choosing what is already chosen returns to the day's page
-    /// (`TimelineSelection.select`).
     fn choose(&mut self, target: ListSelection, cx: &mut Context<Self>) {
         if target == self.list_selection() {
             self.select(None, cx);
@@ -403,13 +357,10 @@ impl TimelinePage {
                     })
             }
         };
-        // A selection opened inside another must not toggle off against it.
         self.selection = None;
         self.select(selection, cx);
     }
 
-    /// Up and Down in the rail walk the day's page, the sessions and All
-    /// captured activity.
     fn step(&mut self, by: isize, cx: &mut Context<Self>) {
         let Some(model) = self.model.clone() else {
             return;
@@ -450,7 +401,6 @@ impl TimelinePage {
         .detach();
     }
 
-    /// The body's width: page and rail together.
     fn body_width(&self, window: &Window) -> f32 {
         self.bounds.get().map_or_else(
             || f32::from(window.viewport_size().width - metric::SIDEBAR_WIDTH),
@@ -458,7 +408,6 @@ impl TimelinePage {
         )
     }
 
-    /// Loads the selected moment's image and note once the day has loaded.
     fn sync_selected_moment(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(Selection::Moment(id)) = self.selection else {
             return;
@@ -479,8 +428,6 @@ impl TimelinePage {
         }
     }
 
-    /// Ask about one work session, bounded to its moments on its day. A single
-    /// moment is attached instead, as "Ask About This…" does.
     fn ask_session(
         &self,
         question: String,
@@ -520,9 +467,6 @@ impl TimelinePage {
         });
     }
 
-    // ---------------------------------------------------------- toolbar
-
-    /// "Thursday, November 12", with the year for a day outside this one.
     fn day_title(&self) -> String {
         let same_year = self.day.year() == Local::now().year();
         let locale = lokalbot_i18n::date_locale();
@@ -531,7 +475,6 @@ impl TimelinePage {
         } else {
             "%A, %B %-d, %Y"
         });
-        // Some locales' own date already names the weekday.
         let date = self.day.format_localized("%x", locale).to_string();
         let weekday = self.day.format_localized("%A", locale).to_string();
         if pattern == "%A, %x" && date.contains(&weekday) {
@@ -540,8 +483,6 @@ impl TimelinePage {
         self.day.format_localized(pattern, locale).to_string()
     }
 
-    /// The … menu: write, update or rewrite the digest, copy or export it,
-    /// pause or resume day memory, and reload the day (`TimelineDayMenu`).
     fn day_menu(&self, cx: &mut Context<Self>) -> AnyElement {
         let (busy, paused) = {
             let data = self.data.read(cx);
@@ -623,11 +564,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------ page
-
-    /// The column every page in the main area shares: panels that fill the
-    /// width inside their gutters, up to the widest line
-    /// (`TimelinePageColumn`).
     fn page_column(
         &self,
         id: impl Into<ElementId>,
@@ -655,8 +591,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// "‹ Day digest": from a session, a meeting or all captured activity
-    /// back to the day's page (`TimelineDigestLink`).
     fn digest_link(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let back = if lokalbot_i18n::current().rtl {
@@ -678,14 +612,11 @@ impl TimelinePage {
                     .child(lokalbot_i18n::tr("Day digest"))
                     .on_click(cx.listener(|this, _, _, cx| this.select(None, cx))),
             )
-            // Sits a little nearer the panel it leads to than panels sit to
-            // each other.
             .mt(px(-4.))
             .mb(px(-6.))
             .into_any_element()
     }
 
-    /// A day with nothing recorded and no digest (`TimelineEmptyDay`).
     fn render_empty_day(&self, cx: &mut Context<Self>) -> AnyElement {
         let tracking = self.data.read(cx).settings.tracking_enabled;
         div()
@@ -711,8 +642,6 @@ impl TimelinePage {
     }
 }
 
-/// Pauses or resumes day memory, and shows it at once, as the tray menu
-/// does; the engine gets the same request either way.
 fn set_day_memory_paused(data: &Entity<AppData>, paused: bool, cx: &mut App) {
     data.update(cx, |data, cx| {
         data.day_memory_paused = paused;
@@ -726,8 +655,6 @@ impl Page for TimelinePage {
         self.day_title().into()
     }
 
-    /// The date, opening a calendar, with "Today" or "Yesterday" beside it;
-    /// Back first when the day was opened from a search or an answer.
     fn title_control(
         &mut self,
         _window: &mut Window,
@@ -878,7 +805,6 @@ impl Page for TimelinePage {
                             })
                         }),
                 )
-                // Port-only: a capture of the next window, while capture is on.
                 .when(screen_context && !paused, |this| {
                     this.child(
                         ui::controls::toolbar_icon(

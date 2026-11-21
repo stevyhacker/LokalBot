@@ -1,24 +1,4 @@
 #!/usr/bin/env bash
-# Checks LokalBot's apt and dnf repositories end to end with a throwaway key.
-# scripts/package-linux-distros.sh packages STAGE's binaries as four
-# versions, scripts/linux-repos.sh publishes them into a repository served
-# over HTTPS as pkg.lokalbot.com on a private Docker network, and clean
-# Ubuntu 24.04, Debian 13 and Fedora containers install the first version
-# from the downloaded file, then upgrade with `apt upgrade` and `dnf upgrade`
-# as later versions are published. It checks that:
-#   - the .deb and .rpm add the repository as config files, and an edited
-#     repository file survives an upgrade; the Arch package adds nothing;
-#   - apt refuses a tampered InRelease, a tampered Release (signed by
-#     Release.gpg) and a swapped .deb; dnf refuses a tampered repomd.xml, a
-#     swapped .rpm and an unsigned one;
-#   - each repository keeps its newest three versions.
-#
-#   NFPM=/path/to/nfpm scripts/ci/check-linux-repos.sh STAGE
-#
-# STAGE is a staged release folder, LokalBot-<version>-linux-x86_64 (from
-# scripts/package.sh, or extracted from a release's .tar.gz). Needs Docker
-# and nfpm (a static binary, run inside a container). Writes into dist/ and
-# removes its containers, network and files when it ends.
 set -euo pipefail
 STAGE=$(cd "$1" && pwd)
 NFPM=$(command -v "${NFPM:-nfpm}")
@@ -47,13 +27,10 @@ trap cleanup EXIT
 step() { printf '\n=== %s\n' "$*"; }
 fail() { echo "FAILED: $*" >&2; exit 1; }
 name_of() { echo "$ID-${1%%:*}"; }
-# Runs a command in the publisher as this user, so WORK stays removable.
 pub() {
   docker exec --user "$(id -u):$(id -g)" -e HOME=/work -e GNUPGHOME=/work/gnupg -w /src "$ID-pub" "$@"
 }
 in_client() { docker exec -e DEBIAN_FRONTEND=noninteractive "$(name_of "$1")" bash -c "$2"; }
-# Expects a client command to fail or to skip LokalBot's index (apt keeps
-# the last good one and warns), and shows why.
 refused() {
   local client=$1 what=$2 command=$3
   if in_client "$client" "/work/run 'signature|BADSIG|hash sum|checksum|not signed|size|verif' bash -c '$command'"; then
@@ -101,8 +78,6 @@ pub bash -c 'cd /work/tls &&
   printf "subjectAltName=DNS:pkg.lokalbot.com\nextendedKeyUsage=serverAuth\n" > ext &&
   openssl x509 -req -in server.csr -CA ca.crt -CAkey ca.key -CAcreateserial -days 1 -extfile ext -out server.crt 2> /dev/null &&
   chmod 644 server.key'
-# HTTP/1.1, and TLS connections end with close_notify: Debian 13's apt
-# rejects a TLS stream that just stops ("unexpected eof").
 cat > "$WORK/serve.py" <<'EOF'
 import functools, http.server, ssl
 
@@ -124,8 +99,6 @@ server.socket = context.wrap_socket(server.socket, server_side=True)
 server.serve_forever()
 EOF
 docker exec -d "$ID-pub" bash -c 'python3 -u /work/serve.py 2> /work/server.log'
-# In a client: runs a command, shows its lines that match a pattern, and
-# fails when the command fails or apt reports an error or a skipped index.
 cat > "$WORK/run" <<'EOF'
 #!/bin/bash
 pattern=$1
@@ -259,7 +232,6 @@ for client in ubuntu:24.04 debian:13; do
 done
 refused fedora:latest "a swapped .rpm" 'dnf upgrade -y --refresh lokalbot'
 expect_version fedora:latest "${V[1]}"
-# Signed indexes listing an unsigned package: gpgcheck still refuses it.
 pub cp "/work/packages/LokalBot-${V[3]}-linux-x86_64.rpm" "$newest_rpm"
 pub bash -c "rm -rf /work/repo/rpm/repodata && createrepo_c --quiet --no-database /work/repo/rpm &&
   gpg --batch --yes --local-user $FPR --armor --detach-sign --output $repomd.asc $repomd"

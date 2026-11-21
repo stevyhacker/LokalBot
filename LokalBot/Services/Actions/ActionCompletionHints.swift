@@ -1,8 +1,5 @@
 import Foundation
 
-/// A suggestion, never a status change: a later screen capture that looks
-/// like the user finished one of their open actions. The user confirms with
-/// Mark Done, or dismisses it so the same capture is not offered again.
 struct ActionCompletionHint: Identifiable, Equatable, Sendable {
     let threadID: String
     let snapshotID: Int64
@@ -15,11 +12,6 @@ struct ActionCompletionHint: Identifiable, Equatable, Sendable {
     var dismissalKey: String { "\(threadID)#\(snapshotID)" }
 }
 
-/// Deterministic matching of open actions to later screen captures. A hint
-/// needs two things in the same capture after the action was last
-/// mentioned: at least two of the action's distinctive words, and a
-/// completion phrase that fits the action's verb ("message sent", "merged",
-/// "submitted"). Only locally retained screen text and titles are read.
 enum ActionCompletionDetector {
     static let maximumThreads = 60
     static let hitsPerThread = 6
@@ -33,8 +25,6 @@ enum ActionCompletionDetector {
         let text: String
     }
 
-    /// Distinctive words: not stop words or generic task verbs, and either
-    /// four or more letters, containing a digit, or capitalized in the source.
     static func distinctiveTerms(_ text: String) -> [String] {
         var seen = Set<String>()
         return text.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
@@ -50,8 +40,6 @@ enum ActionCompletionDetector {
             .filter { seen.insert($0).inserted }
     }
 
-    /// Completion phrases for the action's verb, falling back to a general
-    /// set when the verb is unfamiliar.
     static func cues(for actionText: String) -> [String] {
         let words = Set(actionText.lowercased().split(whereSeparator: { !$0.isLetter }).map(String.init))
         var result: [String] = []
@@ -76,7 +64,6 @@ enum ActionCompletionDetector {
         return terms.filter { words.contains($0) }.count >= minimumMatchingTerms
     }
 
-    /// Evaluate threads against captures already fetched for them.
     static func hint(for thread: ActionThread, captures: [Capture],
                      dismissed: Set<String>) -> ActionCompletionHint? {
         guard thread.isForUser, thread.status == .open else { return nil }
@@ -96,8 +83,6 @@ enum ActionCompletionDetector {
         return nil
     }
 
-    /// Queries a read-only screen store per open thread. Runs off the main
-    /// actor; the caller supplies a store opened read-only.
     static func hints(for threads: [ActionThread], store: ActivityStore,
                       dismissed: Set<String>, now: Date = Date()) -> [String: ActionCompletionHint] {
         var result: [String: ActionCompletionHint] = [:]
@@ -107,8 +92,6 @@ enum ActionCompletionDetector {
             let since = thread.latestReference.meetingStartedAt
             guard since < now else { continue }
             let filter = ScreenSearchFilter(interval: DateInterval(start: since, end: now))
-            // A hit's whole text is read below. Its snippet is built only when
-            // that text cannot be read (a row from before captures had IDs).
             let hits = store.searchOCR(terms.prefix(4).joined(separator: " "), limit: hitsPerThread,
                                        matchAll: false, filter: filter, groupResults: false,
                                        deferringSnippets: true)
@@ -124,8 +107,6 @@ enum ActionCompletionDetector {
         }
         return result
     }
-
-    // MARK: - Vocabulary
 
     private static let stopWords: Set<String> = [
         "the", "and", "for", "with", "from", "into", "onto", "about", "this", "that", "these",

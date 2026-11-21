@@ -44,8 +44,6 @@ class ModelDriftTests(unittest.TestCase):
             self.assertIn("latency", messages)
 
     def test_one_slow_call_is_not_latency_drift(self):
-        # Nightly 2026-10-01: a single GLM notes call took 4287 ms against
-        # 1843 ms recorded, while the same model's recordings span 1-46 s.
         with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
             self.write(old, "m/x", "notes-design-review", [call(latency=1843)])
             self.write(new, "m/x", "notes-design-review", [call(latency=4287)])
@@ -60,8 +58,6 @@ class ModelDriftTests(unittest.TestCase):
             self.assertEqual(messages, ["m/x: p95 latency 3000 ms vs 1000 ms committed across 6 calls"])
 
     def test_an_emptied_list_is_reported(self):
-        # Nightly 2026-10-01: GLM answered the unchanged notes prompt with
-        # actions but `"notes": []`; the recording had five notes.
         note = {"section": "Key points", "text": "Fact.", "source": "s1"}
         action = {"text": "Task", "source": "s2"}
         recorded = json.dumps({"notes": [note] * 5, "actions": [action] * 2, "has_more": False})
@@ -96,8 +92,6 @@ class ModelDriftTests(unittest.TestCase):
             return code, report.read_text(), output.read_text().split()
 
     def test_a_run_that_recorded_nothing_is_not_reported_as_no_drift(self):
-        # Nightly 2026-11-10: OpenRouter answered every request with HTTP 401,
-        # each case was saved with no calls, and the report said "No drift detected."
         with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
             for case in ["digest-day", "ask-answer"]:
                 self.write(old, "m/x", case, [call()])
@@ -110,7 +104,6 @@ class ModelDriftTests(unittest.TestCase):
             self.assertEqual(output, ["drift=false", "unrecorded=2"])
 
     def test_a_run_that_wrote_no_recordings_fails_too(self):
-        # The recording test skips without a key and writes no folder at all.
         with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as scratch:
             self.write(old, "m/x", "digest-day", [call()])
             code, report, _ = self.run_main(old, Path(scratch) / "never-made")

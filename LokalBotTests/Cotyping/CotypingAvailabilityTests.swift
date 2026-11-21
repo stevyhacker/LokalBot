@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Availability gate
-
 final class CotypingAvailabilityTests: XCTestCase {
     private func focus(app: String = "Slack", bundle: String? = "com.tinyspeck.slackmacgap",
                        capability: CotypingCapability = .supported) -> CotypingFocus {
@@ -91,8 +89,6 @@ final class CotypingAvailabilityTests: XCTestCase {
     }
 }
 
-// MARK: - Sensitive field detector
-
 final class CotypingSecureFieldDetectorTests: XCTestCase {
     func testPlainTextFieldIsNotSecure() {
         XCTAssertFalse(CotypingSecureFieldDetector.isSecure(
@@ -144,11 +140,7 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
     }
 }
 
-// MARK: - Code field detector
-
 final class CotypingCodeFieldDetectorTests: XCTestCase {
-    /// A verification code field named only by its placeholder or `<label>`
-    /// got suggestions.
     func testCodeFieldNamesAreRecognized() {
         let labels = [
             "Code", "Enter code", "Enter the 6-digit code", "Code sent by SMS",

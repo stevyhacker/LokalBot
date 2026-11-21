@@ -1,15 +1,5 @@
 import Foundation
 
-/// Reads Codex rollouts from `~/.codex/sessions/YYYY/MM/DD/*.jsonl` and
-/// `~/.codex/archived_sessions/`. Codex compresses rollouts it is done with
-/// to `*.jsonl.zst`, which are read too.
-///
-/// A rollout stays in the folder of the day it started even when it is
-/// resumed weeks later, so files are selected by modification date rather
-/// than by folder. Subagent threads, including approval reviewers, are
-/// skipped: their parent session reports the work. Titles come from
-/// `session_index.jsonl`; credentials and the internal SQLite state are
-/// never opened.
 struct CodexSessionReader: CodingAgentSessionReader {
     var agent: CodingAgentKind { .codex }
     var root: URL
@@ -64,8 +54,6 @@ struct CodexSessionReader: CodingAgentSessionReader {
         return result
     }
 
-    /// One file per rollout: a rollout kept both plain and compressed is read
-    /// from the copy written last. Reading both would count its work twice.
     static func newestCopies(_ files: [CodingAgentCandidateFile]) -> [CodingAgentCandidateFile] {
         var chosen: [String: CodingAgentCandidateFile] = [:]
         for file in files {
@@ -76,7 +64,6 @@ struct CodexSessionReader: CodingAgentSessionReader {
         return Array(chosen.values)
     }
 
-    /// Thread names by id; later lines are renames and win.
     private func threadTitles(in index: URL, cache: CodingAgentParseCache?) -> [String: String] {
         let always = DateInterval(start: .distantPast, end: .distantFuture)
         guard let file = Self.candidateFiles([index], in: always).first,
@@ -87,8 +74,6 @@ struct CodexSessionReader: CodingAgentSessionReader {
     }
 }
 
-/// What the Codex reader keeps of one rollout between scans: the session's
-/// id and labels, and its events with redundant activity compacted away.
 struct CodexRolloutSummary: CodingAgentFileSummary {
     private(set) var sessionID = ""
     private(set) var workingDirectory: String?
@@ -97,7 +82,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
     private(set) var isSubagent = false
     private(set) var events: [CodingAgentStoredEvent] = []
 
-    /// Opening bytes of records that never carry evidence beyond their time.
     private static let timestampOnlyMarkers = [
         #""type":"function_call_output""#, #""type":"custom_tool_call_output""#,
         #""type":"reasoning""#, #""type":"token_count""#, #""type":"token_usage_record""#,
@@ -118,8 +102,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
             guard let record = line.object(),
                   let payload = record["payload"] as? [String: Any] else { return }
             if record["type"] as? String == "session_meta" {
-                // A subagent's `source` is an object such as
-                // {"subagent":{"other":"guardian"}}; people start "vscode"/"cli".
                 if let source = payload["source"] as? [String: Any], source["subagent"] != nil {
                     isSubagent = true
                     events = []
@@ -156,8 +138,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
         events.removeAll { $0.at < start }
     }
 
-    /// The session's transcript inside `interval`, or `nil` for a subagent
-    /// thread or a window holding no work.
     func transcript(in interval: DateInterval) -> CodingAgentTranscript? {
         guard !isSubagent, !sessionID.isEmpty else { return nil }
         let inWindow = events.compactMap { stored in
@@ -179,8 +159,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
             let role = payload["role"] as? String
             guard role == "user" || role == "assistant",
                   let content = payload["content"] as? [[String: Any]] else { return }
-            // Codex sends injected instructions and context as separate
-            // items of the same user message; each is judged on its own.
             let texts = content.compactMap { item -> String? in
                 guard ["input_text", "output_text"].contains(item["type"] as? String ?? "") else {
                     return nil
@@ -219,7 +197,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
     private mutating func appendCompletedItem(_ item: [String: Any], at: Date) {
         switch item["type"] as? String {
         case "CommandExecution":
-            // Only the command; `aggregated_output` and friends are never read.
             guard let command = Self.command(in: item) else { return }
             for action in CodingAgentText.actions(inCommand: command) {
                 append(.action(action), at: at)
@@ -228,7 +205,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
                 append(.pullRequest(url), at: at)
             }
         case "FileChange":
-            // `changes` maps each path to its diff; only the keys are used.
             guard let changes = item["changes"] as? [String: Any] else { return }
             for path in changes.keys.sorted() {
                 append(.fileChange(CodingAgentText.displayPath(path, workingDirectory: workingDirectory)), at: at)
@@ -238,14 +214,11 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
         }
     }
 
-    /// A completed command as the shell ran it. Codex records the argv as an
-    /// array such as `["/bin/zsh", "-lc", "git push"]`; the script is last.
     private static func command(in item: [String: Any]) -> String? {
         if let argv = item["command"] as? [String] { return argv.last }
         return item["command"] as? String
     }
 
-    /// `apply_patch` names each file on a header line.
     private static func patchedFiles(in body: String) -> [String] {
         guard body.contains("*** ") else { return [] }
         return body.components(separatedBy: "\n").compactMap { line in
@@ -256,8 +229,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
         }
     }
 
-    /// Shell tools pass JSON arguments with `cmd` (string) or `command`
-    /// (string or argv).
     private static func shellCommand(inArguments body: String) -> String? {
         guard body.hasPrefix("{"), let data = body.data(using: .utf8),
               let arguments = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
@@ -282,8 +253,6 @@ struct CodexRolloutSummary: CodingAgentFileSummary {
     }
 }
 
-/// Thread names by id from `session_index.jsonl`; later lines are renames
-/// and win, so appended lines fold into the names already read.
 struct CodexThreadTitles: CodingAgentFileSummary {
     private(set) var titles: [String: String] = [:]
 

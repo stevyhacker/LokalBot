@@ -1,13 +1,8 @@
 import Foundation
 
-/// The user's own Antigravity CLI (`agy`), run unmodified in headless stream
-/// mode. The user signs in through Antigravity's own flow (`agy`); LokalBot
-/// never reads, stores, or forwards Antigravity or Google credentials and
-/// never offers an Antigravity login of its own.
 enum AntigravityCLI {
     static let setupURL = URL(string: "https://antigravity.google/download")!
 
-    /// Where Antigravity CLI installers put `agy`, checked after PATH.
     static func candidatePaths(home: String) -> [String] {
         [
             "\(home)/.local/bin/agy",
@@ -20,7 +15,6 @@ enum AntigravityCLI {
         ]
     }
 
-    /// The first executable `agy` on PATH or in a known install location.
     static func locate(
         environment: [String: String] = ProcessInfo.processInfo.environment,
         home: String = NSHomeDirectory(),
@@ -41,13 +35,9 @@ enum AntigravityCLI {
         await PlanCLIProcess.locateWithLoginShell(command: "agy", environment: environment)
     }
 
-    /// Environment keys inherited from an enclosing Antigravity/ACP session
-    /// that must not leak into a standalone `agy` invocation.
     static let nestedEnvironmentPrefixes = ["ANTIGRAVITY_", "AGY_"]
     static let nestedEnvironmentKeys: Set<String> = ["GEMINI_HOME"]
 
-    /// The child environment: LokalBot's own without nested Antigravity
-    /// session variables, and with the executable's folder first on PATH.
     static func environment(
         for executable: URL,
         base: [String: String] = ProcessInfo.processInfo.environment
@@ -77,9 +67,6 @@ enum AntigravityCLI {
         var models: [ModelEntry]
     }
 
-    /// Effort suffixes `agy models` appends to model slugs (`-low`, `-medium`,
-    /// `-high`, `-xhigh`, `-max`). Passing `--effort` with a slug that already
-    /// carries one conflicts in `agy`.
     static let effortSuffixes: [(suffix: String, level: ThinkReasoningLevel, label: String)] = [
         ("-low", .low, "(Low)"),
         ("-medium", .medium, "(Medium)"),
@@ -93,16 +80,10 @@ enum AntigravityCLI {
         return effortSuffixes.contains { lowered.hasSuffix($0.suffix) }
     }
 
-    /// Parses `agy models` stdout into grouped models. Multi-effort families
-    /// (e.g. `gemini-4-neon-low`/`-medium`/`-high`/`-xhigh`) collapse to their
-    /// base slug (`gemini-4-neon`) so LokalBot's Reasoning Level setting and
-    /// task budgets select `--effort`. Single-variant entries keep their exact
-    /// slug.
     static func parseModelsOutput(_ data: Data) -> [ModelEntry] {
         let text = stripANSI(String(decoding: data, as: UTF8.self))
         var rawEntries: [(slug: String, displayName: String)] = []
         for rawLine in text.split(whereSeparator: \.isNewline) {
-            // Spinner frames overwrite the line with '\r'; keep only the final segment.
             let line = (rawLine.split(separator: "\r", omittingEmptySubsequences: false).last
                         .map(String.init) ?? String(rawLine))
                 .trimmingCharacters(in: .whitespaces)
@@ -164,8 +145,6 @@ enum AntigravityCLI {
         text.replacingOccurrences(of: #"\u{001B}\[[0-9;?]*[A-Za-z]"#, with: "", options: .regularExpression)
     }
 
-    /// `agy models` verifies that `agy` is signed in and lists the models
-    /// available on the account, without touching credentials.
     static func authStatus(executable: URL) async throws -> AuthStatus {
         let output = try await PlanCLIProcess.run(
             executable: executable,
@@ -205,7 +184,6 @@ enum AntigravityCLI {
     }
 }
 
-/// Finds Antigravity CLI once per launch; a manual check looks again.
 actor AntigravityLocator {
     static let shared = AntigravityLocator()
     private var cached: URL?

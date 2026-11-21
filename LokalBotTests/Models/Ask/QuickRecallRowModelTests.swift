@@ -19,8 +19,6 @@ final class QuickRecallRowModelTests: XCTestCase {
         XCTAssertFalse(rows[1].isSaved)
     }
 
-    /// Searching "onboarding" in the demo library listed the saved Slack
-    /// moment, related only by meaning, above the one capture with the word.
     func testSemanticOnlySavedCaptureKeepsItsRankBelowTheKeywordMatch() {
         var related = hit(3, snippet: "Redis failover benchmark is booked for Thursday")
         related.isSemantic = true
@@ -64,8 +62,6 @@ final class QuickRecallRowModelTests: XCTestCase {
         XCTAssertEqual(rows[0].accessibilityValue, "Saved. Slack. Redis decision")
     }
 
-    /// Line two of a meeting row starts with who said it, from the search
-    /// hit's speaker, or with where the words are when nobody said them.
     func testAMeetingRowStartsItsLineWithWhoSaidIt() {
         let meetingID = UUID()
         let spoken = SearchIndex.Hit(meetingID: meetingID, kind: .segment, start: 760,

@@ -2,8 +2,6 @@ import AppKit
 import CryptoKit
 import Foundation
 
-/// When mail is checked. Checking is cheap (Gmail's change history), so it
-/// runs often; nothing here runs a model.
 enum EmailSyncSchedule {
     enum Reason: String, Equatable, Sendable {
         case firstSync = "first"
@@ -14,15 +12,11 @@ enum EmailSyncSchedule {
         case manual
     }
 
-    /// No two checks of one account closer than this, failures included.
     static let minimumGap: TimeInterval = 15 * 60
     static let interval: TimeInterval = 3 * 3_600
-    /// Local hour after which the first check of the day counts as the morning one.
     static let morningHour = 6
     static let beforeMeetingLead: TimeInterval = 30 * 60
 
-    /// `launched` is true until the first check after the app starts.
-    /// `nextMeetingStart` is read only when it could matter.
     static func due(now: Date, lastAttempt: Date?, lastSuccess: Date?, launched: Bool,
                     nextMeetingStart: () -> Date?, calendar: Calendar) -> Reason? {
         if let lastAttempt, now.timeIntervalSince(lastAttempt) < minimumGap, now >= lastAttempt { return nil }
@@ -42,30 +36,19 @@ enum EmailSyncSchedule {
     }
 }
 
-/// Connected mail accounts for Settings and the background check. Mail is
-/// read-only: there is no code path that sends, deletes, labels, or marks
-/// anything read.
 @MainActor
 final class EmailController: ObservableObject {
     @Published private(set) var accounts: [EmailAccount] = []
-    /// A Google client is available to sign in with: LokalBot's own, or
-    /// one the person imported.
     @Published private(set) var hasGoogleClient = false
-    /// New sign-ins use a client the person imported instead of LokalBot's.
     @Published private(set) var usesOwnClient = false
-    /// This build carries LokalBot's own Google client.
     let hasBuiltInClient: Bool
     @Published private(set) var syncingAccountID: UUID?
     @Published private(set) var isSigningIn = false
     @Published var lastError: String?
-    /// Bumped whenever downloaded mail may have changed, so readers can cache.
     @Published private(set) var mailRevision = 0
 
-    /// Calendar attendee addresses around now; their threads qualify.
     var attendeeAddresses: @MainActor () -> Set<String> = { [] }
-    /// Start of the next meeting with attendees, for the pre-meeting check.
     var nextMeetingStart: @MainActor () -> Date? = { nil }
-    /// False until the meeting library has loaded, whose attendees count too.
     var canSync: @MainActor () -> Bool = { true }
 
     private let root: URL
@@ -78,10 +61,7 @@ final class EmailController: ObservableObject {
     private var syncTask: Task<Void, Never>?
     private var signInTask: Task<Void, Never>?
     private var manualRequests: Set<UUID> = []
-    /// Accounts not yet checked since launch.
     private var launchPending: Set<UUID> = []
-    /// Saving is refused until the saved list was read, so an unreadable
-    /// file is never replaced by a partial list.
     private var accountsLoaded = false
     private var started = false
 
@@ -105,8 +85,6 @@ final class EmailController: ObservableObject {
         hasGoogleClient = usesOwnClient || hasBuiltInClient
     }
 
-    /// Loads saved accounts and starts the minute tick. Nothing touches the
-    /// Keychain until an account was connected once.
     func start() {
         guard !started else { return }
         started = true
@@ -164,8 +142,6 @@ final class EmailController: ObservableObject {
         try openStore().saveAccounts(accounts)
     }
 
-    // MARK: Google client
-
     func importGoogleClient(from url: URL) {
         do {
             let client = try GoogleOAuthClient(json: Data(contentsOf: url))
@@ -179,17 +155,11 @@ final class EmailController: ObservableObject {
         }
     }
 
-    /// Forgets the imported client so new sign-ins use LokalBot's again.
-    /// Accounts signed in through it ask to sign in again on their next check.
     func useBuiltInClient() {
         secrets.setGoogleClient(nil)
         refreshClientState()
     }
 
-    // MARK: Accounts
-
-    /// Signs in to Gmail and adds the account, or renews the sign-in of an
-    /// account already connected under the same address.
     func connectGmail(loginHint: String? = nil) {
         signInTask?.cancel()
         lastError = nil
@@ -218,7 +188,6 @@ final class EmailController: ObservableObject {
                 lokalbotLog("email gmail account connected accounts=\(accounts.count)")
                 requestSync(account.id)
             } catch is CancellationError {
-                // Cancelled in LokalBot or in the browser.
             } catch {
                 lastError = error.localizedDescription
             }
@@ -230,9 +199,6 @@ final class EmailController: ObservableObject {
         Task { await authorizer.cancelSignIn() }
     }
 
-    /// Ends the account here first (tokens, downloaded mail, the account
-    /// itself), then asks Google to revoke the access. Returns false when
-    /// Google didn't confirm; nothing is left on this Mac either way.
     @discardableResult
     func disconnect(_ accountID: UUID) async -> Bool {
         if syncingAccountID == accountID {
@@ -242,7 +208,6 @@ final class EmailController: ObservableObject {
         launchPending.remove(accountID)
         let tokens = await authorizer.forget(accountID)
         do {
-            // An unreadable account list is never overwritten.
             try loadAccountsIfNeeded()
             accounts.removeAll { $0.id == accountID }
             try openStore().deleteAccountData(accountID)
@@ -268,9 +233,6 @@ final class EmailController: ObservableObject {
         tick()
     }
 
-    /// Downloaded mail for features that read it, such as the meeting brief.
-    /// Nil when no account is connected. Reading it decrypts files, so callers
-    /// do it off the main actor.
     func mailbox() -> EmailMailbox? {
         guard accountsLoaded, !accounts.isEmpty, let store = try? openStore() else { return nil }
         return EmailMailbox(store: store, accounts: accounts)
@@ -284,12 +246,9 @@ final class EmailController: ObservableObject {
         }
     }
 
-    // MARK: Background check
-
     func tick() {
         guard started, accountsLoaded, syncTask == nil, !accounts.isEmpty, canSync() else { return }
         let current = now()
-        // Read the calendar at most once a tick, and only if an account asks.
         var meeting: Date??
         let nextMeeting: () -> Date? = {
             if let meeting { return meeting }
@@ -356,8 +315,6 @@ final class EmailController: ObservableObject {
     private func finish(_ result: EmailAccount) {
         syncTask = nil
         syncingAccountID = nil
-        // A disconnect during the pass wins over its result, including any
-        // thread it saved after the account's mail was deleted.
         guard accounts.contains(where: { $0.id == result.id }) else {
             try? openStore().deleteAccountData(result.id)
             return
@@ -373,12 +330,10 @@ final class EmailController: ObservableObject {
     }
 }
 
-/// A read-only view of the downloaded mail of every connected account.
 struct EmailMailbox: Sendable {
     let store: EmailStore
     let accounts: [EmailAccount]
 
-    /// Every stored conversation, with the account it belongs to.
     func sources() -> [EmailMeetingContext.Source] {
         var sources: [EmailMeetingContext.Source] = []
         for account in accounts {

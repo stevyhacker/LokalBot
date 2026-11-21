@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The app's own light/dark preference, independent of the system setting.
 enum AppTheme: String, Codable, CaseIterable, Identifiable, Sendable {
     case system, light, dark
 
@@ -24,9 +23,6 @@ enum AppTheme: String, Codable, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// App-wide text size. macOS text styles ignore SwiftUI's Dynamic Type, so
-/// LokalBot scales its own text styles. Default reads one point larger than
-/// macOS body text (14 pt); Small is the unscaled system size.
 enum AppTextSize: String, Codable, CaseIterable, Identifiable, Sendable {
     case small, standard, large, larger, largest
 
@@ -52,21 +48,14 @@ enum AppTextSize: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The menu bar panel is a compact surface beside the system's own menu
-    /// bar extras, which use the macOS sizes. Default and Small keep those
-    /// sizes; larger settings grow relative to Default, so the panel no longer
-    /// reads a point larger than every other menu bar item.
     var menuBarScale: CGFloat {
         max(1, scale / AppTextSize.standard.scale)
     }
 }
 
-/// The current scale for AppKit-drawn text and code that has no SwiftUI
-/// environment. SwiftUI text reads `\.appTextScale` instead.
 enum AppTextScale {
     nonisolated(unsafe) static var current: CGFloat = 1
 
-    /// The unscaled macOS size, where text styles are used as they are.
     static func isSystemSize(_ scale: CGFloat) -> Bool { abs(scale - 1) < 0.001 }
 }
 
@@ -75,16 +64,12 @@ private struct AppTextScaleKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// The user's text size. Window roots set it; `AppFont` reads it when a
-    /// view renders, so a change redraws text without rebuilding windows.
     var appTextScale: CGFloat {
         get { self[AppTextScaleKey.self] }
         set { self[AppTextScaleKey.self] = newValue }
     }
 }
 
-/// A font description resolved against the environment's text scale at
-/// render time. The unscaled size resolves to the system text style itself.
 struct AppFont: Hashable, Sendable {
     enum Base: Hashable, Sendable {
         case style(Font.TextStyle, design: Font.Design?)
@@ -101,12 +86,10 @@ struct AppFont: Hashable, Sendable {
     var base: Base
     var modifiers: [Modifier] = []
 
-    /// A macOS text style at the user's text size.
     static func scaled(_ style: Font.TextStyle, design: Font.Design? = nil) -> AppFont {
         AppFont(base: .style(style, design: design))
     }
 
-    /// A fixed-size text font that still follows the user's text size.
     static func scaledSystem(size: CGFloat, weight: Font.Weight = .regular,
                              design: Font.Design = .default) -> AppFont {
         AppFont(base: .size(size, weight: weight, design: design))
@@ -142,7 +125,6 @@ struct AppFont: Hashable, Sendable {
         return font
     }
 
-    /// For code without a SwiftUI environment (AppKit bridges, attributed text).
     var currentFont: Font { resolved(scale: AppTextScale.current) }
 
     private func adding(_ modifier: Modifier) -> AppFont {
@@ -162,14 +144,12 @@ private struct AppFontModifier: ViewModifier {
 }
 
 extension View {
-    /// Applies a font that follows the user's text size.
     func font(_ font: AppFont) -> some View {
         modifier(AppFontModifier(font: font))
     }
 }
 
 extension Font {
-    /// Point sizes and weights of the macOS text styles.
     static func macTextStyleMetrics(_ style: Font.TextStyle) -> (size: CGFloat, weight: Font.Weight) {
         switch style {
         case .largeTitle: (26, .regular)
@@ -189,9 +169,6 @@ extension Font {
 }
 
 enum AppAppearance {
-    /// Applies the theme app-wide. Capture builds that pin an appearance
-    /// through the environment keep it. Reassigning an unchanged appearance
-    /// would make every window re-resolve its colors, so it is skipped.
     @MainActor
     static func apply(theme: AppTheme) {
         guard ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_APPEARANCE"] == nil,
@@ -199,7 +176,6 @@ enum AppAppearance {
         app.appearance = theme.appearance
     }
 
-    /// Keeps AppKit-drawn text in step; SwiftUI text follows the environment.
     @MainActor
     static func apply(textSize: AppTextSize) {
         AppTextScale.current = textSize.scale
@@ -207,14 +183,11 @@ enum AppAppearance {
 }
 
 extension View {
-    /// Every hosting root observes the same preference, including AppKit panels
-    /// whose content is created only once. Preserve child identity on changes.
     @MainActor
     func appLanguageRoot(_ settingsStore: SettingsStore) -> AppLanguageRoot<Self> {
         AppLanguageRoot(content: self, settingsStore: settingsStore)
     }
 
-    /// Window roots publish the text size; only text redraws when it changes.
     func appTextSizeRoot(_ textSize: AppTextSize) -> some View {
         environment(\.appTextScale, textSize.scale)
     }
@@ -230,7 +203,6 @@ struct AppLanguageRoot<Content: View>: View {
     @ObservedObject var settingsStore: SettingsStore
 
     var body: some View {
-        // Resolve the preference once; the direction comes from the same locale.
         let locale = settingsStore.current.appLanguage.locale
         content
             .environment(\.locale, locale)
@@ -238,12 +210,7 @@ struct AppLanguageRoot<Content: View>: View {
     }
 }
 
-/// User content keeps the direction of its own text rather than the
-/// interface's, so an English transcript stays left-aligned in an Arabic or
-/// Urdu interface and an Arabic one stays right-aligned in English.
 nonisolated enum ContentTextDirection {
-    /// The first strong letter decides, as in Unicode bidi rule P2. Text with
-    /// no letters returns nil and keeps the surrounding direction.
     static func layoutDirection(of text: String) -> LayoutDirection? {
         for scalar in text.unicodeScalars {
             switch scalar.value {
@@ -269,7 +236,6 @@ private struct ContentLayoutDirection: ViewModifier {
 }
 
 extension View {
-    /// Apply after the content's frame so its leading alignment follows the text.
     func contentLayoutDirection(of text: String) -> some View {
         modifier(ContentLayoutDirection(text: text))
     }

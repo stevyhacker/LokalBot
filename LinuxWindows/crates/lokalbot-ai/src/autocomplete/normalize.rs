@@ -3,12 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Raw model output to clean ghost text (`CotypingTextNormalizer`,
-//! `CotypingPromptLeakGuard`, `CotypingControlTokens`,
-//! `CotypingTrailingDuplicationFilter`, `CotypingInsertionSafety`): the
-//! backend-agnostic cleanup that makes a small model's completion safe to
-//! show and insert. Pure: the same output and request give the same result.
-
 use std::sync::OnceLock;
 
 use super::prompt::{Request, WINDOW_LABEL};
@@ -18,7 +12,6 @@ use super::text::{
 };
 use super::window;
 
-/// Why a completion was reduced to nothing (`CotypingSuppressionReason`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Suppression {
     EmptyGeneration,
@@ -28,15 +21,11 @@ pub enum Suppression {
     PlaceholderText,
     QuestionContinuation,
     UnsafeToInsert,
-    /// The model began echoing the hidden preface or one of its labels.
     PromptContextLeak,
-    /// A fragment that is not a word ("follo") followed by a new word.
     WordCompletionMismatch,
-    /// The model was unsure of the first word (`CotypingFirstWordConfidence`).
     LowConfidence,
 }
 
-/// `CotypingNormalizationResult`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Normalized {
     pub text: String,
@@ -59,14 +48,10 @@ impl Normalized {
     }
 }
 
-/// Ghost text only.
 pub fn normalize(raw: &str, request: &Request) -> String {
     normalize_detailed(raw, request).text
 }
 
-/// `CotypingEngine.normalize(_:requiredPrefix:for:)`: with token healing the
-/// output must first re-type the text cut from the prompt; only what follows
-/// is the suggestion.
 pub fn normalize_healed(raw: &str, required_prefix: &str, request: &Request) -> Normalized {
     if required_prefix.is_empty() {
         return normalize_detailed(raw, request);
@@ -78,9 +63,6 @@ pub fn normalize_healed(raw: &str, required_prefix: &str, request: &Request) -> 
     }
 }
 
-/// The full pipeline, in Cotabby's order: control tokens, think blocks,
-/// prompt and prefix echoes, scaffolding labels, line collapse, mid-word
-/// rules, trailing duplication, echoed words, spacing, safety.
 pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
     let raw_had_content = !raw.trim().is_empty();
     let mut normalized = raw.replace('\r', "");
@@ -99,8 +81,6 @@ pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
         normalized = rest.to_string();
     }
 
-    // The model put a line break between the typed text and its completion.
-    // The break goes; one space takes its place further down.
     let began_on_new_line = normalized
         .chars()
         .take_while(|c| c.is_whitespace())
@@ -111,8 +91,6 @@ pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
     normalized = strip_benign_inline_markup(&normalized);
     normalized = normalized.trim_matches(is_newline).to_string();
 
-    // Instruction-tuned models used as raw continuers sometimes restart from
-    // the hidden prompt head; compare with the exact rendered preface.
     if detects_prompt_leak(&normalized, request.conditioning_preface.as_deref()) {
         return Normalized::suppressed(Suppression::PromptContextLeak);
     }
@@ -127,8 +105,6 @@ pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
         normalized.truncate(line_end);
     }
 
-    // Mid-word: never re-type the fragment the caret sits in, and strictly
-    // inside a word never begin with whitespace.
     let partial = window::current_partial_word(&request.prefix);
     let partial_chars = partial.chars().count();
     if partial_chars >= 2
@@ -143,8 +119,6 @@ pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
             return Normalized::suppressed(Suppression::UnsafeToInsert);
         }
     }
-    // Caret at the end of a fragment that is not a word: a new word after it
-    // would leave broken text ("follo" + " up on that").
     if !request.force_word_continuation
         && request.word_prefix.chars().count() >= 2
         && !request.word_prefix_is_valid_word
@@ -163,12 +137,9 @@ pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
 
     normalized = strip_stylistic_ellipses(&normalized);
 
-    // Spacing, after echo stripping (which can expose a leading space).
     if request.preceding_ends_with_whitespace() {
         normalized = normalized.trim_start().to_string();
     }
-    // Without its line break the completion would be glued to the typed
-    // text: two words run together, or a comma loses its space.
     let extends_fragment =
         request.word_prefix.chars().count() >= 2 && !request.word_prefix_is_valid_word;
     if began_on_new_line
@@ -205,12 +176,10 @@ pub fn normalize_detailed(raw: &str, request: &Request) -> Normalized {
     Normalized::shown(normalized)
 }
 
-/// `trimmingCharacters(in: .controlCharacters.union(.newlines))`.
 fn trim_controls_and_newlines(text: &str) -> &str {
     text.trim_matches(|c: char| is_control(c) || is_newline(c))
 }
 
-/// `text` without `prefix`, compared case-insensitively.
 fn strip_prefix_ignoring_case<'a>(text: &'a str, prefix: &str) -> Option<&'a str> {
     let mut rest = text;
     for expected in prefix.chars() {
@@ -235,8 +204,6 @@ fn conservative_single_line_continuation(text: &str, request: &Request) -> Strin
     limit_words(working, request.max_words.clamp(1, 30))
 }
 
-/// The byte just past the first `.`, `!` or `?` that is followed by
-/// whitespace and ends a sentence.
 fn first_sentence_boundary_before_new_thought(text: &str) -> Option<usize> {
     for (i, c) in text.char_indices() {
         if !matches!(c, '.' | '!' | '?') {
@@ -326,7 +293,6 @@ fn strip_stylistic_ellipses(text: &str) -> String {
     strip_trailing_stylistic_ellipsis(&leading)
 }
 
-/// The end of an ellipsis ("…" or three or more dots) starting at `index`.
 fn stylistic_ellipsis_end(text: &str, index: usize) -> Option<usize> {
     let c = char_at(text, index)?;
     if c == '…' {
@@ -449,7 +415,6 @@ fn dotted_letter_run_precedes(text: &str, index: usize) -> bool {
     saw_dot
 }
 
-/// The URL-like token around byte `index` (a period).
 fn token_around(text: &str, index: usize) -> &str {
     let start = text[..index]
         .char_indices()
@@ -541,8 +506,6 @@ fn strip_think_blocks(text: &str) -> String {
     result
 }
 
-/// Leading words that repeat the tail of the text before the caret. Every
-/// overlap up to 15 words is tried; the longest wins.
 fn strip_echo_prefix(suggestion: &str, preceding: &str) -> String {
     let suggestion_words = word_spans(suggestion);
     if suggestion_words.is_empty() {
@@ -576,7 +539,6 @@ fn strip_echo_prefix(suggestion: &str, preceding: &str) -> String {
     suggestion[suggestion_words[best - 1].1..].to_string()
 }
 
-/// Byte ranges of whitespace-separated words.
 fn word_spans(text: &str) -> Vec<(usize, usize)> {
     let mut spans = Vec::new();
     let mut start = None;
@@ -595,7 +557,6 @@ fn word_spans(text: &str) -> Vec<(usize, usize)> {
     spans
 }
 
-/// Section labels small instruct models parrot.
 const SCAFFOLDING_LABELS: [&str; 14] = [
     "Text before the caret:",
     "Text before caret:",
@@ -629,10 +590,6 @@ fn strip_leading_scaffolding_labels(text: &str) -> String {
     }
 }
 
-// ---------------------------------------------------------------- prompt leaks
-
-/// Renderer labels; a leak is caught only when that kind of line was really
-/// in this request's preface.
 const RENDERER_MARKER_STEMS: [&str; 14] = [
     "an email being written in",
     "a chat message being typed in",
@@ -650,7 +607,6 @@ const RENDERER_MARKER_STEMS: [&str; 14] = [
     "on the clipboard",
 ];
 
-/// Older prompt layouts a learned example or model prior can bring back.
 const LEGACY_MARKER_STEMS: [&str; 10] = [
     "text before the caret",
     "text before caret",
@@ -671,8 +627,6 @@ const SYSTEM_MARKER_STEMS: [&str; 4] = [
     "hidden prompt",
 ];
 
-/// `CotypingPromptLeakGuard.detectsLeak`: punctuation-, case- and
-/// diacritic-insensitive matching against the exact preface the model saw.
 pub fn detects_prompt_leak(candidate: &str, conditioning_preface: Option<&str>) -> bool {
     let candidate = canonicalize(candidate);
     let Some(preface) = conditioning_preface.filter(|p| !p.trim().is_empty()) else {
@@ -691,8 +645,6 @@ pub fn detects_prompt_leak(candidate: &str, conditioning_preface: Option<&str>) 
     {
         return true;
     }
-    // A renderer label whose value the model changed or left out, when that
-    // label is active in this preface.
     let active = RENDERER_MARKER_STEMS
         .iter()
         .map(|s| canonicalize(s))
@@ -712,8 +664,6 @@ pub fn detects_prompt_leak(candidate: &str, conditioning_preface: Option<&str>) 
         .any(|stem| contains_phrase(&candidate, &canonicalize(stem)))
 }
 
-/// `CotypingPromptLeakGuard.looksLikePromptScaffolding`: the context-free
-/// check for learned examples.
 pub fn looks_like_prompt_scaffolding(text: &str) -> bool {
     let candidate = canonicalize(text);
     if candidate.is_empty() {
@@ -730,10 +680,6 @@ pub fn looks_like_prompt_scaffolding(text: &str) -> bool {
         })
 }
 
-/// Preface lines a suggestion must not repeat. The focused window's own
-/// lines are left out: continuing with a name or phrase on screen is what
-/// that context is for. Its label stays protected; the block ends at the
-/// blank line the renderer puts after it.
 fn protected_preface_lines(preface: &str) -> Vec<String> {
     let mut lines = Vec::new();
     let mut in_window = false;
@@ -775,9 +721,6 @@ fn canonicalize(text: &str) -> String {
         .join(" ")
 }
 
-// -------------------------------------------------------------- control tokens
-
-/// `CotypingControlTokens.openingMarkers`.
 const OPENING_MARKERS: [&str; 9] = [
     "<|im_start|>",
     "<start_of_turn>",
@@ -790,7 +733,6 @@ const OPENING_MARKERS: [&str; 9] = [
     "[/INST]",
 ];
 
-/// End-of-turn markers; `</s>` is left out because it also closes HTML `<s>`.
 pub const STOP_MARKERS: [&str; 5] = [
     "<|im_end|>",
     "<|endoftext|>",
@@ -799,8 +741,6 @@ pub const STOP_MARKERS: [&str; 5] = [
     "<|eot_id|>",
 ];
 
-/// Removes chat control tokens a model leaks as text, and everything after
-/// an end-of-turn marker.
 pub fn sanitize_control_tokens(text: &str) -> String {
     static HEADER: OnceLock<regex::Regex> = OnceLock::new();
     let header = HEADER.get_or_init(|| {
@@ -817,8 +757,6 @@ pub fn sanitize_control_tokens(text: &str) -> String {
     result
 }
 
-/// `CotypingTrailingDuplicationFilter`: the completion would mostly re-type
-/// the text after the caret.
 pub fn duplicates_trailing_text(completion: &str, after: &str) -> bool {
     const MINIMUM: usize = 3;
     let fold = |text: &str| -> Vec<char> {
@@ -849,8 +787,6 @@ pub fn duplicates_trailing_text(completion: &str, after: &str) -> bool {
     overlap >= MINIMUM.max(completion.len() / 2)
 }
 
-/// `CotypingInsertionSafety`: no control characters, no replacement glyph,
-/// not only whitespace.
 pub fn is_safe_to_insert(completion: &str) -> bool {
     if completion.is_empty() {
         return false;

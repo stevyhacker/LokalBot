@@ -1,14 +1,3 @@
-//! Answers questions from paired devices (`CompanionAskResponder.swift`) with
-//! the same Ask agent, Think engine and remote-inference approvals as Ask on
-//! this computer. Tools are limited to the classes the person shares:
-//! meetings, and the Timeline's activity summary only when window titles are
-//! shared too, because it names windows. Screen search, Dream memory and
-//! Personal Context are never used.
-//!
-//! A device that disconnects doesn't stop its answer: the sink keeps it, in
-//! memory, for the device to collect (`lokalbot-sync`'s `answers`). Only
-//! turning sharing off, or quitting, cancels one.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::LazyLock;
@@ -28,7 +17,6 @@ use super::library::{is_shared, read_all_meetings};
 use super::records::{self, AskCitation, AskRequest, AskResult, encode, instant};
 use super::sharing::{DataClasses, HistoryWindow, Sharing, parse_day_key};
 
-/// Where an answer for a phone goes: `AskSink` from the sync host.
 pub trait AskOutput: Send + Sync {
     fn delta(&self, text: String);
     fn done(&self, result_json: String);
@@ -49,10 +37,6 @@ impl AskOutput for AskSink {
     }
 }
 
-// ---------------------------------------------------------------- citations
-
-/// `ChatCitationParser.pattern`: short or full meeting ids, positive screen
-/// and file row ids; meeting stamps accept M:SS, MM:SS or HH:MM:SS.
 static MARKER: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"\[(meeting|screen|file|note):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]",
@@ -66,13 +50,9 @@ static DOUBLED_SPACES: LazyLock<Regex> =
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum ParsedCitation {
-    Meeting {
-        id: String,
-        seconds: Option<f64>,
-    },
+    Meeting { id: String, seconds: Option<f64> },
     Screen(i64),
     File(i64),
-    /// A saved coding-agent note, by its hex id.
     Note(String),
 }
 
@@ -91,9 +71,6 @@ fn stamp_seconds(stamp: &str) -> Option<f64> {
     } as f64)
 }
 
-/// Replaces markers with ordered `[n]` references and returns the deduped
-/// citations (`ChatCitationParser.extract`). Repeated sources keep their
-/// first number; a malformed marker stays as text.
 pub fn extract_citations(text: &str) -> (String, Vec<ParsedCitation>) {
     if !["[meeting:", "[screen:", "[file:", "[note:"]
         .iter()
@@ -155,15 +132,12 @@ pub fn extract_citations(text: &str) -> (String, Vec<ParsedCitation>) {
     (cleaned(&display), citations)
 }
 
-/// Tidies the gaps removed markers leave. Line-leading indentation stays: it
-/// means something to the Markdown renderer.
 fn cleaned(text: &str) -> String {
     let text = SPACE_BEFORE_PUNCTUATION.replace_all(text, "$1");
     let text = DOUBLED_SPACES.replace_all(&text, "$1 ");
     text.trim().to_string()
 }
 
-/// "12:04" within the first hour, "1:02:03" after it.
 pub fn clock(seconds: f64) -> String {
     let total = seconds.max(0.0) as u64;
     let (hours, minutes, rest) = (total / 3_600, (total % 3_600) / 60, total % 60);
@@ -174,8 +148,6 @@ pub fn clock(seconds: f64) -> String {
     }
 }
 
-/// Short ids and full UUIDs both work. Only an unambiguous match names a
-/// meeting.
 pub fn resolve_meeting<'a>(id: &str, meetings: &'a [Meeting]) -> Option<&'a Meeting> {
     let needle = id.to_lowercase();
     if let Ok(uuid) = Uuid::parse_str(&needle) {
@@ -189,9 +161,6 @@ pub fn resolve_meeting<'a>(id: &str, meetings: &'a [Meeting]) -> Option<&'a Meet
     matches.next().is_none().then_some(first)
 }
 
-/// Turns the agent's `[meeting:ID@HH:MM:SS]` markers into records.md's `[n]`
-/// references and citation list. Screen and file citations stay text only and
-/// never name what they point at.
 pub fn map_citations(answer: &str, meetings: &[Meeting]) -> (String, Vec<AskCitation>) {
     let (display, parsed) = extract_citations(answer);
     let citations = parsed
@@ -209,7 +178,6 @@ pub fn map_citations(answer: &str, meetings: &[Meeting]) -> (String, Vec<AskCita
                         label: "Screen moment".into(),
                     };
                 }
-                // Files are never searched for a device; a stray marker names no file.
                 ParsedCitation::File(_) => {
                     return AskCitation {
                         index,
@@ -218,7 +186,6 @@ pub fn map_citations(answer: &str, meetings: &[Meeting]) -> (String, Vec<AskCita
                         label: "File".into(),
                     };
                 }
-                // Agent notes are never searched for a device either.
                 ParsedCitation::Note(_) => {
                     return AskCitation {
                         index,
@@ -254,10 +221,6 @@ pub fn map_citations(answer: &str, meetings: &[Meeting]) -> (String, Vec<AskCita
     (display, citations)
 }
 
-/// Converts the agent's growing answer into the next piece for the phone,
-/// with citation markers already numbered. A partial that is not an extension
-/// of what was sent (the agent restarted its answer) sends nothing; the final
-/// result replaces the streamed text anyway.
 #[derive(Default)]
 pub struct AnswerStream {
     sent: String,
@@ -275,7 +238,6 @@ impl AnswerStream {
     }
 }
 
-/// A marker still being written is held back until it closes.
 fn without_partial_marker(text: &str) -> &str {
     let Some(bracket) = text.rfind('[') else {
         return text;
@@ -288,16 +250,12 @@ fn without_partial_marker(text: &str) -> &str {
     if writing { &text[..bracket] } else { text }
 }
 
-// ---------------------------------------------------------------- responder
-
-/// The answer the engine wrote and how to describe it.
 pub struct EngineAnswer {
     pub text: String,
     pub engine_label: String,
     pub is_local: bool,
 }
 
-/// Runs the Ask agent. `on_text` gets the whole visible answer so far.
 pub trait AskEngine: Send + Sync {
     fn answer(
         &self,
@@ -309,8 +267,6 @@ pub trait AskEngine: Send + Sync {
     ) -> Result<EngineAnswer>;
 }
 
-/// The Think engine, with its existing approvals: an unapproved remote server
-/// fails here exactly as it does for Ask.
 pub struct LiveAskEngine {
     pub shared: Arc<crate::Shared>,
     pub models: crate::models::Models,
@@ -351,7 +307,6 @@ impl AskEngine for LiveAskEngine {
             on_text(&text);
         };
         let library = &self.shared.library;
-        // A CPU-only or small-window model answers in one turn, as in Ask.
         let reply = if lokalbot_ai::ask_agent::uses_tool_loop(&think) {
             lokalbot_ai::ask_agent::answer_with_tools(
                 &think,
@@ -381,7 +336,6 @@ impl AskEngine for LiveAskEngine {
     }
 }
 
-/// Which sources a device's question may use.
 pub fn sources_for(classes: DataClasses) -> (bool, bool) {
     (classes.meetings, classes.shares_window_titles())
 }
@@ -401,8 +355,6 @@ impl AskResponder {
         }
     }
 
-    /// Checks the question against what is shared, then answers on its own
-    /// thread. `sharing` is read fresh for each question.
     pub fn answer(&self, request_json: &str, sharing: Sharing, output: Arc<dyn AskOutput>) {
         let request: Option<AskRequest> = serde_json::from_str(request_json).ok();
         let Some(request) = request.filter(|r| !r.question.trim().is_empty()) else {
@@ -429,16 +381,12 @@ impl AskResponder {
             .filter(|meeting| is_shared(meeting, sharing.history, now))
             .collect();
         let mut meeting_ids: Vec<Uuid> = meetings.iter().map(|meeting| meeting.id).collect();
-        // The history window is the only limit: it is what the computer shares.
         let held_to = (sharing.history != HistoryWindow::All).then(|| {
             format!(
                 "meetings from the last {} days, the history the user shares with this device",
                 sharing.history.days()
             )
         });
-        // The day or meeting a question was asked about is where the answer
-        // starts, never a limit: "Ask About Today" on a tablet once answered
-        // "the library has only one meeting".
         let day_label =
             |at: DateTime<Utc>| at.with_timezone(&Local).format("%-d %b %Y").to_string();
         let mut subjects: Vec<String> = Vec::new();
@@ -460,8 +408,6 @@ impl AskResponder {
             ));
             focus_ids.push(meeting.id);
         }
-        // An empty list means "all meetings" to Ask, and here nothing is
-        // shared: an id no meeting has keeps the tools empty-handed.
         if meeting_ids.is_empty() {
             meeting_ids.push(Uuid::nil());
         }
@@ -494,13 +440,10 @@ impl AskResponder {
             include_meetings,
             include_screen: false,
             include_activity,
-            // A phone never gets screen search, the overnight review's memory
-            // or Personal Context (`CompanionAskResponder`).
             personal_context: String::new(),
             work_memory: String::new(),
             search_by_meaning: lokalbot_core::Settings::load(&self.library.paths().settings_file())
                 .semantic_search_enabled,
-            // Nor the folders chosen under Files, nor coding-agent notes.
             include_files: false,
             file_folders: Vec::new(),
             include_agent_notes: false,
@@ -508,8 +451,6 @@ impl AskResponder {
             screen_app: None,
             attached_context: None,
             moments: Default::default(),
-            // The window is named with the meetings, not as a date the
-            // person could remove.
             limit: QuestionLimit::new(None, None, held_to),
             focus,
         };

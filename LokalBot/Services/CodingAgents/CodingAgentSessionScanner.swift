@@ -1,6 +1,5 @@
 import Foundation
 
-/// Coding-agent work for one local day, ready to join the day's evidence.
 struct CodingAgentDayScan: Sendable {
     var interval: DateInterval
     var bursts: [CodingAgentBurst]
@@ -13,12 +12,8 @@ struct CodingAgentDayScan: Sendable {
     var evidenceCharacters: Int { bursts.reduce(0) { $0 + $1.evidenceText().count } }
 }
 
-/// Collects bursts from every enabled agent for a day and applies the
-/// person's project-folder exclusions before anything leaves the reader.
 struct CodingAgentSessionScanner: Sendable {
     var readers: [any CodingAgentSessionReader]
-    /// Sessions whose working directory is inside one of these folders are
-    /// dropped, for repositories whose work must never enter the library.
     var excludedFolders: [String] = []
 
     static func standard(
@@ -44,9 +39,6 @@ struct CodingAgentSessionScanner: Sendable {
         scan(from: day, through: day, calendar: calendar)
     }
 
-    /// Every local day from `firstDay` through `lastDay`, reading each
-    /// transcript once. Bursts never cross midnight, so each belongs to
-    /// exactly one day's evidence.
     func scan(
         from firstDay: Date, through lastDay: Date, calendar: Calendar = .current,
         cache: CodingAgentParseCache? = nil

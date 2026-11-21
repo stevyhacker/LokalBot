@@ -1,6 +1,3 @@
-//! GPUI integration. A locale change redraws existing views and updates input
-//! hints in place, retaining focus, drafts, selection and undo history.
-
 use gpui_kit::component::input::{InputState, TextareaState};
 use gpui_kit::{App, Context, Div, Global, SharedString, Styled as _, TextAlign, Window};
 use lokalbot_i18n::tr;
@@ -13,7 +10,6 @@ pub fn apply(preference: &str, cx: &mut App) {
     crate::component_i18n::init();
     gpui_kit::component::set_locale(language.code);
     cx.set_global(InterfaceLocale);
-    // Hausa's letters need another font.
     if cx.has_global::<gpui_kit::component::Theme>() {
         gpui_kit::component::Theme::update(cx, crate::theme::apply_fonts);
     }
@@ -91,8 +87,6 @@ pub fn language_picker(id: &'static str, cx: &App) -> impl gpui_kit::IntoElement
     )
 }
 
-/// Mirror interface rows, while playback, charts and content retain their own
-/// ordering. These controls opt out by using GPUI's original h_flex.
 pub fn h_flex() -> Div {
     let row = gpui_kit::component::h_flex();
     if lokalbot_i18n::current().rtl {
@@ -118,10 +112,6 @@ pub fn content_alignment(text: &str) -> TextAlign {
     }
 }
 
-/// "3h 57m", "39m", "<1m": every compact duration in the app (Today's bars,
-/// Timeline's rail and sessions, Projects, People). Arabic writes them with
-/// its own letters ("3ح 57م"), so they carry the right-to-left mark that keeps
-/// their leading number in GPUI (`lokalbot_i18n::directional`).
 pub fn compact_duration(seconds: f64) -> String {
     let minutes = (seconds / 60.0).floor() as u64;
     lokalbot_i18n::directional(if minutes == 0 {

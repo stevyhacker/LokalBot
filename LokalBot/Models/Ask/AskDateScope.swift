@@ -1,7 +1,5 @@
 import Foundation
 
-/// One civil-date boundary shared by recall, answer tools and saved questions.
-/// Existing single-day keys remain readable; ranges use inclusive end dates.
 struct AskDateScope: Equatable, Sendable {
     let firstDay: String
     let lastDay: String
@@ -54,7 +52,6 @@ struct AskDateScope: Equatable, Sendable {
         return firstDay == lastDay ? startLabel : "\(startLabel) – \(last.formatted(date: .abbreviated, time: .omitted))"
     }
 
-    /// "on 4 Nov 2026", or "from 1 Sep 2026 to 7 Sep 2026", for a sentence.
     var phrase: String {
         guard let first = AskDayScope.date(for: firstDay), let last = AskDayScope.date(for: lastDay) else {
             return "on \(storageKey)"

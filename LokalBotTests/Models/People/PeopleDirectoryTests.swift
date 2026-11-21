@@ -65,13 +65,10 @@ final class PeopleDirectoryTests: XCTestCase {
         XCTAssertEqual(byName["Ana Petrović"]?.myActions.map(\.text), ["Share the synthetic roadmap with Ana"])
         XCTAssertEqual(byName["Marko Jovanović"]?.myActions.map(\.text), ["Review the synthetic hiring plan draft"])
         XCTAssertEqual(byName["Ivana Ilić"]?.myActions.count, 0)
-        // All-hands decisions are not attributed to every attendee.
         XCTAssertEqual(people.first?.name, "Marko Jovanović")
     }
 
     func testMergedPeopleKeepTheirMeetingActionsAndDecisionsInEitherInputOrder() throws {
-        // A 1:1 recorded without a calendar event, where the user applied the
-        // speaker name, and a later calendar meeting with the same person.
         let oneOnOne = meeting("Roadmap chat", day: -3)
         let calendarMeeting = meeting("Planning", day: -1,
                                       attendees: [("Ana Petrović", "ana@example.com", "a")])
@@ -132,7 +129,6 @@ final class PeopleDirectoryTests: XCTestCase {
         let dragan = try XCTUnwrap(people.first { $0.name == "Dragan Ilić" })
         XCTAssertEqual(dragan.otherNames, ["Dragan"])
         XCTAssertEqual(Set(dragan.meetings.map(\.id)), [standup.id, planning.id])
-        // Two people share the first name, so "Ana" alone stays separate.
         XCTAssertEqual(people.count, 4)
     }
 

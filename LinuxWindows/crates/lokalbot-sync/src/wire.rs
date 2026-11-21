@@ -1,7 +1,3 @@
-//! Bytes on the socket (protocol.md, Framing; Keys and Noise): length-prefixed
-//! packets, the plaintext preface, Noise handshakes, and encrypted frames that
-//! carry one JSON message each.
-
 use std::io::{self, Read, Write};
 use std::net::{Shutdown, TcpStream};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -27,13 +23,10 @@ pub(crate) const PAIRING_ID_LEN: usize = 16;
 
 pub(crate) const MAX_PACKET: usize = u16::MAX as usize;
 pub(crate) const MAX_FRAME_PAYLOAD: usize = 60_000;
-/// Largest message either side assembles from frames.
 pub(crate) const MAX_MESSAGE: usize = 64 * 1024 * 1024;
 const FLAG_MORE: u8 = 0x01;
-/// ChaChaPoly's authentication tag.
 const TAG_LEN: usize = 16;
 
-/// Timings and sizes. The defaults are the protocol's; tests shorten them.
 #[derive(Clone, Debug)]
 pub(crate) struct Tuning {
     pub ping_interval: Duration,
@@ -41,17 +34,11 @@ pub(crate) struct Tuning {
     pub connect_timeout: Duration,
     pub handshake_timeout: Duration,
     pub approval_timeout: Duration,
-    /// How long a phone waits for the next part of an answer.
     pub ask_timeout: Duration,
-    /// How long the Mac keeps a finished answer for a phone that
-    /// disconnected while it was written.
     pub answer_retention: Duration,
-    /// Seconds a pairing offer stays valid.
     pub offer_lifetime_secs: i64,
     pub batch_bytes: usize,
-    /// Bytes of a recording in one `uploadChunk`, before base64.
     pub upload_chunk_bytes: usize,
-    /// How long a phone waits for the Mac to confirm a recording it has whole.
     pub upload_finish_timeout: Duration,
 }
 
@@ -74,13 +61,11 @@ impl Default for Tuning {
 }
 
 impl Tuning {
-    /// How often a blocked read wakes up to send pings and check timeouts.
     pub fn tick(&self) -> Duration {
         (self.ping_interval / 4).clamp(Duration::from_millis(20), Duration::from_secs(5))
     }
 }
 
-/// A 2-byte big-endian length followed by the bytes.
 pub(crate) fn encode_packet(data: &[u8]) -> io::Result<Vec<u8>> {
     let len = u16::try_from(data.len()).map_err(|_| {
         io::Error::new(
@@ -94,9 +79,6 @@ pub(crate) fn encode_packet(data: &[u8]) -> io::Result<Vec<u8>> {
     Ok(packet)
 }
 
-/// Splits packets off a byte stream. A read timeout returns `None` and keeps
-/// any partial packet, so callers can wake up periodically without losing
-/// their place.
 #[derive(Default)]
 pub(crate) struct PacketReader {
     buffer: Vec<u8>,
@@ -107,9 +89,6 @@ impl PacketReader {
         self.read_until(source, None)
     }
 
-    /// Like [`read`](Self::read), and also returns `None` once `deadline` has
-    /// passed without a whole packet, so a peer that keeps sending a few bytes
-    /// inside every read timeout cannot hold the caller past it.
     pub fn read_until(
         &mut self,
         source: &mut impl Read,
@@ -153,8 +132,6 @@ impl PacketReader {
     }
 }
 
-/// A message's frames: flag byte (bit 0 = more follow) plus at most
-/// [`MAX_FRAME_PAYLOAD`] bytes each.
 pub(crate) fn split_frames(message: &[u8]) -> Vec<Vec<u8>> {
     let chunks: Vec<&[u8]> = if message.is_empty() {
         vec![&[]]
@@ -174,14 +151,12 @@ pub(crate) fn split_frames(message: &[u8]) -> Vec<Vec<u8>> {
         .collect()
 }
 
-/// Joins frames back into messages.
 #[derive(Default)]
 pub(crate) struct FrameAssembler {
     pending: Vec<u8>,
 }
 
 impl FrameAssembler {
-    /// The finished message once a frame without the "more" flag arrives.
     pub fn push(&mut self, frame: &[u8]) -> Result<Option<Vec<u8>>> {
         let Some((&flag, payload)) = frame.split_first() else {
             return Err(SyncError::protocol("An empty frame arrived."));
@@ -206,8 +181,6 @@ pub(crate) fn parse_message(bytes: &[u8]) -> Result<Message> {
         .map_err(|e| SyncError::protocol(format!("Unreadable message: {e}")))
 }
 
-/// A connection before its Noise transport exists: the preface and the
-/// handshake messages, one per packet.
 pub(crate) struct RawConn {
     stream: TcpStream,
     packets: PacketReader,
@@ -232,7 +205,6 @@ impl RawConn {
         Ok(())
     }
 
-    /// The next packet, waiting at most the handshake timeout.
     pub fn recv_packet(&mut self) -> Result<Vec<u8>> {
         let deadline = Instant::now() + self.tuning.handshake_timeout;
         loop {
@@ -247,14 +219,12 @@ impl RawConn {
         }
     }
 
-    /// Writes the next handshake message.
     pub fn write_handshake(&mut self, handshake: &mut HandshakeState) -> Result<()> {
         let mut buffer = vec![0u8; MAX_PACKET];
         let len = handshake.write_message(&[], &mut buffer)?;
         self.send_packet(&buffer[..len])
     }
 
-    /// Reads and processes the next handshake message.
     pub fn read_handshake(&mut self, handshake: &mut HandshakeState) -> Result<()> {
         let packet = self.recv_packet()?;
         let mut buffer = vec![0u8; MAX_PACKET];
@@ -301,7 +271,6 @@ pub(crate) fn pairing_handshake(
     })
 }
 
-/// The session handshake; the initiator passes the Mac's static key.
 pub(crate) fn session_handshake(
     private_key: &[u8; KEY_LEN],
     mac_key: Option<&[u8; KEY_LEN]>,
@@ -322,9 +291,6 @@ pub(crate) fn remote_static(handshake: &HandshakeState) -> Result<[u8; KEY_LEN]>
     crate::keys::key_array(key, "remote static key")
 }
 
-/// The sending half of an encrypted connection, shared by every thread that
-/// writes to it. A message's frames are written under one lock, so messages
-/// from different threads never interleave.
 pub(crate) struct Channel {
     stream: TcpStream,
     writer: Mutex<TcpStream>,
@@ -377,7 +343,6 @@ impl Channel {
         self.closed.load(Ordering::SeqCst)
     }
 
-    /// Shuts the socket down, which also wakes a reader blocked on it.
     pub fn close(&self) {
         if !self.closed.swap(true, Ordering::SeqCst) {
             let _ = self.stream.shutdown(Shutdown::Both);
@@ -385,7 +350,6 @@ impl Channel {
     }
 }
 
-/// The receiving half: packets → decrypted frames → messages.
 pub(crate) struct Inbox {
     stream: TcpStream,
     packets: PacketReader,
@@ -394,7 +358,6 @@ pub(crate) struct Inbox {
 }
 
 impl Inbox {
-    /// The next message, or `None` when a read tick passed without one.
     pub fn poll(&mut self, channel: &Channel) -> Result<Option<Message>> {
         loop {
             let Some(packet) = self.packets.read(&mut self.stream)? else {
@@ -412,8 +375,6 @@ impl Inbox {
         self.last_received.elapsed()
     }
 
-    /// Waits for the next message, sending pings while idle. Fails after the
-    /// idle timeout without a packet, or at `deadline`.
     pub fn recv(
         &mut self,
         channel: &Channel,

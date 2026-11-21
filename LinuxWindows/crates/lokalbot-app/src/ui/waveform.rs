@@ -1,7 +1,3 @@
-//! The audio overview in a meeting's audio bar (`WaveformView.swift`): bars in
-//! a quiet grey, the played part in teal, a 2px playhead, and a time bubble
-//! while hovering. Clicking or dragging seeks.
-
 use std::cell::Cell;
 use std::rc::Rc;
 use std::sync::Arc;
@@ -16,7 +12,6 @@ use gpui_kit::{
 
 use crate::theme::{LbThemeExt as _, ty};
 
-/// Distance between bar starts; bars are 2px wide.
 const BAR_STEP: f32 = 4.;
 pub const HEIGHT: Pixels = px(40.);
 
@@ -28,13 +23,11 @@ struct Colors {
     hover: Hsla,
 }
 
-/// Fraction of `bounds` under `position`, clamped to 0…1.
 fn fraction(bounds: Bounds<Pixels>, position: Point<Pixels>) -> f32 {
     let width = f32::from(bounds.size.width).max(1.);
     ((f32::from(position.x - bounds.origin.x)) / width).clamp(0., 1.)
 }
 
-/// Max-pools `peaks` into `count` bars.
 pub fn resample(peaks: &[f32], count: usize) -> Vec<f32> {
     if peaks.is_empty() || count == 0 {
         return Vec::new();
@@ -175,7 +168,6 @@ fn paint_waveform(
         .map(|peaks| resample(peaks, (width / BAR_STEP).floor().max(0.) as usize))
         .unwrap_or_default();
     if bars.is_empty() {
-        // Flat line until peaks are available, as on macOS.
         fill(window, rect(0., center - 1., width, 2.), 1., colors.bars);
         if cut > 0. {
             fill(window, rect(0., center - 1., cut, 2.), 1., colors.played);
@@ -205,7 +197,6 @@ fn paint_waveform(
     }
 }
 
-/// A filled play triangle (Lucide's play symbol is outlined).
 pub fn play_glyph(glyph: Pixels, color: Hsla) -> impl IntoElement {
     canvas(
         |_, _, _| {},

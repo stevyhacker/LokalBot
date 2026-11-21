@@ -1,18 +1,6 @@
-//! LokalBot's sample meeting (`LokalBot/Resources/SampleMeeting`): a made-up
-//! call between two synthetic voices, bundled so a new library can show a
-//! cited answer before anything is recorded. It goes through the ordinary
-//! import (`library_ops::import_sample`) and carries `sampleID`, so Ask,
-//! search and agents see it while personal memory leaves it out.
-//!
-//! `Scripts/dev/sample_meeting.py` builds the audio and its reference transcript,
-//! and scores a transcript of it.
-
-/// One recording of the sample, in one spoken language.
 pub struct Sample {
-    /// Stored as the meeting's `sampleID`: the script, then its language.
     pub id: &'static str,
     pub language: &'static str,
-    /// The meeting's title, in the language spoken.
     pub title: &'static str,
     pub file_name: &'static str,
     pub audio: &'static [u8],
@@ -53,8 +41,6 @@ pub(crate) const SAMPLES: &[Sample] = &[
     },
 ];
 
-/// The sample spoken in `language` (an interface language such as "de" or
-/// "sr-Latn"), else the English one.
 pub fn for_language(language: &str) -> &'static Sample {
     let base = language.split(['-', '_']).next().unwrap_or(language);
     SAMPLES
@@ -88,7 +74,6 @@ mod tests {
             assert_eq!(script["language"], sample.language);
             assert_eq!(script["title"], sample.title);
             assert_eq!(script["audio"], sample.file_name);
-            // An MP4 container, which the importer reads as AAC.
             assert_eq!(&sample.audio[4..8], b"ftyp", "{}", sample.file_name);
         }
     }
@@ -99,7 +84,6 @@ mod tests {
         assert_eq!(for_language("de").id, "orders-api/de");
         assert_eq!(for_language("de-AT").id, "orders-api/de");
         assert_eq!(for_language("zh-Hans").id, "orders-api/zh");
-        // Traditional Chinese gets the Mandarin recording too, titled in Simplified Chinese.
         assert_eq!(for_language("zh-Hant").id, "orders-api/zh");
         assert_eq!(for_language("sr-Latn").id, "orders-api/sr-Latn");
         assert_eq!(for_language("SR-latn").id, "orders-api/sr-Latn");

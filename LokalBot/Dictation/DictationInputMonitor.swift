@@ -1,55 +1,36 @@
 import CoreGraphics
 import Foundation
 
-/// Global shortcut watcher for Handy-style dictation. It consumes a key
-/// shortcut so the trigger never leaks a stray Space into the focused app. A
-/// modifier-only shortcut (⌃⌥) is observed without consuming anything, so
-/// other shortcuts that start with the same modifiers keep working.
 @MainActor
 final class DictationInputMonitor {
     var onStart: (() -> Void)?
     var onStop: (() -> Void)?
     var onToggle: (() -> Void)?
-    /// A push-to-talk chord turned out to be another shortcut (⌃⌥ then T).
     var onCancel: (() -> Void)?
-    /// Esc while a dictation is starting or recording.
     var onEscape: (() -> Void)?
-    /// Whether a dictation is starting or recording. Esc is consumed only
-    /// then, and Tap or hold uses it to tell a finishing tap from a start.
     var isDictationActive: () -> Bool = { false }
-    /// Tap or hold: a press shorter than this keeps recording after release.
     var tapHoldThreshold: TimeInterval = 0.3
     var triggerModeProvider: () -> DictationTriggerMode = { .pushToTalk }
     var shortcutProvider: () -> DictationShortcut = { .handyDefault }
-    /// How long a modifier-only push-to-talk chord is held before dictation
-    /// starts, so ⌃⌥ followed quickly by another key never opens the microphone.
     var chordHoldDelay: TimeInterval = 0.2
 
     private var tap: CFMachPort?
     private var source: CFRunLoopSource?
     private(set) var isRunning = false
-    /// While Settings records a new shortcut, every key passes through so the
-    /// current shortcut can be pressed (and recorded) without starting dictation.
     var isSuspended = false {
         didSet { if isSuspended { resetChord(stoppingPushToTalk: true) } }
     }
     private var shortcutIsDown = false
     private var activeTriggerMode: DictationTriggerMode?
     private var activeShortcut: DictationShortcut?
-    /// Tap or hold: when the current press began, or nil when that press
-    /// finished a running dictation and its release must do nothing.
     private var tapHoldPressedAt: Date?
-    /// Esc cancelled while the key shortcut was held; its release is swallowed.
     private var heldShortcutCancelledByEscape = false
 
-    /// Modifier-only chord state.
     private var chordModifiers: CGEventFlags?
     private var chordMode: DictationTriggerMode?
     private var chordInterrupted = false
     private var chordStarted = false
     private var chordPressedAt: Date?
-    /// Tap or hold: the chord was pressed while dictating, so a clean
-    /// release finishes instead of starting.
     private var chordFinishesOnRelease = false
     private var pendingChordStart: DispatchWorkItem?
 
@@ -100,12 +81,8 @@ final class DictationInputMonitor {
         if shouldStop { onStop?() }
     }
 
-    /// Returns true when the original event should be swallowed.
     func handle(type: CGEventType, event: CGEvent) -> Bool {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            // A disabled event tap can swallow the physical key-up. Treat the
-            // disable notification as a fail-safe release before re-enabling,
-            // otherwise push-to-talk may record indefinitely.
             let shouldStop = shortcutIsDown && (activeTriggerMode == .pushToTalk
                 || (activeTriggerMode == .tapOrHold && tapHoldPressedAt != nil))
             shortcutIsDown = false
@@ -212,21 +189,17 @@ final class DictationInputMonitor {
         return true
     }
 
-    /// Esc alone, or with only the modifiers of the shortcut being held: Esc
-    /// pressed while holding ⌥ Space arrives with ⌥ set.
     static func isEscape(_ event: CGEvent, allowing held: CGEventFlags) -> Bool {
         CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == DictationShortcutKeyNames.escape
             && held.isSuperset(of: event.flags.dictationRelevantModifiers)
     }
 
-    /// Modifiers of the shortcut or chord currently held down.
     private var heldShortcutModifiers: CGEventFlags {
         if let chordModifiers { return chordModifiers }
         if shortcutIsDown, let activeShortcut { return activeShortcut.modifiers }
         return []
     }
 
-    /// Esc cancelled the dictation; the shortcut's release must not finish it.
     private func releaseHeldShortcutAfterEscape() {
         if shortcutIsDown {
             heldShortcutCancelledByEscape = true
@@ -241,16 +214,9 @@ final class DictationInputMonitor {
         }
     }
 
-    // MARK: - Modifier-only chords
-
-    /// Push to talk starts after `chordHoldDelay` and stops on release. Toggle
-    /// fires on a clean release, so ⌃⌥ used as part of another shortcut never
-    /// toggles dictation.
     private func handleModifiers(_ modifiers: CGEventFlags) {
         if let held = chordModifiers {
             if modifiers.isSuperset(of: held) {
-                // Another modifier joined (⌃⌥⌘): a different shortcut, unless
-                // dictation is already running from this hold.
                 if modifiers != held, !chordStarted { interruptChord() }
                 return
             }
@@ -308,10 +274,8 @@ final class DictationInputMonitor {
             if finishes {
                 if clean { onStop?() }
             } else if started {
-                // A hold finishes on release; a tap keeps recording.
                 if held >= tapHoldThreshold { onStop?() }
             } else if clean {
-                // Released before the hold delay: a tap, so start now.
                 onStart?()
             }
         case nil:

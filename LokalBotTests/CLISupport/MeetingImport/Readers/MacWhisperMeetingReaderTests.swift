@@ -2,13 +2,9 @@ import SQLite3
 import XCTest
 @testable import LokalBot
 
-/// Every fixture here is synthetic: written as literals, zipped with ditto or
-/// zip, or created with SQLite. No real MacWhisper data is used.
 final class MacWhisperMeetingReaderTests: XCTestCase {
     private let fileManager = FileManager.default
-    private let created = Date(timeIntervalSince1970: 1_789_984_800) // 2026-09-21T10:00:00Z
-
-    // MARK: - .whisper documents
+    private let created = Date(timeIntervalSince1970: 1_789_984_800)
 
     func testWhisperDocumentRoundTrip() throws {
         let folder = try temporaryFolder("macwhisper-whisper")
@@ -55,7 +51,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
     func testWhisperDocumentWithoutExtensionStoredEntriesOrAudio() throws {
         let folder = try temporaryFolder("macwhisper-whisper-edges")
 
-        // A WAV recording whose extension MacWhisper didn't keep, zipped inside a top folder.
         let wav = Data("RIFF".utf8) + Data([0x24, 0, 0, 0]) + Data("WAVEfmt ".utf8) + Data(count: 64)
         let noExtension = folder.appendingPathComponent("no-extension.whisper")
         try makeWhisper(at: noExtension, metadata: whisperMetadata(extension: nil), audio: wav, keepParent: true)
@@ -65,7 +60,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         XCTAssertEqual(sniffedAudio.pathExtension, "wav")
         XCTAssertEqual(sniffed.lines.count, 3)
 
-        // Stored rather than deflated entries, as `zip -0` writes them.
         let stage = folder.appendingPathComponent("stored-stage", isDirectory: true)
         try fileManager.createDirectory(at: stage, withIntermediateDirectories: true)
         try JSONSerialization.data(withJSONObject: whisperMetadata()).write(to: stage.appendingPathComponent("metadata.json"))
@@ -78,7 +72,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         XCTAssertEqual(storedMeeting.lines.count, 3)
         XCTAssertEqual(try Data(contentsOf: storedAudio), fakeM4A())
 
-        // Saved without its media: the transcript alone, under the same id.
         let textOnly = folder.appendingPathComponent("text-only.whisper")
         try makeWhisper(at: textOnly, metadata: whisperMetadata(), audio: nil)
         let withoutAudio = try XCTUnwrap(MacWhisperMeetingReader.read(textOnly).meetings.first)
@@ -113,11 +106,8 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         }
     }
 
-    // MARK: - Exports
-
     func testSegmentsAndStructuredJSONExports() throws {
         let folder = try temporaryFolder("macwhisper-json")
-        // Share › Segments › .json
         let segments = folder.appendingPathComponent("council.json")
         try write("""
             [
@@ -131,7 +121,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         XCTAssertEqual(council.lines.map(\.end), [4, 3_604])
         XCTAssertEqual(council.participants, ["Ana Petrović"])
 
-        // The structured export keeps milliseconds.
         let structured = folder.appendingPathComponent("structured.json")
         try write("""
             {"text": "Hello everyone.\\nWelcome.", "segments": [
@@ -165,7 +154,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
     func testTextMarkdownAndWordExports() throws {
         let folder = try temporaryFolder("macwhisper-text")
 
-        // Grouped by speaker, as `--group people` writes it.
         let interview = folder.appendingPathComponent("interview.txt")
         try write("""
             Speaker 1
@@ -215,7 +203,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
             .init(start: 9.1, end: 11, speaker: "Ana", text: "Agreed."),
         ])
 
-        // A time at the start of a sentence isn't a timestamp, and "Note:" isn't a speaker.
         let plain = folder.appendingPathComponent("plain.txt")
         try write("10:30 works for me. Note: bring the numbers.\n\nSecond paragraph here.", to: plain)
         XCTAssertEqual(try MacWhisperMeetingReader.read(plain).meetings.first?.lines, [
@@ -339,8 +326,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         }
     }
 
-    // MARK: - MacWhisper's library
-
     func testLibraryOpenedImmutableLeavesNothingBehind() throws {
         let folder = try temporaryFolder("macwhisper-library")
         _ = try makeLibrary(in: folder, keepOpenInWAL: false)
@@ -440,8 +425,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         XCTAssertEqual(sync.startedAt, utc("2026-09-23T14:50:00Z"), file: file, line: line)
     }
 
-    // MARK: - Fixtures
-
     private let meetingMedia = ["A1A1A1A1-A1A1-A1A1-A1A1-A1A1A1A1A1A1_mic-audio_x.m4a",
                                 "A1A1A1A1-A1A1-A1A1-A1A1-A1A1A1A1A1A1_app-audio_x.m4a"]
     private let memoMedia = "A2A2A2A2-A2A2-A2A2-A2A2-A2A2A2A2A2A2_mic-audio_memo.m4a"
@@ -486,13 +469,10 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
             .filter { $0.hasPrefix("lokalbot-import-macwhisper-db-") })
     }
 
-    /// Bytes that start like an AAC .m4a file.
     private func fakeM4A(_ count: Int = 4_000) -> Data {
         Data([0, 0, 0, 0x20]) + Data("ftypM4A ".utf8) + Data((0..<count).map { UInt8(truncatingIfNeeded: $0 &* 31) })
     }
 
-    /// `metadata.json` as MacWhisper writes it: milliseconds, speaker objects,
-    /// and dates as seconds since 2001.
     private func whisperMetadata(extension ext: String? = "m4a") -> [String: Any] {
         let ana: [String: Any] = ["id": "6B29FC40-CA47-1067-B31D-00DD010662DA", "name": "Ana", "color": 1]
         let leo: [String: Any] = ["id": "7C29FC40-CA47-1067-B31D-00DD010662DB", "name": "Leo", "color": 2]
@@ -518,7 +498,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
                  "speaker": other, "favorited": false, "unEven": false],
                 ["id": UUID().uuidString, "start": 11_000, "end": 11_000, "text": "   ", "favorited": false, "unEven": false],
             ],
-            // Read when present; MacWhisper's library keeps its AI summary under this name.
             "aiSummary": "## Summary\n\nPricing stays at fifteen per seat.\n\n## Action items\n\n"
                 + "- Ana sends the new price sheet\n- [ ] Leo updates the billing page",
         ]
@@ -546,9 +525,6 @@ final class MacWhisperMeetingReaderTests: XCTestCase {
         "X'" + String(repeating: byte, count: 16) + "'"
     }
 
-    /// MacWhisper's library as GRDB lays it out: UUID blobs, UTC dates as
-    /// text, transcript lines in milliseconds. With `keepOpenInWAL`, the
-    /// writer stays open and every change is still in the write-ahead log.
     private func makeLibrary(in folder: URL, keepOpenInWAL: Bool) throws -> OpaquePointer? {
         var db: OpaquePointer?
         XCTAssertEqual(sqlite3_open(folder.appendingPathComponent("main.sqlite").path, &db), SQLITE_OK)

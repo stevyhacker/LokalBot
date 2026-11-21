@@ -5,7 +5,6 @@ use super::*;
 use crate::http::testing::{Reply, StubServer};
 use lokalbot_core::{Library, LibraryPaths};
 
-/// Answers each model request with the next reply.
 fn fake_server(replies: Vec<String>) -> StubServer {
     let queue = parking_lot::Mutex::new(std::collections::VecDeque::from(replies));
     StubServer::start(move |_| {
@@ -32,7 +31,6 @@ fn yesterday() -> NaiveDate {
     local_day(Utc::now()) - Duration::days(1)
 }
 
-/// A finished meeting yesterday with outcomes and a summary.
 fn seed_meeting(library: &Library, day: NaiveDate) -> Meeting {
     let (start, _) = local_day_bounds(day);
     let at = start + Duration::hours(10);
@@ -76,10 +74,8 @@ fn parse_is_tolerant_of_wrapping_and_strict_about_memory() {
     assert_eq!(synthesis.memory.active_projects[0].active_today, Some(true));
     assert_eq!(synthesis.memory.work_goals[0].text, "Ship the beta");
 
-    // A blank memory string would replace a stored entry: the whole reply is bad.
     let bad = REPLY.replace("\"status\": \"moving\"", "\"status\": \"  \"");
     assert!(parse(&bad).is_none());
-    // Every declared field must be there.
     assert!(parse(r#"{"narrative":"x"}"#).is_none());
     assert!(parse("no json at all").is_none());
 }
@@ -178,7 +174,6 @@ fn an_empty_day_writes_a_stub_without_waking_a_model() {
     assert_eq!(report.fallback_reason, Some(FallbackReason::EmptyDay));
     let store = DreamStore::new(library.paths().root());
     assert!(store.has_report(&day_key(day)));
-    // Empty-day stubs mark the day but are never shown.
     assert!(today_report(&library, day + Duration::days(1)).is_none());
 }
 
@@ -218,7 +213,6 @@ fn a_model_reply_becomes_a_report_and_merged_memory() {
         Some(day_key(day).as_str())
     );
     assert!(memory.active_projects[0].provenance.is_some());
-    // Readers that were written against the Mac's file still read it.
     let bytes = lokalbot_core::evidence::read_work_memory(library.paths().root()).unwrap();
     let context = crate::selection::work_memory_context(&bytes, true);
     assert!(context.contains("**Beta**"), "{context}");
@@ -303,7 +297,6 @@ fn a_rate_limit_defers_an_automatic_run_and_then_gives_up() {
         dream(&library, &last).unwrap().fallback_reason,
         Some(FallbackReason::EngineUnavailable)
     );
-    // "Review now" doesn't wait for a retry either.
     let manual = DreamRequest {
         is_automatic: false,
         ..request(day - Duration::days(1), &make)

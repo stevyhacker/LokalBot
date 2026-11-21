@@ -1,18 +1,3 @@
-//! Autocomplete on a real model, without the desktop: downloads the
-//! Autocomplete model and the llama.cpp runtime into a scratch library
-//! through the catalog and runtime code, seeds the demo library there, then
-//! types realistic text into simulated fields through the engine and reports
-//! the wait from the last keystroke to the suggestion.
-//!
-//! ```sh
-//! cargo run -p lokalbot-engine --example autocomplete_eval -- <scratch dir> \
-//!     [--backend auto|cpu|vulkan|cuda] [--model <catalog id>] [--debounce <ms>] [--key-ms <ms>]
-//! ```
-//!
-//! The scratch directory must be empty or an earlier run's. Each case focuses
-//! a field with all but the last few characters, types the rest one key at a
-//! time, and waits for the first suggestion after the last key.
-
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
@@ -32,11 +17,9 @@ struct Case {
     title: &'static str,
     visible: Option<&'static str>,
     url: Option<&'static str>,
-    /// The text before the caret once typing is done.
     before: &'static str,
     after: &'static str,
     single_line: bool,
-    /// Characters typed one key at a time at the end.
     typed: usize,
 }
 
@@ -221,7 +204,6 @@ struct Outcome {
     name: &'static str,
     suggestion: Option<String>,
     latency_ms: Option<f64>,
-    /// The text before the caret after the last key.
     before: String,
 }
 
@@ -256,7 +238,6 @@ fn main() -> Result<()> {
         .unwrap_or(140);
     let paths = LibraryPaths::new(&root);
 
-    // The demo library has people, projects and meetings to remember.
     let fresh = !root.exists() || std::fs::read_dir(&root)?.next().is_none();
     if fresh {
         demo::seed(&paths, chrono::Utc::now()).context("seeding the demo library")?;
@@ -278,8 +259,6 @@ fn main() -> Result<()> {
     let entry =
         catalog::entry(&model_id).with_context(|| format!("no catalog entry {model_id}"))?;
 
-    // Downloads through the catalog and the runtime manager, as Settings →
-    // Models does. Nothing here is downloaded by Autocomplete itself.
     let cancel = AtomicBool::new(false);
     let started = Instant::now();
     RuntimeManager::new(paths.clone(), &settings).ensure_runtime(
@@ -305,7 +284,6 @@ fn main() -> Result<()> {
         }
     })?;
 
-    // Starts the server and loads the model; not measured.
     let started = Instant::now();
     let warm = case(
         "warm-up",
@@ -366,8 +344,6 @@ fn main() -> Result<()> {
         );
         outcomes.push(outcome);
     }
-    // Accepting word by word keeps the ghost a few words ahead: each Tab
-    // shortens it at once, and a top-up appends more once two words are left.
     let flows: Vec<(Case, Vec<Step>)> = [
         case(
             "email",
@@ -398,7 +374,6 @@ fn main() -> Result<()> {
             tail(case.before, 40)
         );
         for step in steps {
-            // A used-up suggestion is followed by a new one, not topped up.
             let what = if step.used_up {
                 "next suggestion"
             } else {
@@ -480,12 +455,9 @@ struct Step {
     chunk: String,
     ghost: String,
     grew_ms: Option<f64>,
-    /// The Tab took the rest of the suggestion.
     used_up: bool,
 }
 
-/// Types a case, then presses Tab `presses` times the way the desktop does:
-/// it inserts `accept_chunk` of the ghost, reports it, and the field shows it.
 fn accept_word_by_word(
     engine: &Engine,
     events: &Receiver<(Instant, AutocompleteUpdate)>,
@@ -559,8 +531,6 @@ fn accept_word_by_word(
     steps
 }
 
-/// Focuses a field, types the case's last characters, and waits for the
-/// first suggestion after the last key.
 fn run(
     engine: &Engine,
     events: &Receiver<(Instant, AutocompleteUpdate)>,
@@ -578,7 +548,6 @@ fn run(
             context(case, field_id, before),
         )));
     };
-    // Focus: the engine reads the field's prompt ahead and looks up facts.
     send(&before);
     std::thread::sleep(Duration::from_millis(900));
     let mut last_key = Instant::now();

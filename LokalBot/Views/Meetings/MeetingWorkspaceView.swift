@@ -3,8 +3,6 @@ import AppKit
 import AVFoundation
 import UniformTypeIdentifiers
 
-/// Meetings inspector router. A completed selection opens the full workspace;
-/// an active recording keeps its dedicated live surface.
 struct MeetingLibraryDetailView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -36,8 +34,6 @@ struct MeetingLibraryDetailView: View {
             .clipped()
         }
         .onChange(of: completedMeetingID, initial: true) {
-            // Bind input intent to the load request so the async task cannot
-            // capture the previous selection's animation policy.
             let event = NSApp.currentEvent?.type
             selectionRequest = SelectionRequest(meetingID: completedMeetingID,
                 animate: prepared != nil && (event == .leftMouseDown || event == .leftMouseUp))
@@ -72,7 +68,6 @@ struct MeetingLibraryDetailView: View {
         }
     }
 
-    /// A recording in progress keeps its own live surface and title.
     private var showsLiveMeeting: Bool {
         app.selectedMeetingIDs.count <= 1 && app.selectedMeeting.map { $0.endedAt == nil } == true
     }
@@ -81,10 +76,6 @@ struct MeetingLibraryDetailView: View {
         if showsLiveMeeting, let meeting = app.selectedMeeting {
             LiveMeetingDetailView(meeting: meeting, transcriber: app.liveTranscriber).id(meeting.id)
         } else {
-            // Every state of the saved library shares one toolbar: a meeting's
-            // page carries its own title, and a toolbar that showed a title
-            // only for "2 meetings selected", loading or no selection was
-            // taller there and pushed the list and sidebar down.
             libraryContent
                 .navigationTitle("Meetings")
                 .toolbar(removing: .title)
@@ -143,11 +134,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var documentLoading = true
     @State private var captureNeedsAttention = false
     @State private var recoveryNeedsAttention = false
-    // Begin with the narrow controls until the detail column is measured so
-    // the toolbar cannot enlarge a compact window during its first layout.
     @State private var compactToolbar = true
-    /// What an always-visible scroll bar takes from the scrolling panels,
-    /// given to the pinned title and player too so both share one edge.
     @State private var pinnedTrailingInset: CGFloat = 0
     @State private var measuredWidths = MeetingPaneWidths()
     @State private var summary: String?
@@ -168,7 +155,6 @@ private struct MeetingWorkspaceDetail: View {
     @State private var correctionReloadTask: Task<Void, Never>?
     @State private var attributionNeedsRefresh = false
     @State private var namingSpeakers = false
-    /// A named speaker picked from the naming sheet, renamed once it closes.
     @State private var pendingRenameSpeaker: String?
     @State private var derived = MeetingTranscriptDerived()
     @State private var speakerRenameDraft: WorkspaceSpeakerRenameDraft?
@@ -226,8 +212,6 @@ private struct MeetingWorkspaceDetail: View {
         summary.map { speakerPresentation.text(SummaryPresentation.meetingBody($0, meeting: meeting)) }
     }
     private var projection: MeetingOutcomeProjection? { partialProjection ?? app.outcomeIndex.projection(for: meeting.id) }
-    /// What the summary shows. After speaker names change, the notes written
-    /// before the change stay readable until a refresh replaces them.
     private var shownProjection: MeetingOutcomeProjection? { projection ?? previousReviewProjection }
     private var hasSummaryContent: Bool { summary?.isEmpty == false || shownProjection != nil }
     private var isProcessing: Bool { app.pipeline.stages[meeting.id].map { !$0.isFailure } ?? false }
@@ -242,8 +226,6 @@ private struct MeetingWorkspaceDetail: View {
     var body: some View {
         ScrollViewReader { scrollProxy in
             VStack(spacing: 0) {
-                // The title, who spoke and the player stay put on every tab;
-                // only the tab's content scrolls beneath them.
                 VStack(alignment: .leading, spacing: 14) {
                     MeetingDetailHeader(
                         meeting: meeting,
@@ -260,8 +242,6 @@ private struct MeetingWorkspaceDetail: View {
                         },
                         onNameSpeakers: { namingSpeakers = true })
                     playerBar
-                    // Command-F searches every tab, so its bar stays put.
-                    // Find in transcript is in the Transcript panel's header.
                     if findPlacement == .pinnedBar {
                         searchBar(using: scrollProxy)
                     }
@@ -330,12 +310,9 @@ private struct MeetingWorkspaceDetail: View {
         }
         .task(id: loadRevision) {
 #if LOKALBOT_UI_TEST_HOST
-            // Establish the requested capture route before asynchronous document
-            // and speaker recovery; readiness must not race those operations.
             if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "transcript" {
                 tab = .transcript
             } else if ProcessInfo.processInfo.environment["LOKALBOT_DETAIL_TAB"] == "review", loadRevision == 0 {
-                // The Review tab's work now happens in the naming sheet.
                 namingSpeakers = !derived.unnamed.isEmpty
             }
 #endif
@@ -376,7 +353,6 @@ private struct MeetingWorkspaceDetail: View {
                     reviewing: projection == nil ? meeting : nil)
                 if saved {
                     reloadReviewProjection()
-                    // The correction also re-rendered the summary's action list.
                     correctionReloadTask?.cancel()
                     correctionReloadTask = Task { await reloadDocument() }
                     correction = nil
@@ -487,7 +463,6 @@ private struct MeetingWorkspaceDetail: View {
         }
     }
 
-    /// The page fills the pane up to a width that grows with the text size.
     private var columnMaximumWidth: CGFloat {
         (MeetingDetailLayout.columnMaximumWidth * MeetingDetailLayout.factor(textScale: textScale)).rounded()
     }
@@ -516,8 +491,6 @@ private struct MeetingWorkspaceDetail: View {
             isPresented: isSearchPresented)
     }
 
-    /// A panel's title in the catalog's wording, with a page search's
-    /// matches marked.
     private func panelTitle(_ key: String, at location: MeetingPageSearchMatch.Location,
                             query: String? = nil) -> Text {
         SearchHighlightedText.interfaceText(
@@ -530,7 +503,6 @@ private struct MeetingWorkspaceDetail: View {
             .accessibilityIdentifier("meeting.contentTabs")
     }
 
-    /// Everything that copies or exports the meeting.
     private var shareMenuItems: [WorkspaceMenu.Item] {
         let hasRecap = summary?.isEmpty == false || projection != nil
         return [
@@ -704,8 +676,6 @@ private struct MeetingWorkspaceDetail: View {
         }
     }
 
-    /// Offered only after speaker names changed. The summary written before
-    /// the change stays on the page until the refresh finishes.
     private var summaryRefreshBanner: some View {
         let destination = InferencePresentation(settings: app.settings)
         return MeetingStatusBanner(tone: .info, symbol: "arrow.triangle.2.circlepath") {
@@ -752,8 +722,6 @@ private struct MeetingWorkspaceDetail: View {
                     .accessibilityIdentifier("meeting.workspace.downloadProcess")
             }
         } else {
-            // With nothing written yet, say what will appear and offer the
-            // transcript meanwhile. A refresh keeps the earlier summary below.
             let awaitsFirstSummary = tab == .summary && !hasSummaryContent
             MeetingStatusBanner(tone: .info, busy: true) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -795,9 +763,6 @@ private struct MeetingWorkspaceDetail: View {
         .foregroundStyle(Brand.error)
     }
 
-    /// The Summary tab leads with the outcome, each part on its own panel:
-    /// the recap, decisions, actions split by whose they are, open questions,
-    /// and the full summary on demand.
     @ViewBuilder private var summaryTabContent: some View {
         if hasSummaryContent {
             if let summary = presentedSummary, let recap = SummaryPresentation.recap(summary) {
@@ -835,8 +800,6 @@ private struct MeetingWorkspaceDetail: View {
                     .padding(.horizontal, SectionPanelMetric.inset)
                     .padding(.vertical, 14)
             } footer: {
-                // The Think model reports no cost; a cost is shown where a
-                // meeting has one from when the radar ran on Meta's models.
                 Group {
                     if radar.cost > 0 {
                         Text("Caught live by \(MetaModelAPI.displayName(for: radar.model)) in \(radar.passes.count) passes · \(RadarItemList.costLabel(radar.cost))")
@@ -889,8 +852,6 @@ private struct MeetingWorkspaceDetail: View {
         }
     }
 
-    /// One panel for every action: a band for yours, then a band for
-    /// everyone else's. A side with none says so under its band.
     private var actionsSection: some View {
         let panel = MeetingDetailPresentation.ActionsPanel(shownProjection?.actionReferences ?? [])
         return SectionPanel(
@@ -900,7 +861,6 @@ private struct MeetingWorkspaceDetail: View {
             identifier: "meeting.actions",
             titleID: MeetingPageSearchMatch.Location.sectionHeader(.actionItems)
         ) {
-            // The Actions list holds your open work from real meetings.
             if panel.showsActionsLink(hasSavedOutcomes: projection != nil, isSample: meeting.isSample) {
                 Button("Also in Actions") { app.openActions() }
                     .accessibilityIdentifier("meeting.actions.openAll")
@@ -932,7 +892,6 @@ private struct MeetingWorkspaceDetail: View {
         }
     }
 
-    /// The one line under a band whose side of the meeting has no actions.
     private func emptyGroupLine(_ text: Text) -> some View {
         text
             .font(AppFont.scaled(.callout))
@@ -974,7 +933,6 @@ private struct MeetingWorkspaceDetail: View {
                     onNameSpeakers: { namingSpeakers = true },
                     onPlay: { citation in playInPlace(at: citation.start) },
                     isEditable: partialNotes == nil, canSetStatus: projection != nil)
-                    // The row's menu sits nearer the panel's edge than its text.
                     .padding(.leading, SectionPanelMetric.inset)
                     .padding(.trailing, 6)
                 if reference.id != actions.last?.id {
@@ -1008,7 +966,6 @@ private struct MeetingWorkspaceDetail: View {
         }
     }
 
-    /// A panel that is only its header until it is opened in place.
     private var fullSummaryPanel: some View {
         SectionPanel(
             title: panelTitle(Self.fullSummaryTitle, at: .sectionHeader(.summary)),
@@ -1034,9 +991,6 @@ private struct MeetingWorkspaceDetail: View {
 
     private static let fullSummaryTitle = "Full summary"
 
-    /// The transcript on one panel: Find at the header's trailing edge, the
-    /// speaker turns on the panel's surface, and which model wrote it in the
-    /// footer.
     private func transcriptSection(using scrollProxy: ScrollViewProxy) -> some View {
         let engine = transcript.flatMap { MeetingTranscriptEngineLine.text(for: $0) }
         return VStack(alignment: .leading, spacing: MeetingDetailLayout.panelGap) {
@@ -1157,11 +1111,9 @@ private struct MeetingWorkspaceDetail: View {
                 scrollProxy.scrollTo(match.location, anchor: .center)
             }
         }
-        // The target may live in another tab; scroll after SwiftUI mounts it.
         DispatchQueue.main.async(execute: scroll)
     }
 
-    /// Everything a page search can find, in the order the page shows it.
     private var searchSources: [MeetingPageSearchSource] {
         var sources: [MeetingPageSearchSource] = []
         let speakerNames = speakerPresentation
@@ -1258,7 +1210,6 @@ private struct MeetingWorkspaceDetail: View {
                     at: .transcriptEngine)
             }
             for (index, segment) in transcript.segments.enumerated() {
-                // A speaker's name is shown once, where the turn begins.
                 if derived.turnStarts.contains(index) {
                     append(
                         speakerNames.speaker(segment.speaker, in: transcript),
@@ -1281,13 +1232,10 @@ private struct MeetingWorkspaceDetail: View {
     private func load() async {
         documentLoading = true
         reloadReviewProjection()
-        // The first document was prepared before this pane became visible.
-        // Only pipeline updates need to read it again.
         if loadRevision > 0 {
             await reloadDocument()
             guard !Task.isCancelled else { return }
         }
-        // A pipeline artifact refresh must not reset or re-prepare active audio.
         if !player.isLoaded {
             await player.loadInBackground(folder: folder, hasSystemTrack: meeting.hasSystemTrack)
             guard !Task.isCancelled else { return }
@@ -1345,8 +1293,6 @@ private struct MeetingWorkspaceDetail: View {
         if request.intent == .play { player.play(at: request.seconds) }
     }
 
-    /// Another screen opened this meeting at a moment: show that line in the
-    /// transcript.
     private func revealEvidence(at seconds: TimeInterval) {
         tab = .transcript
         player.pause()
@@ -1355,14 +1301,11 @@ private struct MeetingWorkspaceDetail: View {
         evidenceRevision &+= 1
     }
 
-    /// A ▶ time on a decision or action: play from there and stay on the page.
     private func playInPlace(at seconds: TimeInterval) {
         evidenceSegment = segmentIndex(at: seconds)
         player.play(at: seconds)
     }
 
-    /// The player's "Show in transcript": go to the line being said, without
-    /// interrupting playback.
     private func showInTranscript(_ caption: MeetingDetailPresentation.Caption) {
         evidenceSegment = caption.segmentIndex
         tab = .transcript
@@ -1384,7 +1327,6 @@ private struct MeetingWorkspaceDetail: View {
             reviewing: projection == nil ? meeting : nil)
         if saved {
             reloadReviewProjection()
-            // The correction also re-rendered the summary's action list.
             correctionReloadTask?.cancel()
             correctionReloadTask = Task { await reloadDocument() }
         } else {
@@ -1440,13 +1382,11 @@ private struct MeetingWorkspaceDetail: View {
         Set(transcript?.speakerCalendarIdentityIDs.values.map { $0 } ?? [])
     }
 
-    /// Unnamed call speakers in a saved meeting that match people named before.
     private var recognizedSpeakers: [(label: String, match: SpeakerNameMatch)] {
         guard let transcript else { return [] }
         return MeetingSpeakerIdentityService.recognizedSpeakers(in: speakerIdentityState, transcript: transcript)
     }
 
-    /// The one sheet that goes through this meeting's unnamed voices.
     private var namingSheet: some View {
         let actions = shownProjection?.actionReferences.map(\.effectiveAction) ?? []
         let recognized = Dictionary(recognizedSpeakers.map { ($0.label, $0.match.name) },
@@ -1476,8 +1416,6 @@ private struct MeetingWorkspaceDetail: View {
             onCancel: { namingSpeakers = false })
     }
 
-    /// Saves every name picked in the naming sheet, as if each speaker had
-    /// been named on its own.
     private func saveSpeakerNames(_ choices: [MeetingSpeakerNamingChoice]) {
         guard !savingSpeakerIdentity, !choices.isEmpty, var current = transcript else { return }
         savingSpeakerIdentity = true
@@ -1495,7 +1433,6 @@ private struct MeetingWorkspaceDetail: View {
                 speakerIdentityNotice = app.speakerIdentity.notice
                 await refreshSpeakerIdentity()
                 namingSpeakers = false
-                // A newly remembered voice can name speakers in other recent meetings.
                 app.learnSpeakerVoices()
             } catch { speakerIdentityNotice = "Could not save speaker names: \(error.localizedDescription)" }
         }
@@ -1551,7 +1488,6 @@ private struct MeetingWorkspaceDetail: View {
                 await refreshSpeakerIdentity()
                 if choice.action.changesAttribution {
                     speakerRenameDraft = nil
-                    // A newly remembered voice can name speakers in other recent meetings.
                     app.learnSpeakerVoices()
                 }
             } catch { speakerIdentityNotice = "Could not save speaker name: \(error.localizedDescription)" }
@@ -1702,7 +1638,6 @@ private struct MeetingSummaryWorkspaceContent: View {
                     summaryContent(summary)
                 }
             }
-            // Prose keeps a reading measure inside the full-width panel.
             .frame(maxWidth: MeetingDetailLayout.proseWidth(textScale: textScale), alignment: .leading)
             .frame(maxWidth: .infinity, alignment: .leading)
         } else {
@@ -1765,9 +1700,6 @@ private struct MeetingSummaryWorkspaceContent: View {
     }
 }
 
-/// The meeting's one find field. Command-F's search of the whole meeting is
-/// a bar pinned under the player; Find in transcript is a field at the
-/// trailing edge of the Transcript panel's header, with its count before it.
 private struct MeetingPageSearchBar: View {
     @Environment(\.appTextScale) private var textScale
     @Binding var query: String
@@ -1787,8 +1719,6 @@ private struct MeetingPageSearchBar: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(spacing: 8) {
-                    // The count takes what it needs, down to the field's
-                    // narrowest, and is cut short before the field is.
                     status.layoutPriority(1)
                     field
                         .frame(minWidth: MeetingDetailLayout.findFieldMinimumWidth,
@@ -1844,7 +1774,6 @@ private struct MeetingPageSearchBar: View {
                 status.fixedSize()
             }
 
-            // The panel's field is only a field until something is typed.
             if isPresented || !query.isEmpty {
                 Divider().frame(height: 18)
 
@@ -1882,21 +1811,17 @@ private struct MeetingPageSearchBar: View {
     }
 }
 
-/// The pane's width and the scrolling column's, as last laid out. Kept out
-/// of the view's state so a window resize redraws nothing on its own.
 private final class MeetingPaneWidths {
     var pane: CGFloat = 0
     var scrollContent: CGFloat = 0
 }
 
-/// Values worked out once per transcript, not on every redraw of the page.
 private struct MeetingTranscriptDerived {
     var speakers: [MeetingDetailPresentation.Speaker] = []
     var unnamed: Set<String> = []
     var speechSeconds: [String: TimeInterval] = [:]
     var storedNames: [String: String] = [:]
     var playhead = MeetingDetailPresentation.PlayheadIndex()
-    /// Segments that open a speaker turn, where the speaker's name is shown.
     var turnStarts: Set<Int> = []
 
     init() {}
@@ -1911,7 +1836,6 @@ private struct MeetingTranscriptDerived {
     }
 }
 
-/// Words and the icon when the toolbar has room, the icon alone when it does not.
 private struct AskMeetingLabelStyle: LabelStyle {
     let compact: Bool
 
@@ -2044,7 +1968,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
     @State private var profileID: UUID?
     @State private var name: String
     @State private var selectedCalendarIdentityID: String?
-    /// The name as last typed, which searches the suggestions.
     @State private var typedName = ""
     @State private var suggestionListHeight: CGFloat = 0
     @FocusState private var nameFocused: Bool
@@ -2079,8 +2002,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
         self.onSave = onSave
         self.onReset = onReset
         self.onCancel = onCancel
-        // Placeholder labels ("Them", "Local speaker") are not names; start
-        // empty so typing a name doesn't begin by deleting one.
         _name = State(initialValue: Transcript.isPlaceholderSpeakerName(draft.currentName) ? "" : draft.currentName)
         _selectedCalendarIdentityID = State(
             initialValue: draft.currentCalendarIdentityID)
@@ -2118,8 +2039,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 TextField("Speaker name", text: nameBinding, prompt: Text("Name this speaker"))
                     .textFieldStyle(.roundedBorder)
                     .focused($nameFocused)
-                    // A field with a submit action keeps Return from the
-                    // default button, so Return saves from here as well.
                     .onSubmit {
                         if let match = returnSuggestion { choose(match) } else { save() }
                     }
@@ -2159,7 +2078,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
                     suggestionListHeight = max(suggestionListHeight, $0)
                 }
             }
-            // Keep the sheet from shrinking on every keystroke while filtering.
             .frame(minHeight: min(suggestionListHeight, 280), maxHeight: 280)
 
             Label("Names you save also teach LokalBot this voice, so it can name the person in later meetings. Voices stay encrypted on this Mac.",
@@ -2176,7 +2094,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 Button("Save", action: save)
                     .primaryActionButton()
                     .disabled(nameIsBlank)
-                    // Return fills in the top match first, then saves.
                     .keyboardShortcut(returnSuggestion == nil ? .defaultAction : nil)
                     .accessibilityIdentifier("speaker.rename.save")
             }
@@ -2195,8 +2112,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
         MeetingSpeakerSuggestion.choices(calendar: calendarCandidates, hints: hints)
     }
 
-    /// Typing records the name as the search; a name filled in by a choice,
-    /// here or in the voice review, doesn't filter.
     private var nameBinding: Binding<String> {
         Binding(get: { name }, set: { newValue in
             if newValue != name { typedName = newValue }
@@ -2211,13 +2126,9 @@ private struct WorkspaceSpeakerRenameSheet: View {
     private var visibleSuggestions: [MeetingSpeakerSuggestion] {
         let query = nameQuery
         guard !query.isEmpty else { return suggestions }
-        // The chosen guest stays listed while its name is edited, since
-        // saving keeps that guest.
         return suggestions.filter { $0.matches(query) || isChosen($0) }
     }
 
-    /// The top match not already chosen, which Return fills in. With none,
-    /// Return saves the name as typed.
     private var returnSuggestion: MeetingSpeakerSuggestion? {
         let query = nameQuery
         guard !query.isEmpty else { return nil }
@@ -2285,8 +2196,6 @@ private struct WorkspaceSpeakerRenameSheet: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // A plain button hit-tests only its drawn content; the whole card
-            // chooses the suggestion.
             .padding(12)
             .lbGroupedSurface()
             .contentShape(Rectangle())
@@ -2320,8 +2229,6 @@ private enum MeetingMarkdownActions {
         NSPasteboard.general.setString(text, forType: .string)
     }
 
-    /// Returns an error message for inline presentation, or nil after either
-    /// a successful export or a user-cancelled save panel.
     static func export(_ meeting: Meeting) -> String? {
         let panel = NSSavePanel()
         panel.title = "Export Meeting as Markdown"
@@ -2391,7 +2298,6 @@ struct EvidencePill: View {
             }
                 .font(AppFont.scaled(.callout).monospacedDigit())
                 .foregroundStyle(Brand.teal)
-                // A comfortable click target around the small timestamp.
                 .padding(.horizontal, 4)
                 .padding(.vertical, 3)
                 .contentShape(Rectangle())

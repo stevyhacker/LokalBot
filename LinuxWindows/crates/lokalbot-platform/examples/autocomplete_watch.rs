@@ -1,17 +1,3 @@
-//! Prints what autocomplete's field watcher reads, and with `--tab <text>`
-//! takes Tab while running and types `<text>` into the focused field, as
-//! accepting a suggestion does. `--backward <n>` first deletes that many
-//! characters before the caret, as a correction does. For checking the
-//! desktop integration by hand:
-//!
-//! ```text
-//! cargo run -p lokalbot-platform --example autocomplete_watch -- --seconds 20 --tab " up"
-//! ```
-//!
-//! On a Wayland input method, `--ghost <text>` shows `<text>` in the field
-//! whenever one has focus: Tab takes its first word, the key left of 1 the rest,
-//! and Esc drops it. With `--pass-tab`, Tab goes on to the field instead.
-
 use std::time::{Duration, Instant};
 
 use lokalbot_platform::autocomplete::{
@@ -124,7 +110,6 @@ fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// What `--ghost` has on show.
 struct Shown {
     field: FieldSnapshot,
     rest: String,

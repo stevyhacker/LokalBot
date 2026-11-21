@@ -12,11 +12,7 @@ struct DailyMemoryExportConfiguration: Equatable {
 }
 
 enum DailyMemoryExportPass: Equatable, Sendable {
-    /// Writes or refreshes the day's note.
     case refresh
-    /// A past day the export missed, because the Mac was asleep or off at
-    /// the export hour. Written only if the folder has no file for that day
-    /// and something was recorded.
     case catchUp
 }
 
@@ -47,8 +43,6 @@ struct DailyMemoryMeetingReference: Equatable {
 struct DailyMemoryExportSnapshot: Equatable {
     var day: Date
     var digest: String?
-    /// A digest exists but no longer matches the day's evidence, so it is
-    /// left out until the digest is updated.
     var digestIsOutOfDate = false
     var meetings: [DailyMemoryMeetingReference]
     var savedMoments: [ScreenMemorySavedMoment]
@@ -61,16 +55,10 @@ struct DailyMemoryExportSnapshot: Equatable {
     }
 }
 
-/// Injection seam keeps rendering and atomic file behavior testable without a
-/// live meeting library or SQLite database.
 protocol DailyMemoryExportSource {
     func snapshot(for day: Date, interval: DateInterval) throws -> DailyMemoryExportSnapshot
 }
 
-/// Default source for the scheduler: existing journal Markdown plus read-only
-/// meeting and screen-memory queries. Screen data is optional when day tracking
-/// has never created a database; an existing-but-unreadable database still
-/// fails loudly instead of silently publishing incomplete data.
 struct FileDailyMemoryExportSource: DailyMemoryExportSource {
     var root: URL
     var evidenceSource: FileDailyEvidenceSource
@@ -125,7 +113,6 @@ struct DailyMemoryExportService {
     enum Outcome: Equatable {
         case written(URL)
         case unchanged(URL)
-        /// A catch-up found a file already there, or nothing recorded.
         case skipped
     }
 
@@ -143,11 +130,6 @@ struct DailyMemoryExportService {
         self.fileManager = fileManager
     }
 
-    /// Rewrites one deterministic day file. A hidden sidecar records the hash
-    /// of the exact bytes last emitted by LokalBot. Refresh is allowed only if
-    /// the current file still matches that hash, so a user edit made after
-    /// generation is never overwritten. Identical content keeps its mtime;
-    /// changed app-owned content uses same-directory atomic replacement.
     func export(day: Date, configuration: DailyMemoryExportConfiguration,
                 pass: DailyMemoryExportPass = .refresh) throws -> Outcome {
         let start = calendar.startOfDay(for: day)

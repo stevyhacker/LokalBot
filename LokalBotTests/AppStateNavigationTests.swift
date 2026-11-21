@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Actions is its own sidebar destination, so routes to Today and to Actions
-/// each land on their own section.
 @MainActor
 final class AppStateNavigationTests: XCTestCase {
     func testActionsAndTodayAreSeparateDestinations() {
@@ -20,9 +18,6 @@ final class AppStateNavigationTests: XCTestCase {
         XCTAssertEqual(AppState.NavSection(captureName: "Actions"), .actions)
     }
 
-    /// Today's digest and the overnight review are shown on Today. Opening
-    /// their background activity lands there from any section, Actions
-    /// included.
     func testBackgroundActivityForTodayOpensToday() {
         for destination in [BackgroundActivity.Destination.day(Date()), .dream] {
             for start in [AppState.NavSection.actions, .agent] {

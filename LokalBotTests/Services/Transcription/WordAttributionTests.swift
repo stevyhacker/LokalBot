@@ -2,8 +2,6 @@ import Darwin
 import XCTest
 @testable import LokalBot
 
-/// Transcribe-first speaker attribution: forced-aligned words are assigned
-/// to diarized turns after whole-track ASR, instead of cutting audio first.
 final class WordAttributionTests: XCTestCase {
     private func aligned(_ text: String, start: Double, end: Double,
                          words: [(String, Double, Double)]) -> AttributedTrackTranscriber.AlignedSegment {
@@ -23,7 +21,6 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(result.map(\.resolvedAttribution.method), [.diarization, .diarization])
         XCTAssertEqual(result.map(\.resolvedAttribution.identity), [.other, .other])
         XCTAssertEqual(result.map(\.timingPrecision), [.token, .token])
-        // Each piece widens to its own turn, never into its neighbour.
         XCTAssertEqual(result.map(\.start), [0, 1.1])
         XCTAssertEqual(result.map(\.end), [1.0, 2.5])
     }
@@ -97,7 +94,6 @@ final class WordAttributionTests: XCTestCase {
                                                             contentRange: nil).map(\.text),
                        ["One two.", "Three four."])
 
-        // 40 back-to-back half-second words: the 15 s cap splits after word 29.
         let words = (0..<40).map { ("w\($0)", Double($0) * 0.5, Double($0) * 0.5 + 0.5) }
         let monologue = aligned(words.map(\.0).joined(separator: " "), start: 0, end: 20, words: words)
         let pieces = AttributedTrackTranscriber.attribute([monologue], duration: 40, turns: turns, source: .system,
@@ -127,10 +123,8 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(QwenASREngine.accuracy.speakerAttribution, .alignedWords)
         XCTAssertEqual(QwenASREngine.compact.speakerAttribution, .alignedWords)
         XCTAssertEqual(TranscriptionModelChoice.parakeetV3.engine.speakerAttribution, .regions)
-        // 1.7B used 60 s with the MLX aligner; the CoreML aligner takes 30 s at most.
         XCTAssertEqual(QwenASREngine.wordAttributionWindows(for: .accuracy),
                        .init(maxSeconds: 30, maxGapSeconds: 5))
-        // 0.6B stays at 15 s: longer windows decoded 5–10× slower for a small gain.
         XCTAssertEqual(QwenASREngine.wordAttributionWindows(for: .compact),
                        .init(maxSeconds: 15, maxGapSeconds: 5))
     }
@@ -150,16 +144,12 @@ final class WordAttributionTests: XCTestCase {
             XCTAssertFalse(weights.isGitBlob, path)
             XCTAssertEqual(weights.digest.count, 64, path)
         }
-        // Compiled bundles only: an .mlpackage would compile on every load.
         XCTAssertFalse(snapshot.files.contains { $0.path.contains(".mlpackage") })
         XCTAssertEqual(Set(snapshot.files.filter { !$0.path.contains("/") }.map(\.path)),
                        ["config.json", "embed_tokens.fp16.bin", "merges.txt", "tokenizer_config.json", "vocab.json"])
-        // Settings and PRIVACY.md describe this download as about 1.1 GB.
         XCTAssertEqual(Double(snapshot.files.reduce(0) { $0 + $1.bytes }) / 1e9, 1.08, accuracy: 0.02)
     }
 
-    /// Every window handed to the aligner fits its 30 s encoder, including the
-    /// extra sample that flooring both edges can add.
     func testWordAttributionWindowsFitTheAlignerEncoder() {
         let limits = [QwenASREngine.wordAttributionWindows(for: .accuracy).maxSeconds,
                       QwenASREngine.wordAttributionWindows(for: .compact).maxSeconds,
@@ -167,7 +157,6 @@ final class WordAttributionTests: XCTestCase {
         for limit in limits {
             XCTAssertLessThanOrEqual(limit, QwenWordAligner.maxSegmentSeconds)
             for start in [0.0, 0.000_03, 12.345_678, 3_599.999_97] {
-                // SpanAudioReader floors both frame positions.
                 let samples = Int((start + limit) * 16_000) - Int(start * 16_000)
                 XCTAssertLessThanOrEqual(samples, QwenWordAligner.maxSamples, "\(limit) s from \(start)")
                 XCTAssertLessThanOrEqual(samples / 160, 3_000, "mel frames for \(limit) s from \(start)")
@@ -175,8 +164,6 @@ final class WordAttributionTests: XCTestCase {
         }
     }
 
-    /// A segment past the encoder's 30 s is refused before any model loads,
-    /// so the caller's one-speaker fallback applies without a download.
     func testAlignerRefusesSegmentsLongerThanItsEncoder() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-aligner-\(UUID().uuidString)", isDirectory: true)
@@ -191,8 +178,6 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: directory.path))
     }
 
-    /// The MLX aligner's folder is deleted once the CoreML snapshot is
-    /// verified; other folders and symlinked ones are left alone.
     func testObsoleteAlignerFolderIsRemovedByExactPath() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-aligner-root-\(UUID().uuidString)", isDirectory: true)
@@ -209,16 +194,11 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: current.appendingPathComponent("model.safetensors").path))
         XCTAssertTrue(FileManager.default.fileExists(atPath: asr.appendingPathComponent("model.safetensors").path))
 
-        // A symlink in the obsolete folder's place is not followed or removed.
         try FileManager.default.createSymbolicLink(at: obsolete, withDestinationURL: asr)
         try QwenWordAligner.removeObsoleteModels(in: root)
         XCTAssertTrue(FileManager.default.fileExists(atPath: asr.appendingPathComponent("model.safetensors").path))
     }
 
-    // MARK: - Word times from the transcription server
-
-    /// MAI-Transcribe-2's words for a synthetic clip: one voice, then another
-    /// from 5.0 s (`RemoteTranscriptionEngineTests.recordedVerboseJSON`).
     private let twoVoices = WordTimedTranscript.Segment(
         segment: .init(start: 0, end: 8.2, speaker: "speaker",
                        text: "The quarterly plan is ready for review. Thanks. I will send my notes tomorrow.",
@@ -309,11 +289,6 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(Set(result.segments.map(\.speaker)), ["them", "them 1", "them 2"])
     }
 
-    /// On auto-detect, a track the aligner cannot time falls back to speaker
-    /// regions. Those regions are seconds long, too short to detect the
-    /// language again: Qwen reads breaths and short replies in them as
-    /// Chinese, Japanese or Russian. They decode in the language the whole
-    /// track settled on instead.
     @MainActor
     func testRegionsFallbackDecodesInTheLanguageTheTrackSettledOn() async throws {
         let url = try writeTrack(seconds: 10)
@@ -336,10 +311,6 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertEqual(engine.calls.regionLanguages, Array(repeating: "hr", count: 4))
     }
 
-    /// Qwen stops after its language sample when the track settles on a
-    /// language the aligner cannot time, and returns no segments: the track
-    /// still goes to speaker regions, decoded in that language, rather than
-    /// being saved empty.
     @MainActor
     func testEngineThatStoppedForRegionsIsAttributedByRegionsInItsLanguage() async throws {
         let url = try writeTrack(seconds: 10)
@@ -358,16 +329,12 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertFalse(result.segments.isEmpty)
     }
 
-    /// Speaker regions also cover the pauses between turns. Given one with
-    /// no speech, Whisper writes a stock phrase such as "Thank you.", so a
-    /// region without detected speech is not decoded.
     @MainActor
     func testRegionsWithoutDetectedSpeechAreNotDecoded() async throws {
         let url = try writeTrack(seconds: 10)
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         var untimed = twoVoices
         untimed.words = nil
-        // Turns A (0–2.1 s) and B (5.1–7.8 s), and the pauses after each.
         let speech: [ClosedRange<TimeInterval>] = [0.2...2.0, 5.2...7.6]
 
         let engine = ServerTimedASR(providesWordTimings: true, segments: [untimed])
@@ -419,8 +386,6 @@ final class WordAttributionTests: XCTestCase {
         return url
     }
 
-    /// Opt-in hardware check: the pinned digests match the real files, which
-    /// load offline and time every word. No network access is allowed.
     func testCachedAlignerVerifiesPinsAndTimesEveryWord() async throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_QWEN_ALIGNER_TEST_DIR"] else {
             throw XCTSkip("Set LOKALBOT_QWEN_ALIGNER_TEST_DIR to a downloaded Qwen3-ForcedAligner-0.6B-CoreML-INT8 folder")
@@ -434,10 +399,6 @@ final class WordAttributionTests: XCTestCase {
         XCTAssertTrue(words.allSatisfy { $0.start >= 0 && $0.start <= $0.end && $0.end <= 3.1 })
     }
 
-    /// Opt-in hardware check: many passes over segments of different lengths
-    /// keep the footprint flat. Each CoreML pass returns about 12 MB of
-    /// autoreleased arrays; without a pool per pass, a long track's footprint
-    /// grew from 0.8 GB to 4.6 GB.
     func testCachedAlignerKeepsFootprintFlatAcrossSegments() async throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_QWEN_ALIGNER_TEST_DIR"] else {
             throw XCTSkip("Set LOKALBOT_QWEN_ALIGNER_TEST_DIR to a downloaded Qwen3-ForcedAligner-0.6B-CoreML-INT8 folder")
@@ -446,7 +407,6 @@ final class WordAttributionTests: XCTestCase {
         let vocabulary = "The quarterly plan covers budget numbers, hiring, and the launch schedule for next month."
             .split(separator: " ")
         func pass(_ seconds: Int) async throws {
-            // About 2.5 words a second, as in conversation.
             let text = (0..<(seconds * 5 / 2)).map { vocabulary[$0 % vocabulary.count] }.joined(separator: " ")
             let samples = (0..<(seconds * 16_000)).map { Float(sin(Double($0) * 0.05) * 0.1) }
             let words = try await aligner.align(samples, text: text, language: "en")
@@ -473,8 +433,6 @@ final class WordAttributionTests: XCTestCase {
     }
 }
 
-/// A word-attribution engine whose transcript carries the given word times.
-/// Speaker regions, the fallback, answer each region with fixed text.
 private struct ServerTimedASR: TranscriptionEngine {
     final class Calls: @unchecked Sendable {
         var wordAttribution = 0

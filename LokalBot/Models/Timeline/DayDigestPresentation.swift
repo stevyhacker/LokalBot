@@ -1,8 +1,5 @@
 import Foundation
 
-/// A display-oriented projection of the Markdown journal. The journal remains
-/// the lossless export format; this model only gives the app a scannable,
-/// backwards-compatible hierarchy for both old and newly generated digests.
 struct DayDigestPresentation: Equatable {
     struct FocusBlock: Equatable, Identifiable {
         enum Status: Equatable {
@@ -14,19 +11,13 @@ struct DayDigestPresentation: Equatable {
         let id: Int
         let timeRange: String?
         let title: String?
-        /// Parsed from the journal's "Completed." style lead, which the
-        /// summary no longer repeats.
         let status: Status?
         let summaryMarkdown: String
         let sourceIDs: [Int64]
-        /// The journal's "Next — task: step" follow-up, shown with its task
-        /// instead of repeating the task title in a separate list.
         var nextStep: String?
     }
 
-    /// Tasks ordered for scanning: open work first, finished work last.
     struct TaskGroup: Equatable, Identifiable {
-        /// The view names each kind through the interface catalog.
         enum Kind: CaseIterable {
             case blocked
             case inProgress
@@ -69,20 +60,12 @@ struct DayDigestPresentation: Equatable {
     let otherActivityBlocks: [FocusBlock]
     let decisions: [String]
     let blockers: [String]
-    /// Follow-ups that are neither a decision, a blocker, nor the next step
-    /// of a listed task, such as older journals' free-form items. Shown as
-    /// rows like tasks; their ids continue after the tasks' ids.
     let followUps: [FocusBlock]
     let meetingsMarkdown: String?
     let agentSessionsMarkdown: String?
     let timeAllocations: [TimeAllocation]
     let activityGroups: [ActivityHourGroup]
 
-    /// Whether a task row shows only its title and next step, with the
-    /// summary opening on demand. Task-first journals give tasks a status,
-    /// and there every titled task collapses, including the ones whose status
-    /// the generator left unknown. Older journals never carry a status; their
-    /// summary is the only description, so it stays visible.
     func collapsesDetails(of block: FocusBlock) -> Bool {
         block.title != nil
             && (!block.summaryMarkdown.isEmpty || !block.sourceIDs.isEmpty)
@@ -96,15 +79,10 @@ struct DayDigestPresentation: Equatable {
         }
     }
 
-    /// Task-first journals give their tasks a status; older journals never do.
     var isTaskFirst: Bool {
         focusBlocks.contains { $0.status != nil }
     }
 
-    /// Timeline shows a group's tasks that carry a next step, and every
-    /// blocked task, in full; the rest of the group become one-line rows.
-    /// Older journals have neither statuses nor next steps, and their summary
-    /// is the only description, so all of their tasks stay in full.
     func timelineRows(of group: TaskGroup) -> (full: [FocusBlock], brief: [FocusBlock]) {
         guard isTaskFirst, group.kind != .blocked else { return (group.blocks, []) }
         if group.kind == .completed { return ([], group.blocks) }
@@ -112,9 +90,6 @@ struct DayDigestPresentation: Equatable {
                 group.blocks.filter { $0.nextStep == nil })
     }
 
-    /// Splits a trailing parenthetical off a task title, such as the project
-    /// in "Review all open PRs (LokalBot)" or the pull request in
-    /// "Staging deployment (PR #487)", so the view can show it as a tag.
     static func titleAndTag(_ title: String) -> (title: String, tag: String?) {
         let trimmed = title.trimmingCharacters(in: .whitespaces)
         guard trimmed.hasSuffix(")") else { return (trimmed, nil) }
@@ -311,9 +286,6 @@ struct DayDigestPresentation: Equatable {
         values.compactMap(meaningful).joined(separator: "\n\n")
     }
 
-    /// New journals give every fact one section. Older journals can contain
-    /// the same task in overview, task, and follow-up sections, so suppress
-    /// copied or lightly rephrased items at presentation time as well.
     private static func removingSimilarContent(
         _ value: String?,
         excluding existing: [String]
@@ -354,9 +326,6 @@ struct DayDigestPresentation: Equatable {
         }
     }
 
-    /// Splits the journal's follow-up list into decisions, blockers, and the
-    /// rest, and moves each "Next — task: step" onto the task it names. Items
-    /// already said by a task, the overview, or an earlier item are dropped.
     private static func followUps(
         _ markdown: String?,
         tasks: [FocusBlock],
@@ -408,7 +377,6 @@ struct DayDigestPresentation: Equatable {
         return (tasks, decisions, blockers, other)
     }
 
-    /// `Decision: …` and `**Blocker:** …` leads, without the label.
     private static func removingLabel(_ labels: [String], from text: String) -> String? {
         let pattern = #"^\*{0,2}(?:"# + labels.joined(separator: "|") + #")\*{0,2}:\*{0,2}\s*"#
         guard let match = text.range(
@@ -417,9 +385,6 @@ struct DayDigestPresentation: Equatable {
         return rest.isEmpty ? nil : rest
     }
 
-    /// `Next — <task title>: <step>`. Task titles can contain colons, so the
-    /// longest shown title that prefixes the item wins; otherwise the first
-    /// colon separates an unknown title from its step.
     private static func nextStep(
         in text: String,
         tasks: [FocusBlock]
@@ -450,9 +415,6 @@ struct DayDigestPresentation: Equatable {
         return (nil, title, step)
     }
 
-    /// The journal can retain a longer overview for export, but the default UI
-    /// should answer "what mattered?" in one glance. Paragraph-style legacy
-    /// summaries are kept intact; generated bullet lists show at most three.
     private static func conciseOverview(_ markdown: String) -> String {
         let items = topLevelItems(in: markdown)
         guard !items.isEmpty else { return markdown }
@@ -467,9 +429,6 @@ struct DayDigestPresentation: Equatable {
         return blocks.enumerated().map { focusBlock(id: $0.offset, markdown: $0.element) }
     }
 
-    /// Task-first journals store `**task** — summary`; previous journals used
-    /// `**time · topic** — summary [screen:id]`. Split both shapes for the UI
-    /// without exposing Markdown syntax or private evidence identifiers.
     private static func focusBlock(id: Int, markdown: String) -> FocusBlock {
         let raw = strippingListMarker(markdown)
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -525,7 +484,6 @@ struct DayDigestPresentation: Equatable {
             sourceIDs: sourceIDs)
     }
 
-    /// Task summaries open with the status the generator settled on.
     private static func statusLead(in summary: String) -> (FocusBlock.Status?, String) {
         let leads: [(String, FocusBlock.Status)] = [
             ("Completed.", .completed),
@@ -676,7 +634,6 @@ struct DayDigestPresentation: Equatable {
 
 }
 
-/// Collapsed task copy stays scannable; rendered overflow expands in place.
 enum DayDigestTaskSummaryExpansion {
     static let collapsedLineLimit = 3
 

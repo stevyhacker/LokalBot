@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Ownership of action items in speech as it is actually transcribed: run-on
-/// clauses, stumbled words, and sentences cut across rows. Every transcript
-/// here is invented, but shaped like the recordings that kept the user's own
-/// commitments under "Owner unclear" (2026-10-05).
 final class RunOnSpeechOwnershipTests: XCTestCase {
     private func microphone(_ start: Double, _ text: String, length: Double = 4) -> Transcript.Segment {
         .init(start: start, end: start + length, speaker: "local 1", text: text,
@@ -30,7 +26,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
                                  maximumNotes: 12, maximumActions: 10)
     }
 
-    /// A standup update with no punctuation, cut by the diarizer mid-sentence.
     private var standup: Transcript {
         Transcript(segments: [
             microphone(0, "so it just video is not working for me right now. Anyway, so these."),
@@ -46,20 +41,15 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
         ], engine: "fixture")
     }
 
-    // MARK: - The reported meeting
-
     func testCommitmentBuriedMidSentenceIsMineHoweverTheModelQuotesIt() throws {
         let task = "Update the export change and confirm the plan is still true after the last merges"
-        // The sentence as transcribed, over the rows it was cut into.
         let spoken = "export change is something I I have to update and confirm the the plan is still true because it was initially written"
         let answers = [
-            // Tidied, and run over the row cut: the answer that was rejected.
             action("s3", task, quote: "export change is something I have to update and confirm the plan is still true"),
             action("s3", task, quote: spoken),
             action("s3", task),
             action("s3", task, owner: "unknown", basis: "unclear"),
             action("s3", task, context: ["s4", "s5"], quote: "I have to update"),
-            // A later row of the same sentence as source.
             action("s4", task, context: ["s3"]),
         ]
         for raw in answers {
@@ -95,9 +85,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
             .contains("Explicit user commitments: s3, s9."))
     }
 
-    // MARK: - Sentences cut into rows
-
-    /// Each pause became its own row, with a period the speaker never said.
     private var fragments: Transcript {
         Transcript(segments: [
             remote(0, "them 1", "So that's like also a priority for me for next week."),
@@ -128,7 +115,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
     }
 
     func testAnUncitedUndertakingOwnsOnlyATaskItIsAbout() throws {
-        // The model cited a fragment of the user's sentence for something else.
         let result = try validate(fragments, [action("s5", "Define payment models and set a timeline", owner: "unknown", basis: "unclear")])
         XCTAssertTrue(try XCTUnwrap(result.outcomes.actionItems.first).ownershipIsUnclear)
     }
@@ -145,7 +131,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
         XCTAssertTrue(item.ownershipIsUnclear)
         XCTAssertTrue(item.isLikelyUserAction)
 
-        // Once someone else is mentioned, the fragments may be about them.
         var others = fragments
         others.segments[7].text = "And you."
         let handedOver = try validate(others, [action("s11", task, context: ["s9", "s10"])])
@@ -153,7 +138,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
     }
 
     func testTextNobodyCouldHaveSaidDoesNotEndATurn() throws {
-        // A recognizer echoing its vocabulary hint between two rows.
         let transcript = Transcript(segments: [
             microphone(0, "The report is something I have to update"),
             remote(2, "them", "Dana, Mira, Jonas, Product, Export, Queue, Nightly.", length: 0.4),
@@ -162,8 +146,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
         let result = try validate(transcript, [action("s3", "Send the report to the whole team", owner: "unknown", basis: "unclear")])
         XCTAssertTrue(try XCTUnwrap(result.outcomes.actionItems.first).isForUser)
     }
-
-    // MARK: - Someone else's work in my own speech
 
     func testWhatIAskOfOthersOrSayOfUsIsNotMine() throws {
         let cases: [([String], String)] = [
@@ -192,7 +174,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
         let result = try validate(transcript, [action("s1", "Write the release notes"), action("s1", "Handle the rollout on Thursday")])
         XCTAssertEqual(result.outcomes.actionItems.map(\.isForUser), [true, false])
         XCTAssertEqual(result.outcomes.actionItems[1].attribution?.rejectionReason, .ambiguousQuote)
-        // A passive or a question names no rival.
         for text in ["The plan can be simplified and I'll write the release notes.",
                      "I'll have the guide ready today. So what do we need to change for the rollout?"] {
             let single = try validate(Transcript(segments: [microphone(0, text)], engine: "fixture"),
@@ -200,8 +181,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
             XCTAssertTrue(try XCTUnwrap(single.outcomes.actionItems.first).isForUser, text)
         }
     }
-
-    // MARK: - Replies
 
     func testAReplyTakesOnWhatWasAsked() throws {
         let transcript = Transcript(segments: [
@@ -235,8 +214,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
         XCTAssertTrue(try XCTUnwrap(quoted.outcomes.actionItems.first).isForUser)
     }
 
-    // MARK: - Other speakers
-
     func testTheCitedVoiceOwnsItsUndertakingWhateverSpeakerTheModelNames() throws {
         let transcript = Transcript(segments: [
             microphone(0, "How is the cancel flow going?"),
@@ -253,7 +230,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
             XCTAssertEqual(item.attribution?.speakerID, "them 3", owner)
             XCTAssertFalse(item.isForUser, "Another participant's first person is never the user's")
         }
-        // A named owner is overruled only for the task the cited voice took on.
         let unrelated = try validate(transcript, [action("s2", "Book the offsite venue", owner: user)])
         XCTAssertTrue(try XCTUnwrap(unrelated.outcomes.actionItems.first).ownershipIsUnclear)
     }
@@ -266,8 +242,6 @@ final class RunOnSpeechOwnershipTests: XCTestCase {
                                                       owner: "unknown", basis: "unclear")])
         XCTAssertEqual(result.outcomes.actionItems.first?.attribution?.resolution, .other)
     }
-
-    // MARK: - Not tasks
 
     func testRemarksAboutTheConversationAreNotTasks() throws {
         let transcript = Transcript(segments: [

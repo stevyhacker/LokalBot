@@ -1,15 +1,4 @@
 #!/bin/bash
-# LokalBot end-to-end test suite. Drives the REAL app binary headlessly:
-# real audio (synthesized with `say`), real CoreML transcription, the real
-# bundled llama.cpp server, real SQLite. Run on a Mac with the app built:
-#   Scripts/build/install-app.sh && Scripts/test/e2e.sh
-# Flows needing TCC permissions (screenshots) SKIP instead of failing when
-# the permission is missing, so the suite is useful pre- and post-grant.
-#
-# Hermetic: the whole suite runs against a throwaway library under a temp
-# LOKALBOT_STORAGE_ROOT, so it never touches the user's real meetings,
-# indexes, or journal. The real install's models/ directory is symlinked
-# into the temp root so multi-GB GGUFs are shared, not re-downloaded.
 set -uo pipefail
 
 BIN="${LOKALBOT_APP:-/Applications/LokalBot.app}/Contents/MacOS/LokalBot"
@@ -18,10 +7,6 @@ BIN="${LOKALBOT_APP:-/Applications/LokalBot.app}/Contents/MacOS/LokalBot"
 ROOT=$(mktemp -d /tmp/lokalbot-e2e.XXXXXX)
 export LOKALBOT_STORAGE_ROOT="$ROOT"
 
-# Catalog GGUFs download under <storage root>/models (ModelCatalog.localURL),
-# so a bare hermetic root would re-fetch them from scratch. Share the real
-# install's downloads instead. Cleanup stays safe: `rm -rf` deletes the
-# symlink itself, never the target directory's contents.
 REAL_MODELS="$HOME/Library/Application Support/me.dotenv.LokalBot/models"
 mkdir -p "$REAL_MODELS"
 ln -s "$REAL_MODELS" "$ROOT/models"
@@ -31,7 +16,6 @@ pass() { echo "  ✅ $1"; P=$((P+1)); }
 fail() { echo "  ❌ $1"; F=$((F+1)); }
 skip() { echo "  ⏭️  $1"; S=$((S+1)); }
 
-# Keep the library around on failure for debugging; clean up on success.
 finish() {
   if [ "$F" -eq 0 ]; then
     rm -rf "$ROOT"
@@ -128,10 +112,6 @@ if [[ "$OUT" == *"--digest: /"* && -s "$JOURNAL" ]] && grep -q "^## " "$JOURNAL"
 else fail "digest: $OUT"; fi
 
 echo "== T8: digest folds in screenshot OCR, not just window titles =="
-# Seed today's OCR with a proper noun that appears in NO window title or
-# meeting, so if it lands in the digest it can only have come from the
-# screenshot -> OCR path wired into generateDayDigest. A generic activity
-# block gives the day material; its title carries no token.
 NOW=$(date +%s)
 sqlite3 -cmd ".timeout 5000" "$ROOT/lokalbotv3.sqlite" \
   "INSERT INTO ocr_fts (text, ts, app) VALUES ('Working through the Project Zephyrus migration runbook: rollback steps, feature flags, and the on-call rota for the cutover.', $NOW, 'Safari');" 2>/dev/null
@@ -148,16 +128,12 @@ else
 fi
 
 echo "== T8b: dreaming (day retrospective → dreams/*.json + work memory) =="
-# The T2 fixture day has a real meeting → a substantive brief (model-written,
-# or the evidence-only fallback if no model is reachable — never an empty stub).
 OUT=$("$BIN" --dream 2026-06-10 2>/dev/null | tail -1)
 DREAM="$ROOT/dreams/2026-06-10.json"
 if [[ "$OUT" == *"--dream:"* && -s "$DREAM" && -s "$ROOT/memory/memory.json" ]] \
    && ! grep -q '"emptyDay"' "$DREAM"; then
   pass "fixture day dreamed: ${OUT#*--dream: }"
 else fail "fixture-day dream: $OUT"; fi
-# Yesterday is empty in this hermetic library → the model must be skipped and
-# a durable empty-day stub written so catch-up moves past the day.
 YDAY=$(date -v-1d +%F)
 OUT=$("$BIN" --dream 2>/dev/null | tail -1)
 if [[ "$OUT" == *"--dream: fallback (emptyDay)"* && -s "$ROOT/dreams/$YDAY.json" ]]; then
@@ -165,8 +141,6 @@ if [[ "$OUT" == *"--dream: fallback (emptyDay)"* && -s "$ROOT/dreams/$YDAY.json"
 else fail "empty-day dream: $OUT"; fi
 
 echo "== T9: chat assistant (tool-calling Q&A over meetings) =="
-# Reuses the T2 fixture (Redis / eviction policy) in the test library.
-# The agent must search/read the meeting and ground its answer in it.
 CHAT=$("$BIN" --chat "What did we decide about caching? Name the datastore." 2>/dev/null)
 if echo "$CHAT" | grep -qi "redis"; then
   pass "chat agent grounded its answer in the meeting (mentions 'Redis')"

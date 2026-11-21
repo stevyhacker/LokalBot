@@ -1,12 +1,8 @@
-//! Text helpers shared by the engines and the transcript cleanup.
-
 use std::collections::HashSet;
 
 use unicode_normalization::UnicodeNormalization;
 use unicode_normalization::char::is_combining_mark;
 
-/// `Transcript.normalizedText`: Whisper-style `<|…|>` control tokens removed,
-/// whitespace collapsed, and empty when nothing alphanumeric is left.
 pub fn normalized_text(raw: &str) -> String {
     let mut out = String::with_capacity(raw.len());
     let mut rest = raw;
@@ -30,8 +26,6 @@ pub fn normalized_text(raw: &str) -> String {
     }
 }
 
-/// Lowercased, accent-folded letter/digit runs (apostrophes kept inside words),
-/// so "Marković", "Markovic" and "MARKOVIC" are one word.
 pub fn folded_words(text: &str) -> Vec<String> {
     let folded: String = text
         .nfd()
@@ -45,21 +39,16 @@ pub fn folded_words(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// `TranscriptionPrompt.normalized`: the trimmed prompt, or `None` when blank.
 pub fn normalized_prompt(prompt: Option<&str>) -> Option<&str> {
     prompt.map(str::trim).filter(|p| !p.is_empty())
 }
 
-/// Text a prompt-capable model copied from its vocabulary prompt instead of
-/// hearing (`TranscriptionPromptEcho`): on near-silent spans Qwen3-ASR returns
-/// the hint list itself as a row of words.
 pub struct PromptEcho {
     words: HashSet<String>,
     terms: HashSet<String>,
 }
 
 impl PromptEcho {
-    /// `None` for a prompt without words, so callers skip the check cheaply.
     pub fn new(prompt: Option<&str>) -> Option<Self> {
         let prompt = normalized_prompt(prompt)?;
         let terms: Vec<String> = prompt
@@ -80,8 +69,6 @@ impl PromptEcho {
         })
     }
 
-    /// Every word is a prompt word and the row is more than one listed term
-    /// (a lone "Mila Novak" may be someone saying a name).
     pub fn matches(&self, text: &str) -> bool {
         let row = folded_words(text);
         if row.len() < 2 || !row.iter().all(|w| self.words.contains(w)) {
@@ -91,9 +78,6 @@ impl PromptEcho {
     }
 }
 
-/// Vocabulary prompt → hotword list for Qwen3-ASR: the comma-, semicolon- or
-/// line-separated terms, trimmed of trailing punctuation, at most 40 terms and
-/// 480 characters (`TranscriptionVocabulary` limits).
 pub fn prompt_terms(prompt: Option<&str>) -> Vec<String> {
     let Some(prompt) = normalized_prompt(prompt) else {
         return Vec::new();
@@ -120,7 +104,6 @@ pub fn prompt_terms(prompt: Option<&str>) -> Vec<String> {
     terms
 }
 
-/// Joins span texts: a space between words, none between CJK characters.
 pub fn join_texts<'a>(texts: impl IntoIterator<Item = &'a str>) -> String {
     let mut out = String::new();
     for text in texts {
@@ -138,7 +121,6 @@ pub fn join_texts<'a>(texts: impl IntoIterator<Item = &'a str>) -> String {
     out
 }
 
-/// Han, kana and Hangul, which are written without spaces between words.
 pub fn is_cjk(c: char) -> bool {
     matches!(c as u32,
         0x3040..=0x30FF | 0x31F0..=0x31FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF

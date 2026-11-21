@@ -1,8 +1,3 @@
-//! How a day's coding-agent work reads on Timeline (`TimelineAgentTaskRow`,
-//! `TimelineOutcomeText`, `DayActivityOverview.projectRows`). Recorded actions
-//! come from the commands the agent ran; its own report is left out because it
-//! is only a claim.
-
 use gpui_kit::component::v_flex;
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
@@ -17,7 +12,6 @@ use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
-/// A whole count phrase, so each language can word it.
 pub(crate) fn counted(count: usize, one: &str, many: &str) -> String {
     lokalbot_i18n::format(
         if count == 1 { one } else { many },
@@ -29,7 +23,6 @@ fn commits(count: usize) -> String {
     counted(count, "{count} commit", "{count} commits")
 }
 
-/// "2 PRs opened · 1 merged", or the commits when nothing more was recorded.
 pub(crate) fn outcome_text(outcomes: &Outcomes) -> Option<String> {
     let mut parts: Vec<String> = Vec::new();
     let opened = outcomes.opened_pull_requests.len();
@@ -53,12 +46,10 @@ pub(crate) fn outcome_text(outcomes: &Outcomes) -> Option<String> {
     (!parts.is_empty()).then(|| parts.join(" · "))
 }
 
-/// What the day's agents recorded, scheduled runs left out like in the sessions.
 pub(crate) fn day_outcomes(bursts: &[CodingAgentBurst]) -> Outcomes {
     Outcomes::of(bursts.iter().filter(|burst| !burst.is_scheduled_run()))
 }
 
-/// One row of the day's split.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ProjectRow {
     pub label: String,
@@ -75,8 +66,6 @@ pub(crate) enum RowKind {
 
 const MINIMUM_ROW_SECONDS: f64 = 60.0;
 
-/// The four busiest projects, the rest folded together, then the time no project
-/// claims.
 pub(crate) fn project_rows(split: &DaySplit) -> Vec<ProjectRow> {
     const CAP: usize = 4;
     let mut rows: Vec<ProjectRow> = Vec::new();
@@ -118,7 +107,6 @@ pub(crate) fn row_color(row: &ProjectRow, cx: &App) -> Hsla {
     }
 }
 
-/// The pull requests a session linked, at most three, as "repository #number".
 fn links(task: &AgentTask) -> Vec<(String, String)> {
     let mut result: Vec<(String, String)> = Vec::new();
     for url in task.bursts.iter().flat_map(|burst| &burst.pull_requests) {
@@ -139,7 +127,6 @@ fn links(task: &AgentTask) -> Vec<(String, String)> {
     result
 }
 
-/// "bizstats · Claude Code · 09:06–09:32".
 fn metadata(task: &AgentTask) -> String {
     let mut parts: Vec<String> = Vec::new();
     parts.extend(task.project());
@@ -157,7 +144,6 @@ fn metadata(task: &AgentTask) -> String {
 }
 
 impl TimelinePage {
-    /// The session's agent work, or `None` when no agent worked during it.
     pub(super) fn render_agent_work(
         &self,
         bursts: &[CodingAgentBurst],
@@ -316,7 +302,6 @@ mod tests {
         assert_eq!(rows[4].kind, RowKind::OtherProjects);
         assert_eq!(rows[4].seconds, 130.0);
         assert_eq!(rows[5].kind, RowKind::OtherActivity);
-        // Under a minute isn't worth a row.
         let small = DaySplit {
             projects: vec![share("a", 30.0)],
             unattributed_seconds: 20.0,

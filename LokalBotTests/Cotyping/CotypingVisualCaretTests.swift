@@ -2,16 +2,10 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-/// The caret found from a field's text on screen, for Chrome text areas that
-/// report no caret position. Global Cocoa coordinates (y up).
 final class CotypingVisualCaretTests: XCTestCase {
     private typealias Locator = CotypingVisualCaretLocator
-    /// A GitHub comment box: 797×103 with 14 pt text inset 13 pt.
     private let field = CGRect(x: 1170, y: 300, width: 797, height: 103)
 
-    /// A line as recognition reports it: from where the ink of its first
-    /// letter starts to where the ink of its last one ends, for text drawn
-    /// from `origin`.
     private func line(_ text: String, minX origin: CGFloat = 1183, baseline: CGFloat, size: CGFloat = 14) -> Locator.RecognizedLine {
         let font = NSFont.systemFont(ofSize: size)
         let width = CotypingInlineGhostLayout.width(of: text, font: font)
@@ -22,8 +16,6 @@ final class CotypingVisualCaretTests: XCTestCase {
             box: CGRect(x: origin, y: baseline - 3, width: width, height: 13))
     }
 
-    /// Where the caret is after `text` drawn from `origin`: where its last
-    /// letter's advance ends.
     private func end(of text: String, from origin: CGFloat = 1183, size: CGFloat = 14) -> CGFloat {
         origin + CotypingInlineGhostLayout.width(of: text, font: .systemFont(ofSize: size))
     }
@@ -42,9 +34,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.lineMaxX, field.maxX - (second.minX - field.minX), accuracy: 0.01)
     }
 
-    /// Recognition ends a line where its last letter's ink ends; the caret is
-    /// that letter's side bearing further on. Taking the ink's end put the
-    /// ghost 0.6–0.8 pt over the last letter (measured 2026-10-09).
     func testTheCaretFollowsTheLastLettersAdvanceNotItsInk() throws {
         let recognized = line("Looks good", baseline: 375)
         let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: "Looks good", fieldFrame: field))
@@ -58,9 +47,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.caretX, end(of: "Looks good, just a "), accuracy: 0.05)
     }
 
-    /// Viber's caret is a bar that recognition reads as "|" (2026-10-09). The
-    /// caret is where that bar is drawn, already past the space typed before
-    /// it; adding the space again put the ghost a space too far right.
     func testTheAppsCaretReadAsABarIsTheCaret() throws {
         func withCaret(_ text: String, recognizedAs reading: String, caretAt caretX: CGFloat) -> Locator.RecognizedLine {
             var recognized = line(text, baseline: 375)
@@ -83,7 +69,6 @@ final class CotypingVisualCaretTests: XCTestCase {
             precedingText: "Looks good, just to", fieldFrame: field))
         XCTAssertEqual(joined.caretX, afterWord, accuracy: 0.05)
 
-        // A word that really ends in "l" is text, not a caret.
         let stol = line("Looks good, the stol", baseline: 375)
         let typedL = try XCTUnwrap(Locator.locate(
             lines: [{ var l = stol; l.lastCharacterMinX = l.maxX - 2; l.characterBeforeLastMaxX = l.maxX - 3; return l }()],
@@ -101,7 +86,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         let unrelated = line("Paste, drop, or click to add files", baseline: 375)
         XCTAssertNil(Locator.locate(
             lines: [unrelated], precedingText: "Looks good, just a few minor things", fieldFrame: field))
-        // A line that holds more than the paragraph has text after the caret.
         let longer = line("Looks good, just a few minor things and more after it", baseline: 375)
         XCTAssertNil(Locator.locate(lines: [longer], precedingText: "Looks good, just a", fieldFrame: field))
     }
@@ -110,7 +94,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         let previous = line("Looks good", baseline: 375)
         XCTAssertNil(Locator.locate(lines: [previous], precedingText: "Looks good\n", fieldFrame: field))
         XCTAssertNil(Locator.locate(lines: [previous], precedingText: "Looks good\na", fieldFrame: field))
-        // Too little on the caret's line to be found: not looked for at all.
         XCTAssertFalse(Locator.hasEnoughText("Looks good\nab"))
         XCTAssertFalse(Locator.hasEnoughText("Looks good\nab   "))
         XCTAssertTrue(Locator.hasEnoughText("Looks good\nabc"))
@@ -127,12 +110,9 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(
             try XCTUnwrap(Locator.caretX(for: found, precedingText: "Looks go")),
             found.caretX - CotypingInlineGhostLayout.width(of: "od", font: font), accuracy: 0.01)
-        // A line break, a long way from where the caret was found, or other
-        // text: look again.
         XCTAssertNil(Locator.caretX(for: found, precedingText: "Looks good\n"))
         XCTAssertNil(Locator.caretX(for: found, precedingText: "Looks good" + String(repeating: " more", count: 9)))
         XCTAssertNil(Locator.caretX(for: found, precedingText: "Something else entirely"))
-        // A word past the field's edge wraps onto the next line.
         let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
         let short = try XCTUnwrap(Locator.locate(
             lines: [line("Looks good", baseline: 340)], precedingText: "Looks good", fieldFrame: narrow))
@@ -140,9 +120,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertNil(Locator.caretX(for: short, precedingText: "Looks good, just wonderful"))
     }
 
-    /// A capture can be a frame behind the typing, and recognition can miss
-    /// a final full stop. Taking the end of what was recognized for the
-    /// caret put the ghost over the last letters typed.
     func testACaptureThatLacksTheLastLettersStillPutsTheCaretAfterThem() throws {
         let behind = line("Looks goo", baseline: 375)
         let found = try XCTUnwrap(Locator.locate(lines: [behind], precedingText: "Looks good", fieldFrame: field))
@@ -153,42 +130,29 @@ final class CotypingVisualCaretTests: XCTestCase {
         let stopped = try XCTUnwrap(Locator.locate(
             lines: [noStop], precedingText: "Thanks, see you tomorrow. ", fieldFrame: field))
         XCTAssertEqual(stopped.caretX, end(of: "Thanks, see you tomorrow. "), accuracy: 0.1)
-        // A line that shows everything is taken as it is.
         let whole = line("Looks good", baseline: 375)
         XCTAssertEqual(
             try XCTUnwrap(Locator.locate(lines: [whole], precedingText: "Looks good", fieldFrame: field)).caretX,
             end(of: "Looks good"), accuracy: 0.05)
     }
 
-    /// The 2026-10-09 report from Viber: after "Ima i dalje preklapanja te"
-    /// the ghost "lefonskih brojeva, ali" began a letter or two early, over
-    /// "te". Recognition had returned the line without its short last word,
-    /// which still matched well enough, and the caret was put at the end of
-    /// what was recognized.
     func testALineWithoutItsLastWordPutsTheCaretAfterThatWord() throws {
         let typed = "Ima i dalje preklapanja te"
         let recognized = line("Ima i dalje preklapanja", baseline: 375)
         let found = try XCTUnwrap(Locator.locate(lines: [recognized], precedingText: typed, fieldFrame: field))
         XCTAssertEqual(found.caretX, end(of: typed), accuracy: 0.1)
 
-        // Recognition split the row in two: the longer piece sizes the font.
         let start = line("Ima i dalje preklapanja", baseline: 375)
         let lastWord = line("te", minX: end(of: "Ima i dalje preklapanja "), baseline: 375)
         let split = try XCTUnwrap(Locator.locate(lines: [lastWord, start], precedingText: typed, fieldFrame: field))
         XCTAssertEqual(split.caretX, end(of: typed), accuracy: 0.5)
         XCTAssertEqual(split.pointSize, 14, accuracy: 0.05)
 
-        // Unseen words that would pass the end of the line went to the next one.
         let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
         XCTAssertNil(Locator.locate(
             lines: [line("Looks good, okay", baseline: 340)], precedingText: "Looks good, okay then", fieldFrame: narrow))
     }
 
-    /// Measured in Viber on 2026-10-09: at LokalBot's 2× capture, recognition
-    /// read "bolje ali i dalje nije" as "bolJe all I dalJe nlJe". Sizing the
-    /// font from that text made it 12.8 pt instead of 13.5 pt, so every
-    /// letter typed afterwards put the ghost a little further behind the
-    /// caret; after "uvS" it began over the "S".
     func testTheFontIsSizedFromTheTypedTextNotTheMisreadOne() throws {
         let typed = "Sad je sve puno bolje ali i dalje nije skroz kako treba uvS"
         let viberField = CGRect(x: 2561, y: 180, width: 499, height: 17)
@@ -200,7 +164,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(next, end(of: typed + " te lefonskih", from: 2561.5, size: 13.5), accuracy: 0.3)
     }
 
-    /// Fast recognition often drops accents, as on Serbian text.
     func testAccentsDoNotStopAMatch() throws {
         let recognized = line("Vidimo se sutra, hvala sto", baseline: 375)
         let found = try XCTUnwrap(Locator.locate(
@@ -209,10 +172,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(Locator.normalized("  Šta  ćeš\u{00A0}raditi “Đoko” — "), "sta ces raditi \"đoko\" -")
     }
 
-    /// The field's right text edge is only estimated, so a word typed close
-    /// to it may already be on the next line. Following the caret along the
-    /// line put the ghost on the line above, and its wrapped words on the
-    /// word just typed. Spaces never wrap.
     func testLettersTypedNearTheLineEndAreFoundAgain() throws {
         let narrow = CGRect(x: 1170, y: 300, width: 160, height: 60)
         let short = try XCTUnwrap(Locator.locate(
@@ -226,8 +185,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertNil(Locator.caretX(for: full, precedingText: "Looks good, okay t"))
     }
 
-    /// Deleting back into the first word of a wrapped line can let that
-    /// word fit on the line above again.
     func testDeletingIntoTheFirstWordOfAWrappedLineIsFoundAgain() throws {
         let first = "Thanks for the quick review, I will push the fixes"
         let found = try XCTUnwrap(Locator.locate(
@@ -235,15 +192,12 @@ final class CotypingVisualCaretTests: XCTestCase {
             precedingText: first + " in a follow-up later", fieldFrame: field))
         XCTAssertNotNil(Locator.caretX(for: found, precedingText: first + " in a "))
         XCTAssertNil(Locator.caretX(for: found, precedingText: first + " i"))
-        // A paragraph's first line has no line above to go back to.
         let single = try XCTUnwrap(Locator.locate(
             lines: [line("Looks good", baseline: 375)], precedingText: "Looks good", fieldFrame: field))
         XCTAssertNil(single.firstWordEndX)
         XCTAssertNotNil(Locator.caretX(for: single, precedingText: "Lo"))
     }
 
-    /// A field whose caret is found on screen waits for it instead of a
-    /// popup outside the field, unless finds there keep failing.
     @MainActor
     func testAFieldWhoseCaretIsFoundOnScreenIsKnown() {
         let visualCaret = CotypingVisualCaret()
@@ -263,7 +217,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertFalse(visualCaret.canFind(midLine, screenCaptureAllowed: { true }))
         for _ in 0..<CotypingVisualCaretLocator.maximumFailedFinds { visualCaret.noteFailedFind(for: viber) }
         XCTAssertFalse(visualCaret.canFind(viber, screenCaptureAllowed: { true }), "finds keep failing")
-        // Another field starts afresh, and a find that works clears the count.
         viber.inputFrameRect = CGRect(x: 2561, y: 180, width: 499, height: 34)
         XCTAssertTrue(visualCaret.canFind(viber, screenCaptureAllowed: { true }))
     }
@@ -279,8 +232,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertFalse(back.isAddition)
     }
 
-    /// The rect handed to the overlay puts the ghost's baseline on the line
-    /// found, whichever way the overlay reads it.
     func testTheGhostIsDrawnOnTheBaselineFound() throws {
         let found = try XCTUnwrap(Locator.locate(
             lines: [line("Looks good, just a", baseline: 375)], precedingText: "Looks good, just a ", fieldFrame: field))
@@ -288,7 +239,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         let font = CotypingGhostFontSizing.font(for: nil, caretHeight: caret.height, caretIsExact: true)
         XCTAssertEqual(font.pointSize, found.pointSize, accuracy: 0.3)
         XCTAssertEqual(CotypingInlineGhostLayout.firstBaseline(caretRect: caret, font: font), 375, accuracy: 0.5)
-        // Also in the field's own font, when the field reports it.
         let reported = NSFont.systemFont(ofSize: 14)
         XCTAssertEqual(CotypingInlineGhostLayout.firstBaseline(caretRect: caret, font: reported), 375, accuracy: 0.5)
     }
@@ -302,15 +252,12 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertTrue(permits())
         XCTAssertFalse(permits(secure: true))
         XCTAssertFalse(permits(apps: ["Google Chrome"]))
-        // With a site excluded, a page must be known to be another site.
         XCTAssertFalse(permits(domains: ["bank.example"]))
         XCTAssertFalse(permits(host: "bank.example", domains: ["bank.example"]))
         XCTAssertTrue(permits(host: "github.com", domains: ["bank.example"]))
         XCTAssertTrue(permits(app: "TextEdit", bundle: "com.apple.TextEdit", domains: ["bank.example"]))
     }
 
-    /// Chrome hands out a new element for the same field on every read; the
-    /// caret found for it still applies, so it is not looked for again.
     @MainActor
     func testTheCaretFoundIsReusedWhenChromeHandsOutANewElement() throws {
         func chromeField(_ identity: String, text: String) -> CotypingField {
@@ -330,15 +277,11 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertGreaterThan(next.caretRect.minX, found.caretX)
         XCTAssertEqual(next.fieldStyle?.fontPointSize, found.pointSize,
                        "the ghost is drawn at the size the caret moves by")
-        // Another field of the same kind elsewhere: not reused.
         var moved = chromeField("element-3", text: "Looks good")
         moved.inputFrameRect = self.field.offsetBy(dx: 0, dy: -200)
         XCTAssertFalse(visualCaret.resolve(moved).caretIsExact)
     }
 
-    /// Measured at 1x on 2026-11-02: fast recognition cannot read "č", "ž" or
-    /// "đ". Capitals with them came back as other characters, so a short
-    /// Serbian message never matched and the suggestion went to a popup.
     func testLettersRecognitionCannotReadDoNotStopAMatch() throws {
         for (reading, typed) in [
             ("&kam te ispred", "Čekam te ispred"),
@@ -351,14 +294,10 @@ final class CotypingVisualCaretTests: XCTestCase {
                 lines: [line(reading, baseline: 375)], precedingText: typed, fieldFrame: field), reading)
             XCTAssertEqual(found.caretX, line(reading, baseline: 375).maxX, accuracy: 3, reading)
         }
-        // Without such letters the same mistakes still rule a line out.
         XCTAssertNil(Locator.locate(
             lines: [line("&kam xx 1spxxd", baseline: 375)], precedingText: "Pekam te ispred", fieldFrame: field))
     }
 
-    /// Recognition ran these words together. Counting the spaces it lost took
-    /// the line for the end of a longer paragraph, and sized the font from
-    /// part of the text: 21 pt for 13.5 pt text.
     func testWordsRunTogetherStillMatchAndMeasureTheWholeLine() throws {
         let typed = "Thanks for the quick reply to me"
         var together = line(typed, baseline: 375)
@@ -370,8 +309,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertNil(found.firstWordEndX, "it is the paragraph's first line")
     }
 
-    /// "Šta ćeš da radiš večeras" came back as "a ces da radis veceras". All
-    /// of the typed text was then fitted to a line without its first letters.
     func testALineMissingItsFirstLettersStillMeasuresTheFont() throws {
         let typed = "Šta ćeš da radiš večeras"
         let origin = end(of: "Št")
@@ -384,16 +321,12 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertFalse(found.sizeIsReliable, "the counts differ")
         XCTAssertNil(found.textStartX, "where the line starts is not known")
 
-        // Too short to measure past its start: fitting all of the typed text
-        // to it would be far smaller than text in a field.
         var short = line("a c", minX: origin, baseline: 375)
         short.box.size.height = 13
         let few = try XCTUnwrap(Locator.locate(lines: [short], precedingText: "Šta c", fieldFrame: field))
         XCTAssertEqual(few.pointSize, 14, accuracy: 1)
     }
 
-    /// Fitting all of "Čekam" to what is read as "&kam" is right: "&" stands
-    /// for two letters. Measuring only the letters that line up gave 18 pt.
     func testAShortLineThatReadsTwoLettersAsOneIsMeasuredWhole() throws {
         var recognized = line("Čekam", baseline: 375)
         recognized.text = "&kam"
@@ -401,14 +334,11 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
     }
 
-    /// Other scripts are not excused: any line of the right length would pass.
     func testOtherScriptsAreNotMatchedOnLengthAlone() {
         XCTAssertNil(Locator.locate(
             lines: [line("Paste files", baseline: 375)], precedingText: "Чекам те овдје", fieldFrame: field))
     }
 
-    /// One size for one field. It changed from find to find with how much of
-    /// the line recognition could read, and the caret moves by it.
     @MainActor
     func testAFontMeasuredFromAWholeLineOutlastsFindsThatCouldNot() throws {
         let visualCaret = CotypingVisualCaret()
@@ -429,8 +359,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(resolved.caretRect.minX, poor.caretX, accuracy: 0.01, "its caret is still used")
     }
 
-    /// The next message after one was sent: no text to follow on from, and
-    /// too few letters to find, yet the field's first line is known.
     @MainActor
     func testANewMessageStartsWhereTheFieldsFirstLineStarts() throws {
         let visualCaret = CotypingVisualCaret()
@@ -442,14 +370,11 @@ final class CotypingVisualCaretTests: XCTestCase {
         let next = visualCaret.resolve(viberField("Ćao"))
         XCTAssertTrue(next.caretIsExact)
         XCTAssertEqual(next.caretRect.minX, end(of: "Ćao"), accuracy: 0.6)
-        // On a line of its own, or once it would wrap, its place is not known.
         XCTAssertFalse(visualCaret.resolve(viberField("Ćao\nkako si")).caretIsExact)
         XCTAssertFalse(visualCaret.resolve(viberField(String(repeating: "dugacka poruka ", count: 12))).caretIsExact)
-        // Nor in a field of another size, which may hold another font.
         var taller = viberField("Ćao")
         taller.inputFrameRect = field.insetBy(dx: 0, dy: -10)
         XCTAssertFalse(visualCaret.resolve(taller).caretIsExact)
-        // A line that wrapped from the one before says nothing about the first.
         let first = "Thanks for the quick review, I will push the fixes"
         let wrapped = try XCTUnwrap(Locator.locate(
             lines: [line(first, baseline: 375), line("in a follow-up later", baseline: 354)],
@@ -491,10 +416,6 @@ final class CotypingVisualCaretTests: XCTestCase {
             isSecure: false, caretIsExact: false)
     }
 
-    /// On a non-Retina display the capture is scaled up to three times its
-    /// point size, not left at its own pixels in a corner of a larger image;
-    /// at two times recognition misread Viber's "je" as "Je" throughout.
-    /// A field too big for that is captured at two times.
     func testTheCaptureIsScaledUpOnANonRetinaDisplay() {
         let display = CGRect(x: 0, y: 0, width: 3440, height: 1440)
         let config = CotypingVisualCaret.captureConfiguration(
@@ -513,7 +434,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(retina.sourceRect, CGRect(x: 228, y: 850, width: 400, height: 50))
     }
 
-    /// Renders a field like GitHub's and runs the real recognizer on it.
     func testRecognitionFindsTheCaretInARenderedField() throws {
         let size = CGSize(width: 797, height: 103)
         let font = NSFont.systemFont(ofSize: 14)
@@ -546,9 +466,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.pointSize, 14, accuracy: 0.7)
     }
 
-    // MARK: - Cyrillic
-
-    /// A Cyrillic line as measured from its pixels and read by accurate recognition.
     private func measuredLine(
         _ typed: String, read: String? = nil, caretAt caretX: CGFloat? = nil, baseline: CGFloat = 375, size: CGFloat = 14
     ) -> Locator.RecognizedLine {
@@ -572,7 +489,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertFalse(Locator.caretLineIsCyrillic("Здраво\nHello"))
     }
 
-    /// Recognition mixes Latin letters into a word, as it does not know Serbian's.
     func testACyrillicLineMatchesHoweverItsLettersWereRead() throws {
         for (typed, read) in [
             ("Сегодня вечером будет", "Сегодня вечером будет"),
@@ -589,8 +505,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         }
     }
 
-    /// Other text of about the same length is not the typed text. Taking any
-    /// Cyrillic line for it put the caret up to 24 pt off.
     func testACyrillicLineWithOtherTextDoesNotMatch() {
         for (typed, shown) in [
             ("Сегодня вечером будет", "Спасибо большое за по"),
@@ -601,8 +515,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         }
     }
 
-    /// With one letter lost, the typed text looked a closer match ending a word
-    /// earlier, so that word was added after the line's real end: 13 pt off.
     func testALetterLostFromAMeasuredLineDoesNotMoveTheCaretOn() throws {
         let typed = "Здраво, стижем за п"
         let found = try XCTUnwrap(Locator.locate(
@@ -611,8 +523,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.pointSize, 14, accuracy: 0.05)
     }
 
-    /// Recognition lost the last word, and the ink past what it read holds it:
-    /// that word is on screen, so the caret does not move by it again.
     func testAWordLostInReadingIsNotAddedAfterTheInk() throws {
         let typed = "Видимо се у г"
         var read = measuredLine(typed, read: "Видимо се у")
@@ -630,8 +540,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(found.caretX, end(of: typed) + 0.5, accuracy: 0.05)
     }
 
-    /// The capture can be from before the last key, with the caret drawn where
-    /// it was. Stale by a letter the caret was a letter behind, for four keys.
     func testAMeasuredCaretInAFrameFromBeforeTheLastKeyMovesOn() throws {
         let typed = "Привет, как дела"
         let shown = "Привет, как дел"
@@ -651,8 +559,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertEqual(current.caretX, end(of: spaced), accuracy: 0.05, "the space is not added twice")
     }
 
-    /// Latin keeps the matching it had: a line read a letter short still counts
-    /// as a line whose last word was missed.
     func testAFastRecognitionLineKeepsItsOwnMatching() throws {
         let typed = "Looks good, just a smal"
         let found = try XCTUnwrap(Locator.locate(
@@ -672,9 +578,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         XCTAssertTrue(visualCaret.isDueForAFind(viberField(typed + " буде")))
     }
 
-    /// Runs the real recognizer on Cyrillic drawn at a display's own pixels and
-    /// scaled up as the capture does: drawing directly at 3x hid the Serbian bug.
-    /// With fast recognition, none of these has a line to match.
     func testRecognitionFindsTheCaretInRenderedCyrillic() throws {
         let frame = CGRect(x: 1170, y: 300, width: 640, height: 40)
         let font = try XCTUnwrap(NSFont(name: "HelveticaNeue", size: 13.5))
@@ -703,8 +606,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         }
     }
 
-    /// One line of text drawn at the display's own pixels, then scaled up to
-    /// what the capture asks for.
     private static func renderedField(
         _ text: String, font: NSFont, size: CGSize, origin: CGPoint,
         displayScale: CGFloat, captureScale: CGFloat, caretX: CGFloat?
@@ -735,10 +636,6 @@ final class CotypingVisualCaretTests: XCTestCase {
         return capture.makeImage()
     }
 
-    // MARK: - Waiting for a find
-
-    /// A finished suggestion waits at most its budget for the caret, then is
-    /// shown beside the field. The slow find is left running for next time.
     func testTheWaitForASlowFindEndsAtItsDeadline() async {
         let find = Task { _ = try? await Task.sleep(for: .seconds(5)) }
         defer { find.cancel() }

@@ -30,7 +30,6 @@ fn library() -> (tempfile::TempDir, Library) {
     (dir, library)
 }
 
-/// `memory/personal-model.json` as the Mac's `JSONEncoder` writes it.
 const MAC_MODEL: &str = r#"{
   "claims" : [ {
     "alwaysUse" : true,
@@ -126,8 +125,6 @@ fn claims_written_before_later_fields_get_the_old_behaviour() {
     assert_eq!(claim.authority, Authority::Stated);
 }
 
-// ----------------------------------------------------------------- the store
-
 #[test]
 fn a_plaintext_model_is_accepted_then_sealed_on_the_next_save() {
     let (dir, library) = library();
@@ -174,7 +171,6 @@ fn a_model_that_cant_be_opened_is_reported_and_never_overwritten() {
     );
     assert_eq!(fs::read(&path).unwrap(), foreign);
 
-    // Without any key it says so instead.
     let library2 = Library::open(LibraryPaths::new(dir.path())).unwrap();
     assert_eq!(
         library2.personal().load_error(),
@@ -182,7 +178,6 @@ fn a_model_that_cant_be_opened_is_reported_and_never_overwritten() {
     );
     assert_eq!(fs::read(&path).unwrap(), foreign);
 
-    // Forget everything is the person's explicit choice.
     library.personal().forget_all().unwrap();
     assert!(!path.exists());
     assert_eq!(library.personal().load_error(), None);
@@ -206,8 +201,6 @@ fn a_newer_version_is_kept_as_is() {
     );
     assert!(path.exists());
 }
-
-// ----------------------------------------------------------------- the rules
 
 #[test]
 fn text_is_validated_not_truncated() {
@@ -371,7 +364,6 @@ fn forgetting_leaves_a_180_day_hash_so_it_isnt_learned_again() {
     );
     assert_eq!(again.skipped, 1);
 
-    // Stated claims leave nothing behind.
     let stated = model
         .add(
             "Something I said.",
@@ -383,7 +375,6 @@ fn forgetting_leaves_a_180_day_hash_so_it_isnt_learned_again() {
     model.remove(&HashSet::from([stated.id]), now());
     assert_eq!(model.tombstones.len(), 1);
 
-    // Tombstones last 180 days; unreviewed suggestions 14.
     model.learn(
         &[candidate(
             ClaimKind::Preference,
@@ -501,8 +492,6 @@ fn kinds_are_guessed_only_from_obvious_openings() {
     assert_eq!(ClaimKind::suggested("Maya is my manager"), ClaimKind::Fact);
 }
 
-// ------------------------------------------------------------ what Ask reads
-
 fn claim(kind: ClaimKind, text: &str, age: i64) -> Claim {
     let mut claim = Claim::new(
         kind,
@@ -572,7 +561,6 @@ fn scoped_questions_get_only_what_the_person_stated() {
     assert_eq!(library.personal().usable_claims(true).len(), 2);
     assert_eq!(library.personal().usable_claims(false).len(), 1);
 
-    // While a revocation is pending, learned items are withheld.
     fs::write(dir.path().join(evidence::PENDING_FILE), "[]").unwrap();
     let usable = library.personal().usable_claims(true);
     assert_eq!(usable.len(), 1);
@@ -626,11 +614,8 @@ fn a_learned_item_goes_when_its_meeting_is_deleted_unless_kept() {
     let left = library.personal().claims();
     assert_eq!(left.len(), 1);
     assert_eq!(left[0].id, keep.id);
-    // No tombstone: it can be learned again from evidence that still exists.
     assert_eq!(library.personal().usable_claims(true).len(), 1);
 }
-
-// ------------------------------------------------------------- agent sharing
 
 #[test]
 fn agents_see_only_shared_items_and_only_while_the_grant_is_on() {
@@ -654,7 +639,6 @@ fn agents_see_only_shared_items_and_only_while_the_grant_is_on() {
             },
         )
         .unwrap();
-    // Marked, but the grant is off.
     assert!(access::read_projection(&paths).is_none());
     let projection_path = dir.path().join("control/personal-context.json");
     assert!(!projection_path.exists());
@@ -664,7 +648,6 @@ fn agents_see_only_shared_items_and_only_while_the_grant_is_on() {
     assert_eq!(shared.claims.len(), 1);
     assert_eq!(shared.claims[0].text, "Maya is my manager.");
     assert_eq!(shared.claims[0].source, "added_in_settings");
-    // What the Mac's decoder needs.
     let json: serde_json::Value =
         serde_json::from_slice(&fs::read(&projection_path).unwrap()).unwrap();
     assert!(json["generatedAt"].is_string());
@@ -672,7 +655,6 @@ fn agents_see_only_shared_items_and_only_while_the_grant_is_on() {
     assert_eq!(json["claims"][0]["kind"], "fact");
     assert_eq!(json["claims"][0]["alwaysUse"], false);
 
-    // An edit reaches agents; turning the grant off removes the copy.
     library
         .personal()
         .update(
@@ -768,8 +750,6 @@ fn proposed_and_invalidated_items_are_never_shared() {
             .is_empty()
     );
 }
-
-// ----------------------------------------------------------- the person's lines
 
 fn segment(speaker: &str, text: &str) -> Segment {
     Segment {
@@ -927,8 +907,6 @@ fn remember_messages_are_not_read_again_and_a_dictated_request_counts_once() {
     assert_eq!(lines[1].label(), "dictated in Editor");
 }
 
-// ------------------------------------------------------- the dictation buffer
-
 #[test]
 fn dictation_is_sealed_redacted_and_gone_after_two_days_or_its_pass() {
     let (dir, library) = library();
@@ -946,7 +924,6 @@ fn dictation_is_sealed_redacted_and_gone_after_two_days_or_its_pass() {
     assert!(!entries[0].text.contains("4242"));
     assert_eq!(entries[0].app_name, "Editor");
 
-    // Past two days it no longer reads, and pruning removes the file.
     let later = library.dictation_log().at(at + Duration::days(3));
     assert!(later.entries_on(day).is_empty());
     later.prune().unwrap();
@@ -971,8 +948,6 @@ fn dictation_keeps_at_most_two_hundred_entries() {
     assert_eq!(entries.len(), 200);
     assert_eq!(entries[0].text, "Entry 5");
 }
-
-// --------------------------------------------------------- work memory, weeks on
 
 fn memory_with(last: &str, attributed: bool) -> DreamMemory {
     let mut memory = DreamMemory::empty(now());
@@ -1025,7 +1000,6 @@ fn work_memory_is_suggested_after_two_weeks_and_a_recent_sighting() {
     assert_eq!(due.candidates[0].kind, ClaimKind::Goal);
     assert_eq!(due.candidates[1].kind, ClaimKind::Fact);
 
-    // Not seen in the last week, or without attribution: nothing.
     let stale = memory_with("2026-10-05", true);
     assert!(
         promotion::evaluate(&stale, &sightings, "2026-10-19")
@@ -1038,7 +1012,6 @@ fn work_memory_is_suggested_after_two_weeks_and_a_recent_sighting() {
             .candidates
             .is_empty()
     );
-    // Sightings of what memory no longer holds are forgotten.
     let gone = promotion::evaluate(&DreamMemory::empty(now()), &sightings, "2026-10-19");
     assert!(gone.sightings.is_empty());
 }

@@ -1,6 +1,3 @@
-//! Static keys, fingerprints, randomness and the base64 flavour the
-//! pairing payload uses.
-
 use base64::Engine as _;
 use base64::alphabet::URL_SAFE;
 use base64::engine::DecodePaddingMode;
@@ -13,8 +10,6 @@ use crate::error::{Result, SyncError};
 
 pub(crate) const KEY_LEN: usize = 32;
 
-/// An X25519 key pair. The platform keeps the private half in the Keychain
-/// or behind the Android Keystore and hands it back at construction.
 #[derive(Clone, PartialEq, Eq, uniffi::Record)]
 pub struct StaticKey {
     pub private_key: Vec<u8>,
@@ -29,7 +24,6 @@ impl std::fmt::Debug for StaticKey {
     }
 }
 
-/// A fresh random static key pair.
 pub(crate) fn generate() -> StaticKey {
     let private = random_bytes::<KEY_LEN>();
     let public = public_key(&private).expect("a 32-byte private key always has a public key");
@@ -39,7 +33,6 @@ pub(crate) fn generate() -> StaticKey {
     }
 }
 
-/// The X25519 public key for a 32-byte private key.
 pub(crate) fn public_key(private: &[u8]) -> Result<[u8; KEY_LEN]> {
     let private = key_array(private, "private key")?;
     let mut dh = DefaultResolver
@@ -49,7 +42,6 @@ pub(crate) fn public_key(private: &[u8]) -> Result<[u8; KEY_LEN]> {
     key_array(dh.pubkey(), "public key")
 }
 
-/// First 16 hex characters of SHA-256 over the public key (Bonjour TXT `k`).
 pub(crate) fn fingerprint(public: &[u8]) -> String {
     let digest = Sha256::digest(public);
     hex::encode(&digest[..8])
@@ -70,12 +62,10 @@ pub(crate) fn random_bytes<const N: usize>() -> [u8; N] {
     bytes
 }
 
-/// base64url without padding, as in the pairing payload.
 pub(crate) fn b64url(bytes: &[u8]) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
-/// Decodes base64url with or without padding.
 pub(crate) fn b64url_decode(text: &str) -> Result<Vec<u8>> {
     const LENIENT: GeneralPurpose = GeneralPurpose::new(
         &URL_SAFE,

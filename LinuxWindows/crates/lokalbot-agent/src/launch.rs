@@ -1,29 +1,8 @@
-//! The exact pi launch contract (`PiLaunchPlanner.swift`).
-//!
-//! pi is isolated from the user's `~/.pi` and any folder-local pi
-//! configuration (`--no-extensions -e`, `--no-skills --skill`,
-//! `--no-prompt-templates`, `--no-approve`) and offline (`--offline` and
-//! `PI_SKIP_VERSION_CHECK`, since pi ships update checks and install
-//! telemetry on by default). Context files are disabled because pi's upward
-//! discovery is not confined to the working folder; workspace files stay
-//! readable through the read tool, which the extension gates. LokalBot's own
-//! system prompt replaces pi's coding-agent prompt; the extension appends the
-//! per-run environment.
-//!
-//! Additions on Linux and Windows: Bun runs with `--no-install` so a missing
-//! import can never be fetched from npm at run time; Bun's transpiler cache
-//! and jiti's extension cache are off, since they would keep compiled copies
-//! of pi and of the approval extension in `~/.bun` and the shared temporary
-//! folder, outside the audited runtime; `LOKALBOT_STORAGE_ROOT`
-//! points the bundled `lokalbot-cli` at this library; on Windows without Bash
-//! the model gets pi's PowerShell tool instead (see [`crate::shell`]).
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
 use crate::endpoint::LlmEndpoint;
 
-/// Everything needed to spawn one pi RPC subprocess.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LaunchPlan {
     pub executable: PathBuf,
@@ -32,25 +11,17 @@ pub struct LaunchPlan {
     pub working_directory: PathBuf,
 }
 
-/// How a launch picks its conversation.
 #[derive(Clone, Debug, PartialEq, Eq, Default)]
 pub enum SessionChoice {
-    /// A new session file.
     #[default]
     Fresh,
-    /// pi's `--continue`: the most recent session for this working folder.
     ContinueRecent,
-    /// One exact saved session file.
     Saved(PathBuf),
 }
 
-/// What the working folder is, for the extension's environment prompt section
-/// (`AgentWorkspaceKind` in `PiLaunchPlanner.swift`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum WorkspaceKind {
-    /// The app's own Agent Workspace.
     AgentWorkspace,
-    /// A folder the user picked.
     ChosenFolder,
 }
 
@@ -68,7 +39,6 @@ pub struct PlanInputs<'a> {
     pub pi_cli: &'a Path,
     pub extension_dir: &'a Path,
     pub skill_dir: Option<&'a Path>,
-    /// Replaces pi's default system prompt (`--system-prompt`).
     pub system_prompt: Option<&'a Path>,
     pub session_dir: &'a Path,
     pub pi_config_dir: &'a Path,
@@ -77,12 +47,10 @@ pub struct PlanInputs<'a> {
     pub library_root: &'a Path,
     pub endpoint: &'a LlmEndpoint,
     pub reasoning_level_file: Option<&'a Path>,
-    /// Holds `lokalbot-cli`, which the skill calls by name.
     pub helpers_dir: Option<&'a Path>,
     pub private_roots: &'a [PathBuf],
     pub agent_capability: Option<&'a str>,
     pub session: &'a SessionChoice,
-    /// `--tools`, when the default tool set must change (Windows without Bash).
     pub tools: Option<&'a [&'a str]>,
     pub base_environment: BTreeMap<String, String>,
 }
@@ -157,8 +125,6 @@ pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
         Some(endpoint.reasoning_dialect.as_str().into()),
     );
     set(&mut env, ENV_API, Some(endpoint.api.as_str().into()));
-    // A plan relay is on this computer; the model is not. The extension's
-    // environment section says who serves it.
     set(
         &mut env,
         ENV_SERVED_BY,
@@ -166,8 +132,6 @@ pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
             .plan
             .map(|plan| format!("{} on the user's {}", plan.provider_name(), plan.title())),
     );
-    // The host rewrites this file when the reasoning level changes; the
-    // extension reads it before every model request. Absent: Automatic.
     set(
         &mut env,
         ENV_REASONING_FILE,
@@ -183,16 +147,11 @@ pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
         .iter()
         .map(|p| path_string(p))
         .collect();
-    // An encoding failure must stop the extension at startup, never omit the
-    // protected roots: `null` fails its launch validation.
     set(
         &mut env,
         ENV_PRIVATE_ROOTS,
         Some(serde_json::to_string(&roots).unwrap_or_else(|_| "null".into())),
     );
-    // A credential-free endpoint must not inherit a key for another service.
-    // The extension takes the key at startup and removes it from the
-    // environment the agent's shell commands inherit.
     set(&mut env, ENV_API_KEY, endpoint.api_key.clone());
     set(
         &mut env,
@@ -239,7 +198,6 @@ fn path_string(path: &Path) -> String {
     path.to_string_lossy().into_owned()
 }
 
-/// Environment names are case-insensitive on Windows ("Path"); keep one entry.
 fn same_name(a: &str, b: &str) -> bool {
     if cfg!(windows) {
         a.eq_ignore_ascii_case(b)

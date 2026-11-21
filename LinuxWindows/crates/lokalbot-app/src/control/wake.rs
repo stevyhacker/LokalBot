@@ -1,8 +1,3 @@
-//! The local-model wake behind `ask_library` and `lokalbot-cli ask`
-//! (`AgentAccessManager.swift`): the CLI leaves a file in `control/`, and while
-//! meeting access is on the app starts its Think server and keeps it warm for
-//! follow-ups, returning the memory ten minutes after the last question.
-
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -41,7 +36,6 @@ impl ControlHost {
         }
         let settings = self.data.read(cx).settings.clone();
         let paths = self.paths.clone();
-        // The failure strings are the messages the CLI relays to agents.
         let resolved = match settings.summarizer_backend {
             SummarizerBackend::BuiltIn => lokalbot_ai::catalog::entry(&settings.built_in_model_id)
                 .filter(|entry| lokalbot_ai::catalog::is_downloaded(&paths, entry))
@@ -76,8 +70,6 @@ impl ControlHost {
                 host.wake.busy = false;
                 match started {
                     Ok(lease) => {
-                        // Replaced, not stacked; a crashed server is revived by
-                        // leasing again instead of being trusted.
                         *slot.lock() = Some((lease, Instant::now()));
                         access::clear_wake_error(&host.paths);
                     }

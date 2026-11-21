@@ -8,7 +8,6 @@ enum OutcomeStatus: String, Codable, CaseIterable, Sendable {
     var label: String { rawValue.capitalized }
 }
 
-/// User-owned workflow state layered over immutable extracted outcomes.
 struct MeetingOutcomeState: Codable, Equatable, Sendable {
     static let fileName = "outcome-state.json"
     static let currentSchemaVersion = 2
@@ -17,8 +16,6 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
         var status: OutcomeStatus
         var ownerOverride: String?
         var dueOverride: String?
-        /// Distinguish an explicit user clear from the absence of an override.
-        /// Nil overrides continue to inherit extracted values for legacy state.
         var ownerWasCleared: Bool
         var dueWasCleared: Bool
         var textCorrection: String?
@@ -67,8 +64,6 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
             textCorrection = try container.decodeIfPresent(String.self, forKey: .textCorrection)
             updatedAt = (try container.decodeIfPresent(Date.self, forKey: .updatedAt) ?? Date())
                 .outcomePersistedTimestamp
-            // Freeze legacy correction dates before a subsequent status write
-            // advances updatedAt. New records preserve each field independently.
             textCorrectedAt = try container.decodeIfPresent(Date.self, forKey: .textCorrectedAt)
                 ?? (textCorrection == nil ? nil : updatedAt)
             ownerCorrectedAt = try container.decodeIfPresent(Date.self, forKey: .ownerCorrectedAt)
@@ -93,8 +88,6 @@ struct MeetingOutcomeState: Codable, Equatable, Sendable {
     }
 }
 
-/// Editable follow-up content. No sending integration is attached to this
-/// model: the approved workflow is review, copy, or export only.
 struct FollowUpDraft: Codable, Equatable, Sendable {
     static let fileName = "follow-up-draft.json"
     static let currentSchemaVersion = 1
@@ -169,8 +162,6 @@ struct FollowUpDraft: Codable, Equatable, Sendable {
 }
 
 extension Date {
-    /// ISO-8601 persistence uses millisecond precision. Normalize mutation
-    /// timestamps at creation so in-memory and reloaded workflow state agree.
     var outcomePersistedTimestamp: Date {
         Date(timeIntervalSince1970: (timeIntervalSince1970 * 1_000).rounded() / 1_000)
     }

@@ -1,7 +1,5 @@
 import Foundation
 
-/// File-backed MCP provider. Read tools work while the app is closed;
-/// `ask_library` delegates to an injected local-model engine.
 struct FileLibraryToolProvider: LibraryToolProvider {
     var gate: AgentAccessGate
     var screenGate: ScreenMemoryAccessGate
@@ -304,9 +302,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         "get_screenshot_detail",
     ]
 
-    /// Never refused: with no grants it still says which permissions are off,
-    /// so an agent learns what it could ask for. Each section checks its own
-    /// grant inside `Briefing`. `lokalbot-cli brief` asks for `.cli` names.
     func briefing(vocabulary: Briefing.Vocabulary = .mcp) -> String {
         Briefing.render(Briefing.Context(
             root: gate.root,
@@ -318,8 +313,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
             vocabulary: vocabulary))
     }
 
-    /// Independent of meeting and screen access, and of Agent Mode
-    /// capabilities: only the Files marker and its folder list.
     private func searchFiles(_ arguments: JSONValue?) -> ToolResult {
         guard filesGate.isAuthorized() else {
             return .error(.filesAccessDisabled, FilesSearchTool.disabledMessage)
@@ -358,8 +351,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         }
     }
 
-    /// Independent of every other grant: only the Agent notes marker, and
-    /// the notes LokalBot saved while Read coding agent notes is on.
     private func searchAgentNotes(_ arguments: JSONValue?) -> ToolResult {
         guard agentNotesGate.isEnabled else {
             return .error(.agentNotesAccessDisabled, AgentNotesSearchTool.disabledMessage)
@@ -459,8 +450,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                 }
                 meetings = meetings.filter { $0.startedAt >= day }
             }
-            // As `list --until`: without it, one earlier week could not be
-            // asked for, and newer meetings used up the limit first.
             if let until = arguments?["until"]?.stringValue {
                 guard let day = LibraryInputPolicy.localDay(until) else {
                     return .error(
@@ -543,9 +532,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         case failure(ToolResult)
     }
 
-    /// As `get --include` and `list_meetings` do, a part it does not know is
-    /// refused: a misspelt one must not come back as a meeting without that
-    /// section.
     private func parseInclude(_ include: String?) -> IncludeResult {
         guard let include, !include.isEmpty else { return .success(.all) }
         let parts = Set(include.lowercased().split(separator: ",")
@@ -673,8 +659,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         }
     }
 
-    // MARK: - Screen memory (separately authorized)
-
     private func searchScreen(_ arguments: JSONValue?) -> ToolResult {
         guard let query = arguments?["query"]?.stringValue?
             .trimmingCharacters(in: .whitespacesAndNewlines),
@@ -709,8 +693,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                 return .text(encodeScreenMemory([ScreenMemorySearchHit]()))
             }
             let cutoff = screenAccessCutoff
-            // A window captured every few seconds repeats one snippet many
-            // times; read further and keep the most relevant copy of each.
             var seen = Set<String>()
             let hits = try screenReader.search(ScreenMemorySearchRequest(
                 query: query,
@@ -720,9 +702,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
                 limit: limit * 4))
                 .filter { seen.insert("\($0.app)|\($0.windowTitle)|\($0.snippet)").inserted }
                 .prefix(limit)
-            // Enforce the profile again on returned rows. The SQLite reader
-            // already applies the bound, but this keeps the authorization
-            // boundary intact for alternate readers and future refactors.
             let authorizedHits = cutoff.map { boundary in
                 hits.filter { $0.capturedAt >= boundary }
             } ?? Array(hits)
@@ -856,9 +835,6 @@ struct FileLibraryToolProvider: LibraryToolProvider {
         }
     }
 
-    /// Nil means the requested interval sits wholly outside the granted scope.
-    /// A nil input represents an open-ended search and remains nil when access is
-    /// unbounded; callers pair it with `screenAccessCutoff` for bounded profiles.
     private func scopedInterval(_ requested: DateInterval?) -> DateInterval? {
         guard let requested else { return nil }
         guard let cutoff = screenAccessCutoff else { return requested }

@@ -1,14 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// Downloaded mail under `email/`, every file sealed with AES-GCM under the
-/// per-install `email-key`. Mail never goes into the plaintext search
-/// database, the embeddings, Dream reports, or exports.
-///
-///     email/accounts.json.enc                      connected accounts and cursors
-///     email/<account-id>/threads/<thread-id>.json.enc
-///
-/// Writes are atomic and 0600. Tokens live in the Keychain, never here.
 struct EmailStore: Sendable {
     enum StoreError: Error, Equatable {
         case unreadable(String)
@@ -19,9 +11,6 @@ struct EmailStore: Sendable {
     let root: URL
     let key: SymmetricKey
 
-    /// The sealing key, created on first use. Callers only ask for it once
-    /// an account exists, so an install that never connects mail never adds
-    /// a Keychain item.
     @MainActor static func liveKey() throws -> SymmetricKey {
         try KeychainSecrets.symmetricKey(account: keyAccount)
     }
@@ -34,7 +23,6 @@ struct EmailStore: Sendable {
         directory(root: root).appendingPathComponent("accounts.json.enc")
     }
 
-    /// True when anything was ever saved, so the key is worth reading.
     static func hasAccounts(root: URL) -> Bool {
         FileManager.default.fileExists(atPath: accountsURL(root: root).path)
     }
@@ -63,8 +51,6 @@ struct EmailStore: Sendable {
         return decoder
     }()
 
-    // MARK: Accounts
-
     func loadAccounts() throws -> [EmailAccount] {
         let url = Self.accountsURL(root: root)
         guard FileManager.default.fileExists(atPath: url.path) else { return [] }
@@ -74,8 +60,6 @@ struct EmailStore: Sendable {
     func saveAccounts(_ accounts: [EmailAccount]) throws {
         try seal(accounts, to: Self.accountsURL(root: root))
     }
-
-    // MARK: Threads
 
     func thread(accountID: UUID, threadID: String) throws -> EmailThread? {
         let url = threadURL(accountID: accountID, threadID: threadID)
@@ -101,15 +85,12 @@ struct EmailStore: Sendable {
         })
     }
 
-    /// Every stored thread of an account. An unreadable file is skipped
-    /// rather than failing the rest; the next full scan replaces it.
     func threads(accountID: UUID) -> [EmailThread] {
         threadIDs(accountID: accountID).sorted().compactMap { id in
             try? thread(accountID: accountID, threadID: id)
         }
     }
 
-    /// Removes everything downloaded for one account.
     func deleteAccountData(_ accountID: UUID) throws {
         let folder = directory.appendingPathComponent(accountID.uuidString.lowercased(), isDirectory: true)
         if FileManager.default.fileExists(atPath: folder.path) {
@@ -117,14 +98,11 @@ struct EmailStore: Sendable {
         }
     }
 
-    /// Removes every account's mail and the account list.
     func deleteAll() throws {
         if FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.removeItem(at: directory)
         }
     }
-
-    // MARK: Sealing
 
     private func seal<T: Encodable>(_ value: T, to url: URL) throws {
         let data = try Self.encoder.encode(value)

@@ -1,8 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// A meeting as the Mac's meeting page shows it: header chips, then Summary,
-/// Transcript and Notes. Evidence pills jump to the cited transcript line.
 struct MeetingDetailScreen: View {
     let meetingID: String
     let focus: Double?
@@ -81,8 +79,6 @@ struct MeetingDetailScreen: View {
         }
     }
 
-    /// Summary, Transcript and Notes: in the toolbar where there is room, as
-    /// on the Mac, otherwise under the header.
     private var tabs: some View {
         @Bindable var model = model
         return ToolbarTabs(label: "Meeting content", tabs: MeetingDetailModel.Tab.allCases,
@@ -108,8 +104,6 @@ struct MeetingDetailScreen: View {
             }
         }
     }
-
-    // MARK: Summary
 
     @ViewBuilder private func summary(_ meeting: Meeting) -> some View {
         VStack(alignment: .leading, spacing: LBTokens.Spacing.sectionSpacing) {
@@ -169,8 +163,6 @@ struct MeetingDetailScreen: View {
         }
     }
 
-    // MARK: Transcript
-
     static func segmentID(_ index: Int) -> String { "segment-\(index)" }
 
     @ViewBuilder private var transcript: some View {
@@ -185,8 +177,6 @@ struct MeetingDetailScreen: View {
         }
     }
 
-    // MARK: Notes
-
     @ViewBuilder private func notes(_ meeting: Meeting) -> some View {
         WorkspaceSection("Your Notes", icon: "note.text") {
             if let notes = meeting.notesMarkdown, !notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -198,7 +188,6 @@ struct MeetingDetailScreen: View {
     }
 }
 
-/// Title and the meeting's facts as chips, in the Mac's time zone.
 struct MeetingHeader: View {
     let meeting: Meeting
 
@@ -232,8 +221,6 @@ struct MeetingHeader: View {
     }
 }
 
-/// The transcript: time, speaker at each turn, and the words. Wide layouts
-/// use the Mac's three columns; narrow ones put the speaker above the turn.
 struct TranscriptList: View {
     let transcript: Transcript
     let focused: Int?
@@ -305,7 +292,6 @@ struct TranscriptList: View {
     }
 }
 
-/// The quoted words behind an outcome when the transcript isn't on this device.
 struct ExcerptSheet: View {
     let citation: Citation
     let meeting: Meeting?

@@ -1,12 +1,8 @@
 import Foundation
 
-/// Pure formatters for sharing a meeting outside LokalBot with zero servers:
-/// a clean plain-text recap for Slack or email, and a self-contained single-file
-/// HTML recap (auto light/dark, zero external assets, collapsible transcript).
 enum MeetingRecapExporter {
     static let websiteURL = "https://www.lokalbot.com/"
 
-    /// Compact, scannable recap ready to paste into Slack, Teams, or email.
     static func slackOrEmailRecap(
         meeting: Meeting,
         summary: String?,
@@ -68,7 +64,6 @@ enum MeetingRecapExporter {
         return blocks.joined(separator: "\n\n")
     }
 
-    /// Single-file, offline-first HTML recap with zero external network requests.
     static func staticHTML(
         meeting: Meeting,
         summary: String?,

@@ -31,7 +31,6 @@ fn audio(length: usize) -> Vec<u8> {
     (0..length).map(|i| (i % 251) as u8).collect()
 }
 
-/// A finished recording on `phone`, as if a recorder wrote `bytes`.
 fn recorded(phone: &Phone, bytes: &[u8]) -> RecordingInfo {
     let draft = phone
         .client
@@ -55,7 +54,6 @@ fn listed(phone: &Phone, id: &str) -> Option<RecordingInfo> {
         .find(|r| r.id == id)
 }
 
-/// Partial files on the host.
 fn partials(host: &Host) -> Vec<PathBuf> {
     let root = host.uploads_dir();
     let Ok(devices) = std::fs::read_dir(root) else {
@@ -73,12 +71,10 @@ fn partials(host: &Host) -> Vec<PathBuf> {
         .collect()
 }
 
-/// An upload session right after `welcome`.
 fn upload_session(phone: &Phone) -> (Arc<Channel>, Inbox) {
     phone.client.open_session("upload", 0).unwrap()
 }
 
-/// Skips pings.
 fn next(channel: &Channel, inbox: &mut Inbox) -> Message {
     loop {
         let message = inbox
@@ -149,7 +145,6 @@ fn a_recording_stays_listed_until_its_meeting_arrives() {
     phone.client.upload_recordings(Vec::new(), quiet()).unwrap();
     assert!(listed(&phone, &recording.id).is_some());
 
-    // The Mac publishes meeting keys in its own case.
     host.server
         .publish(
             "meeting".into(),
@@ -187,7 +182,6 @@ fn an_interrupted_upload_resumes_where_it_stopped() {
     ));
     channel.close();
 
-    // The Mac notices the connection is gone and lets go of the upload.
     let (channel, inbox) = loop {
         let (channel, mut inbox) = upload_session(&phone);
         begin(&channel, &recording.id, &bytes);
@@ -205,7 +199,6 @@ fn an_interrupted_upload_resumes_where_it_stopped() {
     channel.close();
     drop(inbox);
 
-    // The app's own pass finishes it. It retries while the session above lets go.
     let mut report = phone.client.upload_recordings(Vec::new(), quiet()).unwrap();
     for _ in 0..100 {
         if report.uploaded == 1 {
@@ -226,7 +219,6 @@ fn a_lost_confirmation_does_not_make_a_second_meeting() {
     let bytes = audio(100);
     phone.client.upload_recordings(Vec::new(), quiet()).unwrap();
 
-    // As if the phone never heard the answer and asked again.
     let (channel, mut inbox) = upload_session(&phone);
     begin(&channel, &recording.id, &bytes);
     match next(&channel, &mut inbox) {
@@ -292,7 +284,6 @@ fn a_recording_the_mac_cannot_use_is_kept_until_the_person_decides() {
     );
     assert!(std::path::Path::new(&recording.file_path).exists());
     assert!(partials(&host).is_empty());
-    // Failed recordings aren't sent again on their own.
     phone.client.upload_recordings(Vec::new(), quiet()).unwrap();
     assert_eq!(host.delegate.recordings.lock().len(), 1);
 
@@ -396,7 +387,6 @@ fn an_upload_id_cannot_name_a_path_or_a_second_writer() {
     }
     assert!(partials(&host).is_empty());
 
-    // One id, two connections: the second is told to come back.
     let id = uuid::Uuid::new_v4().to_string();
     begin(&channel, &id, b"xyz");
     assert!(matches!(
@@ -431,7 +421,6 @@ fn a_chunk_for_the_wrong_position_moves_the_phone_back() {
         next(&channel, &mut inbox),
         Message::UploadReady { offset: 0, .. }
     ));
-    // Finishing early just says where things stand.
     channel
         .send(&Message::UploadFinish {
             upload_id: recording.id.clone(),
@@ -519,8 +508,6 @@ fn pairing_again_keeps_recordings_but_removing_the_device_erases_them() {
     assert!(!std::path::Path::new(&recording.file_path).exists());
 }
 
-/// Removing a device is often how someone starts pairing it again, and these
-/// exist nowhere else.
 #[test]
 fn a_revoked_device_keeps_what_has_not_arrived_until_it_pairs_again() {
     let host = Host::new();
@@ -550,7 +537,6 @@ fn a_revoked_device_keeps_what_has_not_arrived_until_it_pairs_again() {
     assert_eq!(kept.state, "waiting");
     assert!(std::path::Path::new(&recording.file_path).exists());
 
-    // Closing a sample library leaves them too; only a removal by the person does not.
     phone.client.unpair().unwrap();
     assert!(listed(&phone, &recording.id).is_some());
     assert!(matches!(
@@ -646,7 +632,6 @@ fn a_mac_that_is_away_leaves_recordings_waiting() {
     assert_eq!(listed(&phone, &recording.id).unwrap().state, "waiting");
 }
 
-/// A Mac from before uploads existed, which refuses the session's purpose.
 #[test]
 fn a_mac_too_old_for_recordings_leaves_them_waiting_and_says_why() {
     let key = crate::generate_static_key();
@@ -682,7 +667,6 @@ fn a_mac_too_old_for_recordings_leaves_them_waiting_and_says_why() {
                 message: "Unknown session purpose \"upload\".".into(),
             })
             .unwrap();
-        // Holds the connection until the phone has read that.
         while inbox.recv(&channel, &tuning, None).is_ok() {}
     });
 

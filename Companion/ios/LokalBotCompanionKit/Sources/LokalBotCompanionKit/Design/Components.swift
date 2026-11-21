@@ -1,9 +1,5 @@
 import SwiftUI
 
-// MARK: - Workspace section
-
-/// A titled group on a grouped surface: Recap, Action Items, Decisions,
-/// Open Work. The title sits above the surface, as on the Mac.
 public struct WorkspaceSection<Content: View, Accessory: View>: View {
     let title: String
     let icon: String
@@ -46,7 +42,6 @@ public struct WorkspaceSection<Content: View, Accessory: View>: View {
     }
 }
 
-/// A quiet line inside a section with nothing to list.
 public struct EmptyWorkspaceRow: View {
     let text: String
 
@@ -61,10 +56,6 @@ public struct EmptyWorkspaceRow: View {
     }
 }
 
-// MARK: - Section header
-
-/// The caption header for list groupings: day labels in Meetings, groups in
-/// Actions.
 public struct SectionHeader: View {
     let text: String
 
@@ -78,8 +69,6 @@ public struct SectionHeader: View {
     }
 }
 
-// MARK: - Chips
-
 public enum ChipSize: Sendable {
     case regular, compact
 
@@ -89,7 +78,6 @@ public enum ChipSize: Sendable {
 }
 
 extension View {
-    /// The capsule chip chrome shared by metadata badges, stat pills and labels.
     public func chipChrome(_ size: ChipSize = .regular, fill: Color = LBTokens.Palette.chipFill) -> some View {
         padding(.horizontal, size.horizontalPadding)
             .padding(.vertical, size.verticalPadding)
@@ -97,7 +85,6 @@ extension View {
     }
 }
 
-/// A small capsule: optional SF Symbol and text in the supporting color.
 public struct BrandChip: View {
     let icon: String?
     let text: String
@@ -127,7 +114,6 @@ public struct BrandChip: View {
     }
 }
 
-/// A selectable capsule for filters. Selected chips use the filled accent.
 public struct FilterChip: View {
     let title: String
     let count: Int?
@@ -164,10 +150,6 @@ public struct FilterChip: View {
     }
 }
 
-// MARK: - Status dot
-
-/// A small state-colored dot; `pulses` adds an expanding ring, off under
-/// Reduce Motion (the color alone still carries the state).
 public struct StatusDot: View {
     var color: Color
     var size: CGFloat
@@ -202,10 +184,6 @@ public struct StatusDot: View {
     }
 }
 
-// MARK: - Evidence pill
-
-/// The quoted moment behind an outcome, as a teal timestamp. Tapping it
-/// jumps to that line of the transcript.
 public struct EvidencePill: View {
     let start: Double
     let excerpt: String?
@@ -233,7 +211,6 @@ public struct EvidencePill: View {
     }
 }
 
-/// The pill's face, for use inside a navigation link.
 public struct EvidencePillLabel: View {
     let start: Double
 
@@ -254,10 +231,6 @@ public struct EvidencePillLabel: View {
     }
 }
 
-// MARK: - Avatars
-
-/// A person's initials on a tint chosen from their name, from the speaker
-/// palette as on the Mac.
 public struct InitialsAvatar: View {
     let name: String
     var size: CGFloat
@@ -287,7 +260,6 @@ public struct InitialsAvatar: View {
         return letters.compactMap { $0?.first.map { String($0).uppercased() } }.joined()
     }
 
-    /// The Mac's `InitialsAvatar.color(for:)`.
     nonisolated public static func colorIndex(for name: String) -> Int {
         let hash = normalized(name).unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
         return hash % LBTokens.speakers.count
@@ -297,7 +269,6 @@ public struct InitialsAvatar: View {
         LBTokens.Palette.speakers[colorIndex(for: name)]
     }
 
-    /// The Mac's `PeopleDirectory.normalized`.
     nonisolated static func normalized(_ value: String) -> String {
         value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .components(separatedBy: CharacterSet.letters.union(.decimalDigits).inverted)
@@ -306,7 +277,6 @@ public struct InitialsAvatar: View {
     }
 }
 
-/// A project's first letter on a tint chosen from its name.
 public struct ProjectMonogram: View {
     let name: String
     var size: CGFloat
@@ -332,9 +302,6 @@ public struct ProjectMonogram: View {
     }
 }
 
-// MARK: - Stat tile
-
-/// Icon, value and label in a chip; the value keeps monospaced digits.
 public struct StatTile: View {
     let icon: String
     let value: String
@@ -360,9 +327,6 @@ public struct StatTile: View {
     }
 }
 
-// MARK: - Icon tile
-
-/// A quiet symbol well for feature surfaces (pairing, empty states).
 public struct IconTile: View {
     let systemImage: String
     let tint: Color
@@ -386,9 +350,6 @@ public struct IconTile: View {
     }
 }
 
-// MARK: - Loading
-
-/// A compact spinner beside a quiet description of what's happening.
 public struct LoadingStateLabel: View {
     let text: String
 

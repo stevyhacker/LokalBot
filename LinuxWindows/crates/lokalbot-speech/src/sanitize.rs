@@ -1,13 +1,7 @@
-//! `TranscriptSanitizer`: removes only objectively pathological ASR output —
-//! extreme repetition, rows that merely repeat the vocabulary prompt, and
-//! precisely timed rows too fast to be speech. Ordinary emphasis is kept.
-
 use lokalbot_core::{Segment, TimingPrecision, Transcript};
 
 use crate::text::{PromptEcho, normalized_text};
 
-/// A precisely timed row with at least this many words at this rate is not
-/// speech (a forced aligner packing invented words into a near-silent gap).
 const IMPLAUSIBLE_MIN_WORDS: usize = 8;
 const IMPLAUSIBLE_WORDS_PER_SECOND: f64 = 10.0;
 
@@ -62,8 +56,6 @@ fn is_bleed_filter_safe(precision: Option<TimingPrecision>) -> bool {
     )
 }
 
-/// Sanitizes `transcript` in place. `prompt` is the vocabulary prompt the
-/// transcript was made with, when known.
 pub fn sanitize(transcript: &mut Transcript, prompt: Option<&str>) -> SanitizeReport {
     let echo = PromptEcho::new(prompt);
     let mut report = SanitizeReport::default();
@@ -119,8 +111,6 @@ pub fn sanitize(transcript: &mut Transcript, prompt: Option<&str>) -> SanitizeRe
     report
 }
 
-/// Collapses runs of 8 or more identical letters or punctuation marks to 3;
-/// digits are never collapsed (amounts, identifiers).
 fn collapse_extreme_character_runs(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     let mut run: Vec<char> = Vec::new();
@@ -164,9 +154,6 @@ fn is_punctuation(c: char) -> bool {
         )
 }
 
-/// Deletes repeated word cycles (period ≤ 32, ≥ 4 repetitions, ≥ 24 redundant
-/// words, or a single word ≥ 8 times), keeping two cycles. Only the repeated
-/// span is removed so unrelated text keeps its exact form.
 fn collapse_repeated_cycles(words: &[Word], text: &str) -> (String, usize) {
     if words.len() < 8 {
         return (text.to_string(), 0);

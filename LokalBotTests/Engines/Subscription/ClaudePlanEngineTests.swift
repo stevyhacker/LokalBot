@@ -52,8 +52,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         arguments.firstIndex(of: flag).flatMap { $0 + 1 < arguments.count ? arguments[$0 + 1] : nil }
     }
 
-    // MARK: Arguments
-
     func testArgumentsKeepClaudeCodeToAPlainTextModel() throws {
         let engine = ClaudePlanEngine(model: "sonnet")
         let arguments = engine.arguments(structured: false, options: nil, streaming: false)
@@ -83,7 +81,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         XCTAssertTrue(arguments.contains("--verbose"))
         XCTAssertTrue(arguments.contains("--include-partial-messages"))
         XCTAssertNil(value(after: "--model", in: arguments), "empty uses Claude Code's default")
-        // Notes run with no reasoning budget: the lowest effort, not the default.
         XCTAssertEqual(value(after: "--effort", in: arguments), "low")
         XCTAssertFalse(arguments.contains("--json-schema"), "a schema can hold meeting text")
 
@@ -94,9 +91,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         XCTAssertFalse(plain.contains("--include-partial-messages"))
     }
 
-    /// A notes repair lists the meeting's action items as the allowed values
-    /// of a field. A command line is readable by other processes, so the
-    /// schema travels on stdin with the prompt.
     func testSchemaTravelsOnStdinNeverInTheArguments() async throws {
         let runner = FakeRunner { _ in
             Self.result(["stop_reason": "tool_use", "structured_output": ["text": "Send Marko the Q3 budget"]])
@@ -137,8 +131,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         XCTAssertEqual(ClaudePlanEngine(model: "opus", reasoningLevel: .xhigh).effort(for: nil), .xhigh)
     }
 
-    // MARK: Requests
-
     func testRequestWritesSystemPromptToAFileAndContextToStdin() async throws {
         let runner = FakeRunner { _ in Self.result(["result": "Done."]) }
         let reply = try await ClaudePlanEngine(model: "haiku", runner: runner)
@@ -171,26 +163,21 @@ final class ClaudePlanEngineTests: XCTestCase {
         XCTAssertEqual(parsed["count"] as? Int, 2)
     }
 
-    /// A Claude Code that ignores the schema sent on stdin answers in prose.
-    /// That used to be returned as the structured reply, with no error.
     func testAProseReplyToASchemaRequestFails() throws {
         XCTAssertThrowsError(try ClaudePlanEngine.parseResult(
             ["type": "result", "result": "Here are the notes: the launch moved to Friday.", "stop_reason": "end_turn"],
             wantsStructured: true)) { error in
             guard case TextEngineError.badResponse = error else { return XCTFail("\(error)") }
         }
-        // JSON as text is still a reply, with or without a code fence around it.
         XCTAssertEqual(try ClaudePlanEngine.parseResult(
             ["type": "result", "result": #"{"a": 1}"#, "stop_reason": "end_turn"], wantsStructured: true).text,
                        #"{"a": 1}"#)
         XCTAssertEqual(try ClaudePlanEngine.parseResult(
             ["type": "result", "result": "```json\n{\"a\": 1}\n```", "stop_reason": "end_turn"],
             wantsStructured: true).text, #"{"a": 1}"#)
-        // Without a schema, prose is the answer.
         XCTAssertEqual(try ClaudePlanEngine.parseResult(
             ["type": "result", "result": "The launch moved to Friday.", "stop_reason": "end_turn"],
             wantsStructured: false).text, "The launch moved to Friday.")
-        // A reply cut off at the output limit keeps its own handling.
         XCTAssertTrue(try ClaudePlanEngine.parseResult(
             ["type": "result", "result": #"{"a":"#, "stop_reason": "max_tokens"], wantsStructured: true).truncated)
     }
@@ -220,8 +207,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         private(set) var values: [String] = []
         func append(_ value: String) { values.append(value) }
     }
-
-    // MARK: Failures
 
     func testSignedOutClaudeCodeAsksForSignIn() {
         let error = ClaudePlanEngine.failure(message: "Not logged in · Please run /login", apiStatus: nil)
@@ -274,8 +259,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         }
     }
 
-    // MARK: Installation
-
     func testLocatePrefersPathThenKnownInstallLocations() {
         let home = "/Users/test"
         let onPath = ClaudeCodeCLI.locate(
@@ -314,8 +297,6 @@ final class ClaudePlanEngineTests: XCTestCase {
         XCTAssertFalse(signedOut.loggedIn)
         XCTAssertNil(ClaudeCodeCLI.AuthStatus(json: Data("Usage: claude".utf8)))
     }
-
-    // MARK: Process
 
     func testProcessRunnerPipesStdinAndSplitsLines() async throws {
         let lines = LineLog()

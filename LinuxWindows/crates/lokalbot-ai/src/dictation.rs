@@ -1,12 +1,3 @@
-//! Dictation text preparation (`DictationTextPreparation.swift`,
-//! `DictationGrounding.swift`, `DictationComposition.swift`).
-//!
-//! Transcribe inserts the recognized speech as it is; no model is called and
-//! no context is read. Compose routes the speech: a writing request ("reply
-//! to…", "draft…", "tell him … from the message above") gets the Compose
-//! prompt with whatever context the caller supplies; anything else is sent
-//! as JSON data to a cleanup-only prompt that never answers or carries it out.
-
 use anyhow::Result;
 use serde_json::{Value, json};
 
@@ -22,8 +13,6 @@ use crate::sanitize::{redact, sanitize};
 use crate::think::{ChatRequest, ThinkClient};
 
 const SPOKEN_MAX_CHARACTERS: usize = 12_000;
-/// The bottom of the focused window: the newest messages sit next to the
-/// input field (`DictationWindowTextPolicy.production`).
 const WINDOW_TEXT_LIMIT: usize = 2_000;
 
 pub const SCREEN_START_MARKER: &str = "<<< BEGIN UNTRUSTED SCREEN CONTEXT >>>";
@@ -49,33 +38,25 @@ pub enum DictationError {
         "Dictation context or its permissions changed. Your transcript is still available; compose again with the current context."
     )]
     ContextChanged,
-    /// The dictation was cancelled while it was being prepared.
     #[error("Dictation was cancelled.")]
     Cancelled,
 }
 
-/// The focused window at the moment dictation finished (never saved).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ScreenContext {
     pub app_name: String,
-    /// Bundle ID on macOS; the executable or app ID elsewhere.
     pub bundle_id: Option<String>,
     pub window_title: String,
     pub visible_text: String,
 }
 
-/// Context a Compose writing request may use. All of it is optional and
-/// read only for writing requests.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ComposeContext<'a> {
     pub screen: Option<&'a ScreenContext>,
-    /// Text visible just above the focused field.
     pub visible_text: Option<&'a str>,
-    /// Saved facts selected for the request.
     pub saved_facts: Option<&'a str>,
 }
 
-/// The writing profile (`DictationComposeProfile`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Profile {
     pub user_name: Option<String>,
@@ -99,25 +80,18 @@ impl Profile {
     }
 }
 
-/// What one preparation produced.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Prepared {
     pub text: String,
-    /// The model that wrote it ("Qwen3.5 4B · on this PC"); `None` for Transcribe.
     pub composition_model: Option<String>,
-    /// Routing judged the speech a writing request (context may be used).
     pub was_writing_request: bool,
     pub used_screen_context: bool,
     pub used_visible_text: bool,
-    /// What Compose read for this request; `None` for Transcribe.
     pub context_use: Option<ContextUse>,
 }
 
-/// Which context a Compose request actually used, shown under Last result so
-/// the context settings can be judged by what they contributed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ContextUse {
-    /// Context is read only for writing requests ("reply…", "draft…").
     pub was_writing_request: bool,
     pub focused_window: bool,
     pub visible_text: bool,
@@ -125,8 +99,6 @@ pub struct ContextUse {
 }
 
 impl ContextUse {
-    /// The line under Last result. `tr` translates a string; `fill` also puts
-    /// its argument in place of `{0}`.
     pub fn summary(
         &self,
         tr: impl Fn(&str) -> String,
@@ -157,9 +129,6 @@ impl ContextUse {
     }
 }
 
-/// `dictationCompositionTextEngineSettings`: a valid separate Compose model
-/// runs on the built-in server; otherwise Compose follows Think. The Think
-/// reasoning level belongs to the Think model, not this one.
 pub fn composition_settings(settings: &Settings) -> Settings {
     let id = settings.dictation_composition_built_in_model_id.as_str();
     if id.is_empty() || !catalog::entry(id).is_some_and(|e| e.kind == catalog::ModelKind::Text) {
@@ -172,8 +141,6 @@ pub fn composition_settings(settings: &Settings) -> Settings {
     composition
 }
 
-/// The dictation grants for reading saved facts. Autocomplete's grants do not
-/// enable these (`DictationGrounding.memorySettings`).
 pub fn memory_policy(settings: &Settings) -> Policy {
     let compose = settings.dictation_intent == DictationIntent::Compose;
     Policy {
@@ -182,9 +149,6 @@ pub fn memory_policy(settings: &Settings) -> Policy {
     }
 }
 
-/// Whether a composition frozen at the shortcut may still go on: revoked
-/// grants, changed exclusions and changed destinations invalidate it
-/// (`DictationGrounding.permissionsMatch`).
 pub fn permissions_match(frozen: &Settings, current: &Settings) -> bool {
     frozen.dictation_intent == current.dictation_intent
         && frozen.dictation_use_screen_context == current.dictation_use_screen_context
@@ -208,7 +172,6 @@ fn destination_matches(frozen: &Settings, current: &Settings) -> bool {
         && !destination_blocked(current)
 }
 
-/// A remote destination without its approval.
 fn destination_blocked(settings: &Settings) -> bool {
     let approved = &settings.approved_remote_inference_origins;
     match settings.summarizer_backend {
@@ -230,18 +193,14 @@ fn destination_blocked(settings: &Settings) -> bool {
     }
 }
 
-/// The saved facts selected for one request.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SavedFacts {
     pub text: Option<String>,
     pub source_titles: Vec<String>,
 }
 
-/// Where one Compose request gets its context and model. Each call is made
-/// only when the request and the frozen settings allow it.
 pub trait ComposeProviders {
     fn cancelled(&self) -> bool;
-    /// The settings now, to notice revoked grants.
     fn current_settings(&self) -> Settings;
     fn screen(&mut self) -> Option<ScreenContext>;
     fn visible(&mut self) -> Option<String>;
@@ -252,25 +211,18 @@ pub trait ComposeProviders {
         visible: Option<&str>,
         settings: &Settings,
     ) -> SavedFacts;
-    /// The facts' sources are unchanged and still allowed.
     fn memory_is_current(&mut self, facts: &SavedFacts, current: &Settings) -> bool;
-    /// The focused field still shows this nearby text.
     fn visible_is_current(&mut self, text: &str, current: &Settings) -> bool;
-    /// The same window and field still have focus.
     fn screen_is_current(&mut self, context: &ScreenContext, current: &Settings) -> bool;
     fn make_think(&mut self, settings: &Settings) -> Result<ThinkClient>;
 }
 
-/// What [`prepare_checked`] returns.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CheckedPreparation {
     pub prepared: Prepared,
     pub facts: SavedFacts,
 }
 
-/// `DictationTextPreparation.prepare`. Context is read only for writing
-/// requests and re-validated around the model call, so a grant revoked or a
-/// source changed meanwhile rejects the composition; the transcript survives.
 pub fn prepare_checked(
     transcript: &str,
     settings: &Settings,
@@ -359,12 +311,10 @@ pub fn prepare_checked(
     Ok(CheckedPreparation { prepared, facts })
 }
 
-/// The text to insert for `transcript` under the dictation settings.
 pub fn prepare(think: &ThinkClient, transcript: &str, settings: &Settings) -> Result<String> {
     Ok(prepare_with(think, transcript, settings, ComposeContext::default())?.text)
 }
 
-/// [`prepare`] with Compose context and the details of what was used.
 pub fn prepare_with(
     think: &ThinkClient,
     transcript: &str,
@@ -394,11 +344,8 @@ pub fn prepare_with(
         );
         (DICTATION_COMPOSE_SYSTEM.to_string(), user)
     } else {
-        // Direct speech is text to insert: it goes to the cleanup prompt as
-        // data, never to a prompt that may treat it as an instruction.
         (cleanup_system(&profile), cleanup_user_prompt(&speech))
     };
-    // Someone is waiting to insert this: no thinking turn.
     let request = ChatRequest::new(system, user)
         .max_tokens(4_096)
         .reasoning_budget(0)
@@ -421,8 +368,6 @@ pub fn prepare_with(
         context_use: None,
     })
 }
-
-// ------------------------------------------------------------------ routing
 
 const COMMAND_WORDS: &[&str] = &[
     "reply",
@@ -533,11 +478,6 @@ const CONTEXT_CUES: &[&str] = &[
     "spomenuto",
 ];
 
-/// Whether the speech is a writing request that may use context
-/// (`DictationGrounding.requestsContext`, production `referencedRelays`):
-/// after up to five filler or polite openings, a command word, or a relay
-/// verb aimed at someone else that also points at context. Unknown
-/// phrasing conservatively gets ordinary cleanup.
 pub fn requests_context(speech: &str) -> bool {
     let original: Vec<&str> = speech
         .split(|c: char| !c.is_alphabetic() && c != '\'' && c != '’')
@@ -573,8 +513,6 @@ pub fn requests_context(speech: &str) -> bool {
         return true;
     }
     let next = words.get(index + 1).map(String::as_str);
-    // A capitalized second word is a name ("Email Marko…"); lower-case
-    // "email works" is a sentence about email.
     let names_someone = original
         .get(index + 1)
         .and_then(|w| w.chars().next())
@@ -591,9 +529,6 @@ pub fn requests_context(speech: &str) -> bool {
             .any(|w| CONTEXT_CUES.contains(&w.as_str()))
 }
 
-// ------------------------------------------------------------------ cleanup
-
-/// The cleanup system prompt with the user's name and glossary hints.
 pub fn cleanup_system(profile: &Profile) -> String {
     let mut hints = Vec::new();
     if let Some(name) = profile.user_name.as_deref().map(|n| sanitize(n, Some(200)))
@@ -616,13 +551,11 @@ pub fn cleanup_system(profile: &Profile) -> String {
     }
 }
 
-/// `{"transcript":"…"}` with the speech sanitized and capped.
 pub fn cleanup_user_prompt(spoken: &str) -> String {
     let transcript = sanitize(spoken, Some(SPOKEN_MAX_CHARACTERS));
     serde_json::to_string(&json!({ "transcript": transcript })).unwrap_or(transcript)
 }
 
-/// Small models sometimes echo the envelope or wrap the text in quotes.
 pub fn cleanup_normalized_output(raw: &str, spoken: &str) -> String {
     let mut output = compose_normalized_output(raw);
     if output.starts_with('{')
@@ -645,11 +578,6 @@ pub fn cleanup_normalized_output(raw: &str, spoken: &str) -> String {
     output
 }
 
-// ------------------------------------------------------------------ compose
-
-/// The Compose user prompt (`DictationComposePrompt.userPrompt`): screen
-/// context, visible text, saved facts, the writing profile and the spoken
-/// request, each fenced; delimiter look-alikes inside are neutralized.
 pub fn compose_user_prompt(
     spoken: &str,
     screen: Option<&ScreenContext>,
@@ -707,7 +635,6 @@ pub fn compose_user_prompt(
     sections.join("\n\n")
 }
 
-/// Reasoning and a whole-reply code fence removed.
 pub fn compose_normalized_output(raw: &str) -> String {
     let output = strip_reasoning(raw).trim().to_string();
     let normalized = output.replace("\r\n", "\n");
@@ -721,8 +648,6 @@ pub fn compose_normalized_output(raw: &str) -> String {
     output
 }
 
-/// The last 2,000 characters of the window text, starting at a line
-/// boundary, prefixed with "…".
 pub fn window_text(text: &str) -> String {
     let clean = sanitize(text, None);
     let chars: Vec<char> = clean.chars().collect();
@@ -993,7 +918,6 @@ mod tests {
         );
     }
 
-    /// Records which context providers run.
     struct Fake {
         think: ThinkClient,
         current: Settings,

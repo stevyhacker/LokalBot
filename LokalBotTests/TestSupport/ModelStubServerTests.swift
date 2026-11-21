@@ -48,7 +48,7 @@ final class ModelStubServerTests: XCTestCase {
     }
 
     func testReasoningBehaviourTruncatesWhenTheBudgetIsTooSmall() async throws {
-        let answer = String(repeating: "x", count: 400) // about 100 tokens
+        let answer = String(repeating: "x", count: 400)
         try await server.load([StubRule.reasoning(answer, tokens: 1_400, system: "S")])
         let small = try await post(system: "S", maxTokens: 1_450)
         XCTAssertEqual(content(small.1).1, "length")

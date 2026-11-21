@@ -1,8 +1,3 @@
-//! Display-only values for a saved meeting's page (`MeetingDetailPresentation`,
-//! `MeetingSpeakerNaming`): who spoke, whose each action is, the owner
-//! choices on a row, what the naming sheet lists and what it saves. Nothing
-//! here is stored, sent to a model, or treated as an identity decision.
-
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Local, NaiveDate, Utc};
@@ -12,21 +7,15 @@ use unicode_normalization::char::is_combining_mark;
 
 use super::model::{MeetingAction, Speakers};
 
-// ------------------------------------------------------------------ header
-
-/// One person on the title block's "who spoke" line.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Speaker {
-    /// The transcript's canonical speaker key ("me", "them 2").
     pub key: String,
     pub name: String,
     pub color: usize,
     pub is_user: bool,
-    /// A call voice nobody has named yet.
     pub needs_name: bool,
 }
 
-/// Everyone who spoke, you first, then in order of first speaking.
 pub fn speakers(transcript: Option<&Transcript>, names: &Speakers) -> Vec<Speaker> {
     let Some(transcript) = transcript else {
         return Vec::new();
@@ -54,7 +43,6 @@ pub fn speakers(transcript: Option<&Transcript>, names: &Speakers) -> Vec<Speake
     users.into_iter().chain(others).collect()
 }
 
-/// Call voices without a saved name, in order of first speaking.
 pub fn unnamed_speaker_keys(transcript: &Transcript) -> Vec<String> {
     let mut seen = Vec::<String>::new();
     for segment in &transcript.segments {
@@ -69,7 +57,6 @@ pub fn unnamed_speaker_keys(transcript: &Transcript) -> Vec<String> {
     seen
 }
 
-/// "Today at 1:00 PM", "Yesterday at 3:10 PM", then "Nov 6, 2026 at 3:00 PM".
 pub fn date_text(at: DateTime<Utc>, today: NaiveDate) -> String {
     let local = at.with_timezone(&Local);
     let day = local.date_naive();
@@ -92,9 +79,6 @@ pub fn date_text(at: DateTime<Utc>, today: NaiveDate) -> String {
     }
 }
 
-/// "1:00 PM · 50 min · Zoom": when, how long, then where it happened. In
-/// Arabic and Urdu it starts with the right-to-left mark that keeps the
-/// leading time.
 pub fn row_subtitle(time: &str, duration: &str, source: Option<&str>) -> String {
     lokalbot_i18n::directional(
         [Some(time), Some(duration), source]
@@ -106,9 +90,6 @@ pub fn row_subtitle(time: &str, duration: &str, source: Option<&str>) -> String 
     )
 }
 
-// ------------------------------------------------------------ speech time
-
-/// Seconds of transcribed speech per speaker key, from segment bounds.
 pub fn speech_seconds(transcript: Option<&Transcript>) -> HashMap<String, f64> {
     let mut result = HashMap::new();
     for segment in transcript
@@ -128,17 +109,10 @@ pub fn speech_seconds(transcript: Option<&Transcript>) -> HashMap<String, f64> {
     result
 }
 
-/// Whole minutes for "12 min of speech"; any speech at all reads as one.
 pub fn speech_minutes(seconds: f64) -> u64 {
     ((seconds / 60.).round() as u64).max(1)
 }
 
-// ---------------------------------------------------------------- actions
-
-/// What the Actions panel says about itself: one count in its header, then a
-/// band for your actions and one for everyone else's. Both bands show
-/// whenever the meeting has actions, so a side with none says so instead of
-/// leaving a gap. Rows are indices into the shown actions, in their order.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ActionsPanel {
     pub for_you: Vec<usize>,
@@ -158,7 +132,6 @@ impl ActionsPanel {
         self.for_you.len() + self.for_others.len()
     }
 
-    /// The header's pill. A meeting without actions has no count.
     pub fn count(&self) -> Option<usize> {
         (self.total() > 0).then_some(self.total())
     }
@@ -167,21 +140,15 @@ impl ActionsPanel {
         self.total() > 0
     }
 
-    /// The rows in reading order: yours, then everyone else's.
     pub fn order(&self) -> impl Iterator<Item = usize> + '_ {
         self.for_you.iter().chain(&self.for_others).copied()
     }
 
-    /// "Also in Actions" leads to your open work, so it needs an action of
-    /// yours that the Actions list holds: saved outcomes of a real meeting,
-    /// not a sample or notes that are still being written.
     pub fn shows_actions_link(&self, has_saved_outcomes: bool, is_sample: bool) -> bool {
         !self.for_you.is_empty() && has_saved_outcomes && !is_sample
     }
 }
 
-/// "Them", "Them 2", "Speaker", "Speaker 3", "Speaker unclear" and "Local
-/// speaker" are voices, not names (`Transcript.isPlaceholderSpeakerName`).
 pub fn is_placeholder_speaker_name(name: &str) -> bool {
     let lower = name.trim().to_lowercase();
     let numbered = |prefix: &str| {
@@ -197,8 +164,6 @@ pub fn is_placeholder_speaker_name(name: &str) -> bool {
         || lower == "local speaker"
 }
 
-/// Someone else's action whose owner is missing or only a placeholder voice
-/// ("Speaker 2"): the row asks for a real owner.
 pub fn owner_needs_attention(
     owner: Option<&str>,
     display_owner: Option<&str>,
@@ -217,7 +182,6 @@ pub fn owner_needs_attention(
     })
 }
 
-/// What a row's owner menu offers.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OwnerKind {
     You,
@@ -229,17 +193,13 @@ pub enum OwnerKind {
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OwnerOption {
     pub id: String,
-    /// What the menu shows ("You" and "No owner" are interface words).
     pub title: String,
-    /// What is saved as the owner; empty clears it.
     pub value: String,
     pub kind: OwnerKind,
     pub is_selected: bool,
 }
 
 impl OwnerOption {
-    /// The menu's words: "You" and "No owner" in the interface language, a
-    /// person's name as it is.
     pub fn label(&self) -> String {
         match self.kind {
             OwnerKind::You | OwnerKind::None => lokalbot_i18n::tr(&self.title).to_string(),
@@ -248,9 +208,6 @@ impl OwnerOption {
     }
 }
 
-/// Owner choices for one action: you, this meeting's other speakers, invited
-/// people who are not already among them, and no owner. Speakers are offered
-/// by the name the page shows and saved by the name the transcript uses.
 pub fn owner_options(
     owner: Option<&str>,
     is_for_user: bool,
@@ -277,8 +234,6 @@ pub fn owner_options(
             continue;
         }
         taken.insert(owner_key(&stored));
-        // By name, not by voice: "Them" on an action is not the person that
-        // voice was named as afterwards, until someone says so.
         let selected = !any_selected
             && !current.is_empty()
             && [owner_key(&speaker.name), owner_key(&stored)].contains(&current);
@@ -316,9 +271,6 @@ pub fn owner_options(
     options
 }
 
-/// The owner to save from a row's menu: `Some(None)` clears it. Nothing when
-/// the choice already is the action's owner. A corrected wording and due
-/// date stay as they are.
 pub fn owner_correction(option: &OwnerOption, action: &MeetingAction) -> Option<Option<String>> {
     let same = owner_key(&option.value) == owner_key(action.owner.as_deref().unwrap_or(""));
     if same && (option.kind != OwnerKind::You || action.is_for_user) {
@@ -327,8 +279,6 @@ pub fn owner_correction(option: &OwnerOption, action: &MeetingAction) -> Option<
     Some(Some(option.value.clone()).filter(|value| !value.trim().is_empty()))
 }
 
-/// The name the transcript itself uses for each speaker ("Them 2", or a
-/// saved alias): what an owner is saved as, whatever the page shows.
 pub fn stored_speaker_names(
     transcript: Option<&Transcript>,
     speakers: &[Speaker],
@@ -342,8 +292,6 @@ pub fn stored_speaker_names(
         .collect()
 }
 
-/// Compares names the way people read them: case, accents and outer spaces
-/// don't count.
 pub fn owner_key(name: &str) -> String {
     name.trim()
         .nfd()
@@ -352,35 +300,25 @@ pub fn owner_key(name: &str) -> String {
         .collect()
 }
 
-// ------------------------------------------------------------ naming sheet
-
-/// One voice waiting for a name in the naming sheet.
 #[derive(Clone, Debug, PartialEq)]
 pub struct NamingVoice {
     pub key: String,
     pub label: String,
     pub color: usize,
-    /// When the clearest excerpt starts, and what was said.
     pub sample: Option<(f64, String)>,
     pub speech_seconds: f64,
     pub action_count: usize,
-    /// A name this voice matched from earlier meetings. It is offered
-    /// already picked, and still needs saving.
     pub recognized_name: Option<String>,
 }
 
-/// A speaker who already has a name, listed so it can be changed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamingKnown {
     pub key: String,
     pub name: String,
     pub color: usize,
-    /// Named by voice recognition, not by the person reading the meeting.
     pub was_recognized: bool,
 }
 
-/// Voices to name, those with actions first (the order of `review`), and the
-/// speakers already named. The user's own voice is in neither list.
 pub fn naming_lists(
     speakers: &[Speaker],
     review: &[super::model::ReviewSpeaker],
@@ -417,7 +355,6 @@ pub fn naming_lists(
     (voices, known)
 }
 
-/// A name to save for one voice.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct NamingChoice {
     pub speaker: String,
@@ -425,8 +362,6 @@ pub struct NamingChoice {
     pub calendar_identity_id: Option<String>,
 }
 
-/// One chip in the sheet: an invited guest, a suggested name, or the name a
-/// voice was recognized as.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Pick {
     pub id: String,
@@ -434,8 +369,6 @@ pub struct Pick {
     pub calendar_identity_id: Option<String>,
 }
 
-/// What has been picked in the naming sheet before it is saved. One person
-/// is one voice: picking a name for a second voice takes it from the first.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct NamingDraft {
     picks: HashMap<String, Pick>,
@@ -443,7 +376,6 @@ pub struct NamingDraft {
 }
 
 impl NamingDraft {
-    /// Recognized voices start picked.
     pub fn new(
         voices: &[NamingVoice],
         suggestions: &[lokalbot_core::calendar::SpeakerSuggestion],
@@ -454,7 +386,6 @@ impl NamingDraft {
                 continue;
             };
             let pick = recognized_pick(name, &voice.key, suggestions);
-            // Two voices cannot both start as the same guest.
             if !draft.picks.values().any(|p| p.id == pick.id) {
                 draft.picks.insert(voice.key.clone(), pick);
             }
@@ -470,14 +401,12 @@ impl NamingDraft {
         self.typing.contains(speaker)
     }
 
-    /// Another voice in this sheet already has that name.
     pub fn is_taken_elsewhere(&self, id: &str, speaker: &str) -> bool {
         self.picks
             .iter()
             .any(|(other, pick)| other != speaker && pick.id == id)
     }
 
-    /// Picks a name for a voice; picking the same name again clears it.
     pub fn toggle(&mut self, pick: Pick, speaker: &str) {
         self.typing.remove(speaker);
         if self.picks.get(speaker).is_some_and(|p| p.id == pick.id) {
@@ -489,7 +418,6 @@ impl NamingDraft {
         self.picks.insert(speaker.to_string(), pick);
     }
 
-    /// Switches a voice to a typed name ("Someone else…") or back.
     pub fn type_name(&mut self, speaker: &str) {
         if !self.typing.remove(speaker) {
             self.typing.insert(speaker.to_string());
@@ -497,8 +425,6 @@ impl NamingDraft {
         }
     }
 
-    /// The names to save, in the sheet's order. Voices left alone are
-    /// skipped; `typed` gives what was typed for a voice.
     pub fn choices<'a>(
         &self,
         speakers: impl IntoIterator<Item = &'a str>,
@@ -526,9 +452,6 @@ impl NamingDraft {
     }
 }
 
-/// The pick for a name recognized by voice. When that name is one of the
-/// suggestions (an invited guest), it is that suggestion's pick, so the
-/// guest's calendar identity is kept.
 pub fn recognized_pick(
     name: &str,
     speaker: &str,
@@ -553,44 +476,28 @@ pub fn recognized_pick(
     }
 }
 
-// ------------------------------------------------------------------ layout
-
-/// Widths of a saved meeting's page at the default text size. The page
-/// fills the detail pane; only prose keeps a reading measure.
 pub mod layout {
     use gpui_kit::{Pixels, px};
 
-    /// Space between the pane's edge and the title, the player and panels.
     pub const GUTTER: Pixels = px(24.);
-    /// Space between two panels, and between a notice and the panel under it.
     pub const PANEL_GAP: Pixels = px(16.);
-    /// The page's widest; an ultra-wide pane centres the column.
     pub const COLUMN_MAX: f32 = 1360.;
-    /// The measure of the recap and the full summary inside their panels.
     pub const PROSE: f32 = 860.;
-    /// Find in the Transcript panel's header, at its widest and narrowest.
     pub const FIND_FIELD: f32 = 260.;
     pub const FIND_FIELD_MIN: f32 = 120.;
-    /// The transcript's time column: wide enough for "1:02:09".
     pub const TIME_COLUMN: f32 = 52.;
     pub const COLUMN_GAP: f32 = 12.;
-    /// A line's highlight reaches this far past its text on each side.
     pub const LINE_INSET: f32 = 6.;
 
-    /// A text-bound width at the app's text size.
     pub fn scaled(width: f32, text_scale: f32) -> Pixels {
         px((width * text_scale.max(0.5)).round())
     }
 }
 
-/// Where the page's one find field is.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum FindPlacement {
     Hidden,
-    /// Find in transcript, in the Transcript panel's header.
     TranscriptPanel,
-    /// Ctrl+F's search of the whole meeting, pinned under the player because
-    /// its matches move between tabs.
     PinnedBar,
 }
 
@@ -708,7 +615,6 @@ mod tests {
             Some("Ana Petrović"),
             false
         ));
-        // Your own actions never ask.
         assert!(!owner_needs_attention(None, None, true));
     }
 
@@ -736,7 +642,6 @@ mod tests {
                 "none"
             ]
         );
-        // "Them" is saved as the transcript names it and is the current owner.
         assert_eq!(options[1].value, "Them");
         assert!(options[1].is_selected);
         assert_eq!(options.iter().filter(|o| o.is_selected).count(), 1);
@@ -772,7 +677,6 @@ mod tests {
             is_selected: false,
         };
         assert_eq!(owner_correction(&none, &theirs), Some(None));
-        // "You" on an action stored as "Me" but not yet yours is saved again.
         let you = OwnerOption {
             id: "you".into(),
             title: "You".into(),
@@ -880,7 +784,6 @@ mod tests {
         );
         assert!(draft.is_picked("calendar:1", "them 2"));
         assert!(draft.is_taken_elsewhere("calendar:1", "them"));
-        // Picking the same name again clears it.
         draft.toggle(pick("calendar:1", "Ana"), "them 2");
         assert!(
             draft

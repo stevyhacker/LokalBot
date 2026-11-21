@@ -1,28 +1,12 @@
-//! Interaction boundaries as capture hints (`ScreenContextEventMonitor`).
-//!
-//! The Mac app watches clicks, key presses and scrolls through a global
-//! event monitor and reports when they settle. Here the idle timer stands in
-//! for all three: input that stops for a moment is one "typing pause"
-//! boundary. A clipboard change is noticed from its sequence number (Windows)
-//! or a selection-owner event (X11). No key, pointer position, event type or
-//! clipboard content is ever read.
-
-/// A settled interaction worth a capture.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Interaction {
-    /// Keyboard or pointer input stopped for a moment.
     TypingPause,
-    /// Something new was copied.
     ClipboardChange,
 }
 
-/// Input this recent counts as ongoing.
 const ACTIVE_SECONDS: f64 = 1.0;
-/// Input settled once it has been idle this long (the Mac waits 0.8 s after
-/// the last key).
 const SETTLED_SECONDS: f64 = 0.8;
 
-/// Polled about once a second by the capture worker.
 pub struct InteractionMonitor {
     active: bool,
     clipboard: Option<ClipboardWatch>,
@@ -42,7 +26,6 @@ impl InteractionMonitor {
         }
     }
 
-    /// Boundaries since the last poll, given the current idle time.
     pub fn poll(&mut self, idle_seconds: Option<f64>) -> Vec<Interaction> {
         let mut found = Vec::new();
         if let Some(idle) = idle_seconds {
@@ -59,7 +42,6 @@ impl InteractionMonitor {
         found
     }
 
-    /// Whether clipboard changes can be noticed on this desktop.
     pub fn watches_clipboard(&self) -> bool {
         self.clipboard.is_some()
     }
@@ -79,7 +61,6 @@ impl ClipboardWatch {
     }
 
     fn current() -> u32 {
-        // SAFETY: no arguments; returns 0 when the station has no clipboard access.
         unsafe { windows::Win32::System::DataExchange::GetClipboardSequenceNumber() }
     }
 
@@ -91,8 +72,6 @@ impl ClipboardWatch {
     }
 }
 
-/// X11: XFixes reports every new owner of the CLIPBOARD selection; the
-/// events are drained without reading the selection itself.
 #[cfg(target_os = "linux")]
 pub(crate) struct ClipboardWatch {
     conn: x11rb::rust_connection::RustConnection,

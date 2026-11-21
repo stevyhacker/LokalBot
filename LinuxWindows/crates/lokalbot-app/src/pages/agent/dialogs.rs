@@ -1,6 +1,3 @@
-//! Agent dialogs: attaching meetings and saved moments (`AgentContextPicker`),
-//! browsing saved sessions (`AgentSessionHistoryView`) and renaming a task.
-
 use std::path::PathBuf;
 
 use crate::i18n::h_flex;
@@ -36,9 +33,6 @@ fn formatted(at: DateTime<Utc>) -> String {
 }
 
 impl AgentPage {
-    // The dialogs are built while this page is being updated, so their
-    // constructors take what they need from the page instead of reading it.
-
     pub(super) fn open_context_picker(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let page = cx.entity();
         let data = self.data.clone();
@@ -134,8 +128,6 @@ impl AgentPage {
             .is_some_and(|tab| tab.session.attachments.iter().any(|a| a.id == id))
     }
 }
-
-// ------------------------------------------------------------ context picker
 
 pub(super) struct ContextPicker {
     page: Entity<AgentPage>,
@@ -397,10 +389,6 @@ fn note(text: &str, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-// ------------------------------------------------------------ saved sessions
-
-/// Searchable local history of pi sessions; Open reopens one in its
-/// original working folder.
 pub(super) struct SavedSessions {
     page: Entity<AgentPage>,
     directory: Option<PathBuf>,
@@ -612,7 +600,6 @@ impl Render for SavedSessions {
             );
         }
 
-        // The details scroll; the Open button below them stays in view.
         let (detail, footer): (AnyElement, Option<AnyElement>) = match selected {
             Some(session) => {
                 let open = self.is_open(&session, cx);

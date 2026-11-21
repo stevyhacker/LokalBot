@@ -3,7 +3,6 @@ use std::net::{IpAddr, SocketAddr};
 use crate::net::{is_allowed_peer, local_addresses, resolve};
 use crate::server::listen_hosts;
 
-/// A development host asks for loopback and never gets the wildcard.
 #[test]
 fn listen_hosts_follow_the_loopback_choice() {
     assert_eq!(listen_hosts(true), ("[::1]", "127.0.0.1"));
@@ -13,11 +12,9 @@ fn listen_hosts_follow_the_loopback_choice() {
 #[test]
 fn address_filter_table() {
     let cases = [
-        // Loopback, for tests.
         ("127.0.0.1", true),
         ("127.255.0.9", true),
         ("::1", true),
-        // Private LAN.
         ("10.0.0.1", true),
         ("10.255.255.255", true),
         ("172.16.0.1", true),
@@ -26,28 +23,23 @@ fn address_filter_table() {
         ("172.32.0.1", false),
         ("192.168.1.20", true),
         ("192.169.0.1", false),
-        // Link-local.
         ("169.254.10.10", true),
         ("fe80::1", true),
         ("febf::1", true),
         ("fec0::1", false),
-        // IPv6 ULA, Tailscale's range included.
         ("fc00::1", true),
         ("fd7a:115c:a1e0::1", true),
         ("fdff:ffff::1", true),
         ("fe00::1", false),
-        // Tailscale and CGNAT.
         ("100.64.0.1", true),
         ("100.101.102.103", true),
         ("100.127.255.255", true),
         ("100.63.255.255", false),
         ("100.128.0.0", false),
-        // IPv4-mapped IPv6 is unwrapped first.
         ("::ffff:192.168.1.20", true),
         ("::ffff:100.100.1.1", true),
         ("::ffff:8.8.8.8", false),
         ("::ffff:127.0.0.1", true),
-        // Public and special addresses.
         ("8.8.8.8", false),
         ("1.1.1.1", false),
         ("145.239.232.15", false),
@@ -57,7 +49,6 @@ fn address_filter_table() {
         ("2001:4860:4860::8888", false),
         ("::", false),
         ("ff02::1", false),
-        // IPv4-compatible (not mapped) addresses are not unwrapped.
         ("::192.168.1.20", false),
     ];
     for (address, allowed) in cases {

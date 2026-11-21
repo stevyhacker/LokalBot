@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Autocorrect
-
 final class CotypingAutocorrectTests: XCTestCase {
     func testExtractTrailingWord() {
         XCTAssertEqual(CotypingWord.extract(from: "I want to teh")?.word, "teh")
@@ -55,9 +53,6 @@ final class CotypingAutocorrectTests: XCTestCase {
     }
 
     func testTypoGateProceedsForCompletableMidWordFragment() {
-        // "follo" is flagged by the spell checker but is a live prefix of
-        // "follow": it is an unfinished word, so the LLM continuation must run
-        // (Cotypist's core mid-word behavior) instead of an autocorrect offer.
         let decision = CotypingTypoGate.resolve(
             precedingText: "I wanted to follo", enabled: true,
             isTypo: { $0 == "follo" },
@@ -67,8 +62,6 @@ final class CotypingAutocorrectTests: XCTestCase {
     }
 
     func testTypoGateStillCorrectsUncompletableMidWordFragment() {
-        // No dictionary word starts with "recieve" — mid-word or not, this is a
-        // real typo and the correction must be offered.
         let decision = CotypingTypoGate.resolve(
             precedingText: "I did not recieve", enabled: true,
             isTypo: { $0 == "recieve" },
@@ -78,9 +71,6 @@ final class CotypingAutocorrectTests: XCTestCase {
     }
 
     func testTypoGateIgnoresCompletabilityOnceWordIsFinished() {
-        // A trailing space means the word is done: even a fragment that would
-        // be completable mid-word ("follo" → follow) must be corrected, and the
-        // completability check must not even be consulted.
         var consulted = false
         let decision = CotypingTypoGate.resolve(
             precedingText: "I wanted to follo ", enabled: true,

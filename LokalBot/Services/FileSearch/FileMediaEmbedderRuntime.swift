@@ -1,8 +1,5 @@
 import Foundation
 
-/// EmbeddingGemma 2's image and audio projector, the one extra file Files
-/// needs. The text model is the one search by meaning already uses
-/// (`EmbeddingIndex.preparedModel`); both come from the same pinned revision.
 enum FileSearchModels {
     static let projectorFile = "mmproj-embeddinggemma-2-Q8_0.gguf"
     static let projectorBytes: Int64 = 554_821_024
@@ -11,7 +8,6 @@ enum FileSearchModels {
         "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/bfcd298762cc34d0357ece5ebdd31791a3a374d8/"
         + projectorFile)!
 
-    /// What indexing needs to download before it can start, in bytes.
     static func missingDownloadBytes(storageRoot: URL) -> Int64 {
         let folder = storageRoot.appendingPathComponent("models", isDirectory: true)
         var missing: Int64 = 0
@@ -26,8 +22,6 @@ enum FileSearchModels {
 
     private static let preparation = EmbeddingModelPreparationCoordinator()
 
-    /// The verified projector in the library's models folder, downloading it
-    /// first if needed (checked against the pinned size and SHA-256).
     static func preparedProjector(
         storageRoot: URL,
         progress: @escaping @Sendable (Double) -> Void = { _ in }
@@ -74,24 +68,14 @@ enum FileSearchModels {
     }
 }
 
-/// The media embedder's llama-server (`LlamaServerRole.mediaEmbedder`): the
-/// text model plus the projector, started for an indexing pass and stopped two
-/// minutes after the last one. Searches never use it; they embed their words
-/// on the small text-only embedder, whose vectors are identical
-/// (Benchmarks/search/EmbeddingGemma2/2026-10-30-media-embedder).
 actor FileMediaEmbedderRuntime {
     static let shared = FileMediaEmbedderRuntime()
 
-    /// The embedder's arguments plus the projector. With images resized for
-    /// their budget before they are sent (`FileImageSizing`), the token limits
-    /// keep llama.cpp from rescaling them.
     static func serverArguments(projector: URL) -> [String] {
         ["--embeddings", "-b", "2048", "-ub", "2048", "--parallel", "1",
          "--mmproj", projector.path, "--image-min-tokens", "1", "--image-max-tokens", "1120"]
     }
 
-    /// Weights are counted separately (865 MB with the projector). The 30
-    /// October run peaked at 1.2 GiB RSS while indexing.
     static let runtimeAllowanceBytes: Int64 = 512 * 1_048_576
     static let idleSeconds: TimeInterval = 120
 
@@ -100,8 +84,6 @@ actor FileMediaEmbedderRuntime {
     private var pins: [UUID: UUID] = [:]
     private lazy var idle = IdleTimer(seconds: Self.idleSeconds) { [weak self] in await self?.stopIfIdle() }
 
-    /// Starts (or reuses) the server for one pass and keeps it resident until
-    /// `end(_:)`. Returns the endpoint and a token to end the pass with.
     func begin(model: URL, projector: URL) async throws -> (endpoint: FileMediaEmbedder.Endpoint, pass: UUID) {
         let pass = UUID()
         pins[pass] = await ModelResidency.shared.pin(id: LlamaServerRole.mediaEmbedder.residencyID)

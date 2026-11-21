@@ -1,9 +1,5 @@
 import Foundation
 
-/// Downloads and verifies Bun, then uses the frozen lockfile bundled with the
-/// app to install pi from the public npm registry. Assembly happens in a
-/// staging directory that is swapped into place at the end, so a failed setup
-/// leaves nothing half-written.
 @MainActor
 final class AgentRuntimeInstaller: ObservableObject {
 
@@ -14,7 +10,7 @@ final class AgentRuntimeInstaller: ObservableObject {
     enum Phase: Equatable {
         case checking
         case idle
-        case downloading(name: String, progress: Double)   // 0…1; -1 when length unknown
+        case downloading(name: String, progress: Double)
         case installing(name: String)
         case installed
         case failed(String)
@@ -59,9 +55,6 @@ final class AgentRuntimeInstaller: ObservableObject {
 #endif
     }
 
-    /// User-requested recursive audit. Normal pane entry relies on the cheap
-    /// install receipt checked during initialization; this slower operation
-    /// opens and hashes the full runtime tree on a utility executor.
     @discardableResult
     func verifyInstalledState(manifest: AgentRuntimeManifest = .current) async -> Bool {
 #if LOKALBOT_UI_TEST_HOST
@@ -187,8 +180,6 @@ final class AgentRuntimeInstaller: ObservableObject {
         }.value
     }
 
-    // MARK: - Frozen package install
-
     static func installPackages(bun: URL, template: URL, destination: URL) async throws {
         let packageJSON = template.appendingPathComponent("package.json")
         let lockfile = template.appendingPathComponent("bun.lock")
@@ -254,8 +245,6 @@ final class AgentRuntimeInstaller: ObservableObject {
         }
     }
 
-    // MARK: - Download + verify
-
     private func download(_ artifact: AgentRuntimeArtifact, into staging: URL) async throws -> URL {
         phase = .downloading(name: artifact.name, progress: 0)
         let destination = staging.appendingPathComponent(artifact.url.lastPathComponent)
@@ -277,8 +266,6 @@ final class AgentRuntimeInstaller: ObservableObject {
         return destination
     }
 
-    // MARK: - Unpack
-
     static func unpack(_ archive: URL, kind: AgentArchiveKind, into directory: URL) throws {
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let process = Process()
@@ -296,8 +283,6 @@ final class AgentRuntimeInstaller: ObservableObject {
             throw InstallError.unpack(archive.lastPathComponent, process.terminationStatus)
         }
     }
-
-    // MARK: - Errors
 
     enum InstallError: Error {
         case download(String, String)

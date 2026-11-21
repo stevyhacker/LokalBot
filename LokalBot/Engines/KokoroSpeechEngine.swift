@@ -50,8 +50,6 @@ struct SpeechSynthesisRequest: Sendable {
 }
 
 enum SpeechTemporaryOutputCleanup {
-    /// Releases playback first so a caller never unlinks the plaintext WAV
-    /// while AVFoundation may still need it.
     static func cleanup(_ outputURL: URL?, afterPlaybackStops stopPlayback: () -> Void) {
         stopPlayback()
         guard let outputURL else { return }
@@ -250,8 +248,6 @@ actor KokoroSpeechEngine {
                 let err = Pipe()
                 process.standardOutput = out
                 process.standardError = err
-                // The awaits below can move this task off the launching thread,
-                // where `waitUntilExit()` could wait forever.
                 let exitSignal = ProcessExitSignal(process)
                 do {
                     try process.run()

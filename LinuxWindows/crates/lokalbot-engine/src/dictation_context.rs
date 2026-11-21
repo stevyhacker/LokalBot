@@ -1,8 +1,3 @@
-//! Where a Compose writing request gets its context
-//! (`DictationScreenContextCapture`, `DictationVisibleContextCapture`,
-//! `DictationGrounding`): the focused window, the text above the field, and
-//! saved facts. Each has its own grant, and nothing read here is saved.
-
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
@@ -25,13 +20,9 @@ const METADATA_DEADLINE: Duration = Duration::from_millis(300);
 const TEXT_DEADLINE: Duration = Duration::from_millis(600);
 const VISIBLE_DEADLINE: Duration = Duration::from_millis(300);
 const FOCUS_DEADLINE: Duration = Duration::from_millis(600);
-/// The longest side OCR reads (`DictationCaptureSizing`).
 const OCR_MAX_DIMENSION: u32 = 4_096;
-/// How long Compose waits for a capture that began during recording.
 const SCREEN_WAIT: Duration = Duration::from_secs(20);
 
-/// The app and field that owned focus at the press, when context may be read
-/// from it (`DictationScreenPrivacy.allowsCapture`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ContextTarget {
     pub front: FrontApp,
@@ -51,12 +42,10 @@ impl ContextTarget {
         })
     }
 
-    /// Password managers and the capture exclusions (`isExcluded`).
     pub(crate) fn is_excluded(&self, settings: &Settings) -> bool {
         is_excluded(&self.front, settings)
     }
 
-    /// The bound field still has focus and may still be read.
     fn focus_matches(&self) -> bool {
         let Some(identity) = self.identity.as_deref() else {
             return false;
@@ -80,8 +69,6 @@ pub(crate) fn is_excluded(front: &FrontApp, settings: &Settings) -> bool {
     ) || lokalbot_platform::privacy::is_password_manager(&front.app_name, &front.app_id)
 }
 
-/// The exact window a context belongs to. A process is too broad: switching
-/// documents in one app must invalidate the captured title and address.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct ScreenIdentity {
     window: u64,
@@ -90,7 +77,6 @@ struct ScreenIdentity {
     url: Option<String>,
 }
 
-/// One screen context and what it must keep matching.
 #[derive(Clone, Debug)]
 pub(crate) struct CapturedScreen {
     context: ScreenContext,
@@ -130,8 +116,6 @@ fn permitted(observation: &privacy::Observation, settings: &Settings) -> bool {
         .is_some_and(lokalbot_platform::privacy::is_private_window)
 }
 
-/// The window a dictation was pasted into, read once, only while Learn from my
-/// dictation is on. Held in memory to decide whether to keep the words.
 pub(crate) struct LearningSurface {
     window_title: Option<String>,
     page_url: Option<String>,
@@ -139,8 +123,6 @@ pub(crate) struct LearningSurface {
 }
 
 impl ContextTarget {
-    /// The target and what its window shows. Only text pasted into a field it could
-    /// identify is kept; a password field or a blocked field keeps nothing.
     pub(crate) fn of_learning(
         read: &FocusRead,
         front: FrontApp,
@@ -171,9 +153,6 @@ impl ContextTarget {
     }
 }
 
-/// `DictationLearningPolicy.permits`: the same app, website and private-window
-/// exclusions as nearby text. A browser whose page address can't be read can't be
-/// checked against the website exclusions, so its dictation isn't kept.
 pub(crate) fn learning_permits(
     target: &ContextTarget,
     surface: &LearningSurface,
@@ -225,8 +204,6 @@ fn read_window(
     }
 }
 
-/// The same window, with the same title and address, still in front and
-/// allowed, and the same field still has focus.
 fn still_matches(target: &ContextTarget, identity: &ScreenIdentity, settings: &Settings) -> bool {
     let Ok(Some(window)) = screen::window_capture().focused() else {
         return false;
@@ -244,11 +221,6 @@ fn still_matches(target: &ContextTarget, identity: &ScreenIdentity, settings: &S
         && target.focus_matches()
 }
 
-/// Reads the focused window for one request: its title and address always,
-/// its accessible text when it shares enough, otherwise on-device OCR when
-/// installed. The portal can prompt, and a shortcut must never prompt, so a
-/// desktop that needs it gets metadata only. Returns `None` rather than any
-/// other window; nothing here is written to disk.
 pub(crate) fn capture_screen(
     target: &ContextTarget,
     settings: &Settings,
@@ -309,7 +281,6 @@ pub(crate) fn capture_screen(
     })
 }
 
-/// A read of the text above the field, under this settings' exclusions.
 fn visible_text(target: &ContextTarget, settings: &Settings) -> Option<String> {
     let identity = target.identity.clone()?;
     let (pid, front) = (target.pid, target.front.clone());
@@ -326,8 +297,6 @@ fn visible_text(target: &ContextTarget, settings: &Settings) -> Option<String> {
     .flatten()
 }
 
-/// The focused window's context arrives from a capture that began during
-/// recording; the rest is read when Compose asks.
 pub(crate) struct LiveProviders<'a> {
     pub shared: &'a Shared,
     pub target: Option<ContextTarget>,
@@ -385,8 +354,6 @@ impl ComposeProviders for LiveProviders<'_> {
         visible: Option<&str>,
         settings: &Settings,
     ) -> SavedFacts {
-        // A spoken writing request, not typed shell or code input. The title
-        // joins the query only when a window grant allows it.
         let title =
             if settings.dictation_use_screen_context || settings.dictation_use_visible_context {
                 screen.map_or("", |s| s.window_title.as_str())
@@ -409,8 +376,6 @@ impl ComposeProviders for LiveProviders<'_> {
         }
     }
 
-    /// Source edits and deletion invalidate the facts: looking up again must
-    /// find the same ones.
     fn memory_is_current(&mut self, facts: &SavedFacts, current: &Settings) -> bool {
         if facts.text.is_none() {
             return true;

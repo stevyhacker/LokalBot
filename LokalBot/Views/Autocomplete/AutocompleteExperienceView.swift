@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// What autocomplete runs on and whether it can run, shared by the page's
-/// notices and the "Try it…" sheet.
 @MainActor
 struct AutocompleteReadiness {
     let app: AppState
@@ -19,7 +17,6 @@ struct AutocompleteReadiness {
         ModelCatalog.entry(id: app.settings.cotypingBuiltInModelID, custom: app.settings.customBuiltInModels)
     }
 
-    /// Autocomplete runs on a server: nothing to download, only setup to finish.
     var usesServer: Bool { app.settings.cotypingBackend != .onDevice }
 
     var modelReady: Bool {
@@ -28,14 +25,12 @@ struct AutocompleteReadiness {
         return selectedModel.flatMap { ModelCatalog.localURL(for: $0, storage: app.storage) } != nil
     }
 
-    /// What to change before the selected server can be used.
     var serverSetupProblem: String? {
         guard usesServer, case .unavailable(let reason) = app.settings.cotypingRoute(includingCredentials: false)
         else { return nil }
         return reason
     }
 
-    /// Why the selected server's last request brought no suggestion.
     var serverProblem: String? {
         guard usesServer, let problem = server.problem,
               case .server(let endpoint) = app.settings.cotypingRoute(includingCredentials: false),
@@ -43,21 +38,15 @@ struct AutocompleteReadiness {
         return problem.message
     }
 
-    /// The model suggestions come from, on this Mac or a server.
     var modelName: String {
         usesServer ? app.settings.cotypingModelDisplayName
             : selectedModel?.displayName ?? app.settings.cotypingBuiltInModelID
     }
 }
 
-/// What the Autocomplete page has to say that its header does not: macOS's
-/// own predictions showing beside LokalBot's, and a server that is not set
-/// up or has just failed. Nothing when there is nothing to say.
 struct AutocompleteNotices: View {
     @EnvironmentObject private var app: AppState
-    /// Autocomplete on a chosen server, for its last problem.
     @ObservedObject var server: RemoteCotypingEngine
-    /// macOS's own inline predictions, read again each time LokalBot comes forward.
     @State private var systemPredictionsOn = AutocompleteNotices.readSystemPredictions()
 
     var body: some View {
@@ -89,15 +78,12 @@ struct AutocompleteNotices: View {
 
     static func readSystemPredictions() -> Bool {
 #if LOKALBOT_UI_TEST_HOST
-        // The test runner's own keyboard settings must not change the layout under test.
         return ProcessInfo.processInfo.environment["LOKALBOT_SYSTEM_PREDICTIONS_ON"] == "1"
 #else
         return CotypingSystemInlinePredictions.isOn()
 #endif
     }
 
-    /// Two grey suggestions at the same caret look broken, so ask for the
-    /// macOS one to be turned off, as Cotypist does.
     private var systemPredictionsNotice: some View {
         VStack(alignment: .leading, spacing: 6) {
             Label("macOS can show its own inline predictions where you type, so two suggestions may appear at once. Turn off “Show inline predictive text” in Keyboard → Text Input → Edit….",
@@ -114,9 +100,6 @@ struct AutocompleteNotices: View {
     }
 }
 
-/// "Try it…" on Autocomplete: the rehearsal, over the page. It runs the real
-/// prompt, model and normalizer with the page's settings, without touching
-/// the acceptance statistics or the learning store.
 struct AutocompleteTrySheet: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var server: RemoteCotypingEngine
@@ -141,7 +124,6 @@ struct AutocompleteTrySheet: View {
                             .foregroundStyle(LBTokens.Palette.attentionText)
                             .fixedSize(horizontal: false, vertical: true)
                     } else if !readiness.modelReady {
-                        // Download it here to try it; its licence is linked beside it.
                         CotypingModelPreparationView(compact: true)
                     }
                     AutocompleteRehearsal(readiness: readiness)
@@ -154,8 +136,6 @@ struct AutocompleteTrySheet: View {
                     .font(AppFont.scaled(.callout)).settingsSecondary()
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 12)
-                // No Return or Escape shortcut: both belong to the reply field,
-                // where Escape dismisses a suggestion.
                 Button("Done") { dismiss() }
                     .primaryActionButton()
                     .accessibilityIdentifier("autocomplete.try.done")
@@ -169,8 +149,6 @@ struct AutocompleteTrySheet: View {
         .accessibilityIdentifier("autocomplete.try")
     }
 
-    /// What typing here does and does not send. A server receives the
-    /// rehearsal's text as it receives typing in other apps.
     private var explanation: String {
         let language = app.settings.appLanguage
         if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
@@ -181,8 +159,6 @@ struct AutocompleteTrySheet: View {
     }
 }
 
-/// The rehearsal itself: a sample conversation, a reply field that shows the
-/// real suggestion, and what the suggestion drew on.
 struct AutocompleteRehearsal: View {
     @EnvironmentObject var app: AppState
     @ObservedObject private var permissions = PermissionManager.shared
@@ -192,14 +168,10 @@ struct AutocompleteRehearsal: View {
 
     @State private var text = AutocompleteRehearsal.openingText
     @State private var rehearsal = AutocompleteRehearsal.openingRehearsal
-    /// What the visible suggestion drew on; nil until one has been generated.
     @State private var contextUse: CotypingContextUse?
     @State private var generating = false
     @State private var error: String?
-    /// Why the model's last answer became no suggestion.
     @State private var emptyReason: CotypingSuppressionReason?
-    /// The text a suggestion is wanted for. Each new request starts one
-    /// generation and ends the one before; the view owns the task's life.
     @State private var request: Request?
     @State private var requestSerial = 0
     @State private var topUpTask: Task<Void, Never>?
@@ -219,11 +191,9 @@ struct AutocompleteRehearsal: View {
 
     private struct Request: Equatable {
         var serial: Int
-        /// The text before the caret when the suggestion was asked for.
         var context: String
     }
 
-    /// The context grants a suggestion depends on.
     private var contextGrants: [Bool] {
         [app.settings.cotypingUseVisibleContext, app.settings.cotypingUseMeetingMemory,
          app.settings.cotypingUseScreenMemory]
@@ -237,8 +207,6 @@ struct AutocompleteRehearsal: View {
     }
 
     var body: some View {
-        // No identifier here: on a container it would replace the
-        // identifier of every element inside.
         preview
             .task(id: request) {
                 if let request { await generate(request) }
@@ -265,8 +233,6 @@ struct AutocompleteRehearsal: View {
                         .allowsHitTesting(false)
                 }
                 .onChange(of: text) { _, updated in
-                    // An accept or typing the suggested characters keeps the
-                    // rest of the ghost, as in another app; anything else is stale.
                     switch rehearsal.textChanged(to: updated) {
                     case .stale: schedule()
                     case .advanced: topUp()
@@ -274,8 +240,6 @@ struct AutocompleteRehearsal: View {
                     }
                 }
                 .onChange(of: contextGrants) { _, _ in
-                    // Re-run a rehearsal that is in use so the change shows at
-                    // once; a setting alone should not load the model.
                     if contextUse != nil || !rehearsal.ghost.isEmpty || generating { schedule() }
                 }
 
@@ -292,8 +256,6 @@ struct AutocompleteRehearsal: View {
                 Button("Insert suggestion") { accept(.whole) }
                     .primaryActionButton()
                     .disabled(rehearsal.ghost.isEmpty)
-                    // The text the button would insert: the ghost is painted,
-                    // so this is how assistive technology can read it.
                     .accessibilityValue(rehearsal.ghost)
             }
             if let error {
@@ -310,8 +272,6 @@ struct AutocompleteRehearsal: View {
         }
     }
 
-    /// A synthetic exchange the reply answers. It is the "text above the field"
-    /// for this rehearsal, so the visible-text setting has something to read.
     private var conversation: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Sample conversation")
@@ -330,8 +290,6 @@ struct AutocompleteRehearsal: View {
         .accessibilityIdentifier("autocomplete.rehearsal.conversation")
     }
 
-    /// Which optional sources shaped the suggestion on screen, with source
-    /// names and states in aligned columns.
     private var contextSources: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("Context for this suggestion")
@@ -345,9 +303,6 @@ struct AutocompleteRehearsal: View {
                         Text(status.title)
                             .foregroundStyle(status.tone == .off ? Color.secondary : Color.primary)
                             .fixedSize()
-                            // One element with an explicit label: combining the
-                            // dot and the styled text left assistive technology
-                            // with an empty label.
                             .accessibilityElement(children: .ignore)
                             .accessibilityLabel("\(status.title): \(status.detail)")
                             .accessibilityIdentifier("autocomplete.rehearsal.context.\(status.id)")
@@ -380,8 +335,6 @@ struct AutocompleteRehearsal: View {
         }
     }
 
-    /// Why the model's answer is not on screen, so a working model that
-    /// suggested nothing does not look like a broken one.
     static func explanation(_ reason: CotypingSuppressionReason) -> LocalizedStringKey {
         switch reason {
         case .emptyGeneration, .normalizedToEmpty:
@@ -395,8 +348,6 @@ struct AutocompleteRehearsal: View {
         }
     }
 
-    /// Asks for a suggestion for the text as it stands. The request replaces
-    /// any earlier one, whose generation SwiftUI then cancels.
     private func schedule() {
         topUpTask?.cancel()
         rehearsal.dismiss()
@@ -428,8 +379,6 @@ struct AutocompleteRehearsal: View {
             result = try await app.cotyping.preview(
                 precedingText: request.context, conversation: CotypingRehearsalConversation.sample)
 #endif
-            // Never show a suggestion for text that has since changed: any
-            // change makes a new request and cancels this one.
             guard !Task.isCancelled, self.request == request else { return }
             rehearsal.present(result.text, after: request.context,
                               wordLimit: app.settings.cotypingMaxWords)
@@ -441,8 +390,6 @@ struct AutocompleteRehearsal: View {
         }
     }
 
-    /// One accept keypress, planned by the same code as a live field: the
-    /// accept key takes the configured word or phrase and leaves the rest.
     private func accept(_ scope: CotypingAcceptScope) {
         guard let updated = rehearsal.accept(scope, text: text,
                                              options: .init(settings: app.settings)) else { return }
@@ -450,8 +397,6 @@ struct AutocompleteRehearsal: View {
         topUp()
     }
 
-    /// Keeps the ghost a few words ahead while it is accepted or typed
-    /// through, by the same rules as a live field.
     private func topUp() {
         let limit = app.settings.cotypingMaxWords
         guard let prefix = rehearsal.topUpPrefix(wordLimit: limit) else { return }
@@ -469,17 +414,12 @@ struct AutocompleteRehearsal: View {
         request = nil
         topUpTask?.cancel()
         rehearsal.dismiss()
-        // No suggestion is on screen any more, so there is nothing its
-        // context rows could describe.
         contextUse = nil
         emptyReason = nil
         generating = false
     }
 }
 
-/// Counters and timings from typing in other apps. They answer what a model
-/// benchmark cannot: whether suggestions arrive in time, whether an accepted
-/// one lands in the field, and whether it is kept.
 struct AutocompleteMeasurements: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var server: RemoteCotypingEngine
@@ -554,8 +494,6 @@ struct AutocompleteMeasurements: View {
     }
 }
 
-/// The effective state of an optional context source, shown under its switch:
-/// nothing while the switch is off, otherwise whether it can contribute now.
 struct CotypingContextStateLabel: View {
     @Environment(\.colorScheme) private var scheme
     let state: CotypingContextAvailability.State

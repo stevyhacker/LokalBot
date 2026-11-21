@@ -1,11 +1,3 @@
-//! `ask_library` (`AskLibraryEngine.swift`, `AskLibraryContext.swift`): the
-//! question and matching meeting context go to the app's local model server
-//! on 127.0.0.1; nothing leaves this computer.
-//!
-//! The app records its server in `<root>/llama-server-17872.json`
-//! (`port`, `pid`, `authenticationToken`). Without it the tool answers that
-//! the app must be running.
-
 use std::time::Duration;
 
 use chrono::{DateTime, Local, Utc};
@@ -42,7 +34,6 @@ fn marker_path(paths: &LibraryPaths) -> std::path::PathBuf {
     paths.root().join(format!("llama-server-{MAIN_PORT}.json"))
 }
 
-/// The bearer token of a live, recorded main model server.
 fn validated_token(paths: &LibraryPaths) -> Option<(u16, String)> {
     let bytes = std::fs::read(marker_path(paths)).ok()?;
     let marker: ServerMarker = serde_json::from_slice(&bytes).ok()?;
@@ -100,15 +91,12 @@ fn complete(paths: &LibraryPaths, messages: &serde_json::Value) -> anyhow::Resul
         .ok_or_else(|| anyhow::anyhow!("the model server sent an unreadable answer"))
 }
 
-/// What one request produced (`AskLibraryOutcome`).
 #[derive(Clone, Debug, PartialEq)]
 pub enum Outcome {
-    /// The model's text and the meetings its context came from.
     Answered {
         text: String,
         citations: Vec<(String, String, String)>,
     },
-    /// A friendly non-error result: the library is empty or nothing matched.
     NotFound(String),
     Failed(ToolErrorCode, String),
 }
@@ -130,7 +118,6 @@ struct Source<'a> {
 }
 
 impl Outcome {
-    /// The MCP `ask_library` form: the answer with a Sources list appended.
     pub fn tool_result(&self) -> ToolResult {
         match self {
             Self::Answered { text, citations } => {
@@ -152,9 +139,6 @@ impl Outcome {
         matches!(self, Self::Failed(..))
     }
 
-    /// `{"status": "answered" | "not_found" | "error", "code"?, "text", "sources"}`,
-    /// which keeps the text and its sources apart, so a launcher can paste a
-    /// draft without a Sources list.
     pub fn json(&self) -> String {
         let payload = match self {
             Self::Answered { text, citations } => Payload {
@@ -187,16 +171,13 @@ impl Outcome {
     }
 }
 
-/// Answers a question from the library through the app's local model.
 pub fn ask(session: &Session, question: &str) -> ToolResult {
     answer(session, question).tool_result()
 }
 
-/// Answers `question` from the meeting library.
 pub fn answer(session: &Session, question: &str) -> Outcome {
     let paths = &session.paths;
     let token = std::env::var(access::CAPABILITY_ENV).ok();
-    // Access comes first: a disabled library says so before anything else.
     if access::meetings_authorization(paths, token.as_deref()).is_none() {
         return disabled();
     }
@@ -223,10 +204,6 @@ pub fn answer(session: &Session, question: &str) -> Outcome {
     )
 }
 
-/// Drafts the user's reply to `message` from what their meetings say. Meetings
-/// are retrieved by the message's own words (and the instruction's); a message
-/// nothing matches gets no draft, since the point is to add what the user's
-/// meetings know.
 pub fn draft_reply(session: &Session, message: &str, instruction: Option<&str>) -> Outcome {
     let paths = &session.paths;
     let token = std::env::var(access::CAPABILITY_ENV).ok();
@@ -289,7 +266,6 @@ fn respond(
         return disabled();
     };
     let still_authorized = || authorization().as_ref() == Some(&grant);
-    // Waiting a minute for a wake only helps when an app can answer it.
     if !healthy(paths) {
         if !lokalbot_core::control::socket::is_app_running(paths) {
             return Outcome::Failed(ToolErrorCode::AppNotRunning, NOT_RUNNING.to_string());
@@ -376,7 +352,6 @@ const STOPWORDS: &[&str] = &[
     "as", "than", "then", "also", "just", "tell", "say", "said", "please", "meeting", "meetings",
 ];
 
-/// The question's content words.
 pub fn search_terms(question: &str) -> Vec<String> {
     search::search_terms(&lokalbot_core::ids::fold(question))
         .into_iter()
@@ -386,7 +361,6 @@ pub fn search_terms(question: &str) -> Vec<String> {
 
 pub struct ContextBundle {
     pub text: String,
-    /// `(short id, title, YYYY-MM-DD)`, newest first.
     pub citations: Vec<(String, String, String)>,
 }
 
@@ -446,7 +420,6 @@ impl ContextWriter {
     }
 }
 
-/// Retrieval and citations for one question (`AskLibraryContext.build`).
 pub fn build_context(session: &Session, question: &str, meetings: &[Meeting]) -> ContextBundle {
     let by_short: std::collections::HashMap<String, &Meeting> =
         meetings.iter().map(|m| (short_id(m), m)).collect();
@@ -570,7 +543,6 @@ pub fn build_context(session: &Session, question: &str, meetings: &[Meeting]) ->
     }
 }
 
-/// The local time zone's name for the prompt.
 fn time_zone_name() -> String {
     if let Ok(tz) = std::env::var("TZ")
         && !tz.is_empty()
@@ -609,7 +581,6 @@ pub fn messages(question: &str, context: &str, now: DateTime<Utc>) -> serde_json
     ])
 }
 
-/// The draft-reply prompt, word for word (`AskLibraryContext.replyMessages`).
 pub fn reply_messages(
     message: &str,
     instruction: Option<&str>,

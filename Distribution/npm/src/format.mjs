@@ -1,16 +1,12 @@
-// How figures are written, shared by the terminal card and the image.
-
 const HOUR = 60 * 60 * 1000;
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 export const monthNames = MONTHS;
 
-/** `148203` as `148,203`. */
 export function number(value) {
   return Math.round(value).toLocaleString('en-US');
 }
 
-/** `2140000000` as `2.1B`; small numbers are written in full. */
 export function compact(value) {
   const steps = [[1e12, 'T'], [1e9, 'B'], [1e6, 'M'], [1e3, 'K']];
   for (const [size, suffix] of steps) {
@@ -22,13 +18,11 @@ export function compact(value) {
   return number(value);
 }
 
-/** Whole hours for a year's total: `1,248`. Under ten hours keeps one decimal. */
 export function hours(ms) {
   const value = ms / HOUR;
   return value >= 10 ? number(value) : String(Math.round(value * 10) / 10);
 }
 
-/** A single stretch of time: `6 h 12 min`, `42 min`. */
 export function duration(ms) {
   const minutes = Math.round(ms / 60000);
   if (minutes < 60) return `${minutes} min`;
@@ -36,7 +30,6 @@ export function duration(ms) {
   return rest === 0 ? `${number(minutes / 60)} h` : `${number(Math.floor(minutes / 60))} h ${rest} min`;
 }
 
-/** `2026-10-14` as `Oct 14`. */
 export function dayLabel(date) {
   if (typeof date !== 'string') return '';
   const [, month, day] = date.split('-').map(Number);
@@ -47,23 +40,19 @@ export function percent(share) {
   return `${Math.round(share * 100)}%`;
 }
 
-/** `1642.4` as `$1,642`; whole dollars for card readability. */
 export function currency(usd) {
   return `$${number(usd)}`;
 }
 
-/** `1.64` as `1.6×`. */
 export function multiplier(value) {
   const rounded = Math.round(value * 10) / 10;
   return `${rounded % 1 === 0 ? rounded.toFixed(0) : rounded.toFixed(1)}×`;
 }
 
-/** `1` → `1 day`, `3` → `3 days`. */
 export function plural(count, one, many = `${one}s`) {
   return `${number(count)} ${count === 1 ? one : many}`;
 }
 
-/** The facts both cards state, as `[figure, words]` pieces per line. */
 export function factLines(stats, { showApiValue = true } = {}) {
   const { totals } = stats;
   const worked = hours(totals.agentMs);
@@ -97,7 +86,6 @@ export function factLines(stats, { showApiValue = true } = {}) {
   return lines;
 }
 
-/** A crisp, non-promotional post caption for X, Bluesky, Slack or LinkedIn. */
 export function shareCaption(stats, { showApiValue = true } = {}) {
   const { totals } = stats;
   const bits = [`${hours(totals.agentMs)} agent hours on ${plural(totals.activeDays, 'day')}`];

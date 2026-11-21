@@ -44,12 +44,12 @@ final class ServerContextWindowCatalogTests: XCTestCase {
 
     func testModelListsNameTheWindowInEachServersOwnField() {
         let list = json(["object": "list", "data": [
-            ["id": "llama-3.3-70b", "max_model_len": 32_768],                       // vLLM
-            ["id": "openai/gpt-oss-120b", "context_window": 131_072],               // Groq
-            ["id": "Qwen/Qwen3.8-27B", "context_length": 262_144],                  // Together, DeepInfra
-            ["id": "mistral-medium-latest", "max_context_length": 128_000],         // Mistral
+            ["id": "llama-3.3-70b", "max_model_len": 32_768],
+            ["id": "openai/gpt-oss-120b", "context_window": 131_072],
+            ["id": "Qwen/Qwen3.8-27B", "context_length": 262_144],
+            ["id": "mistral-medium-latest", "max_context_length": 128_000],
             ["id": "two-fields", "context_length": 200_000, "max_model_len": 100_000],
-            ["id": "qwen-3.8-27b", "owned_by": "Cerebras"],                         // Cerebras, OpenAI: none
+            ["id": "qwen-3.8-27b", "owned_by": "Cerebras"],
         ]])
         XCTAssertEqual(ServerContextWindowCatalog.windows(inModelList: list), [
             "llama-3.3-70b": 32_768, "openai/gpt-oss-120b": 131_072, "qwen/qwen3.8-27b": 262_144,
@@ -141,8 +141,6 @@ final class ServerContextWindowCatalogTests: XCTestCase {
         XCTAssertEqual(relaunched, 32_768)
     }
 
-    /// The reported window beats the documented one, and a provider that
-    /// reports nothing keeps its documented window.
     func testReportedWindowsComeBeforeDocumentedOnes() async {
         var config = AppSettings()
         config.summarizerBackend = .openAICompatible

@@ -1,18 +1,3 @@
-//! Vectors of saved screens, so screen search finds a screen by what it says and
-//! shows (`EmbeddingIndex` screen backfill, `ScreenImageEmbeddings`).
-//!
-//! Both start only once screens have been searched by meaning, so nobody downloads
-//! the image model for a search they never make. Text vectors need only the
-//! embedder. Picture vectors run on the media embedder Files uses, only while
-//! search by meaning is on and pictures are captured (Text + visual context). A
-//! capture is decrypted in memory, sized for a 280-token budget and never written
-//! to disk. A vector goes with its pixels: retention clears both, and deleting a
-//! capture deletes both.
-//!
-//! The first pass over a library is a big read, so it is paced while the person
-//! uses the computer, and on battery a pass stops after the newest few dozen
-//! captures: the rest wait for a charger.
-
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -33,15 +18,12 @@ use crate::models::{Models, RUNTIME_ID};
 
 const IMAGE_BUDGET: u32 = 280;
 const IMAGE_BATCH: usize = 16;
-/// On battery, a pass reads at most this many captures, newest first.
 const BATTERY_LIMIT: usize = 3 * IMAGE_BATCH;
 const TEXT_BATCH: usize = 32;
-/// New captures wait this long, so one pass embeds a batch of them.
 const NEW_TEXT_DELAY: Duration = Duration::from_secs(15 * 60);
 const FIRST_RETRY_DELAY: Duration = Duration::from_secs(60);
 const MAXIMUM_RETRY_DELAY: Duration = Duration::from_secs(30 * 60);
 
-/// The wait after a failed pass: each further failure doubles it, up to the most.
 pub(crate) fn retry_delay(failures: u32) -> Duration {
     let mut delay = FIRST_RETRY_DELAY;
     for _ in 1..failures.max(1) {
@@ -53,8 +35,6 @@ pub(crate) fn retry_delay(failures: u32) -> Duration {
     delay.min(MAXIMUM_RETRY_DELAY)
 }
 
-/// Pictures are read only while search by meaning is on and pictures are captured
-/// (Text + visual context), and only once screens have been searched by meaning.
 pub(crate) fn pictures_allowed(settings: &lokalbot_core::Settings, in_use: bool) -> bool {
     in_use
         && settings.semantic_search_enabled
@@ -67,13 +47,11 @@ enum Message {
     ConditionsChanged,
 }
 
-/// How a pass ended.
 #[derive(Debug, PartialEq, Eq)]
 enum PassOutcome {
     Skipped,
     Finished,
     Paused,
-    /// On battery, with more left after the newest `BATTERY_LIMIT`.
     WaitingForPower,
     Failed(String),
 }
@@ -146,12 +124,10 @@ impl ScreenVectors {
         this
     }
 
-    /// New captures were stored: one batched pass later covers them all.
     pub(crate) fn captures_arrived(&self) {
         let _ = self.sender.send(Message::CapturesArrived);
     }
 
-    /// Settings, recording, power or heat changed.
     pub(crate) fn conditions_changed(&self) {
         self.stop.store(true, Ordering::Relaxed);
         let _ = self.sender.send(Message::ConditionsChanged);
@@ -170,7 +146,6 @@ struct Worker {
 }
 
 impl Worker {
-    /// Search by meaning is on, pictures are captured, and it's been used.
     fn pictures_wanted(&self) -> bool {
         pictures_allowed(&self.shared.settings(), self.in_use)
     }
@@ -179,7 +154,6 @@ impl Worker {
         PauseReason::current(self.shared.recording_active.load(Ordering::Relaxed))
     }
 
-    /// Launch: catch up on what's waiting, if this library has searched by meaning.
     fn launch(&mut self) {
         let library = &self.shared.library;
         if library
@@ -188,7 +162,6 @@ impl Worker {
         {
             log::debug!("screen vectors: no picture table yet");
         }
-        // A search may have come before this thread was listening.
         if lokalbot_core::screen_search::was_searched_by_meaning(library.paths().root()) {
             self.searched_by_meaning();
             return;
@@ -250,7 +223,6 @@ impl Worker {
                     self.text_due = Some(Instant::now() + delay);
                 }
                 PassOutcome::Paused => {
-                    // A meeting is recording: come back after it.
                     self.text_due = Some(Instant::now() + FIRST_RETRY_DELAY);
                 }
                 _ => self.text_failures = 0,
@@ -275,8 +247,6 @@ impl Worker {
         }
     }
 
-    /// Embeds captures' text until none is left. Needs only the embedder, which
-    /// search by meaning already downloaded.
     fn text_pass(&mut self) -> PassOutcome {
         let settings = self.shared.settings();
         if !settings.semantic_search_enabled
@@ -318,9 +288,6 @@ impl Worker {
         }
     }
 
-    /// Embeds retained captures without a picture vector, newest first, until none
-    /// are left, a pause condition appears, the embedder fails, or, on battery,
-    /// `BATTERY_LIMIT` captures are through.
     fn picture_pass(&mut self) -> PassOutcome {
         if !self.pictures_wanted() {
             return PassOutcome::Skipped;
@@ -372,7 +339,6 @@ impl Worker {
             for (id, path) in &batch {
                 match embed_capture(&library, &key, path, &session) {
                     Embedded::Vector(vector) => {
-                        // The pixels may be gone by now: `store` checks.
                         if let Err(err) =
                             library.store_picture_vector(&model, *id, path, Some(&vector))
                         {
@@ -397,7 +363,6 @@ impl Worker {
         }
     }
 
-    /// The first picture pass downloads the projector, as the notice says.
     fn start_session(&self) -> Result<MediaEmbedder> {
         let needs = [
             catalog::EMBEDDING_MODEL_ID.to_string(),
@@ -413,13 +378,10 @@ impl Worker {
 
 pub enum Embedded {
     Vector(Vec<f32>),
-    /// The pixels could not be read or the server rejected them: marked, so a
-    /// broken capture isn't tried on every pass.
     Unreadable,
     Unavailable(String),
 }
 
-/// Decrypts in memory: nothing is written to disk.
 pub fn embed_capture(
     library: &lokalbot_core::Library,
     key: &[u8; IMAGE_KEY_BYTES],

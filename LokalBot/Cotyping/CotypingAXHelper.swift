@@ -7,28 +7,13 @@ import AppKit
 import ApplicationServices
 import Foundation
 
-/// The Accessibility boundary for cotyping. Resolves the system-wide focused
-/// element into a value-type `CotypingField` (preceding/trailing text, caret
-/// rect in global Cocoa coords, capability). A trimmed port of Cotabby's
-/// `AXHelper` + `FocusSnapshotResolver` + `AXTextGeometryResolver`: caret
-/// geometry is the zero-length `kAXBoundsForRange` query (exact) with an
-/// element-frame estimate fallback.
-///
-/// All reads go through a system-wide element with a short messaging timeout so a
-/// wedged target app degrades to a missed poll, never a beachball.
 enum CotypingAXHelper {
-    /// Roles we treat as editable text surfaces.
     private static let editableRoles: Set<String> = [
         kAXTextFieldRole as String,
         kAXTextAreaRole as String,
         kAXComboBoxRole as String,
     ]
 
-    /// Bounded context windows so a giant document never ships megabytes into a
-    /// prompt or across the actor boundary. `maxPrecedingCharacters` is the
-    /// canonical preceding-window limit — session reconciliation
-    /// (`CotypingSessionReconciler`) and marker-selection synthesis reference
-    /// it so capped-window comparisons can never drift from the AX read path.
     static let maxPrecedingCharacters =
         CotypingAcceptanceContentBounds.maximumPrecedingUTF16Length
 
@@ -53,29 +38,17 @@ enum CotypingAXHelper {
         return element
     }()
 
-    /// The accept tap has a much tighter latency budget than background focus
-    /// polling. Each individual read is capped and the whole fixed-path snapshot
-    /// stops launching new reads at its wall-clock deadline.
     private static let acceptanceMessageTimeoutSeconds: Float = 0.008
     private static let acceptanceDeadlineMilliseconds: UInt64 = 50
 
-    /// True when the process holds the Accessibility grant (no prompt).
     static var isTrusted: Bool { AXIsProcessTrusted() }
 
-    /// Mutable caches are boxed behind a lock because routine reads happen on
-    /// the snapshot queue while the event-tap acceptance check remains a
-    /// synchronous main-thread read. A field's font, document scope and the
-    /// text above it are cached per focused field, so a keystroke reads only
-    /// the field itself.
     private final class CacheState: @unchecked Sendable {
         let lock = NSLock()
         let fieldStyles = CotypingFieldContextCache<CotypingFieldStyle>(label: "field-style", maxAge: 5)
         let learningScopes = CotypingFieldContextCache<String?>(label: "learning-scope", maxAge: 30)
         let fileDialogs = CotypingFieldContextCache<Bool>(label: "file-dialog", maxAge: 30)
-        /// Pages reuse one input for an email and then a code, so its
-        /// placeholder and label are read again after two seconds.
         let codeFields = CotypingFieldContextCache<Bool>(label: "code-field", maxAge: 2)
-        /// Nearby text is held for the focused field only.
         let visibleContexts = CotypingFieldContextCache<CotypingVisibleContext.Snapshot?>(
             label: "visible-context", maxAge: 3, maxEntries: 1)
         var appReadPolicy = CotypingAppReadPolicy()
@@ -86,10 +59,8 @@ enum CotypingAXHelper {
         var unsupportedWebAccessibilityPIDs: Set<pid_t> = []
         var lastFrontmostPrimePID: pid_t?
         var chromiumHitTest: (element: AXUIElement, pid: pid_t)?
-        /// When the marker-based style read last found nothing, by process.
         var markerStyleMisses: [pid_t: TimeInterval] = [:]
         var chromiumEnhancedAccessibility = true
-        /// Chromium browsers this process asked for enhanced accessibility.
         var enhancedAccessibilityPIDs: Set<pid_t> = []
 
         func withLock<T>(_ operation: () -> T) -> T {
@@ -121,13 +92,8 @@ enum CotypingAXHelper {
         }
     }
 
-    /// Forgets nearby text read from the screen for any field but the
-    /// focused one.
     static func forgetVisibleContext(exceptFor focusIdentityKey: String? = nil, field: CotypingField? = nil) {
         cacheState.visibleContexts.removeAll(except: focusIdentityKey)
-        // Window text is keyed by its window. Leaving every field forgets it
-        // here, and so does focus in another app or another field; a read
-        // for another window or document forgets it too.
         guard focusIdentityKey != nil, let field else {
             CotypingWindowTextCapture.shared.removeAll()
             return
@@ -140,20 +106,10 @@ enum CotypingAXHelper {
         cacheState.withLock { cacheState.appReadPolicy }
     }
 
-    /// URL authorization is deliberately much fresher than prompt surface
-    /// metadata. It is captured only when site exclusions are configured.
     private static let domainURLCaptureMaximumAgeSeconds: TimeInterval = 0.25
 
-    /// Window title and placeholder are read again once they are a second old. Chat
-    /// apps reuse one composer across conversations, so a title kept for as
-    /// long as the field stayed focused named the conversation left behind.
-    /// A second still lets one suggestion's prediction and validation reads
-    /// share a capture.
     static let surfaceCaptureMaximumAgeSeconds: TimeInterval = 1
 
-    /// A bounded-cost identity/privacy snapshot for dictation delivery. Unlike
-    /// `resolveFocus`, this never reads the field value, surrounding text,
-    /// caret geometry, window surface, URL, or style.
     static func resolveDictationFocusSnapshot() -> DictationFocusSnapshot? {
         guard isTrusted else { return nil }
         let frontmost = NSWorkspace.shared.frontmostApplication
@@ -218,10 +174,6 @@ enum CotypingAXHelper {
             selection: selection)
     }
 
-    /// The focused element's selected text, read once because the person
-    /// pressed the selection actions shortcut. Nil without Accessibility
-    /// access, for a secure field, or when nothing is selected. WebKit and
-    /// Chromium report a web page's selection as a text-marker range.
     static func selectedTextForSelectionAction(
         source: SelectionSource, excludedApps: [String], maxCharacters: Int
     ) -> String? {
@@ -242,8 +194,6 @@ enum CotypingAXHelper {
         return text.count > maxCharacters ? String(text.prefix(maxCharacters)) : text
     }
 
-    /// Validate both the frontmost application and the actual AX element's
-    /// owner before a selection read or a process-bound clipboard copy.
     static func selectionActionFocusIsAllowed(source: SelectionSource, excludedApps: [String]) -> Bool {
         selectionActionElement(source: source, excludedApps: excludedApps) != nil
     }
@@ -269,10 +219,6 @@ enum CotypingAXHelper {
         return element
     }
 
-    /// The bounded text before the caret in the field a dictation was pasted
-    /// into, to confirm the text arrived. Nil when another field has focus or
-    /// the field cannot be read; the caller then makes no claim either way.
-    /// The value is compared and dropped, never stored.
     static func dictationTextBeforeCaret(processID: pid_t, focusIdentityKey: String?) -> String? {
         guard isTrusted, processID > 0, processID != ProcessInfo.processInfo.processIdentifier,
               let focusIdentityKey, !focusIdentityKey.isEmpty else { return nil }
@@ -298,10 +244,6 @@ enum CotypingAXHelper {
         return boundedAcceptanceContent(on: element, withinDeadline: withinDeadline)?.precedingText
     }
 
-    /// The window title and page address around the field a dictation was just
-    /// pasted into, for Learn from my dictation's exclusions. Same guards as
-    /// `dictationTextBeforeCaret`: the bound field must still have focus and
-    /// must not be secure. Never reads the field's text.
     static func dictationLearningSurface(processID: pid_t, focusIdentityKey: String?) -> DictationLearningSurface? {
         guard isTrusted, processID > 0, processID != ProcessInfo.processInfo.processIdentifier,
               let focusIdentityKey, !focusIdentityKey.isEmpty else { return nil }
@@ -331,11 +273,6 @@ enum CotypingAXHelper {
         return DictationLearningSurface(windowTitle: title, pageURL: url)
     }
 
-    /// Captures only the focus identity, marked-text state, selection, and bounded
-    /// caret-adjacent text needed to validate one accept key. This is synchronous —
-    /// the event tap must decide whether to swallow the original key — but its
-    /// fixed read count and per-element timeout replace the old full `resolveFocus`
-    /// traversal (caret geometry, Chromium walks, context, URL, and style).
     static func resolveAcceptanceSnapshot(
         cachedField: CotypingField?
     ) -> CotypingAXAcceptanceSnapshot {
@@ -403,10 +340,6 @@ enum CotypingAXHelper {
             hasLiveContent: true)
     }
 
-    /// Resolve the current focus into a cotyping snapshot. The AX reads remain
-    /// synchronous inside this implementation, but routine callers isolate them
-    /// behind `CotypingAXSnapshotExecutor`. Accept-key validation uses the bounded
-    /// `resolveAcceptanceSnapshot(cachedField:)` path instead.
     static func resolveFocus(includeSurface: Bool = false, includeURL: Bool = false,
                              includeStyle: Bool = false, includeLearningScope: Bool = false,
                              includeVisibleContext: Bool = false) -> CotypingFocus {
@@ -432,9 +365,6 @@ enum CotypingAXHelper {
         let focusIdentityKey = focusIdentityKey(
             for: element, processID: pid, bundleID: bundleID, role: role, subrole: subrole)
 
-        // Secure fields: never read or suggest into them. Some hosts only
-        // expose sensitivity through role description/title/description, so
-        // check all cheap metadata before touching AXValue.
         let roleDescription = stringAttribute(element, kAXRoleDescriptionAttribute as String)
         let title = stringAttribute(element, kAXTitleAttribute as String)
         let descriptionLabel = stringAttribute(element, kAXDescriptionAttribute as String)
@@ -463,8 +393,6 @@ enum CotypingAXHelper {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Open or save dialog."), field: nil)
         }
-        // Verification codes, PINs and one-time passwords: judged from the
-        // field's names before its text is read.
         guard !CotypingCodeFieldDetector.isCodeField(labels: [title, descriptionLabel]),
               !cacheState.codeFields.value(forKey: focusIdentityKey, read: {
                   CotypingCodeFieldDetector.isCodeField(labels: codeFieldLabels(of: element))
@@ -516,14 +444,10 @@ enum CotypingAXHelper {
             caretLocation: caret,
             fieldText: value,
             isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(preceding),
-            // Range-based geometry counts the way the selection does, not the
-            // value; text markers place the caret there instead.
             allowBoundsForRange: !usesMarkerSelection && !content.skipsBreaks)
         let inputFrameRect = CotypingAXGeometryResolver.elementFrame(element).map {
             CotypingAXGeometryResolver.cocoaRect(fromAX: $0)
         }
-        // App/window context — only read when actually building a suggestion (it
-        // costs extra AX round-trips), gated by the cotyping setting upstream.
         let surfaceCapture = resolveSurfaceCapture(
             element: element,
             processID: pid,
@@ -536,17 +460,11 @@ enum CotypingAXHelper {
             includeURL: includeURL)
         let surfaceTitle = includeSurface ? surfaceCapture.windowTitle : nil
         let surfacePlaceholder = includeSurface ? surfaceCapture.fieldPlaceholder : nil
-        // Per-site rules: read the tab URL only when domains are configured (it
-        // costs an extra bounded ancestor walk), gated by the coordinator.
         let host = includeURL ? surfaceCapture.urlString.flatMap(CotypingBrowserDomain.host(fromURLString:)) : nil
-        // Host field font/color — read (cached per field) only when matching is
-        // enabled, so the overlay can mimic the field instead of a fixed style.
         let resolvedStyle = includeStyle
             ? cacheState.fieldStyles.valueIfReadable(forKey: focusIdentityKey) {
                 usesMarkerSelection
                     ? resolveMarkerFieldStyle(for: element)
-                    // Chromium's range-based attributed string carries no font;
-                    // its marker-based one has the size and text color.
                     : resolveFieldStyle(for: element, caretLocation: caret, textLength: nsValue.length)
                         ?? markerFieldStyleUnlessMissed(for: element, processID: pid, caretLocation: caret)
             }
@@ -568,24 +486,18 @@ enum CotypingAXHelper {
                     learningScopeKey(near: element, bundleID: bundleID)
                 } : nil)
         field.selectionSkipsParagraphBreaks = content.skipsBreaks
-        // `CotypingAvailability` never suggests in a terminal app, so its
-        // window is not captured and read for a suggestion that cannot come.
         if includeVisibleContext, !isIntegratedTerminal,
            CotypingSurfaceClassifier.classify(bundleID: bundleID) != .terminal {
             let policy = cacheState.withLock { cacheState.visibleContextPolicy }
             field.visibleContextWasRequested = true
             let excluded = ScreenContextPrivacy.isExcluded(
                 appName: appName, bundleIdentifier: bundleID, rules: policy.excludedApps)
-            // The whole window, once a background read of it exists, includes
-            // everything the column above the field would add.
             if policy.windowText, !excluded {
                 field.visibleContext = windowTextSnapshot(
                     element: element, processID: pid, appName: appName, bundleID: bundleID,
                     role: role, policy: policy)
             }
             if field.visibleContext == nil, policy.enabled, !excluded {
-                // Walking the window takes tens of milliseconds, so it runs once
-                // per field and then in the background, never per keystroke.
                 field.visibleContext = cacheState.visibleContexts.value(forKey: focusIdentityKey) {
                     let snapshot = CotypingVisibleContext.capture(
                         from: CotypingVisibleContextAXSource(
@@ -595,7 +507,6 @@ enum CotypingAXHelper {
                     return policy == cacheState.withLock({ cacheState.visibleContextPolicy }) ? snapshot : nil
                 }
             }
-            // A policy revocation during a cross-process read drops its result.
             if policy != cacheState.withLock({ cacheState.visibleContextPolicy }) { field.visibleContext = nil }
         }
         return CotypingFocus(appName: appName, bundleID: bundleID, capability: .supported,
@@ -619,10 +530,6 @@ enum CotypingAXHelper {
             elementHash: CFHash(element))
     }
 
-    /// Wakes Chromium/Electron web accessibility trees lazily, matching
-    /// CoTabby's focus pipeline. Safe to call on every poll: successful and
-    /// unsupported PIDs are cached, while named Electron editors get one
-    /// re-assertion per activation edge.
     private static func primeWebAccessibilityIfNeeded(application: NSRunningApplication) {
         let pid = application.processIdentifier
         let bundleID = application.bundleIdentifier
@@ -639,9 +546,6 @@ enum CotypingAXHelper {
             return (isActivationEdge, shouldPrime)
         }
         if decision.0 {
-            // Returning to a browser may reveal another tab or a page that
-            // navigated while inactive. Never reuse its previous URL as an
-            // authorization decision.
             cacheState.urlCaptures.removeAll()
         }
         guard decision.1 else {
@@ -661,9 +565,6 @@ enum CotypingAXHelper {
         }
     }
 
-    /// Whether Chrome-based browsers are asked for enhanced accessibility
-    /// (Settings → Autocomplete → Advanced). Turning it off hands back every
-    /// browser this process asked.
     static func configureChromiumEnhancedAccessibility(_ enabled: Bool) {
         let turnedOff = cacheState.withLock {
             defer { cacheState.chromiumEnhancedAccessibility = enabled }
@@ -672,16 +573,6 @@ enum CotypingAXHelper {
         if turnedOff { releaseChromiumEnhancedAccessibility() }
     }
 
-    /// Chrome turns on its complete accessibility mode, where text markers
-    /// report the caret's exact bounds and text its font size, only for
-    /// `AXEnhancedUserInterface`; it ignores `AXManualAccessibility`. Without
-    /// it the caret was found on screen and the font size guessed, so Reddit
-    /// suggestions came out too large or in a popup over the text
-    /// (2026-10-21). Cotypist asks Chrome the same way. Chrome then also
-    /// behaves as if a screen reader were running, which costs it some speed
-    /// and can slow window-manager animations, so Settings can turn it off.
-    /// Chrome counts these requests: one is sent per browser process, and a
-    /// forced quit leaves the mode on until the browser restarts.
     private static func requestChromiumEnhancedAccessibilityIfNeeded(application: NSRunningApplication) {
         let pid = application.processIdentifier
         guard pid > 0, isChromiumBrowser(bundleID: application.bundleIdentifier),
@@ -696,7 +587,6 @@ enum CotypingAXHelper {
             + "result=\(result.rawValue)")
     }
 
-    /// Hands enhanced accessibility back in every browser this process asked.
     static func releaseChromiumEnhancedAccessibility() {
         let pids = cacheState.withLock {
             defer { cacheState.enhancedAccessibilityPIDs.removeAll() }
@@ -747,10 +637,6 @@ enum CotypingAXHelper {
         return prefixes.contains { lowered.hasPrefix($0) }
     }
 
-    /// Chromium/WebKit contenteditable fields can expose caret text through the
-    /// opaque text-marker API instead of `AXSelectedTextRange`. The marker reads
-    /// are best-effort and never cached; nil means the existing native-range
-    /// unsupported path remains in force.
     private static func synthesizeMarkerSelection(on element: AXUIElement) -> CotypingMarkerSelection? {
         let parameterized = Set(parameterizedAttributeNames(on: element))
         guard parameterized.contains(startMarkerForRangeAttribute as String),
@@ -792,14 +678,6 @@ enum CotypingAXHelper {
             afterCaret: afterText)
     }
 
-    /// `selection` in `value`'s own count: Chromium reports a rich-text
-    /// field's selection without the line breaks its value has between
-    /// paragraphs (`CotypingParagraphBreakAlignment`). The text before the
-    /// caret, read with `AXStringForRange`, is counted the way the selection
-    /// is. Unchanged for one-line values and for hosts whose counts agree.
-    /// `skipsBreaks` when the app's range text ends short of its value, as
-    /// Chromium's does when the value has paragraph breaks; only then is the
-    /// text before the caret read and the selection moved.
     private static func paragraphAlignedSelection(
         _ selection: NSRange, value: String, on element: AXUIElement
     ) -> (selection: NSRange, skipsBreaks: Bool) {
@@ -836,14 +714,8 @@ enum CotypingAXHelper {
         copyOpaqueParameterized(stringForMarkerRangeAttribute, parameter: range, on: element) as? String
     }
 
-    /// Reads the focused field's own font + text color (cached per element) so
-    /// the ghost overlay can match it. Best-effort: nil on any miss → overlay
-    /// defaults. The parameterized attributed-string read is a synchronous
-    /// cross-process call, so it is cached and gated behind `includeStyle`.
     private static func resolveFieldStyle(for element: AXUIElement, caretLocation: Int, textLength: Int) -> CotypingFieldStyle? {
         guard textLength > 0 else { return nil }
-        // Prefer the character just before the caret (what the user is extending),
-        // then the first character; clamp so an off-by-one caret never reads OOB.
         let clampedCaret = min(max(caretLocation - 1, 0), textLength - 1)
         let candidateIndices = clampedCaret == 0 ? [0] : [clampedCaret, 0]
         var resolved: CotypingFieldStyle?
@@ -857,8 +729,6 @@ enum CotypingAXHelper {
         return resolved
     }
 
-    /// The font and color of the character before the caret in a web field,
-    /// which exposes text only through opaque text markers.
     private static func resolveMarkerFieldStyle(for element: AXUIElement) -> CotypingFieldStyle? {
         guard let selection = copyOpaqueAttribute(selectedTextMarkerRangeAttribute, on: element),
               let caret = copyOpaqueParameterized(startMarkerForRangeAttribute, parameter: selection, on: element),
@@ -871,10 +741,6 @@ enum CotypingAXHelper {
         return extractFieldStyle(from: attributed.attributes(at: attributed.length - 1, effectiveRange: nil))
     }
 
-    /// How long an app whose marker-based style read found nothing is not
-    /// asked again. Chrome sends no font without extended accessibility, and
-    /// its fields change identity on every read, so the per-field style
-    /// cache never holds that miss.
     private static let markerStyleMissInterval: TimeInterval = 30
 
     private static func markerFieldStyleUnlessMissed(
@@ -884,7 +750,6 @@ enum CotypingAXHelper {
         if let missed = cacheState.withLock({ cacheState.markerStyleMisses[processID] }),
            now - missed < markerStyleMissInterval { return nil }
         let style = resolveMarkerFieldStyle(for: element)
-        // With no text before the caret there is no character to read a style from.
         if caretLocation > 0 {
             cacheState.withLock { cacheState.markerStyleMisses[processID] = style == nil ? now : nil }
         }
@@ -900,9 +765,6 @@ enum CotypingAXHelper {
         return value as? NSAttributedString
     }
 
-    /// Extracts a `CotypingFieldStyle` from one character's attributes, handling
-    /// both the AppKit `.font`/`.foregroundColor` shapes and the AX font-dict /
-    /// CGColor shapes AX returns from web content.
     static func extractFieldStyle(from attributes: [NSAttributedString.Key: Any]) -> CotypingFieldStyle? {
         var fontName: String?
         var fontPointSize: CGFloat?
@@ -915,8 +777,6 @@ enum CotypingAXHelper {
         }
         let foregroundHex = colorAttribute(in: attributes, forKey: .foregroundColor)
             ?? colorAttribute(in: attributes, forKey: NSAttributedString.Key("AXForegroundColor"))
-        // Web/AX content sometimes reports the fill under an `AXBackgroundColor`
-        // run attribute rather than the AppKit `.backgroundColor` key.
         let backgroundHex = colorAttribute(in: attributes, forKey: .backgroundColor)
             ?? colorAttribute(in: attributes, forKey: NSAttributedString.Key("AXBackgroundColor"))
         let style = CotypingFieldStyle(
@@ -925,10 +785,6 @@ enum CotypingAXHelper {
         return style.isEmpty ? nil : style
     }
 
-    /// Extracts a 6-digit hex color from a run attribute, handling both the
-    /// AppKit `NSColor` shape and the `CGColor` shape AX returns from web content
-    /// (a conditional `as?` to `CGColor` does not compile against `Any`, so the CF
-    /// type id is verified before the force-cast).
     private static func colorAttribute(in attributes: [NSAttributedString.Key: Any],
                                        forKey key: NSAttributedString.Key) -> String? {
         guard let value = attributes[key] else { return nil }
@@ -942,9 +798,6 @@ enum CotypingAXHelper {
         return nil
     }
 
-    /// Text recognized in the focused field's window, read in the background.
-    /// A keystroke reads only the field's frame and window title here; the
-    /// Accessibility walk for the privacy checks runs with the read itself.
     private static func windowTextSnapshot(
         element: AXUIElement, processID: pid_t, appName: String, bundleID: String?,
         role: String, policy: CotypingVisibleContext.Policy
@@ -972,28 +825,19 @@ enum CotypingAXHelper {
             }
             return .init(key: key, processID: processID, target: target)
         }
-        // Checked again for every use: the grant or an exclusion may have changed.
         return snapshot.flatMap { policy.permits($0) ? $0 : nil }
     }
 
-    /// Accessibility elements are safe to read from any thread.
     private struct UncheckedElement: @unchecked Sendable {
         let element: AXUIElement
     }
 
-    /// Best-effort title of the window containing `element`: `kAXWindowAttribute`
-    /// → `kAXTitleAttribute`. One bounded round-trip; nil on miss. Carries the
-    /// email subject, document name, channel, or page title.
     private static func windowTitle(near element: AXUIElement) -> String? {
         guard let raw = copyAttribute(element, kAXWindowAttribute as String),
               CFGetTypeID(raw) == AXUIElementGetTypeID() else { return nil }
         return stringAttribute(raw as! AXUIElement, kAXTitleAttribute as String)
     }
 
-    /// The names a field carries besides its title and description: its
-    /// placeholder, help text, DOM id and the label element it points to.
-    /// Chromium leaves a field's description empty when a `<label>` names it,
-    /// so a code field is often named only here. Cached per field.
     private static func codeFieldLabels(of element: AXUIElement) -> [String?] {
         var labels = [
             stringAttribute(element, kAXPlaceholderValueAttribute as String),
@@ -1012,8 +856,6 @@ enum CotypingAXHelper {
         return labels
     }
 
-    /// Whether `element` is in an app's own open or save panel: its window, or
-    /// the window a sheet such as Go to Folder hangs from. Cached per field.
     private static func isInFileDialog(_ element: AXUIElement) -> Bool {
         guard let raw = copyAttribute(element, kAXWindowAttribute as String),
               CFGetTypeID(raw) == AXUIElementGetTypeID() else { return false }
@@ -1042,8 +884,6 @@ enum CotypingAXHelper {
         return CotypingLearningScope.key(bundleID: bundleID, documentURLString: documentURL)
     }
 
-    /// A link's AXURL is not the containing document's identity. Only a web
-    /// area's own URL can authorize learned text for a browser document.
     private static func learningDocumentURL(near element: AXUIElement) -> String? {
         var current = element
         for _ in 0...6 {
@@ -1110,8 +950,6 @@ enum CotypingAXHelper {
         return capture
     }
 
-    /// The field's window title and placeholder from `store`, read again with
-    /// `read` once the cached pair is older than `surfaceCaptureMaximumAgeSeconds`.
     static func cachedSurfaceCapture(
         in store: CotypingSurfaceCaptureSingleFlight,
         forKey key: String,
@@ -1121,13 +959,6 @@ enum CotypingAXHelper {
         store.capture(forKey: key, maxAge: surfaceCaptureMaximumAgeSeconds, clock: clock, resolve: read)
     }
 
-    /// Best-effort, fail-safe read of the focused tab's URL near `element`, for
-    /// per-site rules. Browsers expose `kAXURLAttribute` on the web area or window
-    /// rather than the focused field, so walk up a bounded number of ancestors.
-    /// Nil on any miss (non-browser, attribute absent, climb exhausted). When
-    /// site exclusions are configured, availability treats that uncertainty as
-    /// blocked for browsers rather than bypassing the user's rule. Never mutates
-    /// AX state.
     private static func webURL(near element: AXUIElement, maxClimb: Int = 6) -> String? {
         var current = element
         for _ in 0...maxClimb {
@@ -1138,8 +969,6 @@ enum CotypingAXHelper {
         return nil
     }
 
-    /// Reads `kAXURLAttribute` as a string, tolerating a `URL`/`NSURL` (the usual
-    /// case) or an already-string value.
     private static func urlString(on element: AXUIElement) -> String? {
         guard let value = copyAttribute(element, kAXURLAttribute as String) else { return nil }
         if let url = value as? URL { return url.absoluteString }
@@ -1153,11 +982,6 @@ enum CotypingAXHelper {
         return (raw as! AXUIElement)
     }
 
-    // MARK: - Element + owner
-
-    /// Focus lookup for the consuming event tap. No Chromium hit-test fallback:
-    /// pointer hit-testing does not prove keyboard focus, and the normal helper's
-    /// ancestor climb is too expensive for a synchronous global event callback.
     private static func focusedElementForAcceptance(processID: pid_t) -> AXUIElement? {
         guard processID > 0 else { return nil }
         let systemRoot = AXUIElementCreateSystemWide()
@@ -1181,9 +1005,6 @@ enum CotypingAXHelper {
         return element
     }
 
-    /// Returns nil when the wall-clock acceptance budget expires between AX
-    /// reads. That is different from `.unknown`, which means the reads completed
-    /// but the host exposes neither marked-text representation.
     private static func markedTextState(
         on element: AXUIElement,
         withinDeadline: () -> Bool
@@ -1225,10 +1046,6 @@ enum CotypingAXHelper {
         }
     }
 
-    /// Reads only the text windows needed for exact accept-time reconciliation.
-    /// Native AX ranges are preferred. Marker-only web editors use index-addressed
-    /// text markers. A host that supports neither path fails open unless it first
-    /// proves that its entire value is itself bounded to the combined window.
     private static func boundedAcceptanceContent(
         on element: AXUIElement,
         withinDeadline: () -> Bool
@@ -1246,11 +1063,6 @@ enum CotypingAXHelper {
             withinDeadline: withinDeadline)
     }
 
-    /// The text around the caret read the way `resolveFocus` reads it, for a
-    /// field whose app counts its selection without the value's paragraph
-    /// breaks: `AXStringForRange` windows have no breaks there, so they never
-    /// match the snapshot the suggestion was made from, and an accept would
-    /// be refused whenever the caret has paragraphs around it.
     private static func paragraphAlignedAcceptanceContent(
         on element: AXUIElement,
         withinDeadline: () -> Bool
@@ -1297,9 +1109,6 @@ enum CotypingAXHelper {
                 ranges: ranges, totalUTF16Length: totalLength))
         }
 
-        // Some short native controls expose AXValue + AXSelectedTextRange but
-        // not AXStringForRange. Read AXValue only after AXNumberOfCharacters has
-        // proven that the complete value is no larger than our bounded windows.
         guard withinDeadline(),
               CotypingAcceptanceContentBounds.allowsWholeValueFallback(
                   totalUTF16Length: totalLength),
@@ -1482,8 +1291,6 @@ enum CotypingAXHelper {
         if let element = focusedElement(from: systemWide) {
             return element
         }
-        // Some Chromium/Electron fields are missed by the system-wide focused
-        // element query but still resolve through the app-scoped AX object.
         guard let frontmost = NSWorkspace.shared.frontmostApplication else {
             return nil
         }
@@ -1507,9 +1314,6 @@ enum CotypingAXHelper {
             return nil
         }
         let element = raw as! AXUIElement
-        // Pin the timeout on the focused element too so a wedged target app can
-        // never block the reads in `resolveFocus` past 50 ms. They run on
-        // `CotypingAXSnapshotExecutor`'s worker queue.
         AXUIElementSetMessagingTimeout(element, 0.05)
         return element
     }
@@ -1583,9 +1387,6 @@ enum CotypingAXHelper {
             || attributes.contains(selectedTextMarkerRangeAttribute as String)
     }
 
-    /// Climb from a Chromium hit-test leaf to the nearest likely editable
-    /// container. Nil is safer than returning an arbitrary hit-test leaf: event
-    /// insertion is global and would target the actually focused element.
     private static func nearestEditable(from element: AXUIElement, maxClimb: Int = 5) -> AXUIElement? {
         var current = element
         for _ in 0...maxClimb {
@@ -1618,9 +1419,6 @@ enum CotypingAXHelper {
         return NSRunningApplication(processIdentifier: pid)
     }
 
-    /// Locates the host app's Paste command by its Cmd-V key equivalent rather
-    /// than localized title. Used only by dictation delivery; cotyping's
-    /// consuming event tap never walks host menus or touches the pasteboard.
     static func pasteMenuItem(forApplicationPID pid: pid_t) -> AXUIElement? {
         guard pid > 0 else { return nil }
         let appElement = AXUIElementCreateApplication(pid)
@@ -1643,8 +1441,6 @@ enum CotypingAXHelper {
         }
         return nil
     }
-
-    // MARK: - Attribute readers
 
     private static func copyAttribute(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
         var value: CFTypeRef?
@@ -1741,7 +1537,6 @@ enum CotypingAXHelper {
         return settable.boolValue
     }
 
-    /// The caret/selection as an NSRange (UTF-16). `length == 0` is a caret.
     private static func selectionRange(_ element: AXUIElement) -> NSRange? {
         rangeAttribute(element, kAXSelectedTextRangeAttribute as String)
     }
@@ -1754,8 +1549,6 @@ enum CotypingAXHelper {
         return NSRange(location: range.location, length: range.length)
     }
 
-
-    // MARK: - Coordinate conversion compatibility
 
     static func cocoaRect(fromAX axRect: CGRect) -> CGRect {
         CotypingAXGeometryResolver.cocoaRect(fromAX: axRect)

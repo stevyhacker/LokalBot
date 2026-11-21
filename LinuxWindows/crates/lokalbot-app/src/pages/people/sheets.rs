@@ -1,7 +1,3 @@
-//! The two corrections that open a sheet: choosing the name People shows
-//! for someone (`PersonNameSheet`) and folding one person into another
-//! (`PersonMergeSheet`).
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{Disableable as _, WindowExt as _, v_flex};
@@ -20,9 +16,6 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, profile};
 
 impl PeoplePage {
-    /// Chooses the name People shows for someone. The names meetings used
-    /// stay as other names, and the chosen one is recognized in notes and
-    /// owners. "Use Name from Meetings" shows only once a name was chosen.
     pub(super) fn open_rename(
         &mut self,
         person: &PersonProfile,
@@ -105,7 +98,6 @@ impl PeoplePage {
         });
     }
 
-    /// Folds one person into another (`PersonMergeSheet`).
     pub(super) fn open_merge(
         &mut self,
         person: &PersonProfile,
@@ -128,8 +120,6 @@ impl PeoplePage {
     }
 }
 
-/// Folds one person into another: for a name heard wrong, a nickname, or
-/// someone who joined from two addresses.
 struct MergeSheet {
     page: Entity<PeoplePage>,
     person: PersonProfile,

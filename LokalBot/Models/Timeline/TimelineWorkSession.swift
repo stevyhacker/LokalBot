@@ -1,8 +1,5 @@
 import Foundation
 
-/// A human-scale stretch of continuous Mac activity. Timeline presents these
-/// sessions instead of exposing every sampler-produced block as a separate
-/// visual stripe. The underlying blocks remain available in Raw capture.
 struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     let id: Int64
     let blocks: [ActivityBlock]
@@ -11,47 +8,29 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     let activeDuration: TimeInterval
     let primaryApp: String
     private(set) var title: String
-    /// True when no window title covered enough of the session to name it,
-    /// so the title lists the session's apps instead.
     let titleNamesApps: Bool
     let apps: [String]
     let contextSwitchCount: Int
     let titleEvidence: [TitleEvidence]
-    /// Tracked time per project, busiest first. Empty without coding-agent
-    /// evidence for the day.
     let projectShares: [TimelineProjectAttribution.Share]
-    /// The agent bursts listed under this session. Each burst belongs to the
-    /// one session it overlaps most, so its outcomes are counted once.
     private(set) var agentBursts: [CodingAgentBurst] = []
-    /// True when the title names the session's project and the task its
-    /// agents worked on, instead of a window or its apps.
     private(set) var titleNamesProject = false
-    /// The projects the title names, as in "bizstats, alpha". Nil when the
-    /// title names a window or the session's apps.
     private(set) var projectLabel: String?
-    /// What a project session was about, without the project: its agents'
-    /// task, else the window that named it. Nil when only the project is known.
     private(set) var taskTitle: String?
     var notableTitles: [String] { titleEvidence.map(\.title) }
 
     var appCount: Int { apps.count }
 
-    /// Apps used for at least a minute, busiest first. Apps glanced at for
-    /// seconds (a password prompt, a notification) are left out, unless that
-    /// leaves none.
     var usedApps: [String] {
         let seconds = Dictionary(grouping: blocks, by: \.app).mapValues(Self.mergedDuration)
         let used = apps.filter { (seconds[$0] ?? 0) >= 60 }
         return used.isEmpty ? apps : used
     }
 
-    /// The project the title names.
     var project: String? { titleNamesProject ? projectShares.first?.project : nil }
 
     var outcomes: TimelineAgentOutcomes { TimelineAgentOutcomes(agentBursts) }
 
-    /// Titles are observed window/document names, not generated task claims.
-    /// Keep the source blocks so the label can always be inspected.
     struct TitleEvidence: Identifiable, Equatable, Sendable {
         let title: String
         let blocks: [ActivityBlock]
@@ -62,24 +41,14 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     private struct TitledBlock {
         let block: ActivityBlock
         let title: String?
-        /// The block's time per project, empty without agent evidence.
         var shares: [TimelineProjectAttribution.Share] = []
-        /// The project that holds most of the block's time.
         var project: String? { shares.first?.project }
     }
 
-    /// Work that moves to another project for this long starts a session.
     static let projectSwitch: TimeInterval = 10 * 60
-    /// A project names the session once it holds this share of its time.
     static let projectTitleShare = 0.2
-    /// A burst that overlaps no session joins the nearest one this close.
     static let burstAttachDistance: TimeInterval = 15 * 60
 
-    /// Collapse adjacent blocks into one work session. A short gap usually
-    /// represents reading, typing, or switching apps rather than a new task.
-    /// With coding-agent evidence, sessions end where the work moves to
-    /// another project instead of at a fixed length, and take their names
-    /// from the project and its agents' tasks.
     static func sessions(
         from sourceBlocks: [ActivityBlock],
         maximumGap: TimeInterval = 5 * 60,
@@ -101,7 +70,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         if attribution.isEmpty {
             groups = appGroups(titled, maximumGap: maximumGap, maximumDuration: maximumDuration)
         } else {
-            // Ranked shares, so each block's first share is its project.
             let shares = attribution.shares(for: blocks)
             for index in titled.indices { titled[index].shares = shares[index] }
             groups = projectGroups(titled, maximumGap: maximumGap, maximumDuration: maximumDuration)
@@ -109,8 +77,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return assigningAgentWork(attribution.bursts, to: groups.compactMap(makeSession))
     }
 
-    /// Cuts at gaps, after `maximumDuration`, and where a new document holds
-    /// attention for a while.
     private static func appGroups(
         _ titled: [TitledBlock],
         maximumGap: TimeInterval,
@@ -126,9 +92,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
             let block = observed.block
             let title = observed.title?.lowercased()
             let elapsed = block.start.timeIntervalSince(current[0].block.start)
-            // Short tool/app switches stay together. A sustained, previously
-            // unseen document after ten minutes is an inspectable boundary.
-            // Never cut overlapping blocks: that would double-count activity.
             let sustainedChange = elapsed >= 10 * 60 && block.duration >= 3 * 60
                 && title.map { !seenTitles.contains($0) } == true
             let newSegment = block.start >= currentEnd
@@ -148,11 +111,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return groups
     }
 
-    /// Cuts at gaps and where the work moves to another project for at least
-    /// `projectSwitch`. A brief look elsewhere stays inside the session, and a
-    /// project session has no length limit. A stretch too short to stand on
-    /// its own joins the work that follows it. Stretches no project claims,
-    /// such as reading or chat, fall back to the app rules.
     private static func projectGroups(
         _ titled: [TitledBlock],
         maximumGap: TimeInterval,
@@ -164,8 +122,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         var currentProject = first.project
         var currentSeconds = first.block.duration
         var currentEnd = first.block.end
-        // Time each other project (or none) has held since the current one
-        // was last seen, and the index where that run began.
         var pending: [String?: (index: Int, seconds: TimeInterval)] = [:]
 
         for observed in titled.dropFirst() {
@@ -192,12 +148,10 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
             pending[project] = (run.index, seconds)
             guard seconds >= projectSwitch else { continue }
             if currentSeconds >= projectSwitch {
-                // Wait for an edge no earlier block still runs across.
                 guard let cut = cutIndex(in: current, from: run.index) else { continue }
                 segments.append((currentProject, Array(current[..<cut])))
                 current = Array(current[cut...])
             }
-            // A stretch too short to stand alone joins the new project's.
             currentProject = project
             currentSeconds = seconds
             pending = [:]
@@ -215,8 +169,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return groups
     }
 
-    /// The first index at or after `from` where no earlier block is still
-    /// running, so a cut never splits overlapping activity.
     private static func cutIndex(in blocks: [TitledBlock], from start: Int) -> Int? {
         guard start > 0, start < blocks.count else { return nil }
         var runningEnd = blocks[0].block.end
@@ -227,9 +179,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return nil
     }
 
-    /// Lists each burst under the session it overlaps most, or the nearest
-    /// one when the agent worked between sessions, then names project
-    /// sessions after the task their agents worked on.
     private static func assigningAgentWork(
         _ bursts: [CodingAgentBurst],
         to sessions: [TimelineWorkSession]
@@ -256,11 +205,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         return result
     }
 
-    /// "bizstats · Rehearse the audit runbook on staging": the busiest
-    /// project, then the task of its burst that overlaps the session most.
-    /// A second project that also holds a fair share is named too, as in
-    /// "bizstats, alpha · …", so a review in the browser beside agent work
-    /// is not lost.
     private mutating func nameAfterProject(bursts: [CodingAgentBurst]) {
         let threshold = max(60, activeDuration * Self.projectTitleShare)
         guard let top = projectShares.first, top.seconds >= threshold else { return }
@@ -280,7 +224,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
                 task = burst.workTitle
             }
         }
-        // The list shows the project and the task on separate lines.
         taskTitle = task ?? (titleNamesApps ? nil : title)
         projectLabel = projects
         title = taskTitle.map { "\(projects) · \($0)" } ?? projects
@@ -320,10 +263,7 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         let primaryApp = apps.first ?? first.app
         let activeDuration = mergedDuration(blocks)
         let evidence = rankedTitleEvidence(in: sourceBlocks)
-        // A fleeting page should remain inspectable without naming the whole session.
         let representativeTitles = evidence.filter { $0.duration >= activeDuration * 0.2 }.map(\.title)
-        // Apps glanced at for seconds (a password prompt, a notification)
-        // stay in `apps` but don't inflate the title's count.
         let usedApps = apps.filter { (appDurations[$0] ?? 0) >= 60 }
         let title = representativeTitles.isEmpty
             ? appSummary(usedApps.isEmpty ? apps : usedApps)
@@ -344,8 +284,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
             projectShares: projectShares(of: sourceBlocks))
     }
 
-    /// "Claude", "Claude, Safari" or "Claude, Safari +2": the two busiest
-    /// apps, then how many more.
     static func appSummary(_ apps: [String]) -> String {
         let named = apps.prefix(2).joined(separator: ", ")
         return apps.count > 2 ? "\(named) +\(apps.count - 2)" : named
@@ -427,16 +365,9 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
         guard !generic.contains(normalized),
               normalized != app.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         else { return nil }
-        // Do not truncate the grouping key: distinct long document names can
-        // share a prefix. Views truncate visually and keep the full AX label.
         return compact
     }
 
-    /// Chromium-family windows append status and identity segments to the page
-    /// title ("Page - Audio playing - Google Chrome - Stevan"); Firefox appends
-    /// "Page — Mozilla Firefox". Those trailing segments are browser chrome,
-    /// not content — cut from the first marker segment onward so a session
-    /// reads as the page the user actually saw.
     private static let browserChromeMarkers: Set<String> = [
         "google chrome", "google chrome beta", "google chrome canary", "chromium",
         "microsoft edge", "brave", "vivaldi", "opera", "arc",
@@ -448,7 +379,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
 
     private static func isBrowserChromeSegment(_ segment: String) -> Bool {
         let lowered = segment.lowercased().trimmingCharacters(in: .whitespaces)
-        // Chrome names the tab group a tab belongs to ("Part of group Work").
         return browserChromeMarkers.contains(lowered) || lowered.hasPrefix("part of group ")
     }
 
@@ -476,8 +406,6 @@ struct TimelineWorkSession: Identifiable, Equatable, Sendable {
     }
 }
 
-/// The primary Timeline stream interleaves grouped work with meetings without
-/// conflating meeting duration with foreground-app sampling.
 enum TimelineDayItem: Identifiable {
     case work(TimelineWorkSession)
     case meeting(Meeting, end: Date)

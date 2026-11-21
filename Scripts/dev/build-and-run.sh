@@ -1,7 +1,4 @@
 #!/usr/bin/env bash
-# The Run action of a Codex local environment (.codex/environments/, which is
-# not tracked) calls this: build LokalBot Dev and start it, or attach lldb,
-# stream logs, or check that it launched.
 set -euo pipefail
 
 MODE="${1:-run}"
@@ -15,9 +12,7 @@ APP_BINARY="$APP_BUNDLE/Contents/MacOS/$APP_NAME"
 cd "$ROOT_DIR"
 /usr/bin/pkill -x "$APP_NAME" >/dev/null 2>&1 || true
 
-# XcodeGen needs these paths before the first build fetches the runtimes.
 mkdir -p Vendor/llama-cpp Vendor/sherpa-onnx
-# The phone and tablet sync library (Rust), as a local Swift package.
 Scripts/build/build-sync-xcframework.sh
 xcodegen generate >/dev/null
 xcodebuild \

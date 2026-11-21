@@ -2,16 +2,11 @@ import Foundation
 import XCTest
 @testable import LokalBot
 
-/// The transcription server sends meeting audio off the Mac, so these tests
-/// pin where it may go (approval, HTTPS outside the user's own network), what
-/// each request carries, and how chunked results keep their timing.
 final class RemoteTranscriptionEngineTests: XCTestCase {
     override func tearDown() {
         RemoteTranscriptionURLProtocolStub.reset()
         super.tearDown()
     }
-
-    // MARK: - Endpoint
 
     func testBaseURLGetsTheTranscriptionsPath() {
         XCTAssertEqual(configuration("https://api.openai.com/v1").endpoint?.absoluteString,
@@ -42,8 +37,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
             XCTAssertEqual($0 as? RemoteTranscriptionError, .invalidURL)
         }
     }
-
-    // MARK: - Where audio may go
 
     func testLoopbackServerNeedsNoApproval() throws {
         let local = configuration("http://127.0.0.1:8080/v1")
@@ -117,8 +110,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(.remoteServer, remoteTranscriptionReady: true))
         XCTAssertNil(TranscriptionModelChoice.remoteServer.sizeLabel)
     }
-
-    // MARK: - Settings
 
     func testServerSettingsSurviveEncoding() throws {
         var settings = AppSettings()
@@ -227,8 +218,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
                        "On this Mac · Local server")
     }
 
-    // MARK: - Request
-
     func testRequestIsOpenAIStyleMultipart() throws {
         let request = RemoteTranscriptionEngine.makeRequest(
             endpoint: try endpoint(), apiKey: "sk-test", model: "whisper-1", boundary: "B",
@@ -294,8 +283,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertEqual(RemoteTranscriptionError.rejected(status: 401, detail: "Invalid API key").errorDescription,
                        "The transcription server rejected the API key (HTTP 401). Invalid API key")
     }
-
-    // MARK: - Word timings
 
     func testWordTimesAreRequestedOnlyFromServersKnownToReturnThem() {
         let rejections = WordTimingRejections()
@@ -381,7 +368,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertEqual(segments.map(\.segment.text), ["Hello there", "No times"])
         let words = try XCTUnwrap(segments[0].words)
         XCTAssertEqual(words.map(\.text), ["Hello", "there"])
-        // Offset by the window start, and kept inside the window.
         for (actual, expected) in zip(words.flatMap { [$0.start, $0.end] }, [0.6, 0.9, 1.0, 1.5]) {
             XCTAssertEqual(actual, expected, accuracy: 1e-9)
         }
@@ -459,8 +445,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
                        ["verbose_json", "verbose_json"])
     }
 
-    // MARK: - Upload
-
     func testUploadRetriesAServerErrorThenReturnsText() async throws {
         RemoteTranscriptionURLProtocolStub.enqueue(status: 503, headers: ["Retry-After": "1"], body: "busy")
         RemoteTranscriptionURLProtocolStub.enqueue(
@@ -521,10 +505,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         }
     }
 
-    // MARK: - Approval while transcribing
-
-    /// A long meeting is hundreds of uploads from one engine. Revoking the
-    /// server after the first must keep the rest of the audio on this Mac.
     func testUploadsStopOnceTheServerIsRevoked() async throws {
         for _ in 0..<2 {
             RemoteTranscriptionURLProtocolStub.enqueue(
@@ -562,7 +542,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         var engine = RemoteTranscriptionEngine(
             configuration: configuration("https://api.openai.com/v1", approved: ["https://api.openai.com"]),
             apiKey: { "" }, session: session,
-            // The person changes the model while the engine waits to retry.
             sleep: { _ in consent.state = .init(serverSelected: false, approvedOrigins: ["https://api.openai.com"]) })
         engine.stillAllowed = { try RemoteTranscriptionConsent.check($0, against: consent.state) }
 
@@ -592,7 +571,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
             cloud, against: .init(serverSelected: false, approvedOrigins: ["https://api.openai.com"]))) {
             XCTAssertEqual($0 as? RemoteTranscriptionError, .noLongerSelected)
         }
-        // A server on this Mac sends nothing off it, so it is never cut short.
         let loopback = try XCTUnwrap(URL(string: "http://127.0.0.1:8080/inference"))
         XCTAssertNoThrow(try RemoteTranscriptionConsent.check(
             loopback, against: .init(serverSelected: false, approvedOrigins: [])))
@@ -613,7 +591,6 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertEqual(RemoteTranscriptionConsent.current, .init(settings: settings))
         XCTAssertNoThrow(try engine.stillAllowed(cloud))
 
-        // The engine keeps its snapshot; the store has moved on.
         settings.approvedRemoteTranscriptionOrigins = []
         _ = SettingsStore(initialSettings: settings)
         XCTAssertThrowsError(try engine.stillAllowed(cloud)) {
@@ -621,12 +598,9 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         }
     }
 
-    // MARK: - Spans
-
     func testSpeakerTurnsAreAttributedAfterTranscription() {
         let engine = RemoteTranscriptionEngine(
             configuration: configuration("https://api.openai.com/v1"), apiKey: { "" })
-        // Cutting at every turn sent each sub-second fragment as its own request.
         XCTAssertEqual(engine.speakerAttribution, .alignedWords)
     }
 
@@ -661,7 +635,7 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url.deletingLastPathComponent()) }
         let spans = [
             SpeechSpan(start: 0, end: 1, timingPrecision: .span),
-            SpeechSpan(start: 1.2, end: 1.25, timingPrecision: .span), // 50 ms holds no words
+            SpeechSpan(start: 1.2, end: 1.25, timingPrecision: .span),
             SpeechSpan(start: 1.5, end: 3, timingPrecision: .span),
         ]
         let uploads = UploadLog()
@@ -704,15 +678,11 @@ final class RemoteTranscriptionEngineTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(peak, 1)
     }
 
-    // MARK: - Helpers
-
     private func configuration(_ baseURL: String, model: String = "whisper-1",
                                approved: [String] = []) -> RemoteTranscriptionConfiguration {
         RemoteTranscriptionConfiguration(baseURL: baseURL, model: model, approvedOrigins: approved)
     }
 
-    /// MAI-Transcribe-2 on OpenRouter, 2026-10-19: a synthetic `say` clip,
-    /// Samantha from 0 s and Daniel from 5.0 s.
     private static let recordedVerboseJSON = #"""
         {"text":"The quarterly plan is ready for review. Thanks. I will send my notes tomorrow.",\#
         "usage":{"seconds":9,"cost":0.00025},"language":"en","duration":8.2,\#
@@ -788,7 +758,6 @@ private actor UploadLog {
     func record(_ clip: Data) { clips.append(clip) }
 }
 
-/// The live approval a test changes while an engine is in use.
 private final class ConsentBox: @unchecked Sendable {
     private let lock = NSLock()
     private var value: RemoteTranscriptionConsent.State
@@ -816,7 +785,6 @@ private actor ConcurrencyTracker {
     func leave() { running -= 1 }
 }
 
-/// Answers each request with the next queued response and records it.
 private final class RemoteTranscriptionURLProtocolStub: URLProtocol {
     private struct Reply {
         let status: Int

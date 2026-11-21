@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The day overview's per-app proportion bar (spec §3.2): per-app seconds
-/// become ordered fractions of the tracked total, with a long tail folded
-/// into "Other".
 final class ProportionBarMathTests: XCTestCase {
 
     func testFractionsAreOrderedAndSumToOne() {

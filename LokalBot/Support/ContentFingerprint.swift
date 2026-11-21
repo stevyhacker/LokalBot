@@ -6,7 +6,6 @@ enum ContentFingerprint {
         SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Length prefixes keep arbitrary source text from colliding with field separators.
     static func fields(_ fields: [String]) -> String {
         var data = Data()
         for field in fields {

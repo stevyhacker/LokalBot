@@ -1,6 +1,3 @@
-//! Ported from `CalendarDetectionTests.swift`, `CalendarParticipantIdentityTests.swift`
-//! and the selector part of `UpcomingMeetingPreparationTests.swift`.
-
 use std::time::Duration;
 
 use chrono::{DateTime, Local, TimeZone, Utc};
@@ -27,8 +24,6 @@ fn candidate(id: &str, start: i64, end: i64, url: Option<&str>) -> CalendarEvent
         agenda: None,
     }
 }
-
-// ------------------------------------------------------- ConferenceURLDetector
 
 #[test]
 fn detects_google_meet_link() {
@@ -64,7 +59,6 @@ fn detects_chinese_meeting_links() {
     let invite = "腾讯会议：https://meeting.tencent.com/dm/AbCdEf12 会议号：123 456 789";
     let url = first_meeting_url(Some(invite)).unwrap();
     assert_eq!(url_host(&url).as_deref(), Some("meeting.tencent.com"));
-    // Other Feishu and DingTalk pages are documents and downloads, not calls.
     assert!(!is_meeting_url("https://www.feishu.cn/docx/AbC"));
     assert!(!is_meeting_url("https://www.dingtalk.com/download"));
 }
@@ -98,9 +92,7 @@ fn finds_links_in_invitation_markup_and_without_a_scheme() {
         first_meeting_url(Some("Dial zoom.us/j/123456789, or call.")).as_deref(),
         Some("https://zoom.us/j/123456789")
     );
-    // An address on a conferencing domain is not a link.
     assert_eq!(first_meeting_url(Some("Ping ana@zoom.us/ later")), None);
-    // The first conferencing link wins, not the first link.
     assert_eq!(
         first_meeting_url(Some(
             "Doc https://docs.example.com/a then https://meet.google.com/abc-defg-hij"
@@ -109,8 +101,6 @@ fn finds_links_in_invitation_markup_and_without_a_scheme() {
         Some("https://meet.google.com/abc-defg-hij")
     );
 }
-
-// -------------------------------------------------------- CalendarEventFilter
 
 fn raw() -> RawCalendarEvent {
     RawCalendarEvent {
@@ -199,20 +189,14 @@ fn free_time_still_recordable_with_attendees_or_link() {
     }));
 }
 
-// ------------------------------------------------------ Active-event selection
-
 #[test]
 fn is_active_window() {
     let now = at(10_000);
     let url = Some("https://meet.google.com/abc");
-    // In progress.
     assert!(candidate("evt", 9_700, 10_600, url).is_active(now));
-    // Within the one-minute early-join grace (a beat early).
     assert!(candidate("evt", 10_030, 10_900, url).is_active(now));
-    // Beyond the grace: never auto-record minutes ahead of the start.
     assert!(!candidate("evt", 10_120, 11_000, url).is_active(now));
     assert!(!candidate("evt", 10_600, 11_000, url).is_active(now));
-    // Already ended.
     assert!(!candidate("evt", 9_000, 9_900, url).is_active(now));
 }
 
@@ -254,8 +238,6 @@ fn detection_window_spans_fifteen_minutes_back_and_ninety_ahead() {
     assert_eq!(ids, ["ended-recently", "later"]);
 }
 
-// ------------------------------------------------- Browser-meeting decision
-
 #[test]
 fn title_match_alone_does_not_record() {
     assert!(!browser_counts_as_meeting(true, false, false, false, false));
@@ -283,8 +265,6 @@ fn strict_mode_requires_calendar() {
     assert!(browser_counts_as_meeting(false, true, true, true, true));
     assert!(browser_counts_as_meeting(false, true, false, false, true));
 }
-
-// ------------------------------------------------------ Repeat suppression
 
 #[test]
 fn suppresses_same_event_within_cooldown() {
@@ -332,8 +312,6 @@ fn allows_different_event_and_first_recording() {
     );
 }
 
-// ------------------------------------------------- Back-to-back handoff
-
 #[test]
 fn splits_when_active_calendar_event_changes() {
     assert!(should_split_for_calendar_handoff(
@@ -379,8 +357,6 @@ fn next_calendar_event_records_after_the_user_stopped_the_previous_one() {
     );
 }
 
-// ---------------------------------------------------------------- Titling
-
 #[test]
 fn recording_title_prefers_calendar() {
     assert_eq!(
@@ -413,8 +389,6 @@ fn confidence_levels() {
     assert_eq!(confidence(true, false), Confidence::Medium);
     assert_eq!(confidence(false, true), Confidence::Low);
 }
-
-// ------------------------------------------------- Meeting metadata (meta.json)
 
 fn fixture_meeting() -> Meeting {
     serde_json::from_str(
@@ -500,8 +474,6 @@ fn stamped_calendar_fields_use_the_macos_keys_and_round_trip() {
 
 #[test]
 fn decodes_calendar_metadata_written_by_the_mac_app() {
-    // JSONEncoder output with `.sortedKeys`, `.prettyPrinted` and escaped
-    // slashes, as StorageManager writes meta.json.
     let json = r#"{
   "appName" : "Google Chrome",
   "calendarEventID" : "5F1E2D3C-AAAA-BBBB-CCCC-000000000001:abc#1700000000",
@@ -600,8 +572,6 @@ fn stamping_a_macos_fixture_meeting_keeps_its_other_fields() {
     };
     assert_eq!(restored, original);
 }
-
-// -------------------------------------------- CalendarParticipantIdentityTests
 
 #[test]
 fn missing_calendar_names_offer_editable_email_suggestions_without_changing_metadata() {
@@ -723,8 +693,6 @@ fn display_names_drop_role_suffixes_and_reject_addresses() {
     );
 }
 
-// ------------------------------------------------------------------ Agenda
-
 #[test]
 fn agenda_drops_joining_details_links_and_markup() {
     let notes = "<p>Agenda:</p><ul><li>Review Q3 numbers</li><li>Plan the launch</li></ul>\
@@ -741,8 +709,6 @@ fn agenda_drops_joining_details_links_and_markup() {
     assert_eq!(cut.chars().count(), MAX_AGENDA_CHARACTERS + 1);
     assert!(cut.ends_with('…'));
 }
-
-// ------------------------------------------------- UpcomingMeetingSelector
 
 fn local(day: chrono::NaiveDate, hour: u32, minute: u32) -> DateTime<Utc> {
     Local

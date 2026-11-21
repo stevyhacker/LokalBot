@@ -1,17 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// The native text system owns selection, focus and marked text. SwiftUI owns
-/// the committed string and suggestion. Ghost text is painted, never inserted
-/// into the editable value until a deliberate acceptance.
 struct RehearsalTextEditor: NSViewRepresentable {
     @Binding var text: String
     let suggestion: String
     let acceptKey: CotypingAcceptKey
     let fullAcceptKey: CotypingFullAcceptKey
     let focusRevision: Int
-    /// The accept key takes the next word or phrase; the full-accept key takes
-    /// everything that is left, exactly as in another app.
     let onAccept: (CotypingAcceptScope) -> Void
     let onReject: () -> Void
 
@@ -50,8 +45,6 @@ struct RehearsalTextEditor: NSViewRepresentable {
             context.coordinator.isApplyingText = false
         }
         editor.suggestion = suggestion
-        // Ghost text is painted, not part of the value, so assistive
-        // technology would otherwise never learn what is being offered.
         editor.setAccessibilityPlaceholderValue(suggestion.isEmpty ? nil : suggestion)
         editor.acceptKey = acceptKey
         editor.fullAcceptKey = fullAcceptKey
@@ -71,8 +64,6 @@ struct RehearsalTextEditor: NSViewRepresentable {
     final class Coordinator: NSObject, NSTextViewDelegate {
         var parent: RehearsalTextEditor
         var focusRevision = 0
-        /// Set while SwiftUI's text is being written into the editor, so the
-        /// selection it passes through is not mistaken for the user's caret.
         var isApplyingText = false
         init(_ parent: RehearsalTextEditor) { self.parent = parent }
         func textDidChange(_ notification: Notification) {
@@ -83,8 +74,6 @@ struct RehearsalTextEditor: NSViewRepresentable {
         func textViewDidChangeSelection(_ notification: Notification) {
             guard let editor = notification.object as? NSTextView else { return }
             editor.needsDisplay = true
-            // A suggestion continues the end of the text. Selecting text or
-            // moving the caret elsewhere leaves it behind, as in another app.
             guard !isApplyingText, !parent.suggestion.isEmpty, !editor.hasMarkedText() else { return }
             let selection = editor.selectedRange()
             if selection.length > 0 || selection.location != (editor.string as NSString).length {
@@ -114,8 +103,6 @@ private final class RehearsalNativeTextView: NSTextView {
         let modifiers = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
             .subtracting([.capsLock, .numericPad, .function])
         if canAccept, modifiers.isEmpty {
-            // Same precedence as the live accept tap: the primary key wins when
-            // both are set to the same key.
             if event.keyCode == UInt16(acceptKey.rawValue) {
                 onAccept?(.chunk)
                 return
@@ -127,9 +114,6 @@ private final class RehearsalNativeTextView: NSTextView {
         }
         if event.keyCode == 48, !hasMarkedText(), !inputSource.isComposingIMEActive,
            modifiers.isEmpty || modifiers == .shift {
-            // Once there is no acceptable ghost, this short rehearsal follows
-            // the window's key-view loop instead of inserting indentation.
-            // Shift-Tab always navigates back; IME composition keeps its keys.
             if modifiers == .shift { window?.selectPreviousKeyView(self) } else { window?.selectNextKeyView(self) }
             return
         }
@@ -137,8 +121,6 @@ private final class RehearsalNativeTextView: NSTextView {
             onReject?()
             return
         }
-        // Arrow keys navigate; like the live monitor, they drop the suggestion
-        // even when the caret has nowhere further to go.
         if (123...126).contains(Int(event.keyCode)), !suggestion.isEmpty {
             onReject?()
         }
@@ -148,9 +130,6 @@ private final class RehearsalNativeTextView: NSTextView {
     override func draw(_ dirtyRect: NSRect) {
         super.draw(dirtyRect)
         guard canAccept, let currentContainer = textContainer else { return }
-        // Layout the complete sentence so wrapped ghost lines return to the
-        // editor's left margin. Drawing into a caret-width rectangle indents
-        // every continuation line beneath the insertion point.
         let preview = NSTextStorage(attributedString: attributedString())
         let range = NSRange(location: preview.length, length: (suggestion as NSString).length)
         var attributes = typingAttributes

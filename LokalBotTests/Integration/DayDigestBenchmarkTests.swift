@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Runs the day digest over `Benchmarks/think/DayDigest/cases.json` against a live
-/// OpenAI-compatible server and writes every digest and model call for
-/// `Benchmarks/think/DayDigest/score.py`. Skipped unless `LOKALBOT_DIGEST_BENCH=1`;
-/// `Benchmarks/think/DayDigest/run.sh` starts the server and sets the variables.
 final class DayDigestBenchmarkTests: XCTestCase {
     private struct Cases: Decodable { var days: [Day] }
 
@@ -20,8 +16,6 @@ final class DayDigestBenchmarkTests: XCTestCase {
         var contexts: [Context]
     }
 
-    /// Forwards to the production engine unchanged and keeps each reply, so
-    /// streaming, truncation, and retries behave as they do in the app.
     private final class CapturingEngine: TextEngine, @unchecked Sendable {
         struct Call { var stage: String; var output: String; var seconds: Double }
         let base: OpenAICompatibleEngine
@@ -136,7 +130,6 @@ final class DayDigestBenchmarkTests: XCTestCase {
                     ["stage": $0.stage, "output": $0.output, "seconds": $0.seconds] as [String: Any]
                 }
                 results.append(entry)
-                // Write after every day so a capped run keeps what finished.
                 let data = try JSONSerialization.data(withJSONObject: ["model": model, "results": results],
                                                       options: [.prettyPrinted, .sortedKeys])
                 try data.write(to: URL(fileURLWithPath: outPath), options: .atomic)

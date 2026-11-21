@@ -1,5 +1,3 @@
-//! The demo library exercised through the public API the app uses.
-
 use chrono::{Local, Utc};
 use lokalbot_core::{ActionCorrection, ActionStatus, Library, LibraryPaths, TaskStatus, demo};
 
@@ -171,8 +169,6 @@ fn people_and_projects_join_the_demo() {
     assert!(laptop.summary.is_some());
     assert!(laptop.meetings.len() >= 3, "{:?}", laptop.meetings);
     assert!(!laptop.my_actions.is_empty());
-    // Before 04:30 the demo dates today's activity at 04:30 (demo::Clock), still
-    // ahead of the clock, and a project's week only counts time already spent.
     if Local::now().time() >= chrono::NaiveTime::from_hms_opt(4, 30, 0).unwrap() {
         assert!(laptop.week_seconds > 0.0);
     }
@@ -221,7 +217,6 @@ fn macos_fixture_actions_project() {
     assert_eq!(digest.highlights.len(), 1);
 }
 
-/// `LB_DEMO_OUT=/tmp/x cargo test -p lokalbot-core --test demo_library -- --ignored`
 #[test]
 #[ignore]
 fn write_demo_library() {

@@ -6,17 +6,10 @@
 import Combine
 import Foundation
 
-/// Polls the Accessibility-focused field on a timer and publishes a value-type
-/// snapshot. Trimmed port of Cotabby's `FocusTracker`/`FocusTrackingModel`: no
-/// AXObserver (inconsistent across hosts), just a main-runloop timer plus an
-/// out-of-band `refreshNow()` the coordinator calls after a keystroke settles.
-/// The timer uses Cotabby's idle backoff: fast after activity, slower after
-/// repeated no-change captures.
 @MainActor
 final class CotypingFocusTracker: ObservableObject {
     @Published private(set) var focus: CotypingFocus = .none
 
-    /// Fired (in addition to the publisher) whenever the focus changes.
     var onChange: ((CotypingFocus) -> Void)?
 
     private var timer: Timer?
@@ -89,8 +82,6 @@ final class CotypingFocusTracker: ObservableObject {
         requestTimerCapture()
     }
 
-    /// Latest-wins timer polling. A slow target app can never build an unbounded
-    /// stack of timer tasks while the serialized AX executor is still working.
     private func requestTimerCapture() {
         guard timer != nil else { return }
         if timerCaptureTask != nil {
@@ -122,8 +113,6 @@ final class CotypingFocusTracker: ObservableObject {
         }
     }
 
-    /// Asynchronous background capture. Publishes only on a real change so
-    /// SwiftUI surfaces and the coordinator do not churn every tick.
     @discardableResult
     func refreshNow(
         includeSurface: Bool = false,
@@ -166,9 +155,6 @@ final class CotypingFocusTracker: ObservableObject {
             includeVisibleContext: includeVisibleContext)
     }
 
-    /// A validation capture fails closed on a whole-snapshot timeout. Callers
-    /// that are about to display generated text must not validate against a
-    /// cached field after the live target becomes unresponsive.
     func refreshForValidation(
         includeSurface: Bool = false,
         includeURL: Bool = false,

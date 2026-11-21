@@ -1,7 +1,3 @@
-/* =========================================================================
-   LokalBot — Local Desktop AI Leaderboard (/benchmarks)
-   Zero-dependency progressive enhancement over /benchmarks.json.
-   ========================================================================= */
 (function (root, factory) {
   if (typeof module === "object" && module.exports) {
     module.exports = factory();
@@ -179,7 +175,6 @@
       grid.push('<text x="' + (padL - 10) + '" y="' + (gy + 4) + '" text-anchor="end" class="lb-scatter__tick">' + v + '%</text>');
     }
 
-    // Ideal corner callout (top-right: high recall + high empty restraint)
     var idealBox =
       '<rect x="' + xPos(80) + '" y="' + yPos(100) + '" width="' + (xPos(100) - xPos(80)) + '" height="' + (yPos(75) - yPos(100)) + '" rx="8" class="lb-scatter__ideal" />' +
       '<text x="' + (xPos(100) - 10) + '" y="' + (yPos(100) + 17) + '" text-anchor="end" class="lb-scatter__ideal-label">Ideal zone</text>';
@@ -296,7 +291,6 @@
       var filtered = filterRows(suite.rows, state.filter);
       var rows = sortRows(filtered, state.sortKey, state.sortDir);
 
-      // Identify best local numeric value for primary metric highlighting
       var pMetric = suite.primaryMetric;
       var bestVal = null;
       if (pMetric) {
@@ -309,7 +303,6 @@
         }
       }
 
-      // 1. Category tabs
       var catTabsHtml = data.categories.map(function (c) {
         var isActive = c.id === cat.id;
         return (
@@ -321,7 +314,6 @@
         );
       }).join("");
 
-      // 2. Sub-suite pills (only when category has > 1 suite)
       var suiteTabsHtml = "";
       if (cat.suites.length > 1) {
         suiteTabsHtml =
@@ -339,7 +331,6 @@
           '</div>';
       }
 
-      // 3. Filter pills
       var filterHtml = filters.length > 1
         ? '<div class="lb-filters" role="group" aria-label="Filter models">' +
             filters.map(function (f) {
@@ -355,7 +346,6 @@
           '</div>'
         : "";
 
-      // 4. Table header
       var headCols = suite.columns.map(function (col) {
         var isSorted = state.sortKey === col.key;
         var alignCls = col.align === "right" ? " is-num" : "";
@@ -373,7 +363,6 @@
         );
       }).join("");
 
-      // 5. Table rows
       var bodyRows = rows.map(function (row, idx) {
         var badgeLabel = STATUS_LABELS[row.status] || row.status;
         var rowCls = "lb-row lb-row--" + escapeHtml(row.status || "option");
@@ -482,7 +471,6 @@
           '</div>' +
         '</div>';
 
-      // Bind interactive listeners
       rootEl.querySelectorAll("[data-lb-cat]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           selectCategory(btn.getAttribute("data-lb-cat"), null, true);
@@ -543,7 +531,6 @@
       }
     }
 
-    // Wire Reference Stack jump cards if present on the page
     if (typeof document !== "undefined") {
       document.querySelectorAll("[data-lb-jump-cat]").forEach(function (el) {
         el.addEventListener("click", function (ev) {
@@ -581,7 +568,6 @@
         initUI(rootEl, data);
       })
       .catch(function () {
-        // Static HTML fallback inside #leaderboard-root stays visible on error.
       });
   }
 

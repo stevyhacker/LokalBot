@@ -1,9 +1,3 @@
-//! What reading files costs and how much room the index takes: `Costs`,
-//! `MeasuredCosts`, `Estimator`, `FileFolderEstimate` and `FileIndexSize`.
-//! Measured on an M4 Pro; other machines start from the same numbers (DigUp's
-//! Linux and Windows builds have no speed check either) and go by what indexing
-//! measures on them.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -11,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use super::{Candidate, FileKind, IndexOptions};
 
-/// Seconds of indexing per unit.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Costs {
     pub image: f64,
@@ -58,7 +51,6 @@ const FIELDS: [&str; 6] = [
     "videoSecond",
 ];
 
-/// Units a kind needs before its measured cost is trusted.
 fn enough(name: &str) -> f64 {
     match name {
         "image" | "screenshot" => 20.0,
@@ -74,7 +66,6 @@ pub struct Tally {
     pub units: f64,
 }
 
-/// `costs.json` beside the index. The Mac's `speed` block is kept as written.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct MeasuredCosts {
     #[serde(skip_serializing_if = "Option::is_none", default)]
@@ -84,8 +75,6 @@ pub struct MeasuredCosts {
 }
 
 impl MeasuredCosts {
-    /// A job that took `seconds` for `units` of `name`. Recent work counts most:
-    /// past ten times what's enough, what came before is halved.
     pub fn add(&mut self, name: &str, units: f64, seconds: f64) {
         if units <= 0.0 || seconds <= 0.0 {
             return;
@@ -104,8 +93,6 @@ impl MeasuredCosts {
         tally.units += units;
     }
 
-    /// The costs to estimate with: measured ones where there are enough, else the
-    /// fixed ones at the pace indexing has kept on the kinds it has measured.
     pub fn costs(&self) -> Costs {
         let mut costs = Costs::default();
         let pace = self.pace().unwrap_or(1.0).clamp(0.02, 50.0);
@@ -121,8 +108,6 @@ impl MeasuredCosts {
         costs
     }
 
-    /// Measured cost over the expected one, over the kinds with enough measured,
-    /// weighted by their seconds. `None` before any kind has enough.
     pub fn pace(&self) -> Option<f64> {
         let mut expected = Costs::default();
         let (mut sum, mut weights) = (0.0, 0.0);
@@ -139,7 +124,6 @@ impl MeasuredCosts {
         (weights > 0.0).then(|| (sum / weights).exp())
     }
 
-    /// Nothing has been measured here yet: estimates are the fixed costs.
     pub fn is_unmeasured(&self) -> bool {
         self.tallies.is_empty()
     }
@@ -155,7 +139,6 @@ impl MeasuredCosts {
             .unwrap_or_default()
     }
 
-    /// Adds `new` to what's saved in `folder`.
     pub fn merge(new: &MeasuredCosts, folder: &Path) {
         let mut saved = Self::load(folder);
         for (name, tally) in &new.tallies {
@@ -170,56 +153,37 @@ impl MeasuredCosts {
     }
 }
 
-/// Bytes the index takes per item, measured on 31 October 2026 by indexing
-/// samples of each kind (`FileIndexSize`). Files themselves are never copied.
 pub mod index_size {
     pub const PICTURE: f64 = 2_700.0;
-    /// With about 1,500 characters of words read from it.
     pub const SCREENSHOT: f64 = 6_700.0;
-    /// A page of about 2,400 characters.
     pub const PDF_PAGE: f64 = 7_700.0;
-    /// For each 2,000 bytes of a document.
     pub const DOC_CHUNK: f64 = 8_700.0;
-    /// 30 seconds of sound, one window every 25 seconds.
     pub const SOUND_WINDOW: f64 = 2_000.0;
-    /// A frame per shot, at most one every 3 s and 1,200 a video.
     pub const VIDEO_FRAME: f64 = 2_000.0;
     pub const FRAMES_PER_VIDEO: f64 = 1_200.0;
 }
 
-/// Page counts and durations, which only the engine can read.
 pub trait Measures {
     fn pages(&self, path: &str) -> usize;
     fn duration(&self, path: &str) -> f64;
 }
 
-/// What adding folders would read (`FileFolderEstimate`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FolderEstimate {
     pub files: usize,
-    /// Photos and screenshots.
     pub pictures: usize,
-    /// PDFs and documents.
     pub documents: usize,
-    /// Recordings and videos, and how long they play.
     pub recordings: usize,
     pub playing_seconds: f64,
-    /// The first pass at full speed on this computer.
     pub seconds: f64,
-    /// The rest of long PDFs and documents, read after everything's first part.
     pub later_seconds: f64,
-    /// The room these files take in the index once read through.
     pub index_bytes: f64,
-    /// The model still to download before the first pass (0 once it's here).
     pub download_bytes: u64,
-    /// Chosen folders that can't be opened.
     pub unreadable: Vec<String>,
-    /// Nothing has been measured on this computer yet.
     pub rough: bool,
 }
 
 impl FolderEstimate {
-    /// Kind by kind, so each kind's size can be told.
     pub fn of(
         candidates: &[Candidate],
         options: &IndexOptions,
@@ -293,8 +257,6 @@ fn sound_bytes(seconds: f64, options: &IndexOptions) -> f64 {
     (seconds / options.audio_hop).ceil() * index_size::SOUND_WINDOW
 }
 
-/// "25 min", "2 hr, 10 min": the precision an estimate deserves
-/// (`FileFolderAddSheet.duration`).
 pub fn estimate_duration(seconds: f64) -> (u64, u64) {
     let rounded = if seconds < 3600.0 {
         (seconds / 60.0).round().max(1.0) * 60.0
@@ -351,7 +313,6 @@ mod tests {
         assert_eq!(estimate.documents, 2);
         assert_eq!(estimate.recordings, 2);
         assert_eq!(estimate.playing_seconds, 500.0);
-        // 30 of 100 pages and 40 of 100 chunks in the first pass.
         let first = 0.12 + 0.32 + 30.0 * 0.09 + 40.0 * 0.045 + 250.0 * 0.0089 + 250.0 * 0.019;
         assert!((estimate.seconds - first).abs() < 1e-9);
         assert!((estimate.later_seconds - (70.0 * 0.09 + 60.0 * 0.045)).abs() < 1e-9);
@@ -373,13 +334,10 @@ mod tests {
         measured.add("image", 10.0, 10.0);
         assert_eq!(measured.pace(), None, "not enough yet");
         measured.add("image", 10.0, 10.0);
-        // One second a picture, against 0.12 expected.
         assert!((measured.costs().image - 1.0).abs() < 1e-9);
         let pace = measured.pace().unwrap();
         assert!((pace - 1.0 / 0.12).abs() < 1e-6);
-        // Unmeasured kinds go at the same pace.
         assert!((measured.costs().doc_chunk - 0.045 * pace).abs() < 1e-9);
-        // Past ten times what's enough, what came before is halved.
         measured.add("image", 200.0, 200.0);
         measured.add("image", 1.0, 1.0);
         assert!(measured.tallies["image"].units < 200.0);

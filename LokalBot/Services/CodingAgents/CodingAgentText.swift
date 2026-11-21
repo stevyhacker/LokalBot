@@ -1,19 +1,13 @@
 import Foundation
 
-/// Text rules shared by the coding-agent transcript readers. Every string
-/// that leaves a reader passes through here: injected context is removed,
-/// credentials are redacted, and length is capped before anything is kept.
 enum CodingAgentText {
     static let promptCharacters = 280
     static let replyCharacters = 600
     static let titleCharacters = 160
 
-    /// A person's request with harness-injected context removed, or `nil`
-    /// when nothing the person wrote remains.
     static func prompt(_ raw: String) -> String? {
         var text = raw
         if let request = text.range(of: "## My request for Codex:") ?? text.range(of: "## My request:") {
-            // Codex puts IDE, browser, and file context above the request.
             text = String(text[request.upperBound...])
         }
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -22,7 +16,6 @@ enum CodingAgentText {
             return slashCommand(command, in: trimmed)
         }
         if let command = terminalCommand(in: trimmed) {
-            // The person's own shell input; its captured output is never kept.
             return sanitized("Ran in terminal: \(command)", maxCharacters: promptCharacters)
         }
         guard !ignoredPromptPrefixes.contains(where: { trimmed.hasPrefix($0) }) else { return nil }
@@ -30,12 +23,10 @@ enum CodingAgentText {
             in: trimmed, range: NSRange(trimmed.startIndex..., in: trimmed),
             withTemplate: "[pasted text]")
         let clean = sanitized(removingBlocks(text), maxCharacters: promptCharacters)
-        // An unclosed harness tag is still harness text.
         guard !clean.isEmpty, firstCapture(of: harnessTagOpening, in: clean) == nil else { return nil }
         return clean
     }
 
-    /// A command the person typed into the agent's terminal mode.
     static func terminalCommand(in raw: String) -> String? {
         firstCapture(of: bashInput, in: raw)?.trimmingCharacters(in: .whitespacesAndNewlines)
     }
@@ -50,9 +41,6 @@ enum CodingAgentText {
         return clean.isEmpty ? nil : clean
     }
 
-    /// Text said to an agent rather than a name for work: a question, a
-    /// truncated or harness-tagged request, a link, or a conversational
-    /// opening such as "can you" or "we should".
     static func readsAsRequest(_ text: String) -> Bool {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return true }
@@ -61,10 +49,6 @@ enum CodingAgentText {
             || trimmed.range(of: conversationalOpening, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
-    /// A request that is a short instruction, as a work title: "Review all
-    /// open PRs" as is, "let's commit the benchmark." as "Commit the
-    /// benchmark". `nil` for anything else, such as a question, a long or
-    /// truncated request, a terminal command, or pasted text.
     static func instruction(_ request: String) -> String? {
         var clean = request.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.hasPrefix("/"), !clean.hasPrefix("Ran in terminal:"),
@@ -75,7 +59,6 @@ enum CodingAgentText {
         while let last = clean.last, ".!".contains(last) { clean.removeLast() }
         let words = clean.split(whereSeparator: \.isWhitespace)
         guard (2...10).contains(words.count), !readsAsRequest(clean), let first = clean.first else { return nil }
-        // "iOS …" keeps its case.
         let second = clean.dropFirst().first
         return first.isLowercase && second?.isUppercase != true
             ? first.uppercased() + clean.dropFirst() : clean
@@ -95,7 +78,6 @@ enum CodingAgentText {
         PromptContextSanitizer.sanitize(text, maxCharacters: maxCharacters)
     }
 
-    /// One line, credentials redacted, capped.
     static func sanitized(_ text: String, maxCharacters: Int) -> String {
         let redacted = ScreenContextPrivacy.redact(text).text
         return PromptContextSanitizer.sanitize(
@@ -103,10 +85,6 @@ enum CodingAgentText {
             maxCharacters: maxCharacters)
     }
 
-    // MARK: - Commands
-
-    /// Outcomes recorded by a shell command. Command output is never read,
-    /// so an action means the agent ran it, not that it succeeded.
     static func actions(inCommand command: String) -> [CodingAgentAction] {
         let command = unwrappedShellCommand(command)
         var actions: [CodingAgentAction] = []
@@ -142,7 +120,6 @@ enum CodingAgentText {
         return urls
     }
 
-    /// The agent read LokalBot's library, whose content its replies may echo.
     static func readsLokalBot(command: String) -> Bool {
         contains(lokalBotCommand, in: command)
     }
@@ -151,8 +128,6 @@ enum CodingAgentText {
         toolName.range(of: "lokalbot", options: .caseInsensitive) != nil
     }
 
-    /// Codex records commands as a JSON-encoded argv such as
-    /// `["/bin/zsh","-lc","git push"]`; the script is the last element.
     static func unwrappedShellCommand(_ command: String) -> String {
         guard command.hasPrefix("["),
               let data = command.data(using: .utf8),
@@ -161,13 +136,8 @@ enum CodingAgentText {
         return script
     }
 
-    // MARK: - Paths
-
-    /// A changed file as the person would name it: relative to the session's
-    /// project, never exposing scratch or worktree plumbing.
     static func displayPath(_ path: String, workingDirectory: String?) -> String {
         var value = (path as NSString).standardizingPath
-        // Worktrees sit inside the project folder, so strip them first.
         for pattern in [claudeScratchpad, worktreeRoot] {
             let range = NSRange(value.startIndex..., in: value)
             if let match = pattern.firstMatch(in: value, range: range),
@@ -185,18 +155,11 @@ enum CodingAgentText {
         return value
     }
 
-    // MARK: - Private
-
-    /// Whole messages the harness writes in the person's turn.
     private static let ignoredPromptPrefixes = [
         "<local-command", "Caveat:", "[Request interrupted", "# AGENTS.md instructions",
         "<permissions", "<image", "</image>", "<collaboration_mode",
     ]
 
-    /// Harness context wrapped around or beside a request: system reminders,
-    /// IDE and browser state, skill bodies, captured terminal output. These
-    /// tags are hyphenated or underscored (`system-reminder`, `bash-stdout`,
-    /// `ide_selection`), unlike HTML a person might paste into a prompt.
     private static let ignoredBlocks = regex(
         #"<([a-z]+(?:[-_][a-z0-9]+)+|skill|attachments?)\b[^>]*>[\s\S]*?</\1\s*>"#)
     private static let harnessTagOpening = regex(
@@ -214,7 +177,6 @@ enum CodingAgentText {
     private static let scheduledTaskName = regex(
         #"^<scheduled-task\b[^>]*\bname="([^"]+)""#)
 
-    /// Session-management commands say nothing about the work.
     private static let housekeepingCommands: Set<String> = [
         "/clear", "/compact", "/model", "/resume", "/exit", "/config", "/login", "/logout",
         "/cost", "/status", "/help", "/context", "/mcp", "/permissions", "/hooks",
@@ -253,16 +215,12 @@ enum CodingAgentText {
         }
     }
 
-    /// A skill or command the person invoked, e.g. `/code-review high`.
-    /// Session housekeeping such as `/fast on` is not a request.
     private static func slashCommand(_ name: String, in text: String) -> String? {
         guard !housekeepingCommands.contains(name.lowercased()) else { return nil }
         let arguments = firstCapture(of: commandArguments, in: text) ?? ""
         return sanitized("\(name) \(arguments)", maxCharacters: promptCharacters)
     }
 
-    /// Runs the person scheduled earlier: they asked for the work, but not
-    /// in the words the harness injects for each run.
     private static func scheduledRun(in text: String) -> String? {
         if text.hasPrefix("<heartbeat>") {
             let id = firstCapture(of: automationID, in: text) ?? "unnamed"
@@ -296,7 +254,6 @@ enum CodingAgentText {
         }
     }
 
-    /// The first alternative that matched, with shell-escaped quotes undone.
     private static func firstCapture(_ captures: [String?]) -> String? {
         captures.lazy.compactMap { $0 }.first?
             .replacingOccurrences(of: #"\""#, with: "\"")
@@ -307,10 +264,6 @@ enum CodingAgentText {
     }
 }
 
-/// Streams a JSON Lines transcript without loading it into Swift strings.
-/// Tool output dominates these files (one 15 MB session held about a dozen
-/// prompts), so readers classify a line from its opening bytes and fully
-/// decode only lines that can carry evidence.
 struct CodingAgentJSONLines {
     let data: Data
 
@@ -336,15 +289,11 @@ struct CodingAgentJSONLines {
     struct Line {
         let bytes: Data
 
-        /// Whether `needle` occurs within the first `limit` bytes.
         func prefix(_ limit: Int, contains needle: String) -> Bool {
             let end = bytes.index(bytes.startIndex, offsetBy: min(limit, bytes.count))
             return bytes[bytes.startIndex..<end].range(of: Data(needle.utf8)) != nil
         }
 
-        /// The first unescaped string value for `"key":"`. Escaped quotes in
-        /// nested JSON text cannot match, so this safely reads identifiers
-        /// and timestamps without decoding a multi-megabyte line.
         func stringValue(forKey key: String) -> String? {
             guard let keyRange = bytes.range(of: Data("\"\(key)\":\"".utf8)) else { return nil }
             let valueStart = keyRange.upperBound
@@ -359,8 +308,6 @@ struct CodingAgentJSONLines {
 }
 
 enum CodingAgentTimestamp {
-    /// Parses the UTC `yyyy-MM-ddTHH:mm:ss(.SSS…)Z` stamps both agents
-    /// write, falling back to Foundation for any other ISO 8601 form.
     static func date(_ value: String?) -> Date? {
         guard let value else { return nil }
         let bytes = Array(value.utf8)
@@ -386,7 +333,6 @@ enum CodingAgentTimestamp {
                 scale /= 10
             }
         }
-        // Days from the civil calendar (Howard Hinnant's algorithm).
         let y = month <= 2 ? year - 1 : year
         let era = (y >= 0 ? y : y - 399) / 400
         let yearOfEra = y - era * 400

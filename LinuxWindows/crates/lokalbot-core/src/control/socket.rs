@@ -1,9 +1,3 @@
-//! Where the control socket lives and the client end of it. A Unix socket in the
-//! user's private runtime folder (mode 0700), or a named pipe on Windows whose
-//! access list allows only this user, named after a hash of the library root.
-//! The client refuses an endpoint another user owns, so a request, which can
-//! hold an API key, never reaches anyone else's process.
-
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -13,7 +7,6 @@ use sha2::{Digest as _, Sha256};
 use super::protocol::{MAXIMUM_MESSAGE_BYTES, Request, Response};
 use crate::paths::LibraryPaths;
 
-/// Short, stable key for a library root and the current user.
 pub fn endpoint_key(root: &Path) -> String {
     let resolved = std::fs::canonicalize(root)
         .or_else(|_| std::path::absolute(root))
@@ -29,8 +22,6 @@ pub fn endpoint_key(root: &Path) -> String {
     hex::encode(&digest[..12])
 }
 
-/// `$XDG_RUNTIME_DIR/lokalbot`, or `/tmp/lokalbot-<uid>` without a runtime
-/// directory. Either is created 0700 and must belong to this user.
 #[cfg(unix)]
 pub fn private_runtime_dir() -> std::io::Result<PathBuf> {
     use std::os::unix::fs::{DirBuilderExt as _, MetadataExt as _, PermissionsExt as _};
@@ -58,7 +49,6 @@ pub fn private_runtime_dir() -> std::io::Result<PathBuf> {
     Ok(dir)
 }
 
-/// This process's user id, without a C dependency.
 #[cfg(unix)]
 pub fn current_uid() -> u32 {
     use std::os::unix::fs::MetadataExt as _;
@@ -67,7 +57,6 @@ pub fn current_uid() -> u32 {
         .unwrap_or(u32::MAX)
 }
 
-/// Where the control socket for `root` lives.
 pub fn endpoint(root: &Path) -> std::io::Result<PathBuf> {
     let key = endpoint_key(root);
     #[cfg(windows)]
@@ -80,7 +69,6 @@ pub fn endpoint(root: &Path) -> std::io::Result<PathBuf> {
     }
 }
 
-/// True while a copy of LokalBot holds this library's instance lock.
 pub fn is_app_running(paths: &LibraryPaths) -> bool {
     let Ok(file) = std::fs::OpenOptions::new()
         .read(true)
@@ -120,7 +108,6 @@ fn connect(path: &Path, _: Duration) -> std::io::Result<std::fs::File> {
     use std::os::windows::fs::OpenOptionsExt as _;
     use std::os::windows::io::AsRawHandle as _;
     use windows_sys::Win32::Storage::FileSystem::{SECURITY_IDENTIFICATION, SECURITY_SQOS_PRESENT};
-    // The server may identify this client but never act as it.
     let file = std::fs::OpenOptions::new()
         .read(true)
         .write(true)
@@ -148,10 +135,7 @@ mod windows_owner {
         GetCurrentProcess, OpenProcess, OpenProcessToken, PROCESS_QUERY_LIMITED_INFORMATION,
     };
 
-    /// The SID behind a process's token, as raw `TOKEN_USER` bytes.
     unsafe fn token_user(process: HANDLE) -> Option<Vec<u8>> {
-        // SAFETY: handles are checked and closed here, and the buffer is sized
-        // by the first call before the second writes to it.
         unsafe {
             let mut token: HANDLE = std::ptr::null_mut();
             if OpenProcessToken(process, TOKEN_QUERY, &mut token) == 0 {
@@ -175,8 +159,6 @@ mod windows_owner {
     pub(super) fn current_user_sid() -> Option<String> {
         use windows_sys::Win32::Foundation::LocalFree;
         use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
-        // SAFETY: the `TOKEN_USER` buffer outlives the call, and the returned
-        // string is copied before it is freed.
         unsafe {
             let user = token_user(GetCurrentProcess())?;
             let user = user.as_ptr() as *const TOKEN_USER;
@@ -194,11 +176,7 @@ mod windows_owner {
         }
     }
 
-    /// Whether the process serving this pipe runs as the current user.
     pub(super) fn server_is_this_user(pipe: *mut c_void) -> bool {
-        // SAFETY: `pipe` is an open handle owned by the caller; every other
-        // handle is checked and closed, and the `TOKEN_USER` buffers outlive
-        // the SID comparison.
         unsafe {
             let mut server = 0u32;
             if GetNamedPipeServerProcessId(pipe as HANDLE, &mut server) == 0 {
@@ -223,13 +201,11 @@ mod windows_owner {
     }
 }
 
-/// This user's SID as text, for the control pipe's access list.
 #[cfg(windows)]
 pub fn current_user_sid() -> Option<String> {
     windows_owner::current_user_sid()
 }
 
-/// Sends one request line and reads one reply line.
 pub fn exchange(
     endpoint: &Path,
     request: &Request,
@@ -239,7 +215,6 @@ pub fn exchange(
     let mut line = serde_json::to_vec(request).map_err(std::io::Error::other)?;
     line.push(b'\n');
     let (tx, rx) = std::sync::mpsc::channel();
-    // On a helper thread because a named pipe has no I/O timeouts.
     std::thread::Builder::new()
         .name("lokalbot-control-client".into())
         .spawn(move || {
@@ -258,7 +233,6 @@ pub fn exchange(
     serde_json::from_slice(&reply).map_err(std::io::Error::other)
 }
 
-/// Reads one newline-terminated record, without the newline.
 pub fn read_line(reader: &mut impl std::io::Read) -> std::io::Result<Vec<u8>> {
     let mut record = Vec::new();
     let mut buffer = [0u8; 16 * 1024];

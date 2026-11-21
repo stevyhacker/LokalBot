@@ -1,8 +1,6 @@
 import CoreGraphics
 import Foundation
 
-// Run only on the ephemeral hosted desktop, before building or starting XCTest.
-// Prefer supported CoreGraphics modes; older Anka images need their guest tool.
 func prepareDisplay() throws {
     guard ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" else {
         throw NSError(domain: "HostedDisplay", code: 1, userInfo: [
@@ -37,12 +35,10 @@ func prepareDisplay() throws {
             CGCancelDisplayConfiguration(configuration)
             continue
         }
-        // App-only changes revert when this short-lived Swift process exits.
         let result = CGCompleteDisplayConfiguration(configuration, .forSession)
         print("Requested \(mode.width)×\(mode.height): \(result.rawValue)")
         if result == .success, waitForRoom() { return }
     }
-    // https://github.com/actions/runner-images/issues/9345#issuecomment-1981190579
     for path in [
         "/Library/Application Support/Veertu/Anka/addons/change_res",
         "/Library/Application Support/Veertu/Anka/guestaddons/change_res",

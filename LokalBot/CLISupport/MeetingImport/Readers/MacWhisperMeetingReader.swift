@@ -1,24 +1,6 @@
 import Foundation
 import SQLite3
 
-/// Reads MacWhisper (Good Snooze) transcripts from three places:
-///
-/// - `.whisper` documents. A `.whisper` file is a zip holding `metadata.json`
-///   (segments with millisecond `start`/`end`, a `speaker` object, and
-///   `dateCreated` as seconds since 2001) and `originalAudio`, the recording.
-///   The recording is unpacked into a temporary folder so it can be imported.
-/// - MacWhisper's own library, `~/Library/Application Support/MacWhisper/
-///   Database/main.sqlite` (GRDB): sessions, transcript lines in
-///   milliseconds, speakers, recorded meetings, AI summaries, and recordings
-///   in `Database/ExternalMedia`. Opened read-only with `immutable=1`; when
-///   MacWhisper still holds changes in its write-ahead log, a private copy of
-///   the database and log is read instead, so the originals are never opened.
-/// - What the Export button saves: SRT, WebVTT, JSON (the Segments export and
-///   the structured export), CSV (semicolon-separated start, end, transcript,
-///   speaker), TXT, Markdown, and DOCX. A recording with the same name beside
-///   an export is kept with it.
-///
-/// Nothing is written next to what is read, and nothing is sent anywhere.
 enum MacWhisperMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.macWhisper
     static let exportHint = "Choose .whisper files (in MacWhisper, File › Save As…, or drag a transcript from the history sidebar into Finder) or what the Export button saved: SRT, VTT, TXT, CSV, JSON, Markdown, or DOCX. To bring in your whole MacWhisper history, choose main.sqlite in ~/Library/Application Support/MacWhisper/Database."
@@ -45,16 +27,11 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: - Files and folders
-
-    /// Why one file couldn't be read, in words that never quote its content.
     fileprivate struct Failure: Error {
         var reason: String
     }
 
     fileprivate enum Kind: Int {
-        // Ordered richest first: when exports of one transcript share a name,
-        // only the richest is read.
         case whisper, json, subtitles, csv, text, docx, database
 
         var isExport: Bool { self != .whisper && self != .database }
@@ -80,8 +57,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
                 || (start.contains("\"timestamp\"") && start.contains("\"text\""))
             return known ? .json : nil
         case "sqlite", "sqlite3", "db":
-            // Inside a folder only MacWhisper's own database is taken; a file
-            // the person picks by hand is checked for MacWhisper's tables.
             guard chosen || url.lastPathComponent == "main.sqlite" else { return nil }
             return head(of: url, count: 16) == Data("SQLite format 3\u{0}".utf8) ? .database : nil
         default:
@@ -105,8 +80,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         url.deletingLastPathComponent().resolvingSymlinksInPath().path + "/" + url.deletingPathExtension().lastPathComponent.lowercased()
     }
 
-    /// Recordings in `files` by folder and name, so an export finds the
-    /// recording it was made from.
     private static func recordings(in files: [URL]) -> [String: URL] {
         var found: [String: URL] = [:]
         for file in files where recordingExtensions.contains(file.pathExtension.lowercased()) {
@@ -122,7 +95,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         var order: [String] = []
         for file in files {
             guard let kind = kind(of: file, chosen: false) else { continue }
-            // Exports of one transcript share its name; the richest one wins.
             let key = kind.isExport || kind == .whisper ? groupKey(file) : file.path
             if let existing = chosen[key] {
                 if kind.rawValue < existing.kind.rawValue { chosen[key] = (file, kind) }
@@ -178,12 +150,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: - Exports
-
-    /// One meeting from an export, which keeps no id or date of its own. Its
-    /// id comes from the words said, so the same transcript exported again,
-    /// or as SRT and as WebVTT, is still one meeting; a short transcript adds
-    /// its title so two brief clips that say the same thing stay apart.
     private static func exportedMeeting(_ lines: [ExternalMeeting.Line], title: String?, origin: URL,
                                         recording: URL?) throws -> ExternalMeeting {
         guard !lines.isEmpty || recording != nil else {
@@ -212,7 +178,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
             throw Failure(reason: "it isn't valid JSON")
         }
         if let object = root as? [String: Any], object["transcripts"] is [Any] {
-            // An unpacked .whisper document: metadata.json beside originalAudio.
             let folder = url.deletingLastPathComponent()
             let isMetadata = url.lastPathComponent.lowercased() == "metadata.json"
             let audio = folder.appendingPathComponent("originalAudio")
@@ -227,11 +192,9 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         var lines: [ExternalMeeting.Line] = []
         var title: String?
         if let object = root as? [String: Any], let segments = object["segments"] as? [Any] {
-            // The structured export: millisecond start and end per segment.
             lines = timedLines(segments.compactMap { $0 as? [String: Any] })
             title = (object["title"] as? String)?.nonBlank
         } else if let array = root as? [Any] {
-            // The Segments export: [{"timestamp": "00:05-00:07", "text", "speaker"}].
             lines = timedLines(array.compactMap { $0 as? [String: Any] })
         } else {
             throw Failure(reason: "it doesn't hold a MacWhisper transcript")
@@ -239,9 +202,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         return ExternalImportScan(meetings: [try exportedMeeting(lines, title: title, origin: url, recording: recording)])
     }
 
-    /// Lines from JSON segments, timed either by a "timestamp" range or by
-    /// numeric start and end. MacWhisper writes milliseconds; a segment list
-    /// with fractional values is read as seconds.
     private static func timedLines(_ segments: [[String: Any]]) -> [ExternalMeeting.Line] {
         let numbers = segments.flatMap { [number($0["start"]), number($0["end"])].compactMap { $0 } }
         let scale: Double = numbers.contains { $0 != $0.rounded() } ? 1 : 1_000
@@ -260,7 +220,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// "00:05-00:07", "59:53-01:00:04", or "00:00:01,000 --> 00:00:04,000".
     private static func timeRange(_ value: String) -> (start: TimeInterval?, end: TimeInterval?) {
         let parts = value.replacingOccurrences(of: "-->", with: "-").replacingOccurrences(of: "–", with: "-")
             .split(separator: "-", omittingEmptySubsequences: true)
@@ -280,8 +239,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         return paragraphs.joined(separator: "\n\n")
     }
 
-    // MARK: - Shared helpers
-
     fileprivate static func participants(in lines: [ExternalMeeting.Line]) -> [String] {
         var seen = Set<String>()
         var names: [String] = []
@@ -293,7 +250,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         return names
     }
 
-    /// MacWhisper's placeholder labels, which name nobody.
     fileprivate static func isGenericSpeaker(_ name: String) -> Bool {
         let lower = name.lowercased().trimmingCharacters(in: .whitespaces)
         if ["unknown", "unknown speaker", "speaker"].contains(lower) { return true }
@@ -318,9 +274,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         return nil
     }
 
-    /// A date MacWhisper stored: Swift's default encoding (seconds since
-    /// 2001), seconds or milliseconds since 1970, GRDB's "2026-03-18
-    /// 18:12:42.251" in UTC, or ISO 8601.
     fileprivate static func date(_ value: Any?) -> Date? {
         if let seconds = number(value) {
             if seconds > 100_000_000_000 { return Date(timeIntervalSince1970: seconds / 1_000) }
@@ -339,8 +292,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
         return nil
     }
 
-    /// Action items in an AI summary: checkboxes anywhere, and bullets under
-    /// a heading such as "Action items" or "Next steps".
     fileprivate static func actionItems(in notes: String?) -> [ExternalMeeting.ActionItem] {
         guard let notes else { return [] }
         let sectionWords = ["action item", "next step", "to-do", "todo", "to do", "follow-up", "follow up"]
@@ -388,8 +339,6 @@ enum MacWhisperMeetingReader: ExternalMeetingReader {
             || (line.hasSuffix(":") && line.count <= 60)
     }
 
-    /// MacWhisper sometimes keeps a structured note as its AI title
-    /// ("Subject: …"); this keeps only the subject line.
     fileprivate static func cleanedAITitle(_ value: String?) -> String? {
         guard let value else { return nil }
         for raw in value.components(separatedBy: "\n") {
@@ -411,8 +360,6 @@ private extension String {
         trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : self
     }
 }
-
-// MARK: - .whisper documents
 
 private enum WhisperDocument {
     typealias Failure = MacWhisperMeetingReader.Failure
@@ -442,7 +389,6 @@ private enum WhisperDocument {
             })
             return ExternalImportScan(meetings: [meeting], problems: problems)
         }
-        // Early .whisper files may be the metadata alone.
         guard let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
             throw Failure(reason: "it isn't a .whisper document LokalBot can open")
         }
@@ -451,8 +397,6 @@ private enum WhisperDocument {
         ])
     }
 
-    /// A meeting from `metadata.json`. `recording` gets a file name and an
-    /// extension for the recording and returns where it can be imported from.
     static func meeting(_ metadata: [String: Any], origin: URL, fileTitle: String?,
                         recording: (String, String) -> URL?) throws -> ExternalMeeting {
         guard let segments = metadata["transcripts"] as? [Any] else {
@@ -500,9 +444,6 @@ private enum WhisperDocument {
             actionItems: reader.actionItems(in: notes), audioURL: recording(baseName, rawExtension), origin: origin)
     }
 
-    /// Unpacks the recording into a temporary folder named after its
-    /// checksum and size, so reading the document again, or another copy of
-    /// it, reuses what was unpacked before.
     static func unpackRecording(_ entry: MacWhisperZip.Entry, from archive: MacWhisperZip,
                                 name: String, fileExtension: String) -> URL? {
         let key = ["whisper-audio", String(entry.crc), String(entry.compressedSize), String(entry.size)]
@@ -511,8 +452,6 @@ private enum WhisperDocument {
         }
     }
 
-    /// Copies an unpacked document's `originalAudio`, which has no extension,
-    /// to a temporary file that has one. APFS clones the file, so this is cheap.
     static func copyRecording(_ audio: URL, name: String, fileExtension: String) -> URL? {
         let values = try? audio.resourceValues(forKeys: [.fileSizeKey, .contentModificationDateKey])
         let start: Data = {
@@ -520,8 +459,6 @@ private enum WhisperDocument {
             defer { try? handle.close() }
             return (try? handle.read(upToCount: 65_536)) ?? Data()
         }()
-        // Size, date, and opening bytes rather than the path, which differs
-        // each time a zip holding the document is unpacked.
         let key = ["whisper-audio-file", String(values?.fileSize ?? 0),
                    String(values?.contentModificationDate?.timeIntervalSince1970 ?? 0),
                    start.map { String(format: "%02x", $0) }.joined()]
@@ -562,8 +499,6 @@ private enum WhisperDocument {
         }
     }
 
-    /// The container a recording's first bytes name, for files whose
-    /// extension MacWhisper didn't keep.
     static func sniffedExtension(_ head: Data) -> String {
         let bytes = [UInt8](head.prefix(12))
         func ascii(_ range: Range<Int>) -> String {
@@ -577,18 +512,12 @@ private enum WhisperDocument {
         if ascii(0..<4) == "fLaC" { return "flac" }
         if ascii(0..<3) == "ID3" { return "mp3" }
         if bytes.count >= 2, bytes[0] == 0xFF, bytes[1] & 0xF0 == 0xF0 {
-            // Both start with a frame sync; ADTS (raw AAC) has layer bits 00.
             return bytes[1] & 0x06 == 0 ? "aac" : "mp3"
         }
         return "m4a"
     }
 }
 
-// MARK: - Zip archives
-
-/// The few parts of the zip format a `.whisper` document or a `.docx` uses:
-/// the central directory (with Zip64 sizes) and stored or deflated entries,
-/// read from a memory-mapped file.
 private struct MacWhisperZip {
     struct Entry {
         var name: String
@@ -613,7 +542,6 @@ private struct MacWhisperZip {
         data.count >= 4 && data.prefix(4).elementsEqual([0x50, 0x4B, 0x03, 0x04])
     }
 
-    /// The entry with this file name at any depth, the shallowest first.
     func entry(named name: String) -> Entry? {
         entries.filter { entry in
             let parts = entry.name.split(separator: "/")
@@ -627,7 +555,6 @@ private struct MacWhisperZip {
         case 0:
             return data.subdata(in: range)
         case 8:
-            // Foundation's zlib algorithm is raw DEFLATE, as zip stores it.
             let inflated = try (data.subdata(in: range) as NSData).decompressed(using: .zlib) as Data
             guard inflated.count == entry.size else { throw Malformed() }
             return inflated
@@ -644,7 +571,6 @@ private struct MacWhisperZip {
         }
     }
 
-    /// The first bytes of an entry, for telling what kind of file it is.
     func head(of entry: Entry) -> Data {
         guard let range = try? dataRange(of: entry) else { return Data() }
         if entry.method == 0 { return data.subdata(in: range.lowerBound..<min(range.upperBound, range.lowerBound + 16)) }
@@ -720,7 +646,6 @@ private struct MacWhisperZip {
         Int(data[data.startIndex + offset])
     }
 
-    /// Little-endian integers; -1 when out of range, which no signature matches.
     private static func uint16(_ data: Data, _ offset: Int) -> Int {
         guard offset >= 0, offset + 2 <= data.count else { return -1 }
         return byte(data, offset) | byte(data, offset + 1) << 8
@@ -738,7 +663,6 @@ private struct MacWhisperZip {
     }
 }
 
-/// The paragraphs of a Word document's `word/document.xml`.
 private final class DocxParagraphs: NSObject, XMLParserDelegate {
     private var paragraphs: [String] = []
     private var current = ""
@@ -779,11 +703,6 @@ private final class DocxParagraphs: NSObject, XMLParserDelegate {
     }
 }
 
-// MARK: - CSV exports
-
-/// MacWhisper's CSV: semicolon-separated rows of start, end, transcript, and
-/// a speaker when one was detected. A header row, commas, or another column
-/// order are accepted too.
 private enum MacWhisperCSV {
     static func parse(_ text: String) -> [ExternalMeeting.Line] {
         let firstLine = text.prefix { $0 != "\n" }
@@ -810,7 +729,6 @@ private enum MacWhisperCSV {
             }
             columns = (found.start, found.end, found.text >= 0 ? found.text : 2, found.speaker)
         } else if rows.allSatisfy({ $0.count >= 4 }) {
-            // Without a header, the longer of the last two columns is the text.
             let average: (Int) -> Double = { column in
                 Double(rows.reduce(0) { $0 + $1[column].count }) / Double(max(rows.count, 1))
             }
@@ -876,13 +794,6 @@ private enum MacWhisperCSV {
     }
 }
 
-// MARK: - Text, Markdown, and Word exports
-
-/// MacWhisper's text exports: plain paragraphs; speaker blocks ("Speaker 1"
-/// on its own line, then what they said); timestamp lines ("00:05",
-/// "00:00:01,000 --> 00:00:04,000"); lines that start with a timestamp
-/// ("[00:05] …"); and "Name: …" lines. Markdown emphasis and headings are
-/// read through, and a leading "# Title" names the meeting.
 private enum MacWhisperText {
     private enum Item {
         case blank
@@ -901,8 +812,6 @@ private enum MacWhisperText {
             range: regex("^(" + token + ")" + separator + "(" + token + #")\s+(.+)$"#),
             bare: regex("^(" + token + #")\s+(.+)$"#))
 
-        // First pass: what each line is, and whether lines that start with a
-        // bare time do so consistently enough to be timestamps, not "10:30 works".
         var cleaned: [(text: String, isHeading: Bool)] = []
         var bareCount = 0
         var textCount = 0
@@ -977,7 +886,6 @@ private enum MacWhisperText {
                 pending = (start, end)
             case .timed(let start, let end, let rest):
                 flush()
-                // A timed segment's "Name:" is MacWhisper's speaker prefix, as in subtitles.
                 let parts = ExternalImportText.splitSpeaker(rest)
                 current = .init(start: start, end: end, speaker: parts.speaker ?? speaker, text: parts.text)
                 pending = nil
@@ -1005,10 +913,6 @@ private enum MacWhisperText {
         text.drop { $0.isWhitespace }.description
     }
 
-    /// Lines standing alone as a speaker's name: name-like, followed by what
-    /// they said, and either a "Speaker N" label, a heading, beside a
-    /// timestamp line, or used at least twice. When any line passes, every
-    /// name-like line in that position does.
     private static func speakerHeaders(in items: [Item]) -> Set<String> {
         var counts: [String: Int] = [:]
         var accepted = Set<String>()
@@ -1041,13 +945,9 @@ private enum MacWhisperText {
             counts[name, default: 0] += 1
         }
         for (name, count) in counts where count >= 2 { accepted.insert(name) }
-        // Once the layout is plainly speaker blocks, a name used only once is
-        // a speaker too.
         return accepted.isEmpty ? accepted : accepted.union(counts.keys)
     }
 
-    /// The name in a line that could be a speaker heading: short, starting
-    /// with a letter, without sentence punctuation; a trailing colon is allowed.
     private static func headerName(_ line: String) -> String? {
         var name = line.trimmingCharacters(in: .whitespaces)
         if name.hasSuffix(":") { name = String(name.dropLast()).trimmingCharacters(in: .whitespaces) }
@@ -1057,8 +957,6 @@ private enum MacWhisperText {
         return name
     }
 
-    /// The line without Markdown: headings, bold markers, and emphasis that
-    /// wraps the whole line.
     private static func clean(_ raw: String) -> (text: String, isHeading: Bool) {
         var line = raw.trimmingCharacters(in: .whitespaces)
         var isHeading = false
@@ -1081,7 +979,6 @@ private enum MacWhisperText {
         try? NSRegularExpression(pattern: pattern)
     }
 
-    /// The capture groups of a whole-line match, "" for groups that didn't take part.
     private static func match(_ expression: NSRegularExpression?, _ line: String) -> [String]? {
         guard let expression,
               let result = expression.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) else { return nil }
@@ -1091,14 +988,6 @@ private enum MacWhisperText {
     }
 }
 
-// MARK: - MacWhisper's library
-
-/// `Database/main.sqlite`, as GRDB keeps it: `session` (one per
-/// transcription), `transcriptline` (text, start and end in milliseconds,
-/// `speakerID`), `speaker`, `recordedmeeting` and `systemaudiorecording`
-/// (whose `date` is when recording stopped), `voicememos`, and `mediafile`
-/// (recordings in `ExternalMedia`). Columns are looked up by name, so a
-/// version without one still reads.
 private enum MacWhisperLibrary {
     typealias Failure = MacWhisperMeetingReader.Failure
 
@@ -1143,7 +1032,6 @@ private enum MacWhisperLibrary {
         for row in sessions {
             guard let id = key(row["id"]),
                   !isSet(row["datedeleted"]), !isTrue(row["istransient"]),
-                  // Podcasts and downloaded videos aren't meetings.
                   row["podcastid"] == nil, row["downloadmetadataid"] == nil else { continue }
             let meeting = key(row["recordedmeetingid"]).flatMap { meetings[$0] }
             let appRecording = key(row["systemaudiorecordingid"]).flatMap { appAudio[$0] }
@@ -1181,9 +1069,6 @@ private enum MacWhisperLibrary {
         return result
     }
 
-    /// The session's recording when it is one file. A meeting kept as
-    /// separate microphone and app-audio tracks has no single recording, so
-    /// only its transcript comes along.
     private static func recordingFile(_ names: [String], in folder: URL) -> URL? {
         let files = names.map { folder.appendingPathComponent(URL(fileURLWithPath: $0).lastPathComponent) }
             .filter { FileManager.default.fileExists(atPath: $0.path) }
@@ -1201,7 +1086,6 @@ private enum MacWhisperLibrary {
         return byID
     }
 
-    /// GRDB keeps ids as 16-byte UUID blobs; they become lowercase hex.
     static func key(_ value: Any?) -> String? {
         if let data = value as? Data, !data.isEmpty { return data.map { String(format: "%02x", $0) }.joined() }
         if let text = value as? String, !text.isEmpty { return text.replacingOccurrences(of: "-", with: "").lowercased() }
@@ -1209,7 +1093,6 @@ private enum MacWhisperLibrary {
         return nil
     }
 
-    /// A deletion date: anything but null or zero.
     private static func isSet(_ value: Any?) -> Bool {
         guard let value else { return false }
         if let number = MacWhisperMeetingReader.number(value) { return number != 0 }
@@ -1221,12 +1104,6 @@ private enum MacWhisperLibrary {
     }
 }
 
-/// A read-only connection to MacWhisper's database. The file is opened with
-/// `immutable=1`, which never creates `-wal` or `-shm` files beside it. GRDB
-/// keeps a persistent write-ahead log that MacWhisper doesn't fold back on
-/// quit, and an immutable open can't see it; when the log isn't empty, the
-/// database and log are copied to a private temporary folder and that copy
-/// is read instead, then removed.
 private final class MacWhisperDatabase {
     private let handle: OpaquePointer
     private let snapshot: URL?
@@ -1272,12 +1149,10 @@ private final class MacWhisperDatabase {
         if let snapshot { try? FileManager.default.removeItem(at: snapshot) }
     }
 
-    /// Table names, lowercased.
     func tables() -> Set<String> {
         Set(rows("SELECT name FROM sqlite_master WHERE type = 'table'").compactMap { ($0["name"] as? String)?.lowercased() })
     }
 
-    /// The table's columns, lowercased name to the name as declared.
     func columns(_ table: String) -> [String: String] {
         var names: [String: String] = [:]
         for row in rows("PRAGMA table_info(\(quoted(table)))") {
@@ -1286,7 +1161,6 @@ private final class MacWhisperDatabase {
         return names
     }
 
-    /// The wanted columns the table has, keyed by lowercased name. Nulls are left out.
     func records(_ table: String, _ wanted: [String]) -> [[String: Any]] {
         let present = columns(table)
         let picked = wanted.compactMap { present[$0.lowercased()] }
@@ -1294,7 +1168,6 @@ private final class MacWhisperDatabase {
         return rows("SELECT \(picked.map(quoted).joined(separator: ", ")) FROM \(quoted(table))")
     }
 
-    /// `fullText` of sessions that have no transcript lines, by session key.
     func fullTextsWithoutLines() -> [String: String] {
         let session = columns("session")
         let lines = columns("transcriptline")

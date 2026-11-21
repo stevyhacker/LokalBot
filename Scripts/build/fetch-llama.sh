@@ -1,16 +1,8 @@
 #!/bin/bash
-# Builds a pinned llama.cpp server/runtime for the app's real deployment
-# target. Upstream release binaries currently declare macOS 26, so copying
-# them would make a nominally macOS 15 app fail at launch. Building from the
-# checksum-pinned source archive keeps the public minimum honest and avoids
-# host-specific CPU instructions (`GGML_NATIVE=OFF`).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 TAG=v1.0.0
-# The source archive has no .git, so upstream's build-info would report build
-# 0. Pass the number of the build tag on the same commit (b12359) explicitly so
-# `llama-server --version` identifies the pinned build.
 BUILD_NUMBER=12359
 DEPLOYMENT_TARGET=15.0
 SOURCE_URL="https://github.com/ggml-org/llama.cpp/archive/refs/tags/$TAG.tar.gz"
@@ -65,9 +57,6 @@ validate_runtime_layout() {
     return 1
   fi
 
-  # Verify every runtime object advertises the same supported minimum before it
-  # enters the app bundle. This fails closed if a future CMake change ignores the
-  # deployment target.
   for file in "$root/llama-server" "$root"/*.dylib; do
     minos=$(otool -l "$file" | awk '/minos/{print $2; exit}')
     if [ "$minos" != "$DEPLOYMENT_TARGET" ]; then
@@ -198,8 +187,6 @@ cp "$tmp/build/bin"/*.dylib "$SERVER_DIR/"
 cp "$tmp/source/LICENSE" "$SERVER_DIR/LICENSE.llama.cpp"
 chmod +x "$SERVER_DIR/llama-server"
 
-# Public C headers for the in-process libllama module. They come from the same
-# verified source archive as the binary, so API and runtime cannot drift.
 for header in \
   include/llama.h \
   ggml/include/ggml.h \
@@ -227,8 +214,6 @@ EOF
 validate_runtime_layout "$SERVER_DIR"
 write_runtime_receipt "$SERVER_DIR"
 validate_runtime "$SERVER_DIR"
-# Publish only a fully validated build; a failed attempt leaves the prior
-# vendor directory and its marker untouched.
 if [ -e "$FINAL_SERVER_DIR" ]; then mv "$FINAL_SERVER_DIR" "$tmp/previous"; fi
 if ! mv "$SERVER_DIR" "$FINAL_SERVER_DIR"; then
   if [ -e "$tmp/previous" ]; then mv "$tmp/previous" "$FINAL_SERVER_DIR"; fi
