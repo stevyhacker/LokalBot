@@ -1,0 +1,10 @@
+condition	meeting	outcome	sec	reqs	len	off	compl_tok	think_ch	answer_ch	gen_s	tok/s	claims	actions	entities	max/think per req
+qwen-off	sample-en	complete	6.4	1	0	1	923	0	3172	5.8	[160]	12	3	9/14	[(4096, 0)]
+qwen-off	sample-sr	complete	5.0	1	0	1	698	0	2137	4.4	[157]	7	1	3/14	[(4096, 0)]
+qwen-off	ami-es2004a	complete	11.5	4	0	4	1414	0	5245	9.3	[152, 89, 157, 71]	18	1		[(4096, 0), (768, 0), (4096, 0), (640, 0)]
+qwen-default	sample-en	complete	32.2	1	0	0	5076	15462	3356	31.6	[161]	12	2	11/14	[(8192, 4096)]
+qwen-default	sample-sr	complete	33.1	1	0	0	5200	14370	3114	32.5	[160]	12	1	8/14	[(8192, 4096)]
+qwen-default	ami-es2004a	complete	70.1	3	0	0	10658	34823	6124	68.0	[155, 153, 159]	19	4		[(8192, 4096), (1280, 640), (8192, 4096)]
+inkling-default	sample-en	complete	120.6	2	0	0	6186	16945	3971	116.7	[53, 56]	12	5	11/14	[(8192, 4096), (1280, 640)]
+inkling-default	sample-sr	complete	114.3	1	0	0	5838	13006	4206	111.4	[52]	12	6	13/14	[(8192, 4096)]
+inkling-default	ami-es2004a	complete	170.0	4	0	0	8159	21198	6362	156.0	[51, 54, 54, 54]	24	2		[(8192, 4096), (1280, 640), (8192, 4096), (1536, 768)]
