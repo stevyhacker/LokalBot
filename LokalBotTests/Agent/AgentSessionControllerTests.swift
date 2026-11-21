@@ -560,6 +560,7 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(try written(), "medium", "Agent follows Think until it has its own level")
         let file = try JSONSerialization.jsonObject(with: Data(contentsOf: URL(fileURLWithPath: path))) as? [String: Any]
         XCTAssertEqual(file?["defaultOff"] as? Bool, false, "an unknown model's default may be to reason")
+        XCTAssertEqual(file?["effortTemplate"] as? Bool, false)
         box.settings.agentReasoningLevel = .max
         controller.reasoningLevelDidChange()
         XCTAssertEqual(try written(), "high", "limited to the levels the model accepts")

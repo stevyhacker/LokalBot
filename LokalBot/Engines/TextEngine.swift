@@ -790,6 +790,7 @@ struct OpenAICompatibleEngine: TextEngine {
             options: options,
             reasoningAllowance: reasoningAllowance(for: options),
             templateThinksByDefault: resolvedReasoningSupport.thinksByDefault,
+            templateTakesEffort: resolvedReasoningSupport.templateTakesEffort,
             dialect: chatDialect,
             model: model,
             openRouterReasoning: openRouterReasoning,
@@ -873,6 +874,7 @@ struct OpenAICompatibleEngine: TextEngine {
         options: TextGenerationOptions?,
         reasoningAllowance: Int = 0,
         templateThinksByDefault: Bool = true,
+        templateTakesEffort: Bool = false,
         dialect: ChatCompletionDialect,
         model: String,
         openRouterReasoning: OpenRouterReasoningCompatibility = .native,
@@ -906,6 +908,9 @@ struct OpenAICompatibleEngine: TextEngine {
                 body["thinking_budget_tokens"] = allowance
             } else if !templateThinksByDefault {
                 template["enable_thinking"] = false
+            }
+            if templateTakesEffort, let effort = requestLevel ?? (off ? .off : nil) {
+                template["reasoning_effort"] = effort.effortValue
             }
             if !template.isEmpty { body["chat_template_kwargs"] = template }
 

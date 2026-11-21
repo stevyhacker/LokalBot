@@ -68,10 +68,12 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         fetch: inferenceFetch,
         onPayload: async (payload, payloadModel) => {
           const upstream = (await options?.onPayload?.(payload, payloadModel)) ?? payload;
-          const { level, defaultOff } = readReasoningPreference(reasoningFile);
+          const { level, defaultOff, effortTemplate } = readReasoningPreference(reasoningFile);
           return api === "openai-responses"
             ? applyResponsesReasoningLevel(upstream as Record<string, unknown>, level)
-            : applyReasoningLevel(upstream as Record<string, unknown>, level, dialect, model, defaultOff);
+            : applyReasoningLevel(
+              upstream as Record<string, unknown>, level, dialect, model, defaultOff, effortTemplate,
+            );
         },
       },
     ),
@@ -176,13 +178,21 @@ export function reasoningDialect(value: string | undefined): ReasoningDialect {
   return value as ReasoningDialect;
 }
 
-export function readReasoningPreference(path: string | undefined): { level: ReasoningLevel; defaultOff: boolean } {
-  const automatic = { level: "automatic" as ReasoningLevel, defaultOff: false };
+export function readReasoningPreference(
+  path: string | undefined,
+): { level: ReasoningLevel; defaultOff: boolean; effortTemplate: boolean } {
+  const automatic = { level: "automatic" as ReasoningLevel, defaultOff: false, effortTemplate: false };
   if (!path) return automatic;
   try {
-    const file = JSON.parse(readFileSync(path, "utf8")) as { level?: unknown; defaultOff?: unknown };
+    const file = JSON.parse(readFileSync(path, "utf8")) as {
+      level?: unknown; defaultOff?: unknown; effortTemplate?: unknown;
+    };
     if (!(REASONING_LEVELS as readonly unknown[]).includes(file.level)) return automatic;
-    return { level: file.level as ReasoningLevel, defaultOff: file.defaultOff === true };
+    return {
+      level: file.level as ReasoningLevel,
+      defaultOff: file.defaultOff === true,
+      effortTemplate: file.effortTemplate === true,
+    };
   } catch {
     return automatic;
   }
@@ -194,6 +204,7 @@ export function applyReasoningLevel(
   dialect: ReasoningDialect,
   model: string,
   defaultOff = false,
+  effortTemplate = false,
 ): Record<string, unknown> {
   if (level === "automatic") {
     if (dialect !== "llama-server" || !defaultOff) return payload;
@@ -213,6 +224,10 @@ export function applyReasoningLevel(
         shaped.chat_template_kwargs = { ...kwargs, enable_thinking: false };
       } else if (defaultOff) {
         shaped.chat_template_kwargs = { ...kwargs, enable_thinking: true };
+      }
+      if (effortTemplate) {
+        const shapedKwargs = (shaped.chat_template_kwargs ?? {}) as Record<string, unknown>;
+        shaped.chat_template_kwargs = { ...shapedKwargs, reasoning_effort: effort };
       }
       return shaped;
     }

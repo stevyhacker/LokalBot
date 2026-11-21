@@ -59,10 +59,12 @@ enum TaskReasoning: Equatable, Sendable {
 struct ReasoningSupport: Equatable, Sendable {
     var levels: [ThinkReasoningLevel]
     var defaultLevel: ThinkReasoningLevel?
+    var templateTakesEffort: Bool
 
-    init(levels: [ThinkReasoningLevel], defaultLevel: ThinkReasoningLevel? = nil) {
+    init(levels: [ThinkReasoningLevel], defaultLevel: ThinkReasoningLevel? = nil, templateTakesEffort: Bool = false) {
         self.levels = levels.filter { $0 != .automatic }.sorted()
         self.defaultLevel = defaultLevel
+        self.templateTakesEffort = templateTakesEffort
     }
 
     static let unavailable = ReasoningSupport(levels: [])
@@ -202,6 +204,8 @@ extension ReasoningSupport {
             return .init(levels: [.low, .medium, .high], defaultLevel: .high)
         case "qwen3.5-4b", "qwen3.6-35b-a3b", "qwen3.6-27b":
             return .init(levels: adjustable, defaultLevel: .high)
+        case "inkling-2-mini":
+            return .init(levels: adjustable, defaultLevel: .high, templateTakesEffort: true)
         case "qwen3.5-0.8b", "qwen3.5-2b", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",
              "lfm2.5-1.2b-instruct", "granite-4.1-3b":
             return .init(levels: adjustable, defaultLevel: .off)

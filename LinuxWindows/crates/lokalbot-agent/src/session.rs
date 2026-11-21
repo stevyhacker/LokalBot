@@ -162,6 +162,7 @@ impl AgentEnvironment {
 pub struct ReasoningChoices {
     pub levels: Vec<ReasoningLevel>,
     pub default_level: Option<ReasoningLevel>,
+    pub effort_template: bool,
 }
 
 impl ReasoningChoices {
@@ -170,6 +171,7 @@ impl ReasoningChoices {
         Self {
             levels,
             default_level,
+            effort_template: lokalbot_ai::think::reasoning_template_takes_effort(settings),
         }
     }
 
@@ -1506,6 +1508,7 @@ impl AgentSession {
         let body = serde_json::json!({
             "level": reasoning_key(level),
             "defaultOff": choices.default_level == Some(ReasoningLevel::Off),
+            "effortTemplate": choices.effort_template,
         })
         .to_string();
         match lokalbot_core::library::write_atomic(&self.reasoning_level_file, body.as_bytes()) {

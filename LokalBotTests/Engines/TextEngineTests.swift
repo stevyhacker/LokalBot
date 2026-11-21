@@ -150,6 +150,38 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual((off["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
     }
 
+    func testInklingIsSteeredThroughItsTemplateEffortAndNeverGetsABareZeroBudget() throws {
+        func body(_ level: ThinkReasoningLevel, _ options: TextGenerationOptions,
+                  model: String = "inkling-2-mini") throws -> [String: Any] {
+            let engine = OpenAICompatibleEngine(
+                baseURL: URL(string: "http://127.0.0.1:17872/v1")!, model: model, chatDialect: .llamaServer,
+                reasoningLevel: level, reasoningSupport: .known(provider: .builtIn, model: model))
+            let request = try engine.makeChatRequest(system: "s", prompt: "p", context: [], schema: nil,
+                                                     options: options)
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        }
+        func kwargs(_ body: [String: Any]) -> [String: Any]? { body["chat_template_kwargs"] as? [String: Any] }
+
+        let notes = try body(.automatic, .init(maxTokens: 4_096))
+        XCTAssertNil(kwargs(notes), "the template's own effort, High")
+        XCTAssertEqual(notes["thinking_budget_tokens"] as? Int, 4_096)
+        XCTAssertEqual(notes["max_tokens"] as? Int, 8_192)
+
+        let quick = try body(.automatic, .init(maxTokens: 4_096, reasoning: .off))
+        XCTAssertEqual(kwargs(quick)?["reasoning_effort"] as? String, "none",
+                       "a zero budget at the default effort makes Inkling loop on empty thinking")
+        XCTAssertEqual(quick["thinking_budget_tokens"] as? Int, 0)
+        XCTAssertEqual(quick["max_tokens"] as? Int, 4_096)
+
+        let chosen = try body(.medium, .init(maxTokens: 1_000))
+        XCTAssertEqual(kwargs(chosen)?["reasoning_effort"] as? String, "medium")
+        XCTAssertEqual(chosen["thinking_budget_tokens"] as? Int, 4_096)
+
+        let qwen = try body(.medium, .init(maxTokens: 1_000, reasoning: .off), model: "qwen3.5-4b")
+        XCTAssertNil(kwargs(qwen)?["reasoning_effort"], "other templates keep today's request")
+        XCTAssertEqual(kwargs(qwen)?["enable_thinking"] as? Bool, false)
+    }
+
     func testOllamaRequestsSetTheirPlannedContextAndDisableThinkingForAnOffTask() {
         let plain = OllamaEngine.chatBody(model: "m", system: "s", user: "u", schema: nil, options: nil)
         let plainOptions = plain["options"] as? [String: Any]
@@ -362,7 +394,9 @@ final class TextEngineTests: XCTestCase {
         func builtInDefault(_ model: String) -> ThinkReasoningLevel? {
             ReasoningSupport.known(provider: .builtIn, model: model).defaultLevel
         }
-        for model in ["qwen3.5-4b", "qwen3.6-35b-a3b", "qwen3.6-27b", "lfm2.5-2.6b"] {
+        XCTAssertTrue(ReasoningSupport.known(provider: .builtIn, model: "inkling-2-mini").templateTakesEffort)
+        XCTAssertFalse(ReasoningSupport.known(provider: .builtIn, model: "qwen3.5-4b").templateTakesEffort)
+        for model in ["qwen3.5-4b", "qwen3.6-35b-a3b", "qwen3.6-27b", "lfm2.5-2.6b", "inkling-2-mini"] {
             XCTAssertEqual(builtInDefault(model), .high, model)
         }
         for model in ["qwen3.5-0.8b", "qwen3.5-2b", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",

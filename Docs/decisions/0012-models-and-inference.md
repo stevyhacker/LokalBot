@@ -127,6 +127,12 @@ llama-server decides thinking per request as `enable_reasoning != 0 && the templ
 
 Where: `LokalBot/Engines/LlamaServer.swift` (`MainLLMRuntimePolicy.serverExtraArguments`), `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.builtIn`), `LokalBot/Engines/TextEngine.swift` (`OpenAICompatibleEngine.applyGenerationOptions`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`chat_body`), `LinuxWindows/crates/lokalbot-ai/src/runtime.rs`, `LinuxWindows/crates/lokalbot-agent/resources/lokalbot-extension/index.ts` (`applyReasoningLevel`).
 
+### Inkling 2 Mini is steered through its template's reasoning effort
+
+Inkling 2 Mini's chat template has no `enable_thinking`; it reads `reasoning_effort` (`none` to `max`, default 0.9). On 2026-11-21, on an RTX 3090 with llama.cpp b12613, a zero thinking budget at the default effort made it loop `<|content_thinking|><|end_message|>` until the output limit, while `reasoning_effort: none` with a zero budget answered cleanly and a positive budget closed thinking cleanly. So every request with a resolved level, Off included, also sends that level's effort to models whose template takes one; Automatic leaves Inkling at its own High. The catalog pins ggml-org's GGUF because Unsloth's files use a pre-merge layout (`inkling2`, 48 blocks) that mainline llama.cpp refuses, and support needs llama.cpp b12596 or later. Like Qwen3.6 35B-A3B it is opt-in only: 17.6 GB, never a tier default. In the notes benchmark it wrote the best notes in English and Serbian at about 3.5× Qwen3.5 4B's thinking time.
+
+Where: `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.templateTakesEffort`), `LokalBot/Engines/TextEngine.swift` (`OpenAICompatibleEngine.applyGenerationOptions`), `LinuxWindows/crates/lokalbot-ai/src/think.rs`, `LinuxWindows/crates/lokalbot-agent/resources/lokalbot-extension/index.ts` (`applyReasoningLevel`), `Benchmarks/think/ReasoningDefaults/2026-11-21/REPORT.md`.
+
 ### An Off request also turns off Qwen's thinking turn in the chat template
 
 A zero thinking budget alone still opens Qwen's thinking turn in the bundled runtime and can exhaust a short reply before any visible text, so Off requests send `thinking_budget_tokens: 0` and disable that turn in the chat template too. The CLI's short grounded answers do the same: they must not spend their whole 1,024-token allowance thinking.

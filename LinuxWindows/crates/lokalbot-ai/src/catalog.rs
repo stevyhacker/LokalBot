@@ -102,7 +102,7 @@ const fn text(
     }
 }
 
-static CATALOG: [ModelEntry; 15] = [
+static CATALOG: [ModelEntry; 16] = [
     text(
         COMPACT_FALLBACK_ID,
         "Qwen3.5 0.8B",
@@ -289,6 +289,22 @@ static CATALOG: [ModelEntry; 15] = [
         true,
         false,
     ),
+    ModelEntry {
+        license: Some("Apache 2.0"),
+        ..text(
+            "inkling-2-mini",
+            "Inkling 2 Mini",
+            "ggml-org/Inkling-2-Mini-GGUF",
+            "e8a2cecf0e78914f07cc27b9be711a9b2c7561d9",
+            "Inkling-2-Mini-IQ4_NL.gguf",
+            "IQ4_NL",
+            17_627_940_768,
+            "cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4",
+            "Best local notes in our tests, Serbian included; always thinks first, so slower. Needs a 24 GB GPU.",
+            true,
+            false,
+        )
+    },
     text(
         "gemma4-12b",
         "Gemma 4 12B",
@@ -763,6 +779,40 @@ mod tests {
             assert!(!autocomplete.contains(&excluded), "{excluded}");
         }
         assert!(autocomplete_entries(Some("gemma4-12b")).any(|e| e.id == "gemma4-12b"));
+    }
+
+    #[test]
+    fn inkling_is_pinned_and_only_ever_chosen_by_hand() {
+        let inkling = entry("inkling-2-mini").unwrap();
+        assert_eq!(inkling.display_name, "Inkling 2 Mini");
+        assert_eq!(inkling.size_bytes, 17_627_940_768);
+        assert_eq!(
+            inkling.sha256,
+            "cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4"
+        );
+        assert_eq!(
+            inkling.url(),
+            "https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF/resolve/e8a2cecf0e78914f07cc27b9be711a9b2c7561d9/Inkling-2-Mini-IQ4_NL.gguf"
+        );
+        assert_eq!(inkling.license, Some("Apache 2.0"));
+        assert!(inkling.think && !inkling.no_reasoning_control);
+        assert!(think_entries().any(|e| e.id == inkling.id));
+        assert!(!autocomplete_entries(None).any(|e| e.id == inkling.id));
+
+        let settings = lokalbot_core::Settings::default();
+        for default in [
+            settings.built_in_model_id.as_str(),
+            settings.cotyping_built_in_model_id.as_str(),
+            settings.dictation_composition_built_in_model_id.as_str(),
+            DEFAULT_THINK_ID,
+            COMPACT_FALLBACK_ID,
+            RECOMMENDED_SUMMARIZATION_ID,
+        ] {
+            assert_ne!(default, inkling.id);
+        }
+        for preset in PRESETS {
+            assert!(preset.think != inkling.id && preset.autocomplete != inkling.id);
+        }
     }
 
     #[test]

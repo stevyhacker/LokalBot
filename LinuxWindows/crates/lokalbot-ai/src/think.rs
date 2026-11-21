@@ -161,6 +161,7 @@ pub(crate) struct RequestReasoning {
     pub level: Option<ReasoningLevel>,
     pub allowance: u32,
     pub default_off: bool,
+    pub takes_effort: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1169,6 +1170,7 @@ pub(crate) fn effort_value(level: ReasoningLevel) -> &'static str {
 pub(crate) struct ReasoningSupport {
     pub levels: Vec<ReasoningLevel>,
     pub default_level: Option<ReasoningLevel>,
+    pub template_takes_effort: bool,
 }
 
 impl ReasoningSupport {
@@ -1176,6 +1178,14 @@ impl ReasoningSupport {
         Self {
             levels: levels.to_vec(),
             default_level,
+            template_takes_effort: false,
+        }
+    }
+
+    fn taking_effort(self) -> Self {
+        Self {
+            template_takes_effort: true,
+            ..self
         }
     }
 
@@ -1189,6 +1199,7 @@ impl ReasoningSupport {
         Self {
             levels,
             default_level,
+            template_takes_effort: false,
         }
     }
 
@@ -1213,6 +1224,7 @@ impl ReasoningSupport {
             "ministral-3-3b-instruct-2512" => Self::new(&[], Some(Off)),
             "lfm2.5-2.6b" => Self::new(&[Low, Medium, High], Some(High)),
             "qwen3.5-4b" | "qwen3.6-35b-a3b" | "qwen3.6-27b" => Self::new(&adjustable, Some(High)),
+            "inkling-2-mini" => Self::new(&adjustable, Some(High)).taking_effort(),
             "qwen3.5-0.8b"
             | "qwen3.5-2b"
             | "gemma4-e4b"
@@ -1373,6 +1385,7 @@ impl ReasoningSupport {
             level: self.request_level(level, request.reasoning),
             allowance: self.reasoning_allowance(level, request.reasoning, request.max_tokens),
             default_off: self.default_level == Some(ReasoningLevel::Off),
+            takes_effort: self.template_takes_effort,
         }
     }
 }
@@ -1477,6 +1490,12 @@ pub fn reasoning_choices(settings: &Settings) -> (Vec<ReasoningLevel>, Option<Re
     (support.levels, support.default_level)
 }
 
+pub fn reasoning_template_takes_effort(settings: &Settings) -> bool {
+    settings.summarizer_backend == SummarizerBackend::BuiltIn
+        && catalog::entry(&settings.built_in_model_id)
+            .is_some_and(|entry| ReasoningSupport::built_in(entry).template_takes_effort)
+}
+
 fn is_openai_reasoning_model(model: &str) -> bool {
     let name = model.to_lowercase();
     name.starts_with("o1")
@@ -1535,6 +1554,11 @@ pub(crate) fn chat_body(
                 body["thinking_budget_tokens"] = json!(reasoning.allowance);
             } else if reasoning.default_off {
                 body["chat_template_kwargs"] = json!({"enable_thinking": false});
+            }
+            if reasoning.takes_effort
+                && let Some(effort) = level.or(off.then_some(ReasoningLevel::Off))
+            {
+                body["chat_template_kwargs"]["reasoning_effort"] = json!(effort_value(effort));
             }
         }
         Dialect::Generic => {
@@ -2832,6 +2856,93 @@ mod tests {
         assert_eq!(off["thinking_budget_tokens"], 0);
         assert_eq!(off["max_tokens"], 300);
         assert_eq!(off["chat_template_kwargs"]["enable_thinking"], false);
+    }
+
+    #[test]
+    fn inkling_hears_the_level_as_an_effort_and_off_as_none() {
+        use ReasoningLevel::*;
+        let request = ChatRequest::new("s", "u").max_tokens(1_000);
+        let off_task = ChatRequest::new("s", "u")
+            .max_tokens(1_000)
+            .reasoning(TaskReasoning::Off);
+
+        let automatic = llama_body("inkling-2-mini", Automatic, &request);
+        assert_eq!(automatic["thinking_budget_tokens"], 1_000);
+        assert_eq!(automatic["max_tokens"], 2_000);
+        assert!(
+            automatic.get("chat_template_kwargs").is_none(),
+            "{automatic}"
+        );
+
+        for (level, task) in [(Automatic, &off_task), (Off, &request), (High, &off_task)] {
+            let body = llama_body("inkling-2-mini", level, task);
+            assert_eq!(body["thinking_budget_tokens"], 0, "{level:?}");
+            assert_eq!(body["max_tokens"], 1_000, "{level:?}");
+            assert_eq!(
+                body["chat_template_kwargs"],
+                json!({"enable_thinking": false, "reasoning_effort": "none"}),
+                "{level:?}"
+            );
+        }
+
+        for (level, effort, budget) in [
+            (Low, "low", 512),
+            (Medium, "medium", 4_096),
+            (High, "high", 8_192),
+            (Max, "high", 8_192),
+        ] {
+            let body = llama_body("inkling-2-mini", level, &request);
+            assert_eq!(body["thinking_budget_tokens"], budget, "{level:?}");
+            assert_eq!(
+                body["chat_template_kwargs"],
+                json!({"reasoning_effort": effort}),
+                "{level:?}"
+            );
+            assert!(body.get("reasoning_effort").is_none(), "{level:?}");
+        }
+    }
+
+    #[test]
+    fn only_inkling_gets_a_reasoning_effort() {
+        use ReasoningLevel::*;
+        let requests = [
+            ChatRequest::new("s", "u").max_tokens(1_000),
+            ChatRequest::new("s", "u")
+                .max_tokens(1_000)
+                .reasoning(TaskReasoning::Off),
+        ];
+        for entry in catalog::think_entries().filter(|e| e.id != "inkling-2-mini") {
+            for level in [Automatic, Off, Low, Medium, High, Max] {
+                for request in &requests {
+                    let body = llama_body(entry.id, level, request);
+                    assert!(body.get("reasoning_effort").is_none(), "{}", entry.id);
+                    assert!(
+                        body.pointer("/chat_template_kwargs/reasoning_effort")
+                            .is_none(),
+                        "{} {level:?}: {body}",
+                        entry.id
+                    );
+                }
+            }
+        }
+        let inkling = ReasoningSupport::built_in(catalog::entry("inkling-2-mini").unwrap());
+        assert_eq!(inkling.levels, vec![Off, Low, Medium, High]);
+        assert_eq!(inkling.default_level, Some(High));
+        assert!(inkling.template_takes_effort);
+        let built_in = |id: &str| Settings {
+            built_in_model_id: id.into(),
+            ..Settings::default()
+        };
+        assert!(reasoning_template_takes_effort(&built_in("inkling-2-mini")));
+        assert!(!reasoning_template_takes_effort(&built_in(
+            "qwen3.6-35b-a3b"
+        )));
+        assert!(!reasoning_template_takes_effort(&Settings {
+            summarizer_backend: SummarizerBackend::OpenAICompatible,
+            openai_base_url: "http://localhost:8080/v1".into(),
+            openai_model: "inkling-2-mini".into(),
+            ..Settings::default()
+        }));
     }
 
     #[test]

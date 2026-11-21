@@ -833,6 +833,7 @@ final class AgentSessionController: ObservableObject {
             let data = try JSONSerialization.data(withJSONObject: [
                 "level": level.rawValue,
                 "defaultOff": reasoningSupport.defaultLevel == .off,
+                "effortTemplate": reasoningSupport.templateTakesEffort,
             ])
             try data.write(to: reasoningLevelFile, options: .atomic)
             writtenReasoningLevel = level

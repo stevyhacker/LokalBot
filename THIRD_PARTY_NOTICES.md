@@ -233,6 +233,7 @@ itself is not included: on Linux, LokalBot runs the copy your system installed.
 | Gemma 4 E2B base (GGUF by mradermacher), E4B and 12B (GGUF by Unsloth), Google DeepMind | Think, Autocomplete | Apache-2.0 | https://ai.google.dev/gemma/docs/gemma_4_license |
 | Granite 4.1 3B, IBM | Think | Apache-2.0 | https://huggingface.co/ibm-granite/granite-4.1-3b |
 | Ministral 3 3B Instruct 2512, Mistral AI | Think | Apache-2.0 | https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512 |
+| Inkling 2 Mini (GGUF by ggml-org), Thinking Machines Lab | Think | Apache-2.0 | https://huggingface.co/thinkingmachines/Inkling-2-Mini |
 | EmbeddingGemma 2 (GGUF by ggml-org), Google DeepMind | search | Apache-2.0 | https://huggingface.co/google/embeddinggemma-2 |
 
 It runs the text models with llama.cpp's `llama-server` (MIT), downloaded from
