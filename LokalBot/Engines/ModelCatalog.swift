@@ -97,6 +97,11 @@ struct ModelCatalog {
         "ministral-3-3b-instruct-2512",
     ]
 
+    private static let autocompleteOnlyIDs: Set<String> = [
+        qualityCotypingID,
+        "gemma4-e2b-lokalbot-v3",
+    ]
+
     /// Local GGUF catalog, roughly ordered from tiny fallbacks to higher-quality
     /// meeting-summary and cotyping options.
     static let entries: [Entry] = [
@@ -120,6 +125,13 @@ struct ModelCatalog {
               sha256: "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
               sizeBytes: 3_845_328_608,
               sizeGB: 3.85, blurb: "Default autocomplete model for higher-quality suggestions. 16 GB+ Macs.",
+              disablesThinking: false),
+        Entry(id: "gemma4-e2b-lokalbot-v3", displayName: "Gemma 4 E2B (LokalBot v3)",
+              fileName: "Gemma-4-E2B-LokalBot-v3-i1-Q6_K.gguf",
+              url: "https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF/resolve/9077a7e38b00cacfaaa71493c8bfaaeea7fc0e56/Gemma-4-E2B-LokalBot-v3-i1-Q6_K.gguf",
+              sha256: "ffc99e0d22b9a3fee2c7555f3c78e1f1b266b5cba6376ecf9d42541d632aea4d",
+              sizeBytes: 3_845_323_008,
+              sizeGB: 3.85, blurb: "LokalBot fine-tuned autocomplete model for EN/SR and grounded context. 16 GB+ Macs.",
               disablesThinking: false),
         Entry(id: "qwen3.5-2b", displayName: "Qwen3.5 2B",
               fileName: "Qwen3.5-2B-Q4_K_M.gguf",
@@ -210,7 +222,7 @@ struct ModelCatalog {
     }
 
     static func mainLLMEntries(custom: [Entry]) -> [Entry] {
-        selectableEntries(custom: custom).filter { $0.id != qualityCotypingID }
+        selectableEntries(custom: custom).filter { !autocompleteOnlyIDs.contains($0.id) }
     }
 
     /// The cotyping pickers' catalog: keystroke-scale built-ins plus every

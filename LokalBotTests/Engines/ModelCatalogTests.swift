@@ -34,6 +34,20 @@ final class ModelCatalogTests: XCTestCase {
                        "https://ai.google.dev/gemma/apache_2")
     }
 
+    func testLokalBotGemma4E2BAutocompleteArtifactIsIntegrityPinnedAndAutocompleteOnly() throws {
+        let entry = try XCTUnwrap(ModelCatalog.entry(id: "gemma4-e2b-lokalbot-v3"))
+        XCTAssertEqual(entry.fileName, "Gemma-4-E2B-LokalBot-v3-i1-Q6_K.gguf")
+        XCTAssertEqual(entry.sizeBytes, 3_845_323_008)
+        XCTAssertEqual(entry.sizeGB, 3.85)
+        XCTAssertEqual(
+            entry.sha256,
+            "ffc99e0d22b9a3fee2c7555f3c78e1f1b266b5cba6376ecf9d42541d632aea4d")
+        XCTAssertTrue(
+            entry.url.contains("/resolve/9077a7e38b00cacfaaa71493c8bfaaeea7fc0e56/"))
+        XCTAssertTrue(ModelCatalog.keystrokeScaleEntries(custom: []).contains(entry))
+        XCTAssertFalse(ModelCatalog.mainLLMEntries(custom: []).contains(entry))
+    }
+
     func testLightweightCotypingModelKeepsBenchmarkedLFMQuant() throws {
         let entry = try XCTUnwrap(ModelCatalog.entry(id: ModelCatalog.lightweightCotypingID))
         XCTAssertEqual(entry.id, "lfm2.5-1.2b-instruct")
