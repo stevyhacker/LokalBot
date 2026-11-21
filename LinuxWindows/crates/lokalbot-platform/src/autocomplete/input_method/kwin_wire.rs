@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use super::super::{AcceptKeys, InterceptedKey};
 
 pub(super) const SOCKET_NAME: &str = "kwin-input-method.sock";
-pub(super) const VERSION: u32 = 1;
+pub(super) const VERSION: u32 = 2;
 const MAX_LINE: usize = 64 * 1024;
 const MAX_OUTBOX: usize = 1024 * 1024;
 
@@ -88,14 +88,19 @@ pub(super) enum Request {
     Grab {
         on: bool,
     },
-    Preedit {
+    Ghost {
         text: String,
+        emphasis_chars: usize,
+        dark: bool,
     },
+    Nudge,
     Commit {
         delete_before: u32,
         delete_after: u32,
         text: String,
-        preedit: String,
+        next: String,
+        next_emphasis_chars: usize,
+        dark: bool,
     },
     PassThrough {
         key: Key,
@@ -267,7 +272,9 @@ mod tests {
             delete_before: 3,
             delete_after: 0,
             text: " up".into(),
-            preedit: " on it".into(),
+            next: " on it".into(),
+            next_emphasis_chars: 3,
+            dark: true,
         });
         let line = String::from_utf8(outbox.buf.clone()).unwrap();
         assert!(line.contains("\"request\":\"commit\""), "{line}");
@@ -281,7 +288,9 @@ mod tests {
                 delete_before: 3,
                 delete_after: 0,
                 text: " up".into(),
-                preedit: " on it".into(),
+                next: " on it".into(),
+                next_emphasis_chars: 3,
+                dark: true,
             }
         );
     }
