@@ -832,11 +832,12 @@ impl Autocomplete {
             {
                 session.remaining = shown.clone();
             }
+            let dark = self.appearance(cx).dark;
             log::debug!(
                 "autocomplete: showing {} characters in the field",
                 shown.chars().count()
             );
-            inline.show(&field, &shown);
+            inline.show_styled(&field, &shown, emphasis.chars().count(), dark);
             self.inline_shown = true;
             self.set_keys_active(true);
             return;
@@ -981,6 +982,7 @@ impl Autocomplete {
             }
             return;
         };
+        let dark = self.appearance(cx).dark;
         let (Some(session), Some(current)) = (self.session.as_mut(), self.current.as_ref()) else {
             return;
         };
@@ -997,9 +999,17 @@ impl Autocomplete {
         if let Some(inline) = &self.inline {
             // What is left goes in with the accept, so the field never shows
             // the accepted words twice.
-            let (drawn, _) = drawn_ghost(session, &self.session_kind, &settings);
+            let (drawn, next_emphasis) = drawn_ghost(session, &self.session_kind, &settings);
             let next = inline_text(&drawn, false).unwrap_or_default();
-            inline.accept(&current.field, &around.0, &around.1, &plan.edit, &next);
+            inline.accept_styled(
+                &current.field,
+                &around.0,
+                &around.1,
+                &plan.edit,
+                &next,
+                next_emphasis.chars().count(),
+                dark,
+            );
         }
         // The rest of a word the caret was inside of goes with the insert.
         self.session_after = drop_graphemes(&self.session_after, plan.edit.forward);

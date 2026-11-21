@@ -22,15 +22,29 @@ use std::os::unix::net::{UnixListener, UnixStream};
 use anyhow::{Context as _, bail};
 use wayland_client::backend::WaylandError;
 use wayland_client::globals::{GlobalListContents, registry_queue_init};
-use wayland_client::protocol::{wl_keyboard, wl_registry};
-use wayland_client::{Connection, Dispatch, QueueHandle, WEnum, event_created_child};
+use wayland_client::protocol::{
+    wl_buffer, wl_compositor, wl_keyboard, wl_region, wl_registry, wl_shm, wl_shm_pool, wl_surface,
+};
+use wayland_client::{
+    Connection, Dispatch, QueueHandle, WEnum, delegate_noop, event_created_child,
+};
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+    wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+};
 use wayland_protocols::wp::input_method::zv1::client::{
     zwp_input_method_context_v1::{self, ZwpInputMethodContextV1},
     zwp_input_method_v1::{self, ZwpInputMethodV1},
+    zwp_input_panel_surface_v1::ZwpInputPanelSurfaceV1,
+    zwp_input_panel_v1::ZwpInputPanelV1,
+};
+use wayland_protocols::wp::viewporter::client::{
+    wp_viewport::WpViewport, wp_viewporter::WpViewporter,
 };
 
 use super::super::AcceptKeys;
 use super::kwin_wire::{self, Event, Inbox, Outbox, Request, Surrounding, VERSION};
+use super::overlay_pill::OverlayPill;
 use super::wlroots::{Keymap, Modifiers, clipped};
 
 const KEY_RELEASED: u32 = 0;
@@ -62,12 +76,17 @@ fn serve() -> anyhow::Result<()> {
     let input_method: ZwpInputMethodV1 = globals
         .bind(&qh, 1..=1, ())
         .context("KWin offered no input method protocol")?;
+    let overlay = OverlayPill::bind(&globals, &qh);
+    if overlay.is_none() {
+        log::warn!("kwin input method: KWin offered no input panel; suggestions cannot be drawn");
+    }
     let path = kwin_wire::socket_path()?;
     let listener = listen(&path)?;
     log::info!("kwin input method: ready");
     let mut helper = Helper {
         qh,
         _input_method: input_method,
+        overlay,
         context: None,
         serial: 0,
         content: None,
@@ -221,6 +240,7 @@ struct App {
 struct Helper {
     qh: QueueHandle<Helper>,
     _input_method: ZwpInputMethodV1,
+    overlay: Option<OverlayPill>,
     context: Option<ZwpInputMethodContextV1>,
     /// The serial of the field's last committed state, which requests quote.
     serial: u32,
@@ -289,9 +309,7 @@ impl Helper {
         app.outbox.clear();
         log::info!("kwin input method: LokalBot disconnected");
         self.set_grab(false);
-        if self.shown {
-            self.show("");
-        }
+        self.hide_ghost();
         self.accept = AcceptKeys::default();
         self.pending.surrounding = None;
     }
@@ -349,12 +367,19 @@ impl Helper {
             }
             Request::Keys { accept, full } => self.accept = kwin_wire::accept_keys(accept, full),
             Request::Grab { on } => self.set_grab(on),
-            Request::Preedit { text } => self.show(&text),
+            Request::Ghost {
+                text,
+                emphasis_chars,
+                dark,
+            } => self.show(&text, emphasis_chars, dark),
+            Request::Nudge => self.nudge(),
             Request::Commit {
                 delete_before,
                 delete_after,
                 text,
-                preedit,
+                next,
+                next_emphasis_chars,
+                dark,
             } => {
                 let Some(context) = &self.context else {
                     return;
@@ -368,7 +393,7 @@ impl Helper {
                 if !text.is_empty() {
                     context.commit_string(self.serial, clipped(&text).to_string());
                 }
-                self.show(&preedit);
+                self.show(&next, next_emphasis_chars, dark);
             }
             Request::PassThrough { key } => {
                 let scancode = self
@@ -384,17 +409,37 @@ impl Helper {
         }
     }
 
-    /// Shows `text` in the field, in front of the caret's way. Empty clears it,
-    /// which also prompts a quiet field to report its text.
-    fn show(&mut self, text: &str) {
+    /// Shows `text` in the overlay pill near the caret, without touching the
+    /// field's IME composition (`preedit_string`), so losing focus on click or
+    /// blur never commits an unaccepted suggestion.
+    fn show(&mut self, text: &str, emphasis_chars: usize, dark: bool) {
+        if self.context.is_none() || text.trim().is_empty() {
+            self.hide_ghost();
+            return;
+        }
+        if let Some(overlay) = &mut self.overlay {
+            overlay.show(clipped(text), emphasis_chars, dark, &self.qh);
+            self.shown = true;
+        } else {
+            self.shown = false;
+        }
+    }
+
+    fn hide_ghost(&mut self) {
+        self.shown = false;
+        if let Some(overlay) = &mut self.overlay {
+            overlay.hide();
+        }
+    }
+
+    /// Prompts a quiet field (such as Chromium's) to report its surrounding
+    /// text by sending an empty preedit commit.
+    fn nudge(&mut self) {
         let Some(context) = &self.context else {
             return;
         };
-        // The caret stays where the user is typing, before the suggestion.
         context.preedit_cursor(0);
-        // Nothing to commit if the field loses focus: a suggestion is not text.
-        context.preedit_string(self.serial, clipped(text).to_string(), String::new());
-        self.shown = !text.is_empty();
+        context.preedit_string(self.serial, String::new(), String::new());
     }
 
     fn set_grab(&mut self, on: bool) {
@@ -461,10 +506,9 @@ impl Helper {
                     .as_ref()
                     .is_some_and(|keymap| keymap.modifiers.contains(&scancode));
                 if !is_modifier && self.shown {
-                    // Toolkits may commit preedit when a key arrives, so the
-                    // suggestion leaves first. The app puts it back if it
-                    // still applies.
-                    self.show("");
+                    // Hide the overlay until the field's updated text arrives
+                    // (or the key turns out not to have changed it).
+                    self.hide_ghost();
                     self.send(&Event::Passed);
                 }
                 context.key(serial, time, scancode, KEY_PRESSED);
@@ -517,7 +561,7 @@ impl Dispatch<ZwpInputMethodV1, ()> for Helper {
                     old.destroy();
                 }
                 state.content = None;
-                state.shown = false;
+                state.hide_ghost();
                 state.pending.field = true;
             }
             zwp_input_method_v1::Event::Deactivate { context } => {
@@ -529,7 +573,7 @@ impl Dispatch<ZwpInputMethodV1, ()> for Helper {
                 state.context = None;
                 context.destroy();
                 state.content = None;
-                state.shown = false;
+                state.hide_ghost();
                 // A field that came and went before it was passed on never was.
                 state.pending = Pending {
                     left: true,
@@ -591,7 +635,7 @@ impl Dispatch<ZwpInputMethodContextV1, ()> for Helper {
             // another field, so the app asks again whose it is. The content
             // type comes with most keystrokes and says nothing about that.
             E::Reset => {
-                state.shown = false;
+                state.hide_ghost();
                 state.pending.field = true;
             }
             E::ContentType { hint, purpose } => {
@@ -659,6 +703,67 @@ impl Dispatch<wl_keyboard::WlKeyboard, ()> for Helper {
                 }
             }
             _ => {}
+        }
+    }
+}
+
+delegate_noop!(Helper: ignore wl_compositor::WlCompositor);
+delegate_noop!(Helper: ignore wl_region::WlRegion);
+delegate_noop!(Helper: ignore wl_shm::WlShm);
+delegate_noop!(Helper: ignore wl_shm_pool::WlShmPool);
+delegate_noop!(Helper: ignore ZwpInputPanelV1);
+delegate_noop!(Helper: ignore ZwpInputPanelSurfaceV1);
+delegate_noop!(Helper: ignore WpViewporter);
+delegate_noop!(Helper: ignore WpViewport);
+delegate_noop!(Helper: ignore WpFractionalScaleManagerV1);
+
+impl Dispatch<wl_surface::WlSurface, ()> for Helper {
+    fn event(
+        state: &mut Self,
+        _: &wl_surface::WlSurface,
+        event: wl_surface::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_surface::Event::PreferredBufferScale { factor } = event
+            && let Some(overlay) = &mut state.overlay
+        {
+            overlay.on_preferred_buffer_scale(factor, qh);
+        }
+    }
+}
+
+impl Dispatch<WpFractionalScaleV1, ()> for Helper {
+    fn event(
+        state: &mut Self,
+        _: &WpFractionalScaleV1,
+        event: wp_fractional_scale_v1::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event
+            && let Some(overlay) = &mut state.overlay
+        {
+            overlay.on_fractional_scale(scale, qh);
+        }
+    }
+}
+
+impl Dispatch<wl_buffer::WlBuffer, ()> for Helper {
+    fn event(
+        state: &mut Self,
+        buffer: &wl_buffer::WlBuffer,
+        event: wl_buffer::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if matches!(event, wl_buffer::Event::Release)
+            && let Some(overlay) = &mut state.overlay
+        {
+            overlay.on_buffer_release(buffer);
         }
     }
 }

@@ -377,10 +377,29 @@ pub struct InlineGhost {
 impl InlineGhost {
     /// Shows `text` after the caret in `field`; empty shows nothing.
     pub fn show(&self, field: &FieldSnapshot, text: &str) {
+        self.show_styled(field, text, 0, false);
+    }
+
+    /// Shows `text` with `emphasis_chars` (the next accept chunk) and theme
+    /// polarity, for routes that draw their own overlay pill (KDE Plasma).
+    pub fn show_styled(
+        &self,
+        field: &FieldSnapshot,
+        text: &str,
+        emphasis_chars: usize,
+        dark: bool,
+    ) {
         #[cfg(target_os = "linux")]
-        self.inner.show(field, text);
+        self.inner.show(
+            field,
+            text,
+            input_method::GhostStyle {
+                emphasis_chars,
+                dark,
+            },
+        );
         #[cfg(not(target_os = "linux"))]
-        let _ = (field, text);
+        let _ = (field, text, emphasis_chars, dark);
     }
 
     /// Makes `edit` at the caret and shows `next` as what is left, in one
@@ -394,10 +413,35 @@ impl InlineGhost {
         edit: &Edit,
         next: &str,
     ) {
+        self.accept_styled(field, before, after, edit, next, 0, false);
+    }
+
+    /// Like [`Self::accept`], with emphasis and theme polarity for `next`.
+    #[allow(clippy::too_many_arguments)]
+    pub fn accept_styled(
+        &self,
+        field: &FieldSnapshot,
+        before: &str,
+        after: &str,
+        edit: &Edit,
+        next: &str,
+        next_emphasis_chars: usize,
+        dark: bool,
+    ) {
         #[cfg(target_os = "linux")]
-        self.inner.accept(field, before, after, edit, next);
+        self.inner.accept(
+            field,
+            before,
+            after,
+            edit,
+            next,
+            input_method::GhostStyle {
+                emphasis_chars: next_emphasis_chars,
+                dark,
+            },
+        );
         #[cfg(not(target_os = "linux"))]
-        let _ = (field, before, after, edit, next);
+        let _ = (field, before, after, edit, next, next_emphasis_chars, dark);
     }
 }
 
