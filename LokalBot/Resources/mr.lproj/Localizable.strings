@@ -2627,3 +2627,10 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "तुमचे स्वतःचे Gemini CLI त्याची साधने बंद ठेवून चालवते. आधी Terminal मध्ये gemini मध्ये साइन इन करा; LokalBot तुमचे Google साइन-इन कधीही पाहत नाही.";
 "Signed in" = "साइन इन केले आहे";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot कोडिंग एजंट सत्रे वाचणे थांबवतो आणि जे जतन केले होते ते हटवतो. Claude Code, Codex, Antigravity आणि T3 Code त्यांच्या स्वतःच्या सत्र फाइल्स स्वतः ठेवतात.";
+"Import from Wispr Flow…" = "Wispr Flow मधून आयात करा…";
+"Add %lld words from Wispr Flow?" = "Wispr Flow मधून %lld शब्द जोडायचे?";
+"Add Words" = "शब्द जोडा";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "स्निपेट, हटवलेल्या नोंदी, सामान्य शब्द आणि आधीच यादीत असलेले शब्द वगळले जातात; सर्वाधिक वापरलेले आधी, जास्तीत जास्त 40 शब्द जोडले जातात.";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow ची flow.sqlite फाइल निवडा. LokalBot फक्त त्याचा शब्दकोश वाचतो.";
+"Wispr Flow's dictionary has no new words to add." = "Wispr Flow च्या शब्दकोशात जोडण्यासाठी नवीन शब्द नाहीत.";
+"Couldn't read Wispr Flow's dictionary." = "Wispr Flow चा शब्दकोश वाचता आला नाही.";
