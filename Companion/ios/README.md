@@ -1,5 +1,7 @@
 # LokalBot for iPhone and iPad
 
+Published on the [App Store](https://apps.apple.com/app/id6836773709) (iOS and iPadOS 18 or later).
+
 The companion app reads the library the Mac shares (meetings, actions, the
 Timeline and Day Digests, people and projects), asks the Mac questions and
 records meetings for it to process. It syncs only with the paired Mac, over the local network or Tailscale,

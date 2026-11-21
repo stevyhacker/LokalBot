@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-LOCALE_UPDATED = "2026-11-20"
+LOCALE_UPDATED = "2026-11-21"
 
 LOCALE_PAGES = [
     {
@@ -23,7 +23,7 @@ LOCALE_PAGES = [
         "hero_cta": "Kostenlos herunterladen",
         "bench_cta": "Benchmarks ansehen",
         "migrate_cta": "Granola / Otter exportieren",
-        "meta_line": "Aktualisiert 20. Nov. 2026 · GPLv3 · macOS 15+ (Swift) · Windows & Linux Alpha (Rust + GPUI) · Android E2E-LAN-Sync",
+        "meta_line": "Aktualisiert 21. Nov. 2026 · GPLv3 · macOS 15+ (Swift) · Windows & Linux Alpha (Rust + GPUI) · iOS & Android E2E-LAN-Sync",
         "features_aria": "Funktionen von LokalBot",
         "features": [
             (
@@ -54,7 +54,7 @@ LOCALE_PAGES = [
             (
                 "Kein Electron",
                 "Nativ in Swift & Rust/GPUI",
-                "macOS 15+ nutzt natives Swift; Windows und Linux (Alpha) laufen nativ in Rust + GPUI (.deb, .rpm, Arch, Windows-Installer/Portable). Die Android-Companion-App synchronisiert Ende-zu-Ende-verschlüsselt direkt über LAN oder Tailscale.",
+                "macOS 15+ nutzt natives Swift; Windows und Linux (Alpha) laufen nativ in Rust + GPUI (.deb, .rpm, Arch, Windows-Installer/Portable). Die iOS- und Android-Companion-Apps synchronisieren Ende-zu-Ende-verschlüsselt direkt über LAN oder Tailscale.",
             ),
         ],
         "stack_eyebrow": "Transparenz & Messwerte",
@@ -112,7 +112,7 @@ LOCALE_PAGES = [
         "hero_cta": "免费下载客户端",
         "bench_cta": "查看开源实测榜单",
         "migrate_cta": "导出 Granola / Otter 笔记",
-        "meta_line": "更新于 2026-11-20 · GPLv3 · macOS 15+ (Apple Silicon) · Windows & Linux Alpha (Rust + GPUI) · Android 局域网端到端同步",
+        "meta_line": "更新于 2026-11-21 · GPLv3 · macOS 15+ (Apple Silicon) · Windows & Linux Alpha (Rust + GPUI) · iOS & Android 局域网端到端同步",
         "features_aria": "LokalBot 核心功能",
         "features": [
             (
@@ -143,7 +143,7 @@ LOCALE_PAGES = [
             (
                 "跨平台原生",
                 "非 Electron · 局域网端到端同步",
-                "macOS 使用原生 Swift，Windows / Linux（Alpha）采用原生 Rust + GPUI（支持 Vulkan / CUDA / CPU）。Android 伴侣端支持通过局域网或 Tailscale 直接端到端加密同步，不经过云端中转。",
+                "macOS 使用原生 Swift，Windows / Linux（Alpha）采用原生 Rust + GPUI（支持 Vulkan / CUDA / CPU）。iOS 与 Android 伴侣端支持通过局域网或 Tailscale 直接端到端加密同步，不经过云端中转。",
             ),
         ],
         "stack_eyebrow": "实测基准（开源可复现）",
@@ -201,7 +201,7 @@ LOCALE_PAGES = [
         "hero_cta": "無料でダウンロード",
         "bench_cta": "ベンチマークを見る",
         "migrate_cta": "Granola / Otterから移行",
-        "meta_line": "更新日 2026年11月20日 · GPLv3 · macOS 15+ (Swift) · Windows & Linux アルファ (Rust + GPUI) · Android LAN E2E同期",
+        "meta_line": "更新日 2026年11月21日 · GPLv3 · macOS 15+ (Swift) · Windows & Linux アルファ (Rust + GPUI) · iOS & Android LAN E2E同期",
         "features_aria": "LokalBotの主な機能",
         "features": [
             (
@@ -232,7 +232,7 @@ LOCALE_PAGES = [
             (
                 "ネイティブ設計",
                 "Electron不使用（Swift + Rust/GPUI）",
-                "macOS版はネイティブSwift、Windows・Linux版（アルファ）はRust + GPUIで構築。AndroidコンパニオンアプリはLANまたはTailscale経由でエンドツーエンド暗号化同期に対応します。",
+                "macOS版はネイティブSwift、Windows・Linux版（アルファ）はRust + GPUIで構築。iOS・AndroidコンパニオンアプリはLANまたはTailscale経由でエンドツーエンド暗号化同期に対応します。",
             ),
         ],
         "stack_eyebrow": "公開ベンチマーク",
@@ -290,7 +290,7 @@ LOCALE_PAGES = [
         "hero_cta": "Скачать бесплатно",
         "bench_cta": "Открыть бенчмарки",
         "migrate_cta": "Перенести из Granola / Otter",
-        "meta_line": "Обновлено 20 нояб. 2026 · GPLv3 · macOS 15+ (Swift) · Windows и Linux альфа (Rust + GPUI) · Android E2E через LAN/Tailscale",
+        "meta_line": "Обновлено 21 нояб. 2026 · GPLv3 · macOS 15+ (Swift) · Windows и Linux альфа (Rust + GPUI) · iOS и Android E2E через LAN/Tailscale",
         "features_aria": "Возможности LokalBot",
         "features": [
             (
@@ -321,7 +321,7 @@ LOCALE_PAGES = [
             (
                 "Нативный стек",
                 "Swift на Mac и Rust + GPUI на Linux/Windows",
-                "Никакого Electron: нативный Swift для macOS и нативный Rust + GPUI для Windows и Linux (.deb, .rpm, Arch, установщик и portable .zip). Android-компаньон синхронизируется с E2E-шифрованием напрямую по LAN или Tailscale.",
+                "Никакого Electron: нативный Swift для macOS и нативный Rust + GPUI для Windows и Linux (.deb, .rpm, Arch, установщик и portable .zip). Компаньоны для iOS и Android синхронизируются с E2E-шифрованием напрямую по LAN или Tailscale.",
             ),
         ],
         "stack_eyebrow": "Воспроизводимые замеры",

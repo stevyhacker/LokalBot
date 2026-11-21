@@ -416,8 +416,12 @@
       } else if (/Android/i.test(ua) && methods) {
         methods.textContent = "email or a chat app";
       }
+      var isAndroid = /Android/i.test(ua);
+      var isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
       var androidApp = $("[data-handoff-android]", hint);
-      if (androidApp && /Android/i.test(ua)) androidApp.hidden = false;
+      if (androidApp && isAndroid) androidApp.hidden = false;
+      var iosApp = $("[data-handoff-ios]", hint);
+      if (iosApp && isIOS) iosApp.hidden = false;
       hint.hidden = false;
     }
   }
