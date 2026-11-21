@@ -49,6 +49,8 @@ final class DictationWordLockTests: XCTestCase {
         XCTAssertEqual(broken("the bill came to 1500 dollars", "The bill came to 1,500 dollars."), [], "grouping only")
         XCTAssertEqual(broken("the bill came to 1500 dollars", "The bill came to 1 500 dollars."), [])
         XCTAssertEqual(broken("it was twelve hundred dollars", "It was 1200 dollars."), [], "spoken numbers may become digits")
+        XCTAssertEqual(broken("meet me at 930 tomorrow", "Meet me at 9:30 tomorrow."), [], "same digits, a time's colon added")
+        XCTAssertEqual(broken("the code is 213 292", "The code is 213-292."), [])
         XCTAssertEqual(broken("there was not anything left", "There was nothing left."), [], "negation by meaning")
         XCTAssertEqual(broken("we are not done", "We are done."), [.negation])
         XCTAssertEqual(broken("ask Zorana to call", "Ask Zarana to call."), [.names], "a respelled name still counts")

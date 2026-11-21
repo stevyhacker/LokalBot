@@ -19,10 +19,13 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
     static func broken(spoken: String, cleaned: String, glossary: String? = nil) -> [Reason] {
         let corrects = selfCorrects(spoken)
         var reasons: [Reason] = []
-        let heard = Set(digitRuns(spoken))
-        let written = Set(digitRuns(cleaned))
-        let invented = !written.isSubset(of: heard) && !saysNumberWords(spoken)
-        if invented || (!corrects && !heard.isSubset(of: written)) { reasons.append(.digits) }
+        let heard = digitSequence(spoken)
+        let written = digitSequence(cleaned)
+        if heard != written {
+            let added = isSubsequence(heard, of: written) && saysNumberWords(spoken)
+            let dropped = isSubsequence(written, of: heard) && corrects
+            if !added && !dropped { reasons.append(.digits) }
+        }
         if !corrects, !negations(spoken).isEmpty, negations(cleaned).isEmpty { reasons.append(.negation) }
         if !corrects, !missingNames(spoken: spoken, cleaned: cleaned, glossary: glossary).isEmpty {
             reasons.append(.names)
@@ -113,10 +116,14 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         text.split { !($0.isLetter || $0.isNumber || $0 == "'" || $0 == "’") }.map(String.init)
     }
 
-    static func digitRuns(_ text: String) -> [String] {
-        let grouped = text.replacingOccurrences(of: #"(?<=\d)[,\x{00A0}\x{202F} ](?=\d{3}(?!\d))"#, with: "",
-                                                options: .regularExpression)
-        return grouped.split { !$0.isASCII || !$0.isNumber }.map(String.init)
+    static func digitSequence(_ text: String) -> String {
+        String(text.filter { $0.isASCII && $0.isNumber })
+    }
+
+    private static func isSubsequence(_ short: String, of long: String) -> Bool {
+        var remaining = short[...]
+        for character in long where remaining.first == character { remaining = remaining.dropFirst() }
+        return remaining.isEmpty
     }
 
     private static func distance(_ lhs: String, _ rhs: String) -> Int {
