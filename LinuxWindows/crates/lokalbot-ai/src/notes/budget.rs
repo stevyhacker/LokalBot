@@ -62,6 +62,7 @@ pub struct Budget {
     input_tokens: u64,
     output_tokens: u64,
     scale: f64,
+    may_reason: bool,
 }
 
 impl Budget {
@@ -73,7 +74,16 @@ impl Budget {
             input_tokens: 0,
             output_tokens: 0,
             scale: 1.0,
+            may_reason: false,
         }
+    }
+
+    pub fn allow_reasoning(&mut self) {
+        self.may_reason = true;
+    }
+
+    fn reasoning_factor(&self) -> f64 {
+        if self.may_reason { 2.0 } else { 1.0 }
     }
 
     pub fn record_plan(&mut self, parts: usize, standard_parts: f64) {
@@ -92,11 +102,13 @@ impl Budget {
     }
 
     fn output_limit(&self) -> u64 {
-        (self.limits.output_tokens as f64 * self.scale).ceil() as u64
+        (self.limits.output_tokens as f64 * self.scale * self.reasoning_factor()).ceil() as u64
     }
 
     pub fn remaining_seconds(&self) -> f64 {
-        (self.limits.seconds * self.scale - self.started.elapsed().as_secs_f64()).max(0.0)
+        (self.limits.seconds * self.scale * self.reasoning_factor()
+            - self.started.elapsed().as_secs_f64())
+        .max(0.0)
     }
 
     pub fn allowance(
@@ -108,8 +120,10 @@ impl Budget {
         let limit = self.request_limit();
         let processable = ((limit + 1).saturating_sub(self.requests) / 2).max(1);
         let parts = remaining_parts.max(1).min(processable) as u64;
-        let output_room = self.output_limit().saturating_sub(self.output_tokens) / parts;
-        let time_room = (self.remaining_seconds() * TOKENS_PER_SECOND / parts as f64) as u64;
+        let share = self.reasoning_factor() as u64;
+        let output_room = self.output_limit().saturating_sub(self.output_tokens) / parts / share;
+        let time_room =
+            (self.remaining_seconds() * TOKENS_PER_SECOND / parts as f64) as u64 / share;
         let available = u64::from(desired).min(output_room).min(time_room);
         if self.requests >= limit || available < u64::from(minimum.max(512)) {
             return Err(Exhausted);
@@ -131,7 +145,8 @@ impl Budget {
         Ok(())
     }
 
-    pub fn finish(&mut self, reserved: u64, actual: Option<u64>) {
+    pub fn finish(&mut self, reserved: u64, actual: Option<u64>, attempts: u32) {
+        self.requests += attempts.saturating_sub(1) as usize;
         if let Some(actual) = actual {
             self.output_tokens = (self.output_tokens + actual).saturating_sub(reserved);
         }
@@ -165,9 +180,50 @@ mod tests {
             scales_with_parts: false,
         });
         budget.reserve(400, 1_000).unwrap();
-        budget.finish(1_000, Some(200));
+        budget.finish(1_000, Some(200), 1);
         budget.reserve(400, 1_000).unwrap();
         assert!(budget.reserve(1, 1).is_err());
         assert!(budget.allowance(1, 4_096, 512).is_err());
+    }
+
+    #[test]
+    fn a_job_that_may_reason_doubles_its_limits_and_keeps_answer_sizes() {
+        let limits = Limits {
+            seconds: 600.0,
+            requests: 4,
+            input_tokens: 10_000,
+            output_tokens: 8_000,
+            scales_with_parts: false,
+        };
+        let plain = Budget::new(limits);
+        let mut reasoning = Budget::new(limits);
+        reasoning.allow_reasoning();
+        assert_eq!(
+            plain.allowance(2, 16_384, 512).unwrap(),
+            reasoning.allowance(2, 16_384, 512).unwrap()
+        );
+        assert_eq!(reasoning.allowance(2, 16_384, 512).unwrap(), 4_000);
+        assert!(reasoning.remaining_seconds() > 600.0);
+        assert!(Budget::new(limits).reserve(0, 16_000).is_err());
+        reasoning.reserve(0, 16_000).unwrap();
+    }
+
+    #[test]
+    fn a_retried_request_charges_both_attempts() {
+        let mut budget = Budget::new(Limits {
+            seconds: 600.0,
+            requests: 3,
+            input_tokens: 1_000,
+            output_tokens: 3_000,
+            scales_with_parts: false,
+        });
+        budget.reserve(0, 2_000).unwrap();
+        budget.finish(2_000, Some(2_000 + 300), 2);
+        assert!(budget.reserve(0, 701).is_err());
+        budget.reserve(0, 700).unwrap();
+        assert!(
+            budget.reserve(0, 0).is_err(),
+            "two attempts count as two requests"
+        );
     }
 }

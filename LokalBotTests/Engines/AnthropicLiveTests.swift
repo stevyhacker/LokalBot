@@ -24,7 +24,7 @@ final class AnthropicLiveTests: XCTestCase {
         let reply = try await engine.generate(
             system: "Extract meeting notes from the numbered lines as JSON that matches the schema. Cite source ids.",
             prompt: units.map(\.line).joined(separator: "\n"), context: [], schema: schema,
-            options: .init(maxTokens: 2_048, reasoningBudgetTokens: 0, temperature: 0))
+            options: .init(maxTokens: 2_048, reasoning: .off, temperature: 0))
         let object = try JSONSerialization.jsonObject(with: Data(reply.utf8)) as? [String: Any]
         XCTAssertNotNil(object, reply)
     }

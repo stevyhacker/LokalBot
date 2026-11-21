@@ -25,22 +25,26 @@ protocol TextEngine {
 
     func completeStreaming(_ request: CompletionRequest,
                            onPartial: @escaping @Sendable (String) -> Void) async throws -> String
+
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int
 }
 
 struct TextGenerationOptions: Equatable, Sendable {
     var maxTokens: Int?
-    var reasoningBudgetTokens: Int?
+    var reasoning: TaskReasoning
     var temperature: Double?
     var keepsTruncatedReply: Bool
 
-    init(maxTokens: Int? = nil, reasoningBudgetTokens: Int? = nil,
+    init(maxTokens: Int? = nil, reasoning: TaskReasoning = .modelDefault,
          temperature: Double? = nil, keepsTruncatedReply: Bool = false) {
         self.maxTokens = maxTokens
-        self.reasoningBudgetTokens = reasoningBudgetTokens
+        self.reasoning = reasoning
         self.temperature = temperature
         self.keepsTruncatedReply = keepsTruncatedReply
     }
 }
+
+struct ReasoningExhaustedReply: Error {}
 
 enum ChatCompletionDialect: Equatable, Sendable {
     case llamaServer
@@ -302,6 +306,7 @@ extension TextEngine {
     var handlesTransientRetries: Bool { false }
     var structuredOutputEnumLimit: Int? { nil }
     func tokenCount(_ text: String) async throws -> Int? { nil }
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int { 0 }
     func generate(system: String, prompt: String, context: [String],
                   options: TextGenerationOptions) async throws -> String {
         try await generate(system: system, prompt: prompt, context: context)
@@ -373,10 +378,10 @@ struct OllamaEngine: TextEngine {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let user = (context + [prompt]).joined(separator: "\n\n")
-        let support = reasoningSupport ?? .known(provider: .ollama, model: model)
         let body = Self.chatBody(model: model, system: system, user: user, schema: schema, options: options,
-                                 requestLevel: support.requestLevel(
-                                    reasoningLevel, taskBudget: options?.reasoningBudgetTokens))
+                                 requestLevel: resolvedReasoningSupport.requestLevel(
+                                    reasoningLevel, reasoning: options?.reasoning ?? .modelDefault),
+                                 reasoningAllowance: reasoningAllowance(for: options))
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: schema == nil ? [] : [.sortedKeys])
 
         let (data, response) = try await sendInferenceRequest(request, base: baseURL)
@@ -389,13 +394,32 @@ struct OllamaEngine: TextEngine {
               let content = message["content"] as? String else {
             throw TextEngineError.badResponse("unexpected /api/chat payload")
         }
-        if json["done_reason"] as? String == "length" { throw TextEngineError.outputTruncated }
+        if json["done_reason"] as? String == "length" {
+            if OpenAICompatibleEngine.visibleText(ofTruncatedReply: strippingReasoning(content)).isEmpty,
+               options?.reasoning != .off, options?.keepsTruncatedReply != true,
+               reasoningAllowance(for: options) > 0 {
+                lokalbotLog("reasoning used the whole output; retrying without it dialect=ollama model=\(model)")
+                return try await chat(system: system, prompt: prompt, context: context, schema: schema,
+                                      options: OpenAICompatibleEngine.withoutReasoning(options))
+            }
+            throw TextEngineError.outputTruncated
+        }
         return strippingReasoning(content)
+    }
+
+    var resolvedReasoningSupport: ReasoningSupport {
+        reasoningSupport ?? .known(provider: .ollama, model: model)
+    }
+
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+        resolvedReasoningSupport.reasoningAllowance(
+            reasoningLevel, reasoning: options?.reasoning ?? .modelDefault, answerTokens: options?.maxTokens)
     }
 
     static func chatBody(model: String, system: String, user: String,
                          schema: [String: Any]?, options: TextGenerationOptions?,
-                         requestLevel: ThinkReasoningLevel? = nil) -> [String: Any] {
+                         requestLevel: ThinkReasoningLevel? = nil,
+                         reasoningAllowance: Int = 0) -> [String: Any] {
         var body: [String: Any] = [
             "model": model,
             "stream": false,
@@ -407,14 +431,14 @@ struct OllamaEngine: TextEngine {
         if let schema { body["format"] = schema }
         if let requestLevel, requestLevel != .off {
             body["think"] = requestLevel.effortValue
-        } else if requestLevel == .off || options?.reasoningBudgetTokens == 0 {
+        } else if requestLevel == .off || options?.reasoning == .off {
             body["think"] = false
         }
         var generationOptions: [String: Any] = [
             "num_ctx": MeetingSummaryGenerator.conservativeExternalContextTokens,
         ]
         if let maxTokens = options?.maxTokens {
-            generationOptions["num_predict"] = max(1, maxTokens)
+            generationOptions["num_predict"] = max(1, maxTokens) + max(0, reasoningAllowance)
         }
         if let temperature = options?.temperature {
             generationOptions["temperature"] = max(0, temperature)
@@ -459,7 +483,6 @@ struct OpenAICompatibleEngine: TextEngine {
     var sendsLlamaSamplingExtensions = true
     var chatDialect: ChatCompletionDialect = .generic
     var openRouterDataPolicy: OpenRouterDataPolicy = .privateOnly
-    var defaultThinkingBudgetTokens: Int?
     var reasoningLevel: ThinkReasoningLevel = .automatic
     var reasoningSupport: ReasoningSupport?
     var displayNameOverride: String?
@@ -468,7 +491,7 @@ struct OpenAICompatibleEngine: TextEngine {
     var checkpointIdentity: String { "\(displayName)|\(baseURL.scheme ?? "")|\(baseURL.host ?? "")|\(baseURL.port ?? 0)|\(baseURL.path)|\(chatDialect)" }
     var accountsForGenerationRequests: Bool { true }
     var minimumStructuredOutputTokens: Int {
-        reasoningCompatibility(options: .init(reasoningBudgetTokens: 0)) == .effort ? 2_048 : 512
+        reasoningCompatibility(options: .init(reasoning: .off)) == .effort ? 2_048 : 512
     }
     var structuredOutputEnumLimit: Int? {
         switch chatDialect {
@@ -527,15 +550,32 @@ struct OpenAICompatibleEngine: TextEngine {
             reasoningFallback: false)
     }
 
+    var resolvedReasoningSupport: ReasoningSupport {
+        reasoningSupport ?? .known(provider: .init(dialect: chatDialect, baseURL: baseURL), model: model)
+    }
+
     func requestLevel(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
-        let support = reasoningSupport
-            ?? .known(provider: .init(dialect: chatDialect, baseURL: baseURL), model: model)
-        return support.requestLevel(reasoningLevel, taskBudget: options?.reasoningBudgetTokens)
+        resolvedReasoningSupport.requestLevel(reasoningLevel, reasoning: options?.reasoning ?? .modelDefault)
+    }
+
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+        resolvedReasoningSupport.reasoningAllowance(
+            reasoningLevel, reasoning: options?.reasoning ?? .modelDefault, answerTokens: options?.maxTokens)
+    }
+
+    func canRetryWithoutReasoning(_ options: TextGenerationOptions?) -> Bool {
+        options?.reasoning != .off && options?.keepsTruncatedReply != true && reasoningAllowance(for: options) > 0
+    }
+
+    static func withoutReasoning(_ options: TextGenerationOptions?) -> TextGenerationOptions {
+        var fallback = options ?? TextGenerationOptions()
+        fallback.reasoning = .off
+        return fallback
     }
 
     private func reasoningCompatibility(options: TextGenerationOptions?) -> OpenRouterReasoningCompatibility {
         let name = model.lowercased().split(separator: ":").first.map(String.init) ?? ""
-        if chatDialect == .openRouter, options?.reasoningBudgetTokens != nil,
+        if chatDialect == .openRouter, options?.reasoning == .off,
            ["z-ai/glm-5.3", "z-ai/glm-5.3-flash"].contains(name) { return .effort }
         return .native
     }
@@ -552,13 +592,20 @@ struct OpenAICompatibleEngine: TextEngine {
                                           reasoningFallback: reasoningFallback)
         do {
             return try await completeChat(request, options: options)
+        } catch is ReasoningExhaustedReply {
+            lokalbotLog("reasoning used the whole output; retrying without it dialect=\(chatDialect) model=\(model)")
+            return try await chat(
+                system: system, prompt: prompt, context: context,
+                schema: schema, options: Self.withoutReasoning(options),
+                openRouterReasoning: reasoningCompatibility(options: Self.withoutReasoning(options)),
+                reasoningFallback: false)
         } catch {
             let level = requestLevel(for: options)
             if level == nil, Self.shouldFallbackToReasoningEffort(
                 dialect: chatDialect,
                 error: error,
                 usedFallback: openRouterReasoning == .effort,
-                requestedReasoningBudget: options?.reasoningBudgetTokens) {
+                requestsReasoningOff: options?.reasoning == .off) {
                 lokalbotLog("openrouter reasoning fallback dialect=effort model=\(model)")
                 return try await chat(
                     system: system, prompt: prompt, context: context,
@@ -628,7 +675,16 @@ struct OpenAICompatibleEngine: TextEngine {
                 }
             }
             if let reason = choice["finish_reason"] as? String {
-                if reason == "length" { throw TextEngineError.outputTruncated }
+                if reason == "length" {
+                    if Self.visibleText(ofTruncatedReply: strippingReasoning(content)).isEmpty,
+                       canRetryWithoutReasoning(options) {
+                        lokalbotLog("reasoning used the whole streamed output; retrying without it model=\(model)")
+                        return try await generateStreaming(system: system, prompt: prompt, context: context,
+                                                           options: Self.withoutReasoning(options),
+                                                           onPartial: onPartial)
+                    }
+                    throw TextEngineError.outputTruncated
+                }
                 terminal = true
                 break
             }
@@ -646,7 +702,8 @@ struct OpenAICompatibleEngine: TextEngine {
     private func completeChat(_ request: URLRequest, options: TextGenerationOptions?) async throws -> String {
         let budget = MeetingGenerationBudget.current
         let reservation = try await budget?.reserve(input: MeetingGenerationBudget.promptTokens,
-                                                    output: options?.maxTokens ?? 4_096)
+                                                    output: (options?.maxTokens ?? 4_096)
+                                                        + reasoningAllowance(for: options))
         let started = ProcessInfo.processInfo.systemUptime
         var metric = GenerationCallTelemetry(stage: MeetingGenerationBudget.stage, outcome: "failed", wallSeconds: 0)
         do {
@@ -655,7 +712,7 @@ struct OpenAICompatibleEngine: TextEngine {
             guard let status = httpResponse?.statusCode, (200...299).contains(status) else {
                 let error = TextEngineError.fromHTTPResponse(httpResponse, data: data)
                 if Self.shouldFallbackToReasoningEffort(dialect: chatDialect, error: error,
-                    usedFallback: false, requestedReasoningBudget: options?.reasoningBudgetTokens)
+                    usedFallback: false, requestsReasoningOff: options?.reasoning == .off)
                     || Self.shouldRetryRejectedReasoningLevel(dialect: chatDialect,
                         requestLevel: requestLevel(for: options), error: error, usedFallback: false) {
                     metric.outcome = "rejected"
@@ -673,6 +730,9 @@ struct OpenAICompatibleEngine: TextEngine {
             metric.outcome = parsed.truncated ? "truncated" : "complete"
             var reply = strippingReasoning(parsed.content)
             if parsed.truncated {
+                if Self.visibleText(ofTruncatedReply: reply).isEmpty, canRetryWithoutReasoning(options) {
+                    throw ReasoningExhaustedReply()
+                }
                 if budget != nil { throw TruncatedStructuredResponse(content: reply) }
                 reply = Self.visibleText(ofTruncatedReply: reply)
                 guard options?.keepsTruncatedReply == true, !reply.isEmpty else {
@@ -728,7 +788,8 @@ struct OpenAICompatibleEngine: TextEngine {
         Self.applyGenerationOptions(
             to: &body,
             options: options,
-            defaultThinkingBudgetTokens: defaultThinkingBudgetTokens,
+            reasoningAllowance: reasoningAllowance(for: options),
+            templateThinksByDefault: resolvedReasoningSupport.thinksByDefault,
             dialect: chatDialect,
             model: model,
             openRouterReasoning: openRouterReasoning,
@@ -738,7 +799,7 @@ struct OpenAICompatibleEngine: TextEngine {
             var provider: [String: Any] = [
                 "data_collection": openRouterDataPolicy.providerDataCollectionValue,
             ]
-            if schema != nil || options?.reasoningBudgetTokens != nil || level != nil {
+            if schema != nil || options?.reasoning == .off || level != nil {
                 provider["require_parameters"] = true
             }
             body["provider"] = provider
@@ -810,15 +871,18 @@ struct OpenAICompatibleEngine: TextEngine {
     nonisolated static func applyGenerationOptions(
         to body: inout [String: Any],
         options: TextGenerationOptions?,
-        defaultThinkingBudgetTokens: Int?,
+        reasoningAllowance: Int = 0,
+        templateThinksByDefault: Bool = true,
         dialect: ChatCompletionDialect,
         model: String,
         openRouterReasoning: OpenRouterReasoningCompatibility = .native,
         requestLevel: ThinkReasoningLevel? = nil,
         reasoningFallback: Bool = false
     ) {
-        let maxTokens = options?.maxTokens.map { max(1, $0) }
+        let allowance = max(0, reasoningAllowance)
+        let maxTokens = options?.maxTokens.map { max(1, $0) + allowance }
         let isReasoningModel = supportsOpenAIReasoningEffort(model: model)
+        let off = options?.reasoning == .off
 
         switch dialect {
         case .llamaServer:
@@ -826,16 +890,22 @@ struct OpenAICompatibleEngine: TextEngine {
             if let temperature = options?.temperature {
                 body["temperature"] = max(0, temperature)
             }
-            guard let requested = requestLevel?.budgetTokens ?? options?.reasoningBudgetTokens
-                    ?? defaultThinkingBudgetTokens else { return }
-            let nonnegative = max(0, requested)
-            let effective = maxTokens.map { min(nonnegative, $0 / 2) } ?? nonnegative
-            body["thinking_budget_tokens"] = effective
-            if effective == 0 {
-                var template = body["chat_template_kwargs"] as? [String: Any] ?? [:]
+            var template = body["chat_template_kwargs"] as? [String: Any] ?? [:]
+            if let requestLevel {
+                let budget = max(0, requestLevel.budgetTokens ?? 0)
+                body["thinking_budget_tokens"] = budget
+                if budget == 0 {
+                    template["enable_thinking"] = false
+                } else if !templateThinksByDefault {
+                    template["enable_thinking"] = true
+                }
+            } else if off {
+                body["thinking_budget_tokens"] = 0
                 template["enable_thinking"] = false
-                body["chat_template_kwargs"] = template
+            } else if allowance > 0 {
+                body["thinking_budget_tokens"] = allowance
             }
+            if !template.isEmpty { body["chat_template_kwargs"] = template }
 
         case .generic:
             if let maxTokens { body["max_tokens"] = maxTokens }
@@ -861,24 +931,11 @@ struct OpenAICompatibleEngine: TextEngine {
                 return
             }
             if openRouterReasoning == .effort {
-                body["reasoning"] = ["effort": (options?.reasoningBudgetTokens ?? 0) <= 512 ? "low" : "high",
-                                     "exclude": true]
-            } else if let requested = options?.reasoningBudgetTokens {
-                let nonnegative = max(0, requested)
-                if nonnegative == 0 {
-                    body["reasoning"] = ["effort": "none"]
-                } else {
-                    let effective = maxTokens.map { min(nonnegative, $0 / 2) }
-                        ?? nonnegative
-                    body["reasoning"] = [
-                        "max_tokens": max(1, effective),
-                        "exclude": true,
-                    ]
-                }
+                body["reasoning"] = ["effort": "low", "exclude": true]
+            } else if off {
+                body["reasoning"] = ["effort": "none"]
             }
-            if openRouterReasoning != .effort,
-               (options?.reasoningBudgetTokens ?? 0) <= 0,
-               let temperature = options?.temperature {
+            if openRouterReasoning != .effort, let temperature = options?.temperature {
                 body["temperature"] = max(0, temperature)
             }
 
@@ -890,8 +947,6 @@ struct OpenAICompatibleEngine: TextEngine {
             if let requestLevel {
                 body["reasoning_effort"] = reasoningFallback && requestLevel == .off
                     ? "low" : requestLevel.effortValue
-            } else if isReasoningModel, let budget = options?.reasoningBudgetTokens, budget > 0 {
-                body["reasoning_effort"] = ThinkReasoningLevel.ceiling(forTaskBudget: budget).effortValue
             }
         }
     }
@@ -900,11 +955,11 @@ struct OpenAICompatibleEngine: TextEngine {
         dialect: ChatCompletionDialect,
         error: Error,
         usedFallback: Bool,
-        requestedReasoningBudget: Int?
+        requestsReasoningOff: Bool
     ) -> Bool {
         guard dialect == .openRouter,
               !usedFallback,
-              requestedReasoningBudget != nil,
+              requestsReasoningOff,
               case .httpStatus(let code, let detail, _) = error as? TextEngineError
         else { return false }
 
@@ -912,7 +967,7 @@ struct OpenAICompatibleEngine: TextEngine {
             return detail.localizedCaseInsensitiveContains(
                 "no endpoints found that can handle the requested parameters")
         }
-        guard code == 400, requestedReasoningBudget == 0 else { return false }
+        guard code == 400 else { return false }
         return detail.localizedCaseInsensitiveContains("reasoning is mandatory")
             && detail.localizedCaseInsensitiveContains("cannot be disabled")
     }

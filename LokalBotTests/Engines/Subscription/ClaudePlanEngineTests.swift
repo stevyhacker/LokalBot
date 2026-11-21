@@ -74,7 +74,7 @@ final class ClaudePlanEngineTests: XCTestCase {
 
     func testStreamingAndStructuredArguments() throws {
         let arguments = ClaudePlanEngine(model: "").arguments(
-            structured: true, options: .init(reasoningBudgetTokens: 0), streaming: true)
+            structured: true, options: .init(reasoning: .off), streaming: true)
 
         XCTAssertEqual(value(after: "--input-format", in: arguments), "stream-json")
         XCTAssertEqual(value(after: "--output-format", in: arguments), "stream-json")
@@ -124,10 +124,11 @@ final class ClaudePlanEngineTests: XCTestCase {
         XCTAssertEqual(content.first?["text"] as? String, "Transcript\n\nWhich action?")
     }
 
-    func testChosenEffortIsCappedByTheTaskBudget() throws {
+    func testChosenEffortAppliesToEveryTaskThatIsNotOff() throws {
         let engine = ClaudePlanEngine(model: "claude-opus-5-5", reasoningLevel: .max)
         XCTAssertEqual(engine.effort(for: nil), .max)
-        XCTAssertEqual(engine.effort(for: .init(reasoningBudgetTokens: 4_096)), .medium)
+        XCTAssertEqual(engine.effort(for: .init(maxTokens: 4_096)), .max)
+        XCTAssertEqual(engine.effort(for: .init(reasoning: .off)), .low)
         XCTAssertEqual(ClaudePlanEngine(model: "opus", reasoningLevel: .xhigh).effort(for: nil), .xhigh)
     }
 

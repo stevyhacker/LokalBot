@@ -14,7 +14,7 @@ use lokalbot_core::search::{DocKind, MatchMode, SearchQuery};
 use lokalbot_core::{Library, ids};
 
 use crate::embeddings::semantic_meeting_hits;
-use crate::think::{ChatRequest, ThinkClient};
+use crate::think::{ChatRequest, TaskReasoning, ThinkClient};
 use crate::{prompts, sanitize};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -953,7 +953,6 @@ pub fn answer(
     let request = ChatRequest::new(system, user)
         .max_tokens(1_024)
         .temperature(0.2)
-        .reasoning_budget(0)
         .keep_truncated();
     let completion = think.stream_full(&request, Some(cancel), &mut |delta| {
         on_event(AskEvent::Delta(delta.to_string()))
@@ -1147,7 +1146,7 @@ pub fn ask_library(think: &ThinkClient, library: &Library, question: &str) -> Re
     )
     .max_tokens(1_024)
     .temperature(0.2)
-    .reasoning_budget(0)
+    .reasoning(TaskReasoning::Off)
     .keep_truncated();
     let reply = think.complete(&request)?;
     let mut unique = Vec::new();

@@ -81,21 +81,24 @@ actor MeetingGenerationBudget {
     private var transcriptRevision: String?
     private var plannedParts: Int?
     private var scale = 1.0
+    private var mayReason = false
+    private var reasoningFactor: Double { mayReason ? 2 : 1 }
 
     init(limits: Limits = Limits()) { self.limits = limits }
 
-    var remainingSeconds: Double { max(0, limits.seconds * scale - elapsed) }
+    var remainingSeconds: Double { max(0, limits.seconds * scale * reasoningFactor - elapsed) }
     private var requestLimit: Int { Int((Double(limits.requests) * scale).rounded(.up)) }
     private var inputTokenLimit: Int { Int((Double(limits.inputTokens) * scale).rounded(.up)) }
-    private var outputTokenLimit: Int { Int((Double(limits.outputTokens) * scale).rounded(.up)) }
+    private var outputTokenLimit: Int { Int((Double(limits.outputTokens) * scale * reasoningFactor).rounded(.up)) }
     private var elapsed: Double { ProcessInfo.processInfo.systemUptime - started }
 
     func allowance(remainingParts: Int, desired: Int = 4_096, minimum: Int = 512) throws -> Int {
         try Task.checkCancellation()
         let processableParts = max(1, (requestLimit - requests + 1) / 2)
         let parts = min(max(1, remainingParts), processableParts)
-        let available = min(desired, (outputTokenLimit - outputTokens) / parts,
-                            Int(remainingSeconds * 35 / Double(parts)))
+        let share = Int(reasoningFactor)
+        let available = min(desired, (outputTokenLimit - outputTokens) / parts / share,
+                            Int(remainingSeconds * 35 / Double(parts)) / share)
         guard requests < requestLimit, available >= max(512, minimum) else { throw Exhausted() }
         return available
     }
@@ -125,7 +128,9 @@ actor MeetingGenerationBudget {
         phases[phase, default: 0] += seconds
     }
 
-    func recordPlan(model: String, transcriptRevision: String, parts: Int, standardParts: Double? = nil) {
+    func recordPlan(model: String, transcriptRevision: String, parts: Int, standardParts: Double? = nil,
+                    mayReason: Bool = false) {
+        self.mayReason = mayReason
         self.model = model
         self.transcriptRevision = transcriptRevision
         plannedParts = parts
@@ -171,6 +176,7 @@ actor MeetingGenerationBudget {
             var model: String?
             var transcriptRevision: String?
             var plannedParts: Int?
+            var mayReason: Bool
             var outcome: String
             var elapsedSeconds: Double
             var requests: Int
@@ -182,7 +188,7 @@ actor MeetingGenerationBudget {
         }
         let report = Report(attemptID: attemptID, startedAt: startedAt, model: model,
                             transcriptRevision: transcriptRevision, plannedParts: plannedParts,
-                            outcome: outcome, elapsedSeconds: elapsed, requests: requests,
+                            mayReason: mayReason, outcome: outcome, elapsedSeconds: elapsed, requests: requests,
                             reservedInputTokens: inputTokens, accountedOutputTokens: outputTokens,
                             phases: phases, calls: calls, validations: validations)
         let encoder = JSONEncoder()

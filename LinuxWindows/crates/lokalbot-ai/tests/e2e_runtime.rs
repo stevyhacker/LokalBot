@@ -3,7 +3,7 @@ use std::sync::atomic::AtomicBool;
 use std::time::Instant;
 
 use lokalbot_ai::catalog;
-use lokalbot_ai::think::dot;
+use lokalbot_ai::think::{TaskReasoning, dot};
 use lokalbot_ai::{ChatRequest, EmbeddingClient, RuntimeManager, ThinkClient, download, runtime};
 use lokalbot_core::{LibraryPaths, Settings};
 
@@ -82,7 +82,7 @@ fn installs_runtime_downloads_models_and_answers() {
                 "Say hello and name the model you are.",
             )
             .max_tokens(96)
-            .reasoning_budget(0)
+            .reasoning(TaskReasoning::Off)
             .temperature(0.2),
         )
         .expect("chat works");
@@ -108,7 +108,7 @@ fn installs_runtime_downloads_models_and_answers() {
         .complete_json(
             &ChatRequest::new("Return only JSON.", "Name the colors of a traffic light.")
                 .max_tokens(128)
-                .reasoning_budget(0)
+                .reasoning(TaskReasoning::Off)
                 .temperature(0.0)
                 .json_schema(schema),
         )
@@ -124,7 +124,7 @@ fn installs_runtime_downloads_models_and_answers() {
         .stream(
             &ChatRequest::new("Answer briefly.", "Count from one to five in words.")
                 .max_tokens(64)
-                .reasoning_budget(0),
+                .reasoning(TaskReasoning::Off),
             &mut |d| streamed.push_str(d),
         )
         .expect("streaming works");

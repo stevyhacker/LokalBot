@@ -280,7 +280,6 @@ pub fn generate_from(
     );
     let request = ChatRequest::new(PROJECT_STATUS_SYSTEM, user)
         .max_tokens(1_000 + think.minimum_structured_output_tokens())
-        .reasoning_budget(256)
         .temperature(0.2)
         .json_schema(schema(&labels, think.structured_output_enum_limit()));
     let output = think.complete(&request)?;

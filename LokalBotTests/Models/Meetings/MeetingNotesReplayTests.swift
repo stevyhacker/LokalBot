@@ -17,6 +17,7 @@ final class MeetingNotesReplayTests: XCTestCase {
         let recorder: Recorder
         var displayName: String { base.displayName }
         var accountsForGenerationRequests: Bool { true }
+        func reasoningAllowance(for options: TextGenerationOptions?) -> Int { base.reasoningAllowance(for: options) }
         func tokenCount(_ text: String) async throws -> Int? { try await base.tokenCount(text) }
         func generate(system: String, prompt: String, context: [String]) async throws -> String {
             try await base.generate(system: system, prompt: prompt, context: context)
@@ -38,6 +39,7 @@ final class MeetingNotesReplayTests: XCTestCase {
         var output: String
         var endpoint: String
         var tokenFile: String
+        var reasoningLevel: String?
     }
 
     func testLocalCloudPlanningAndTranscriptCleanup() async throws {
@@ -96,8 +98,10 @@ final class MeetingNotesReplayTests: XCTestCase {
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
         let token = try String(contentsOf: URL(fileURLWithPath: manifest.tokenFile), encoding: .utf8)
             .trimmingCharacters(in: .whitespacesAndNewlines)
+        let level = manifest.reasoningLevel.flatMap(ThinkReasoningLevel.init(rawValue:)) ?? .automatic
         let base = OpenAICompatibleEngine(baseURL: endpoint, model: "qwen3.5-4b", apiKey: token,
-            extraBody: MainLLMRuntimePolicy.requestOverrides(for: "qwen3.5-4b"), chatDialect: .llamaServer)
+            extraBody: MainLLMRuntimePolicy.requestOverrides(for: "qwen3.5-4b"), chatDialect: .llamaServer,
+            reasoningLevel: level, reasoningSupport: .known(provider: .builtIn, model: "qwen3.5-4b"))
         let engine = RecordingEngine(base: base, recorder: Recorder(folder: folder))
         let language = SummaryLanguage.resolvedForTranscript(.matchTranscript, transcript: transcript)
         let result = try await MeetingNotesGenerator.generate(transcript: transcript, engine: engine,

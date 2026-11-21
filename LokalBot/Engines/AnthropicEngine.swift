@@ -183,10 +183,16 @@ struct AnthropicEngine: TextEngine {
 
     func effort(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         let support = traits.reasoningSupport
-        let budget = options?.reasoningBudgetTokens
-        if let level = support.requestLevel(reasoningLevel, taskBudget: budget) { return level }
-        guard traits.thinksByDefault, let budget else { return nil }
-        return support.clamp(.ceiling(forTaskBudget: budget))
+        let reasoning = options?.reasoning ?? .modelDefault
+        if let level = support.requestLevel(reasoningLevel, reasoning: reasoning) { return level }
+        guard traits.thinksByDefault, reasoning == .off else { return nil }
+        return support.clamp(.off)
+    }
+
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+        let answer = max(1, options?.maxTokens ?? Self.defaultAnswerTokens)
+        let total = maxTokens(requested: options?.maxTokens, effort: effort(for: options), streaming: false)
+        return max(0, total - answer)
     }
 
     func maxTokens(requested: Int?, effort: ThinkReasoningLevel?, streaming: Bool) -> Int {
@@ -372,6 +378,10 @@ struct AnthropicEngine: TextEngine {
                                       schema: schema, options: options)
         do {
             return try await complete(request, options: options)
+        } catch is ReasoningExhaustedReply {
+            lokalbotLog("anthropic reasoning used the whole output; retrying at the lowest effort model=\(model)")
+            return try await message(system: system, prompt: prompt, context: context, schema: schema,
+                                     options: OpenAICompatibleEngine.withoutReasoning(options))
         } catch {
             let rejected = Self.rejectedFields(in: error, sent: optionalFields(for: options))
             guard !rejected.isEmpty else { throw error }
@@ -396,7 +406,8 @@ struct AnthropicEngine: TextEngine {
     private func complete(_ request: URLRequest, options: TextGenerationOptions?) async throws -> String {
         let budget = MeetingGenerationBudget.current
         let reservation = try await budget?.reserve(input: MeetingGenerationBudget.promptTokens,
-                                                    output: options?.maxTokens ?? 4_096)
+                                                    output: (options?.maxTokens ?? 4_096)
+                                                        + reasoningAllowance(for: options))
         let started = ProcessInfo.processInfo.systemUptime
         var metric = GenerationCallTelemetry(stage: MeetingGenerationBudget.stage, outcome: "failed", wallSeconds: 0)
         do {
@@ -416,6 +427,11 @@ struct AnthropicEngine: TextEngine {
             metric.outcome = reply.truncated ? "truncated" : "complete"
             if let usage = reply.usage { logCache(usage) }
             if reply.truncated {
+                let visible = OpenAICompatibleEngine.visibleText(ofTruncatedReply: strippingReasoning(reply.text))
+                if visible.isEmpty, options?.reasoning != .off, options?.keepsTruncatedReply != true,
+                   reasoningAllowance(for: options) > 0 {
+                    throw ReasoningExhaustedReply()
+                }
                 if budget != nil { throw TruncatedStructuredResponse(content: strippingReasoning(reply.text)) }
                 throw TextEngineError.outputTruncated
             }
@@ -444,14 +460,25 @@ struct AnthropicEngine: TextEngine {
                                       schema: nil, options: options, streaming: true)
         do {
             return try await stream(request, onPartial: onPartial)
+        } catch is ReasoningExhaustedReply {
+            guard options.reasoning != .off, !options.keepsTruncatedReply,
+                  reasoningAllowance(for: options) > 0 else { throw TextEngineError.outputTruncated }
+            lokalbotLog("anthropic reasoning used the whole streamed output; retrying at the lowest effort model=\(model)")
+            return try await generateStreaming(system: system, prompt: prompt, context: context,
+                                               options: OpenAICompatibleEngine.withoutReasoning(options),
+                                               onPartial: onPartial)
         } catch {
             let rejected = Self.rejectedFields(in: error, sent: optionalFields(for: options))
             guard !rejected.isEmpty else { throw error }
             lokalbotLog("anthropic stream retry without=\(rejected.map(\.rawValue).sorted()) model=\(model)")
-            return try await stream(
-                try makeRequest(system: system, prompt: prompt, context: context, schema: nil,
-                                options: options, streaming: true, omitting: rejected),
-                onPartial: onPartial)
+            do {
+                return try await stream(
+                    try makeRequest(system: system, prompt: prompt, context: context, schema: nil,
+                                    options: options, streaming: true, omitting: rejected),
+                    onPartial: onPartial)
+            } catch is ReasoningExhaustedReply {
+                throw TextEngineError.outputTruncated
+            }
         }
     }
 
@@ -505,6 +532,9 @@ struct AnthropicEngine: TextEngine {
         guard terminal else { throw TextEngineError.badResponse("Claude's stream ended before completion") }
         logCache(usage)
         if stopReason == "max_tokens" || stopReason == "model_context_window_exceeded" {
+            if OpenAICompatibleEngine.visibleText(ofTruncatedReply: strippingReasoning(content)).isEmpty {
+                throw ReasoningExhaustedReply()
+            }
             throw TextEngineError.outputTruncated
         }
         await onPartial(content)

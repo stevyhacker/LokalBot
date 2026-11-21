@@ -103,21 +103,39 @@ Where: `LinuxWindows/crates/lokalbot-ai/src/runtime.rs` (`cuda_launch_args`).
 
 ## Reasoning and output budgets
 
-### Automatic never leaves a default-reasoning model unbounded on a no-reasoning task
+### Each model uses its own default reasoning; only instant tasks turn it off
 
-A request carries the chosen level, no higher than the task's own budget allows, clamped to what the model accepts. Automatic leaves the server at its default, except that a task tuned for no reasoning is not handed to a model that reasons by default: on 2026-10-07 Cerebras Qwen, left at its default on Automatic, spent every notes request's output on hidden reasoning and returned no notes. Claude models that think by default likewise get the effort their task budget implies, so notes and digests (budget 0) run at the lowest effort.
+Since 2026-11-21 a Think request carries no thinking budget, only an intent: the model's default or Off. Most current models think by default, and the per-task budgets that replaced it (0 for notes, digests and personal learning; 128 to 1,024 elsewhere) made every task a tuning point while keeping those models from working the way they were trained. Instant tasks that someone waits on always send Off, whatever level is chosen: dictation Compose, selection actions, window handoff, autocomplete's chat continuation, the live Meeting Radar pass, and the CLI and MCP short answers. On Automatic every other request leaves the model at its default. A chosen level applies to every request that is not Off, clamped to what the model accepts; tasks no longer lower it. An Off request on Automatic still sends Off to a model that reasons by default and can switch it off, because on 2026-10-07 Cerebras Qwen, left at its default, spent every notes request's output on hidden reasoning. Claude models that think by default get their lowest effort for Off.
 
-Where: `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.requestLevel`), `LokalBot/Engines/AnthropicEngine.swift` (`AnthropicEngine.effort`), `LinuxWindows/crates/lokalbot-ai/src/anthropic.rs` (`ModelTraits::effort`), `LokalBotTests/Engines/TextEngineTests.swift` (`ReasoningSupport.requestLevel`).
+Where: `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.requestLevel`, `TaskReasoning`), `LokalBot/Engines/AnthropicEngine.swift` (`AnthropicEngine.effort`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`request_level`), `LinuxWindows/crates/lokalbot-ai/src/anthropic.rs` (`ModelTraits::effort`), `LokalBotTests/Engines/TextEngineTests.swift` (`testRequestLevelIsTheChosenLevelClampedToTheModelUnlessTheTaskIsOff`, `testInstantTasksAlwaysSkipReasoning`).
 
-### A zero thinking budget also turns off Qwen's thinking turn in the chat template
+### A request that may think gets room for it on top of its answer
 
-A zero budget alone still opens Qwen's thinking turn in the bundled runtime and can exhaust a short reply before any visible text, so zero-budget requests disable that turn in the chat template too. The CLI's short grounded answers do the same: the main server runs with reasoning on, and they must not spend their whole 1,024-token allowance thinking.
+Thinking shares the output ceiling with the answer on llama-server, OpenAI-compatible servers, OpenRouter and Ollama. A request that may reason is sent with its answer size plus a thinking allowance: the chosen level's budget, or on Automatic the answer size capped at 8,192 tokens (High). A model whose default is known to be no thinking gets none; a model whose default is unknown may reason. On the built-in server the allowance also goes out as `thinking_budget_tokens`, so llama-server closes the thinking turn and an answer still arrives. Until 2026-11-21 thinking was squeezed into half of `max_tokens` instead. The meeting budget reserves the answer plus the allowance; a notes job whose requests may reason gets twice the time and output tokens and splits them so each part's answer stays the size it was. A notes request whose thinking room alone would not fit the context window is sent Off rather than failing.
+
+Where: `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.reasoningAllowance`), `LokalBot/Engines/TextEngine.swift` (`OpenAICompatibleEngine.applyGenerationOptions`), `LokalBot/Services/Notes/MeetingGenerationBudget.swift` (`MeetingGenerationBudget.allowance`), `LokalBot/Services/Notes/MeetingNotesGenerator.swift` (`MeetingNotesGenerator.request`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`chat_body`).
+
+### A reply that spends its whole output thinking is asked once more with reasoning off
+
+A request that had thinking room, stopped at its output limit and has no visible answer is sent once more with reasoning Off. Inside a meeting budget both requests are charged. Notes' larger retry, the digest's truncation and parse retries and Dream's larger retry already run Off, so the retries don't stack.
+
+Where: `LokalBot/Engines/TextEngine.swift` (`ReasoningExhaustedReply`, `OpenAICompatibleEngine.canRetryWithoutReasoning`, `OllamaEngine`), `LokalBot/Engines/AnthropicEngine.swift` (`AnthropicEngine.message`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`complete_full`), `LokalBotTests/Integration/ModelServerScenarioTests.swift` (`testReplyThatSpendsItsWholeOutputThinkingIsRetriedOnceWithoutReasoning`).
+
+### The built-in server lets each model's chat template decide whether to think
+
+In llama.cpp b12359 `--reasoning on` sets `enable_thinking=true` for every template, so Gemma 4 and the small Qwen models, which do not think by default, were made to. The main server runs with `--reasoning auto`. The catalog records each built-in model's default from its chat template (checked 2026-11-21): Qwen3.5 4B, Qwen3.6 35B-A3B and Qwen3.6 27B think; LFM2.5 2.6B always reasons; Qwen3.5 0.8B and 2B, Gemma 4, LFM2.5 1.2B Instruct, Granite 4.1 and Ministral 3 don't; imported models are unknown. A chosen level above Off sends `enable_thinking: true` only to models whose default is off, and Agent Mode's level file carries `defaultOff` so its extension can do the same: sending both thinking controls caused HTTP 500 on LFM3 with a newer runtime (2026-10-27).
+
+Where: `LokalBot/Engines/LlamaServer.swift` (`MainLLMRuntimePolicy.serverExtraArguments`), `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.builtIn`), `LinuxWindows/crates/lokalbot-ai/src/runtime.rs`, `LinuxWindows/crates/lokalbot-ai/src/catalog.rs`, `LinuxWindows/crates/lokalbot-agent/resources/lokalbot-extension/index.ts` (`applyReasoningLevel`).
+
+### An Off request also turns off Qwen's thinking turn in the chat template
+
+A zero thinking budget alone still opens Qwen's thinking turn in the bundled runtime and can exhaust a short reply before any visible text, so Off requests send `thinking_budget_tokens: 0` and disable that turn in the chat template too. The CLI's short grounded answers do the same: they must not spend their whole 1,024-token allowance thinking.
 
 Where: `LokalBot/Engines/TextEngine.swift` (`OpenAICompatibleEngine.applyGenerationOptions`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`chat_body`), `LinuxWindows/crates/lokalbot-agent/resources/lokalbot-extension/index.ts` (`applyReasoningLevel`), `LokalBot/CLISupport/AskLibraryEngine.swift` (`URLSessionLlamaChatClient.complete`).
 
-### A zero budget turns Ollama's thinking off
+### An Off request turns Ollama's thinking off
 
-Ollama's thinking models think by default, and those tokens count against `num_predict`. Of the chosen levels only gpt-oss takes a graded one, and `think: true` fails on models that can't think.
+Ollama's thinking models think by default, and those tokens count against `num_predict`, which therefore includes the thinking room for other requests. Of the chosen levels only gpt-oss takes a graded one, and `think: true` fails on models that can't think.
 
 Where: `LokalBot/Engines/TextEngine.swift` (`OllamaEngine.chatBody`).
 
@@ -133,9 +151,9 @@ GPT-6 adds Max and defaults to Medium. Sol and Luna also take `none`; 6.1 Sol an
 
 Where: `LokalBot/Engines/ReasoningLevels.swift` (`ReasoningSupport.openAI`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`ReasoningSupport::openai`).
 
-### The Main LLM runs a 32K context with an 8K app output ceiling
+### The Main LLM runs a 32K context with an 8K thinking cap
 
-The bundled models expose much larger native windows, but 32K gives summaries and Agent Mode useful headroom without the latency and linear KV-cache cost of 128K. "High" forces model-native thinking. App-authored requests use an 8K ceiling, requests with a smaller total output budget reserve at least half of it for the visible answer, and Agent Mode uses the same reasoning-enabled server with its model-native budget.
+The bundled models expose much larger native windows, but 32K gives summaries and Agent Mode useful headroom without the latency and linear KV-cache cost of 128K. App-authored requests cap thinking at 8K (High), on top of the answer, and Agent Mode uses the same server with its model-native budget.
 
 Where: `LokalBot/Engines/LlamaServer.swift` (`MainLLMRuntimePolicy`).
 
@@ -147,13 +165,13 @@ Where: `LinuxWindows/crates/lokalbot-ai/src/anthropic.rs` (`ModelTraits::max_tok
 
 ### Structured notes calls get one larger, bounded retry
 
-Reasoning providers count hidden tokens against the same completion ceiling as the JSON envelope, so a 4K request can spend the whole response thinking and return no usable records. Every structured call gets one larger, budgeted retry before partial content goes to the evidence validator. The retry is bounded so a genuinely huge response still falls through to checkpointed recovery instead of consuming the job.
+Reasoning providers count hidden tokens against the same completion ceiling as the JSON envelope, so a 4K request can spend the whole response thinking and return no usable records. Every structured call gets one larger, budgeted retry, with reasoning off, before partial content goes to the evidence validator. The retry is bounded so a genuinely huge response still falls through to checkpointed recovery instead of consuming the job.
 
 Where: `LokalBot/Services/Notes/MeetingNotesGenerator.swift` (`MeetingNotesGenerator.request`).
 
 ### Dream's output allowance is capped
 
-Visible replies for the retrospective plus memory update run about 1–2K tokens; without a cap a reasoning model on a remote server spent 4–27K hidden tokens and up to eight minutes per day.
+Visible replies for the retrospective plus memory update run about 1–2K tokens; without a cap a reasoning model on a remote server spent 4–27K hidden tokens and up to eight minutes per day. Dream asks for 4,096 answer tokens, so with its thinking room a request is at most 8,192; a reply cut off at that limit is asked once more with 6,144 answer tokens and reasoning off.
 
 Where: `LokalBot/Services/Dreaming/DreamService.swift` (`DreamService.maxOutputTokens`).
 

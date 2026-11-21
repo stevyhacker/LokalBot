@@ -98,7 +98,6 @@ pub fn run(
         let inside = rollup::reviews_in(&period.first_day, &period.last_day, &reviews);
         let request = ChatRequest::new(prompts::DREAM_ROLLUP_SYSTEM, prompt(&period, &inside))
             .max_tokens(200)
-            .reasoning_budget(0)
             .temperature(0.2);
         let output = think.complete(&request)?;
         let Some(line) = line_from(&output) else {

@@ -240,7 +240,7 @@ impl Role {
                     args.extend(["--cache-ram".into(), "2048".into()]);
                 }
                 if has("--reasoning") {
-                    args.extend(["--reasoning".into(), "on".into()]);
+                    args.extend(["--reasoning".into(), "auto".into()]);
                 }
             }
             Role::Embedder | Role::MediaEmbedder => {
@@ -2302,7 +2302,7 @@ mod tests {
         let all: Vec<String> = CONDITIONAL_FLAGS.iter().map(|f| f.to_string()).collect();
         assert_eq!(
             Role::Main.extra_args(&all),
-            ["--cache-ram", "2048", "--reasoning", "on"]
+            ["--cache-ram", "2048", "--reasoning", "auto"]
         );
         assert_eq!(Role::Main.extra_args(&[]), Vec::<String>::new());
         assert_eq!(

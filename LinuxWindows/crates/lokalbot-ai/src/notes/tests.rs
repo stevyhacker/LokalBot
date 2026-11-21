@@ -201,8 +201,93 @@ fn one_pass_renders_notes_outcomes_and_header() {
                 "s2|p1|SSO is on the Q3 roadmap. I'll send you the security overview this week."
             )
     );
-    assert_eq!(request["thinking_budget_tokens"], 0);
+    assert!(request.get("thinking_budget_tokens").is_none(), "{request}");
+    assert!(request.get("chat_template_kwargs").is_none(), "{request}");
     assert_eq!(request["temperature"], 0.0);
+}
+
+#[test]
+fn notes_reserve_reasoning_room_and_charge_a_retried_request_twice() {
+    let server = StubServer::start(|request| match request.path.as_str() {
+        "/tokenize" => Reply::Json(200, json!({"tokens": [1, 2, 3]})),
+        _ if request.json()["thinking_budget_tokens"] == 0 => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "{\"notes\": [], \"actions\": []}"}, "finish_reason": "stop"}], "usage": {"completion_tokens": 300}}),
+        ),
+        _ => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "<think>weighing"}, "finish_reason": "length"}], "usage": {"completion_tokens": 2_000}}),
+        ),
+    });
+    let think = ThinkClient::llama_server(&server.url("/v1"), "token", "qwen3.5-4b");
+    let mut budget = Budget::new(Limits {
+        seconds: 600.0,
+        requests: 3,
+        input_tokens: 100_000,
+        output_tokens: 3_000,
+        scales_with_parts: false,
+    });
+    let (text, truncated) = request(
+        &think,
+        &mut budget,
+        "system",
+        "prompt",
+        &[],
+        json!({"type": "object"}),
+        1_000,
+        "extract-1",
+        32_768,
+        false,
+    )
+    .unwrap();
+    assert_eq!(text, "{\"notes\": [], \"actions\": []}");
+    assert!(!truncated);
+    let bodies: Vec<serde_json::Value> = server
+        .requests()
+        .iter()
+        .filter(|r| r.path == "/v1/chat/completions")
+        .map(|r| r.json())
+        .collect();
+    assert_eq!(bodies[0]["max_tokens"], 2_000);
+    assert_eq!(bodies[0]["thinking_budget_tokens"], 1_000);
+    assert_eq!(bodies[1]["max_tokens"], 1_000);
+    assert!(
+        budget.reserve(0, 701).is_err(),
+        "both attempts' tokens count"
+    );
+    budget.reserve(0, 700).unwrap();
+    assert!(
+        budget.reserve(0, 0).is_err(),
+        "both attempts count as requests"
+    );
+
+    let mut tight = Budget::new(Limits::for_preset(
+        lokalbot_core::settings::GenerationBudget::Unlimited,
+    ));
+    request(
+        &think,
+        &mut tight,
+        "system",
+        "prompt",
+        &[],
+        json!({"type": "object"}),
+        1_000,
+        "extract-1",
+        ENVELOPE_TOKENS + 3 + 1_500,
+        false,
+    )
+    .unwrap();
+    let last = server
+        .requests()
+        .into_iter()
+        .rfind(|r| r.path == "/v1/chat/completions")
+        .unwrap()
+        .json();
+    assert_eq!(
+        last["max_tokens"], 1_000,
+        "no room to reason, so it is sent off"
+    );
+    assert_eq!(last["thinking_budget_tokens"], 0);
 }
 
 #[test]

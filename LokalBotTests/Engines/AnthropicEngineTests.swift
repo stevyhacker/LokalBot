@@ -132,24 +132,31 @@ final class AnthropicEngineTests: XCTestCase {
         return found
     }
 
-    func testEffortFollowsTaskBudgetAndChosenLevel() throws {
+    func testEffortFollowsTheChosenLevelOrTheModelDefaultUnlessTheTaskIsOff() throws {
         let sonnet = engine()
-        XCTAssertNil(sonnet.effort(for: nil), "Automatic leaves interactive requests at the model default")
-        XCTAssertEqual(sonnet.effort(for: .init(reasoningBudgetTokens: 0)), .low)
-        XCTAssertEqual(sonnet.effort(for: .init(reasoningBudgetTokens: 4_096)), .medium)
+        XCTAssertNil(sonnet.effort(for: nil), "Automatic leaves requests at the model default")
+        XCTAssertNil(sonnet.effort(for: .init(maxTokens: 4_096)), "a task no longer sets its own effort")
+        XCTAssertEqual(sonnet.effort(for: .init(reasoning: .off)), .low)
         XCTAssertEqual(engine(level: .xhigh).effort(for: nil), .xhigh)
-        XCTAssertEqual(engine(level: .max).effort(for: .init(reasoningBudgetTokens: 0)), .low)
+        XCTAssertEqual(engine(level: .xhigh).effort(for: .init(maxTokens: 4_096)), .xhigh)
+        XCTAssertEqual(engine(level: .max).effort(for: .init(reasoning: .off)), .low)
         XCTAssertEqual(engine("claude-opus-4-6", level: .xhigh).effort(for: nil), .high)
-        XCTAssertNil(engine("claude-haiku-4-5", level: .high).effort(for: .init(reasoningBudgetTokens: 0)))
-        XCTAssertNil(engine("claude-opus-4-8").effort(for: .init(reasoningBudgetTokens: 0)))
+        XCTAssertNil(engine("claude-haiku-4-5", level: .high).effort(for: .init(reasoning: .off)))
+        XCTAssertNil(engine("claude-opus-4-8").effort(for: .init(reasoning: .off)))
+
+        let quick = try body(sonnet.makeRequest(system: "S", prompt: "P", context: [], schema: nil,
+                                                options: .init(maxTokens: 4_096, reasoning: .off)))
+        XCTAssertEqual((quick["output_config"] as? [String: Any])?["effort"] as? String, "low")
+        XCTAssertEqual(quick["max_tokens"] as? Int, 4_096 + 4_096, "thinking shares max_tokens with the answer")
+        XCTAssertEqual(sonnet.reasoningAllowance(for: .init(maxTokens: 4_096, reasoning: .off)), 4_096)
 
         let notes = try body(sonnet.makeRequest(system: "S", prompt: "P", context: [], schema: nil,
-                                                options: .init(maxTokens: 4_096, reasoningBudgetTokens: 0)))
-        XCTAssertEqual((notes["output_config"] as? [String: Any])?["effort"] as? String, "low")
-        XCTAssertEqual(notes["max_tokens"] as? Int, 4_096 + 4_096, "thinking shares max_tokens with the answer")
+                                                options: .init(maxTokens: 4_096)))
+        XCTAssertNil(notes["output_config"])
+        XCTAssertEqual(notes["max_tokens"] as? Int, 4_096 + sonnet.reasoningAllowance(for: .init(maxTokens: 4_096)))
 
         let plain = try body(engine("claude-haiku-4-5").makeRequest(system: "S", prompt: "P", context: [], schema: nil,
-                                                                    options: .init(maxTokens: 4_096, reasoningBudgetTokens: 0)))
+                                                                    options: .init(maxTokens: 4_096, reasoning: .off)))
         XCTAssertNil(plain["output_config"])
         XCTAssertEqual(plain["max_tokens"] as? Int, 4_096)
     }
@@ -244,7 +251,7 @@ final class AnthropicEngineTests: XCTestCase {
         })
 
         let text = try await claude.generate(system: "S", prompt: "P", context: [],
-                                             options: .init(maxTokens: 512, reasoningBudgetTokens: 0))
+                                             options: .init(maxTokens: 512, reasoning: .off))
         XCTAssertEqual(text, "ok")
         let bodies = await recorder.bodies
         XCTAssertEqual(bodies.count, 2)

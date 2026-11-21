@@ -372,6 +372,7 @@ pub(crate) fn parse_json_object(json: &Value, wants_structured: bool) -> Result<
         truncated: false,
         cancelled: false,
         usage,
+        attempts: 1,
     })
 }
 
@@ -529,6 +530,7 @@ pub(crate) fn reply(
                 truncated: false,
                 cancelled: false,
                 usage,
+                attempts: 1,
             });
         }
         if let Some(err) = fatal_error {
@@ -686,6 +688,7 @@ impl Engine {
                 truncated: false,
                 cancelled: true,
                 usage: None,
+                attempts: 1,
             });
         }
         reply(&output, streaming, request.json_schema.is_some())

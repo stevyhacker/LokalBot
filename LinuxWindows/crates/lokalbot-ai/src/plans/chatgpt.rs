@@ -1368,6 +1368,7 @@ impl StreamAccumulator {
                 truncated,
                 cancelled: false,
                 usage: self.usage,
+                attempts: 1,
             }),
             None => {
                 Err(AiError::BadResponse("ChatGPT's stream ended before completion".into()).into())
@@ -1406,7 +1407,7 @@ impl Engine {
     }
 
     fn effort(&self, request: &ChatRequest) -> Option<ReasoningLevel> {
-        Self::reasoning_support(&self.model).request_level(self.level, request.reasoning_budget)
+        Self::reasoning_support(&self.model).request_level(self.level, request.reasoning)
     }
 
     fn optional_fields(&self, request: &ChatRequest) -> BTreeSet<OptionalField> {
@@ -1521,6 +1522,7 @@ impl Engine {
                     truncated: false,
                     cancelled: true,
                     usage: None,
+                    attempts: 1,
                 });
             }
             if let Some(delta) = accumulator.consume(&line)? {

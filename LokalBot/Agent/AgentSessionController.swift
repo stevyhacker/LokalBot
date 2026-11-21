@@ -830,7 +830,10 @@ final class AgentSessionController: ObservableObject {
         let level = reasoningSupport.clamp(settings().effectiveAgentReasoningLevel) ?? .automatic
         guard level != writtenReasoningLevel else { return }
         do {
-            let data = try JSONSerialization.data(withJSONObject: ["level": level.rawValue])
+            let data = try JSONSerialization.data(withJSONObject: [
+                "level": level.rawValue,
+                "defaultOff": reasoningSupport.defaultLevel == .off,
+            ])
             try data.write(to: reasoningLevelFile, options: .atomic)
             writtenReasoningLevel = level
         } catch {

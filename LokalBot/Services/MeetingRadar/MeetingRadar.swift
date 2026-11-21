@@ -42,8 +42,8 @@ final class MeetingRadar: ObservableObject {
         async throws -> MuseChatClient.Reply
     typealias EngineSource = @MainActor (_ purpose: String) async throws -> TextEngine
 
-    static let passOptions = TextGenerationOptions(maxTokens: 2_000, reasoningBudgetTokens: 0, temperature: 0)
-    static let answerOptions = TextGenerationOptions(maxTokens: 1_500, reasoningBudgetTokens: 256, temperature: 0.1)
+    static let passOptions = TextGenerationOptions(maxTokens: 2_000, reasoning: .off, temperature: 0)
+    static let answerOptions = TextGenerationOptions(maxTokens: 1_500, temperature: 0.1)
 
     @Published private(set) var items: [RadarItem] = []
     @Published private(set) var state: State = .off

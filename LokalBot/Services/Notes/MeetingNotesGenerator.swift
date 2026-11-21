@@ -135,7 +135,8 @@ enum MeetingNotesGenerator {
             outputScales.append(max(1, Double(estimate) / Double(MeetingSummaryGenerator.standardNotesPartTokens)))
         }
         await budget.recordPlan(model: engine.displayName, transcriptRevision: transcript.evidenceRevision,
-                                parts: chunks.count, standardParts: outputScales.reduce(0, +))
+                                parts: chunks.count, standardParts: outputScales.reduce(0, +),
+                                mayReason: engine.reasoningAllowance(for: .init(maxTokens: 4_096)) > 0)
         let fingerprintText = (["notes-v1", MeetingNotesEvidence.ownershipPolicyVersion,
                                 transcript.evidenceRevision, engine.checkpointIdentity, system,
                                 PromptTemplates.meetingNotesRepairSystem(language: language)]
@@ -187,20 +188,24 @@ enum MeetingNotesGenerator {
     static func request(engine: TextEngine, system: String, prompt: String, context: [String],
                         schema: [String: Any], tokens: Int, stage: String,
                         contextTokens: Int, budget: MeetingGenerationBudget, attempt: Int = 0,
-                        truncationRetry: Int = 0) async throws -> (content: String, truncated: Bool) {
+                        truncationRetry: Int = 0,
+                        reasoning: TaskReasoning = .modelDefault) async throws -> (content: String, truncated: Bool) {
         let input = try await tokenCount(([system] + context + [prompt]).joined(separator: "\n\n"), engine: engine) + 1_536
         guard input + tokens <= contextTokens else {
             throw TextEngineError.badResponse(
                 "Notes request cannot fit the model's input allowance. Source-linked progress was saved.")
         }
+        var options = TextGenerationOptions(maxTokens: tokens, reasoning: reasoning, temperature: 0)
+        if input + tokens + engine.reasoningAllowance(for: options) > contextTokens { options.reasoning = .off }
+        let thinking = engine.reasoningAllowance(for: options)
         return try await MeetingGenerationBudget.$stage.withValue(stage) {
             try await MeetingGenerationBudget.$promptTokens.withValue(input) {
-                let reservation = engine.accountsForGenerationRequests ? nil : try await budget.reserve(input: input, output: tokens)
+                let reservation = engine.accountsForGenerationRequests
+                    ? nil : try await budget.reserve(input: input, output: tokens + thinking)
                 let started = ProcessInfo.processInfo.systemUptime
                 do {
                     let text = try await engine.generate(system: system, prompt: prompt, context: context,
-                        schema: schema, options: .init(maxTokens: tokens,
-                            reasoningBudgetTokens: 0, temperature: 0))
+                        schema: schema, options: options)
                     if let reservation {
                         await budget.finish(reservation, metric: .init(stage: stage, outcome: "complete",
                             wallSeconds: ProcessInfo.processInfo.systemUptime - started))
@@ -224,7 +229,7 @@ enum MeetingNotesGenerator {
                                     engine: engine, system: system, prompt: prompt, context: context,
                                     schema: schema, tokens: expanded, stage: "expanded-" + stage,
                                     contextTokens: contextTokens, budget: budget,
-                                    attempt: attempt, truncationRetry: 1)
+                                    attempt: attempt, truncationRetry: 1, reasoning: .off)
                             } catch {
                                 if Task.isCancelled || error is CancellationError { throw error }
                                 return (partial.content, true)
@@ -250,7 +255,7 @@ enum MeetingNotesGenerator {
                                     engine: engine, system: system, prompt: prompt, context: context,
                                     schema: schema, tokens: expanded, stage: "expanded-" + stage,
                                     contextTokens: contextTokens, budget: budget,
-                                    attempt: attempt, truncationRetry: 1)
+                                    attempt: attempt, truncationRetry: 1, reasoning: .off)
                             } catch is MeetingGenerationBudget.Exhausted {
                                 return ("", true)
                             }
@@ -264,7 +269,8 @@ enum MeetingNotesGenerator {
                         await budget.recordPhase("retryBackoff", seconds: ProcessInfo.processInfo.systemUptime - waiting)
                         return try await request(engine: engine, system: system, prompt: prompt, context: context,
                             schema: schema, tokens: tokens, stage: "retry-" + stage,
-                            contextTokens: contextTokens, budget: budget, attempt: attempt + 1)
+                            contextTokens: contextTokens, budget: budget, attempt: attempt + 1,
+                            reasoning: options.reasoning)
                     }
                     throw error
                 }

@@ -327,7 +327,6 @@ pub fn run(
     let request = ChatRequest::new(prompts::PERSONAL_LEARNING_SYSTEM, prompt(lines, known))
         .json_schema(schema())
         .max_tokens(MAX_OUTPUT_TOKENS)
-        .reasoning_budget(0)
         .temperature(0.0);
     let output = think.complete(&request)?;
     Ok(grounded_candidates(&output, lines, embed, revision))

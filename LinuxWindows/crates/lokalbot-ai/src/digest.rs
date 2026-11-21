@@ -16,7 +16,7 @@ use lokalbot_core::model::{ActionStatus, DigestCoverage, DigestMeta, DigestQuali
 use lokalbot_core::{Library, Settings};
 
 use crate::error::AiError;
-use crate::think::{ChatRequest, ThinkClient};
+use crate::think::{ChatRequest, TaskReasoning, ThinkClient};
 use crate::{json as model_json, prompts, sanitize};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -2135,13 +2135,13 @@ fn generate_json(
     prompt: &str,
     context: &str,
     max_tokens: u32,
-    reasoning: u32,
+    reasoning: TaskReasoning,
     temperature: f32,
     schema: &Value,
 ) -> Result<String> {
     let request = ChatRequest::new(system, format!("{context}\n\n{prompt}"))
         .max_tokens(max_tokens)
-        .reasoning_budget(reasoning)
+        .reasoning(reasoning)
         .temperature(temperature)
         .json_schema(schema.clone());
     think.complete(&request)
@@ -2225,7 +2225,7 @@ pub fn generate_overview(
             &focus_prompt,
             &date_context,
             FOCUS_TOKENS,
-            256,
+            TaskReasoning::ModelDefault,
             0.2,
             &focus_schema,
         );
@@ -2239,7 +2239,7 @@ pub fn generate_overview(
                     &retry_prompt,
                     &date_context,
                     FOCUS_RETRY_TOKENS,
-                    0,
+                    TaskReasoning::Off,
                     0.0,
                     &focus_schema,
                 ) {
@@ -2266,7 +2266,7 @@ pub fn generate_overview(
                 &retry_prompt,
                 &date_context,
                 FOCUS_RETRY_TOKENS,
-                0,
+                TaskReasoning::Off,
                 0.0,
                 &focus_schema,
             ) {
@@ -2368,7 +2368,7 @@ pub fn generate_overview(
             &prompt,
             &date_context,
             aggregation_tokens(selected.len()),
-            512,
+            TaskReasoning::ModelDefault,
             0.2,
             &schema,
         ) {
@@ -2380,7 +2380,7 @@ pub fn generate_overview(
                     &retry,
                     &date_context,
                     AGGREGATION_RETRY_TOKENS,
-                    0,
+                    TaskReasoning::Off,
                     0.0,
                     &schema,
                 )

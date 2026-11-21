@@ -476,7 +476,7 @@ fn chat_reply(
     };
     let chat = ChatRequest::new(prompts::AUTOCOMPLETE_SYSTEM, request.prompt.clone())
         .max_tokens(max_tokens)
-        .reasoning_budget(0)
+        .reasoning(think::TaskReasoning::Off)
         .temperature(request.sampling.temperature as f32)
         .keep_truncated();
     let completion = match think::short_chat(

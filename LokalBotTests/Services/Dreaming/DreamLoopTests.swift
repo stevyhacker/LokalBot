@@ -197,7 +197,7 @@ final class DreamLoopTests: XCTestCase {
         XCTAssertTrue(store.hasReport(forDayKey: target.dayKey))
     }
 
-    func testDreamBoundsReasoningAndOutput() async throws {
+    func testDreamBoundsOutputAndLeavesReasoningToTheModel() async throws {
         let store = try temporaryStore()
         let target = DreamScheduler.target(for: try date("2026-07-18T12:00:00Z"), calendar: calendar)
         let recorder = OptionsRecorder()
@@ -211,7 +211,7 @@ final class DreamLoopTests: XCTestCase {
         XCTAssertFalse(report.isFallback)
         let options = try XCTUnwrap(recorder.options.first)
         XCTAssertEqual(options.maxTokens, DreamService.maxOutputTokens)
-        XCTAssertEqual(options.reasoningBudgetTokens, DreamService.reasoningBudgetTokens)
+        XCTAssertEqual(options.reasoning, .modelDefault)
     }
 
     @MainActor

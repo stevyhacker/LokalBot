@@ -105,7 +105,6 @@ struct DreamService {
     }
 
     static let maxOutputTokens = 4_096
-    static let reasoningBudgetTokens = 1_024
     static let truncationRetryOutputTokens = 6_144
 
     static func generateSynthesis(engine: TextEngine, evidence: DreamEvidence,
@@ -116,16 +115,14 @@ struct DreamService {
             return try await engine.generate(
                 system: DreamPrompts.system, prompt: prompt, context: context,
                 schema: DreamPrompts.schema,
-                options: TextGenerationOptions(maxTokens: maxOutputTokens,
-                                               reasoningBudgetTokens: reasoningBudgetTokens,
-                                               temperature: 0.2))
+                options: TextGenerationOptions(maxTokens: maxOutputTokens, temperature: 0.2))
         } catch TextEngineError.outputTruncated {
             lokalbotLog("dreaming: reply hit the output limit, retrying without reasoning")
             return try await engine.generate(
                 system: DreamPrompts.system, prompt: prompt, context: context,
                 schema: DreamPrompts.schema,
                 options: TextGenerationOptions(maxTokens: truncationRetryOutputTokens,
-                                               reasoningBudgetTokens: 0,
+                                               reasoning: .off,
                                                temperature: 0))
         }
     }

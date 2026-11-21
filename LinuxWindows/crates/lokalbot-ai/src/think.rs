@@ -29,6 +29,13 @@ const BUILT_IN_CONTEXT_TOKENS: u32 = 32_768;
 const FALLBACK_CONTEXT_TOKENS: u32 = 16_384;
 const CHAT_TIMEOUT: Duration = Duration::from_secs(900);
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum TaskReasoning {
+    #[default]
+    ModelDefault,
+    Off,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatRequest {
     pub system: String,
@@ -36,7 +43,7 @@ pub struct ChatRequest {
     pub context: Vec<String>,
     pub max_tokens: Option<u32>,
     pub temperature: Option<f32>,
-    pub reasoning_budget: Option<u32>,
+    pub reasoning: TaskReasoning,
     pub json_schema: Option<Value>,
     pub keep_truncated: bool,
 }
@@ -60,8 +67,8 @@ impl ChatRequest {
         self
     }
 
-    pub fn reasoning_budget(mut self, tokens: u32) -> Self {
-        self.reasoning_budget = Some(tokens);
+    pub fn reasoning(mut self, reasoning: TaskReasoning) -> Self {
+        self.reasoning = reasoning;
         self
     }
 
@@ -99,12 +106,61 @@ pub struct Usage {
     pub completion_tokens: Option<u64>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Completion {
     pub text: String,
     pub truncated: bool,
     pub cancelled: bool,
     pub usage: Option<Usage>,
+    pub attempts: u32,
+}
+
+impl Default for Completion {
+    fn default() -> Self {
+        Self {
+            text: String::new(),
+            truncated: false,
+            cancelled: false,
+            usage: None,
+            attempts: 1,
+        }
+    }
+}
+
+impl Completion {
+    fn after(self, earlier: Completion) -> Self {
+        Self {
+            attempts: earlier.attempts + self.attempts,
+            usage: Usage::summed(earlier.usage, self.usage),
+            ..self
+        }
+    }
+}
+
+impl Usage {
+    fn summed(earlier: Option<Usage>, later: Option<Usage>) -> Option<Usage> {
+        let add = |a: Option<u64>, b: Option<u64>| match (a, b) {
+            (None, None) => None,
+            (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
+        };
+        match (earlier, later) {
+            (None, None) => None,
+            (earlier, later) => {
+                let (earlier, later) = (earlier.unwrap_or_default(), later.unwrap_or_default());
+                Some(Usage {
+                    prompt_tokens: add(earlier.prompt_tokens, later.prompt_tokens),
+                    completion_tokens: add(earlier.completion_tokens, later.completion_tokens),
+                })
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct RequestReasoning {
+    pub level: Option<ReasoningLevel>,
+    pub allowance: u32,
+    pub default_off: bool,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -764,6 +820,25 @@ impl ThinkClient {
     }
 
     pub fn complete_full(&self, request: &ChatRequest) -> Result<Completion> {
+        let first = self.complete_once(request)?;
+        if !self.falls_back(request, &first) {
+            return Ok(first);
+        }
+        log::info!("think: the reply was all reasoning, retrying once with reasoning off");
+        let retry = self.complete_once(&request.clone().reasoning(TaskReasoning::Off))?;
+        Ok(retry.after(first))
+    }
+
+    fn falls_back(&self, request: &ChatRequest, completion: &Completion) -> bool {
+        request.reasoning == TaskReasoning::ModelDefault
+            && !request.keep_truncated
+            && completion.truncated
+            && !completion.cancelled
+            && completion.text.trim().is_empty()
+            && self.reasoning_allowance(request) > 0
+    }
+
+    fn complete_once(&self, request: &ChatRequest) -> Result<Completion> {
         match &self.inner.backend {
             Backend::BuiltIn { runtime, entry } => {
                 for attempt in 0..2 {
@@ -772,8 +847,7 @@ impl ThinkClient {
                         Dialect::LlamaServer,
                         entry.id,
                         request,
-                        self.request_level(request),
-                        Some(DEFAULT_THINKING_BUDGET),
+                        self.request_reasoning(request),
                         entry.request_overrides,
                     );
                     match post_chat(&lease.base_url(), Some(lease.token()), &body) {
@@ -798,15 +872,12 @@ impl ThinkClient {
                 dialect,
                 data_policy,
             } => {
-                let default_thinking =
-                    (*dialect == Dialect::LlamaServer).then_some(DEFAULT_THINKING_BUDGET);
                 let body = with_data_policy(
                     chat_body(
                         *dialect,
                         model,
                         request,
-                        self.request_level(request),
-                        default_thinking,
+                        self.request_reasoning(request),
                         &[],
                     ),
                     *data_policy,
@@ -815,7 +886,7 @@ impl ThinkClient {
             }
             Backend::Ollama { base, model } => {
                 let model = self.ollama_model(base, model)?;
-                let body = ollama_body(&model, request, self.request_level(request), false);
+                let body = ollama_body(&model, request, self.request_reasoning(request), false);
                 self.replaying(|| post_ollama(base, &body))
             }
             Backend::Anthropic(engine) => self.replaying(|| engine.complete(request)),
@@ -841,6 +912,29 @@ impl ThinkClient {
         cancel: Option<&AtomicBool>,
         on_delta: &mut dyn FnMut(&str),
     ) -> Result<Completion> {
+        let mut shown = false;
+        let first = self.stream_once(request, cancel, &mut |delta: &str| {
+            shown |= !delta.trim().is_empty();
+            on_delta(delta);
+        })?;
+        if shown || !self.falls_back(request, &first) {
+            return Ok(first);
+        }
+        log::info!("think: the streamed reply was all reasoning, retrying once with reasoning off");
+        let retry = self.stream_once(
+            &request.clone().reasoning(TaskReasoning::Off),
+            cancel,
+            on_delta,
+        )?;
+        Ok(retry.after(first))
+    }
+
+    fn stream_once(
+        &self,
+        request: &ChatRequest,
+        cancel: Option<&AtomicBool>,
+        on_delta: &mut dyn FnMut(&str),
+    ) -> Result<Completion> {
         match &self.inner.backend {
             Backend::BuiltIn { runtime, entry } => {
                 let lease = runtime.main_server(entry)?;
@@ -848,8 +942,7 @@ impl ThinkClient {
                     Dialect::LlamaServer,
                     entry.id,
                     request,
-                    self.request_level(request),
-                    Some(DEFAULT_THINKING_BUDGET),
+                    self.request_reasoning(request),
                     entry.request_overrides,
                 );
                 let result = stream_chat(
@@ -877,15 +970,12 @@ impl ThinkClient {
                 dialect,
                 data_policy,
             } => {
-                let default_thinking =
-                    (*dialect == Dialect::LlamaServer).then_some(DEFAULT_THINKING_BUDGET);
                 let body = with_data_policy(
                     chat_body(
                         *dialect,
                         model,
                         request,
-                        self.request_level(request),
-                        default_thinking,
+                        self.request_reasoning(request),
                         &[],
                     ),
                     *data_policy,
@@ -895,7 +985,7 @@ impl ThinkClient {
                 });
                 match streamed {
                     Err(err) if is_stream_unsupported(&err) => {
-                        let completion = self.complete_full(request)?;
+                        let completion = self.complete_once(request)?;
                         on_delta(&completion.text);
                         Ok(completion)
                     }
@@ -904,7 +994,7 @@ impl ThinkClient {
             }
             Backend::Ollama { base, model } => {
                 let model = self.ollama_model(base, model)?;
-                let body = ollama_body(&model, request, self.request_level(request), true);
+                let body = ollama_body(&model, request, self.request_reasoning(request), true);
                 self.streaming(cancel, || stream_ollama(base, &body, cancel, on_delta))
             }
             Backend::Anthropic(engine) => {
@@ -930,8 +1020,8 @@ impl ThinkClient {
         decode_json(&text)
     }
 
-    fn request_level(&self, request: &ChatRequest) -> Option<ReasoningLevel> {
-        let support = match &self.inner.backend {
+    fn reasoning_support(&self) -> Option<ReasoningSupport> {
+        Some(match &self.inner.backend {
             Backend::BuiltIn { entry, .. } => ReasoningSupport::built_in(entry),
             Backend::Server {
                 base,
@@ -960,11 +1050,21 @@ impl ThinkClient {
             | Backend::ChatGptPlan(_)
             | Backend::ClaudePlan(_)
             | Backend::AntigravityPlan(_)
-            | Backend::GeminiPlan(_) => {
-                return None;
-            }
-        };
-        support.request_level(self.inner.level, request.reasoning_budget)
+            | Backend::GeminiPlan(_) => return None,
+        })
+    }
+
+    fn request_reasoning(&self, request: &ChatRequest) -> RequestReasoning {
+        self.reasoning_support()
+            .map(|support| support.request_reasoning(self.inner.level, request))
+            .unwrap_or_default()
+    }
+
+    pub fn reasoning_allowance(&self, request: &ChatRequest) -> u32 {
+        match &self.inner.backend {
+            Backend::Anthropic(engine) => engine.reasoning_allowance(request),
+            _ => self.request_reasoning(request).allowance,
+        }
     }
 
     fn published_levels(
@@ -1065,15 +1165,6 @@ pub(crate) fn effort_value(level: ReasoningLevel) -> &'static str {
     }
 }
 
-pub(crate) fn ceiling_for_budget(tokens: u32) -> ReasoningLevel {
-    match tokens {
-        0 => ReasoningLevel::Off,
-        1..=512 => ReasoningLevel::Low,
-        513..=4_096 => ReasoningLevel::Medium,
-        _ => ReasoningLevel::High,
-    }
-}
-
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ReasoningSupport {
     pub levels: Vec<ReasoningLevel>,
@@ -1107,13 +1198,29 @@ impl ReasoningSupport {
     }
 
     fn built_in(entry: &ModelEntry) -> Self {
-        use ReasoningLevel::*;
+        let support = Self::built_in_id(entry.id);
         if entry.no_reasoning_control {
-            Self::new(&[], None)
-        } else if entry.id == "lfm2.5-2.6b" {
-            Self::new(&[Low, Medium, High], None)
+            Self::new(&[], support.default_level)
         } else {
-            Self::new(&[Off, Low, Medium, High], None)
+            support
+        }
+    }
+
+    fn built_in_id(id: &str) -> Self {
+        use ReasoningLevel::*;
+        let adjustable = [Off, Low, Medium, High];
+        match id {
+            "ministral-3-3b-instruct-2512" => Self::new(&[], Some(Off)),
+            "lfm2.5-2.6b" => Self::new(&[Low, Medium, High], Some(High)),
+            "qwen3.5-4b" | "qwen3.6-35b-a3b" | "qwen3.6-27b" => Self::new(&adjustable, Some(High)),
+            "qwen3.5-0.8b"
+            | "qwen3.5-2b"
+            | "gemma4-e4b"
+            | "gemma4-e4b-q5-xl"
+            | "gemma4-12b"
+            | "lfm2.5-1.2b-instruct"
+            | "granite-4.1-3b" => Self::new(&adjustable, Some(Off)),
+            _ => Self::new(&adjustable, None),
         }
     }
 
@@ -1167,7 +1274,7 @@ impl ReasoningSupport {
             return anthropic::ModelTraits::new(&name).reasoning_support();
         }
         match dialect {
-            Dialect::LlamaServer => Self::new(&[Off, Low, Medium, High], None),
+            Dialect::LlamaServer => Self::built_in_id(&name),
             Dialect::OpenAi => Self::openai(&name),
             Dialect::OpenRouter => {
                 if let Some(rest) = name.strip_prefix("openai/") {
@@ -1214,24 +1321,59 @@ impl ReasoningSupport {
     pub(crate) fn request_level(
         &self,
         level: ReasoningLevel,
-        task_budget: Option<u32>,
+        reasoning: TaskReasoning,
     ) -> Option<ReasoningLevel> {
         if level == ReasoningLevel::Automatic {
             let reasons_by_default = self
                 .default_level
                 .is_some_and(|d| level_rank(d) > level_rank(ReasoningLevel::Off));
-            return (task_budget == Some(0)
+            return (reasoning == TaskReasoning::Off
                 && reasons_by_default
                 && self.levels.contains(&ReasoningLevel::Off))
             .then_some(ReasoningLevel::Off);
         }
-        let ceiling = task_budget.map(ceiling_for_budget).unwrap_or(level);
-        let chosen = if level_rank(ceiling) < level_rank(level) {
-            ceiling
-        } else {
-            level
-        };
-        self.clamp(chosen)
+        self.clamp(match reasoning {
+            TaskReasoning::Off => ReasoningLevel::Off,
+            TaskReasoning::ModelDefault => level,
+        })
+    }
+
+    pub(crate) fn thinks_by_default(&self) -> bool {
+        self.default_level
+            .is_none_or(|d| level_rank(d) > level_rank(ReasoningLevel::Off))
+    }
+
+    pub(crate) fn reasoning_allowance(
+        &self,
+        level: ReasoningLevel,
+        reasoning: TaskReasoning,
+        answer: Option<u32>,
+    ) -> u32 {
+        if reasoning == TaskReasoning::Off {
+            return 0;
+        }
+        if let Some(chosen) = self.request_level(level, reasoning) {
+            return chosen.budget_tokens().unwrap_or(0);
+        }
+        if !self.thinks_by_default() {
+            return 0;
+        }
+        answer
+            .map(|a| a.max(1))
+            .unwrap_or(DEFAULT_THINKING_BUDGET)
+            .min(DEFAULT_THINKING_BUDGET)
+    }
+
+    pub(crate) fn request_reasoning(
+        &self,
+        level: ReasoningLevel,
+        request: &ChatRequest,
+    ) -> RequestReasoning {
+        RequestReasoning {
+            level: self.request_level(level, request.reasoning),
+            allowance: self.reasoning_allowance(level, request.reasoning, request.max_tokens),
+            default_off: self.default_level == Some(ReasoningLevel::Off),
+        }
     }
 }
 
@@ -1348,8 +1490,7 @@ pub(crate) fn chat_body(
     dialect: Dialect,
     model: &str,
     request: &ChatRequest,
-    level: Option<ReasoningLevel>,
-    default_thinking: Option<u32>,
+    reasoning: RequestReasoning,
     overrides: &[(&str, f64)],
 ) -> Value {
     let mut body = json!({
@@ -1365,8 +1506,12 @@ pub(crate) fn chat_body(
             "json_schema": {"name": "response", "strict": true, "schema": schema},
         });
     }
-    let max_tokens = request.max_tokens.map(|t| t.max(1));
+    let max_tokens = request
+        .max_tokens
+        .map(|t| t.max(1).saturating_add(reasoning.allowance));
     let temperature = request.temperature.map(|t| f64::from(t.max(0.0)));
+    let off = request.reasoning == TaskReasoning::Off;
+    let level = reasoning.level;
     match dialect {
         Dialect::LlamaServer => {
             if let Some(max) = max_tokens {
@@ -1375,18 +1520,19 @@ pub(crate) fn chat_body(
             if let Some(t) = temperature {
                 body["temperature"] = json!(t);
             }
-            let requested = level
-                .and_then(|l| l.budget_tokens())
-                .or(request.reasoning_budget)
-                .or(default_thinking);
-            if let Some(requested) = requested {
-                let effective = max_tokens
-                    .map(|m| requested.min(m / 2))
-                    .unwrap_or(requested);
-                body["thinking_budget_tokens"] = json!(effective);
-                if effective == 0 {
+            if let Some(level) = level {
+                let budget = level.budget_tokens().unwrap_or(0);
+                body["thinking_budget_tokens"] = json!(budget);
+                if budget == 0 {
                     body["chat_template_kwargs"] = json!({"enable_thinking": false});
+                } else if reasoning.default_off {
+                    body["chat_template_kwargs"] = json!({"enable_thinking": true});
                 }
+            } else if off {
+                body["thinking_budget_tokens"] = json!(0);
+                body["chat_template_kwargs"] = json!({"enable_thinking": false});
+            } else if reasoning.allowance > 0 {
+                body["thinking_budget_tokens"] = json!(reasoning.allowance);
             }
         }
         Dialect::Generic => {
@@ -1416,28 +1562,15 @@ pub(crate) fn chat_body(
                     body["temperature"] = json!(t);
                 }
             } else {
-                if let Some(budget) = request.reasoning_budget {
-                    body["reasoning"] = if budget == 0 {
-                        json!({"effort": "none"})
-                    } else {
-                        let effective = max_tokens
-                            .map(|m| budget.min(m / 2))
-                            .unwrap_or(budget)
-                            .max(1);
-                        json!({"max_tokens": effective, "exclude": true})
-                    };
+                if off {
+                    body["reasoning"] = json!({"effort": "none"});
                 }
-                if request.reasoning_budget.unwrap_or(0) == 0
-                    && let Some(t) = temperature
-                {
+                if let Some(t) = temperature {
                     body["temperature"] = json!(t);
                 }
             }
             let mut provider = json!({"data_collection": "deny"});
-            if request.json_schema.is_some()
-                || request.reasoning_budget.is_some()
-                || level.is_some()
-            {
+            if request.json_schema.is_some() || off || level.is_some() {
                 provider["require_parameters"] = json!(true);
             }
             body["provider"] = provider;
@@ -1446,16 +1579,13 @@ pub(crate) fn chat_body(
             if let Some(max) = max_tokens {
                 body["max_completion_tokens"] = json!(max);
             }
-            let reasoning_model = is_openai_reasoning_model(model);
-            if !reasoning_model && let Some(t) = temperature {
+            if !is_openai_reasoning_model(model)
+                && let Some(t) = temperature
+            {
                 body["temperature"] = json!(t);
             }
             if let Some(level) = level {
                 body["reasoning_effort"] = json!(effort_value(level));
-            } else if reasoning_model
-                && let Some(budget) = request.reasoning_budget.filter(|b| *b > 0)
-            {
-                body["reasoning_effort"] = json!(effort_value(ceiling_for_budget(budget)));
             }
         }
     }
@@ -1521,6 +1651,7 @@ fn parse_chat_completion(json: &Value) -> Result<Completion> {
         truncated,
         cancelled: false,
         usage,
+        attempts: 1,
     })
 }
 
@@ -1601,7 +1732,7 @@ pub(crate) fn short_chat(
     cancel: &AtomicBool,
 ) -> Result<Completion> {
     let body = with_data_policy(
-        chat_body(dialect, model, request, None, None, &[]),
+        chat_body(dialect, model, request, RequestReasoning::default(), &[]),
         data_policy,
     );
     match stream_chat_within(base, bearer, &body, Some(cancel), &mut |_| {}, timeout) {
@@ -1651,6 +1782,7 @@ fn stream_chat_within(
                 truncated: false,
                 cancelled: true,
                 usage: None,
+                attempts: 1,
             });
         }
         let Some(payload) = line.strip_prefix("data:") else {
@@ -1719,13 +1851,14 @@ fn stream_chat_within(
         truncated,
         cancelled: false,
         usage: None,
+        attempts: 1,
     })
 }
 
 fn ollama_body(
     model: &str,
     request: &ChatRequest,
-    level: Option<ReasoningLevel>,
+    reasoning: RequestReasoning,
     stream: bool,
 ) -> Value {
     let mut body = json!({
@@ -1739,15 +1872,15 @@ fn ollama_body(
     if let Some(schema) = &request.json_schema {
         body["format"] = schema.clone();
     }
-    match level {
+    match reasoning.level {
         Some(level) if level != ReasoningLevel::Off => body["think"] = json!(effort_value(level)),
         Some(_) => body["think"] = json!(false),
-        None if request.reasoning_budget == Some(0) => body["think"] = json!(false),
+        None if request.reasoning == TaskReasoning::Off => body["think"] = json!(false),
         None => {}
     }
     let mut options = json!({"num_ctx": OLLAMA_CONTEXT_TOKENS});
     if let Some(max) = request.max_tokens {
-        options["num_predict"] = json!(max.max(1));
+        options["num_predict"] = json!(max.max(1).saturating_add(reasoning.allowance));
     }
     if let Some(t) = request.temperature {
         options["temperature"] = json!(f64::from(t.max(0.0)));
@@ -1787,6 +1920,7 @@ fn post_ollama(base: &str, body: &Value) -> Result<Completion> {
         truncated,
         cancelled: false,
         usage,
+        attempts: 1,
     })
 }
 
@@ -1812,6 +1946,7 @@ fn stream_ollama(
                 truncated: false,
                 cancelled: true,
                 usage: None,
+                attempts: 1,
             });
         }
         let Ok(event) = serde_json::from_str::<Value>(line.trim()) else {
@@ -1846,6 +1981,7 @@ fn stream_ollama(
         truncated,
         cancelled: false,
         usage: None,
+        attempts: 1,
     })
 }
 
@@ -2511,7 +2647,7 @@ mod tests {
         let request = ChatRequest::new("sys", "user")
             .max_tokens(100)
             .temperature(0.0)
-            .reasoning_budget(0)
+            .reasoning(TaskReasoning::Off)
             .json_schema(schema);
         #[derive(serde::Deserialize)]
         struct Answer {
@@ -2541,93 +2677,238 @@ mod tests {
         assert_eq!(client.context_tokens(), 8192);
     }
 
-    #[test]
-    fn thinking_budget_is_capped_at_half_the_output() {
-        let request = ChatRequest::new("s", "u").max_tokens(1000);
-        let body = chat_body(
+    fn llama_body(model: &str, level: ReasoningLevel, request: &ChatRequest) -> Value {
+        let support = ReasoningSupport::known(Dialect::LlamaServer, "", model);
+        chat_body(
             Dialect::LlamaServer,
-            "m",
-            &request,
-            None,
-            Some(DEFAULT_THINKING_BUDGET),
+            model,
+            request,
+            support.request_reasoning(level, request),
             &[],
+        )
+    }
+
+    #[test]
+    fn automatic_lets_each_model_use_its_own_default() {
+        let request = ChatRequest::new("s", "u").max_tokens(1_000);
+        let quiet = llama_body("gemma4-e4b", ReasoningLevel::Automatic, &request);
+        assert_eq!(quiet["max_tokens"], 1_000);
+        for field in ["thinking_budget_tokens", "chat_template_kwargs"] {
+            assert!(quiet.get(field).is_none(), "{field}: {quiet}");
+        }
+        for model in ["qwen3.5-4b", "lfm2.5-8b-a1b", "hf:org/custom"] {
+            let thinking = llama_body(model, ReasoningLevel::Automatic, &request);
+            assert_eq!(thinking["max_tokens"], 2_000, "{model}");
+            assert_eq!(thinking["thinking_budget_tokens"], 1_000, "{model}");
+            assert!(thinking.get("chat_template_kwargs").is_none(), "{model}");
+        }
+        let long = llama_body(
+            "qwen3.5-4b",
+            ReasoningLevel::Automatic,
+            &ChatRequest::new("s", "u").max_tokens(20_000),
         );
-        assert_eq!(body["thinking_budget_tokens"], 500);
-        assert!(body.get("chat_template_kwargs").is_none());
+        assert_eq!(long["thinking_budget_tokens"], DEFAULT_THINKING_BUDGET);
+        assert_eq!(long["max_tokens"], 20_000 + DEFAULT_THINKING_BUDGET);
+        let open = llama_body(
+            "qwen3.5-4b",
+            ReasoningLevel::Automatic,
+            &ChatRequest::new("s", "u"),
+        );
+        assert_eq!(open["thinking_budget_tokens"], DEFAULT_THINKING_BUDGET);
+        assert!(open.get("max_tokens").is_none());
         let body = chat_body(
             Dialect::LlamaServer,
             "m",
             &ChatRequest::new("s", "u"),
-            None,
-            Some(DEFAULT_THINKING_BUDGET),
+            RequestReasoning::default(),
             &[("temperature", 0.05)],
         );
-        assert_eq!(body["thinking_budget_tokens"], 8192);
         assert_eq!(body["temperature"], 0.05);
+    }
+
+    #[test]
+    fn off_requests_keep_todays_bodies() {
+        let off = ChatRequest::new("s", "u")
+            .max_tokens(900)
+            .temperature(0.3)
+            .reasoning(TaskReasoning::Off);
+        for model in [
+            "qwen3.5-4b",
+            "gemma4-e4b",
+            "lfm2.5-8b-a1b",
+            "ministral-3-3b-instruct-2512",
+        ] {
+            let body = llama_body(model, ReasoningLevel::Automatic, &off);
+            assert_eq!(body["max_tokens"], 900, "{model}");
+            assert_eq!(body["thinking_budget_tokens"], 0, "{model}");
+            assert_eq!(
+                body["chat_template_kwargs"],
+                json!({"enable_thinking": false}),
+                "{model}"
+            );
+        }
+        let chosen = llama_body("qwen3.5-4b", ReasoningLevel::High, &off);
+        assert_eq!(chosen["thinking_budget_tokens"], 0);
+        assert_eq!(chosen["chat_template_kwargs"]["enable_thinking"], false);
+        let lfm = llama_body("lfm2.5-2.6b", ReasoningLevel::Automatic, &off);
+        assert_eq!(lfm["thinking_budget_tokens"], 0);
+        assert_eq!(lfm["max_tokens"], 900);
+
+        let openai = chat_body(
+            Dialect::OpenAi,
+            "gpt-5-mini",
+            &off,
+            RequestReasoning::default(),
+            &[],
+        );
+        assert_eq!(openai["max_completion_tokens"], 900);
+        assert!(openai.get("reasoning_effort").is_none() && openai.get("temperature").is_none());
+        let router = chat_body(
+            Dialect::OpenRouter,
+            "meta/llama",
+            &off,
+            RequestReasoning::default(),
+            &[],
+        );
+        assert_eq!(router["max_tokens"], 900);
+        assert_eq!(router["reasoning"], json!({"effort": "none"}));
+        assert_eq!(router["provider"]["require_parameters"], true);
+        assert!(router.get("temperature").is_some());
+        let generic = chat_body(
+            Dialect::Generic,
+            "x",
+            &off,
+            RequestReasoning::default(),
+            &[],
+        );
+        assert_eq!(generic["max_tokens"], 900);
+        assert!(generic.get("reasoning_effort").is_none());
+        let ollama = ollama_body("qwen3:8b", &off, RequestReasoning::default(), false);
+        assert_eq!(ollama["think"], false);
+        assert_eq!(ollama["options"]["num_predict"], 900);
+    }
+
+    #[test]
+    fn a_chosen_level_applies_to_every_task() {
         let support = ReasoningSupport::built_in(catalog::entry("qwen3.5-4b").unwrap());
+        let model_default = TaskReasoning::ModelDefault;
         assert_eq!(
-            support.request_level(ReasoningLevel::High, Some(256)),
+            support.request_level(ReasoningLevel::Low, model_default),
             Some(ReasoningLevel::Low)
         );
         assert_eq!(
-            support.request_level(ReasoningLevel::Low, None),
-            Some(ReasoningLevel::Low)
-        );
-        assert_eq!(
-            support.request_level(ReasoningLevel::Max, None),
+            support.request_level(ReasoningLevel::Max, model_default),
             Some(ReasoningLevel::High)
         );
         assert_eq!(
-            support.request_level(ReasoningLevel::Automatic, Some(0)),
+            support.request_level(ReasoningLevel::Automatic, model_default),
             None
         );
-        let level = support.request_level(ReasoningLevel::Off, Some(4096));
-        let body = chat_body(
-            Dialect::LlamaServer,
-            "m",
-            &ChatRequest::new("s", "u").reasoning_budget(4096),
-            level,
-            Some(8192),
-            &[],
+        assert_eq!(
+            support.request_level(ReasoningLevel::Automatic, TaskReasoning::Off),
+            Some(ReasoningLevel::Off)
         );
-        assert_eq!(body["thinking_budget_tokens"], 0);
+        let request = ChatRequest::new("s", "u").max_tokens(300);
+        let medium = llama_body("qwen3.5-4b", ReasoningLevel::Medium, &request);
+        assert_eq!(medium["thinking_budget_tokens"], 4_096);
+        assert_eq!(medium["max_tokens"], 300 + 4_096);
+        assert!(medium.get("chat_template_kwargs").is_none());
+        for model in ["gemma4-e4b", "qwen3.5-0.8b", "granite-4.1-3b"] {
+            let woken = llama_body(model, ReasoningLevel::Low, &request);
+            assert_eq!(woken["thinking_budget_tokens"], 512, "{model}");
+            assert_eq!(woken["max_tokens"], 300 + 512, "{model}");
+            assert_eq!(
+                woken["chat_template_kwargs"],
+                json!({"enable_thinking": true}),
+                "{model}"
+            );
+        }
+        let off = llama_body("gemma4-e4b", ReasoningLevel::Off, &request);
+        assert_eq!(off["thinking_budget_tokens"], 0);
+        assert_eq!(off["max_tokens"], 300);
+        assert_eq!(off["chat_template_kwargs"]["enable_thinking"], false);
+    }
+
+    #[test]
+    fn built_in_models_know_their_default_reasoning() {
+        use ReasoningLevel::*;
+        let default =
+            |id: &str| ReasoningSupport::built_in(catalog::entry(id).unwrap()).default_level;
+        for id in [
+            "qwen3.5-4b",
+            "qwen3.6-35b-a3b",
+            "qwen3.6-27b",
+            "lfm2.5-2.6b",
+        ] {
+            assert_eq!(default(id), Some(High), "{id}");
+        }
+        for id in [
+            "qwen3.5-0.8b",
+            "qwen3.5-2b",
+            "gemma4-e4b",
+            "gemma4-e4b-q5-xl",
+            "gemma4-12b",
+            "lfm2.5-1.2b-instruct",
+            "granite-4.1-3b",
+            "ministral-3-3b-instruct-2512",
+        ] {
+            assert_eq!(default(id), Some(Off), "{id}");
+        }
+        assert_eq!(default("lfm2.5-8b-a1b"), None);
+        let ministral =
+            ReasoningSupport::built_in(catalog::entry("ministral-3-3b-instruct-2512").unwrap());
+        assert!(ministral.levels.is_empty());
+        assert_eq!(
+            ReasoningSupport::built_in(catalog::entry("lfm2.5-2.6b").unwrap()).levels,
+            vec![Low, Medium, High]
+        );
+        let settings = Settings {
+            built_in_model_id: "gemma4-12b".into(),
+            ..Settings::default()
+        };
+        assert_eq!(reasoning_choices(&settings).1, Some(Off));
     }
 
     #[test]
     fn dialects_get_their_own_fields() {
-        let request = ChatRequest::new("s", "u")
-            .max_tokens(900)
-            .temperature(0.3)
-            .reasoning_budget(256);
-        let openai = chat_body(Dialect::OpenAi, "gpt-5-mini", &request, None, None, &[]);
-        assert_eq!(openai["max_completion_tokens"], 900);
+        let request = ChatRequest::new("s", "u").max_tokens(900).temperature(0.3);
+        let thinking = RequestReasoning {
+            allowance: 900,
+            ..Default::default()
+        };
+        let openai = chat_body(Dialect::OpenAi, "gpt-5-mini", &request, thinking, &[]);
+        assert_eq!(openai["max_completion_tokens"], 1_800);
         assert!(openai.get("temperature").is_none());
+        assert!(
+            openai.get("reasoning_effort").is_none(),
+            "the model's default"
+        );
+        let chosen = RequestReasoning {
+            level: Some(ReasoningLevel::Low),
+            ..thinking
+        };
+        let openai = chat_body(Dialect::OpenAi, "gpt-5-mini", &request, chosen, &[]);
         assert_eq!(openai["reasoning_effort"], "low");
-        let openai_chat = chat_body(Dialect::OpenAi, "gpt-4.1", &request, None, None, &[]);
+        let openai_chat = chat_body(Dialect::OpenAi, "gpt-4.1", &request, thinking, &[]);
         assert!((openai_chat["temperature"].as_f64().unwrap() - 0.3).abs() < 1e-6);
         assert!(openai_chat.get("reasoning_effort").is_none());
 
-        let router = chat_body(Dialect::OpenRouter, "meta/llama", &request, None, None, &[]);
-        assert_eq!(router["reasoning"]["max_tokens"], 256);
-        assert_eq!(router["reasoning"]["exclude"], true);
+        let router = chat_body(Dialect::OpenRouter, "meta/llama", &request, thinking, &[]);
+        assert_eq!(router["max_tokens"], 1_800);
+        assert!(router.get("reasoning").is_none(), "{router}");
         assert_eq!(router["provider"]["data_collection"], "deny");
+        assert!(router["provider"].get("require_parameters").is_none());
+        assert!(router.get("temperature").is_some());
+        let router = chat_body(Dialect::OpenRouter, "meta/llama", &request, chosen, &[]);
+        assert_eq!(
+            router["reasoning"],
+            json!({"effort": "low", "exclude": true})
+        );
         assert_eq!(router["provider"]["require_parameters"], true);
         assert!(router.get("temperature").is_none());
-        let off = chat_body(
-            Dialect::OpenRouter,
-            "m",
-            &ChatRequest::new("s", "u")
-                .reasoning_budget(0)
-                .temperature(0.2),
-            None,
-            None,
-            &[],
-        );
-        assert_eq!(off["reasoning"]["effort"], "none");
-        assert!(off.get("temperature").is_some());
 
-        let generic = chat_body(Dialect::Generic, "x", &request, None, None, &[]);
-        assert_eq!(generic["max_tokens"], 900);
+        let generic = chat_body(Dialect::Generic, "x", &request, thinking, &[]);
+        assert_eq!(generic["max_tokens"], 1_800);
         assert!(
             generic.get("reasoning_effort").is_none()
                 && generic.get("thinking_budget_tokens").is_none()
@@ -2636,8 +2917,10 @@ mod tests {
             Dialect::Generic,
             "x",
             &request,
-            Some(ReasoningLevel::Medium),
-            None,
+            RequestReasoning {
+                level: Some(ReasoningLevel::Medium),
+                ..Default::default()
+            },
             &[],
         );
         assert_eq!(generic["reasoning_effort"], "medium");
@@ -2663,9 +2946,12 @@ mod tests {
         let known = |model| ReasoningSupport::known(Dialect::OpenAi, "", model);
         let sol = known("GPT-6.1-Sol");
         assert_eq!(sol, ReasoningSupport::new(&up_to_max, Some(Medium)));
-        assert_eq!(sol.request_level(High, None), Some(High));
         assert_eq!(
-            sol.request_level(High, Some(0)),
+            sol.request_level(High, TaskReasoning::ModelDefault),
+            Some(High)
+        );
+        assert_eq!(
+            sol.request_level(High, TaskReasoning::Off),
             Some(Low),
             "6.1 Sol rejects none"
         );
@@ -2693,12 +2979,24 @@ mod tests {
         assert_eq!(reasoning_choices(&settings), (up_to_max, Some(Medium)));
         assert_eq!(plans::chatgpt::context_tokens("gpt-6.1-sol"), 922_000);
 
-        let request = ChatRequest::new("s", "u")
-            .temperature(0.3)
-            .reasoning_budget(1_024);
-        let body = chat_body(Dialect::OpenAi, "gpt-6.1-sol", &request, None, None, &[]);
+        let request = ChatRequest::new("s", "u").temperature(0.3);
+        let body = chat_body(
+            Dialect::OpenAi,
+            "gpt-6.1-sol",
+            &request,
+            sol.request_reasoning(Automatic, &request),
+            &[],
+        );
         assert!(body.get("temperature").is_none());
-        assert_eq!(body["reasoning_effort"], "medium");
+        assert!(body.get("reasoning_effort").is_none());
+        let body = chat_body(
+            Dialect::OpenAi,
+            "gpt-6.1-sol",
+            &request,
+            sol.request_reasoning(High, &request),
+            &[],
+        );
+        assert_eq!(body["reasoning_effort"], "high");
     }
 
     #[test]
@@ -2717,6 +3015,103 @@ mod tests {
         );
         let full = client.complete_full(&ChatRequest::new("s", "u")).unwrap();
         assert!(full.truncated);
+    }
+
+    fn reasoning_only_until_off() -> StubServer {
+        llama_stub(|body| {
+            if body["thinking_budget_tokens"] == 0 {
+                Reply::Json(
+                    200,
+                    json!({"choices": [{"message": {"content": "ok"}, "finish_reason": "stop"}], "usage": {"prompt_tokens": 10, "completion_tokens": 5}}),
+                )
+            } else {
+                Reply::Json(
+                    200,
+                    json!({"choices": [{"message": {"content": "<think>still weighing it"}, "finish_reason": "length"}], "usage": {"prompt_tokens": 10, "completion_tokens": 200}}),
+                )
+            }
+        })
+    }
+
+    #[test]
+    fn a_reply_that_is_all_reasoning_is_asked_again_with_reasoning_off() {
+        let server = reasoning_only_until_off();
+        let client = ThinkClient::llama_server(&server.url("/v1"), "t", "qwen3.5-4b");
+        let completion = client
+            .complete_full(&ChatRequest::new("s", "u").max_tokens(100))
+            .unwrap();
+        assert_eq!(completion.text, "ok");
+        assert!(!completion.truncated);
+        assert_eq!(completion.attempts, 2);
+        assert_eq!(
+            completion.usage,
+            Some(Usage {
+                prompt_tokens: Some(20),
+                completion_tokens: Some(205),
+            })
+        );
+        let bodies: Vec<Value> = server
+            .requests()
+            .iter()
+            .filter(|r| r.path == "/v1/chat/completions")
+            .map(|r| r.json())
+            .collect();
+        assert_eq!(bodies.len(), 2);
+        assert_eq!(bodies[0]["max_tokens"], 200);
+        assert_eq!(bodies[0]["thinking_budget_tokens"], 100);
+        assert_eq!(bodies[1]["max_tokens"], 100);
+        assert_eq!(bodies[1]["chat_template_kwargs"]["enable_thinking"], false);
+
+        for request in [
+            ChatRequest::new("s", "u")
+                .max_tokens(100)
+                .reasoning(TaskReasoning::Off),
+            ChatRequest::new("s", "u").max_tokens(100).keep_truncated(),
+        ] {
+            let server = llama_stub(|_| chat_reply("<think>still", "length"));
+            let client = ThinkClient::llama_server(&server.url("/v1"), "t", "qwen3.5-4b");
+            let completion = client.complete_full(&request).unwrap();
+            assert!(completion.truncated);
+            assert_eq!(completion.attempts, 1);
+            assert_eq!(server.requests().len(), 1);
+        }
+        let server = llama_stub(|_| chat_reply("<think>still", "length"));
+        let quiet = ThinkClient::llama_server(&server.url("/v1"), "t", "gemma4-e4b");
+        let completion = quiet
+            .complete_full(&ChatRequest::new("s", "u").max_tokens(100))
+            .unwrap();
+        assert_eq!(completion.attempts, 1, "no reasoning room, no retry");
+        assert_eq!(server.requests().len(), 1);
+    }
+
+    #[test]
+    fn a_streamed_reply_that_is_all_reasoning_streams_again_with_reasoning_off() {
+        let server = StubServer::start(|request| {
+            if request.json()["thinking_budget_tokens"] == 0 {
+                Reply::Sse(vec![
+                    json!({"choices": [{"delta": {"content": "Hi"}, "finish_reason": null}]})
+                        .to_string(),
+                    json!({"choices": [{"delta": {}, "finish_reason": "stop"}]}).to_string(),
+                ])
+            } else {
+                Reply::Sse(vec![
+                    json!({"choices": [{"delta": {"content": "<think>hmm"}, "finish_reason": null}]})
+                        .to_string(),
+                    json!({"choices": [{"delta": {}, "finish_reason": "length"}]}).to_string(),
+                ])
+            }
+        });
+        let client = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
+        let mut deltas = String::new();
+        let completion = client
+            .stream_full(&ChatRequest::new("s", "u").max_tokens(64), None, &mut |d| {
+                deltas.push_str(d)
+            })
+            .unwrap();
+        assert_eq!(deltas, "Hi");
+        assert_eq!(completion.text, "Hi");
+        assert_eq!(completion.attempts, 2);
+        assert_eq!(server.requests().len(), 2);
     }
 
     #[test]
@@ -2842,7 +3237,7 @@ mod tests {
         let text = client
             .complete(
                 &ChatRequest::new("s", "u")
-                    .reasoning_budget(0)
+                    .reasoning(TaskReasoning::Off)
                     .max_tokens(50)
                     .json_schema(schema),
             )
@@ -2854,6 +3249,12 @@ mod tests {
         assert_eq!(body["format"]["type"], "object");
         assert_eq!(body["options"]["num_ctx"], 16_384);
         assert_eq!(body["options"]["num_predict"], 50);
+        client
+            .complete(&ChatRequest::new("s", "u").max_tokens(50))
+            .unwrap();
+        let body = server.last_json("/api/chat");
+        assert!(body.get("think").is_none(), "{body}");
+        assert_eq!(body["options"]["num_predict"], 100);
         let mut seen = String::new();
         assert_eq!(
             client
@@ -3083,9 +3484,15 @@ mod tests {
         let request =
             ChatRequest::new("s", "Instruction").context(vec!["Transcript".into(), String::new()]);
         assert_eq!(request.user_text(), "Transcript\n\n\n\nInstruction");
-        let body = chat_body(Dialect::Generic, "m", &request, None, None, &[]);
+        let body = chat_body(
+            Dialect::Generic,
+            "m",
+            &request,
+            RequestReasoning::default(),
+            &[],
+        );
         assert_eq!(body["messages"][1]["content"], request.user_text());
-        let ollama = ollama_body("m", &request, None, false);
+        let ollama = ollama_body("m", &request, RequestReasoning::default(), false);
         assert_eq!(ollama["messages"][1]["content"], request.user_text());
         assert_eq!(ChatRequest::new("s", "u").user_text(), "u");
     }
@@ -3093,7 +3500,13 @@ mod tests {
     #[test]
     fn openrouter_follows_the_chosen_data_policy() {
         let request = ChatRequest::new("s", "u");
-        let body = chat_body(Dialect::OpenRouter, "m", &request, None, None, &[]);
+        let body = chat_body(
+            Dialect::OpenRouter,
+            "m",
+            &request,
+            RequestReasoning::default(),
+            &[],
+        );
         assert_eq!(
             with_data_policy(body.clone(), OpenRouterDataPolicy::PrivateOnly)["provider"]["data_collection"],
             "deny"
@@ -3101,7 +3514,13 @@ mod tests {
         let allowed = with_data_policy(body, OpenRouterDataPolicy::AccountPolicy);
         assert_eq!(allowed["provider"]["data_collection"], "allow");
         let generic = with_data_policy(
-            chat_body(Dialect::Generic, "m", &request, None, None, &[]),
+            chat_body(
+                Dialect::Generic,
+                "m",
+                &request,
+                RequestReasoning::default(),
+                &[],
+            ),
             OpenRouterDataPolicy::AccountPolicy,
         );
         assert!(generic.get("provider").is_none());

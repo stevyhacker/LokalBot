@@ -39,7 +39,11 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         var hasTokenizer = true
         var minimumStructuredOutputTokens = 512
         var structuredOutputEnumLimit: Int?
+        var reasoningAllowanceTokens = 0
         var displayName: String { "Notes fixture" }
+        func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+            options?.reasoning == .off ? 0 : reasoningAllowanceTokens
+        }
         func tokenCount(_ text: String) async throws -> Int? { hasTokenizer ? await script.count(text) : nil }
         func generate(system: String, prompt: String, context: [String]) async throws -> String {
             try await script.next(prompt: prompt, options: .init())
@@ -95,7 +99,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let result = try await generate(script)
         let calls = await script.recorded()
         XCTAssertEqual(calls.count, 1, "there must be no second transcript scan or narrative synthesis")
-        XCTAssertEqual(calls[0].options.reasoningBudgetTokens, 0)
+        XCTAssertEqual(calls[0].options.reasoning, .modelDefault, "notes use the model's own reasoning")
         XCTAssertEqual(result.outcomes.userActionItems.count, 1)
         XCTAssertEqual(result.outcomes.decisionRecords.count, 1)
         XCTAssertEqual(result.outcomes.openQuestions.count, 1)
@@ -1396,6 +1400,35 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let calls = await requested.recorded()
         XCTAssertEqual(calls.count, 1)
         XCTAssertEqual(result.claims.count, 1)
+    }
+
+    func testNotesRequestKeepsTheModelDefaultWhenItsThinkingRoomFits() async throws {
+        let script = Script([.text(try response(notes: [note()], actions: [action()]))])
+        _ = try await generate(script, engine: Engine(script: script, reasoningAllowanceTokens: 4_096))
+        let calls = await script.recorded()
+        XCTAssertEqual(calls.first?.options.reasoning, .modelDefault)
+    }
+
+    func testNotesRequestSkipsReasoningWhenOnlyTheThinkingRoomWouldNotFit() async throws {
+        let script = Script([.text(try response(notes: [note()], actions: [action()]))])
+        _ = try await generate(script, engine: Engine(script: script, reasoningAllowanceTokens: 30_000))
+        let calls = await script.recorded()
+        XCTAssertEqual(calls.first?.options.reasoning, .off, "the answer still fits without the thinking room")
+    }
+
+    func testBudgetThatMayReasonDoublesItsLimitsAndKeepsAnswerSizes() async throws {
+        let reasoning = MeetingGenerationBudget()
+        await reasoning.recordPlan(model: "fixture", transcriptRevision: "revision", parts: 4, mayReason: true)
+        let plain = MeetingGenerationBudget()
+        await plain.recordPlan(model: "fixture", transcriptRevision: "revision", parts: 4)
+        for desired in [512, 4_096, 16_384] {
+            let withReasoning = try await reasoning.allowance(remainingParts: 4, desired: desired)
+            let withoutReasoning = try await plain.allowance(remainingParts: 4, desired: desired)
+            XCTAssertEqual(withReasoning, withoutReasoning, "desired \(desired)")
+        }
+        let reasoningSeconds = await reasoning.remainingSeconds
+        let plainSeconds = await plain.remainingSeconds
+        XCTAssertEqual(reasoningSeconds, plainSeconds * 2, accuracy: 5)
     }
 
     func testLargerPartsKeepTheBudgetOfTheStandardPartsTheyCover() async throws {

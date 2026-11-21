@@ -68,10 +68,10 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         fetch: inferenceFetch,
         onPayload: async (payload, payloadModel) => {
           const upstream = (await options?.onPayload?.(payload, payloadModel)) ?? payload;
-          const level = readReasoningLevel(reasoningFile);
+          const { level, defaultOff } = readReasoningPreference(reasoningFile);
           return api === "openai-responses"
             ? applyResponsesReasoningLevel(upstream as Record<string, unknown>, level)
-            : applyReasoningLevel(upstream as Record<string, unknown>, level, dialect, model);
+            : applyReasoningLevel(upstream as Record<string, unknown>, level, dialect, model, defaultOff);
         },
       },
     ),
@@ -176,13 +176,15 @@ export function reasoningDialect(value: string | undefined): ReasoningDialect {
   return value as ReasoningDialect;
 }
 
-export function readReasoningLevel(path: string | undefined): ReasoningLevel {
-  if (!path) return "automatic";
+export function readReasoningPreference(path: string | undefined): { level: ReasoningLevel; defaultOff: boolean } {
+  const automatic = { level: "automatic" as ReasoningLevel, defaultOff: false };
+  if (!path) return automatic;
   try {
-    const level = (JSON.parse(readFileSync(path, "utf8")) as { level?: unknown }).level;
-    return (REASONING_LEVELS as readonly unknown[]).includes(level) ? level as ReasoningLevel : "automatic";
+    const file = JSON.parse(readFileSync(path, "utf8")) as { level?: unknown; defaultOff?: unknown };
+    if (!(REASONING_LEVELS as readonly unknown[]).includes(file.level)) return automatic;
+    return { level: file.level as ReasoningLevel, defaultOff: file.defaultOff === true };
   } catch {
-    return "automatic";
+    return automatic;
   }
 }
 
@@ -191,6 +193,7 @@ export function applyReasoningLevel(
   level: ReasoningLevel,
   dialect: ReasoningDialect,
   model: string,
+  defaultOff = false,
 ): Record<string, unknown> {
   if (level === "automatic") return payload;
   const effort = level === "off" ? "none" : level;
@@ -201,9 +204,11 @@ export function applyReasoningLevel(
         ? Math.min(THINKING_BUDGETS[level], Math.floor(ceiling / 2))
         : THINKING_BUDGETS[level];
       const shaped: Record<string, unknown> = { ...payload, thinking_budget_tokens: budget };
+      const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
       if (budget === 0) {
-        const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
         shaped.chat_template_kwargs = { ...kwargs, enable_thinking: false };
+      } else if (defaultOff) {
+        shaped.chat_template_kwargs = { ...kwargs, enable_thinking: true };
       }
       return shaped;
     }

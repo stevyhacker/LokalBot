@@ -208,7 +208,6 @@ pub fn generate_from(think: &ThinkClient, evidence: &Evidence) -> Result<FollowU
     );
     let request = ChatRequest::new(FOLLOW_UP_SYSTEM, user)
         .max_tokens(900)
-        .reasoning_budget(256)
         .temperature(0.3)
         .json_schema(schema());
     let output = think.complete(&request)?;
@@ -511,7 +510,8 @@ mod tests {
             user.ends_with("Draft the follow-up email for Customer call - Northwind."),
             "{user}"
         );
-        assert_eq!(body["max_tokens"], 900);
+        assert_eq!(body["max_tokens"], 900 + 900);
+        assert_eq!(body["thinking_budget_tokens"], 900);
         assert_eq!(body["response_format"]["type"], "json_schema");
     }
 

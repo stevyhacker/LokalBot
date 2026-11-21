@@ -1503,7 +1503,11 @@ impl AgentSession {
         if self.written_reasoning_level == Some(level) {
             return;
         }
-        let body = serde_json::json!({ "level": reasoning_key(level) }).to_string();
+        let body = serde_json::json!({
+            "level": reasoning_key(level),
+            "defaultOff": choices.default_level == Some(ReasoningLevel::Off),
+        })
+        .to_string();
         match lokalbot_core::library::write_atomic(&self.reasoning_level_file, body.as_bytes()) {
             Ok(()) => self.written_reasoning_level = Some(level),
             Err(err) => log::warn!("agent reasoning level write failed: {err}"),

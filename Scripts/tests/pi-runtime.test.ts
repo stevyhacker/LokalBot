@@ -7,7 +7,7 @@ import { resolve, join } from "node:path";
 import { pathToFileURL } from "node:url";
 import lokalbotExtension, {
   applyReasoningLevel, applyResponsesReasoningLevel, environmentSection, inferenceFetchForOrigin, providerAPI,
-  readReasoningLevel, retryRejectedReasoning,
+  readReasoningPreference, retryRejectedReasoning,
 } from "../../LokalBot/Resources/pi/lokalbot-extension/index";
 import * as boundary from "../../LokalBot/Resources/pi/lokalbot-extension/index";
 
@@ -718,20 +718,30 @@ test("a reasoning level becomes each server's own request fields", () => {
   const off = applyReasoningLevel({ ...base, chat_template_kwargs: { keep: 1 } }, "off", "llama-server", "q");
   expect(off.thinking_budget_tokens).toBe(0);
   expect(off.chat_template_kwargs).toEqual({ keep: 1, enable_thinking: false });
+  expect(medium.chat_template_kwargs).toBeUndefined();
+  const woken = applyReasoningLevel({ ...base, chat_template_kwargs: { keep: 1 } }, "low", "llama-server", "gemma4-e4b", true);
+  expect(woken.thinking_budget_tokens).toBe(512);
+  expect(woken.chat_template_kwargs).toEqual({ keep: 1, enable_thinking: true });
+  const quietOff = applyReasoningLevel(base, "off", "llama-server", "gemma4-e4b", true);
+  expect(quietOff.chat_template_kwargs).toEqual({ enable_thinking: false });
+  expect(applyReasoningLevel(base, "high", "generic", "gemma", true).chat_template_kwargs).toBeUndefined();
 });
 
 test("the level file is read fresh and anything unreadable is Automatic", async () => {
   const root = await mkdtemp(join(tmpdir(), "lokalbot-reasoning-"));
   try {
     const file = join(root, "level.json");
-    expect(readReasoningLevel(undefined)).toBe("automatic");
-    expect(readReasoningLevel(file)).toBe("automatic");
+    const automatic = { level: "automatic", defaultOff: false };
+    expect(readReasoningPreference(undefined)).toEqual(automatic);
+    expect(readReasoningPreference(file)).toEqual(automatic);
     await writeFile(file, JSON.stringify({ level: "low" }));
-    expect(readReasoningLevel(file)).toBe("low");
-    await writeFile(file, JSON.stringify({ level: "extreme" }));
-    expect(readReasoningLevel(file)).toBe("automatic");
+    expect(readReasoningPreference(file)).toEqual({ level: "low", defaultOff: false });
+    await writeFile(file, JSON.stringify({ level: "medium", defaultOff: true }));
+    expect(readReasoningPreference(file)).toEqual({ level: "medium", defaultOff: true });
+    await writeFile(file, JSON.stringify({ level: "extreme", defaultOff: true }));
+    expect(readReasoningPreference(file)).toEqual(automatic);
     await writeFile(file, "not json");
-    expect(readReasoningLevel(file)).toBe("automatic");
+    expect(readReasoningPreference(file)).toEqual(automatic);
   } finally { await rm(root, { recursive: true, force: true }); }
 });
 
@@ -793,6 +803,49 @@ test("the registered provider sends the level LokalBot writes, and follows a cha
     }, baseUrl, { LOKALBOT_LLM_REASONING_DIALECT: "generic", LOKALBOT_LLM_REASONING_FILE: file });
     expect(bodies.map((body) => body.reasoning_effort)).toEqual([undefined, "low", "none"]);
     expect(bodies[0].messages[0].role).not.toBe("developer");
+  } finally {
+    server.stop(true);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the registered provider turns thinking on for a model that thinks only when asked", async () => {
+  const bodies: any[] = [];
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
+    async fetch(request) {
+      bodies.push(await request.json());
+      const chunk = (delta: object, finish: string | null) =>
+        `data: ${JSON.stringify({ id: "c", object: "chat.completion.chunk", created: 0, model: "fixture",
+          choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+      return new Response(chunk({ role: "assistant", content: "ok" }, null) + chunk({}, "stop") + "data: [DONE]\n\n",
+        { headers: { "content-type": "text/event-stream" } });
+    },
+  });
+  const root = await mkdtemp(join(tmpdir(), "lokalbot-reasoning-"));
+  const file = join(root, "level.json");
+  try {
+    const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+    await withExtensionFixture(async ({ provider }) => {
+      const model = { ...provider.models[0], provider: "lokalbot", api: provider.api,
+        baseUrl, maxTokens: 128, name: "Fixture", reasoning: false };
+      const ask = async () => {
+        const stream = provider.streamSimple(model, {
+          messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+        }, { apiKey: "synthetic-token", maxRetries: 0, timeoutMs: 2_000 });
+        for await (const _ of stream) {}
+      };
+      await writeFile(file, JSON.stringify({ level: "low", defaultOff: true }));
+      await ask();
+      await writeFile(file, JSON.stringify({ level: "low", defaultOff: false }));
+      await ask();
+      await writeFile(file, JSON.stringify({ level: "off", defaultOff: true }));
+      await ask();
+    }, baseUrl, { LOKALBOT_LLM_REASONING_DIALECT: "llama-server", LOKALBOT_LLM_REASONING_FILE: file });
+    expect(bodies[0].thinking_budget_tokens).toBeGreaterThan(0);
+    expect(bodies[0].chat_template_kwargs?.enable_thinking).toBe(true);
+    expect(bodies[1].chat_template_kwargs?.enable_thinking).not.toBe(true);
+    expect(bodies[2].thinking_budget_tokens).toBe(0);
+    expect(bodies[2].chat_template_kwargs?.enable_thinking).toBe(false);
   } finally {
     server.stop(true);
     await rm(root, { recursive: true, force: true });

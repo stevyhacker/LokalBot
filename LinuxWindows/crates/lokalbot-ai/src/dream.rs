@@ -33,8 +33,6 @@ pub const MAX_OPEN_ACTIONS: usize = 30;
 pub const EMPTY_DAY_TRACKED_SECONDS_FLOOR: f64 = 300.0;
 
 const MAX_OUTPUT_TOKENS: u32 = 4_096;
-const REASONING_BUDGET_TOKENS: u32 = 1_024;
-const TRUNCATION_RETRY_OUTPUT_TOKENS: u32 = 6_144;
 const MAX_LIST_ITEMS: usize = 8;
 const MAX_TOP_ACTIONS: usize = 3;
 const MAX_LINE_CHARACTERS: usize = 400;
@@ -719,26 +717,12 @@ fn generate_synthesis(
     evidence: &DreamEvidence,
     memory: &DreamMemory,
 ) -> Result<String> {
-    let first = ChatRequest::new(prompts::DREAM_SYSTEM, prompt(evidence))
+    let request = ChatRequest::new(prompts::DREAM_SYSTEM, prompt(evidence))
         .context(context(evidence, memory))
         .json_schema(schema())
         .max_tokens(MAX_OUTPUT_TOKENS)
-        .reasoning_budget(REASONING_BUDGET_TOKENS)
         .temperature(0.2);
-    match think.complete(&first) {
-        Ok(text) => Ok(text),
-        Err(err) if matches!(ai_error(&err), Some(AiError::Truncated { .. })) => {
-            log::info!("dreaming: reply hit the output limit, retrying without reasoning");
-            let retry = ChatRequest::new(prompts::DREAM_SYSTEM, prompt(evidence))
-                .context(context(evidence, memory))
-                .json_schema(schema())
-                .max_tokens(TRUNCATION_RETRY_OUTPUT_TOKENS)
-                .reasoning_budget(0)
-                .temperature(0.0);
-            think.complete(&retry)
-        }
-        Err(err) => Err(err),
-    }
+    think.complete(&request)
 }
 
 pub fn inference_provenance(think: &ThinkClient, settings: &Settings) -> InferenceProvenance {

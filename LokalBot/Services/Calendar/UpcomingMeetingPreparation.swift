@@ -473,7 +473,6 @@ enum UpcomingMeetingBriefGenerator {
             schema: schema,
             options: TextGenerationOptions(
                 maxTokens: 420,
-                reasoningBudgetTokens: 256,
                 temperature: 0.2))
         guard let json = ChatPrompt.extractJSONObject(strippingReasoning(output)),
               let data = json.data(using: .utf8),

@@ -19,7 +19,7 @@ use lokalbot_core::model::{ActionItem, Meeting, MeetingOutcomes, Transcript};
 use lokalbot_core::settings::{NoteTemplate, Settings};
 
 use crate::error::AiError;
-use crate::think::{ChatRequest, ThinkClient};
+use crate::think::{ChatRequest, TaskReasoning, ThinkClient};
 use crate::{json as model_json, language, prompts, sanitize};
 
 use budget::{Budget, Limits};
@@ -161,6 +161,9 @@ pub fn generate_meeting_notes_with(
         limits.seconds *= 3.0;
     }
     let mut budget = Budget::new(limits);
+    if may_reason(think) {
+        budget.allow_reasoning();
+    }
 
     progress("Planning the notes…");
     let chunks = make_chunks(
@@ -416,6 +419,10 @@ fn calendar_lines(meeting: &Meeting, lines: &mut Vec<String>) {
 const STANDARD_PART_TOKENS: u32 = 6_000;
 const ENVELOPE_TOKENS: u32 = 1_536;
 
+fn may_reason(think: &ThinkClient) -> bool {
+    think.reasoning_allowance(&ChatRequest::new("", "").max_tokens(4_096)) > 0
+}
+
 fn notes_part_tokens(context_tokens: u32) -> u32 {
     match context_tokens {
         128_000.. => 24_000,
@@ -540,23 +547,32 @@ fn request(
     if input + tokens > context_tokens {
         return Err(AiError::BadResponse("Notes request cannot fit the model's input allowance. Source-linked progress was saved.".into()).into());
     }
-    budget.reserve(u64::from(input), u64::from(tokens))?;
-    let request = ChatRequest::new(system, prompt)
+    let mut request = ChatRequest::new(system, prompt)
         .context(context.to_vec())
         .max_tokens(tokens)
-        .reasoning_budget(0)
         .temperature(0.0)
         .json_schema(schema.clone());
+    if truncation_retry {
+        request = request.reasoning(TaskReasoning::Off);
+    }
+    let mut thinking = think.reasoning_allowance(&request);
+    if input + tokens + thinking > context_tokens {
+        request = request.reasoning(TaskReasoning::Off);
+        thinking = think.reasoning_allowance(&request);
+    }
+    let reserved = u64::from(tokens) + u64::from(thinking);
+    budget.reserve(u64::from(input), reserved)?;
     let completion = match think.complete_full(&request) {
         Ok(completion) => completion,
         Err(err) => {
-            budget.finish(u64::from(tokens), None);
+            budget.finish(reserved, None, 1);
             return Err(err);
         }
     };
     budget.finish(
-        u64::from(tokens),
+        reserved,
         completion.usage.as_ref().and_then(|u| u.completion_tokens),
+        completion.attempts,
     );
     log::info!(
         "notes {stage}: {} chars, truncated={}",

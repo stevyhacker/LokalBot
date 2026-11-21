@@ -62,8 +62,6 @@ final class ThinkExecution {
                 apiKey: authenticationToken,
                 extraBody: MainLLMRuntimePolicy.requestOverrides(for: entry.id),
                 chatDialect: .llamaServer,
-                defaultThinkingBudgetTokens:
-                    MainLLMRuntimePolicy.highReasoningBudgetTokens,
                 reasoningLevel: settings.thinkReasoningLevel,
                 reasoningSupport: .known(provider: .builtIn, model: entry.id),
                 displayNameOverride: "Built-in — \(entry.displayName)")

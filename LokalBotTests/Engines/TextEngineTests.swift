@@ -36,27 +36,28 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(strippingReasoning(text), "First\nSecond")
     }
 
-    func testBuiltInHighReasoningBudgetReservesHalfOfBoundedOutput() {
+    func testBuiltInModelDefaultGetsThinkingRoomOnTopOfTheAnswer() {
         var body: [String: Any] = [:]
 
         OpenAICompatibleEngine.applyGenerationOptions(
             to: &body,
             options: TextGenerationOptions(maxTokens: 8_192),
-            defaultThinkingBudgetTokens: MainLLMRuntimePolicy.highReasoningBudgetTokens,
+            reasoningAllowance: MainLLMRuntimePolicy.highReasoningBudgetTokens,
             dialect: .llamaServer,
             model: "local")
 
-        XCTAssertEqual(body["max_tokens"] as? Int, 8_192)
-        XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 4_096)
+        XCTAssertEqual(body["max_tokens"] as? Int, 16_384)
+        XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 8_192)
+        XCTAssertNil(body["chat_template_kwargs"], "the template decides whether to think")
     }
 
-    func testBuiltInHighReasoningUsesFullCeilingWithoutOutputLimit() {
+    func testBuiltInModelDefaultWithoutOutputLimitCapsOnlyTheThinking() {
         var body: [String: Any] = [:]
 
         OpenAICompatibleEngine.applyGenerationOptions(
             to: &body,
             options: nil,
-            defaultThinkingBudgetTokens: MainLLMRuntimePolicy.highReasoningBudgetTokens,
+            reasoningAllowance: MainLLMRuntimePolicy.highReasoningBudgetTokens,
             dialect: .llamaServer,
             model: "local")
 
@@ -64,7 +65,87 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 8_192)
     }
 
-    func testOllamaRequestsSetTheirPlannedContextAndDisableThinkingOnAZeroBudget() {
+    func testBuiltInModelThatDoesNotThinkByDefaultGetsNoReasoningFields() {
+        var body: [String: Any] = [:]
+
+        OpenAICompatibleEngine.applyGenerationOptions(
+            to: &body,
+            options: TextGenerationOptions(maxTokens: 1_024),
+            reasoningAllowance: 0,
+            templateThinksByDefault: false,
+            dialect: .llamaServer,
+            model: "gemma4-12b")
+
+        XCTAssertEqual(body["max_tokens"] as? Int, 1_024)
+        XCTAssertNil(body["thinking_budget_tokens"])
+        XCTAssertNil(body["chat_template_kwargs"])
+    }
+
+    func testChosenLevelTurnsThinkingOnForATemplateThatDefaultsOff() {
+        var body: [String: Any] = [:]
+
+        OpenAICompatibleEngine.applyGenerationOptions(
+            to: &body,
+            options: TextGenerationOptions(maxTokens: 512),
+            reasoningAllowance: 4_096,
+            templateThinksByDefault: false,
+            dialect: .llamaServer,
+            model: "gemma4-12b",
+            requestLevel: .medium)
+
+        XCTAssertEqual(body["max_tokens"] as? Int, 4_608)
+        XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 4_096)
+        XCTAssertEqual((body["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, true)
+    }
+
+    func testReasoningAllowanceFollowsTheModelDefaultTheChosenLevelAndOffTasks() {
+        let qwen = ReasoningSupport.known(provider: .builtIn, model: "qwen3.5-4b")
+        XCTAssertEqual(qwen.reasoningAllowance(.automatic, reasoning: .modelDefault, answerTokens: 4_096), 4_096)
+        XCTAssertEqual(qwen.reasoningAllowance(.automatic, reasoning: .modelDefault, answerTokens: 20_000), 8_192)
+        XCTAssertEqual(qwen.reasoningAllowance(.automatic, reasoning: .modelDefault, answerTokens: nil), 8_192)
+        XCTAssertEqual(qwen.reasoningAllowance(.automatic, reasoning: .off, answerTokens: 4_096), 0)
+        XCTAssertEqual(qwen.reasoningAllowance(.medium, reasoning: .modelDefault, answerTokens: 200), 4_096)
+        XCTAssertEqual(qwen.reasoningAllowance(.medium, reasoning: .off, answerTokens: 200), 0)
+        XCTAssertEqual(qwen.reasoningAllowance(.off, reasoning: .modelDefault, answerTokens: 4_096), 0)
+
+        let gemma = ReasoningSupport.known(provider: .builtIn, model: "gemma4-12b")
+        XCTAssertEqual(gemma.reasoningAllowance(.automatic, reasoning: .modelDefault, answerTokens: 4_096), 0)
+        XCTAssertEqual(gemma.reasoningAllowance(.low, reasoning: .modelDefault, answerTokens: 4_096), 512)
+
+        let ministral = ReasoningSupport.known(provider: .builtIn, model: "ministral-3-3b-instruct-2512")
+        XCTAssertEqual(ministral.reasoningAllowance(.high, reasoning: .modelDefault, answerTokens: 4_096), 0)
+        XCTAssertEqual(ReasoningSupport.common.reasoningAllowance(.automatic, reasoning: .modelDefault,
+                                                                  answerTokens: 900), 900,
+                       "a model whose default is unknown may reason")
+    }
+
+    func testBuiltInEngineLetsEachCatalogModelUseItsOwnDefault() throws {
+        func body(_ model: String, _ options: TextGenerationOptions) throws -> [String: Any] {
+            let engine = OpenAICompatibleEngine(
+                baseURL: URL(string: "http://127.0.0.1:17872/v1")!, model: model, chatDialect: .llamaServer,
+                reasoningSupport: .known(provider: .builtIn, model: model))
+            let request = try engine.makeChatRequest(system: "s", prompt: "p", context: [], schema: nil,
+                                                     options: options)
+            return try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        }
+
+        let qwen = try body("qwen3.5-4b", .init(maxTokens: 4_096))
+        XCTAssertEqual(qwen["max_tokens"] as? Int, 8_192)
+        XCTAssertEqual(qwen["thinking_budget_tokens"] as? Int, 4_096)
+        XCTAssertNil(qwen["chat_template_kwargs"])
+
+        let gemma = try body("gemma4-12b", .init(maxTokens: 4_096))
+        XCTAssertEqual(gemma["max_tokens"] as? Int, 4_096)
+        XCTAssertNil(gemma["thinking_budget_tokens"])
+        XCTAssertNil(gemma["chat_template_kwargs"])
+
+        let off = try body("qwen3.5-4b", .init(maxTokens: 4_096, reasoning: .off))
+        XCTAssertEqual(off["max_tokens"] as? Int, 4_096)
+        XCTAssertEqual(off["thinking_budget_tokens"] as? Int, 0)
+        XCTAssertEqual((off["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
+    }
+
+    func testOllamaRequestsSetTheirPlannedContextAndDisableThinkingForAnOffTask() {
         let plain = OllamaEngine.chatBody(model: "m", system: "s", user: "u", schema: nil, options: nil)
         let plainOptions = plain["options"] as? [String: Any]
         XCTAssertEqual(plainOptions?["num_ctx"] as? Int, MeetingSummaryGenerator.conservativeExternalContextTokens)
@@ -73,21 +154,27 @@ final class TextEngineTests: XCTestCase {
 
         let notes = OllamaEngine.chatBody(
             model: "m", system: "s", user: "u", schema: ["type": "object"],
-            options: TextGenerationOptions(maxTokens: 512, reasoningBudgetTokens: 0, temperature: 0))
+            options: TextGenerationOptions(maxTokens: 512, reasoning: .off, temperature: 0))
         let notesOptions = notes["options"] as? [String: Any]
         XCTAssertEqual(notes["think"] as? Bool, false)
         XCTAssertEqual(notesOptions?["num_ctx"] as? Int, MeetingSummaryGenerator.conservativeExternalContextTokens)
         XCTAssertEqual(notesOptions?["num_predict"] as? Int, 512)
         XCTAssertEqual(notesOptions?["temperature"] as? Double, 0)
         XCTAssertNotNil(notes["format"])
+
+        let thinking = OllamaEngine.chatBody(
+            model: "m", system: "s", user: "u", schema: nil,
+            options: TextGenerationOptions(maxTokens: 512), reasoningAllowance: 512)
+        XCTAssertNil(thinking["think"], "the model keeps its own default")
+        XCTAssertEqual((thinking["options"] as? [String: Any])?["num_predict"] as? Int, 1_024)
     }
 
     func testDictationComposeNeverOpensAThinkingTurn() {
         var body: [String: Any] = [:]
+        XCTAssertEqual(DictationTextPreparation.composeOptions.reasoning, .off)
         OpenAICompatibleEngine.applyGenerationOptions(
             to: &body,
             options: DictationTextPreparation.composeOptions,
-            defaultThinkingBudgetTokens: MainLLMRuntimePolicy.highReasoningBudgetTokens,
             dialect: .llamaServer,
             model: "local")
         XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 0)
@@ -95,20 +182,29 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(body["max_tokens"] as? Int, 4_096)
     }
 
-    func testExplicitReasoningBudgetCanDisableThinkingForOneRequest() {
+    @MainActor
+    func testInstantTasksAlwaysSkipReasoning() {
+        XCTAssertEqual(DictationTextPreparation.composeOptions.reasoning, .off)
+        XCTAssertEqual(SelectionActionPrompt.options.reasoning, .off)
+        XCTAssertEqual(WindowHandoffBriefPrompt.options.reasoning, .off)
+        XCTAssertEqual(MeetingRadar.passOptions.reasoning, .off)
+        XCTAssertEqual(MeetingRadar.answerOptions.reasoning, .modelDefault)
+    }
+
+    func testAnOffTaskDisablesThinkingForOneRequest() {
         var body: [String: Any] = [:]
 
         OpenAICompatibleEngine.applyGenerationOptions(
             to: &body,
             options: TextGenerationOptions(
                 maxTokens: 512,
-                reasoningBudgetTokens: 0,
+                reasoning: .off,
                 temperature: 0.2),
-            defaultThinkingBudgetTokens: MainLLMRuntimePolicy.highReasoningBudgetTokens,
             dialect: .llamaServer,
             model: "local")
 
         XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 0)
+        XCTAssertEqual(body["max_tokens"] as? Int, 512)
         XCTAssertEqual(body["temperature"] as? Double, 0.2)
         XCTAssertEqual(
             (body["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool,
@@ -120,24 +216,25 @@ final class TextEngineTests: XCTestCase {
             "chat_template_kwargs": ["enable_thinking": true, "custom_argument": "keep"],
         ]
         OpenAICompatibleEngine.applyGenerationOptions(
-            to: &body, options: TextGenerationOptions(maxTokens: 512),
-            defaultThinkingBudgetTokens: 0, dialect: .llamaServer, model: "local")
+            to: &body, options: TextGenerationOptions(maxTokens: 512, reasoning: .off),
+            dialect: .llamaServer, model: "local")
 
         let template = body["chat_template_kwargs"] as? [String: Any]
         XCTAssertEqual(template?["enable_thinking"] as? Bool, false)
         XCTAssertEqual(template?["custom_argument"] as? String, "keep")
     }
 
-    func testPositiveThinkingBudgetPreservesTemplatePolicy() {
+    func testThinkingCapPreservesTemplatePolicy() {
         var body: [String: Any] = ["chat_template_kwargs": ["custom_argument": "keep"]]
         OpenAICompatibleEngine.applyGenerationOptions(
-            to: &body, options: TextGenerationOptions(maxTokens: 512, reasoningBudgetTokens: 128),
-            defaultThinkingBudgetTokens: 0, dialect: .llamaServer, model: "local")
+            to: &body, options: TextGenerationOptions(maxTokens: 512),
+            reasoningAllowance: 128, dialect: .llamaServer, model: "local")
 
         let template = body["chat_template_kwargs"] as? [String: Any]
         XCTAssertNil(template?["enable_thinking"])
         XCTAssertEqual(template?["custom_argument"] as? String, "keep")
         XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 128)
+        XCTAssertEqual(body["max_tokens"] as? Int, 640)
     }
 
     func testGenericExternalEngineLeavesReasoningAtServerDefault() {
@@ -145,27 +242,26 @@ final class TextEngineTests: XCTestCase {
 
         OpenAICompatibleEngine.applyGenerationOptions(
             to: &body,
-            options: TextGenerationOptions(maxTokens: 700,
-                                           reasoningBudgetTokens: 256,
-                                           temperature: 0.2),
-            defaultThinkingBudgetTokens: nil,
+            options: TextGenerationOptions(maxTokens: 700, temperature: 0.2),
+            reasoningAllowance: 300,
             dialect: .generic,
             model: "generic")
 
         XCTAssertNil(body["thinking_budget_tokens"])
         XCTAssertNil(body["reasoning_effort"])
-        XCTAssertEqual(body["max_tokens"] as? Int, 700)
+        XCTAssertEqual(body["max_tokens"] as? Int, 1_000, "the answer plus room for the server's own reasoning")
         XCTAssertEqual(body["temperature"] as? Double, 0.2)
     }
 
-    func testRequestLevelIsTheChosenLevelCappedByTheTaskAndClampedToTheModel() {
+    func testRequestLevelIsTheChosenLevelClampedToTheModelUnlessTheTaskIsOff() {
         let common = ReasoningSupport.common
-        XCTAssertNil(common.requestLevel(.automatic, taskBudget: nil))
-        XCTAssertEqual(common.requestLevel(.medium, taskBudget: nil), .medium)
-        XCTAssertEqual(common.requestLevel(.high, taskBudget: 256), .low)
-        XCTAssertEqual(common.requestLevel(.high, taskBudget: 1_024), .medium)
-        XCTAssertEqual(common.requestLevel(.high, taskBudget: 0), .off)
-        XCTAssertEqual(common.requestLevel(.low, taskBudget: 8_192), .low)
+        XCTAssertNil(common.requestLevel(.automatic, reasoning: .modelDefault))
+        XCTAssertEqual(common.requestLevel(.medium, reasoning: .modelDefault), .medium)
+        XCTAssertEqual(common.requestLevel(.high, reasoning: .modelDefault), .high, "no task lowers a chosen level")
+        XCTAssertEqual(common.requestLevel(.high, reasoning: .off), .off)
+        XCTAssertEqual(common.requestLevel(.low, reasoning: .modelDefault), .low)
+        XCTAssertEqual(ReasoningSupport(levels: [.low, .medium, .high]).requestLevel(.high, reasoning: .off), .low,
+                       "a model that always reasons gets its lowest level")
 
         let glm = ReasoningSupport(levels: [.max, .low, .high])
         XCTAssertEqual(glm.levels, [.low, .high, .max])
@@ -175,7 +271,7 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(glm.displayed(.medium), .low)
         XCTAssertEqual(glm.displayed(.automatic), .automatic)
 
-        XCTAssertNil(ReasoningSupport.unavailable.requestLevel(.high, taskBudget: nil))
+        XCTAssertNil(ReasoningSupport.unavailable.requestLevel(.high, reasoning: .modelDefault))
         XCTAssertEqual(ReasoningSupport.unavailable.displayed(.high), .automatic)
         XCTAssertEqual(ThinkReasoningLevel(effort: "none"), .off)
         XCTAssertEqual(ThinkReasoningLevel(effort: "xhigh"), .xhigh)
@@ -184,16 +280,15 @@ final class TextEngineTests: XCTestCase {
 
     func testAutomaticSwitchesReasoningOffForANoReasoningTaskOnAModelThatReasonsByDefault() throws {
         let qwen = ReasoningSupport.known(provider: .cerebras, model: "qwen-3.8-27b")
-        XCTAssertEqual(qwen.requestLevel(.automatic, taskBudget: 0), .off)
-        XCTAssertNil(qwen.requestLevel(.automatic, taskBudget: nil), "other tasks keep the server default")
-        XCTAssertNil(qwen.requestLevel(.automatic, taskBudget: 1_024))
+        XCTAssertEqual(qwen.requestLevel(.automatic, reasoning: .off), .off)
+        XCTAssertNil(qwen.requestLevel(.automatic, reasoning: .modelDefault), "other tasks keep the server default")
         XCTAssertEqual(ReasoningSupport.known(provider: .openAI, model: "gpt-5.4-mini")
-            .requestLevel(.automatic, taskBudget: 0), .off)
+            .requestLevel(.automatic, reasoning: .off), .off)
         XCTAssertNil(ReasoningSupport.known(provider: .cerebras, model: "gemma-4-31b")
-            .requestLevel(.automatic, taskBudget: 0), "already off by default")
+            .requestLevel(.automatic, reasoning: .off), "already off by default")
         XCTAssertNil(ReasoningSupport.known(provider: .cerebras, model: "gpt-oss-120b")
-            .requestLevel(.automatic, taskBudget: 0), "cannot switch reasoning off")
-        XCTAssertNil(ReasoningSupport.common.requestLevel(.automatic, taskBudget: 0), "an unknown server's default")
+            .requestLevel(.automatic, reasoning: .off), "cannot switch reasoning off")
+        XCTAssertNil(ReasoningSupport.common.requestLevel(.automatic, reasoning: .off), "an unknown server's default")
 
         let engine = OpenAICompatibleEngine(baseURL: URL(string: "https://api.cerebras.ai/v1")!,
                                             model: "qwen-3.8-27b", apiKey: "test-token", reasoningLevel: .automatic)
@@ -202,7 +297,7 @@ final class TextEngineTests: XCTestCase {
             let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
             return body["reasoning_effort"] as? String
         }
-        XCTAssertEqual(try effort(.init(reasoningBudgetTokens: 0)), "none")
+        XCTAssertEqual(try effort(.init(reasoning: .off)), "none")
         XCTAssertNil(try effort(nil))
     }
 
@@ -212,7 +307,7 @@ final class TextEngineTests: XCTestCase {
             let engine = OpenAICompatibleEngine(baseURL: url, model: model, apiKey: "test-token",
                                                 chatDialect: dialect ?? .inferred(from: url), reasoningLevel: .automatic)
             let request = try engine.makeChatRequest(system: "s", prompt: "p", context: [], schema: nil,
-                                                     options: .init(maxTokens: 4_096, reasoningBudgetTokens: 0))
+                                                     options: .init(maxTokens: 4_096, reasoning: .off))
             return try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
         }
         XCTAssertEqual(try body("https://api.cerebras.ai/v1", "qwen-3.8-27b")["reasoning_effort"] as? String, "none")
@@ -259,6 +354,17 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(levels(.builtIn, "qwen3.5-4b"), [.off, .low, .medium, .high])
         XCTAssertEqual(levels(.builtIn, "lfm2.5-2.6b"), [.low, .medium, .high])
         XCTAssertEqual(levels(.builtIn, "ministral-3-3b-instruct-2512"), [])
+        func builtInDefault(_ model: String) -> ThinkReasoningLevel? {
+            ReasoningSupport.known(provider: .builtIn, model: model).defaultLevel
+        }
+        for model in ["qwen3.5-4b", "qwen3.6-35b-a3b", "qwen3.6-27b", "lfm2.5-2.6b"] {
+            XCTAssertEqual(builtInDefault(model), .high, model)
+        }
+        for model in ["qwen3.5-0.8b", "qwen3.5-2b", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",
+                      "lfm2.5-1.2b-instruct", "granite-4.1-3b", "ministral-3-3b-instruct-2512"] {
+            XCTAssertEqual(builtInDefault(model), .off, model)
+        }
+        XCTAssertNil(builtInDefault("hf:org/repo/model.gguf"), "an imported model's default is unknown")
         XCTAssertEqual(levels(.openRouter, "openai/gpt-5.4-mini"), [.off, .low, .medium, .high, .xhigh])
         XCTAssertEqual(levels(.generic, "gpt-oss-20b"), [.low, .medium, .high])
         XCTAssertEqual(levels(.generic, "some-model"), [.off, .low, .medium, .high])
@@ -279,7 +385,7 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(ReasoningSupport.known(provider: .openAI, model: "gpt-6.2-sol").levels, upToMax,
                        "a newer GPT-6 model gets no Off")
         XCTAssertEqual(ReasoningSupport.known(provider: .openRouter, model: "openai/gpt-6.1-sol"), sol)
-        XCTAssertEqual(sol.requestLevel(.high, taskBudget: 0), .low, "6.1 Sol rejects none")
+        XCTAssertEqual(sol.requestLevel(.high, reasoning: .off), .low, "6.1 Sol rejects none")
 
         var settings = AppSettings()
         settings.summarizerBackend = .chatGPTPlan
@@ -296,16 +402,19 @@ final class TextEngineTests: XCTestCase {
                                                 reasoningLevel: level)
             let request = try engine.makeChatRequest(
                 system: "s", prompt: "p", context: [], schema: nil,
-                options: .init(maxTokens: 900, reasoningBudgetTokens: 1_024, temperature: 0.2))
+                options: .init(maxTokens: 900, temperature: 0.2))
             return try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
         }
-        XCTAssertEqual(try body(.max)["reasoning_effort"] as? String, "medium", "capped by the task")
+        let max = try body(.max)
+        XCTAssertEqual(max["reasoning_effort"] as? String, "max", "no task lowers a chosen level")
+        XCTAssertEqual(max["max_completion_tokens"] as? Int, 900 + 24_576)
         let automatic = try body(.automatic)
-        XCTAssertEqual(automatic["reasoning_effort"] as? String, "medium")
+        XCTAssertNil(automatic["reasoning_effort"], "the model's own default")
+        XCTAssertEqual(automatic["max_completion_tokens"] as? Int, 1_800, "the answer plus as much room to think")
         XCTAssertNil(automatic["temperature"])
     }
 
-    func testCerebrasRequestCarriesTheChosenEffortCappedByTheTask() throws {
+    func testCerebrasRequestCarriesTheChosenEffortUnlessTheTaskIsOff() throws {
         let engine = OpenAICompatibleEngine(
             baseURL: URL(string: "https://api.cerebras.ai/v1")!,
             model: "qwen-3.8-27b",
@@ -321,9 +430,9 @@ final class TextEngineTests: XCTestCase {
         }
 
         XCTAssertEqual(try body(nil)["reasoning_effort"] as? String, "medium")
-        XCTAssertEqual(try body(.init(reasoningBudgetTokens: 256))["reasoning_effort"] as? String, "low")
-        XCTAssertEqual(try body(.init(reasoningBudgetTokens: 0))["reasoning_effort"] as? String, "none")
-        XCTAssertEqual(try body(.init(reasoningBudgetTokens: 0), fallback: true)["reasoning_effort"] as? String,
+        XCTAssertEqual(try body(.init(maxTokens: 900))["reasoning_effort"] as? String, "medium")
+        XCTAssertEqual(try body(.init(reasoning: .off))["reasoning_effort"] as? String, "none")
+        XCTAssertEqual(try body(.init(reasoning: .off), fallback: true)["reasoning_effort"] as? String,
                        "low")
         XCTAssertNil(try body(nil, fallback: true)["reasoning_effort"])
         XCTAssertNil(try body(nil)["thinking_budget_tokens"])
@@ -357,7 +466,7 @@ final class TextEngineTests: XCTestCase {
             OpenAICompatibleEngine.applyGenerationOptions(
                 to: &body,
                 options: options,
-                defaultThinkingBudgetTokens: MainLLMRuntimePolicy.highReasoningBudgetTokens,
+                reasoningAllowance: level.budgetTokens ?? 0,
                 dialect: .llamaServer,
                 model: "local",
                 requestLevel: level)
@@ -368,7 +477,10 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(off["thinking_budget_tokens"] as? Int, 0)
         XCTAssertEqual((off["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
         XCTAssertEqual(body(.medium)["thinking_budget_tokens"] as? Int, 4_096)
-        XCTAssertEqual(body(.high, options: .init(maxTokens: 2_000))["thinking_budget_tokens"] as? Int, 1_000)
+        let high = body(.high, options: .init(maxTokens: 2_000))
+        XCTAssertEqual(high["thinking_budget_tokens"] as? Int, 8_192, "the chosen level, not half the answer")
+        XCTAssertEqual(high["max_tokens"] as? Int, 10_192)
+        XCTAssertNil(high["chat_template_kwargs"], "a model that thinks by default needs no switch")
         XCTAssertNil(body(.medium)["reasoning_effort"])
     }
 
@@ -377,8 +489,7 @@ final class TextEngineTests: XCTestCase {
             var body: [String: Any] = [:]
             OpenAICompatibleEngine.applyGenerationOptions(
                 to: &body,
-                options: .init(reasoningBudgetTokens: 0),
-                defaultThinkingBudgetTokens: nil,
+                options: .init(reasoning: .off),
                 dialect: .openAI,
                 model: "gpt-5.4-mini",
                 requestLevel: level,
@@ -443,15 +554,13 @@ final class TextEngineTests: XCTestCase {
             prompt: "prompt",
             context: [],
             schema: nil,
-            options: TextGenerationOptions(maxTokens: 700,
-                                           reasoningBudgetTokens: 256,
-                                           temperature: 0.2))
+            options: TextGenerationOptions(maxTokens: 700, temperature: 0.2))
         let data = try XCTUnwrap(request.httpBody)
         let body = try XCTUnwrap(
             JSONSerialization.jsonObject(with: data) as? [String: Any])
 
-        XCTAssertEqual(body["max_completion_tokens"] as? Int, 700)
-        XCTAssertEqual(body["reasoning_effort"] as? String, "low")
+        XCTAssertEqual(body["max_completion_tokens"] as? Int, 1_400, "room for the default medium effort")
+        XCTAssertNil(body["reasoning_effort"], "Automatic leaves the model at its default")
         XCTAssertNil(body["max_tokens"])
         XCTAssertNil(body["thinking_budget_tokens"])
         XCTAssertNil(body["temperature"])
@@ -462,10 +571,7 @@ final class TextEngineTests: XCTestCase {
 
         OpenAICompatibleEngine.applyGenerationOptions(
             to: &body,
-            options: TextGenerationOptions(maxTokens: 300,
-                                           reasoningBudgetTokens: 256,
-                                           temperature: 0.4),
-            defaultThinkingBudgetTokens: nil,
+            options: TextGenerationOptions(maxTokens: 300, temperature: 0.4),
             dialect: .openAI,
             model: "gpt-4.1-mini")
 
@@ -493,7 +599,7 @@ final class TextEngineTests: XCTestCase {
             .generic)
     }
 
-    func testOpenRouterUsesNativeReasoningAndPrivacyRouting() throws {
+    func testOpenRouterLeavesReasoningAtTheModelDefaultAndRoutesPrivately() throws {
         let engine = OpenAICompatibleEngine(
             baseURL: URL(string: "https://openrouter.ai/api/v1")!,
             model: "anthropic/example-model",
@@ -511,28 +617,24 @@ final class TextEngineTests: XCTestCase {
             prompt: "prompt",
             context: [],
             schema: schema,
-            options: TextGenerationOptions(maxTokens: 700,
-                                           reasoningBudgetTokens: 256,
-                                           temperature: 0.2))
+            options: TextGenerationOptions(maxTokens: 700, temperature: 0.2))
         let data = try XCTUnwrap(request.httpBody)
         let body = try XCTUnwrap(
             JSONSerialization.jsonObject(with: data) as? [String: Any])
-        let reasoning = try XCTUnwrap(body["reasoning"] as? [String: Any])
         let provider = try XCTUnwrap(body["provider"] as? [String: Any])
 
         XCTAssertEqual(request.url?.absoluteString,
                        "https://openrouter.ai/api/v1/chat/completions")
         XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"),
                        "Bearer test-token")
-        XCTAssertEqual(body["max_tokens"] as? Int, 700)
-        XCTAssertEqual(reasoning["max_tokens"] as? Int, 256)
-        XCTAssertEqual(reasoning["exclude"] as? Bool, true)
+        XCTAssertEqual(body["max_tokens"] as? Int, 1_400, "the answer plus room for the model's own reasoning")
+        XCTAssertNil(body["reasoning"], "the model keeps its default reasoning")
         XCTAssertEqual(provider["data_collection"] as? String, "deny")
         XCTAssertEqual(provider["require_parameters"] as? Bool, true)
         XCTAssertNil(body["max_completion_tokens"])
         XCTAssertNil(body["thinking_budget_tokens"])
         XCTAssertNil(body["reasoning_effort"])
-        XCTAssertNil(body["temperature"])
+        XCTAssertEqual(body["temperature"] as? Double, 0.2)
     }
 
     func testOpenRouterPlainChatKeepsTemperatureWithoutForcingParameters() throws {
@@ -602,7 +704,7 @@ final class TextEngineTests: XCTestCase {
             schema: schema,
             options: TextGenerationOptions(
                 maxTokens: 768,
-                reasoningBudgetTokens: 0,
+                reasoning: .off,
                 temperature: 0.2))
         let data = try XCTUnwrap(request.httpBody)
         let body = try XCTUnwrap(
@@ -629,9 +731,8 @@ final class TextEngineTests: XCTestCase {
             to: &body,
             options: TextGenerationOptions(
                 maxTokens: 1_600,
-                reasoningBudgetTokens: 0,
+                reasoning: .off,
                 temperature: 0),
-            defaultThinkingBudgetTokens: nil,
             dialect: .openRouter,
             model: "z-ai/glm-5.3",
             openRouterReasoning: .effort)
@@ -684,29 +785,18 @@ final class TextEngineTests: XCTestCase {
         let missingModel = TextEngineError.httpStatus(
             code: 404, detail: "No endpoints found for model z-ai/glm-5.3", retryAfter: nil)
 
-        XCTAssertTrue(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mismatch, usedFallback: false,
-            requestedReasoningBudget: 256))
-        XCTAssertTrue(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mismatch, usedFallback: false,
-            requestedReasoningBudget: 0),
-                       "effort:none can retry with supported effort")
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mismatch, usedFallback: false,
-            requestedReasoningBudget: nil),
+        func falls(_ error: Error, dialect: ChatCompletionDialect = .openRouter,
+                   usedFallback: Bool = false, off: Bool = true) -> Bool {
+            OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
+                dialect: dialect, error: error, usedFallback: usedFallback, requestsReasoningOff: off)
+        }
+
+        XCTAssertTrue(falls(mismatch), "effort:none can retry with supported effort")
+        XCTAssertFalse(falls(mismatch, off: false),
                        "schema-only errors cannot be fixed by changing reasoning or dropping the schema")
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mismatch, usedFallback: true,
-            requestedReasoningBudget: 256))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: missingModel, usedFallback: false,
-            requestedReasoningBudget: 256))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .generic, error: mismatch, usedFallback: false,
-            requestedReasoningBudget: 256))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mismatch, usedFallback: false,
-            requestedReasoningBudget: nil))
+        XCTAssertFalse(falls(mismatch, usedFallback: true))
+        XCTAssertFalse(falls(missingModel))
+        XCTAssertFalse(falls(mismatch, dialect: .generic))
     }
 
     func testOpenRouterMandatoryReasoningErrorTriggersEffortFallbackOnce() {
@@ -717,21 +807,17 @@ final class TextEngineTests: XCTestCase {
         let unrelated = TextEngineError.httpStatus(
             code: 400, detail: "Invalid JSON schema", retryAfter: nil)
 
-        XCTAssertTrue(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mandatory, usedFallback: false,
-            requestedReasoningBudget: 0))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mandatory, usedFallback: true,
-            requestedReasoningBudget: 0))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: mandatory, usedFallback: false,
-            requestedReasoningBudget: 256))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .generic, error: mandatory, usedFallback: false,
-            requestedReasoningBudget: 0))
-        XCTAssertFalse(OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
-            dialect: .openRouter, error: unrelated, usedFallback: false,
-            requestedReasoningBudget: 0))
+        func falls(_ error: Error, dialect: ChatCompletionDialect = .openRouter,
+                   usedFallback: Bool = false, off: Bool = true) -> Bool {
+            OpenAICompatibleEngine.shouldFallbackToReasoningEffort(
+                dialect: dialect, error: error, usedFallback: usedFallback, requestsReasoningOff: off)
+        }
+
+        XCTAssertTrue(falls(mandatory))
+        XCTAssertFalse(falls(mandatory, usedFallback: true))
+        XCTAssertFalse(falls(mandatory, off: false), "only an Off request asks for no reasoning")
+        XCTAssertFalse(falls(mandatory, dialect: .generic))
+        XCTAssertFalse(falls(unrelated))
     }
 
     func testOpenRouterCanDisableReasoningForStructuredRetry() throws {
@@ -754,7 +840,7 @@ final class TextEngineTests: XCTestCase {
             schema: schema,
             options: TextGenerationOptions(
                 maxTokens: 1_600,
-                reasoningBudgetTokens: 0,
+                reasoning: .off,
                 temperature: 0))
         let data = try XCTUnwrap(request.httpBody)
         let body = try XCTUnwrap(

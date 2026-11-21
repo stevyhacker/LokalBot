@@ -42,7 +42,7 @@ final class FollowThroughSession: ObservableObject, Identifiable {
     var cost: Double { MetaModelAPI.cost(of: usage, model: model) }
 
     static let maximumTurns = 10
-    static let turnOptions = TextGenerationOptions(maxTokens: 4_000, reasoningBudgetTokens: 1_024, temperature: 0.2)
+    static let turnOptions = TextGenerationOptions(maxTokens: 4_000, temperature: 0.2)
     static let maximumToolResultCharacters = 6_000
 
     private let environment: FollowThroughEnvironment

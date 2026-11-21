@@ -15,7 +15,7 @@ use super::PlanError;
 use super::cli::{self, Launch, Output};
 use crate::error::AiError;
 use crate::json as model_json;
-use crate::think::{ChatRequest, Completion, ReasoningSupport, Usage, ceiling_for_budget};
+use crate::think::{ChatRequest, Completion, ReasoningSupport, TaskReasoning, Usage};
 
 pub const SETUP_URL: &str = "https://antigravity.google/download";
 pub const AGENT_NAME: &str = "lokalbot-think";
@@ -363,16 +363,18 @@ pub(crate) fn traits(model: &str) -> (ReasoningSupport, bool) {
     (ReasoningSupport::new(&[Low, Medium, High], None), true)
 }
 
-fn effort(model: &str, level: ReasoningLevel, task_budget: Option<u32>) -> Option<ReasoningLevel> {
+fn effort(model: &str, level: ReasoningLevel, reasoning: TaskReasoning) -> Option<ReasoningLevel> {
     let (support, thinks_by_default) = traits(model);
     if support.levels.is_empty() {
         return None;
     }
-    if let Some(level) = support.request_level(level, task_budget) {
+    if let Some(level) = support.request_level(level, reasoning) {
         return Some(level);
     }
-    let budget = task_budget.filter(|_| thinks_by_default)?;
-    support.clamp(ceiling_for_budget(budget))
+    if reasoning == TaskReasoning::Off && thinks_by_default {
+        return support.clamp(ReasoningLevel::Off);
+    }
+    None
 }
 
 pub fn arguments(model: &str, level: ReasoningLevel, request: &ChatRequest) -> Vec<String> {
@@ -399,7 +401,7 @@ pub fn arguments(model: &str, level: ReasoningLevel, request: &ChatRequest) -> V
     if !model.is_empty() {
         arguments.extend(["--model".into(), model.to_string()]);
     }
-    if let Some(effort) = effort(model, level, request.reasoning_budget) {
+    if let Some(effort) = effort(model, level, request.reasoning) {
         arguments.extend([
             "--effort".into(),
             crate::think::effort_value(effort).to_string(),
@@ -520,6 +522,7 @@ pub(crate) fn parse_result(json: &Value, wants_structured: bool) -> Result<Compl
         truncated,
         cancelled: false,
         usage,
+        attempts: 1,
     })
 }
 
@@ -726,6 +729,7 @@ impl Engine {
                 truncated: false,
                 cancelled: true,
                 usage: None,
+                attempts: 1,
             });
         }
         reply(&output, request.json_schema.is_some())
@@ -861,8 +865,7 @@ gpt-oss-120b-medium   GPT-OSS 120B (Medium)\n";
     #[test]
     fn arguments_keep_content_and_schema_off_argv_and_avoid_effort_conflict() {
         let req = ChatRequest::new("Secret system", "Secret prompt")
-            .json_schema(json!({"type": "object", "properties": {"a": {"type": "string"}}}))
-            .reasoning_budget(512);
+            .json_schema(json!({"type": "object", "properties": {"a": {"type": "string"}}}));
         let args = arguments("gemini-4-neon", ReasoningLevel::High, &req);
         assert!(
             args.windows(2)
@@ -882,7 +885,7 @@ gpt-oss-120b-medium   GPT-OSS 120B (Medium)\n";
                 .any(|w| w == ["--json-schema", SCHEMA_FILE_PATH])
         );
         assert!(args.windows(2).any(|w| w == ["--model", "gemini-4-neon"]));
-        assert!(args.windows(2).any(|w| w == ["--effort", "low"]));
+        assert!(args.windows(2).any(|w| w == ["--effort", "high"]));
         assert!(!args.iter().any(|a| a.contains("Secret")));
 
         let fixed = arguments("gemini-4-neon-high", ReasoningLevel::Low, &req);

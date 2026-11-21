@@ -5,7 +5,7 @@ use super::*;
 #[test]
 fn arguments_carry_the_mac_isolation_flags() {
     let request = ChatRequest::new("sys", "Summarize.")
-        .reasoning_budget(0)
+        .reasoning(TaskReasoning::Off)
         .json_schema(json!({"type": "object", "required": ["b", "a"], "properties": {"b": {"type": "string"}, "a": {"type": "array", "maxItems": 3}}}));
     let args = arguments("sonnet", ReasoningLevel::Automatic, &request, false);
     let expected: Vec<String> = [
@@ -77,15 +77,25 @@ fn arguments_carry_the_mac_isolation_flags() {
         false,
     );
     assert!(!chosen.contains(&"--effort".to_string()));
-    let capped = arguments(
+    let uniform = arguments(
         "opus",
         ReasoningLevel::Max,
-        &ChatRequest::new("s", "u").reasoning_budget(4_096),
+        &ChatRequest::new("s", "u"),
         false,
     );
     assert_eq!(
-        capped[capped.iter().position(|a| a == "--effort").unwrap() + 1],
-        "medium"
+        uniform[uniform.iter().position(|a| a == "--effort").unwrap() + 1],
+        "max"
+    );
+    let off = arguments(
+        "opus",
+        ReasoningLevel::Max,
+        &ChatRequest::new("s", "u").reasoning(TaskReasoning::Off),
+        false,
+    );
+    assert_eq!(
+        off[off.iter().position(|a| a == "--effort").unwrap() + 1],
+        "low"
     );
 }
 
@@ -361,7 +371,7 @@ fn runs_claude_in_a_private_empty_folder_with_content_on_stdin() {
         }),
     };
     let mut request = ChatRequest::new("System prompt here.", "Write notes.")
-        .reasoning_budget(0)
+        .reasoning(TaskReasoning::Off)
         .json_schema(json!({"type": "object"}));
     request.context = vec!["Secret transcript".into()];
     unsafe { std::env::set_var("CLAUDECODE", "1") };

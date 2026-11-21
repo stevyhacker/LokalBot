@@ -590,7 +590,6 @@ struct ChatAgent {
                     schema: ChatPrompt.toolCallSchema(runner.specs),
                     options: TextGenerationOptions(
                         maxTokens: 512,
-                        reasoningBudgetTokens: 128,
                         temperature: 0.1))
                 try Task.checkCancellation()
                 if case .call(let call) = ChatPrompt.parse(retried, tools: toolNames) {

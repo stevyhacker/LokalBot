@@ -100,7 +100,7 @@ final class DayDigestBenchmarkTests: XCTestCase {
             baseURL: url, model: model, apiKey: environment["LOKALBOT_DIGEST_BENCH_KEY"],
             extraBody: MainLLMRuntimePolicy.requestOverrides(for: model),
             chatDialect: .llamaServer,
-            defaultThinkingBudgetTokens: MainLLMRuntimePolicy.highReasoningBudgetTokens)
+            reasoningSupport: .known(provider: .builtIn, model: model))
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         let cases = try JSONDecoder().decode(Cases.self, from: Data(contentsOf: URL(fileURLWithPath: casesPath)))

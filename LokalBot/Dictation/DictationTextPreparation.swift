@@ -9,7 +9,7 @@ enum DictationTextPreparation {
         var contextUse: DictationContextUse?
     }
 
-    static let composeOptions = TextGenerationOptions(maxTokens: 4_096, reasoningBudgetTokens: 0, temperature: 0.2)
+    static let composeOptions = TextGenerationOptions(maxTokens: 4_096, reasoning: .off, temperature: 0.2)
 
     @MainActor
     static func prepare(

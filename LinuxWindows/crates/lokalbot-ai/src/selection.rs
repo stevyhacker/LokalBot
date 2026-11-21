@@ -17,7 +17,7 @@ use crate::prompts::{
     SELECTION_ACTION_SYSTEM, SELECTION_ACTION_TRANSLATE,
 };
 use crate::sanitize::sanitize;
-use crate::think::{ChatRequest, EmbeddingClient};
+use crate::think::{ChatRequest, EmbeddingClient, TaskReasoning};
 
 pub const CUSTOM_ID: &str = "custom";
 pub const SELECTION_CHARACTER_LIMIT: usize = 12_000;
@@ -236,7 +236,7 @@ pub fn request(action: &Action, selection: &str, memory: &MemoryContext) -> Chat
         user_prompt(action, selection, memory),
     )
     .max_tokens(4_096)
-    .reasoning_budget(0)
+    .reasoning(TaskReasoning::Off)
     .temperature(0.3)
 }
 

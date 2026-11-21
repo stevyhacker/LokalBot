@@ -89,7 +89,7 @@ struct SelectionMemoryContext: Equatable, Sendable {
 }
 
 enum SelectionActionPrompt {
-    static let options = TextGenerationOptions(maxTokens: 4_096, reasoningBudgetTokens: 0, temperature: 0.3)
+    static let options = TextGenerationOptions(maxTokens: 4_096, reasoning: .off, temperature: 0.3)
     static let selectionCharacterLimit = 12_000
     static let memoryQueryCharacterLimit = 400
 

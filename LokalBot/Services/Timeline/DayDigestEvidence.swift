@@ -1113,7 +1113,6 @@ enum DayDigestOverviewGenerator {
                         schema: focusSchema,
                         options: TextGenerationOptions(
                             maxTokens: focusTokens,
-                            reasoningBudgetTokens: 256,
                             temperature: 0.2))
                 } catch TextEngineError.outputTruncated {
                     attempts = 2
@@ -1126,7 +1125,7 @@ enum DayDigestOverviewGenerator {
                             schema: focusSchema,
                             options: TextGenerationOptions(
                                 maxTokens: focusRetryTokens,
-                                reasoningBudgetTokens: 0,
+                                reasoning: .off,
                                 temperature: 0))
                         lokalbotLog(
                             "day digest segment retry index=\(index + 1) "
@@ -1168,7 +1167,7 @@ enum DayDigestOverviewGenerator {
                         schema: focusSchema,
                         options: TextGenerationOptions(
                             maxTokens: focusRetryTokens,
-                            reasoningBudgetTokens: 0,
+                            reasoning: .off,
                             temperature: 0))
                     parsed = parseFocus(output, segment: segment)
                     lokalbotLog(
@@ -1268,7 +1267,6 @@ enum DayDigestOverviewGenerator {
                     schema: digestSchema,
                         options: TextGenerationOptions(
                             maxTokens: aggregationTokens(candidates: selectedBlocks.count),
-                            reasoningBudgetTokens: 512,
                             temperature: 0.2))
                 } catch TextEngineError.outputTruncated {
                     let retryStartedAt = Date()
@@ -1279,7 +1277,7 @@ enum DayDigestOverviewGenerator {
                         schema: digestSchema,
                         options: TextGenerationOptions(
                             maxTokens: aggregationRetryTokens,
-                            reasoningBudgetTokens: 0,
+                            reasoning: .off,
                             temperature: 0))
                     lokalbotLog(
                         "day digest task aggregation retry reason=output-limit elapsed="
