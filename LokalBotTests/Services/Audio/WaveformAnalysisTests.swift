@@ -158,6 +158,65 @@ final class WaveformAnalysisTests: XCTestCase {
         XCTAssertNil(result)
     }
 
+    func testDetailBinResamplingCoversVisibleSlice() {
+        var peaks = [Float](repeating: 0, count: WaveformAnalysis.detailBinCount)
+        let targetBin = WaveformAnalysis.detailBinCount * 3 / 4
+        peaks[targetBin] = 1
+        let full = WaveformAnalysis.resample(
+            peaks,
+            duration: 100,
+            visibleStart: 0,
+            visibleEnd: 100,
+            width: 400)
+        XCTAssertEqual(full.max(), 1)
+
+        let earlySlice = WaveformAnalysis.resample(
+            peaks,
+            duration: 100,
+            visibleStart: 0,
+            visibleEnd: 50,
+            width: 400)
+        XCTAssertEqual(earlySlice.max(), 0)
+
+        let zoomedSlice = WaveformAnalysis.resample(
+            peaks,
+            duration: 100,
+            visibleStart: 70,
+            visibleEnd: 80,
+            width: 400)
+        XCTAssertEqual(zoomedSlice.max(), 1)
+    }
+
+    func testViewportAnchoredZoomAndPanClamping() {
+        var viewport = WaveformViewport(windowStart: 10, windowEnd: 110)
+        XCTAssertEqual(viewport.zoom, 1)
+        XCTAssertEqual(viewport.visibleStart, 10)
+        XCTAssertEqual(viewport.visibleEnd, 110)
+
+        let anchorFraction = 0.25
+        let anchorTimeBefore = viewport.time(atFraction: anchorFraction)
+        XCTAssertEqual(anchorTimeBefore, 35, accuracy: 0.001)
+
+        viewport.zoom(by: 4, anchorFraction: anchorFraction)
+        XCTAssertEqual(viewport.zoom, 4, accuracy: 0.001)
+        XCTAssertEqual(viewport.visibleSpan, 25, accuracy: 0.001)
+        XCTAssertEqual(viewport.time(atFraction: anchorFraction), anchorTimeBefore, accuracy: 0.001)
+
+        viewport.pan(by: -100)
+        XCTAssertEqual(viewport.visibleStart, 10, accuracy: 0.001)
+
+        viewport.pan(by: 500)
+        XCTAssertEqual(viewport.visibleEnd, 110, accuracy: 0.001)
+
+        viewport.zoom(by: 100, anchorFraction: 0.5)
+        XCTAssertEqual(viewport.zoom, WaveformViewport.maxZoom, accuracy: 0.001)
+
+        viewport.reset()
+        XCTAssertEqual(viewport.zoom, 1)
+        XCTAssertEqual(viewport.visibleStart, 10)
+        XCTAssertEqual(viewport.visibleEnd, 110)
+    }
+
     private func temporaryFolder() throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
