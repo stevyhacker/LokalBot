@@ -8,7 +8,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 1,
-      "medianMs": 261.3955,
+      "medianMs": 280.034542,
       "byKind": {
         "factual": {
           "correct": 0,
@@ -32,7 +32,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 1,
-      "medianMs": 259.740209,
+      "medianMs": 333.780292,
       "byKind": {
         "factual": {
           "correct": 3,
@@ -56,7 +56,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 1,
-      "medianMs": 259.137125,
+      "medianMs": 339.288541,
       "byKind": {
         "factual": {
           "correct": 0,
@@ -80,7 +80,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 1,
-      "medianMs": 259.285,
+      "medianMs": 368.980541,
       "byKind": {
         "factual": {
           "correct": 3,
@@ -104,7 +104,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 1,
-      "medianMs": 259.094417,
+      "medianMs": 318.666333,
       "byKind": {
         "factual": {
           "correct": 3,
@@ -207,7 +207,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 577.662
+      "latencyMs": 626.534709
     },
     {
       "id": "c3-what-time",
@@ -224,7 +224,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 230.71825
+      "latencyMs": 244.257083
     },
     {
       "id": "c3-remind-me",
@@ -241,7 +241,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 243.140459
+      "latencyMs": 259.752209
     },
     {
       "id": "c3-tell-marko",
@@ -258,7 +258,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 261.3955
+      "latencyMs": 276.675375
     },
     {
       "id": "c3-ask-sara",
@@ -275,7 +275,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 228.720666
+      "latencyMs": 247.011666
     },
     {
       "id": "c3-check-server",
@@ -292,7 +292,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 244.568916
+      "latencyMs": 280.034542
     },
     {
       "id": "c3-explain-build",
@@ -309,7 +309,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 212.595458
+      "latencyMs": 253.603917
     },
     {
       "id": "c3-lets-ship",
@@ -326,7 +326,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 227.735625
+      "latencyMs": 248.671542
     },
     {
       "id": "c3-owe-coffee",
@@ -343,7 +343,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 245.497792
+      "latencyMs": 263.353875
     },
     {
       "id": "c3-did-not-say",
@@ -360,7 +360,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 324.647958
+      "latencyMs": 340.963709
     },
     {
       "id": "c3-filler",
@@ -377,7 +377,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 260.097792
+      "latencyMs": 279.833333
     },
     {
       "id": "c3-summarize-thoughts",
@@ -394,7 +394,7 @@
       "routedAsRequest": true,
       "routingCorrect": false,
       "error": null,
-      "latencyMs": 706.309917
+      "latencyMs": 871.636041
     },
     {
       "id": "c3-sr-slajdovi",
@@ -411,7 +411,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 363.635416
+      "latencyMs": 666.899583
     },
     {
       "id": "c3-sr-podsjeti",
@@ -428,7 +428,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 278.3405
+      "latencyMs": 387.224958
     },
     {
       "id": "c3-sr-kada",
@@ -445,7 +445,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 261.479834
+      "latencyMs": 314.851458
     },
     {
       "id": "c3-sr-objasni",
@@ -462,7 +462,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 275.571833
+      "latencyMs": 314.559333
     },
     {
       "id": "c3-req-reply-time",
@@ -479,7 +479,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.239833
+      "latencyMs": 317.893167
     },
     {
       "id": "c3-req-draft-room",
@@ -496,7 +496,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 214.138875
+      "latencyMs": 256.689459
     },
     {
       "id": "c3-req-sr",
@@ -513,7 +513,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 480.813916
+      "latencyMs": 567.514292
     },
     {
       "id": "c3-transcribe",
@@ -530,7 +530,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.002084
+      "latencyMs": 0.003042
     },
     {
       "id": "c3-send-slides",
@@ -547,7 +547,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 287.73625
+      "latencyMs": 363.409917
     },
     {
       "id": "c3-what-time",
@@ -564,7 +564,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 230.402833
+      "latencyMs": 268.9215
     },
     {
       "id": "c3-remind-me",
@@ -581,7 +581,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 242.965959
+      "latencyMs": 301.095125
     },
     {
       "id": "c3-tell-marko",
@@ -598,7 +598,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.740209
+      "latencyMs": 302.675667
     },
     {
       "id": "c3-ask-sara",
@@ -615,7 +615,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 227.412416
+      "latencyMs": 326.219542
     },
     {
       "id": "c3-check-server",
@@ -632,7 +632,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 242.804541
+      "latencyMs": 329.193083
     },
     {
       "id": "c3-explain-build",
@@ -649,7 +649,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 212.178125
+      "latencyMs": 244.115375
     },
     {
       "id": "c3-lets-ship",
@@ -666,7 +666,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 231.157667
+      "latencyMs": 263.205125
     },
     {
       "id": "c3-owe-coffee",
@@ -683,7 +683,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 242.53825
+      "latencyMs": 356.159292
     },
     {
       "id": "c3-did-not-say",
@@ -700,7 +700,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 321.147833
+      "latencyMs": 382.533917
     },
     {
       "id": "c3-filler",
@@ -717,7 +717,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.001083
+      "latencyMs": 347.518167
     },
     {
       "id": "c3-summarize-thoughts",
@@ -738,7 +738,7 @@
       "routedAsRequest": true,
       "routingCorrect": false,
       "error": null,
-      "latencyMs": 264.729583
+      "latencyMs": 313.731041
     },
     {
       "id": "c3-sr-slajdovi",
@@ -755,7 +755,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 358.385125
+      "latencyMs": 574.4875
     },
     {
       "id": "c3-sr-podsjeti",
@@ -772,7 +772,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 274.326833
+      "latencyMs": 333.780292
     },
     {
       "id": "c3-sr-kada",
@@ -789,7 +789,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 262.84025
+      "latencyMs": 325.959166
     },
     {
       "id": "c3-sr-objasni",
@@ -806,7 +806,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 274.266084
+      "latencyMs": 416.162833
     },
     {
       "id": "c3-req-reply-time",
@@ -823,7 +823,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 247.425334
+      "latencyMs": 339.338083
     },
     {
       "id": "c3-req-draft-room",
@@ -840,7 +840,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 390.440167
+      "latencyMs": 562.997959
     },
     {
       "id": "c3-req-sr",
@@ -857,7 +857,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 309.280542
+      "latencyMs": 497.052042
     },
     {
       "id": "c3-transcribe",
@@ -874,7 +874,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001584
+      "latencyMs": 0.002708
     },
     {
       "id": "c3-send-slides",
@@ -891,7 +891,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.861
+      "latencyMs": 470.716084
     },
     {
       "id": "c3-what-time",
@@ -908,7 +908,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 229.838958
+      "latencyMs": 341.412792
     },
     {
       "id": "c3-remind-me",
@@ -925,7 +925,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 244.120625
+      "latencyMs": 283.305375
     },
     {
       "id": "c3-tell-marko",
@@ -942,7 +942,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 258.799417
+      "latencyMs": 309.567792
     },
     {
       "id": "c3-ask-sara",
@@ -959,7 +959,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 227.212041
+      "latencyMs": 320.843125
     },
     {
       "id": "c3-check-server",
@@ -976,7 +976,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 242.894208
+      "latencyMs": 297.070917
     },
     {
       "id": "c3-explain-build",
@@ -993,7 +993,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 212.210791
+      "latencyMs": 312.012166
     },
     {
       "id": "c3-lets-ship",
@@ -1010,7 +1010,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 227.165417
+      "latencyMs": 355.09875
     },
     {
       "id": "c3-owe-coffee",
@@ -1027,7 +1027,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 242.450542
+      "latencyMs": 294.014042
     },
     {
       "id": "c3-did-not-say",
@@ -1044,7 +1044,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 320.95925
+      "latencyMs": 443.903375
     },
     {
       "id": "c3-filler",
@@ -1061,7 +1061,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.137125
+      "latencyMs": 339.288541
     },
     {
       "id": "c3-summarize-thoughts",
@@ -1078,7 +1078,7 @@
       "routedAsRequest": true,
       "routingCorrect": false,
       "error": null,
-      "latencyMs": 294.68575
+      "latencyMs": 429.077084
     },
     {
       "id": "c3-sr-slajdovi",
@@ -1095,7 +1095,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 355.147333
+      "latencyMs": 427.615375
     },
     {
       "id": "c3-sr-podsjeti",
@@ -1112,7 +1112,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 277.035166
+      "latencyMs": 335.396209
     },
     {
       "id": "c3-sr-kada",
@@ -1129,7 +1129,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.555125
+      "latencyMs": 328.47975
     },
     {
       "id": "c3-sr-objasni",
@@ -1146,7 +1146,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 275.193
+      "latencyMs": 460.907375
     },
     {
       "id": "c3-req-reply-time",
@@ -1163,7 +1163,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 261.146209
+      "latencyMs": 430.955584
     },
     {
       "id": "c3-req-draft-room",
@@ -1180,7 +1180,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 212.347333
+      "latencyMs": 336.691334
     },
     {
       "id": "c3-req-sr",
@@ -1197,12 +1197,700 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 477.1765
+      "latencyMs": 599.457458
     },
     {
       "id": "c3-transcribe",
       "kind": "transcribe",
       "variant": "memory",
+      "text": "Can you send me the 4 slides before noon?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": null,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 0.003417
+    },
+    {
+      "id": "c3-send-slides",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Can you send me the 4 slides before noon?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 407.453041
+    },
+    {
+      "id": "c3-what-time",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "What time does the Juniper review start?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 349.453292
+    },
+    {
+      "id": "c3-remind-me",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Remind me to call Ana at 5.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 287.838292
+    },
+    {
+      "id": "c3-tell-marko",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Tell Marko that the 3 contracts are signed.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 305.90625
+    },
+    {
+      "id": "c3-ask-sara",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Ask Sara whether the 8 chairs arrived.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 304.360583
+    },
+    {
+      "id": "c3-check-server",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Could you check if the staging server is down?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 380.062292
+    },
+    {
+      "id": "c3-explain-build",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Please explain why the nightly build failed.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 290.259041
+    },
+    {
+      "id": "c3-lets-ship",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Let's ship the 6 fixes tomorrow.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 341.940583
+    },
+    {
+      "id": "c3-owe-coffee",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Thanks, I owe you 2 coffees.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 324.926542
+    },
+    {
+      "id": "c3-did-not-say",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "I did not say 15, I said 50 invoices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 376.124667
+    },
+    {
+      "id": "c3-filler",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "So the release is moved to Thursday, I think.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 368.980541
+    },
+    {
+      "id": "c3-summarize-thoughts",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Both proposals are due Monday.",
+      "correct": false,
+      "forbiddenFacts": [
+        "Monday"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": false,
+      "forbiddenReads": [
+        "message"
+      ],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": false,
+      "error": null,
+      "latencyMs": 369.827292
+    },
+    {
+      "id": "c3-sr-slajdovi",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Možeš li mi poslati 4 slajda do podne?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 421.854041
+    },
+    {
+      "id": "c3-sr-podsjeti",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Podsjeti me da pozovem Anu u 5.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 390.862042
+    },
+    {
+      "id": "c3-sr-kada",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Kada počinje sastanak za Javor?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 382.46075
+    },
+    {
+      "id": "c3-sr-objasni",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Objasni mi zašto kasni isporuka.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 324.199292
+    },
+    {
+      "id": "c3-req-reply-time",
+      "kind": "factual",
+      "variant": "both",
+      "text": "16:45",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 406.913667
+    },
+    {
+      "id": "c3-req-draft-room",
+      "kind": "factual",
+      "variant": "both",
+      "text": "We moved the Alder sync to room 214.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 484.896375
+    },
+    {
+      "id": "c3-req-sr",
+      "kind": "factual",
+      "variant": "both",
+      "text": "Radionica Bor je u petak.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 358.23075
+    },
+    {
+      "id": "c3-transcribe",
+      "kind": "transcribe",
+      "variant": "both",
+      "text": "Can you send me the 4 slides before noon?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": null,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 0.003
+    },
+    {
+      "id": "c3-send-slides",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Can you send me the 4 slides before noon?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 379.245
+    },
+    {
+      "id": "c3-what-time",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "What time does the Juniper review start?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 272.502292
+    },
+    {
+      "id": "c3-remind-me",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Remind me to call Ana at 5.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 285.95525
+    },
+    {
+      "id": "c3-tell-marko",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Tell Marko that the 3 contracts are signed.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 334.009208
+    },
+    {
+      "id": "c3-ask-sara",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Ask Sara whether the 8 chairs arrived.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 306.728792
+    },
+    {
+      "id": "c3-check-server",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Could you check if the staging server is down?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 354.394166
+    },
+    {
+      "id": "c3-explain-build",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Please explain why the nightly build failed.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 282.502333
+    },
+    {
+      "id": "c3-lets-ship",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Let's ship the 6 fixes tomorrow.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 286.197375
+    },
+    {
+      "id": "c3-owe-coffee",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Thanks, I owe you 2 coffees.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 302.021792
+    },
+    {
+      "id": "c3-did-not-say",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "I did not say 15, I said 50 invoices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 407.636792
+    },
+    {
+      "id": "c3-filler",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "So the release is moved to Thursday, I think.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 369.526209
+    },
+    {
+      "id": "c3-summarize-thoughts",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Both proposals are due Monday.",
+      "correct": false,
+      "forbiddenFacts": [
+        "Monday"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": false,
+      "forbiddenReads": [
+        "message"
+      ],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": false,
+      "error": null,
+      "latencyMs": 363.493459
+    },
+    {
+      "id": "c3-sr-slajdovi",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Možeš li mi poslati 4 slajda do podne?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 471.92775
+    },
+    {
+      "id": "c3-sr-podsjeti",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Podsjeti me da pozovem Anu u 5.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 308.211875
+    },
+    {
+      "id": "c3-sr-kada",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Kada počinje sastanak za Javor?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 318.63575
+    },
+    {
+      "id": "c3-sr-objasni",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Objasni mi zašto kasni isporuka.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 318.666333
+    },
+    {
+      "id": "c3-req-reply-time",
+      "kind": "factual",
+      "variant": "all",
+      "text": "16:45",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 287.732042
+    },
+    {
+      "id": "c3-req-draft-room",
+      "kind": "factual",
+      "variant": "all",
+      "text": "We moved the Alder sync to room 214.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 408.708833
+    },
+    {
+      "id": "c3-req-sr",
+      "kind": "factual",
+      "variant": "all",
+      "text": "Radionica Bor je u petak.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 333.272209
+    },
+    {
+      "id": "c3-transcribe",
+      "kind": "transcribe",
+      "variant": "all",
       "text": "Can you send me the 4 slides before noon?",
       "correct": true,
       "forbiddenFacts": [],
@@ -1215,698 +1903,10 @@
       "routingCorrect": true,
       "error": null,
       "latencyMs": 0.00175
-    },
-    {
-      "id": "c3-send-slides",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Can you send me the 4 slides before noon?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 280.451792
-    },
-    {
-      "id": "c3-what-time",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "What time does the Juniper review start?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 232.692917
-    },
-    {
-      "id": "c3-remind-me",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Remind me to call Ana at 5.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 243.493375
-    },
-    {
-      "id": "c3-tell-marko",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Tell Marko that the 3 contracts are signed.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 259.442625
-    },
-    {
-      "id": "c3-ask-sara",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Ask Sara whether the 8 chairs arrived.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 227.103666
-    },
-    {
-      "id": "c3-check-server",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Could you check if the staging server is down?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 242.811709
-    },
-    {
-      "id": "c3-explain-build",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Please explain why the nightly build failed.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 212.543416
-    },
-    {
-      "id": "c3-lets-ship",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Let's ship the 6 fixes tomorrow.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 227.683083
-    },
-    {
-      "id": "c3-owe-coffee",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Thanks, I owe you 2 coffees.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 242.949334
-    },
-    {
-      "id": "c3-did-not-say",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "I did not say 15, I said 50 invoices.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 327.915708
-    },
-    {
-      "id": "c3-filler",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "So the release is moved to Thursday, I think.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 259.280709
-    },
-    {
-      "id": "c3-summarize-thoughts",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Both proposals are due Monday.",
-      "correct": false,
-      "forbiddenFacts": [
-        "Monday"
-      ],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": false,
-      "forbiddenReads": [
-        "message"
-      ],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": false,
-      "error": null,
-      "latencyMs": 263.779875
-    },
-    {
-      "id": "c3-sr-slajdovi",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Možeš li mi poslati 4 slajda do podne?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 356.898209
-    },
-    {
-      "id": "c3-sr-podsjeti",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Podsjeti me da pozovem Anu u 5.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 274.449625
-    },
-    {
-      "id": "c3-sr-kada",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Kada počinje sastanak za Javor?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 259.285
-    },
-    {
-      "id": "c3-sr-objasni",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Objasni mi zašto kasni isporuka.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 274.664625
-    },
-    {
-      "id": "c3-req-reply-time",
-      "kind": "factual",
-      "variant": "both",
-      "text": "16:45",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 249.757292
-    },
-    {
-      "id": "c3-req-draft-room",
-      "kind": "factual",
-      "variant": "both",
-      "text": "We moved the Alder sync to room 214.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 368.9985
-    },
-    {
-      "id": "c3-req-sr",
-      "kind": "factual",
-      "variant": "both",
-      "text": "Radionica Bor je u petak.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 307.47825
-    },
-    {
-      "id": "c3-transcribe",
-      "kind": "transcribe",
-      "variant": "both",
-      "text": "Can you send me the 4 slides before noon?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": null,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 0.001708
-    },
-    {
-      "id": "c3-send-slides",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Can you send me the 4 slides before noon?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 287.381833
-    },
-    {
-      "id": "c3-what-time",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "What time does the Juniper review start?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 230.021541
-    },
-    {
-      "id": "c3-remind-me",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Remind me to call Ana at 5.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 243.042417
-    },
-    {
-      "id": "c3-tell-marko",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Tell Marko that the 3 contracts are signed.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 258.63725
-    },
-    {
-      "id": "c3-ask-sara",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Ask Sara whether the 8 chairs arrived.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 227.790125
-    },
-    {
-      "id": "c3-check-server",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Could you check if the staging server is down?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 243.0135
-    },
-    {
-      "id": "c3-explain-build",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Please explain why the nightly build failed.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 240.760542
-    },
-    {
-      "id": "c3-lets-ship",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Let's ship the 6 fixes tomorrow.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 227.35775
-    },
-    {
-      "id": "c3-owe-coffee",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Thanks, I owe you 2 coffees.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 242.951583
-    },
-    {
-      "id": "c3-did-not-say",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "I did not say 15, I said 50 invoices.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 321.793792
-    },
-    {
-      "id": "c3-filler",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "So the release is moved to Thursday, I think.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 259.094417
-    },
-    {
-      "id": "c3-summarize-thoughts",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Both proposals are due Monday.",
-      "correct": false,
-      "forbiddenFacts": [
-        "Monday"
-      ],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": false,
-      "forbiddenReads": [
-        "message"
-      ],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": false,
-      "error": null,
-      "latencyMs": 263.454
-    },
-    {
-      "id": "c3-sr-slajdovi",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Možeš li mi poslati 4 slajda do podne?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 356.144125
-    },
-    {
-      "id": "c3-sr-podsjeti",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Podsjeti me da pozovem Anu u 5.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 275.078667
-    },
-    {
-      "id": "c3-sr-kada",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Kada počinje sastanak za Javor?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 260.378625
-    },
-    {
-      "id": "c3-sr-objasni",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Objasni mi zašto kasni isporuka.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 279.374459
-    },
-    {
-      "id": "c3-req-reply-time",
-      "kind": "factual",
-      "variant": "all",
-      "text": "16:45",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 256.492125
-    },
-    {
-      "id": "c3-req-draft-room",
-      "kind": "factual",
-      "variant": "all",
-      "text": "We moved the Alder sync to room 214.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 374.663666
-    },
-    {
-      "id": "c3-req-sr",
-      "kind": "factual",
-      "variant": "all",
-      "text": "Radionica Bor je u petak.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 312.160916
-    },
-    {
-      "id": "c3-transcribe",
-      "kind": "transcribe",
-      "variant": "all",
-      "text": "Can you send me the 4 slides before noon?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": null,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 0.001458
     }
   ],
   "manifest": {
-    "appSHA256": "6cb823b1a4d2766b062654e2246e0d70d9ee701e351ebc189f78175f61402dc0",
+    "appSHA256": "a3357ff4da483b0bc6e04b79d1adccf58193d2d0bc94128453d45a87536f5726",
     "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
     "modelSHA256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
     "modelFile": "Qwen3.5-4B-Q4_K_M.gguf",
@@ -1936,13 +1936,13 @@
       "c3-transcribe"
     ],
     "serverArguments": [
-      "/private/tmp/lokalbot-bench/LokalBot.app/Contents/Resources/llama-cpp/llama-server",
+      "/private/tmp/lokalbot-bench/app-wordlock/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
       "-m",
       "~/Library/Application Support/me.dotenv.LokalBot.dev/models/Qwen3.5-4B-Q4_K_M.gguf",
       "--host",
       "127.0.0.1",
       "--port",
-      "55216",
+      "58571",
       "-c",
       "32768",
       "-ngl",

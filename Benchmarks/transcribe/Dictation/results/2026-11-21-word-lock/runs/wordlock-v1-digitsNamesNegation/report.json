@@ -8,7 +8,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 245.1757705,
+      "medianMs": 255.93325,
       "byKind": {
         "fidelity": {
           "correct": 30,
@@ -28,7 +28,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 244.51833349999998,
+      "medianMs": 256.343167,
       "byKind": {
         "fidelity": {
           "correct": 30,
@@ -48,7 +48,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 245.3648955,
+      "medianMs": 252.31927100000001,
       "byKind": {
         "fidelity": {
           "correct": 30,
@@ -68,7 +68,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 245.2113955,
+      "medianMs": 266.6262085,
       "byKind": {
         "fidelity": {
           "correct": 30,
@@ -88,7 +88,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 245.223812,
+      "medianMs": 276.4987085,
       "byKind": {
         "fidelity": {
           "correct": 30,
@@ -243,7 +243,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 612.574959
+      "latencyMs": 620.699625
     },
     {
       "id": "w1-digits-count",
@@ -260,7 +260,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 223.555792
+      "latencyMs": 231.77275
     },
     {
       "id": "w1-digits-money",
@@ -277,7 +277,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 284.398667
+      "latencyMs": 307.609417
     },
     {
       "id": "w1-digits-percent",
@@ -294,7 +294,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 251.543833
+      "latencyMs": 253.777084
     },
     {
       "id": "w1-digits-small",
@@ -311,7 +311,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 235.132916
+      "latencyMs": 272.902291
     },
     {
       "id": "w1-digits-sr",
@@ -328,7 +328,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 317.66725
+      "latencyMs": 360.011167
     },
     {
       "id": "w1-digits-filler",
@@ -345,7 +345,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 239.378416
+      "latencyMs": 246.744791
     },
     {
       "id": "w1-digits-repeat",
@@ -362,7 +362,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 204.111541
+      "latencyMs": 224.632667
     },
     {
       "id": "w1-neg-not",
@@ -379,7 +379,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 251.672666
+      "latencyMs": 262.642292
     },
     {
       "id": "w1-neg-dont",
@@ -396,7 +396,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.301583
+      "latencyMs": 236.915041
     },
     {
       "id": "w1-neg-never",
@@ -413,7 +413,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 235.412833
+      "latencyMs": 246.606584
     },
     {
       "id": "w1-neg-no",
@@ -430,7 +430,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.542209
+      "latencyMs": 228.947166
     },
     {
       "id": "w1-neg-cant",
@@ -447,7 +447,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.107625
+      "latencyMs": 274.510875
     },
     {
       "id": "w1-neg-filler",
@@ -464,7 +464,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 204.371125
+      "latencyMs": 217.694875
     },
     {
       "id": "w1-neg-double",
@@ -481,7 +481,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 383.5485
+      "latencyMs": 402.370292
     },
     {
       "id": "w1-name-person",
@@ -498,7 +498,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.067542
+      "latencyMs": 275.905875
     },
     {
       "id": "w1-name-product",
@@ -515,7 +515,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.969458
+      "latencyMs": 279.216167
     },
     {
       "id": "w1-name-place",
@@ -532,7 +532,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.304333
+      "latencyMs": 255.927208
     },
     {
       "id": "w1-name-pair",
@@ -549,7 +549,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.67525
+      "latencyMs": 294.1325
     },
     {
       "id": "w1-name-lowercase",
@@ -566,7 +566,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.310209
+      "latencyMs": 228.035208
     },
     {
       "id": "w1-name-start",
@@ -583,7 +583,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.571375
+      "latencyMs": 227.205667
     },
     {
       "id": "w1-fix-digit",
@@ -600,7 +600,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.376333
+      "latencyMs": 315.519458
     },
     {
       "id": "w1-fix-name",
@@ -617,7 +617,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.767708
+      "latencyMs": 284.684417
     },
     {
       "id": "w1-fix-actually",
@@ -634,7 +634,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 250.973125
+      "latencyMs": 255.939292
     },
     {
       "id": "w1-fix-sorry",
@@ -651,7 +651,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 235.720458
+      "latencyMs": 246.657167
     },
     {
       "id": "w1-fix-scratch",
@@ -668,7 +668,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 283.889541
+      "latencyMs": 302.868833
     },
     {
       "id": "w1-fluent-filler",
@@ -685,7 +685,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.248792
+      "latencyMs": 220.907375
     },
     {
       "id": "w1-fluent-stutter",
@@ -702,7 +702,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 172.110375
+      "latencyMs": 172.850916
     },
     {
       "id": "w1-fluent-question",
@@ -719,7 +719,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 235.776209
+      "latencyMs": 246.003625
     },
     {
       "id": "w1-fluent-plain",
@@ -736,7 +736,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.66775
+      "latencyMs": 266.172667
     },
     {
       "id": "w1-transcribe",
@@ -753,7 +753,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001542
+      "latencyMs": 0.00175
     },
     {
       "id": "w1-digits-time",
@@ -770,7 +770,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 306.060542
+      "latencyMs": 321.230084
     },
     {
       "id": "w1-digits-count",
@@ -787,7 +787,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 222.308083
+      "latencyMs": 226.13075
     },
     {
       "id": "w1-digits-money",
@@ -804,7 +804,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 284.528
+      "latencyMs": 300.288333
     },
     {
       "id": "w1-digits-percent",
@@ -821,7 +821,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.262041
+      "latencyMs": 270.443375
     },
     {
       "id": "w1-digits-small",
@@ -838,7 +838,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.769292
+      "latencyMs": 236.410792
     },
     {
       "id": "w1-digits-sr",
@@ -855,7 +855,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 317.88325
+      "latencyMs": 326.614208
     },
     {
       "id": "w1-digits-filler",
@@ -872,7 +872,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.652167
+      "latencyMs": 249.3895
     },
     {
       "id": "w1-digits-repeat",
@@ -889,7 +889,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 203.663541
+      "latencyMs": 207.027291
     },
     {
       "id": "w1-neg-not",
@@ -906,7 +906,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 251.817084
+      "latencyMs": 261.860667
     },
     {
       "id": "w1-neg-dont",
@@ -923,7 +923,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.189459
+      "latencyMs": 239.065792
     },
     {
       "id": "w1-neg-never",
@@ -940,7 +940,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.692459
+      "latencyMs": 240.686167
     },
     {
       "id": "w1-neg-no",
@@ -957,7 +957,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.513709
+      "latencyMs": 244.709541
     },
     {
       "id": "w1-neg-cant",
@@ -974,7 +974,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.009083
+      "latencyMs": 281.200833
     },
     {
       "id": "w1-neg-filler",
@@ -991,7 +991,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 204.076167
+      "latencyMs": 209.085708
     },
     {
       "id": "w1-neg-double",
@@ -1008,7 +1008,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 383.0305
+      "latencyMs": 397.063333
     },
     {
       "id": "w1-name-person",
@@ -1025,7 +1025,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.119958
+      "latencyMs": 288.342
     },
     {
       "id": "w1-name-product",
@@ -1042,7 +1042,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.100417
+      "latencyMs": 270.220208
     },
     {
       "id": "w1-name-place",
@@ -1059,7 +1059,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.618
+      "latencyMs": 250.825667
     },
     {
       "id": "w1-name-pair",
@@ -1076,7 +1076,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.378958
+      "latencyMs": 294.785583
     },
     {
       "id": "w1-name-lowercase",
@@ -1093,7 +1093,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.005042
+      "latencyMs": 222.039209
     },
     {
       "id": "w1-name-start",
@@ -1110,7 +1110,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.257292
+      "latencyMs": 232.646834
     },
     {
       "id": "w1-fix-digit",
@@ -1127,7 +1127,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 300.872125
+      "latencyMs": 306.448958
     },
     {
       "id": "w1-fix-name",
@@ -1144,7 +1144,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.823
+      "latencyMs": 276.429458
     },
     {
       "id": "w1-fix-actually",
@@ -1161,7 +1161,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.177875
+      "latencyMs": 268.367167
     },
     {
       "id": "w1-fix-sorry",
@@ -1178,7 +1178,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 235.993041
+      "latencyMs": 240.793041
     },
     {
       "id": "w1-fix-scratch",
@@ -1195,7 +1195,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 284.644875
+      "latencyMs": 308.796667
     },
     {
       "id": "w1-fluent-filler",
@@ -1212,7 +1212,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.505875
+      "latencyMs": 237.813167
     },
     {
       "id": "w1-fluent-stutter",
@@ -1229,7 +1229,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 172.504625
+      "latencyMs": 178.200708
     },
     {
       "id": "w1-fluent-question",
@@ -1246,7 +1246,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.219583
+      "latencyMs": 249.285208
     },
     {
       "id": "w1-fluent-plain",
@@ -1263,7 +1263,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.994541
+      "latencyMs": 267.724666
     },
     {
       "id": "w1-transcribe",
@@ -1280,7 +1280,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001416
+      "latencyMs": 0.002791
     },
     {
       "id": "w1-digits-time",
@@ -1297,7 +1297,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 309.976333
+      "latencyMs": 310.2145
     },
     {
       "id": "w1-digits-count",
@@ -1314,7 +1314,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 223.412375
+      "latencyMs": 219.979209
     },
     {
       "id": "w1-digits-money",
@@ -1331,7 +1331,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 287.3725
+      "latencyMs": 289.158625
     },
     {
       "id": "w1-digits-percent",
@@ -1348,7 +1348,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.201709
+      "latencyMs": 252.4615
     },
     {
       "id": "w1-digits-small",
@@ -1365,7 +1365,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.354167
+      "latencyMs": 241.256875
     },
     {
       "id": "w1-digits-sr",
@@ -1382,7 +1382,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 319.293833
+      "latencyMs": 315.370916
     },
     {
       "id": "w1-digits-filler",
@@ -1399,7 +1399,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.0465
+      "latencyMs": 237.357708
     },
     {
       "id": "w1-digits-repeat",
@@ -1416,7 +1416,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 203.244667
+      "latencyMs": 203.545667
     },
     {
       "id": "w1-neg-not",
@@ -1433,7 +1433,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.416041
+      "latencyMs": 266.681708
     },
     {
       "id": "w1-neg-dont",
@@ -1450,7 +1450,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.776917
+      "latencyMs": 224.853458
     },
     {
       "id": "w1-neg-never",
@@ -1467,7 +1467,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.286458
+      "latencyMs": 252.177042
     },
     {
       "id": "w1-neg-no",
@@ -1484,7 +1484,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.748958
+      "latencyMs": 227.808542
     },
     {
       "id": "w1-neg-cant",
@@ -1501,7 +1501,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.397167
+      "latencyMs": 277.330875
     },
     {
       "id": "w1-neg-filler",
@@ -1518,7 +1518,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 203.478209
+      "latencyMs": 202.596625
     },
     {
       "id": "w1-neg-double",
@@ -1535,7 +1535,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 384.585625
+      "latencyMs": 389.307583
     },
     {
       "id": "w1-name-person",
@@ -1552,7 +1552,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.661708
+      "latencyMs": 268.950334
     },
     {
       "id": "w1-name-product",
@@ -1569,7 +1569,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.018
+      "latencyMs": 272.505959
     },
     {
       "id": "w1-name-place",
@@ -1586,7 +1586,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.863
+      "latencyMs": 241.654708
     },
     {
       "id": "w1-name-pair",
@@ -1603,7 +1603,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.492125
+      "latencyMs": 290.963041
     },
     {
       "id": "w1-name-lowercase",
@@ -1620,7 +1620,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.153041
+      "latencyMs": 226.616167
     },
     {
       "id": "w1-name-start",
@@ -1637,7 +1637,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 221.729916
+      "latencyMs": 235.17975
     },
     {
       "id": "w1-fix-digit",
@@ -1654,7 +1654,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.785292
+      "latencyMs": 315.94125
     },
     {
       "id": "w1-fix-name",
@@ -1671,7 +1671,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.3385
+      "latencyMs": 289.171792
     },
     {
       "id": "w1-fix-actually",
@@ -1688,7 +1688,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.866791
+      "latencyMs": 264.916584
     },
     {
       "id": "w1-fix-sorry",
@@ -1705,7 +1705,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.910375
+      "latencyMs": 248.731416
     },
     {
       "id": "w1-fix-scratch",
@@ -1722,7 +1722,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.915042
+      "latencyMs": 305.262875
     },
     {
       "id": "w1-fluent-filler",
@@ -1739,7 +1739,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.14175
+      "latencyMs": 223.714042
     },
     {
       "id": "w1-fluent-stutter",
@@ -1756,7 +1756,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 172.254
+      "latencyMs": 197.107583
     },
     {
       "id": "w1-fluent-question",
@@ -1773,7 +1773,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.290625
+      "latencyMs": 241.484333
     },
     {
       "id": "w1-fluent-plain",
@@ -1790,7 +1790,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.388291
+      "latencyMs": 275.199125
     },
     {
       "id": "w1-transcribe",
@@ -1807,7 +1807,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001542
+      "latencyMs": 0.001916
     },
     {
       "id": "w1-digits-time",
@@ -1824,7 +1824,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 303.195125
+      "latencyMs": 325.436083
     },
     {
       "id": "w1-digits-count",
@@ -1841,7 +1841,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 222.060042
+      "latencyMs": 240.150833
     },
     {
       "id": "w1-digits-money",
@@ -1858,7 +1858,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 288.039666
+      "latencyMs": 307.952042
     },
     {
       "id": "w1-digits-percent",
@@ -1875,7 +1875,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 254.057541
+      "latencyMs": 277.297416
     },
     {
       "id": "w1-digits-small",
@@ -1892,7 +1892,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.776291
+      "latencyMs": 255.1595
     },
     {
       "id": "w1-digits-sr",
@@ -1909,7 +1909,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 319.65625
+      "latencyMs": 349.549334
     },
     {
       "id": "w1-digits-filler",
@@ -1926,7 +1926,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 238.169833
+      "latencyMs": 250.041125
     },
     {
       "id": "w1-digits-repeat",
@@ -1943,7 +1943,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 203.781
+      "latencyMs": 230.697167
     },
     {
       "id": "w1-neg-not",
@@ -1960,7 +1960,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.940708
+      "latencyMs": 272.499042
     },
     {
       "id": "w1-neg-dont",
@@ -1977,7 +1977,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.815041
+      "latencyMs": 245.987375
     },
     {
       "id": "w1-neg-never",
@@ -1994,7 +1994,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.5805
+      "latencyMs": 251.307375
     },
     {
       "id": "w1-neg-no",
@@ -2011,7 +2011,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.865709
+      "latencyMs": 233.353167
     },
     {
       "id": "w1-neg-cant",
@@ -2028,7 +2028,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.571167
+      "latencyMs": 317.348458
     },
     {
       "id": "w1-neg-filler",
@@ -2045,7 +2045,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 204.30825
+      "latencyMs": 213.510208
     },
     {
       "id": "w1-neg-double",
@@ -2062,7 +2062,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 384.582
+      "latencyMs": 428.044208
     },
     {
       "id": "w1-name-person",
@@ -2079,7 +2079,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.62225
+      "latencyMs": 294.986208
     },
     {
       "id": "w1-name-product",
@@ -2096,7 +2096,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.702708
+      "latencyMs": 311.523
     },
     {
       "id": "w1-name-place",
@@ -2113,7 +2113,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.460334
+      "latencyMs": 251.172375
     },
     {
       "id": "w1-name-pair",
@@ -2130,7 +2130,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.689042
+      "latencyMs": 303.380792
     },
     {
       "id": "w1-name-lowercase",
@@ -2147,7 +2147,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.753791
+      "latencyMs": 229.636834
     },
     {
       "id": "w1-name-start",
@@ -2164,7 +2164,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.589208
+      "latencyMs": 233.158542
     },
     {
       "id": "w1-fix-digit",
@@ -2181,7 +2181,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.051292
+      "latencyMs": 322.84025
     },
     {
       "id": "w1-fix-name",
@@ -2198,7 +2198,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.026708
+      "latencyMs": 289.232333
     },
     {
       "id": "w1-fix-actually",
@@ -2215,7 +2215,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.252958
+      "latencyMs": 268.707375
     },
     {
       "id": "w1-fix-sorry",
@@ -2232,7 +2232,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.917375
+      "latencyMs": 264.545042
     },
     {
       "id": "w1-fix-scratch",
@@ -2249,7 +2249,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.7585
+      "latencyMs": 303.188792
     },
     {
       "id": "w1-fluent-filler",
@@ -2266,7 +2266,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.417542
+      "latencyMs": 244.235083
     },
     {
       "id": "w1-fluent-stutter",
@@ -2283,7 +2283,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 172.798
+      "latencyMs": 185.118125
     },
     {
       "id": "w1-fluent-question",
@@ -2300,7 +2300,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.117167
+      "latencyMs": 258.623125
     },
     {
       "id": "w1-fluent-plain",
@@ -2317,7 +2317,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 254.02925
+      "latencyMs": 285.616583
     },
     {
       "id": "w1-transcribe",
@@ -2334,7 +2334,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001583
+      "latencyMs": 0.002208
     },
     {
       "id": "w1-digits-time",
@@ -2351,7 +2351,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 310.327708
+      "latencyMs": 320.114583
     },
     {
       "id": "w1-digits-count",
@@ -2368,7 +2368,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 224.11425
+      "latencyMs": 239.627041
     },
     {
       "id": "w1-digits-money",
@@ -2385,7 +2385,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 286.620042
+      "latencyMs": 321.97525
     },
     {
       "id": "w1-digits-percent",
@@ -2402,7 +2402,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.919833
+      "latencyMs": 267.806
     },
     {
       "id": "w1-digits-small",
@@ -2419,7 +2419,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.066333
+      "latencyMs": 267.9615
     },
     {
       "id": "w1-digits-sr",
@@ -2436,7 +2436,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 319.548083
+      "latencyMs": 355.131833
     },
     {
       "id": "w1-digits-filler",
@@ -2453,7 +2453,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.936458
+      "latencyMs": 247.549917
     },
     {
       "id": "w1-digits-repeat",
@@ -2470,7 +2470,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 204.509292
+      "latencyMs": 223.123833
     },
     {
       "id": "w1-neg-not",
@@ -2487,7 +2487,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.752917
+      "latencyMs": 282.216583
     },
     {
       "id": "w1-neg-dont",
@@ -2504,7 +2504,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.838417
+      "latencyMs": 229.449083
     },
     {
       "id": "w1-neg-never",
@@ -2521,7 +2521,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.329208
+      "latencyMs": 258.933
     },
     {
       "id": "w1-neg-no",
@@ -2538,7 +2538,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 219.491542
+      "latencyMs": 246.182
     },
     {
       "id": "w1-neg-cant",
@@ -2555,7 +2555,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.02975
+      "latencyMs": 292.985
     },
     {
       "id": "w1-neg-filler",
@@ -2572,7 +2572,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 203.813333
+      "latencyMs": 223.849625
     },
     {
       "id": "w1-neg-double",
@@ -2589,7 +2589,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 383.441875
+      "latencyMs": 412.198959
     },
     {
       "id": "w1-name-person",
@@ -2606,7 +2606,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.469083
+      "latencyMs": 291.344
     },
     {
       "id": "w1-name-product",
@@ -2623,7 +2623,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.446083
+      "latencyMs": 290.351209
     },
     {
       "id": "w1-name-place",
@@ -2640,7 +2640,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.219125
+      "latencyMs": 273.654334
     },
     {
       "id": "w1-name-pair",
@@ -2657,7 +2657,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 284.190458
+      "latencyMs": 301.677875
     },
     {
       "id": "w1-name-lowercase",
@@ -2674,7 +2674,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.420959
+      "latencyMs": 242.2605
     },
     {
       "id": "w1-name-start",
@@ -2691,7 +2691,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 221.057167
+      "latencyMs": 247.763125
     },
     {
       "id": "w1-fix-digit",
@@ -2708,7 +2708,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.629292
+      "latencyMs": 332.371959
     },
     {
       "id": "w1-fix-name",
@@ -2725,7 +2725,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.471375
+      "latencyMs": 293.195416
     },
     {
       "id": "w1-fix-actually",
@@ -2742,7 +2742,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.34975
+      "latencyMs": 279.343083
     },
     {
       "id": "w1-fix-sorry",
@@ -2759,7 +2759,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.125167
+      "latencyMs": 256.857583
     },
     {
       "id": "w1-fix-scratch",
@@ -2776,7 +2776,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 285.700417
+      "latencyMs": 317.614834
     },
     {
       "id": "w1-fluent-filler",
@@ -2793,7 +2793,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 220.417125
+      "latencyMs": 245.089625
     },
     {
       "id": "w1-fluent-stutter",
@@ -2810,7 +2810,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 172.677333
+      "latencyMs": 180.982833
     },
     {
       "id": "w1-fluent-question",
@@ -2827,7 +2827,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.238041
+      "latencyMs": 288.059292
     },
     {
       "id": "w1-fluent-plain",
@@ -2844,7 +2844,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.209583
+      "latencyMs": 294.00075
     },
     {
       "id": "w1-transcribe",
@@ -2861,11 +2861,11 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001792
+      "latencyMs": 0.002292
     }
   ],
   "manifest": {
-    "appSHA256": "6cb823b1a4d2766b062654e2246e0d70d9ee701e351ebc189f78175f61402dc0",
+    "appSHA256": "a3357ff4da483b0bc6e04b79d1adccf58193d2d0bc94128453d45a87536f5726",
     "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
     "modelSHA256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
     "modelFile": "Qwen3.5-4B-Q4_K_M.gguf",
@@ -2906,13 +2906,13 @@
       "w1-transcribe"
     ],
     "serverArguments": [
-      "/private/tmp/lokalbot-bench/LokalBot.app/Contents/Resources/llama-cpp/llama-server",
+      "/private/tmp/lokalbot-bench/app-wordlock/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
       "-m",
       "~/Library/Application Support/me.dotenv.LokalBot.dev/models/Qwen3.5-4B-Q4_K_M.gguf",
       "--host",
       "127.0.0.1",
       "--port",
-      "55175",
+      "58459",
       "-c",
       "32768",
       "-ngl",

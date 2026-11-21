@@ -8,7 +8,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 283.373667,
+      "medianMs": 322.423083,
       "byKind": {
         "factual": {
           "correct": 0,
@@ -32,7 +32,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 269.9745,
+      "medianMs": 290.7575,
       "byKind": {
         "factual": {
           "correct": 1,
@@ -56,7 +56,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 276.16575,
+      "medianMs": 302.934417,
       "byKind": {
         "factual": {
           "correct": 0,
@@ -80,7 +80,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 272.096375,
+      "medianMs": 280.744375,
       "byKind": {
         "factual": {
           "correct": 1,
@@ -104,7 +104,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 266.115917,
+      "medianMs": 305.781625,
       "byKind": {
         "factual": {
           "correct": 1,
@@ -207,7 +207,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 574.62075
+      "latencyMs": 597.70275
     },
     {
       "id": "f4-digits-list",
@@ -224,7 +224,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 240.755833
+      "latencyMs": 292.793833
     },
     {
       "id": "f4-time",
@@ -241,7 +241,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 267.655042
+      "latencyMs": 365.801542
     },
     {
       "id": "f4-help-question",
@@ -258,7 +258,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 283.373667
+      "latencyMs": 322.423083
     },
     {
       "id": "f4-status-question",
@@ -275,7 +275,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 234.617
+      "latencyMs": 245.834083
     },
     {
       "id": "f4-who-question",
@@ -292,7 +292,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 286.055875
+      "latencyMs": 316.481584
     },
     {
       "id": "f4-tell-relay",
@@ -309,7 +309,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.101667
+      "latencyMs": 264.165834
     },
     {
       "id": "f4-ask-team",
@@ -326,7 +326,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 267.934417
+      "latencyMs": 281.866792
     },
     {
       "id": "f4-please-review",
@@ -343,7 +343,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.006459
+      "latencyMs": 363.79775
     },
     {
       "id": "f4-negation",
@@ -360,7 +360,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 251.945083
+      "latencyMs": 301.80525
     },
     {
       "id": "f4-plain-time",
@@ -377,7 +377,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 317.066458
+      "latencyMs": 335.492625
     },
     {
       "id": "f4-filler",
@@ -394,7 +394,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 256.805625
+      "latencyMs": 267.439708
     },
     {
       "id": "f4-sr-digits",
@@ -411,7 +411,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.118
+      "latencyMs": 340.334583
     },
     {
       "id": "f4-sr-question",
@@ -428,7 +428,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 337.359875
+      "latencyMs": 382.995125
     },
     {
       "id": "f4-sr-send",
@@ -445,7 +445,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 301.343667
+      "latencyMs": 336.000792
     },
     {
       "id": "f4-sr-plain",
@@ -462,7 +462,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 286.598625
+      "latencyMs": 305.494375
     },
     {
       "id": "f4-request",
@@ -479,7 +479,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 685.022542
+      "latencyMs": 799.928666
     },
     {
       "id": "f4-transcribe",
@@ -496,7 +496,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001542
+      "latencyMs": 0.002208
     },
     {
       "id": "f4-digits-small",
@@ -513,7 +513,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 281.305833
+      "latencyMs": 289.813666
     },
     {
       "id": "f4-digits-list",
@@ -530,7 +530,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 239.587583
+      "latencyMs": 246.947875
     },
     {
       "id": "f4-time",
@@ -547,7 +547,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.320458
+      "latencyMs": 305.072625
     },
     {
       "id": "f4-help-question",
@@ -564,7 +564,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 286.606
+      "latencyMs": 337.397166
     },
     {
       "id": "f4-status-question",
@@ -581,7 +581,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.679625
+      "latencyMs": 252.197084
     },
     {
       "id": "f4-who-question",
@@ -598,7 +598,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 286.4895
+      "latencyMs": 345.072458
     },
     {
       "id": "f4-tell-relay",
@@ -615,7 +615,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 254.073959
+      "latencyMs": 290.7575
     },
     {
       "id": "f4-ask-team",
@@ -632,7 +632,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 269.9745
+      "latencyMs": 288.700542
     },
     {
       "id": "f4-please-review",
@@ -649,7 +649,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.378666
+      "latencyMs": 257.531958
     },
     {
       "id": "f4-negation",
@@ -666,7 +666,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.765292
+      "latencyMs": 273.174375
     },
     {
       "id": "f4-plain-time",
@@ -683,7 +683,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 318.727708
+      "latencyMs": 335.131708
     },
     {
       "id": "f4-filler",
@@ -700,7 +700,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.199417
+      "latencyMs": 269.531875
     },
     {
       "id": "f4-sr-digits",
@@ -717,7 +717,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.086459
+      "latencyMs": 320.277958
     },
     {
       "id": "f4-sr-question",
@@ -734,7 +734,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 334.208375
+      "latencyMs": 352.506541
     },
     {
       "id": "f4-sr-send",
@@ -751,7 +751,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 301.312083
+      "latencyMs": 346.001333
     },
     {
       "id": "f4-sr-plain",
@@ -768,7 +768,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 286.800542
+      "latencyMs": 307.727708
     },
     {
       "id": "f4-request",
@@ -785,7 +785,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 225.86825
+      "latencyMs": 253.9575
     },
     {
       "id": "f4-transcribe",
@@ -819,7 +819,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 282.710917
+      "latencyMs": 298.816916
     },
     {
       "id": "f4-digits-list",
@@ -836,7 +836,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 236.384541
+      "latencyMs": 268.213875
     },
     {
       "id": "f4-time",
@@ -853,7 +853,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 267.788375
+      "latencyMs": 343.110208
     },
     {
       "id": "f4-help-question",
@@ -870,7 +870,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 283.165
+      "latencyMs": 320.029292
     },
     {
       "id": "f4-status-question",
@@ -887,7 +887,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 234.951833
+      "latencyMs": 248.147292
     },
     {
       "id": "f4-who-question",
@@ -904,7 +904,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 284.856625
+      "latencyMs": 310.746333
     },
     {
       "id": "f4-tell-relay",
@@ -921,7 +921,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 254.613791
+      "latencyMs": 274.427125
     },
     {
       "id": "f4-ask-team",
@@ -938,7 +938,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 271.119208
+      "latencyMs": 308.925333
     },
     {
       "id": "f4-please-review",
@@ -955,7 +955,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 237.332541
+      "latencyMs": 251.783375
     },
     {
       "id": "f4-negation",
@@ -972,7 +972,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 254.60675
+      "latencyMs": 279.128167
     },
     {
       "id": "f4-plain-time",
@@ -989,7 +989,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 319.129292
+      "latencyMs": 334.56725
     },
     {
       "id": "f4-filler",
@@ -1006,7 +1006,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.143417
+      "latencyMs": 265.704292
     },
     {
       "id": "f4-sr-digits",
@@ -1023,7 +1023,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 304.163291
+      "latencyMs": 320.425542
     },
     {
       "id": "f4-sr-question",
@@ -1040,7 +1040,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 334.5065
+      "latencyMs": 363.144625
     },
     {
       "id": "f4-sr-send",
@@ -1057,7 +1057,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 302.072208
+      "latencyMs": 334.247542
     },
     {
       "id": "f4-sr-plain",
@@ -1074,7 +1074,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 284.958709
+      "latencyMs": 302.934417
     },
     {
       "id": "f4-request",
@@ -1091,7 +1091,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 276.16575
+      "latencyMs": 294.315958
     },
     {
       "id": "f4-transcribe",
@@ -1108,623 +1108,623 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001583
-    },
-    {
-      "id": "f4-digits-small",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "We need 3 more testers by 9.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 272.096375
-    },
-    {
-      "id": "f4-digits-list",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Order 2 monitors and 5 cables.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 237.203084
-    },
-    {
-      "id": "f4-time",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "The call moved to 4:30 tomorrow.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 273.153375
-    },
-    {
-      "id": "f4-help-question",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Can you help me move the 2 desks on Friday?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 287.305167
-    },
-    {
-      "id": "f4-status-question",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "What is the status of the Birch invoice?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 237.10225
-    },
-    {
-      "id": "f4-who-question",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Who is presenting at the 10 o'clock review?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 285.389042
-    },
-    {
-      "id": "f4-tell-relay",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Tell Ivana I will bring 4 copies.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 253.506833
-    },
-    {
-      "id": "f4-ask-team",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Ask the team if 11 works for lunch.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 270.335916
-    },
-    {
-      "id": "f4-please-review",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Please review the 6 pull requests today.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 237.207375
-    },
-    {
-      "id": "f4-negation",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "I can't confirm the 8 seats yet.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 254.380709
-    },
-    {
-      "id": "f4-plain-time",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "The 12 boxes arrived at 2pm, all intact.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 319.186916
-    },
-    {
-      "id": "f4-filler",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "I think we should postpone the 5 demos.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 253.773375
-    },
-    {
-      "id": "f4-sr-digits",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Treba nam 5 stolica i 2 stola.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 302.713708
-    },
-    {
-      "id": "f4-sr-question",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Možeš li mi reći ko vodi sastanak u 3?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 334.939666
-    },
-    {
-      "id": "f4-sr-send",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Pošalji mi 4 fajla do sutra.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 303.394667
-    },
-    {
-      "id": "f4-sr-plain",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Stigli smo u 7 i sve je u redu.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 285.201916
-    },
-    {
-      "id": "f4-request",
-      "kind": "factual",
-      "variant": "both",
-      "text": "318",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 222.269333
-    },
-    {
-      "id": "f4-transcribe",
-      "kind": "transcribe",
-      "variant": "both",
-      "text": "We need 3 more testers by 9.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": null,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 0.001375
-    },
-    {
-      "id": "f4-digits-small",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "We need 3 more testers by 9.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 262.910875
-    },
-    {
-      "id": "f4-digits-list",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Order 2 monitors and 5 cables.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 239.082791
-    },
-    {
-      "id": "f4-time",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "The call moved to 4:30 tomorrow.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 266.115917
-    },
-    {
-      "id": "f4-help-question",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Can you help me move the 2 desks on Friday?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 278.491875
-    },
-    {
-      "id": "f4-status-question",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "What is the status of the Birch invoice?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 233.376625
-    },
-    {
-      "id": "f4-who-question",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Who is presenting at the 10 o'clock review?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 283.675959
-    },
-    {
-      "id": "f4-tell-relay",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Tell Ivana I will bring 4 copies.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 244.563084
-    },
-    {
-      "id": "f4-ask-team",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Ask the team if 11 works for lunch.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 271.157792
-    },
-    {
-      "id": "f4-please-review",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Please review the 6 pull requests today.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 234.193542
-    },
-    {
-      "id": "f4-negation",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "I can't confirm the 8 seats yet.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 249.898583
-    },
-    {
-      "id": "f4-plain-time",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "The 12 boxes arrived at 2pm, all intact.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 309.365959
-    },
-    {
-      "id": "f4-filler",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "I think we should postpone the 5 demos.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 245.159625
-    },
-    {
-      "id": "f4-sr-digits",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Treba nam 5 stolica i 2 stola.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 296.807
-    },
-    {
-      "id": "f4-sr-question",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Možeš li mi reći ko vodi sastanak u 3?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 327.486167
-    },
-    {
-      "id": "f4-sr-send",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Pošalji mi 4 fajla do sutra.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 302.824125
-    },
-    {
-      "id": "f4-sr-plain",
-      "kind": "fidelity",
-      "variant": "all",
-      "text": "Stigli smo u 7 i sve je u redu.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 277.93525
-    },
-    {
-      "id": "f4-request",
-      "kind": "factual",
-      "variant": "all",
-      "text": "318",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 79.963166
-    },
-    {
-      "id": "f4-transcribe",
-      "kind": "transcribe",
-      "variant": "all",
-      "text": "We need 3 more testers by 9.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": null,
-      "routingCorrect": true,
-      "error": null,
       "latencyMs": 0.002
+    },
+    {
+      "id": "f4-digits-small",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "We need 3 more testers by 9.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 278.768959
+    },
+    {
+      "id": "f4-digits-list",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Order 2 monitors and 5 cables.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 250.548792
+    },
+    {
+      "id": "f4-time",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "The call moved to 4:30 tomorrow.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 280.744375
+    },
+    {
+      "id": "f4-help-question",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Can you help me move the 2 desks on Friday?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 341.542292
+    },
+    {
+      "id": "f4-status-question",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "What is the status of the Birch invoice?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 256.288667
+    },
+    {
+      "id": "f4-who-question",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Who is presenting at the 10 o'clock review?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 305.218083
+    },
+    {
+      "id": "f4-tell-relay",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Tell Ivana I will bring 4 copies.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 277.781
+    },
+    {
+      "id": "f4-ask-team",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Ask the team if 11 works for lunch.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 285.960959
+    },
+    {
+      "id": "f4-please-review",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Please review the 6 pull requests today.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 260.735958
+    },
+    {
+      "id": "f4-negation",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "I can't confirm the 8 seats yet.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 268.619583
+    },
+    {
+      "id": "f4-plain-time",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "The 12 boxes arrived at 2pm, all intact.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 336.140625
+    },
+    {
+      "id": "f4-filler",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "I think we should postpone the 5 demos.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 265.301291
+    },
+    {
+      "id": "f4-sr-digits",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Treba nam 5 stolica i 2 stola.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 320.357334
+    },
+    {
+      "id": "f4-sr-question",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Možeš li mi reći ko vodi sastanak u 3?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 357.32075
+    },
+    {
+      "id": "f4-sr-send",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Pošalji mi 4 fajla do sutra.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 322.469083
+    },
+    {
+      "id": "f4-sr-plain",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Stigli smo u 7 i sve je u redu.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 306.71525
+    },
+    {
+      "id": "f4-request",
+      "kind": "factual",
+      "variant": "both",
+      "text": "318",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 253.876083
+    },
+    {
+      "id": "f4-transcribe",
+      "kind": "transcribe",
+      "variant": "both",
+      "text": "We need 3 more testers by 9.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": null,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 0.001708
+    },
+    {
+      "id": "f4-digits-small",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "We need 3 more testers by 9.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 313.893792
+    },
+    {
+      "id": "f4-digits-list",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Order 2 monitors and 5 cables.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 251.58275
+    },
+    {
+      "id": "f4-time",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "The call moved to 4:30 tomorrow.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 284.405042
+    },
+    {
+      "id": "f4-help-question",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Can you help me move the 2 desks on Friday?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 305.781625
+    },
+    {
+      "id": "f4-status-question",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "What is the status of the Birch invoice?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 249.193459
+    },
+    {
+      "id": "f4-who-question",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Who is presenting at the 10 o'clock review?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 337.212208
+    },
+    {
+      "id": "f4-tell-relay",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Tell Ivana I will bring 4 copies.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 272.206333
+    },
+    {
+      "id": "f4-ask-team",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Ask the team if 11 works for lunch.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 308.756292
+    },
+    {
+      "id": "f4-please-review",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Please review the 6 pull requests today.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 256.0595
+    },
+    {
+      "id": "f4-negation",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "I can't confirm the 8 seats yet.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 274.450333
+    },
+    {
+      "id": "f4-plain-time",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "The 12 boxes arrived at 2pm, all intact.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 333.553542
+    },
+    {
+      "id": "f4-filler",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "I think we should postpone the 5 demos.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 288.22275
+    },
+    {
+      "id": "f4-sr-digits",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Treba nam 5 stolica i 2 stola.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 347.293291
+    },
+    {
+      "id": "f4-sr-question",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Možeš li mi reći ko vodi sastanak u 3?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 361.777875
+    },
+    {
+      "id": "f4-sr-send",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Pošalji mi 4 fajla do sutra.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 327.384833
+    },
+    {
+      "id": "f4-sr-plain",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Stigli smo u 7 i sve je u redu.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 333.114333
+    },
+    {
+      "id": "f4-request",
+      "kind": "factual",
+      "variant": "all",
+      "text": "318",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 100.164917
+    },
+    {
+      "id": "f4-transcribe",
+      "kind": "transcribe",
+      "variant": "all",
+      "text": "We need 3 more testers by 9.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": null,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 0.001875
     }
   ],
   "manifest": {
-    "appSHA256": "6cb823b1a4d2766b062654e2246e0d70d9ee701e351ebc189f78175f61402dc0",
+    "appSHA256": "a3357ff4da483b0bc6e04b79d1adccf58193d2d0bc94128453d45a87536f5726",
     "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
     "modelSHA256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
     "modelFile": "Qwen3.5-4B-Q4_K_M.gguf",
@@ -1752,13 +1752,13 @@
       "f4-transcribe"
     ],
     "serverArguments": [
-      "/private/tmp/lokalbot-bench/LokalBot.app/Contents/Resources/llama-cpp/llama-server",
+      "/private/tmp/lokalbot-bench/app-wordlock/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
       "-m",
       "~/Library/Application Support/me.dotenv.LokalBot.dev/models/Qwen3.5-4B-Q4_K_M.gguf",
       "--host",
       "127.0.0.1",
       "--port",
-      "55192",
+      "58551",
       "-c",
       "32768",
       "-ngl",

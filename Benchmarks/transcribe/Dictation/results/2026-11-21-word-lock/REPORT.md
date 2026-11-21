@@ -9,7 +9,11 @@
 - **Names:** a capitalized word that isn't a sentence's first word stays, ignoring case, or is respelled to a glossary term.
 - **Self-corrections:** "3, no, 4", "I mean", "actually" and the like exempt what they correct, because cleanup is meant to drop false starts.
 
-When a check fails, the transcript is inserted, as Transcribe would insert it. Writing requests are not checked.
+Before falling back, spelled-out numbers are turned back into the spoken digits: when English number words line up, in order,
+with spoken digits the cleaned text lost ("three releases" for "3 releases"), they are replaced by those digits and the
+cleaned text is kept if every check then passes. This also runs when a self-correction cue exempted the digit check, since a
+long dictation easily contains an everyday "rather" or "wait". Otherwise, when a check fails, the transcript is inserted, as
+Transcribe would insert it. Writing requests are not checked.
 
 ### Replay sets
 
@@ -44,11 +48,40 @@ The synthetic sets can't show how often the lock gets in the way of ordinary spe
 
 Only the last sample is a blind measure of the final rules: it fired on none of 399 real dictations. The earlier two were used to find the problems.
 
+### Long dictation (added after the first report)
+
+The replay sets and the real samples above are short (6 to 80 words). A speed set written for idea 5,
+`context-speed-v1.json` (eight synthetic direct dictations of 43 to 220 words, frozen before its first run), showed that on
+long dictation the cleanup model sometimes writes spoken digits as words. Same model, server and options; 40 cleaned outputs
+(runs `speed-off`, `speed-first-digitsNamesNegation` and `speed-digitsNamesNegation`; the first came from a build without the
+lock, the second from a build with the rules as first reported; raw outputs in [`raw-runs-long.tar.gz`](raw-runs-long.tar.gz)):
+
+| Rules | Correct | Transcript inserted | Digits restored |
+|---|---:|---:|---:|
+| Lock off | 20/40 | — | — |
+| Lock as first reported | 20/40 | 5 (one case, every condition) | — |
+| Lock with digit restoring | 25/40 | 0 | 15 (three cases) |
+
+- **With the first rules,** one case fell back to the transcript, fillers and all; two others slipped through because their
+  everyday "rather" and "wait" counted as self-correction cues.
+- **With restoring,** all three keep their cleanup and get their digits back. The 15 failures left are cleanup keeping an
+  "uh", which is outside the lock.
+- **The six replay sets are unchanged:** 430/435, the same five fixes.
+
+**Long real dictations.** A fourth sample of 150 dictations from the same history, all longer than 80 words (median 107, up
+to 300), so none were in the earlier samples, ran with the lock off, with the rules as first reported, and with restoring.
+Each version fell back to the transcript once, on the same dictation: cleanup had dropped four capitalized words that the
+contributor's final text didn't keep either, so it was most likely a false alarm. Cleanup changed the digits in 4 dictations,
+all in ways the rules allow (number words to digits, regrouping), so restoring never had to act on this real speech; it
+matters for the long synthetic cases above.
+
 ## How the rules got here
 
 1. **First lock-on replay** (`runs/first-*`): one false alarm on the new set. In "uh no I don't think that works", cleanup correctly dropped the opening "no", and the lock put the transcript back, "uh" included, in all five conditions (145/150). The rule changed so an opening "no" after fillers isn't a negation. None of the older sets has a direct-speech case that opens with "no".
 2. **Real dictation, first and second samples:** the changes in the table above.
 3. **Each revision was rerun on all six replay sets** with the lock on. Every revision after the first gave the same 430/435 with five firings, all the Serbian fix. The runs kept here are the lock-off runs, the first lock-on runs and the final lock-on runs.
+
+4. **Long dictation:** digit restoring, measured on the speed set and on a fresh sample of long real dictations (above).
 
 Because the rules changed after seeing the frozen set and the first two real samples, those no longer measure the final rules blind. The older replay sets and the third real sample do.
 
