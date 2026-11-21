@@ -158,7 +158,7 @@ final class ModelServerScenarioTests: XCTestCase {
 
     func testReasoningFallbackInsideANotesBudgetIsChargedAsASecondRequest() async throws {
         try await server.load([
-            StubRule.reasoning("Done", tokens: 50_000, nth: 1),
+            StubRule.reasoning("Done", tokens: 1_100, nth: 1),
             StubRule.reply("Done"),
         ])
         let budget = MeetingGenerationBudget()
