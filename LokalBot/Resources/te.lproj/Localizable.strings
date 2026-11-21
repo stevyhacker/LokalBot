@@ -2601,7 +2601,12 @@
 "Detect other browser calls" = "Detect other browser calls";
 "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
 "Additional call apps" = "Additional call apps";
-"Bundle identifiers" = "Bundle identifiers";
-"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Enter bundle identifiers separated by commas, such as com.example.CallApp.";
-"Enter executable names separated by commas, such as CustomClient.exe." = "Enter executable names separated by commas, such as CustomClient.exe.";
 "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "మీరు ఇక్కడ జోడించిన యాప్‌లలో LokalBot కాల్‌లను గుర్తిస్తుంది.";
+"Choose a call app" = "కాల్ యాప్‌ను ఎంచుకోండి";
+"Choose an application file (.exe)." = "యాప్ ఫైల్‌ను (.exe) ఎంచుకోండి.";
+"Could not open the file picker." = "ఫైల్‌ను ఎంచుకునే విండో తెరవడం సాధ్యం కాలేదు.";
+"LokalBot already supports this app." = "ఈ యాప్‌కు LokalBot ఇప్పటికే మద్దతు ఇస్తుంది.";
+"This app is already on the list." = "ఈ యాప్ ఇప్పటికే జాబితాలో ఉంది.";
+"Remove from call detection" = "కాల్ గుర్తింపు నుంచి తీసివేయండి";
+"Remove %@ from call detection" = "కాల్ గుర్తింపు నుంచి %@ తీసివేయండి";

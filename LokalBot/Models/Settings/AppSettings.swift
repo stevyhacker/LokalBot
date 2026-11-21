@@ -16,6 +16,51 @@ enum OpenRouterDataPolicy: String, Codable, CaseIterable, Identifiable, Sendable
     }
 }
 
+struct AdditionalCallApp: Codable, Equatable, Identifiable {
+    let identifier: String
+    let name: String?
+
+    var id: String { identifier.lowercased() }
+
+    init(identifier: String, name: String? = nil) {
+        self.identifier = identifier
+        self.name = name
+    }
+
+    init?(applicationURL: URL) {
+        guard applicationURL.pathExtension.lowercased() == "app",
+              let bundle = Bundle(url: applicationURL),
+              let identifier = bundle.bundleIdentifier,
+              Self.isBundleIdentifier(identifier) else { return nil }
+        self.init(identifier: identifier, name: Self.applicationName(in: bundle))
+    }
+
+    static func applicationName(in bundle: Bundle) -> String {
+        for key in ["CFBundleDisplayName", "CFBundleName"] {
+            if let name = bundle.object(forInfoDictionaryKey: key) as? String,
+               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return name
+            }
+        }
+        return bundle.bundleURL.deletingPathExtension().lastPathComponent
+    }
+
+    static func unique(_ apps: [Self]) -> [Self] {
+        var seen: Set<String> = []
+        return apps.filter { isBundleIdentifier($0.identifier) && seen.insert($0.id).inserted }
+    }
+
+    static func fromLegacyList(_ value: String) -> [Self] {
+        unique(value.split(whereSeparator: { $0 == "," || $0.isNewline }).map {
+            Self(identifier: $0.trimmingCharacters(in: .whitespacesAndNewlines))
+        })
+    }
+
+    private static func isBundleIdentifier(_ value: String) -> Bool {
+        value.contains(".") && !value.contains(where: { $0 == "/" || $0.isWhitespace })
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     enum AutoRecordMode: String, Codable, CaseIterable, Identifiable {
         case automatic = "Record automatically"
@@ -105,8 +150,8 @@ struct AppSettings: Codable, Equatable {
     /// settings preserves the previous automatic default.
     var autoRecordMode: AutoRecordMode = .ask
     var detectOtherBrowserCalls = false
-    /// Comma-separated bundle identifiers of additional native call clients.
-    var additionalCallApps = ""
+    var additionalCallApps: [AdditionalCallApp] = []
+    var additionalCallBundleIDs: Set<String> { Set(additionalCallApps.map(\.id)) }
     /// Seconds the meeting app's own audio must be gone before a meeting counts
     /// as ended.
     var stopDebounceSeconds: TimeInterval = Self.defaultStopDebounceSeconds
@@ -1433,7 +1478,11 @@ struct AppSettings: Codable, Equatable {
         echoCancellation = decode(.echoCancellation, defaults.echoCancellation)
         autoRecordMode = decode(.autoRecordMode, c.contains(.autoRecordMode) ? defaults.autoRecordMode : .automatic)
         detectOtherBrowserCalls = decode(.detectOtherBrowserCalls, defaults.detectOtherBrowserCalls)
-        additionalCallApps = decode(.additionalCallApps, defaults.additionalCallApps)
+        if let apps = try? c.decode([AdditionalCallApp].self, forKey: .additionalCallApps) {
+            additionalCallApps = AdditionalCallApp.unique(apps)
+        } else {
+            additionalCallApps = AdditionalCallApp.fromLegacyList(decode(.additionalCallApps, ""))
+        }
         stopDebounceSeconds = Self.migratedStopDebounceSeconds(
             decode(.stopDebounceSeconds, defaults.stopDebounceSeconds),
             decodedSettingsVersion: meetingSettingsVersion)

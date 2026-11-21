@@ -230,7 +230,13 @@ pub const ENTRIES: &[Entry] = &[
         title: "Additional call apps",
         category: Meetings,
         aliases: "native executable custom corporate eXpress",
-        value: |s| s.additional_call_apps.clone(),
+        value: |s| {
+            s.additional_call_apps
+                .iter()
+                .map(lokalbot_core::settings::AdditionalCallApp::display_name)
+                .collect::<Vec<_>>()
+                .join(", ")
+        },
     },
     Entry {
         id: "settings.recordSystemAudio",

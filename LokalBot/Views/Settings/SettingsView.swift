@@ -549,13 +549,8 @@ struct SettingsView: View {
                                       help: "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.")
                     }
                     .settingTarget("settings.detectOtherBrowserCalls", selected: app.focusedSettingID)
-                    LabeledContent {
-                        TextField("Bundle identifiers", text: $app.settings.additionalCallApps)
-                    } label: {
-                        SettingsLabel("Additional call apps",
-                                      help: "Enter bundle identifiers separated by commas, such as com.example.CallApp.")
-                    }
-                    .settingTarget("settings.additionalCallApps", selected: app.focusedSettingID)
+                    AdditionalCallAppsEditor()
+                        .settingTarget("settings.additionalCallApps", selected: app.focusedSettingID)
                     LabeledContent("Wait before stopping") {
                         Stepper(value: $app.settings.stopDebounceSeconds,
                                 in: AppSettings.minimumStopDebounceSeconds...AppSettings.maximumStopDebounceSeconds,

@@ -281,6 +281,7 @@ final class CaptureReplayTests: XCTestCase {
         for (bundle, additional, browserEnabled, starts) in [
             ("ru.unlimitedtech.express.desktop", "", false, true),
             ("com.example.CorporateClient", "com.example.CorporateClient", false, true),
+            ("com.example.CorporateClient", "", false, false),
             ("com.google.Chrome", "", true, true),
             ("com.google.Chrome", "", false, false),
         ] {
@@ -301,7 +302,7 @@ final class CaptureReplayTests: XCTestCase {
             MeetingDetector.invalidateAudioProcessSnapshot()
             MeetingDetector.resetCaptureTargetMemory()
             let detector = MeetingDetector(microphoneWindowsAllowed: { Set($0) })
-            detector.additionalCallApps = additional
+            detector.additionalCallBundleIDs = Set(AdditionalCallApp.fromLegacyList(additional).map(\.id))
             detector.detectOtherBrowserCalls = browserEnabled
             var began: [TimeInterval] = []
             var ended: [TimeInterval] = []

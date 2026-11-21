@@ -282,7 +282,7 @@ pub struct SettingsPage {
     resources: resource_monitor::ResourceMonitor,
     calendar: calendar::CalendarState,
     #[cfg(windows)]
-    additional_call_apps: Entity<InputState>,
+    call_app_error: Option<&'static str>,
     devices: devices::DevicesState,
     /// "Never read sessions in these folders".
     coding_agent_folders: Entity<RuleList>,
@@ -679,23 +679,6 @@ impl SettingsPage {
         subscriptions.extend(writing::WritingState::subscribe(&writing, window, cx));
         let calendar = calendar::CalendarState::new(&settings, window, cx);
         subscriptions.extend(calendar::CalendarState::subscribe(&calendar, window, cx));
-        #[cfg(windows)]
-        let additional_call_apps = {
-            let input = cx.new(|cx| {
-                InputState::new(window, cx).default_value(settings.additional_call_apps.clone())
-            });
-            subscriptions.push(cx.subscribe_in(
-                &input,
-                window,
-                |page, input, event: &InputEvent, _, cx| {
-                    if matches!(event, InputEvent::Change) {
-                        let value = input.read(cx).value().to_string();
-                        page.update_settings(move |s| s.additional_call_apps = value, cx);
-                    }
-                },
-            ));
-            input
-        };
         let devices = devices::DevicesState::new(&settings, window, cx);
         subscriptions.extend(devices::DevicesState::subscribe(&devices, window, cx));
         if let Some(host) = crate::control::global(cx) {
@@ -749,7 +732,7 @@ impl SettingsPage {
             resources: Default::default(),
             calendar,
             #[cfg(windows)]
-            additional_call_apps,
+            call_app_error: None,
             devices,
             coding_agent_folders,
             retention_draft: None,
@@ -876,13 +859,6 @@ impl SettingsPage {
         );
         self.models.sync(&old, &settings, window, cx);
         self.calendar.sync(&old, &settings, window, cx);
-        #[cfg(windows)]
-        sync_input(
-            &self.additional_call_apps,
-            &settings.additional_call_apps,
-            window,
-            cx,
-        );
         self.devices.sync(&old, &settings, window, cx);
         cx.notify();
     }

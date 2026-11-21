@@ -2601,7 +2601,12 @@
 "Detect other browser calls" = "Detect other browser calls";
 "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
 "Additional call apps" = "Additional call apps";
-"Bundle identifiers" = "Bundle identifiers";
-"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Enter bundle identifiers separated by commas, such as com.example.CallApp.";
-"Enter executable names separated by commas, such as CustomClient.exe." = "Enter executable names separated by commas, such as CustomClient.exe.";
 "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot hutambua simu kwenye programu unazoongeza hapa.";
+"Choose a call app" = "Chagua programu ya kupiga simu";
+"Choose an application file (.exe)." = "Chagua faili ya programu (.exe).";
+"Could not open the file picker." = "Imeshindwa kufungua dirisha la kuchagua faili.";
+"LokalBot already supports this app." = "LokalBot tayari inaauni programu hii.";
+"This app is already on the list." = "Programu hii tayari iko kwenye orodha.";
+"Remove from call detection" = "Ondoa kwenye utambuzi wa simu";
+"Remove %@ from call detection" = "Ondoa %@ kwenye utambuzi wa simu";

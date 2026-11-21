@@ -2601,7 +2601,12 @@
 "Detect other browser calls" = "Detect other browser calls";
 "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
 "Additional call apps" = "Additional call apps";
-"Bundle identifiers" = "Bundle identifiers";
-"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Enter bundle identifiers separated by commas, such as com.example.CallApp.";
-"Enter executable names separated by commas, such as CustomClient.exe." = "Enter executable names separated by commas, such as CustomClient.exe.";
 "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot mendeteksi panggilan di aplikasi yang Anda tambahkan di sini.";
+"Choose a call app" = "Pilih aplikasi panggilan";
+"Choose an application file (.exe)." = "Pilih file aplikasi (.exe).";
+"Could not open the file picker." = "Pemilih file tidak dapat dibuka.";
+"LokalBot already supports this app." = "LokalBot sudah mendukung aplikasi ini.";
+"This app is already on the list." = "Aplikasi ini sudah ada dalam daftar.";
+"Remove from call detection" = "Hapus dari deteksi panggilan";
+"Remove %@ from call detection" = "Hapus %@ dari deteksi panggilan";

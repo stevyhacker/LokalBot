@@ -670,8 +670,7 @@ final class RecordingController: ObservableObject {
                       await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: [app.pid]).contains(app.pid)
                 else { return false }
             } else if MeetingDetector.knownApps[app.bundleID] == nil,
-                      !MeetingDetector.configuredCallBundleIDs(settings.additionalCallApps)
-                        .contains(app.bundleID.lowercased()) {
+                      !settings.additionalCallBundleIDs.contains(app.bundleID.lowercased()) {
                 return false
             }
             return MeetingDetector.microphoneIsActive(for: app)

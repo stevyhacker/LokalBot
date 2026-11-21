@@ -2600,7 +2600,12 @@
 "Detect other browser calls" = "Detect other browser calls";
 "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
 "Additional call apps" = "Additional call apps";
-"Bundle identifiers" = "Bundle identifiers";
-"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Enter bundle identifiers separated by commas, such as com.example.CallApp.";
-"Enter executable names separated by commas, such as CustomClient.exe." = "Enter executable names separated by commas, such as CustomClient.exe.";
 "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot 会检测在此处添加的应用中的通话。";
+"Choose a call app" = "选择通话应用";
+"Choose an application file (.exe)." = "请选择应用程序文件（.exe）。";
+"Could not open the file picker." = "无法打开文件选择器。";
+"LokalBot already supports this app." = "LokalBot 已支持此应用。";
+"This app is already on the list." = "此应用已在列表中。";
+"Remove from call detection" = "从通话检测中移除";
+"Remove %@ from call detection" = "将 %@ 从通话检测中移除";

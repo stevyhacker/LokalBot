@@ -287,7 +287,7 @@ final class AppState: ObservableObject {
                 detector.requireCalendarForBrowser = settings.requireCalendarForBrowser
             }
             detector.detectOtherBrowserCalls = settings.detectOtherBrowserCalls
-            detector.additionalCallApps = settings.additionalCallApps
+            detector.additionalCallBundleIDs = settings.additionalCallBundleIDs
             if oldValue.semanticSearchEnabled, !settings.semanticSearchEnabled {
                 cachedEmbeddingIndex?.stopScreenBackfill()
             }
@@ -1757,7 +1757,7 @@ final class AppState: ObservableObject {
         detector.calendarEnabled = settings.calendarDetectionEnabled
         detector.requireCalendarForBrowser = settings.requireCalendarForBrowser
         detector.detectOtherBrowserCalls = settings.detectOtherBrowserCalls
-        detector.additionalCallApps = settings.additionalCallApps
+        detector.additionalCallBundleIDs = settings.additionalCallBundleIDs
         // The mic-in-use signal misses meetings with a muted mic. The audio
         // monitor is the complementary "a meeting app just started producing
         // audio output" signal. In automatic mode it records recognised

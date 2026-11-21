@@ -126,8 +126,8 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertEqual(express.name, "eXpress")
         XCTAssertTrue(express.usesMicrophoneDetection)
         XCTAssertFalse(MeetingDetector.shouldAutoRecordNativeAudioMonitor(bundleID: bundle, calendarBacked: true))
-        XCTAssertEqual(MeetingDetector.configuredCallBundleIDs(
-            "com.example.CallApp, COM.EXAMPLE.CALLAPP, /tmp/bad.app\ncorp.VKS"), ["com.example.callapp", "corp.vks"])
+        let customApps = AdditionalCallApp.fromLegacyList("com.example.CallApp, COM.EXAMPLE.CALLAPP, /tmp/bad.app\ncorp.VKS")
+        XCTAssertEqual(customApps.map(\.id), ["com.example.callapp", "corp.vks"])
     }
 
     func testTelemostCallTitleDoesNotMatchTheHomeTab() {

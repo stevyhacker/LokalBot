@@ -32,6 +32,7 @@ mod win32;
 pub use browser::meet_url;
 use browser::{BrowserDocument, Verdict};
 use lokalbot_core::calendar::{MeetingService, meeting_room};
+use lokalbot_core::settings::{AdditionalCallApp, normalized_executable_name as normalized};
 
 /// A meeting the detector is tracking.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -247,9 +248,11 @@ impl AppKind {
     }
 }
 
-fn normalized(name: &str) -> String {
-    let lower = name.to_lowercase();
-    lower.strip_suffix(".exe").unwrap_or(&lower).to_string()
+#[cfg(windows)]
+pub fn has_built_in_call_detection(executable: &str) -> bool {
+    native_kind(executable).is_some()
+        || browser_family(executable).is_some()
+        || normalized(executable) == "мтс линк"
 }
 
 /// Native meeting apps by executable (Windows and Linux names).
@@ -569,9 +572,10 @@ impl Core {
                 }
                 if !mts_desktop
                     && browser_family(name).is_none()
-                    && let Some(display_name) = self.additional_call_apps.get(&normalized(name))
+                    && let Some((key, display_name)) =
+                        self.additional_call_apps.get_key_value(&normalized(name))
                 {
-                    configured = Some(display_name);
+                    configured = Some((key, display_name));
                     candidate = Some((AppKind::ConfiguredDesktop, None, None));
                     break;
                 }
@@ -637,7 +641,7 @@ impl Core {
             };
             let audio_pid = stream.app_root(|name| match (family, configured) {
                 (Some(family), _) => browser_family(name) == Some(family),
-                (None, Some(app)) => normalized(name) == normalized(app),
+                (None, Some((key, _))) => normalized(name) == *key,
                 (None, None) => native_kind(name) == Some(kind),
             });
             let next = Candidate {
@@ -645,7 +649,7 @@ impl Core {
                 family,
                 meeting: DetectedMeeting {
                     app_name: configured
-                        .cloned()
+                        .map(|(_, name)| name.clone())
                         .unwrap_or_else(|| kind.name().to_string()),
                     process_name: stream.process_name.clone(),
                     pid: if kind.requires_sustained_mic() {
@@ -847,15 +851,16 @@ impl MeetingDetector {
         self.core.calendar = hint;
     }
 
-    /// Update opt-in browser detection and additional native executable names.
-    pub fn set_call_detection(&mut self, detect_other_browser_calls: bool, additional: &str) {
+    /// Update opt-in browser detection and additional native call apps.
+    pub fn set_call_detection(
+        &mut self,
+        detect_other_browser_calls: bool,
+        apps: &[AdditionalCallApp],
+    ) {
         self.core.detect_other_browser_calls = detect_other_browser_calls;
-        self.core.additional_call_apps = additional
-            .split([',', '\n'])
-            .map(str::trim)
-            .filter(|name| !name.is_empty() && !name.contains(['/', '\\']))
-            .filter(|name| !normalized(name).is_empty() && normalized(name) != "lokalbot")
-            .map(|name| (normalized(name), name.to_string()))
+        self.core.additional_call_apps = apps
+            .iter()
+            .filter_map(|app| Some((app.detector_key()?, app.display_name().to_string())))
             .collect();
     }
 
@@ -1084,10 +1089,16 @@ mod tests {
         let t0 = Instant::now();
         for (executable, display) in [
             ("eXpress.exe", "eXpress"),
-            ("Brand Client.exe", "Brand Client.exe"),
+            ("Brand, Client.exe", "Corporate Calls"),
         ] {
             let mut detector = MeetingDetector::new();
-            detector.set_call_detection(false, "Brand Client.exe");
+            detector.set_call_detection(
+                false,
+                &[AdditionalCallApp {
+                    identifier: "Brand, Client.exe".into(),
+                    name: Some("Corporate Calls".into()),
+                }],
+            );
             let core = &mut detector.core;
             let evidence = Evidence {
                 capturing: vec![CaptureStream {

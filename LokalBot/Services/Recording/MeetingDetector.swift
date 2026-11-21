@@ -216,7 +216,7 @@ final class MeetingDetector {
     var calendarEnabled = false
     var requireCalendarForBrowser = false
     var detectOtherBrowserCalls = false
-    var additionalCallApps = ""
+    var additionalCallBundleIDs: Set<String> = []
 
     private(set) var activeApp: DetectedApp?
     private(set) var activeSessionID: UUID?
@@ -402,7 +402,7 @@ final class MeetingDetector {
         let allowBrowserMicrophone = detectOtherBrowserCalls
         let checkMicrophoneWindows = microphoneWindowsAllowed
         let microphoneApps = allowBrowserMicrophone
-            ? Self.microphoneCandidates(in: running, additional: "", browser: true) : []
+            ? Self.microphoneCandidates(in: running, additional: [], browser: true) : []
         let browserApps = running.filter { app in
             guard let bundleID = app.bundleIdentifier, Self.documentCallHosts.contains(bundleID) else {
                 return false
@@ -800,7 +800,7 @@ final class MeetingDetector {
                               calendarEnabled: calendarEnabled,
                               requireCalendarForBrowser: requireCalendarForBrowser,
                               snapshots: snapshots)
-            ?? Self.microphoneCandidates(in: running, additional: additionalCallApps, browser: false).first
+            ?? Self.microphoneCandidates(in: running, additional: additionalCallBundleIDs, browser: false).first
             ?? ((!requireCalendarForBrowser || (calendarEnabled && calendarEvent?.meetingURL != nil))
                 ? browserMicrophoneCandidates.first : nil)
     }
@@ -978,26 +978,21 @@ final class MeetingDetector {
         }
     }
 
-    nonisolated static func configuredCallBundleIDs(_ raw: String) -> Set<String> {
-        Set(raw.split(whereSeparator: { $0 == "," || $0.isNewline }).compactMap { name in
-            let bundle = name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            return bundle.contains(".") && !bundle.contains("/") ? bundle : nil
-        })
+    nonisolated static func hasBuiltInCallDetection(_ bundleID: String) -> Bool {
+        knownApps[bundleID] != nil || documentCallHosts.contains(bundleID) || microphoneBrowsers.contains(bundleID)
     }
 
     nonisolated private static func microphoneCandidates(
-        in running: [RunningApp], additional: String, browser: Bool
+        in running: [RunningApp], additional: Set<String>, browser: Bool
     ) -> [DetectedApp] {
-        let allowed = configuredCallBundleIDs(additional)
-        guard browser || !allowed.isEmpty else { return [] }
+        guard browser || !additional.isEmpty else { return [] }
         return running.compactMap { app in
             guard let bundle = app.bundleIdentifier, app.processIdentifier != ProcessInfo.processInfo.processIdentifier
             else { return nil }
             if browser {
                 guard microphoneBrowsers.contains(bundle) else { return nil }
             } else {
-                guard allowed.contains(bundle.lowercased()), knownApps[bundle] == nil,
-                      !documentCallHosts.contains(bundle), !microphoneBrowsers.contains(bundle) else { return nil }
+                guard additional.contains(bundle.lowercased()), !hasBuiltInCallDetection(bundle) else { return nil }
             }
             let candidate = DetectedApp(name: app.localizedName ?? bundle, bundleID: bundle,
                                         pid: app.processIdentifier, usesMicrophoneDetection: true)

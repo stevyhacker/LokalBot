@@ -2601,7 +2601,12 @@
 "Detect other browser calls" = "Detect other browser calls";
 "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
 "Additional call apps" = "Additional call apps";
-"Bundle identifiers" = "Bundle identifiers";
-"Enter bundle identifiers separated by commas, such as com.example.CallApp." = "Enter bundle identifiers separated by commas, such as com.example.CallApp.";
-"Enter executable names separated by commas, such as CustomClient.exe." = "Enter executable names separated by commas, such as CustomClient.exe.";
 "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "तुम्ही येथे जोडलेल्या अ‍ॅपमधील कॉल LokalBot ओळखतो.";
+"Choose a call app" = "कॉलसाठी अ‍ॅप निवडा";
+"Choose an application file (.exe)." = "अ‍ॅपची फाइल (.exe) निवडा.";
+"Could not open the file picker." = "फाइल निवडण्याची विंडो उघडता आली नाही.";
+"LokalBot already supports this app." = "LokalBot या अ‍ॅपला आधीपासूनच समर्थन देतो.";
+"This app is already on the list." = "हे अ‍ॅप यादीत आधीपासूनच आहे.";
+"Remove from call detection" = "कॉल ओळखीतून काढा";
+"Remove %@ from call detection" = "%@ कॉल ओळखीतून काढा";
