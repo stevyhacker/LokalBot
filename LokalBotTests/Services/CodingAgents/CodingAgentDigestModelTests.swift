@@ -314,6 +314,43 @@ final class CodingAgentDigestModelTests: XCTestCase {
         XCTAssertTrue(text.contains("Scheduled run: its report is omitted"), text)
     }
 
+
+    func testRussianSessionAugmentationStaysLocalizedAfterPresentationParsing() async throws {
+        let evidence = build(bursts: [
+            try burst("A", start: "2026-09-29T09:00:00Z", end: "2026-09-29T09:20:00Z",
+                      title: "Проверить кеш", actions: [.commit(message: "Сохранить точную цитату")],
+                      pullRequests: ["https://github.com/acme/LokalBot/pull/12"]),
+            try burst("B", start: "2026-09-29T09:05:00Z", end: "2026-09-29T09:15:00Z",
+                      title: "Проверить кеш", actions: [.pushed],
+                      pullRequests: ["https://github.com/acme/LokalBot/pull/12"]),
+        ])
+        let language = DailySummaryLanguage(notes: .ru, interface: .english)
+        // Exercise both a session inserted after aggregation and a session
+        // merged into the model's existing PR task. Canonical leads must parse.
+        for title in ["Другая задача", "LokalBot PR #12"] {
+            let result = try await DayDigestOverviewGenerator.generateResult(
+                evidence: evidence,
+                engine: StubEngine(digestTasks: [(title: title, summary: "Проверили результат.")]),
+                customPrompt: "", language: language, calendar: calendar, sleep: { _ in })
+            let presentation = DayDigestPresentation(
+                markdown: evidence.renderDocument(summary: result.summary, calendar: calendar))
+            let task = try XCTUnwrap(presentation.focusBlocks.first {
+                $0.summaryMarkdown.contains("acme/LokalBot#12")
+            })
+            XCTAssertEqual(task.status, .inProgress)
+            XCTAssertEqual(task.summaryMarkdown.components(separatedBy: "acme/LokalBot#12").count - 1, 1)
+            for prefix in ["Worked with", "Recorded actions:", "Pull requests:", "Outcome:"] {
+                XCTAssertFalse(task.summaryMarkdown.contains(prefix), task.summaryMarkdown)
+            }
+            if title == "Другая задача" {
+                XCTAssertTrue(task.summaryMarkdown.contains("Действия:"), task.summaryMarkdown)
+                XCTAssertTrue(task.summaryMarkdown.contains("Итог: PR:"), task.summaryMarkdown)
+                XCTAssertTrue(task.summaryMarkdown.contains("commit: Сохранить точную цитату"),
+                              "recorded action evidence remains verbatim")
+            }
+        }
+    }
+
     // MARK: - Fixtures
 
     private actor PromptRecorder {
@@ -329,7 +366,7 @@ final class CodingAgentDigestModelTests: XCTestCase {
 
         func generate(system: String, prompt: String, context: [String],
                       schema: [String: Any], options: TextGenerationOptions) async throws -> String {
-            if system == PromptTemplates.dayDigestFocusSystem {
+            if system.hasPrefix(PromptTemplates.dayDigestFocusSystem) {
                 await recorder.record(prompt)
                 return """
                     {"substantive":true,"task":"Keep the digest badge fresh","work_done":"Opened a pull request that keeps the digest badge fresh.","status":"in_progress","outcome":"A pull request is open.","next_step":"","source_ids":[]}
@@ -353,7 +390,7 @@ final class CodingAgentDigestModelTests: XCTestCase {
             func json(_ object: Any) throws -> String {
                 String(decoding: try JSONSerialization.data(withJSONObject: object), as: UTF8.self)
             }
-            guard system != PromptTemplates.dayDigestFocusSystem else {
+            guard !system.hasPrefix(PromptTemplates.dayDigestFocusSystem) else {
                 return try json([
                     "substantive": true, "task": digestTasks[0].title, "work_done": digestTasks[0].summary,
                     "status": "in_progress", "outcome": "", "next_step": "", "source_ids": [Int](),

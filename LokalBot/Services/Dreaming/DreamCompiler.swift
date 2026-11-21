@@ -239,12 +239,22 @@ enum DreamCompiler {
     /// questions, and carry-forward action candidates. It never analyzes,
     /// so it can never invent.
     static func fallbackReport(from evidence: DreamEvidence, generatedAt: Date,
-                               reason: DreamFallbackReason, note: String) -> DreamReport {
+                               reason: DreamFallbackReason, note: String,
+                               language: DailySummaryLanguage = .english) -> DreamReport {
         let meetingCount = evidence.meetings.count
         let meetingPhrase = meetingCount == 1 ? "1 recorded meeting" : "\(meetingCount) recorded meetings"
-        let narrative = note + " The day had \(meetingPhrase), "
-            + "\(duration(evidence.stats.trackedSeconds)) tracked across "
-            + "\(evidence.stats.appCount) apps."
+        let narrative: String
+        if language.usesEnglishCatalog {
+            narrative = note + " The day had \(meetingPhrase), "
+                + "\(duration(evidence.stats.trackedSeconds)) tracked across "
+                + "\(evidence.stats.appCount) apps."
+        } else {
+            // The fallback reason is stored separately and shown by the UI.
+            // Reuse translated labels without translating saved source text.
+            narrative = language.text("Meetings") + ": \(meetingCount) · "
+                + duration(evidence.stats.trackedSeconds) + " " + language.text("tracked")
+                + " · \(evidence.stats.appCount) " + language.text("apps")
+        }
 
         let attention = evidence.meetings.flatMap { meeting in
             meeting.outcomes.openQuestions.map { "\(clean($0)) — `\(meeting.shortID)`" }

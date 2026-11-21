@@ -73,7 +73,7 @@ final class DayDigestBenchmarkTests: XCTestCase {
 
         private func record(_ system: String, _ body: () async throws -> String) async throws -> String {
             let started = Date()
-            let stage = system == PromptTemplates.dayDigestFocusSystem ? "segment" : "digest"
+            let stage = system.hasPrefix(PromptTemplates.dayDigestFocusSystem) ? "segment" : "digest"
             do {
                 let output = try await body()
                 append(Call(stage: stage, output: output, seconds: Date().timeIntervalSince(started)))
