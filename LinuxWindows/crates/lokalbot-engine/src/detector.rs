@@ -84,7 +84,7 @@ fn run(
                         continue;
                     }
                     let title = title(&settings, &meeting, event.as_ref());
-                    match settings.auto_record_mode {
+                    match start_mode(settings.auto_record_mode, &meeting) {
                         AutoRecordMode::Automatic => {
                             if let Some(call) = &mut call {
                                 call.recording = true;
@@ -117,6 +117,14 @@ fn run(
         if let (Some(current), Some(next)) = (&mut call, &event) {
             hand_over(&shared, &commands, &settings, current, next);
         }
+    }
+}
+
+fn start_mode(habit: AutoRecordMode, meeting: &DetectedMeeting) -> AutoRecordMode {
+    if meeting.needs_confirmation && habit == AutoRecordMode::Automatic {
+        AutoRecordMode::Ask
+    } else {
+        habit
     }
 }
 
@@ -219,7 +227,26 @@ mod tests {
             meeting_url: None,
             title_hint: hint.map(str::to_string),
             microphone_detected: false,
+            needs_confirmation: false,
         }
+    }
+
+    #[test]
+    fn an_unconfirmed_private_state_asks_instead_of_recording_automatically() {
+        let mut unconfirmed = meet(None);
+        unconfirmed.needs_confirmation = true;
+        assert_eq!(
+            start_mode(AutoRecordMode::Automatic, &unconfirmed),
+            AutoRecordMode::Ask
+        );
+        assert_eq!(
+            start_mode(AutoRecordMode::Manual, &unconfirmed),
+            AutoRecordMode::Manual
+        );
+        assert_eq!(
+            start_mode(AutoRecordMode::Automatic, &meet(None)),
+            AutoRecordMode::Automatic
+        );
     }
 
     #[test]

@@ -21,6 +21,7 @@ pub struct DetectedMeeting {
     pub meeting_url: Option<String>,
     pub title_hint: Option<String>,
     pub microphone_detected: bool,
+    pub needs_confirmation: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -58,10 +59,83 @@ impl CaptureStream {
     }
 }
 
+#[cfg(windows)]
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct BrowserWindowProbe {
+    pub family: &'static str,
+    pub title: String,
+    pub title_marker: bool,
+    pub interface: &'static str,
+}
+
+#[cfg(windows)]
+pub fn probe_browser_windows() -> Vec<BrowserWindowProbe> {
+    win32::probe()
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum WindowPrivacy {
+    #[default]
+    Public,
+    Private,
+    Unknown,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct WindowTitle {
     pub app: String,
     pub title: String,
+    pub privacy: WindowPrivacy,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+struct WindowCensus {
+    enabled: bool,
+    windows: usize,
+    private: usize,
+    unknown: usize,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum BrowserGate {
+    Allowed,
+    Unconfirmed,
+    Blocked,
+}
+
+impl WindowCensus {
+    fn of(windows: &[WindowTitle], family: &str, enabled: bool) -> Self {
+        windows
+            .iter()
+            .filter(|window| window_browser_family(&window.app) == Some(family))
+            .fold(
+                Self {
+                    enabled,
+                    ..Self::default()
+                },
+                |mut census, window| {
+                    census.windows += 1;
+                    if crate::privacy::is_private_window(&window.title)
+                        || window.privacy == WindowPrivacy::Private
+                    {
+                        census.private += 1;
+                    } else if window.privacy == WindowPrivacy::Unknown {
+                        census.unknown += 1;
+                    }
+                    census
+                },
+            )
+    }
+
+    fn gate(self) -> BrowserGate {
+        if !self.enabled || self.windows == 0 || self.private > 0 {
+            BrowserGate::Blocked
+        } else if self.unknown > 0 {
+            BrowserGate::Unconfirmed
+        } else {
+            BrowserGate::Allowed
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -381,6 +455,7 @@ struct Core {
     calendar: CalendarHint,
     detect_other_browser_calls: bool,
     additional_call_apps: HashMap<String, String>,
+    censuses: HashMap<&'static str, WindowCensus>,
 }
 
 impl Core {
@@ -394,20 +469,27 @@ impl Core {
             calendar: CalendarHint::default(),
             detect_other_browser_calls: false,
             additional_call_apps: HashMap::new(),
+            censuses: HashMap::new(),
         }
     }
 
-    fn microphone_browser_allowed(&self, windows: &[WindowTitle], family: &str) -> bool {
-        if !self.detect_other_browser_calls {
-            return false;
+    fn microphone_browser_gate(
+        censuses: &mut HashMap<&'static str, WindowCensus>,
+        enabled: bool,
+        windows: &[WindowTitle],
+        family: &'static str,
+    ) -> BrowserGate {
+        let census = WindowCensus::of(windows, family, enabled);
+        if census.enabled && censuses.insert(family, census) != Some(census) {
+            log::info!(
+                "meeting detection: {family} holds the microphone; windows={} private={} unconfirmed={} gate={:?}",
+                census.windows,
+                census.private,
+                census.unknown,
+                census.gate()
+            );
         }
-        let mut own = windows
-            .iter()
-            .filter(|window| window_browser_family(&window.app) == Some(family));
-        own.next().is_some_and(|first| {
-            !crate::privacy::is_private_window(&first.title)
-                && own.all(|window| !crate::privacy::is_private_window(&window.title))
-        })
+        census.gate()
     }
 
     fn observe_window(&mut self, app: &str, title: &str, now: Instant) {
@@ -491,6 +573,7 @@ impl Core {
                             meeting_url: Some(document.url.clone()),
                             title_hint: None,
                             microphone_detected: false,
+                            needs_confirmation: false,
                         },
                     });
                 }
@@ -506,6 +589,7 @@ impl Core {
             let mut candidate = None;
             let mut room = None;
             let mut configured = None;
+            let mut needs_confirmation = false;
             for name in names {
                 if let Some(kind) = native_kind(name) {
                     candidate = Some((kind, None, None));
@@ -551,8 +635,15 @@ impl Core {
                         candidate = Some((kind, Some(family), None));
                     } else if (read == Verdict::Unknown
                         || active_browser == Some((AppKind::MicrophoneBrowser, family)))
-                        && self.microphone_browser_allowed(&evidence.windows, family)
+                        && let gate = Self::microphone_browser_gate(
+                            &mut self.censuses,
+                            self.detect_other_browser_calls,
+                            &evidence.windows,
+                            family,
+                        )
+                        && gate != BrowserGate::Blocked
                     {
+                        needs_confirmation = gate == BrowserGate::Unconfirmed;
                         candidate = Some((AppKind::MicrophoneBrowser, Some(family), None));
                     } else if let Some(kind) = link_kind
                         && !(denied && kind == AppKind::Meet)
@@ -597,6 +688,7 @@ impl Core {
                     meeting_url: room,
                     title_hint,
                     microphone_detected: kind.requires_sustained_mic(),
+                    needs_confirmation,
                 },
             };
             if !found.iter().any(|known| known.same_app(&next)) {
@@ -993,6 +1085,7 @@ mod tests {
             windows: vec![WindowTitle {
                 app: "chrome.exe".into(),
                 title: "Corporate video".into(),
+                ..WindowTitle::default()
             }],
             ..Evidence::default()
         };
@@ -1001,6 +1094,7 @@ mod tests {
         browser.windows.push(WindowTitle {
             app: "chrome.exe".into(),
             title: "New Tab - Incognito".into(),
+            ..WindowTitle::default()
         });
         assert!(run(&mut core, t0, 16, 30, &browser).is_empty());
         browser.windows.pop();
@@ -1019,6 +1113,116 @@ mod tests {
             run(&mut core, t0, 62, 80, &Evidence::default()).as_slice(),
             [(78, DetectorEvent::Ended(_))]
         ));
+    }
+
+    fn chrome_call(privacy: WindowPrivacy) -> Evidence {
+        Evidence {
+            capturing: vec![stream(123, "chrome.exe")],
+            windows: vec![WindowTitle {
+                app: "chrome.exe".into(),
+                title: "Local call - Google Chrome".into(),
+                privacy,
+            }],
+            ..Evidence::default()
+        }
+    }
+
+    #[test]
+    fn a_window_private_only_by_its_browser_interface_never_starts_a_microphone_call() {
+        let t0 = Instant::now();
+        let mut core = Core::new(9999);
+        core.detect_other_browser_calls = true;
+        assert!(run(&mut core, t0, 0, 30, &chrome_call(WindowPrivacy::Private)).is_empty());
+    }
+
+    #[test]
+    fn an_unconfirmed_window_asks_before_recording_and_keeps_a_started_call() {
+        let t0 = Instant::now();
+        let mut core = Core::new(9999);
+        core.detect_other_browser_calls = true;
+        let unconfirmed = chrome_call(WindowPrivacy::Unknown);
+        assert!(matches!(run(&mut core, t0, 0, 12, &unconfirmed).as_slice(),
+            [(12, DetectorEvent::Started(meeting))] if meeting.needs_confirmation));
+        assert!(run(&mut core, t0, 14, 60, &unconfirmed).is_empty());
+
+        let mut public = Core::new(9999);
+        public.detect_other_browser_calls = true;
+        assert!(
+            matches!(run(&mut public, t0, 0, 12, &chrome_call(WindowPrivacy::Public)).as_slice(),
+            [(12, DetectorEvent::Started(meeting))] if !meeting.needs_confirmation)
+        );
+        assert!(
+            run(
+                &mut public,
+                t0,
+                14,
+                40,
+                &chrome_call(WindowPrivacy::Unknown)
+            )
+            .is_empty()
+        );
+    }
+
+    #[test]
+    fn a_window_turning_private_by_its_interface_ends_the_call_but_another_browser_does_not() {
+        let t0 = Instant::now();
+        let mut core = Core::new(9999);
+        core.detect_other_browser_calls = true;
+        let mut call = chrome_call(WindowPrivacy::Public);
+        call.windows.push(WindowTitle {
+            app: "msedge.exe".into(),
+            title: "Docs - Microsoft Edge".into(),
+            privacy: WindowPrivacy::Private,
+        });
+        assert!(matches!(
+            run(&mut core, t0, 0, 12, &call).as_slice(),
+            [(12, DetectorEvent::Started(_))]
+        ));
+        call.windows.push(WindowTitle {
+            app: "chrome.exe".into(),
+            title: "Example Domain - Google Chrome".into(),
+            privacy: WindowPrivacy::Private,
+        });
+        assert!(matches!(
+            run(&mut core, t0, 14, 30, &call).as_slice(),
+            [(30, DetectorEvent::Ended(_))]
+        ));
+    }
+
+    #[test]
+    fn window_census_counts_title_and_interface_markers_per_family() {
+        let windows = [
+            WindowTitle {
+                app: "chrome.exe".into(),
+                title: "Новая вкладка инкогнито - Google Chrome".into(),
+                privacy: WindowPrivacy::Public,
+            },
+            WindowTitle {
+                app: "chrome.exe".into(),
+                title: "Call".into(),
+                privacy: WindowPrivacy::Unknown,
+            },
+            WindowTitle {
+                app: "firefox.exe".into(),
+                title: "Call".into(),
+                privacy: WindowPrivacy::Private,
+            },
+        ];
+        let census = WindowCensus::of(&windows, "chrome", true);
+        assert_eq!((census.windows, census.private, census.unknown), (2, 1, 1));
+        assert_eq!(census.gate(), BrowserGate::Blocked);
+        assert_eq!(
+            WindowCensus::of(&windows[1..2], "chrome", true).gate(),
+            BrowserGate::Unconfirmed
+        );
+        assert_eq!(
+            WindowCensus::of(&windows[1..2], "chrome", false).gate(),
+            BrowserGate::Blocked
+        );
+        assert_eq!(
+            WindowCensus::of(&windows, "edge", true).gate(),
+            BrowserGate::Blocked
+        );
     }
 
     #[test]
@@ -1214,6 +1418,7 @@ mod tests {
             windows: vec![WindowTitle {
                 app: "chrome".into(),
                 title: "Meet - Weekly sync - Google Chrome".into(),
+                ..WindowTitle::default()
             }],
             documents: vec![BrowserDocument {
                 family: "chrome",
@@ -1382,6 +1587,7 @@ mod tests {
         call.windows.push(WindowTitle {
             app: "chrome.exe".into(),
             title: "Meet - Sync - Google Chrome".into(),
+            ..WindowTitle::default()
         });
         let events = run(&mut core, start, 0, 4, &call);
         let DetectorEvent::Started(meeting) = &events[0].1 else {
@@ -1482,6 +1688,7 @@ mod tests {
         call.windows.push(WindowTitle {
             app: "chrome.exe".into(),
             title: "Meet – Weekly sync - Google Chrome".into(),
+            ..WindowTitle::default()
         });
         let events = run(&mut core, start, 12, 14, &call);
         assert_eq!(events.len(), 1, "{events:?}");
@@ -1530,6 +1737,7 @@ mod tests {
         call.windows.push(WindowTitle {
             app: "chrome".into(),
             title: "Meet – Weekly sync - Google Chrome".into(),
+            ..WindowTitle::default()
         });
         assert!(run(&mut core, start, 0, 10, &call).is_empty());
         core.calendar.meeting_url = Some("https://meet.google.com/abc-defg-hij".into());

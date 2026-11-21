@@ -612,6 +612,7 @@ mod tests {
             meeting_url: None,
             title_hint: None,
             microphone_detected: false,
+            needs_confirmation: false,
         });
         assert_eq!(target.pid, 10);
         assert_eq!(target.app_name, "Teams");
@@ -624,6 +625,7 @@ mod tests {
             meeting_url: None,
             title_hint: None,
             microphone_detected: true,
+            needs_confirmation: false,
         });
         assert!(express.keep_app_scope);
     }

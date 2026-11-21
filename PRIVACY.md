@@ -306,8 +306,13 @@ never acquires system audio through recovery.
 The optional microphone mode ends after the matching process releases its microphone
 and the stop delay passes. Automatic starts require readable browser windows (on macOS, every window)
 and none of their titles to indicate a private window, including localized markers such
-as "Incognito", "InPrivate" and "Инкогнито". Private-window detection relies on titles,
-so a browser that does not mark private windows in its title cannot be told apart. A
+as "Incognito", "InPrivate" and "Инкогнито". On macOS and Linux private-window detection relies on titles,
+so a browser that does not mark private windows in its title cannot be told apart. On
+Windows, where Chrome does not mark an Incognito window's title, LokalBot also reads the
+names of the browser's own buttons and menus through UI Automation, never the page, its
+address or its tab titles; when that check cannot confirm a window is not private,
+LokalBot asks before recording instead of starting on its own. Any private window of the
+same browser blocks an automatic start, even if the call runs in another window. A
 window that becomes private during the call ends the recording; one that only becomes
 unreadable does not. The system-audio track then records the browser's whole process,
 including its other tabs. On Windows it stays on that process through silence, and
