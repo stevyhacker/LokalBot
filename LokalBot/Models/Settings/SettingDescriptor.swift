@@ -179,7 +179,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.museLiveTextEnabled", title: "Fast live text with Muse Voice Transcribe", category: .recording, aliases: "meta muse voice transcribe realtime live transcript speech cloud audio"),
         .init(id: "settings.meetingVisualContextEnabled", title: "Capture low-frequency visual context during meetings", category: .dayMemory, aliases: "meetingVisualContextEnabled"),
         .init(id: "settings.dayDigestAutoEnabled", title: "Generate the day digest automatically", category: .daily, aliases: "dayDigestAutoEnabled"),
-        .init(id: "settings.codingAgentEvidenceEnabled", title: "Read coding agent sessions", category: .dayMemory, aliases: "claude code codex agent transcripts sessions digest pull requests commits"),
+        .init(id: "settings.codingAgentEvidenceEnabled", title: "Read coding agent sessions", category: .dayMemory, aliases: "claude code codex antigravity t3 code agent transcripts sessions digest pull requests commits"),
         .init(id: "settings.codingAgentExcludedFolders", title: "Never read sessions in these folders", category: .dayMemory, aliases: "coding agent exclude folders projects repositories"),
         .init(id: "settings.codingAgentNotesEnabled", title: "Read coding agent notes", category: .dayMemory, aliases: "claude code codex agent memory notes memories search"),
         .init(id: "settings.dailyMemoryExportEnabled", title: "Export a daily memory note", category: .daily, aliases: "dailyMemoryExportEnabled"),

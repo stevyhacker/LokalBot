@@ -849,7 +849,7 @@
 "Question or search" = "سؤال أو بحث";
 "Quit LokalBot" = "اقفل LokalBot";
 "Read coding agent sessions" = "قراءة جلسات وكيل البرمجة";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "اقرا جلسات Claude Code وCodex بتاعتك عشان LokalBot يفتكر الوكلاء بتوعك عملوا إيه. الملفات بتفضل على الـ Mac ده.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "اقرا جلسات Claude Code وCodex وAntigravity وT3 Code بتاعتك عشان LokalBot يفتكر الوكلاء بتوعك عملوا إيه. الملفات بتفضل على الـ Mac ده.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "بيقرأ نص النافذة النشطة من لقطة شاشة. محتاج صلاحية تسجيل الشاشة؛ الصورة والنص مبيتحفظوش.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "بيقرأ نص الواجهة الظاهر من تسهيلات الاستخدام؛ مفيش لقطات شاشة بتتحفظ.";
 "Reads window titles and visible interface text for activity and text-context features." = "بيقرأ عناوين النوافذ ونص الواجهة الظاهر عشان ميزات النشاط والسياق النصي.";
@@ -2626,3 +2626,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "بيشغّل Antigravity CLI (agy) بتاعك وأدواته مقفولة. إنت اللي بتسجّل دخول في agy بنفسك، وLokalBot عمره ما بيشوف بيانات دخولك في Google.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "بيشغّل Gemini CLI بتاعك وأدواته مقفولة. سجّل دخول في gemini من Terminal الأول، وLokalBot عمره ما بيشوف بيانات دخولك في Google.";
 "Signed in" = "مسجّل الدخول";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot بيبطّل يقرا جلسات وكلاء البرمجة وبيمسح اللي حفظه. Claude Code وCodex وAntigravity وT3 Code بيحتفظوا بملفات جلساتهم الخاصة.";

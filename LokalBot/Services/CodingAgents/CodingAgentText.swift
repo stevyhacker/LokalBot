@@ -6,7 +6,7 @@ enum CodingAgentText {
     static let titleCharacters = 160
 
     static func prompt(_ raw: String) -> String? {
-        var text = raw
+        var text = unwrapAntigravityRequest(raw)
         if let request = text.range(of: "## My request for Codex:") ?? text.range(of: "## My request:") {
             text = String(text[request.upperBound...])
         }
@@ -25,6 +25,40 @@ enum CodingAgentText {
         let clean = sanitized(removingBlocks(text), maxCharacters: promptCharacters)
         guard !clean.isEmpty, firstCapture(of: harnessTagOpening, in: clean) == nil else { return nil }
         return clean
+    }
+
+    static func unwrapAntigravityRequest(_ raw: String) -> String {
+        var text = raw
+        if let extracted = extractTag(named: "USER_REQUEST", from: text) {
+            text = extracted
+        } else {
+            for marker in ["<ADDITIONAL_METADATA>", "<USER_SETTINGS_CHANGE>"] {
+                if let range = text.range(of: marker) {
+                    text = String(text[..<range.lowerBound])
+                }
+            }
+        }
+        if let nested = extractTag(named: "user_request", from: text) {
+            text = nested
+        }
+        return text
+    }
+
+    private static func extractTag(named tag: String, from text: String) -> String? {
+        let open = "<\(tag)>"
+        let close = "</\(tag)>"
+        guard let start = text.range(of: open) else { return nil }
+        let rest = text[start.upperBound...]
+        if let end = rest.range(of: close) {
+            return String(rest[..<end.lowerBound])
+        }
+        var tail = String(rest)
+        for marker in ["<ADDITIONAL_METADATA>", "<USER_SETTINGS_CHANGE>"] {
+            if let range = tail.range(of: marker) {
+                tail = String(tail[..<range.lowerBound])
+            }
+        }
+        return tail
     }
 
     static func terminalCommand(in raw: String) -> String? {
@@ -120,6 +154,60 @@ enum CodingAgentText {
         return urls
     }
 
+    static func pullRequestEvents(
+        toolName: String,
+        title rawTitle: String?,
+        number rawNumber: Int?,
+        url rawURL: String?,
+        urls rawURLs: [String]
+    ) -> [CodingAgentEvent.Kind] {
+        let normalized = toolName.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        var events: [CodingAgentEvent.Kind] = []
+        if normalized.hasSuffix("pull_request_create") {
+            if let rawTitle, let clean = title(rawTitle) {
+                events.append(.action(.openedPullRequest(title: clean)))
+            }
+        } else if normalized.hasSuffix("pull_request_merge") {
+            events.append(.action(.mergedPullRequest(number: rawNumber)))
+        } else if normalized.hasSuffix("link_pull_request") {
+            if let rawURL {
+                for url in pullRequestURLs(in: rawURL) { events.append(.pullRequest(url)) }
+            }
+        } else if normalized.hasSuffix("link_pull_requests") {
+            for candidate in rawURLs {
+                for url in pullRequestURLs(in: candidate) { events.append(.pullRequest(url)) }
+            }
+        }
+        return events
+    }
+
+    static func inferredProjectDirectory(for target: String, isDirectory: Bool = false) -> String? {
+        let value = (target as NSString).standardizingPath
+        guard value.hasPrefix("/") else { return nil }
+        let lowered = value.lowercased()
+        let ignoredFragments = ["/.gemini/", "/.t3/userdata/", "/.claude/", "/.codex/"]
+        if ignoredFragments.contains(where: lowered.contains)
+            || lowered.hasPrefix("/tmp/") || lowered.hasPrefix("/private/tmp/")
+            || lowered.hasPrefix("/var/") || lowered.hasPrefix("/private/var/") {
+            return nil
+        }
+        let components = URL(fileURLWithPath: value).standardizedFileURL.pathComponents
+        if let marker = components.lastIndex(of: ".t3"),
+           components.indices.contains(marker + 2), components[marker + 1] == "worktrees" {
+            return NSString.path(withComponents: Array(components.prefix(marker + 3)))
+        }
+        for index in components.indices.dropLast() where checkoutRootNames.contains(components[index].lowercased()) {
+            return NSString.path(withComponents: Array(components.prefix(index + 2)))
+        }
+        if isDirectory { return value }
+        let parent = (value as NSString).deletingLastPathComponent
+        return parent.isEmpty || parent == "/" ? nil : parent
+    }
+
+    private static let checkoutRootNames: Set<String> = [
+        "github", "repos", "repositories", "projects", "code", "dev", "workspace", "workspaces",
+    ]
+
     static func readsLokalBot(command: String) -> Bool {
         contains(lokalBotCommand, in: command)
     }
@@ -203,7 +291,7 @@ enum CodingAgentText {
     private static let claudeScratchpad = regex(
         #"^/(?:private/)?tmp/claude-\d+/[^/]+/[0-9a-f-]{36}/scratchpad/"#)
     private static let worktreeRoot = regex(
-        #"^.*/\.claude/worktrees/[^/]+/|^.*/\.codex/worktrees/[^/]+/[^/]+/"#)
+        #"^.*/\.claude/worktrees/[^/]+/|^.*/\.(?:codex|t3)/worktrees/[^/]+/[^/]+/"#)
 
     private static func regex(
         _ pattern: String, options: NSRegularExpression.Options = []

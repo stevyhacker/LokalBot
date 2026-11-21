@@ -37,8 +37,8 @@ LokalBot can store the following under its Application Support directory:
   name;
 - saved screen moments, optional unencrypted daily-memory and meeting note
   exports, and optional routine drafts at folders you choose;
-- records of local coding-agent sessions (Claude Code and Codex), a setup
-  choice that is on by default;
+- records of local coding-agent sessions (Claude Code, Codex, Antigravity, and
+  T3 Code), a setup choice that is on by default;
 - a searchable copy of the notes Claude Code and Codex saved for themselves,
   only while **Read coding agent notes** is on (off by default);
 - opt-in Agent Mode sessions and the agent runtime;
@@ -114,22 +114,29 @@ you finish setup. When LokalBot already has microphone access, as after a
 reinstall, setup is skipped and the saved or default choice applies. You can turn it off in
 Settings → Screen & activity. While it is on, LokalBot reads Claude Code session files
 under `~/.claude/projects`, Codex session files under `~/.codex/sessions` and
-`~/.codex/archived_sessions`, and Codex's `session_index.jsonl` for session
-titles. It never opens the agents' credentials, settings, or databases, and
-never changes their files. From each session it keeps your requests, the
-agent's final report, the project folder name and branch, changed file names,
-and actions parsed from commands the agent ran: commit messages, pull request
-titles and links, merges, releases, pushes, and test runs. Tool output, command
-output, file contents, reasoning, and instructions the agents inject are not
-kept, and detected credentials are redacted. Subagent sessions and sessions in
-folders you exclude are skipped. Sessions that read LokalBot's library through
-its CLI or MCP keep no reply text. Work is saved after ten quiet minutes, joins
-the day digest, and follows the screen-text retention above. The Timeline also
-uses saved records, on this Mac and without a model, to name work sessions by
-project and task, split tracked time by project, and list each session's
-requests, pull requests, and commits. Turning the
-setting off stops reading and keeps saved records; **Delete saved agent
-sessions** removes them and withdraws unedited journals that used them.
+`~/.codex/archived_sessions` (plus `session_index.jsonl` for session titles),
+Antigravity session transcripts (`transcript.jsonl` and `annotations/*.pbtxt`
+for titles) under `~/.gemini/antigravity`, `~/.gemini/antigravity-cli`, and
+`~/.gemini/antigravity-ide`, and T3 Code's local session database
+(`~/.t3/userdata/statev2.sqlite`, or `state.sqlite` on older installs), opened
+read-only for orchestration projection tables only. When T3 Code is enabled,
+native Claude Code and Codex sessions that T3 Code owns are deduplicated so
+each session counts once. It never opens the agents' credentials, auth tables,
+secrets, settings, or `transcript_full.jsonl`, and never changes their files.
+From each session it keeps your requests, the agent's final report, the project
+folder name and branch, changed file names, and actions parsed from commands
+and pull-request tools the agent ran: commit messages, pull request titles and
+links, merges, releases, pushes, and test runs. Tool output, command output,
+file contents, diffs, reasoning, and instructions the agents inject are not
+kept, and detected credentials are redacted. Subagent and delegated sessions
+and sessions in folders you exclude are skipped. Sessions that read LokalBot's
+library through its CLI or MCP keep no reply text. Work is saved after ten
+quiet minutes, joins the day digest, and follows the screen-text retention
+above. The Timeline also uses saved records, on this Mac and without a model,
+to name work sessions by project and task, split tracked time by project, and
+list each session's requests, pull requests, and commits. Turning the setting
+off stops reading and keeps saved records; **Delete saved agent sessions**
+removes them and withdraws unedited journals that used them.
 
 **Read coding agent notes** is off until you turn it on in Settings → Screen &
 Activity, after a notice. Coding agents keep notes for their own later
@@ -1643,8 +1650,9 @@ platform differences:
   refusing to copy from one; results there are copy-only.
 - **Coding-agent sessions** are read only after you choose it in setup or
   Settings → Screen & activity, even if an earlier version or a Mac saved the
-  setting as on. Until then nothing under `~/.claude` or `~/.codex` is opened, and
-  sessions a Mac recorded in the library aren't used.
+  setting as on. Until then nothing under `~/.claude`, `~/.codex`,
+  `~/.gemini/antigravity*`, or `~/.t3` is opened, and sessions a Mac recorded
+  in the library aren't used.
 - **Coding-agent notes.** **Read coding agent notes** is under Settings → Screen
   & activity, off until you turn it on after a notice, and works as described
   under [Data stored on your Mac](#data-stored-on-your-mac): the same files are read

@@ -5,13 +5,13 @@
 
 ## Context
 
-LokalBot reads the session transcripts of coding agents such as Claude Code and Codex into timeline bursts that feed day digests, and keeps a search copy of the notes those agents write for their own later sessions. The Mac app (`LokalBot/Services/CodingAgents`, `LokalBot/Services/AgentMemory`) and the Windows and Linux app (`lokalbot-engine` `coding_agents` and `agent_notes`) follow the same rules, and the npm package in `Distribution/npm` reuses them to sum up a year of agent use from the same logs plus Cursor and Gemini CLI. These decisions were moved here from code comments when the code stopped carrying comments ([ADR 0001](0001-code-carries-no-comments.md)).
+LokalBot reads the session transcripts of coding agents — Claude Code, Codex, Antigravity, and T3 Code — into timeline bursts that feed day digests, and keeps a search copy of the notes Claude Code and Codex write for their own later sessions. The Mac app (`LokalBot/Services/CodingAgents`, `LokalBot/Services/AgentMemory`) and the Windows and Linux app (`lokalbot-engine` `coding_agents` and `agent_notes`) follow the same rules, and the npm package in `Distribution/npm` reuses them to sum up a year of agent use from the same logs plus Cursor and Gemini CLI. These decisions were moved here from code comments when the code stopped carrying comments ([ADR 0001](0001-code-carries-no-comments.md)).
 
 ## Consent, exclusions and deletion
 
 ### Nothing from the agents is read until the person chooses
 
-Nothing under `~/.claude` or `~/.codex` is opened until the person has chosen to allow it, in setup or in Settings → Day Memory → Coding agent sessions; `Settings::enabled_coding_agents` is empty before that. On a new install no session is read until setup is finished: `finishOnboarding` starts reading.
+Nothing under `~/.claude`, `~/.codex`, `~/.gemini/antigravity*`, or `~/.t3` is opened until the person has chosen to allow it, in setup or in Settings → Day Memory → Coding agent sessions; `Settings::enabled_coding_agents` is empty before that. On a new install no session is read until setup is finished: `finishOnboarding` starts reading.
 
 Where: `LokalBot/AppState.swift` (`AppState.init`), `LokalBot/Views/Settings/CodingAgentEvidenceSettings.swift`, `LinuxWindows/crates/lokalbot-app/src/pages/settings/coding_agents.rs`, `LinuxWindows/crates/lokalbot-engine/src/coding_agents/mod.rs`.
 
@@ -82,6 +82,18 @@ Where: `LokalBot/Services/CodingAgents/CodexSessionReader.swift` (`CodexSessionR
 Compressing gives the file a new creation date, the time it was last written, so the bound no later than its first record comes from its name, `rollout-2026-10-19T08-23-26-<id>.jsonl.zst`. The name is in the local time where Codex ran, so a day before its date covers every zone. The test gives compressed rollouts the creation date of their last write and expects them read like plain ones.
 
 Where: `LokalBot/Services/CodingAgents/CodingAgentCompressedTranscript.swift` (`CodingAgentCompressedTranscript.startBound`), `LinuxWindows/crates/lokalbot-engine/src/coding_agents/cache.rs` (`start_bound`), `LokalBotTests/Services/CodingAgents/CodingAgentSessionTests.swift` (`testCodexReaderReadsCompressedRolloutsLikePlainOnes`).
+
+### Antigravity reads compact transcripts across state roots and never opens `transcript_full.jsonl`
+
+Antigravity transcripts live under `~/.gemini/antigravity/brain`, `~/.gemini/antigravity-cli/brain`, and `~/.gemini/antigravity-ide/brain` (`<id>/.system_generated/logs/transcript.jsonl`), with titles in sibling `annotations/<id>.pbtxt`. Conversations present in more than one root are deduplicated by conversation ID so the newest copy wins. JSON keys can appear in any order, so the line filter scans the whole line (up to 16 MiB) for `USER_INPUT` and `PLANNER_RESPONSE`, unquotes Antigravity's JSON-encoded tool arguments, unwraps `<USER_REQUEST>` / `<user_request>` wrappers (including truncated prompts without a closing tag), skips `thinking` and internal artifact paths, and never opens `transcript_full.jsonl`, credentials, or settings.
+
+Where: `LokalBot/Services/CodingAgents/AntigravitySessionReader.swift`, `LinuxWindows/crates/lokalbot-engine/src/coding_agents/antigravity.rs`, `LokalBot/Services/CodingAgents/CodingAgentText.swift` (`unwrapAntigravityRequest`), `LinuxWindows/crates/lokalbot-engine/src/coding_agents/text.rs` (`unwrap_antigravity_request`).
+
+### T3 Code reads orchestration projections read-only and claims its native sessions
+
+T3 Code's local database (`~/.t3/userdata/statev2.sqlite`, with legacy `state.sqlite` fallback skipping already-loaded thread IDs) is skipped when `max(mtime(db), mtime(db-wal))` precedes the scan window, and otherwise opened strictly read-only (`?mode=ro`, falling back to `?mode=ro&immutable=1` if a read-only folder blocks `-shm`). Queries select only orchestration projection tables using `json_extract` so command output, file diffs, reasoning, auth tables, secrets, and settings never leave SQLite; deleted threads, subagent/delegated threads (`lineage.parentThreadId`, `relationshipToParent = "subagent"`, `thread:delegated-task:`, `thread:subagent:`), and synthetic `createdBy = "agent"` wakeups (except `creationSource = "schedule"`) are filtered out. Native Claude Code and Codex session IDs from `orchestration_v2_projection_provider_threads` (`nativeThreadRef.nativeId`, including delegated subagents) are returned in `claimedSessions` so enabled native readers do not double-count T3 Code work, while disabling T3 Code lets the native readers report them normally. A thread-wide LokalBot access query withholds replies even when LokalBot was consulted on an earlier day of the same thread.
+
+Where: `LokalBot/Services/CodingAgents/T3CodeSessionReader.swift`, `LinuxWindows/crates/lokalbot-engine/src/coding_agents/t3code.rs`, `LokalBot/Services/CodingAgents/CodingAgentSessionScanner.swift`, `LinuxWindows/crates/lokalbot-engine/src/coding_agents/scanner.rs`.
 
 ### Transcripts are streamed, never held whole
 
@@ -183,7 +195,7 @@ Where: `LinuxWindows/crates/lokalbot-engine/src/coding_agents/mod.rs`, `LokalBot
 
 ### Notes come only from the agents' memory folders and feed search only
 
-While Read coding agent notes is on, LokalBot collects Claude Code's notes (`~/.claude/projects/*/memory/*.md`) and Codex's memories (`~/.codex/memories`) and makes `agent-notes.sqlite` in the library match what it found. Instruction files such as `CLAUDE.md` and `AGENTS.md` are never read. The notes are a search source only: nothing feeds the day digest, the overnight review or Personal Context.
+While Read coding agent notes is on, LokalBot collects Claude Code's notes (`~/.claude/projects/*/memory/*.md`) and Codex's memories (`~/.codex/memories`) and makes `agent-notes.sqlite` in the library match what it found; Antigravity and T3 Code have no note readers, and their toggles show only while session reading is enabled. Instruction files such as `CLAUDE.md` and `AGENTS.md` are never read. The notes are a search source only: nothing feeds the day digest, the overnight review or Personal Context.
 
 Where: `LokalBot/Services/AgentMemory/AgentMemoryReaders.swift`, `LokalBot/Services/AgentMemory/AgentMemoryStore.swift` (`AgentMemoryIngestor`), `LinuxWindows/crates/lokalbot-engine/src/agent_notes/mod.rs`.
 
