@@ -71,6 +71,12 @@ fn run(
                 settings.stop_debounce_seconds.clamp(5.0, 120.0),
             ));
             detector.set_calendar(hint(&settings, event.as_ref()));
+            if cfg!(windows) {
+                detector.set_call_detection(
+                    settings.detect_other_browser_calls,
+                    &settings.additional_call_apps,
+                );
+            }
             let events = detector.poll();
             *shared.detected_meeting.lock() = detector.active().cloned();
             events

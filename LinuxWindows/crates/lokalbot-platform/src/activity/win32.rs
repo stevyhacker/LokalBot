@@ -254,7 +254,7 @@ fn wide(text: &str) -> Vec<u16> {
 }
 
 /// `FileDescription`, then `ProductName`, then the file name.
-pub(crate) fn friendly_name(image: &Path) -> String {
+pub fn friendly_name(image: &Path) -> String {
     let stem = image
         .file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())

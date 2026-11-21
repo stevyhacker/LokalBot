@@ -66,7 +66,7 @@ final class CaptureTraceScrubberTests: XCTestCase {
 
     func testEveryDetectionBundleIDSurvivesScrubbing() {
         let detection = Array(MeetingDetector.knownApps.keys) + Array(MeetingDetector.documentCallHosts)
-            + Array(MeetingDetector.alwaysOpenAudioBundles)
+            + Array(MeetingDetector.alwaysOpenAudioBundles) + Array(MeetingDetector.microphoneBrowsers)
         for id in detection {
             XCTAssertEqual(scrubber.scrubBundleID(id), id)
         }

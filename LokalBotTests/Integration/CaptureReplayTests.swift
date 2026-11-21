@@ -276,6 +276,89 @@ final class CaptureReplayTests: XCTestCase {
         }
     }
 
+    func testMicrophoneBasedDetectsNativeAndOptedInBrowserCalls() async throws {
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        for (bundle, additional, browserEnabled, starts) in [
+            ("ru.unlimitedtech.express.desktop", "", false, true),
+            ("com.example.CorporateClient", "com.example.CorporateClient", false, true),
+            ("com.example.CorporateClient", "", false, false),
+            ("com.google.Chrome", "", true, true),
+            ("com.google.Chrome", "", false, false),
+        ] {
+            let trace = CaptureTrace(header: .init(schemaVersion: 1, macOSVersion: "Test",
+                origin: .scripted, scenario: "microphone-based-call", recordedAt: start), events: [
+                    .init(t: 0, query: .runningApps, apps: [
+                        .init(processIdentifier: 801, bundleIdentifier: bundle, localizedName: "Call app")
+                    ]),
+                    .init(t: 0, query: .audioProcesses, processes: [
+                        .init(id: 802, name: "Call helper", bundleID: bundle + ".helper",
+                              objectID: 90, isRunningOutput: true)
+                    ]),
+                    .init(t: 0, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: true),
+                    .init(t: 30, query: .inputRunning, processID: 802, flag: true),
+                    .init(t: 70, query: .inputRunning, processID: 802, flag: false)
+                ])
+            let replay = ReplayCaptureEnvironment(trace: trace, start: start)
+            CaptureEnvironment.install(replay.environment)
+            MeetingDetector.invalidateAudioProcessSnapshot()
+            MeetingDetector.resetCaptureTargetMemory()
+            let detector = MeetingDetector()
+            detector.additionalCallBundleIDs = Set(AdditionalCallApp.fromLegacyList(additional).map(\.id))
+            detector.detectOtherBrowserCalls = browserEnabled
+            var began: [TimeInterval] = []
+            var ended: [TimeInterval] = []
+            detector.onMeetingStarted = {
+                XCTAssertEqual($0.detectedApp?.bundleID, bundle)
+                began.append(replay.clock.elapsed)
+            }
+            detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+            for time in stride(from: 0.0, through: 96, by: 2) {
+                await replay.clock.advance(to: time)
+                await detector.tickForTesting()
+            }
+            XCTAssertEqual(began, starts ? [42] : [], bundle)
+            XCTAssertEqual(ended, starts ? [85] : [], bundle)
+        }
+    }
+
+    func testBrowserMicrophoneDetectionReplaysPrivateAndUnreadableWindowChecks() async throws {
+        let start = Date(timeIntervalSince1970: 1_790_000_000)
+        let trace = CaptureTrace(header: .init(schemaVersion: 1, macOSVersion: "Test",
+            origin: .scripted, scenario: "microphone-window-privacy", recordedAt: start), events: [
+                .init(t: 0, query: .runningApps, apps: [
+                    .init(processIdentifier: 801, bundleIdentifier: "com.google.Chrome", localizedName: "Google Chrome")
+                ]),
+                .init(t: 0, query: .audioProcesses, processes: [
+                    .init(id: 802, name: "Google Chrome Helper", bundleID: "com.google.Chrome.helper",
+                          objectID: 90, isRunningOutput: true)
+                ]),
+                .init(t: 0, query: .inputRunning, processID: 802, flag: true),
+                // A private window is open; a later read cannot read every title.
+                // The trace stores only the privacy decision, never the titles.
+                .init(t: 0, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: false),
+                .init(t: 30, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: false),
+                .init(t: 60, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: true),
+                // A private or unreadable window during the call revokes fallback.
+                .init(t: 90, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: false)
+            ])
+        let replay = ReplayCaptureEnvironment(trace: trace, start: start)
+        CaptureEnvironment.install(replay.environment)
+        MeetingDetector.invalidateAudioProcessSnapshot()
+        MeetingDetector.resetCaptureTargetMemory()
+        let detector = MeetingDetector()
+        detector.detectOtherBrowserCalls = true
+        var began: [TimeInterval] = []
+        var ended: [TimeInterval] = []
+        detector.onMeetingStarted = { _ in began.append(replay.clock.elapsed) }
+        detector.onMeetingEnded = { _ in ended.append(replay.clock.elapsed) }
+        for time in stride(from: 0.0, through: 116, by: 2) {
+            await replay.clock.advance(to: time)
+            await detector.tickForTesting()
+        }
+        XCTAssertEqual(began, [72], "private and unreadable windows cannot authorize a start")
+        XCTAssertEqual(ended, [105], "microphone activity alone cannot retain a disallowed browser")
+    }
+
     func testNativeTelemostIgnoresShortAudioAndStopsOnceItsCallAudioEnds() async throws {
         let replay = try replay("telemost-desktop-call")
         let detector = MeetingDetector()

@@ -41,6 +41,28 @@ enum BrowserMeetingSession {
         }
     }
 
+    /// A browser microphone identifies a process family, so a private or
+    /// unreadable window in that family blocks the optional fallback.
+    static func microphoneFallbackWindowsAllowed(_ titles: [String?]) -> Bool {
+        !titles.isEmpty && titles.allSatisfy { title in
+            guard let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+            return !ScreenContextPrivacy.isPrivateWindow(title: title)
+        }
+    }
+
+    static func microphoneFallbackAllowed(processIDs: [pid_t]) async -> Set<pid_t> {
+        guard !processIDs.isEmpty else { return [] }
+        let accessibility = CaptureEnvironment.current.accessibility
+        return await withCheckedContinuation { continuation in
+            observationQueue.async {
+                let eligible = processIDs.filter {
+                    accessibility.browserMicrophoneWindowsAllowed(processID: $0)
+                }
+                continuation.resume(returning: Set(eligible))
+            }
+        }
+    }
+
     struct Window {
         var element: AXUIElement
         var snapshot: Snapshot
@@ -331,7 +353,7 @@ enum BrowserMeetingSession {
         let native = bundleID.flatMap { nativeWebClients[$0] }
         var read = WindowRead()
         let observed = observeWindow(processID: processID, expectedURL: expectedURL, preferFocused: false,
-                                     bundleID: bundleID, bound: bound, read: &read)
+                                     bundleID: bundleID, bound: bound, read: &read, includeInactive: true)
         if observed?.snapshot.state == .inCall {
             bindings.set(observed, for: processID)
         } else if observed?.snapshot.state == .ended {
@@ -482,16 +504,19 @@ enum BrowserMeetingSession {
     }
 
     private static func observeWindow(processID: pid_t, expectedURL: URL?, preferFocused: Bool,
-                                      bundleID: String?, bound: Window?, read: inout WindowRead) -> Window? {
+                                      bundleID: String?, bound: Window?, read: inout WindowRead,
+                                      includeInactive: Bool = false) -> Window? {
         var issue = ReadIssue.noMeetingDocument
         let found = window(processID: processID, expectedURL: expectedURL, preferFocused: preferFocused,
-                           bundleID: bundleID, bound: bound, read: &read, issue: &issue)
+                           bundleID: bundleID, bound: bound, read: &read,
+                           includeInactive: includeInactive, issue: &issue)
         readIssues.set(found == nil ? issue : nil, for: processID)
         return found
     }
 
     private static func window(processID: pid_t, expectedURL: URL?, preferFocused: Bool,
-                               bundleID: String?, bound: Window?, read: inout WindowRead, issue: inout ReadIssue) -> Window? {
+                               bundleID: String?, bound: Window?, read: inout WindowRead,
+                               includeInactive: Bool, issue: inout ReadIssue) -> Window? {
         guard AXIsProcessTrusted() else { issue = .accessibilityUntrusted; return nil }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
@@ -615,7 +640,12 @@ enum BrowserMeetingSession {
         // Multiple unrelated meeting windows cannot silently pick the first call.
         if expected == nil {
             let calls = matches.filter { $0.snapshot.state == .inCall }
-            return calls.count == 1 ? calls.first : nil
+            if calls.count == 1 { return calls.first }
+            if includeInactive, var identified = matches.first {
+                if matches.count > 1 { identified.snapshot.state = .unavailable }
+                return identified
+            }
+            return nil
         }
         return matches.count == 1 ? matches.first : nil
     }

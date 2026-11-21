@@ -2599,6 +2599,20 @@
 "Priorities for today" = "Prioriteti za danas";
 "Priorities from %@" = "Prioriteti: %@";
 "Priorities from a previous workday" = "Prioriteti od prethodnog radnog dana";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot prepoznaje pozive u aplikacijama koje dodaš ovde.";
+"Choose a call app" = "Izaberi aplikaciju za pozive";
+"Choose an application file (.exe)." = "Izaberi datoteku aplikacije (.exe).";
+"Could not open the file picker." = "Nije moguće otvoriti prozor za izbor datoteke.";
+"LokalBot already supports this app." = "LokalBot već podržava ovu aplikaciju.";
+"This app is already on the list." = "Ova aplikacija je već na listi.";
+"Remove from call detection" = "Ukloni iz prepoznavanja poziva";
+"Remove %@ from call detection" = "Ukloni %@ iz prepoznavanja poziva";
+
 "Import past meetings" = "Uvezi prethodne sastanke";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Uvezi beleške iz aplikacija Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper ili Zoom.";
 "Claude Code (MCP command)" = "Claude Code (MCP komanda)";

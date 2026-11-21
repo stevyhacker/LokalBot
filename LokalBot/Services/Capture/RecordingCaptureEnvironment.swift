@@ -119,6 +119,11 @@ final class CaptureTraceRecorder: @unchecked Sendable {
             recorder.record { .init(t: $0, query: .browserReadIssue, processID: processID, issue: value) }
             return value
         }
+        func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool {
+            let value = base.browserMicrophoneWindowsAllowed(processID: processID)
+            recorder.record { .init(t: $0, query: .browserMicrophoneWindowsAllowed, processID: processID, flag: value) }
+            return value
+        }
     }
 
     private struct Windows: WindowSource {

@@ -52,6 +52,7 @@ final class MeetingDetector {
         let bundleID: String
         let pid: pid_t
         var meetingURL: URL?
+        var usesMicrophoneDetection = false
     }
 
     /// Known native meeting apps.
@@ -76,6 +77,7 @@ final class MeetingDetector {
         "com.alibaba.DingTalkMac": "DingTalk",
         "com.tencent.WeWorkMac": "WeCom",
         "ru.yandex.desktop.telemost": "Yandex Telemost",
+        "ru.unlimitedtech.express.desktop": "eXpress",
     ]
 
     /// Native bundles whose newly-started output is a strong meeting signal on
@@ -96,8 +98,10 @@ final class MeetingDetector {
     ]
 
     nonisolated static func shouldAutoRecordNativeAudioMonitor(bundleID: String, calendarBacked: Bool) -> Bool {
-        highConfidenceNativeAudioBundles.contains(bundleID) || calendarBacked
+        bundleID != expressBundleID && (highConfidenceNativeAudioBundles.contains(bundleID) || calendarBacked)
     }
+
+    nonisolated private static let expressBundleID = "ru.unlimitedtech.express.desktop"
 
     /// Minimum duration a broad communication app's audio must sustain before
     /// it counts as a meeting start. Confirmation is inclusive at exactly this
@@ -182,6 +186,10 @@ final class MeetingDetector {
     /// Browsers and trusted desktop web clients that must prove an in-call
     /// document before they can start recording or select a system audio tap.
     nonisolated static let documentCallHosts = browsers.union(BrowserMeetingSession.nativeWebClients.keys)
+    nonisolated static let microphoneBrowsers = browsers.union([
+        "ru.yandex.desktop.yandex-browser", "com.operasoftware.Opera",
+        "com.vivaldi.Vivaldi", "org.chromium.Chromium"
+    ])
 
     var onMeetingStarted: ((MeetingDetectionContext) -> Void)?
     var onMeetingSwitched: ((MeetingDetectionContext) -> Void)?
@@ -207,6 +215,8 @@ final class MeetingDetector {
     var calendar: CalendarEventProviding?
     var calendarEnabled = false
     var requireCalendarForBrowser = false
+    var detectOtherBrowserCalls = false
+    var additionalCallBundleIDs: Set<String> = []
 
     private(set) var activeApp: DetectedApp?
     private(set) var activeSessionID: UUID?
@@ -242,13 +252,22 @@ final class MeetingDetector {
     /// Calls in rooms other than the bound one, read only while the bound
     /// call cannot be verified. See `handOffIfAnotherRoomIsInCall`.
     private var otherRoomSnapshots: [pid_t: BrowserMeetingSession.Snapshot] = [:]
+    private var browserMicrophoneCandidates: [DetectedApp] = []
+    private let microphoneWindowsAllowed: @Sendable ([pid_t]) async -> Set<pid_t>
+
+    init(microphoneWindowsAllowed: @escaping @Sendable ([pid_t]) async -> Set<pid_t> = {
+        await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: $0)
+    }) {
+        self.microphoneWindowsAllowed = microphoneWindowsAllowed
+    }
 
     /// Whether the active session's call is still proven: always for a native
     /// app session, and for a browser call until its observation is lost. A
     /// manual recording joins only a proven session.
     var verifiesActiveCall: Bool {
         guard let activeApp else { return false }
-        return !Self.documentCallHosts.contains(activeApp.bundleID) || browserLifecycle.lostAt == nil
+        return activeApp.usesMicrophoneDetection || !Self.documentCallHosts.contains(activeApp.bundleID)
+            || browserLifecycle.lostAt == nil
     }
 
     private var micListener: AudioObjectPropertyListenerBlock?
@@ -291,6 +310,7 @@ final class MeetingDetector {
         browserPollTask = nil
         browserPollStartedAt = nil
         browserSnapshots = [:]
+        browserMicrophoneCandidates = []
         otherRoomSnapshots = [:]
         timer?.cancel()
         timer = nil
@@ -386,7 +406,12 @@ final class MeetingDetector {
         let boundApp = activeApp
         let eventURL = calendarEnabled ? calendar?.activeCandidate(now: environment.clock.now())?.meetingURL : nil
         let expectedURL = boundApp?.meetingURL ?? eventURL
-        let browserApps = environment.workspace.runningApplications().filter { app in
+        let running = environment.workspace.runningApplications()
+        let allowBrowserMicrophone = detectOtherBrowserCalls
+        let checkMicrophoneWindows = microphoneWindowsAllowed
+        let microphoneApps = allowBrowserMicrophone
+            ? Self.microphoneCandidates(in: running, additional: [], browser: true) : []
+        let browserApps = running.filter { app in
             guard let bundleID = app.bundleIdentifier, Self.documentCallHosts.contains(bundleID) else {
                 return false
             }
@@ -405,16 +430,18 @@ final class MeetingDetector {
         let pids = browserApps.filter {
             // Once bound, unrelated browsers cannot delay the call's evidence
             // or make a valid observation expire before it reaches the detector.
-            guard let boundApp, Self.documentCallHosts.contains(boundApp.bundleID) else { return true }
+            guard let boundApp, !boundApp.usesMicrophoneDetection,
+                  Self.documentCallHosts.contains(boundApp.bundleID) else { return true }
             return $0.bundleIdentifier == boundApp.bundleID
         }.map(\.processIdentifier)
         // A bound call that stopped proving itself must not hide a verified
         // call in another room, so these reads look past the binding.
         let otherRoomPIDs = boundApp != nil && !verifiesActiveCall ? browserApps.map(\.processIdentifier) : []
         let otherRoomURL = Self.otherRoom(eventURL, than: boundApp?.meetingURL)
-        guard !pids.isEmpty || !otherRoomPIDs.isEmpty else {
+        guard !pids.isEmpty || !otherRoomPIDs.isEmpty || !microphoneApps.isEmpty else {
             browserSnapshots = [:]
             otherRoomSnapshots = [:]
+            browserMicrophoneCandidates = []
             applyTick()
             return
         }
@@ -429,6 +456,9 @@ final class MeetingDetector {
             if !otherRoomPIDs.isEmpty {
                 otherRooms = await BrowserMeetingSession.observe(processIDs: otherRoomPIDs, expectedURL: otherRoomURL)
             }
+            let microphonePIDs = microphoneApps.filter { observations[$0.pid] == nil }.map(\.pid)
+            let micCheckStarted = clock.now()
+            let publicWindows = await checkMicrophoneWindows(microphonePIDs)
             guard let self, !Task.isCancelled, generation == self.browserPollGeneration else { return }
             if self.reportedLongBrowserPoll, let started = self.browserPollStartedAt {
                 lokalbotLog("detector browser observation finished after="
@@ -436,7 +466,7 @@ final class MeetingDetector {
             }
             self.browserPollTask = nil
             self.browserPollStartedAt = nil
-            guard self.activeApp == boundApp,
+            guard self.activeApp == boundApp, self.detectOtherBrowserCalls == allowBrowserMicrophone,
                   eventURL == (self.calendarEnabled ? self.calendar?.activeCandidate(now: self.environment.clock.now())?.meetingURL : nil) else {
                 self.tick()
                 return
@@ -444,6 +474,8 @@ final class MeetingDetector {
             // A slow/unresponsive browser is uncertainty, never fresh call evidence.
             self.browserSnapshots = otherRoomsStarted.timeIntervalSince(started) < 2 ? observations : [:]
             self.otherRoomSnapshots = clock.now().timeIntervalSince(otherRoomsStarted) < 2 ? otherRooms : [:]
+            self.browserMicrophoneCandidates = clock.now().timeIntervalSince(micCheckStarted) < 2
+                ? microphoneApps.filter { publicWindows.contains($0.pid) } : []
             self.applyTick()
         }
     }
@@ -478,7 +510,7 @@ final class MeetingDetector {
         let calendarEvent = calendarEnabled ? calendar?.activeCandidate(now: now) : nil
 
         if let currentApp = activeApp {
-            if Self.documentCallHosts.contains(currentApp.bundleID) {
+            if Self.documentCallHosts.contains(currentApp.bundleID), !currentApp.usesMicrophoneDetection {
                 tickBrowser(currentApp, now: now)
                 return
             }
@@ -486,7 +518,9 @@ final class MeetingDetector {
             let appAudioActive = continuingApp.map {
                 hasContinuingAudio(for: $0, now: now)
             } ?? false
-            let isBrowserApp = continuingApp.map { Self.documentCallHosts.contains($0.bundleID) } ?? false
+            let isBrowserApp = continuingApp.map {
+                !$0.usesMicrophoneDetection && Self.documentCallHosts.contains($0.bundleID)
+            } ?? false
             let calendarBackedBrowserWithAudio = isBrowserApp
                 && calendarEnabled
                 && calendarEvent?.meetingURL != nil
@@ -500,7 +534,7 @@ final class MeetingDetector {
                 calendarBackedBrowserWithAudio: calendarBackedBrowserWithAudio)
 
             guard inMeeting, let app = continuingApp else {
-                let replacementApp = Self.detectRunningMeetingApp(
+                let replacementApp = detectRunningMeetingApp(
                     in: running,
                     calendarEvent: calendarEvent,
                     calendarEnabled: calendarEnabled,
@@ -545,6 +579,14 @@ final class MeetingDetector {
             pendingStop = nil
             let previousEventID = activeCalendarEvent?.externalID
             activeApp = app
+            if app.usesMicrophoneDetection {
+                // The call may precede its output helper. Reuse the verified
+                // source event to wake the existing recording's tap recovery.
+                onVerifiedSourceAvailable?(.init(
+                    detectedApp: app, calendarEvent: activeCalendarEvent,
+                    confidence: .high, reason: "verified-microphone-source",
+                    detectorSessionID: activeSessionID))
+            }
             if let calendarEvent {
                 activeCalendarEvent = calendarEvent
                 if MeetingMatcher.shouldSplitForCalendarHandoff(
@@ -561,12 +603,14 @@ final class MeetingDetector {
             return
         }
 
-        let runningMeetingApp = Self.detectRunningMeetingApp(
+        let runningMeetingApp = detectRunningMeetingApp(
             in: running,
             calendarEvent: calendarEvent,
             calendarEnabled: calendarEnabled,
             requireCalendarForBrowser: requireCalendarForBrowser, snapshots: browserSnapshots)
-        let isBrowserApp = runningMeetingApp.map { Self.documentCallHosts.contains($0.bundleID) } ?? false
+        let isBrowserApp = runningMeetingApp.map {
+            !$0.usesMicrophoneDetection && Self.documentCallHosts.contains($0.bundleID)
+        } ?? false
         let calendarBackedBrowser = isBrowserApp && calendarEnabled && calendarEvent?.meetingURL != nil
         // Both start and continuation hinge on the selected app's OWN audio
         // (input or output), not the global mic flag. A global mic check can
@@ -661,11 +705,11 @@ final class MeetingDetector {
     /// window's evidence clock; `tick()` separately decides whether a gap
     /// since the last call may still keep this same window alive.
     private func startConfirmed(app: DetectedApp, calendarBacked: Bool, now: Date) -> Bool {
-        if Self.documentCallHosts.contains(app.bundleID) {
+        if Self.documentCallHosts.contains(app.bundleID), !app.usesMicrophoneDetection {
             guard let url = app.meetingURL else { browserStart = .init(); return false }
             return browserStart.observe(.init(url: url, state: .inCall), at: now)
         }
-        guard Self.requiresSustainedAudioForStart(
+        guard app.usesMicrophoneDetection || Self.requiresSustainedAudioForStart(
             bundleID: app.bundleID, calendarBacked: calendarBacked) else { return true }
         let startedNewWindow = startConfirmation.observeAudio(
             bundleID: app.bundleID,
@@ -781,19 +825,22 @@ final class MeetingDetector {
         pendingStartRecheck = nil
     }
 
-    nonisolated private static func detectRunningMeetingApp(
+    private func detectRunningMeetingApp(
         in running: [RunningApp],
         calendarEvent: CalendarMeetingCandidate?,
         calendarEnabled: Bool,
         requireCalendarForBrowser: Bool,
         snapshots: [pid_t: BrowserMeetingSession.Snapshot]
     ) -> DetectedApp? {
-        nativeMeetingApp(in: running, requireAudio: true)
-            ?? browserMeeting(in: running,
+        Self.nativeMeetingApp(in: running, requireAudio: true)
+            ?? Self.browserMeeting(in: running,
                               calendarEvent: calendarEvent,
                               calendarEnabled: calendarEnabled,
                               requireCalendarForBrowser: requireCalendarForBrowser,
                               snapshots: snapshots)
+            ?? Self.microphoneCandidates(in: running, additional: additionalCallBundleIDs, browser: false).first
+            ?? ((!requireCalendarForBrowser || (calendarEnabled && calendarEvent?.meetingURL != nil))
+                ? browserMicrophoneCandidates.first : nil)
     }
 
     private func scheduleStopIfNeeded(
@@ -806,7 +853,8 @@ final class MeetingDetector {
         // Native app audio gaps may use calendar grace. A browser call uses
         // only its bound document state and never receives that extension.
         let isBrowser = activeApp.map { Self.documentCallHosts.contains($0.bundleID) } ?? false
-        let calendarStillActive = !isBrowser && (activeCalendarEvent?.isActive(at: now) ?? false)
+        let calendarStillActive = !isBrowser && activeApp?.usesMicrophoneDetection != true
+            && (activeCalendarEvent?.isActive(at: now) ?? false)
         let debounce = immediately ? 0 : calendarStillActive ? max(stopDebounce, Self.calendarBackedGrace) : stopDebounce
         pendingStop = environment.clock.schedule(after: debounce) { [weak self] in
             guard let self else { return }
@@ -963,7 +1011,40 @@ final class MeetingDetector {
     nonisolated static func meetingAppCandidates(bundleIDs: [(bundleID: String, pid: pid_t)]) -> [DetectedApp] {
         bundleIDs.compactMap { entry in
             guard let name = knownApps[entry.bundleID] else { return nil }
-            return DetectedApp(name: name, bundleID: entry.bundleID, pid: entry.pid)
+            return DetectedApp(name: name, bundleID: entry.bundleID, pid: entry.pid,
+                               usesMicrophoneDetection: entry.bundleID == expressBundleID)
+        }
+    }
+
+    nonisolated static func hasBuiltInCallDetection(_ bundleID: String) -> Bool {
+        knownApps[bundleID] != nil || documentCallHosts.contains(bundleID) || microphoneBrowsers.contains(bundleID)
+    }
+
+    nonisolated private static func microphoneCandidates(
+        in running: [RunningApp], additional: Set<String>, browser: Bool
+    ) -> [DetectedApp] {
+        guard browser || !additional.isEmpty else { return [] }
+        return running.compactMap { app in
+            guard let bundle = app.bundleIdentifier, app.processIdentifier != ProcessInfo.processInfo.processIdentifier
+            else { return nil }
+            if browser {
+                guard microphoneBrowsers.contains(bundle) else { return nil }
+            } else {
+                guard additional.contains(bundle.lowercased()), !hasBuiltInCallDetection(bundle) else { return nil }
+            }
+            let candidate = DetectedApp(name: app.localizedName ?? bundle, bundleID: bundle,
+                                        pid: app.processIdentifier, usesMicrophoneDetection: true)
+            return microphoneIsActive(for: candidate) ? candidate : nil
+        }
+    }
+
+    nonisolated static func microphoneIsActive(for app: DetectedApp) -> Bool {
+        let audio = CaptureEnvironment.current.audio
+        if audio.isProcessRunningInput(processID: app.pid) { return true }
+        return currentAudioProcesses().contains { stream in
+            guard stream.id != app.pid, let bundle = stream.bundleID,
+                  audioBundleID(bundle, belongsTo: app.bundleID) else { return false }
+            return audio.isProcessRunningInput(processID: stream.id)
         }
     }
 
@@ -1351,6 +1432,9 @@ final class MeetingDetector {
     }
 
     nonisolated private static func continuingApp(_ app: DetectedApp, in running: [RunningApp]) -> DetectedApp? {
+        if app.usesMicrophoneDetection {
+            return running.contains { $0.bundleIdentifier == app.bundleID && $0.processIdentifier == app.pid } ? app : nil
+        }
         if knownApps[app.bundleID] != nil {
             return running.contains { $0.bundleIdentifier == app.bundleID } ? app : nil
         }
@@ -1372,7 +1456,8 @@ final class MeetingDetector {
     /// of a call. Deciding whether one is still running is
     /// ``hasContinuingAudio(for:now:)``.
     nonisolated private static func hasAudio(for app: DetectedApp) -> Bool {
-        hasOutputAudio(for: app) || hasInputAudio(for: app)
+        if app.usesMicrophoneDetection { return microphoneIsActive(for: app) }
+        return hasOutputAudio(for: app) || hasInputAudio(for: app)
     }
 
     /// Reliable app audio renews the active session's lease. A permanently-open
@@ -1380,6 +1465,12 @@ final class MeetingDetector {
     /// once the lease expires it cannot prevent the ordinary stop debounce from
     /// ending a Teams call whose app remains open.
     private func hasContinuingAudio(for app: DetectedApp, now: Date) -> Bool {
+        if app.usesMicrophoneDetection {
+            if Self.microphoneBrowsers.contains(app.bundleID) {
+                return browserMicrophoneCandidates.contains(app)
+            }
+            return Self.microphoneIsActive(for: app)
+        }
         let processes = Self.currentAudioProcesses(now: now)
         let reliableAudioActive = Self.bestOutputAudioProcess(
             for: app,

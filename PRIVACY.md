@@ -289,9 +289,9 @@ remain in your chosen folders until removed; deleting a meeting does not delete
 its exported note. Disabling these features stops future runs; it does not
 delete those existing copies.
 
-Browser meeting detection checks the Meet document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
+Browser meeting detection checks the supported document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Enabling **Detect other browser calls** also lets sustained microphone activity identify calls in ordinary browser windows. Additional call app identifiers explicitly designate native processes whose microphone activity can start call detection. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
-An authorized browser recording continues when call observation is unavailable,
+An authorized recording bound to a browser room continues when call observation is unavailable,
 including a temporarily missing browser host. It stops when you press Stop, when
 LokalBot positively verifies the call ended or its bound tab closed, or when no
 one has spoken for 15 minutes. That last rule applies to every recording: its
@@ -302,6 +302,10 @@ other tabs playing audio in that process. A replacement browser host must verify
 the same call before recovery attaches; uncertainty does not authorize another
 app, a global audio tap, or a new automatic recording. Microphone-only recording
 never acquires system audio through recovery.
+
+The optional microphone mode ends after the matching process releases its microphone
+and the stop delay passes. Automatic starts require a non-private browser window
+and abstain when the browser's window titles indicate a private window.
 
 Recordings also keep local PCM recovery checkpoints, manifests, and capture-health
 reports beside the original tracks. These follow the meeting's deletion rules

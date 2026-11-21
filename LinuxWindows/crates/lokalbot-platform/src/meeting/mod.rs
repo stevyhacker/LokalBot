@@ -16,7 +16,8 @@
 //! never replaces it: a browser holding the microphone during an event with
 //! a conferencing link is a call even without a Meet title, a chat app starts
 //! without the sustained wait while an event is on, and a native app gets
-//! extra stop grace inside its event's scheduled window.
+//! extra stop grace inside its event's scheduled window. Apps detected only
+//! through sustained microphone use keep the configured stop delay.
 //!
 //! Poll [`MeetingDetector::poll`] every ~2 s from one background thread.
 
@@ -32,6 +33,7 @@ mod win32;
 pub use browser::meet_url;
 use browser::{BrowserDocument, Verdict};
 use lokalbot_core::calendar::{MeetingService, meeting_room};
+use lokalbot_core::settings::{AdditionalCallApp, normalized_executable_name as normalized};
 
 /// A meeting the detector is tracking.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -60,7 +62,7 @@ pub struct CalendarHint {
     /// Browser calls count only with `meeting_url` (`requireCalendarForBrowser`).
     pub require_for_browser: bool,
     /// Stop grace for a native app while its event is in its scheduled window
-    /// (`calendarBackedGrace`). Browser calls never get it.
+    /// (`calendarBackedGrace`). Browser and sustained-microphone calls never get it.
     pub grace: Option<Duration>,
 }
 
@@ -153,6 +155,9 @@ enum AppKind {
     TelemostWeb,
     MtsLink,
     Meet,
+    Express,
+    ConfiguredDesktop,
+    MicrophoneBrowser,
     /// A browser call on a conferencing site other than Meet, known from the
     /// calendar event's link ("Zoom", "Teams", …).
     WebCall(&'static str),
@@ -177,6 +182,9 @@ impl AppKind {
             Self::TelemostWeb => "Yandex Telemost",
             Self::MtsLink => "MTS Link",
             Self::Meet => "Google Meet",
+            Self::Express => "eXpress",
+            Self::ConfiguredDesktop => "Desktop call",
+            Self::MicrophoneBrowser => "Browser call",
             Self::WebCall(name) => name,
         }
     }
@@ -184,12 +192,23 @@ impl AppKind {
     fn in_browser(self) -> bool {
         matches!(
             self,
-            Self::Meet | Self::TelemostWeb | Self::MtsLink | Self::WebCall(_)
+            Self::Meet
+                | Self::TelemostWeb
+                | Self::MtsLink
+                | Self::WebCall(_)
+                | Self::MicrophoneBrowser
         )
     }
 
     fn requires_room(self) -> bool {
         matches!(self, Self::TelemostWeb | Self::MtsLink)
+    }
+
+    fn requires_sustained_mic(self) -> bool {
+        matches!(
+            self,
+            Self::Express | Self::ConfiguredDesktop | Self::MicrophoneBrowser
+        )
     }
 
     /// Dedicated conferencing apps start at once; chat apps make short sounds
@@ -224,13 +243,17 @@ impl AppKind {
             Self::TelemostDesktop => 3,
             Self::Slack | Self::Feishu | Self::Lark | Self::DingTalk | Self::WeCom => 3,
             Self::Discord => 4,
+            Self::Express | Self::ConfiguredDesktop => 5,
+            Self::MicrophoneBrowser => 6,
         }
     }
 }
 
-fn normalized(name: &str) -> String {
-    let lower = name.to_lowercase();
-    lower.strip_suffix(".exe").unwrap_or(&lower).to_string()
+#[cfg(windows)]
+pub fn has_built_in_call_detection(executable: &str) -> bool {
+    native_kind(executable).is_some()
+        || browser_family(executable).is_some()
+        || normalized(executable) == "мтс линк"
 }
 
 /// Native meeting apps by executable (Windows and Linux names).
@@ -247,6 +270,7 @@ fn native_kind(process: &str) -> Option<AppKind> {
         "lark" | "bytedance-lark" => AppKind::Lark,
         "dingtalk" | "com.alibabainc.dingtalk" => AppKind::DingTalk,
         "wxwork" | "wecom" => AppKind::WeCom,
+        "express" if cfg!(any(windows, test)) => AppKind::Express,
         #[cfg(windows)]
         "yandextelemost" => AppKind::TelemostDesktop,
         _ => return None,
@@ -265,6 +289,7 @@ fn browser_family(process: &str) -> Option<&'static str> {
         "opera" => "opera",
         "vivaldi" | "vivaldi-bin" => "vivaldi",
         "arc" => "arc",
+        "yandex" => "yandex",
         "zen" | "zen-bin" => "zen",
         _ => return None,
     })
@@ -369,12 +394,16 @@ struct Candidate {
     kind: AppKind,
     /// Browser family for Meet, so a call stays with its browser.
     family: Option<&'static str>,
+    /// Normalized executable key selected by the user; display names need not be unique.
+    configured_executable: Option<String>,
     meeting: DetectedMeeting,
 }
 
 impl Candidate {
     fn same_app(&self, other: &Candidate) -> bool {
-        self.kind == other.kind && self.family == other.family
+        self.kind == other.kind
+            && self.family == other.family
+            && self.configured_executable == other.configured_executable
     }
 }
 
@@ -385,6 +414,7 @@ struct Confirmation {
     kind: AppKind,
     family: Option<&'static str>,
     room: Option<String>,
+    configured_executable: Option<String>,
     first_seen: Instant,
     last_seen: Instant,
 }
@@ -404,6 +434,8 @@ struct Core {
     /// Meet titles seen through `observe_window`, by browser family.
     observed_titles: HashMap<&'static str, (Option<String>, Instant)>,
     calendar: CalendarHint,
+    detect_other_browser_calls: bool,
+    additional_call_apps: HashMap<String, String>,
 }
 
 impl Core {
@@ -415,7 +447,22 @@ impl Core {
             pending: None,
             observed_titles: HashMap::new(),
             calendar: CalendarHint::default(),
+            detect_other_browser_calls: false,
+            additional_call_apps: HashMap::new(),
         }
+    }
+
+    fn microphone_browser_allowed(&self, windows: &[WindowTitle], family: &str) -> bool {
+        if !self.detect_other_browser_calls {
+            return false;
+        }
+        let mut own = windows
+            .iter()
+            .filter(|window| window_browser_family(&window.app) == Some(family));
+        own.next().is_some_and(|first| {
+            !crate::privacy::is_private_window(&first.title)
+                && own.all(|window| !crate::privacy::is_private_window(&window.title))
+        })
     }
 
     fn observe_window(&mut self, app: &str, title: &str, now: Instant) {
@@ -493,6 +540,7 @@ impl Core {
                     found.push(Candidate {
                         kind,
                         family: Some(document.family),
+                        configured_executable: None,
                         meeting: DetectedMeeting {
                             app_name: kind.name().to_string(),
                             process_name: document.family.to_string(),
@@ -511,11 +559,24 @@ impl Core {
             }
             let names = std::iter::once(stream.process_name.as_str())
                 .chain(stream.ancestors.iter().map(String::as_str));
+            // Keep specialist room evidence for the desktop MTS Link client,
+            // even when a helper's name was included in the custom list.
+            let mts_desktop = names.clone().any(|name| normalized(name) == "мтс линк");
             let mut candidate = None;
             let mut room = None;
+            let mut configured = None;
             for name in names {
                 if let Some(kind) = native_kind(name) {
                     candidate = Some((kind, None, None));
+                    break;
+                }
+                if !mts_desktop
+                    && browser_family(name).is_none()
+                    && let Some((key, display_name)) =
+                        self.additional_call_apps.get_key_value(&normalized(name))
+                {
+                    configured = Some((key, display_name));
+                    candidate = Some((AppKind::ConfiguredDesktop, None, None));
                     break;
                 }
                 if let Some(family) = browser_family(name) {
@@ -546,9 +607,15 @@ impl Core {
                         && active_family == family
                         && read != Verdict::Ended
                         && !kind.requires_room()
+                        && kind != AppKind::MicrophoneBrowser
                     {
                         // Keep the legacy microphone fallback for other calls.
                         candidate = Some((kind, Some(family), None));
+                    } else if (read == Verdict::Unknown
+                        || active_browser == Some((AppKind::MicrophoneBrowser, family)))
+                        && self.microphone_browser_allowed(&evidence.windows, family)
+                    {
+                        candidate = Some((AppKind::MicrophoneBrowser, Some(family), None));
                     } else if let Some(kind) = link_kind
                         && !(denied && kind == AppKind::Meet)
                         && !kind.requires_room()
@@ -572,17 +639,25 @@ impl Core {
             let Some((kind, family, title_hint)) = candidate else {
                 continue;
             };
-            let audio_pid = stream.app_root(|name| match family {
-                Some(family) => browser_family(name) == Some(family),
-                None => native_kind(name) == Some(kind),
+            let audio_pid = stream.app_root(|name| match (family, configured) {
+                (Some(family), _) => browser_family(name) == Some(family),
+                (None, Some((key, _))) => normalized(name) == *key,
+                (None, None) => native_kind(name) == Some(kind),
             });
             let next = Candidate {
                 kind,
                 family,
+                configured_executable: configured.map(|(key, _)| key.clone()),
                 meeting: DetectedMeeting {
-                    app_name: kind.name().to_string(),
+                    app_name: configured
+                        .map(|(_, name)| name.clone())
+                        .unwrap_or_else(|| kind.name().to_string()),
                     process_name: stream.process_name.clone(),
-                    pid: stream.pid,
+                    pid: if kind.requires_sustained_mic() {
+                        audio_pid
+                    } else {
+                        stream.pid
+                    },
                     audio_pid,
                     meeting_url: room,
                     title_hint,
@@ -600,6 +675,7 @@ impl Core {
     /// start now (`startConfirmed`).
     fn confirm(&mut self, candidate: &Candidate, now: Instant) -> bool {
         let (needed, gap) = match candidate.kind {
+            kind if kind.requires_sustained_mic() => (SUSTAINED_START, SUSTAINED_GAP),
             kind if kind.in_browser() => (BROWSER_START, BROWSER_GAP),
             // A calendar-backed start skips the wait (`requiresSustainedAudioForStart`).
             kind if kind.needs_sustained_evidence() && !self.calendar.active => {
@@ -616,6 +692,7 @@ impl Core {
             pending.kind == candidate.kind
                 && pending.family == candidate.family
                 && pending.room == room
+                && pending.configured_executable == candidate.configured_executable
                 && now.duration_since(pending.last_seen) <= gap
         });
         if continues {
@@ -627,6 +704,7 @@ impl Core {
                 kind: candidate.kind,
                 family: candidate.family,
                 room,
+                configured_executable: candidate.configured_executable.clone(),
                 first_seen: now,
                 last_seen: now,
             });
@@ -639,7 +717,7 @@ impl Core {
     /// Drops a start window whose evidence gap ran past its tolerance.
     fn expire_pending(&mut self, now: Instant) {
         if let Some(pending) = &self.pending {
-            let gap = if pending.kind.in_browser() {
+            let gap = if pending.kind.in_browser() && !pending.kind.requires_sustained_mic() {
                 BROWSER_GAP
             } else {
                 SUSTAINED_GAP
@@ -658,6 +736,7 @@ impl Core {
         // The page says the call is over: no debounce (`browser-ended`).
         if let Some(current) = &current
             && let Some(family) = current.family
+            && current.kind != AppKind::MicrophoneBrowser
             && browser::verdict(
                 &evidence.documents,
                 family,
@@ -724,8 +803,12 @@ impl Core {
             None => self.expire_pending(now),
         }
 
-        let debounce = match (current.kind.in_browser(), self.calendar.grace) {
-            (false, Some(grace)) => self.stop_debounce.max(grace),
+        let debounce = match (
+            current.kind.in_browser(),
+            current.kind.requires_sustained_mic(),
+            self.calendar.grace,
+        ) {
+            (false, false, Some(grace)) => self.stop_debounce.max(grace),
             _ => self.stop_debounce,
         };
         let ended = self.active.as_mut().is_some_and(|active| {
@@ -771,6 +854,19 @@ impl MeetingDetector {
     /// What the calendar says about now (see [`CalendarHint`]).
     pub fn set_calendar(&mut self, hint: CalendarHint) {
         self.core.calendar = hint;
+    }
+
+    /// Update opt-in browser detection and additional native call apps.
+    pub fn set_call_detection(
+        &mut self,
+        detect_other_browser_calls: bool,
+        apps: &[AdditionalCallApp],
+    ) {
+        self.core.detect_other_browser_calls = detect_other_browser_calls;
+        self.core.additional_call_apps = apps
+            .iter()
+            .filter_map(|app| Some((app.detector_key()?, app.display_name().to_string())))
+            .collect();
     }
 
     /// Reads the current evidence and returns what changed since the last
@@ -955,6 +1051,168 @@ mod tests {
             ..Evidence::default()
         };
         assert!(run(&mut core, t0, 0, 6, &stale).is_empty());
+    }
+
+    #[test]
+    fn unknown_browser_calls_require_opt_in_a_public_window_and_sustained_microphone() {
+        let t0 = Instant::now();
+        let mut core = Core::new(9999);
+        let mut browser = Evidence {
+            capturing: vec![stream(123, "chrome.exe")],
+            windows: vec![WindowTitle {
+                app: "chrome.exe".into(),
+                title: "Corporate video".into(),
+            }],
+            ..Evidence::default()
+        };
+        assert!(run(&mut core, t0, 0, 14, &browser).is_empty());
+        core.detect_other_browser_calls = true;
+        browser.windows.push(WindowTitle {
+            app: "chrome.exe".into(),
+            title: "New Tab - Incognito".into(),
+        });
+        assert!(run(&mut core, t0, 16, 30, &browser).is_empty());
+        browser.windows.pop();
+        browser.documents.push(BrowserDocument {
+            family: "chrome",
+            url: "https://my.mts-link.ru/j/123/456".into(),
+            state: browser::CallState::WaitingRoom,
+            host_pid: Some(123),
+        });
+        assert!(run(&mut core, t0, 32, 46, &browser).is_empty());
+        browser.documents.clear();
+        assert!(matches!(run(&mut core, t0, 48, 60, &browser).as_slice(),
+            [(60, DetectorEvent::Started(meeting))] if meeting.audio_pid == 123 && meeting.meeting_url.is_none()));
+        assert!(matches!(
+            run(&mut core, t0, 62, 80, &Evidence::default()).as_slice(),
+            [(78, DetectorEvent::Ended(_))]
+        ));
+    }
+
+    #[test]
+    fn express_and_a_configured_native_client_bind_their_process_tree() {
+        let t0 = Instant::now();
+        for (executable, display) in [
+            ("eXpress.exe", "eXpress"),
+            ("Brand, Client.exe", "Corporate Calls"),
+        ] {
+            let mut detector = MeetingDetector::new();
+            detector.set_call_detection(
+                false,
+                &[AdditionalCallApp {
+                    identifier: "Brand, Client.exe".into(),
+                    name: Some("Corporate Calls".into()),
+                }],
+            );
+            let core = &mut detector.core;
+            let evidence = Evidence {
+                capturing: vec![CaptureStream {
+                    pid: 5,
+                    process_name: "Call Helper.exe".into(),
+                    ancestors: vec![executable.into()],
+                    ancestor_pids: vec![7],
+                    ..CaptureStream::default()
+                }],
+                ..Evidence::default()
+            };
+            assert!(matches!(run(core, t0, 0, 12, &evidence).as_slice(),
+                [(12, DetectorEvent::Started(meeting))] if meeting.app_name == display && meeting.audio_pid == 7));
+        }
+    }
+
+    #[test]
+    fn microphone_call_apps_use_the_stop_delay_even_during_a_calendar_event() {
+        let t0 = Instant::now();
+        for executable in ["eXpress.exe", "CorporateClient.exe"] {
+            let mut detector = MeetingDetector::new();
+            detector.set_call_detection(
+                false,
+                &[AdditionalCallApp {
+                    identifier: "CorporateClient.exe".into(),
+                    name: Some("Corporate Calls".into()),
+                }],
+            );
+            detector.set_calendar(CalendarHint {
+                active: true,
+                grace: Some(lokalbot_core::calendar::CALENDAR_BACKED_GRACE),
+                ..Default::default()
+            });
+            let core = &mut detector.core;
+            let call = evidence(&[stream(123, executable)]);
+            assert!(run(core, t0, 0, 10, &call).is_empty(), "{executable}");
+            assert!(
+                matches!(
+                    core.step(&call, t0 + Duration::from_secs(12)).as_slice(),
+                    [DetectorEvent::Started(_)]
+                ),
+                "{executable}"
+            );
+            assert!(run(core, t0, 14, 28, &Evidence::default()).is_empty());
+            assert!(
+                matches!(
+                    core.step(&Evidence::default(), t0 + Duration::from_secs(29)).as_slice(),
+                    [DetectorEvent::Ended(meeting)] if meeting.pid == 123
+                ),
+                "{executable}"
+            );
+        }
+    }
+
+    #[test]
+    fn configured_executables_with_the_same_display_name_confirm_independently() {
+        let t0 = Instant::now();
+        let mut detector = MeetingDetector::new();
+        detector.set_call_detection(
+            false,
+            &["FirstClient.exe", "SecondClient.exe"].map(|identifier| AdditionalCallApp {
+                identifier: identifier.into(),
+                name: Some("Corporate Calls".into()),
+            }),
+        );
+        let core = &mut detector.core;
+        let first = evidence(&[stream(123, "FIRSTCLIENT.EXE")]);
+        let second = evidence(&[stream(456, "secondclient.exe")]);
+        assert!(run(core, t0, 0, 10, &first).is_empty());
+        assert!(run(core, t0, 12, 22, &second).is_empty());
+        assert!(matches!(
+            core.step(&second, t0 + Duration::from_secs(24)).as_slice(),
+            [DetectorEvent::Started(meeting)] if meeting.pid == 456
+        ));
+    }
+
+    #[test]
+    fn configured_executables_with_the_same_display_name_handoff_as_separate_apps() {
+        let t0 = Instant::now();
+        let mut detector = MeetingDetector::new();
+        detector.set_call_detection(
+            false,
+            &["FirstClient.exe", "SecondClient.exe"].map(|identifier| AdditionalCallApp {
+                identifier: identifier.into(),
+                name: Some("Corporate Calls".into()),
+            }),
+        );
+        let core = &mut detector.core;
+        let first = evidence(&[stream(123, "FirstClient.exe")]);
+        let second = evidence(&[stream(456, "SecondClient.exe")]);
+        assert!(matches!(
+            run(core, t0, 0, 12, &first).as_slice(),
+            [(12, DetectorEvent::Started(meeting))] if meeting.pid == 123
+        ));
+        let both = evidence(&[
+            stream(123, "FirstClient.exe"),
+            stream(456, "SecondClient.exe"),
+        ]);
+        assert_eq!(
+            core.candidates(&both, None, t0 + Duration::from_secs(12))
+                .len(),
+            2
+        );
+        assert!(run(core, t0, 14, 24, &second).is_empty());
+        assert!(matches!(
+            core.step(&second, t0 + Duration::from_secs(26)).as_slice(),
+            [DetectorEvent::Ended(old), DetectorEvent::Started(next)]
+                if old.pid == 123 && next.pid == 456 && old.app_name == next.app_name
+        ));
     }
 
     #[cfg(windows)]

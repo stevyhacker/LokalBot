@@ -19,6 +19,7 @@ struct CaptureTrace: Codable, Equatable {
     enum Query: String, Codable {
         case frontmost, runningApps, isRunning, idleSeconds, trusted, axRead, focusedTitle
         case browserSnapshot, browserReadIssue, screenCaptureGranted, windows, audioProcesses, inputRunning
+        case browserMicrophoneWindowsAllowed
     }
 
     struct Event: Codable, Equatable {

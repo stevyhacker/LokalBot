@@ -2599,6 +2599,20 @@
 "Priorities for today" = "আজকের অগ্রাধিকার";
 "Priorities from %@" = "%@-এর অগ্রাধিকার";
 "Priorities from a previous workday" = "আগের এক কর্মদিবসের অগ্রাধিকার";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "এখানে যোগ করা অ্যাপগুলোতে LokalBot কল শনাক্ত করে।";
+"Choose a call app" = "কল করার অ্যাপ বেছে নিন";
+"Choose an application file (.exe)." = "অ্যাপের ফাইল (.exe) বেছে নিন।";
+"Could not open the file picker." = "ফাইল বেছে নেওয়ার উইন্ডো খোলা যায়নি।";
+"LokalBot already supports this app." = "LokalBot এই অ্যাপটি আগে থেকেই সমর্থন করে।";
+"This app is already on the list." = "অ্যাপটি তালিকায় আগে থেকেই আছে।";
+"Remove from call detection" = "কল শনাক্তকরণ থেকে সরান";
+"Remove %@ from call detection" = "কল শনাক্তকরণ থেকে %@ সরান";
+
 "Import past meetings" = "আগের মিটিং ইম্পোর্ট করুন";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper বা Zoom থেকে নোট নিয়ে আসুন।";
 "Claude Code (MCP command)" = "Claude Code (MCP কমান্ড)";

@@ -2599,6 +2599,20 @@
 "Priorities for today" = "Приоритеты на сегодня";
 "Priorities from %@" = "Приоритеты: %@";
 "Priorities from a previous workday" = "Приоритеты за предыдущий рабочий день";
+
+"Detect other browser calls" = "Обнаруживать другие звонки в браузере";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Определяет звонки на других сайтах по активности микрофона. В запись может попасть звук других вкладок того же браузера.";
+"Additional call apps" = "Дополнительные приложения для звонков";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Яндекс Телемост, МТС Линк и eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot будет обнаруживать звонки в добавленных приложениях.";
+"Choose a call app" = "Выберите приложение для звонков";
+"Choose an application file (.exe)." = "Выберите файл приложения (.exe).";
+"Could not open the file picker." = "Не удалось открыть окно выбора файла.";
+"LokalBot already supports this app." = "LokalBot уже распознаёт звонки в этом приложении.";
+"This app is already on the list." = "Это приложение уже есть в списке.";
+"Remove from call detection" = "Убрать из автоопределения";
+"Remove %@ from call detection" = "Убрать %@ из автоопределения";
+
 "Import past meetings" = "Импортировать прошлые встречи";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Перенесите заметки из Granola, Otter, Fireflies, Fathom, Диктофона, MacWhisper или Zoom.";
 "Claude Code (MCP command)" = "Claude Code (команда MCP)";

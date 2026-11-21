@@ -281,6 +281,8 @@ pub struct SettingsPage {
     models: models::ModelsState,
     resources: resource_monitor::ResourceMonitor,
     calendar: calendar::CalendarState,
+    #[cfg(windows)]
+    call_app_error: Option<&'static str>,
     devices: devices::DevicesState,
     /// "Never read sessions in these folders".
     coding_agent_folders: Entity<RuleList>,
@@ -729,6 +731,8 @@ impl SettingsPage {
             models,
             resources: Default::default(),
             calendar,
+            #[cfg(windows)]
+            call_app_error: None,
             devices,
             coding_agent_folders,
             retention_draft: None,

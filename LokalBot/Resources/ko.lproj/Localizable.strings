@@ -2599,6 +2599,20 @@
 "Priorities for today" = "오늘의 우선순위";
 "Priorities from %@" = "%@의 우선순위";
 "Priorities from a previous workday" = "이전 근무일의 우선순위";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot이 여기에 추가한 앱에서 통화를 감지합니다.";
+"Choose a call app" = "통화 앱 선택";
+"Choose an application file (.exe)." = "애플리케이션 파일(.exe)을 선택하세요.";
+"Could not open the file picker." = "파일 선택 창을 열 수 없습니다.";
+"LokalBot already supports this app." = "LokalBot이 이미 이 앱을 지원합니다.";
+"This app is already on the list." = "목록에 이미 있는 앱입니다.";
+"Remove from call detection" = "통화 감지에서 제외";
+"Remove %@ from call detection" = "통화 감지에서 %@ 제외";
+
 "Import past meetings" = "이전 회의 가져오기";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola, Otter, Fireflies, Fathom, 음성 메모, MacWhisper 또는 Zoom에서 노트를 가져옵니다.";
 "Claude Code (MCP command)" = "Claude Code (MCP 명령어)";

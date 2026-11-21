@@ -207,6 +207,9 @@ final class ReplayCaptureEnvironment: @unchecked Sendable {
         func browserReadIssue(processID: pid_t) -> BrowserMeetingSession.ReadIssue? {
             replay.answer(.browserReadIssue, processID: processID)?.issue
         }
+        func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool {
+            replay.answer(.browserMicrophoneWindowsAllowed, processID: processID)?.flag ?? false
+        }
     }
 
     private struct Windows: WindowSource {
