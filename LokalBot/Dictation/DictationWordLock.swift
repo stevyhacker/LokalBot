@@ -44,11 +44,24 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         return selfCorrectionPhrases.contains { spaced.contains(" " + $0 + " ") }
     }
 
+    static let fillerWords: Set<String> = ["uh", "um", "er", "erm", "ah", "oh", "hmm", "well", "so", "okay", "ok", "yeah", "like"]
+
     static func negations(_ text: String) -> Set<String> {
-        Set(words(text.lowercased().replacingOccurrences(of: "’", with: "'")).compactMap { word in
-            if word.hasSuffix("n't") || word == "cannot" { return "not" }
-            return negationWords.contains(word) ? word : nil
-        })
+        var result = Set<String>()
+        let normalized = text.lowercased().replacingOccurrences(of: "’", with: "'")
+        for sentence in normalized.split(whereSeparator: { ".!?\n".contains($0) }) {
+            var opening = true
+            for word in words(String(sentence)) {
+                if opening, fillerWords.contains(word) { continue }
+                if word.hasSuffix("n't") || word == "cannot" {
+                    result.insert("not")
+                } else if negationWords.contains(word), !(opening && word == "no") {
+                    result.insert(word)
+                }
+                opening = false
+            }
+        }
+        return result
     }
 
     static func missingNames(spoken: String, cleaned: String, glossary: String?) -> [String] {
