@@ -629,6 +629,12 @@ KWin offers `zwp_input_method_v1` only to the program it started (`lokalbot --kw
 
 Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/kwin_helper.rs` (`run`, `same_user`, `content_v3`, `Helper::event`).
 
+### On KDE Plasma the ghost is an overlay pill, never preedit
+
+KWin passes `zwp_input_method_context_v1.preedit_string` on to apps over `zwp_text_input_v3`, which has no commit-on-reset string, and Chromium, Electron, Firefox and Thunderbird commit active preedit into the document on mousedown or blur before telling KWin the field is gone ([#562](https://github.com/stevyhacker/LokalBot/issues/562)). Clearing preedit on deactivate arrives too late, so the KWin route draws the suggestion on a click-through `zwp_input_panel_v1` overlay surface that KWin anchors under the focused field's cursor rectangle, and sends the field only an empty preedit, to make a quiet field report its text. The pill's pixels live in an anonymous `memfd`, so the helper still writes no file but its socket. GTK and native Qt discard preedit on focus loss, so a live check needs a field that commits it on blur, as the browsers do.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/overlay_pill.rs`, `kwin_helper.rs` (`Helper::show`, `Helper::nudge`), `input_method.rs` (`Core::with_overlay_ghost`), `tests/live_input_method.rs` (`commit_on_blur`).
+
 ## Consequences
 
 - Every privacy check (grants, app and site exclusions, secure, code and private-window fields, the field's owner on Wayland) runs before any text is read and fails closed; typed text and server errors are never logged, and a withdrawn grant, edited source or changed privacy setting ends whatever it shaped, up to the accept key.
