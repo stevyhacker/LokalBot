@@ -9,7 +9,7 @@ final class AgentLLMEndpointTests: XCTestCase {
         return s
     }
 
-    func testMainLLMLetsTheTemplateDecideReasoningWithA32KContext() {
+    func testMainLLMRunsWithAutomaticReasoningAndA32KContext() {
         XCTAssertEqual(MainLLMRuntimePolicy.contextTokens, 32_768)
         XCTAssertEqual(MainLLMRuntimePolicy.highReasoningBudgetTokens, 8_192)
         XCTAssertEqual(AgentLLMEndpoint.defaultContextTokens, 32_768)

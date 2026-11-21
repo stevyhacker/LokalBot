@@ -904,6 +904,8 @@ struct OpenAICompatibleEngine: TextEngine {
                 template["enable_thinking"] = false
             } else if allowance > 0 {
                 body["thinking_budget_tokens"] = allowance
+            } else if !templateThinksByDefault {
+                template["enable_thinking"] = false
             }
             if !template.isEmpty { body["chat_template_kwargs"] = template }
 

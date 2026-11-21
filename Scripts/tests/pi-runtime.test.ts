@@ -705,6 +705,10 @@ test("Pi resumes append-only context edits without overwriting visible history",
 test("a reasoning level becomes each server's own request fields", () => {
   const base = { model: "m", max_completion_tokens: 2_000 };
   expect(applyReasoningLevel(base, "automatic", "generic", "m")).toBe(base);
+  expect(applyReasoningLevel(base, "automatic", "llama-server", "m")).toBe(base);
+  expect(applyReasoningLevel(base, "automatic", "llama-server", "gemma4-e4b", true).chat_template_kwargs)
+    .toEqual({ enable_thinking: false });
+  expect(applyReasoningLevel(base, "automatic", "generic", "m", true)).toBe(base);
   expect(applyReasoningLevel(base, "off", "generic", "qwen-3.8-27b").reasoning_effort).toBe("none");
   expect(applyReasoningLevel(base, "xhigh", "openai", "gpt-5.4-mini").reasoning_effort).toBe("xhigh");
   expect(applyReasoningLevel(base, "high", "openai", "gpt-4.1").reasoning_effort).toBeUndefined();

@@ -1533,6 +1533,8 @@ pub(crate) fn chat_body(
                 body["chat_template_kwargs"] = json!({"enable_thinking": false});
             } else if reasoning.allowance > 0 {
                 body["thinking_budget_tokens"] = json!(reasoning.allowance);
+            } else if reasoning.default_off {
+                body["chat_template_kwargs"] = json!({"enable_thinking": false});
             }
         }
         Dialect::Generic => {
@@ -2693,9 +2695,12 @@ mod tests {
         let request = ChatRequest::new("s", "u").max_tokens(1_000);
         let quiet = llama_body("gemma4-e4b", ReasoningLevel::Automatic, &request);
         assert_eq!(quiet["max_tokens"], 1_000);
-        for field in ["thinking_budget_tokens", "chat_template_kwargs"] {
-            assert!(quiet.get(field).is_none(), "{field}: {quiet}");
-        }
+        assert!(quiet.get("thinking_budget_tokens").is_none(), "{quiet}");
+        assert_eq!(
+            quiet["chat_template_kwargs"],
+            json!({"enable_thinking": false}),
+            "llama-server turns thinking on for every template that can think unless told otherwise"
+        );
         for model in ["qwen3.5-4b", "lfm2.5-8b-a1b", "hf:org/custom"] {
             let thinking = llama_body(model, ReasoningLevel::Automatic, &request);
             assert_eq!(thinking["max_tokens"], 2_000, "{model}");

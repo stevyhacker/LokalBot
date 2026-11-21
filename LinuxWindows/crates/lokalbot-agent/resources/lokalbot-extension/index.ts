@@ -197,7 +197,11 @@ export function applyReasoningLevel(
   model: string,
   defaultOff = false,
 ): Record<string, unknown> {
-  if (level === "automatic") return payload;
+  if (level === "automatic") {
+    if (dialect !== "llama-server" || !defaultOff) return payload;
+    const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
+    return { ...payload, chat_template_kwargs: { ...kwargs, enable_thinking: false } };
+  }
   const effort = level === "off" ? "none" : level;
   switch (dialect) {
     case "llama-server": {

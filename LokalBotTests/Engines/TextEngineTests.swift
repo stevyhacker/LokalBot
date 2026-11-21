@@ -48,7 +48,7 @@ final class TextEngineTests: XCTestCase {
 
         XCTAssertEqual(body["max_tokens"] as? Int, 16_384)
         XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 8_192)
-        XCTAssertNil(body["chat_template_kwargs"], "the template decides whether to think")
+        XCTAssertNil(body["chat_template_kwargs"], "a model that thinks by default needs no switch")
     }
 
     func testBuiltInModelDefaultWithoutOutputLimitCapsOnlyTheThinking() {
@@ -65,7 +65,7 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 8_192)
     }
 
-    func testBuiltInModelThatDoesNotThinkByDefaultGetsNoReasoningFields() {
+    func testBuiltInModelThatDoesNotThinkByDefaultIsToldNotTo() {
         var body: [String: Any] = [:]
 
         OpenAICompatibleEngine.applyGenerationOptions(
@@ -78,7 +78,8 @@ final class TextEngineTests: XCTestCase {
 
         XCTAssertEqual(body["max_tokens"] as? Int, 1_024)
         XCTAssertNil(body["thinking_budget_tokens"])
-        XCTAssertNil(body["chat_template_kwargs"])
+        XCTAssertEqual((body["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false,
+                       "llama-server turns thinking on for every template that can think unless told otherwise")
     }
 
     func testChosenLevelTurnsThinkingOnForATemplateThatDefaultsOff() {
@@ -137,7 +138,11 @@ final class TextEngineTests: XCTestCase {
         let gemma = try body("gemma4-12b", .init(maxTokens: 4_096))
         XCTAssertEqual(gemma["max_tokens"] as? Int, 4_096)
         XCTAssertNil(gemma["thinking_budget_tokens"])
-        XCTAssertNil(gemma["chat_template_kwargs"])
+        XCTAssertEqual((gemma["chat_template_kwargs"] as? [String: Any])?["enable_thinking"] as? Bool, false)
+
+        let imported = try body("hf:org/repo/model.gguf", .init(maxTokens: 4_096))
+        XCTAssertEqual(imported["thinking_budget_tokens"] as? Int, 4_096, "an unknown default may reason")
+        XCTAssertNil(imported["chat_template_kwargs"])
 
         let off = try body("qwen3.5-4b", .init(maxTokens: 4_096, reasoning: .off))
         XCTAssertEqual(off["max_tokens"] as? Int, 4_096)

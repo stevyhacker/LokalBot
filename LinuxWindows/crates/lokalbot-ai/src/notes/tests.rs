@@ -202,7 +202,10 @@ fn one_pass_renders_notes_outcomes_and_header() {
             )
     );
     assert!(request.get("thinking_budget_tokens").is_none(), "{request}");
-    assert!(request.get("chat_template_kwargs").is_none(), "{request}");
+    assert_eq!(
+        request["chat_template_kwargs"],
+        serde_json::json!({"enable_thinking": false})
+    );
     assert_eq!(request["temperature"], 0.0);
 }
 
