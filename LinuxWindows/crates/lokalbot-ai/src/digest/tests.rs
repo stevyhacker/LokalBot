@@ -654,7 +654,8 @@ fn russian_digest_fallback_uses_catalog_labels_without_translating_evidence() {
     );
     assert!(fallback.contains("Design review"));
     assert!(fallback.contains("TimelineView.swift"));
-    assert!(fallback.contains("Только активность"));
+    assert!(fallback.contains("Активность записана, но конкретный результат не виден."));
+    assert!(!fallback.contains("Только активность"));
     assert!(!fallback.contains("Activity related to this item"));
 }
 

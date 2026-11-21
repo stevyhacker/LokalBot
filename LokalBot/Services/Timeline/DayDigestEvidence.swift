@@ -1434,7 +1434,7 @@ enum DayDigestOverviewGenerator {
         }
         return language.usesEnglishCatalog
             ? "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
-            : "### Tasks\n- **" + language.text("Activity") + "** — " + language.text("Activity only")
+            : "### Tasks\n- **" + language.text("Activity") + "** — " + language.text("Activity was recorded; no more specific outcome was visible.")
     }
 
     private static func bestAvailableFallbackBlocks(
@@ -1533,7 +1533,7 @@ enum DayDigestOverviewGenerator {
                 task: activity.title,
                 workDone: language.usesEnglishCatalog
                     ? "Activity related to this item was recorded; no more specific outcome was visible."
-                    : language.text("Activity only"),
+                    : language.text("Activity was recorded; no more specific outcome was visible."),
                 status: "unknown",
                 outcome: "",
                 nextStep: "",
@@ -1737,7 +1737,7 @@ enum DayDigestOverviewGenerator {
         guard !normalized.tasks.isEmpty else {
             return language.usesEnglishCatalog
                 ? "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
-                : "### Tasks\n- **" + language.text("Activity") + "** — " + language.text("Activity only")
+                : "### Tasks\n- **" + language.text("Activity") + "** — " + language.text("Activity was recorded; no more specific outcome was visible.")
         }
 
         var sections = [

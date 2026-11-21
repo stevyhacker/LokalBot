@@ -45,6 +45,12 @@ Repeated degraded writes for unchanged evidence increment a durable budget that 
 
 Where: `LokalBot/Services/Timeline/DayDigestEvidence.swift` (`DayDigestGenerationMetadataStore.record`), `LokalBot/Services/Timeline/DayDigestScheduler.swift` (`DayDigestScheduler.reconsiderEvidence`).
 
+### Daily reports follow the note language, and saved evidence stays as recorded
+
+A day has no single transcript to match, so the day digest and the overnight review write their prose in the explicit note language, and with Match Transcript in the resolved interface language. Every model pass, its retry after an output limit, and the segment cache key carry that rule, so changing the language never reuses another language's answers. Model-free fallbacks use the note language's interface catalog when one exists and the interface catalog otherwise (custom languages included). JSON keys, status values, IDs, parser-required headings such as `### Tasks`, and the internal `Pull requests:` prefix used for matching stay canonical; recorded actions, quoted sources and source titles are never translated. Existing reports are not rewritten when the setting changes.
+
+Where: `LokalBot/Models/Meetings/SummaryLanguage.swift` (`DailySummaryLanguage`), `LokalBot/Services/Timeline/DayDigestEvidence.swift` (`DayDigestOverviewGenerator`, `displayedOutcome`), `LokalBot/Services/Dreaming/DreamCompiler.swift` (`fallbackReport`), `LinuxWindows/crates/lokalbot-ai/src/language.rs` (`DailySummaryLanguage`), `LinuxWindows/crates/lokalbot-ai/src/digest.rs`, `LinuxWindows/crates/lokalbot-ai/src/dream.rs`.
+
 ## Digest schedule and ownership
 
 ### The digest is written once a day after `dayDigestHour`, and past days are finalized once

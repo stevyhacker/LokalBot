@@ -212,7 +212,7 @@ enum DreamCompiler {
         } else {
             narrative = language.text("Meetings") + ": \(meetingCount) · "
                 + duration(evidence.stats.trackedSeconds) + " " + language.text("tracked")
-                + " · \(evidence.stats.appCount) " + language.text("apps")
+                + " · " + String(format: language.text("%lld apps"), evidence.stats.appCount)
         }
 
         let attention = evidence.meetings.flatMap { meeting in

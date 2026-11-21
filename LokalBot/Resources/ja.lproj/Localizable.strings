@@ -33,6 +33,7 @@
 "Active projects" = "進行中のプロジェクト";
 "Activity details" = "アクティビティの詳細";
 "Activity only" = "アクティビティのみ";
+"Activity was recorded; no more specific outcome was visible." = "アクティビティは記録されましたが、具体的な成果は確認できませんでした。";
 "Activity results" = "アクティビティの結果";
 "Activity titles to clear" = "消去するアクティビティのタイトル";
 "Activity, captured context, daily briefs, routines, and exports." = "アクティビティ、取得したコンテキスト、日次概要、ルーチン、エクスポート。";

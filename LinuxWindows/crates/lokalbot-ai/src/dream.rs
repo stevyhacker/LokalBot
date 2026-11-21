@@ -399,12 +399,15 @@ pub fn fallback_report(
         )
     } else {
         format!(
-            "{}: {count} · {} {} · {} {}",
+            "{}: {count} · {} {} · {}",
             language.text("Meetings"),
             duration(evidence.stats.tracked_seconds),
             language.text("tracked"),
-            evidence.stats.app_count,
-            language.text("apps")
+            lokalbot_i18n::format_in(
+                language.fallback_locale,
+                "{count} apps",
+                &[("count", evidence.stats.app_count.to_string())]
+            )
         )
     };
     let attention: Vec<String> = evidence

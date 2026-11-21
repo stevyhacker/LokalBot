@@ -566,7 +566,7 @@ final class DayDigestEvidenceTests: XCTestCase {
         XCTAssertTrue(systems.last?.hasPrefix(PromptTemplates.dayDigestFallbackSystem) == true)
         let fallback = DayDigestOverviewGenerator.fallback(evidence, language: language)
         XCTAssertTrue(fallback.contains("Cache investigation"))
-        XCTAssertTrue(fallback.contains(language.text("Activity only")))
+        XCTAssertTrue(fallback.contains("Активность записана, но конкретный результат не виден."), fallback)
         XCTAssertFalse(fallback.contains("Activity related to this item"))
     }
 

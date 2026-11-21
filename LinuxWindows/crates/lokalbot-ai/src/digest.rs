@@ -1926,7 +1926,7 @@ fn render(
             format!(
                 "### Tasks\n- **{}** — {}",
                 language.text("Activity"),
-                language.text("Activity only")
+                language.text("Activity was recorded; no more specific outcome was visible.")
             )
         };
     }
@@ -2123,7 +2123,9 @@ fn best_available_blocks(
                 "Activity related to this item was recorded; no more specific outcome was visible."
                     .into()
             } else {
-                language.text("Activity only").into()
+                language
+                    .text("Activity was recorded; no more specific outcome was visible.")
+                    .into()
             },
             status: "unknown".into(),
             outcome: String::new(),
@@ -2156,7 +2158,7 @@ pub fn fallback_summary(evidence: &DayEvidence, language: &DailySummaryLanguage)
             format!(
                 "### Tasks\n- **{}** — {}",
                 language.text("Activity"),
-                language.text("Activity only")
+                language.text("Activity was recorded; no more specific outcome was visible.")
             )
         }
     } else {
