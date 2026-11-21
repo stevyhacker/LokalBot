@@ -46,7 +46,10 @@ impl ControlHost {
             SummarizerBackend::BuiltIn => lokalbot_ai::catalog::entry(&settings.built_in_model_id)
                 .filter(|entry| lokalbot_ai::catalog::is_downloaded(&paths, entry))
                 .ok_or("The built-in model isn't downloaded. Open LokalBot → Settings → Models and download it, then ask again."),
-            SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => Err("The Think model is set to your plan; ask_library answers with LokalBot's built-in engine. Pick a built-in model in LokalBot → Settings → Models."),
+            SummarizerBackend::ChatGptPlan
+            | SummarizerBackend::ClaudePlan
+            | SummarizerBackend::AntigravityPlan
+            | SummarizerBackend::GeminiPlan => Err("The Think model is set to your plan; ask_library answers with LokalBot's built-in engine. Pick a built-in model in LokalBot → Settings → Models."),
             SummarizerBackend::Ollama | SummarizerBackend::OpenAICompatible => Err("The Think model is set to an external server; ask_library answers with LokalBot's built-in engine. Pick a built-in model in LokalBot → Settings → Models."),
         };
         let entry = match resolved {

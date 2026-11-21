@@ -203,11 +203,18 @@ final class AudioRecoveryJournal {
         var writer: AVAudioFile? = try AVAudioFile(forWriting: temporary, settings: format.settings)
         var frames: Int64 = 0
         var complete = manifest != nil
+        // Look chunks and segments up by name once. A sixteen-hour recording
+        // has about 29,000 checkpoints per track; searching the manifest for
+        // each one kept the library from loading for longer than anyone waited
+        // (2026-11-18).
+        let committedByFile = Dictionary((manifest?.segments ?? []).map { ($0.file, $0) },
+                                         uniquingKeysWith: { first, _ in first })
         if let manifest {
+            let chunkFiles = Set(chunks.map { $0.0.lastPathComponent })
             complete = manifest.version == 1 && manifest.sampleRate == format.sampleRate
                 && manifest.channels == format.channelCount
                 && manifest.segments.count == chunks.count
-                && manifest.segments.allSatisfy { segment in chunks.contains { $0.0.lastPathComponent == segment.file } }
+                && manifest.segments.allSatisfy { chunkFiles.contains($0.file) }
         }
         for (url, start) in chunks {
             do {
@@ -215,7 +222,7 @@ final class AudioRecoveryJournal {
                 guard reader.processingFormat == format, reader.length > 0, start == frames else {
                     throw CocoaError(.fileReadCorruptFile)
                 }
-                if let committed = manifest?.segments.first(where: { $0.file == url.lastPathComponent }) {
+                if let committed = committedByFile[url.lastPathComponent] {
                     guard committed.startFrame == start, committed.frames == reader.length,
                           committed.sha256 == digest(try Data(contentsOf: url)) else {
                         throw CocoaError(.fileReadCorruptFile)

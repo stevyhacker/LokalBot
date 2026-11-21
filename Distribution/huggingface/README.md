@@ -5,7 +5,7 @@ Everything in this directory ships LokalBot's Hugging Face presence: a curated m
 ## Live resources
 
 - [LokalBot recommended local stack](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) — public Collection with the five default-stack model links and curation notes, refreshed 2026-09-30. It still lists LFM2.5 1.2B for autocomplete; `COLLECTION.md` has the current list (Gemma 4 E2B Base), which the next sync publishes.
-- [LokalBot Local-Stack Benchmarks](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) — public Static Space, refreshed for the current default stack at Space commit `933968b` (2026-09-30).
+- [LokalBot Local-Stack Benchmarks](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) — public Static Space, synced from `Website/public/benchmarks.json` and published at Space commit `52a73d8c` (2026-11-20), linking back to the interactive [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks), [benchmarks.json](https://www.lokalbot.com/benchmarks.json), and [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware).
 
 ## Files
 

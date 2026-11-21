@@ -185,6 +185,7 @@ extension AppState {
             switch request.subject {
             case .settings: return try applyApprovedSettings(request)
             case .secret: return try applyApprovedSecret(request)
+            case .meetingImport: return try applyApprovedImport(request)
             }
         }
     }
@@ -195,6 +196,17 @@ extension AppState {
         }
         try setAgentSecret(secret, to: value, caller: request.caller)
         return ["applied": true, "secret": .string(secret.rawValue)]
+    }
+
+    /// Starts an import the person approved. It reads the files again and
+    /// skips anything already in the library, so approving twice is safe.
+    func applyApprovedImport(_ request: SettingsApprovals.Request) throws -> JSONValue {
+        guard case .meetingImport(let importRequest) = request.subject else {
+            throw AppControlError.invalidRequest("This request does not import meetings.")
+        }
+        importExternalMeetings(importRequest.source, urls: importRequest.paths.map { URL(fileURLWithPath: $0) })
+        return ["started": true, "source": .string(importRequest.source.rawValue),
+                "paths": .array(importRequest.paths.map(JSONValue.string))]
     }
 
     /// Saves or removes an API key and lets the model checks run again.

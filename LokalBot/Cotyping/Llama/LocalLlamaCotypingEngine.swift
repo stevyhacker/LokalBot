@@ -76,6 +76,16 @@ final class LocalLlamaCotypingEngine: CotypingCompleting {
         await task.value
     }
 
+    /// Runs one throwaway token when the loaded model has not run for
+    /// `warmAfterIdle` (`LlamaCotypingRuntime.touch`). Not cancelled by a
+    /// suggestion that arrives meanwhile: that suggestion waits for it on the
+    /// runtime, then starts warm instead of doing the same work itself.
+    func warmAfterPause() async {
+        await runtime.touch(ifIdleFor: Self.warmAfterIdle)
+    }
+
+    nonisolated static let warmAfterIdle: Duration = .seconds(30)
+
     /// Frees the in-process model + context. Called when the selector routes
     /// away from local (flag toggled off, or the model stops resolving) so the
     /// selected model's weights don't stay resident while completions go to HTTP.

@@ -545,6 +545,8 @@
 "Import an audio or video recording" = "导入音频或视频录音";
 "Import Recording" = "导入录音";
 "Import Recording…" = "导入录音…";
+"Import Meetings From" = "从其他应用导入会议";
+"wants to import another app's meetings into LokalBot." = "想将另一个应用的会议导入 LokalBot。";
 "Not inserted" = "未插入";
 "Pasted" = "已粘贴";
 "Recent dictations" = "最近的听写";
@@ -2609,3 +2611,31 @@
 "This app is already on the list." = "此应用已在列表中。";
 "Remove from call detection" = "从通话检测中移除";
 "Remove %@ from call detection" = "将 %@ 从通话检测中移除";
+
+"Import past meetings" = "导入历史会议";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "从 Granola、Otter、Fireflies、Fathom、语音备忘录、MacWhisper 或 Zoom 导入笔记。";
+"Claude Code (MCP command)" = "Claude Code（MCP 命令）";
+"Claude Code (Plugin)" = "Claude Code（插件）";
+"Codex (Plugin)" = "Codex（插件）";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON 配置（Cursor、Claude Desktop 等）";
+
+"System language" = "系统语言";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "如果支持，Apple Speech 会使用你首选的 macOS 语言。录音使用其他语言时，请选择对应的语言。";
+"macOS may download a language asset when you use Apple Speech." = "使用 Apple Speech 时，macOS 可能会下载语言包。";
+"Antigravity plan" = "Antigravity 订阅";
+"Gemini plan" = "Gemini 订阅";
+"Antigravity default" = "Antigravity 默认模型";
+"Gemini CLI default" = "Gemini CLI 默认模型";
+"Looking for Antigravity CLI…" = "正在查找 Antigravity CLI…";
+"Looking for Gemini CLI…" = "正在查找 Gemini CLI…";
+"Antigravity CLI isn't installed on this Mac." = "这台 Mac 上没有安装 Antigravity CLI。";
+"Antigravity CLI isn't signed in." = "Antigravity CLI 尚未登录。";
+"Gemini CLI isn't installed on this Mac." = "这台 Mac 上没有安装 Gemini CLI。";
+"Gemini CLI installed" = "已安装 Gemini CLI";
+"How to install Antigravity CLI" = "如何安装 Antigravity CLI";
+"How to install Gemini CLI" = "如何安装 Gemini CLI";
+"Open Terminal, run agy, and sign in with your Google account. Then check again." = "打开终端，运行 agy 并用你的 Google 账户登录，然后重新检查。";
+"Open Terminal, run gemini, and sign in with your Google account if you haven't already." = "如果尚未登录，请打开终端，运行 gemini 并用你的 Google 账户登录。";
+"Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "在关闭工具的情况下运行你自己的 Antigravity CLI (agy)。你自行登录 agy；LokalBot 永远看不到你的 Google 登录信息。";
+"Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "在关闭工具的情况下运行你自己的 Gemini CLI。请先在终端中登录 gemini；LokalBot 永远看不到你的 Google 登录信息。";
+"Signed in" = "已登录";

@@ -532,7 +532,11 @@ private struct MeetingWorkspaceDetail: View {
 
     /// Everything that copies or exports the meeting.
     private var shareMenuItems: [WorkspaceMenu.Item] {
-        [
+        let hasRecap = summary?.isEmpty == false || projection != nil
+        return [
+            .init(title: "Copy recap for Slack / Email", enabled: hasRecap, action: copyRecap),
+            .init(title: "Export as HTML…", action: exportHTML),
+            .separator,
             .init(title: "Copy as Markdown", action: { MeetingMarkdownActions.copy(meeting) }),
             .init(title: "Export as Markdown…", action: { exportError = MeetingMarkdownActions.export(meeting) }),
             .separator,
@@ -1386,6 +1390,22 @@ private struct MeetingWorkspaceDetail: View {
         } else {
             app.lastError = app.outcomeIndex.lastError ?? "The correction could not be saved. Please try again."
         }
+    }
+
+    private func copyRecap() {
+        let text = MeetingRecapExporter.slackOrEmailRecap(
+            meeting: meeting,
+            summary: summary,
+            projection: projection)
+        MeetingMarkdownActions.copyText(text)
+    }
+
+    private func exportHTML() {
+        exportError = MeetingMarkdownActions.exportHTML(
+            meeting,
+            summary: summary,
+            projection: projection,
+            transcript: transcript)
     }
 
     private func copySummary() {
@@ -2314,6 +2334,31 @@ private enum MeetingMarkdownActions {
         do {
             try SessionFormatter.getMarkdown(meeting, options: .all)
                 .write(to: destination, atomically: true, encoding: .utf8)
+            return nil
+        } catch {
+            return "Meeting export failed: \(error.localizedDescription)"
+        }
+    }
+
+    static func exportHTML(
+        _ meeting: Meeting,
+        summary: String?,
+        projection: MeetingOutcomeProjection?,
+        transcript: Transcript?
+    ) -> String? {
+        let panel = NSSavePanel()
+        panel.title = "Export Meeting Recap as HTML"
+        panel.nameFieldStringValue = "\(StorageManager.slugify(meeting.displayTitle)).html"
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.html]
+        guard panel.runModal() == .OK, let destination = panel.url else { return nil }
+        do {
+            let html = MeetingRecapExporter.staticHTML(
+                meeting: meeting,
+                summary: summary,
+                projection: projection,
+                transcript: transcript)
+            try html.write(to: destination, atomically: true, encoding: .utf8)
             return nil
         } catch {
             return "Meeting export failed: \(error.localizedDescription)"

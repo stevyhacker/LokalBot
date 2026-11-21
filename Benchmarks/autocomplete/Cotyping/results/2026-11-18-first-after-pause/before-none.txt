@@ -1,0 +1,5 @@
+cotyping-idle model gemma-4-E2B-copy.gguf, metal keep_alive default, macOS 27.2.1
+cotyping-idle mode none gap 0 s: first 47 ms, same key again 47 ms, touch -, touches 0, re-decoded 1 tokens, model file resident 100%, wired 13.6 GB, pause used 0.0 mJ CPU, suggestion " to review the numbers."
+cotyping-idle mode none gap 20 s: first 61 ms, same key again 48 ms, touch -, touches 0, re-decoded 1 tokens, model file resident 99%, wired 13.3 GB, pause used 47.3 mJ CPU, suggestion " to review the numbers."
+cotyping-idle mode none gap 60 s: first 59 ms, same key again 48 ms, touch -, touches 0, re-decoded 1 tokens, model file resident 99%, wired 13.3 GB, pause used 121.5 mJ CPU, suggestion " to review the numbers."
+cotyping-idle mode none gap 300 s: first 130 ms, same key again 48 ms, touch -, touches 0, re-decoded 1 tokens, model file resident 99%, wired 9.9 GB, pause used 450.3 mJ CPU, suggestion " to review the numbers."

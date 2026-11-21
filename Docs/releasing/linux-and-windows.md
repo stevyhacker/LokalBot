@@ -137,6 +137,11 @@ master: `gh workflow run aur.yml -f tag=vX.Y.Z`. Setup, manual updates and the
 expected namcap warnings are in
 [the AUR package README](../../LinuxWindows/packaging/aur/README.md).
 
+## Windows code signing and Scoop
+
+- **Authenticode signing (SignPath Foundation):** `.github/workflows/windows-sign.yml` signs `lokalbot.exe`, `lokalbot-cli.exe`, and `LokalBot-<version>-windows-x86_64-setup.exe` on stable tags once `SIGNPATH_ENABLED=true`. See [Windows code signing](windows-signing.md).
+- **Scoop bucket (`stevyhacker/scoop-bucket`):** mirrors `stevyhacker/homebrew-tap` with an hourly workflow (`sync-lokalbot.yml`) that verifies the latest stable release's `LokalBot-<version>-windows-x86_64.zip` SHA-256 and `windows-x86_64.json` feed before updating `bucket/lokalbot.json`. No secret in this repository is needed.
+
 ## winget
 
 For a stable tag, the `winget` job (`.github/workflows/winget.yml`, on a

@@ -1,7 +1,8 @@
-//! Think on a ChatGPT or Claude plan (`SubscriptionPlanSetupView.swift`):
-//! the account, the model and the plan's own consent, shown under Settings →
-//! Models → Connections. Signing in, approval and the model are separate
-//! steps: a sign-in alone never lets context leave this PC.
+//! Think on a ChatGPT, Claude, Antigravity, or Gemini plan
+//! (`SubscriptionPlanSetupView.swift`): the account, the model and the plan's
+//! own consent, shown under Settings → Models → Connections. Signing in,
+//! approval and the model are separate steps: a sign-in alone never lets
+//! context leave this PC.
 //!
 //! Also the OpenRouter provider data policy and the Anthropic API note shown
 //! with the OpenAI-compatible connection (`ModelConnectionsView.swift`).
@@ -16,8 +17,10 @@ use gpui_kit::{
     App, Context, Div, Entity, FontWeight, ParentElement as _, SharedString, Styled as _, Window,
     div, px,
 };
+use lokalbot_ai::plans::antigravity::{self, AuthStatus as AntigravityAuthStatus};
 use lokalbot_ai::plans::chatgpt::{self, PlanModel, PlanStatus};
 use lokalbot_ai::plans::claude::{self, AuthStatus};
+use lokalbot_ai::plans::gemini::{self, ModelEntry as GeminiModelEntry};
 use lokalbot_core::settings::{OpenRouterDataPolicy, SubscriptionPlan};
 
 use super::SettingsPage;
@@ -50,6 +53,17 @@ pub struct PlansState {
     claude_version: Option<String>,
     claude_auth: Option<AuthStatus>,
     claude_error: Option<String>,
+    antigravity_checking: bool,
+    antigravity_checked: bool,
+    antigravity_executable: Option<PathBuf>,
+    antigravity_version: Option<String>,
+    antigravity_auth: Option<AntigravityAuthStatus>,
+    antigravity_error: Option<String>,
+    gemini_checking: bool,
+    gemini_checked: bool,
+    gemini_executable: Option<PathBuf>,
+    gemini_version: Option<String>,
+    gemini_models: Vec<GeminiModelEntry>,
 }
 
 fn error_text(err: &anyhow::Error) -> String {
@@ -212,6 +226,78 @@ impl SettingsPage {
         .detach();
     }
 
+    // -------------------------------------------------------- Antigravity
+
+    fn check_antigravity(&mut self, refresh: bool, cx: &mut Context<Self>) {
+        let plans = &mut self.models.plans;
+        if plans.antigravity_checking {
+            return;
+        }
+        plans.antigravity_checking = true;
+        plans.antigravity_error = None;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let (executable, version, auth) = smol::unblock(move || {
+                let Some(executable) = antigravity::locate(refresh) else {
+                    return (None, None, None);
+                };
+                let version = antigravity::version(&executable);
+                let auth = antigravity::auth_status(&executable).map_err(|e| error_text(&e));
+                (Some(executable), version, Some(auth))
+            })
+            .await;
+            let _ = this.update(cx, |this, cx| {
+                let plans = &mut this.models.plans;
+                plans.antigravity_checking = false;
+                plans.antigravity_checked = true;
+                plans.antigravity_executable = executable;
+                plans.antigravity_version = version;
+                match auth {
+                    Some(Ok(auth)) => plans.antigravity_auth = Some(auth),
+                    Some(Err(err)) => {
+                        plans.antigravity_auth = None;
+                        plans.antigravity_error = Some(err);
+                    }
+                    None => plans.antigravity_auth = None,
+                }
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
+    // ------------------------------------------------------------- Gemini
+
+    fn check_gemini(&mut self, refresh: bool, cx: &mut Context<Self>) {
+        let plans = &mut self.models.plans;
+        if plans.gemini_checking {
+            return;
+        }
+        plans.gemini_checking = true;
+        cx.notify();
+        cx.spawn(async move |this, cx| {
+            let (executable, version, models) = smol::unblock(move || {
+                let Some(executable) = gemini::locate(refresh) else {
+                    return (None, None, gemini::fallback_models());
+                };
+                let version = gemini::version(&executable);
+                let models = gemini::models(&executable);
+                (Some(executable), version, models)
+            })
+            .await;
+            let _ = this.update(cx, |this, cx| {
+                let plans = &mut this.models.plans;
+                plans.gemini_checking = false;
+                plans.gemini_checked = true;
+                plans.gemini_executable = executable;
+                plans.gemini_version = version;
+                plans.gemini_models = models;
+                cx.notify();
+            });
+        })
+        .detach();
+    }
+
     // -------------------------------------------------------------- forms
 
     /// The account, model and consent rows for one plan.
@@ -227,10 +313,22 @@ impl SettingsPage {
                     self.check_claude(false, cx);
                 }
             }
+            SubscriptionPlan::Antigravity => {
+                if !self.models.plans.antigravity_checked {
+                    self.check_antigravity(false, cx);
+                }
+            }
+            SubscriptionPlan::Gemini => {
+                if !self.models.plans.gemini_checked {
+                    self.check_gemini(false, cx);
+                }
+            }
         }
         let account = match plan {
             SubscriptionPlan::ChatGpt => self.chatgpt_account(cx),
             SubscriptionPlan::Claude => self.claude_account(cx),
+            SubscriptionPlan::Antigravity => self.antigravity_account(cx),
+            SubscriptionPlan::Gemini => self.gemini_account(cx),
         };
         v_flex()
             .w_full()
@@ -704,6 +802,338 @@ impl SettingsPage {
                 if let Some(slug) = slugs.get(index).cloned() {
                     data.update(cx, |data, cx| {
                         data.update_settings(|s| s.claude_plan_model = slug, cx)
+                    });
+                }
+            },
+        ))
+    }
+
+    fn antigravity_account(&mut self, cx: &mut Context<Self>) -> Div {
+        let lb = cx.lb().clone();
+        let page = cx.entity();
+        let plans = &self.models.plans;
+        let check_again = |id: &'static str, page: Entity<SettingsPage>| {
+            Button::new(id)
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Check again"))
+                .on_click(move |_, _, cx| {
+                    page.update(cx, |page, cx| page.check_antigravity(true, cx))
+                })
+        };
+        let status: Div = if plans.antigravity_checking || !plans.antigravity_checked {
+            h_flex()
+                .gap(px(8.))
+                .items_center()
+                .child(settings_row::help(
+                    lokalbot_i18n::tr("Looking for Antigravity CLI…"),
+                    cx,
+                ))
+        } else if plans.antigravity_executable.is_none() {
+            v_flex()
+                .gap(px(8.))
+                .child(warning(
+                    lokalbot_i18n::tr("Antigravity CLI isn't installed on this PC."),
+                    cx,
+                ))
+                .child(
+                    h_flex()
+                        .gap(px(12.))
+                        .items_center()
+                        .child(settings_row::link_button(
+                            "settings-antigravity-install",
+                            lokalbot_i18n::tr("How to install Antigravity CLI"),
+                            |_, _| {
+                                let _ = lokalbot_platform::open_url(antigravity::SETUP_URL);
+                            },
+                            cx,
+                        ))
+                        .child(check_again("settings-antigravity-check", page.clone())),
+                )
+        } else if plans.antigravity_auth.as_ref().is_some_and(|a| a.logged_in) {
+            let mut column = v_flex().gap(px(6.)).child(
+                h_flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .child(ui::icon(Ico::CircleCheck, px(14.), lb.success_text))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .truncate()
+                            .text_size(ty::BODY)
+                            .text_color(lb.text)
+                            .child(lokalbot_i18n::tr("Signed in")),
+                    )
+                    .child(manage_usage(
+                        "settings-antigravity-usage",
+                        SubscriptionPlan::Antigravity,
+                        cx,
+                    )),
+            );
+            let detail: Vec<String> = [
+                plans
+                    .antigravity_executable
+                    .as_ref()
+                    .map(|p| p.display().to_string()),
+                plans.antigravity_version.clone(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            if !detail.is_empty() {
+                column = column.child(
+                    div()
+                        .text_size(ty::CAPTION)
+                        .text_color(lb.text_secondary)
+                        .truncate()
+                        .child(detail.join(" · ")),
+                );
+            }
+            column
+        } else {
+            v_flex()
+                .gap(px(8.))
+                .child(warning(
+                    lokalbot_i18n::tr("Antigravity CLI isn't signed in."),
+                    cx,
+                ))
+                .child(settings_row::help(
+                    lokalbot_i18n::tr(
+                        "Run agy in a terminal and sign in with your Google account. Then check again.",
+                    ),
+                    cx,
+                ))
+                .child(h_flex().child(check_again("settings-antigravity-recheck", page.clone())))
+        };
+        let mut body = v_flex()
+            .gap(px(10.))
+            .child(settings_row::help(
+                lokalbot_i18n::tr(
+                    "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in.",
+                ),
+                cx,
+            ))
+            .child(labelled(lokalbot_i18n::tr("Account"), status, cx));
+        if plans.antigravity_auth.as_ref().is_some_and(|a| a.logged_in) {
+            body = body.child(labelled(
+                lokalbot_i18n::tr("Model"),
+                self.antigravity_model_picker(cx),
+                cx,
+            ));
+        }
+        if let Some(error) = &self.models.plans.antigravity_error {
+            body = body.child(warning(error.clone(), cx));
+        }
+        body
+    }
+
+    fn antigravity_model_picker(&self, cx: &mut Context<Self>) -> Div {
+        let selection = self
+            .data
+            .read(cx)
+            .settings
+            .antigravity_plan_model
+            .trim()
+            .to_string();
+        let mut choices: Vec<(String, String)> = vec![(
+            String::new(),
+            lokalbot_i18n::tr("Antigravity default").to_string(),
+        )];
+        if let Some(auth) = &self.models.plans.antigravity_auth {
+            for model in &auth.models {
+                choices.push((model.slug.clone(), model.display_name.clone()));
+            }
+        }
+        if !choices.iter().any(|(slug, _)| *slug == selection) {
+            choices.push((selection.clone(), selection.clone()));
+        }
+        let current = choices
+            .iter()
+            .find(|(slug, _)| *slug == selection)
+            .map(|(_, name)| name.clone())
+            .unwrap_or_default();
+        let data = self.data.clone();
+        let slugs: Vec<String> = choices.iter().map(|(slug, _)| slug.clone()).collect();
+        h_flex().child(settings_row::picker(
+            "settings-antigravity-model",
+            current,
+            choices
+                .iter()
+                .map(|(slug, name)| (SharedString::from(name.clone()), *slug == selection))
+                .collect(),
+            move |index, _, cx| {
+                if let Some(slug) = slugs.get(index).cloned() {
+                    data.update(cx, |data, cx| {
+                        data.update_settings(|s| s.antigravity_plan_model = slug, cx)
+                    });
+                }
+            },
+        ))
+    }
+
+    fn gemini_account(&mut self, cx: &mut Context<Self>) -> Div {
+        let lb = cx.lb().clone();
+        let page = cx.entity();
+        let plans = &self.models.plans;
+        let check_again = |id: &'static str, page: Entity<SettingsPage>| {
+            Button::new(id)
+                .outline()
+                .small()
+                .label(lokalbot_i18n::tr("Check again"))
+                .on_click(move |_, _, cx| page.update(cx, |page, cx| page.check_gemini(true, cx)))
+        };
+        let status: Div = if plans.gemini_checking || !plans.gemini_checked {
+            h_flex()
+                .gap(px(8.))
+                .items_center()
+                .child(settings_row::help(
+                    lokalbot_i18n::tr("Looking for Gemini CLI…"),
+                    cx,
+                ))
+        } else if plans.gemini_executable.is_none() {
+            v_flex()
+                .gap(px(8.))
+                .child(warning(
+                    lokalbot_i18n::tr("Gemini CLI isn't installed on this PC."),
+                    cx,
+                ))
+                .child(
+                    h_flex()
+                        .gap(px(12.))
+                        .items_center()
+                        .child(settings_row::link_button(
+                            "settings-gemini-install",
+                            lokalbot_i18n::tr("How to install Gemini CLI"),
+                            |_, _| {
+                                let _ = lokalbot_platform::open_url(gemini::SETUP_URL);
+                            },
+                            cx,
+                        ))
+                        .child(check_again("settings-gemini-check", page.clone())),
+                )
+        } else {
+            let mut column = v_flex().gap(px(6.)).child(
+                h_flex()
+                    .gap(px(8.))
+                    .items_center()
+                    .child(ui::icon(Ico::CircleCheck, px(14.), lb.success_text))
+                    .child(
+                        div()
+                            .flex_1()
+                            .min_w_0()
+                            .truncate()
+                            .text_size(ty::BODY)
+                            .text_color(lb.text)
+                            .child(lokalbot_i18n::tr("Gemini CLI installed")),
+                    )
+                    .child(manage_usage(
+                        "settings-gemini-usage",
+                        SubscriptionPlan::Gemini,
+                        cx,
+                    )),
+            );
+            let detail: Vec<String> = [
+                plans
+                    .gemini_executable
+                    .as_ref()
+                    .map(|p| p.display().to_string()),
+                plans.gemini_version.clone(),
+            ]
+            .into_iter()
+            .flatten()
+            .collect();
+            if !detail.is_empty() {
+                column = column.child(
+                    div()
+                        .text_size(ty::CAPTION)
+                        .text_color(lb.text_secondary)
+                        .truncate()
+                        .child(detail.join(" · ")),
+                );
+            }
+            column
+                .child(settings_row::help(
+                    lokalbot_i18n::tr(
+                        "Run gemini in a terminal and sign in with your Google account if you haven't already.",
+                    ),
+                    cx,
+                ))
+                .child(h_flex().child(check_again("settings-gemini-recheck", page.clone())))
+        };
+        let mut body = v_flex()
+            .gap(px(10.))
+            .child(settings_row::help(
+                lokalbot_i18n::tr(
+                    "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in a terminal first; LokalBot never sees your Google sign-in.",
+                ),
+                cx,
+            ))
+            .child(labelled(lokalbot_i18n::tr("Account"), status, cx));
+        if plans.gemini_executable.is_some() {
+            body = body.child(labelled(
+                lokalbot_i18n::tr("Model"),
+                self.gemini_model_picker(cx),
+                cx,
+            ));
+        }
+        body
+    }
+
+    fn gemini_model_picker(&self, cx: &mut Context<Self>) -> Div {
+        let selection = self
+            .data
+            .read(cx)
+            .settings
+            .gemini_plan_model
+            .trim()
+            .to_string();
+        let source = if self.models.plans.gemini_models.is_empty() {
+            gemini::fallback_models()
+        } else {
+            self.models.plans.gemini_models.clone()
+        };
+        let mut choices: Vec<(String, String)> = source
+            .into_iter()
+            .map(|m| {
+                let name = if m.slug.is_empty() {
+                    lokalbot_i18n::tr("Gemini CLI default").to_string()
+                } else {
+                    m.display_name
+                };
+                (m.slug, name)
+            })
+            .collect();
+        if !choices.iter().any(|(slug, _)| slug.is_empty()) {
+            choices.insert(
+                0,
+                (
+                    String::new(),
+                    lokalbot_i18n::tr("Gemini CLI default").to_string(),
+                ),
+            );
+        }
+        if !choices.iter().any(|(slug, _)| *slug == selection) {
+            choices.push((selection.clone(), selection.clone()));
+        }
+        let current = choices
+            .iter()
+            .find(|(slug, _)| *slug == selection)
+            .map(|(_, name)| name.clone())
+            .unwrap_or_default();
+        let data = self.data.clone();
+        let slugs: Vec<String> = choices.iter().map(|(slug, _)| slug.clone()).collect();
+        h_flex().child(settings_row::picker(
+            "settings-gemini-model",
+            current,
+            choices
+                .iter()
+                .map(|(slug, name)| (SharedString::from(name.clone()), *slug == selection))
+                .collect(),
+            move |index, _, cx| {
+                if let Some(slug) = slugs.get(index).cloned() {
+                    data.update(cx, |data, cx| {
+                        data.update_settings(|s| s.gemini_plan_model = slug, cx)
                     });
                 }
             },

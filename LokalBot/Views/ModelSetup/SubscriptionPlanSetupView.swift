@@ -21,6 +21,10 @@ struct SubscriptionPlanSetupView: View {
                 ChatGPTPlanAccountSection(app: app, model: $model, ready: $ready, account: chatGPTAccount)
             case .claude:
                 ClaudePlanAccountSection(model: $model, ready: $ready)
+            case .antigravity:
+                AntigravityPlanAccountSection(model: $model, ready: $ready)
+            case .gemini:
+                GeminiPlanAccountSection(model: $model, ready: $ready)
             }
             SubscriptionPlanConsentSection(plan: plan, consent: $consent)
         }
@@ -394,10 +398,216 @@ private struct ClaudePlanAccountSection: View {
     }
 
     private func openTerminal() {
-        guard let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
+        openTerminalApp()
+    }
+}
+
+private func openTerminalApp() {
+    guard let terminal = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.Terminal") else {
+        return
+    }
+    NSWorkspace.shared.openApplication(at: terminal, configuration: NSWorkspace.OpenConfiguration())
+}
+
+// MARK: - Antigravity
+
+private struct AntigravityPlanAccountSection: View {
+    @Binding var model: String
+    @Binding var ready: Bool
+    @State private var executable: URL?
+    @State private var authStatus: AntigravityCLI.AuthStatus?
+    @State private var version: String?
+    @State private var checking = true
+    @State private var statusError: String?
+
+    private var modelChoices: [ChatGPTPlanModel] {
+        var list = [ChatGPTPlanModel(slug: "", displayName: "Antigravity default")]
+        list += (authStatus?.models ?? []).map { ChatGPTPlanModel(slug: $0.slug, displayName: $0.displayName) }
+        if !model.isEmpty, !list.contains(where: { $0.slug == model }) {
+            list.append(ChatGPTPlanModel(slug: model, displayName: model))
+        }
+        return list
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in.")
+                .workspaceTextRole(.supporting)
+                .fixedSize(horizontal: false, vertical: true)
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+                PlanRow(title: "Account") { accountStatus }
+                if authStatus?.loggedIn == true {
+                    PlanRow(title: "Model") {
+                        Picker("Model", selection: $model) {
+                            ForEach(modelChoices) { Text(verbatim: $0.displayName).tag($0.slug) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                        .accessibilityIdentifier("models.plan.model")
+                    }
+                }
+            }
+        }
+        .task { await check(refresh: false) }
+        .onChange(of: authStatus) { ready = authStatus?.loggedIn == true }
+    }
+
+    @ViewBuilder
+    private var accountStatus: some View {
+        if checking {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Looking for Antigravity CLI…").workspaceTextRole(.supporting)
+            }
+        } else if executable == nil {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Antigravity CLI isn't installed on this Mac.", systemImage: "exclamationmark.triangle")
+                    .workspaceTextRole(.warning)
+                HStack(spacing: 12) {
+                    Link("How to install Antigravity CLI", destination: AntigravityCLI.setupURL)
+                    Button("Check again") { Task { await check(refresh: true) } }
+                }
+            }
+        } else if let authStatus, authStatus.loggedIn {
+            HStack(spacing: 8) {
+                Label("Signed in", systemImage: "checkmark.circle.fill")
+                    .font(AppFont.scaled(.body))
+                    .lineLimit(1).truncationMode(.middle)
+                    .help([executable?.path, version].compactMap { $0 }.joined(separator: " · "))
+                    .accessibilityIdentifier("models.antigravityPlan.connected")
+                Spacer(minLength: 8)
+                Link("Manage usage", destination: SubscriptionPlan.antigravity.manageUsageURL)
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Antigravity CLI isn't signed in.", systemImage: "exclamationmark.triangle")
+                    .workspaceTextRole(.warning)
+                Text("Open Terminal, run agy, and sign in with your Google account. Then check again.")
+                    .workspaceTextRole(.supporting)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    Button("Open Terminal") { openTerminalApp() }
+                    Button("Check again") { Task { await check(refresh: true) } }
+                }
+            }
+        }
+        if let statusError {
+            Text(verbatim: statusError).workspaceTextRole(.warning).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private func check(refresh: Bool) async {
+        checking = true
+        statusError = nil
+        defer { checking = false }
+        executable = await AntigravityLocator.shared.executable(refresh: refresh)
+        guard let executable else {
+            authStatus = nil
             return
         }
-        NSWorkspace.shared.openApplication(at: terminal, configuration: NSWorkspace.OpenConfiguration())
+        version = await AntigravityCLI.version(executable: executable)
+        do {
+            authStatus = try await AntigravityCLI.authStatus(executable: executable)
+        } catch {
+            authStatus = nil
+            statusError = error.localizedDescription
+        }
+    }
+}
+
+// MARK: - Gemini
+
+private struct GeminiPlanAccountSection: View {
+    @Binding var model: String
+    @Binding var ready: Bool
+    @State private var executable: URL?
+    @State private var models: [GeminiCLI.ModelEntry] = GeminiCLI.fallbackModels
+    @State private var version: String?
+    @State private var checking = true
+
+    private var modelChoices: [ChatGPTPlanModel] {
+        var list = models.map { ChatGPTPlanModel(slug: $0.slug, displayName: $0.displayName) }
+        if !list.contains(where: { $0.slug.isEmpty }) {
+            list.insert(ChatGPTPlanModel(slug: "", displayName: "Gemini CLI default"), at: 0)
+        }
+        if !model.isEmpty, !list.contains(where: { $0.slug == model }) {
+            list.append(ChatGPTPlanModel(slug: model, displayName: model))
+        }
+        return list
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in.")
+                .workspaceTextRole(.supporting)
+                .fixedSize(horizontal: false, vertical: true)
+            Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 12) {
+                PlanRow(title: "Account") { accountStatus }
+                if executable != nil {
+                    PlanRow(title: "Model") {
+                        Picker("Model", selection: $model) {
+                            ForEach(modelChoices) { Text(verbatim: $0.displayName).tag($0.slug) }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+                        .accessibilityIdentifier("models.plan.model")
+                    }
+                }
+            }
+        }
+        .task { await check(refresh: false) }
+        .onChange(of: executable) { ready = executable != nil }
+    }
+
+    @ViewBuilder
+    private var accountStatus: some View {
+        if checking {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Looking for Gemini CLI…").workspaceTextRole(.supporting)
+            }
+        } else if executable == nil {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Gemini CLI isn't installed on this Mac.", systemImage: "exclamationmark.triangle")
+                    .workspaceTextRole(.warning)
+                HStack(spacing: 12) {
+                    Link("How to install Gemini CLI", destination: GeminiCLI.setupURL)
+                    Button("Check again") { Task { await check(refresh: true) } }
+                }
+            }
+        } else {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Label("Gemini CLI installed", systemImage: "checkmark.circle.fill")
+                        .font(AppFont.scaled(.body))
+                        .lineLimit(1).truncationMode(.middle)
+                        .help([executable?.path, version].compactMap { $0 }.joined(separator: " · "))
+                        .accessibilityIdentifier("models.geminiPlan.connected")
+                    Spacer(minLength: 8)
+                    Link("Manage usage", destination: SubscriptionPlan.gemini.manageUsageURL)
+                }
+                Text("Open Terminal, run gemini, and sign in with your Google account if you haven't already.")
+                    .workspaceTextRole(.supporting)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 12) {
+                    Button("Open Terminal") { openTerminalApp() }
+                    Button("Check again") { Task { await check(refresh: true) } }
+                }
+            }
+        }
+    }
+
+    private func check(refresh: Bool) async {
+        checking = true
+        defer { checking = false }
+        executable = await GeminiCLILocator.shared.executable(refresh: refresh)
+        guard let executable else {
+            ready = false
+            return
+        }
+        ready = true
+        version = await GeminiCLI.version(executable: executable)
+        models = await GeminiCLI.models(executable: executable)
     }
 }
 

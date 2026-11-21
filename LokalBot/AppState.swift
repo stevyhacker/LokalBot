@@ -1651,13 +1651,7 @@ final class AppState: ObservableObject {
             self?.meetingArtifactsWillChange(meeting)
         }
         pipeline.onArtifactsWritten = { [weak self] meeting in
-            guard let self else { return }
-            self.outcomeIndex.refresh(meeting: meeting)
-            self.reindexSearchInBackground(meeting)
-            if self.settings.semanticSearchEnabled {
-                self.reindexEmbeddingInBackground(meeting)
-            }
-            self.primaryEvidenceDidChange(for: meeting)
+            self?.meetingArtifactsWritten(meeting)
         }
         pipeline.onSummaryCompleted = { [weak self] meeting in
             // The sample's notes don't count toward asking for a GitHub star.
@@ -1929,6 +1923,18 @@ final class AppState: ObservableObject {
             self.notesEmbeddingDebounce[meeting.id] = nil
             self.reindexEmbeddingInBackground(meeting)
         }
+    }
+
+    /// A meeting's transcript or notes changed on disk: refresh its outcomes
+    /// and search, and let the day's memory know. Processing and imports
+    /// from other apps both end here.
+    func meetingArtifactsWritten(_ meeting: Meeting) {
+        outcomeIndex.refresh(meeting: meeting)
+        reindexSearchInBackground(meeting)
+        if settings.semanticSearchEnabled {
+            reindexEmbeddingInBackground(meeting)
+        }
+        primaryEvidenceDidChange(for: meeting)
     }
 
     private func reindexSearchInBackground(_ meeting: Meeting) {
@@ -2314,6 +2320,28 @@ final class AppState: ObservableObject {
             }
             if !failures.isEmpty { self.lastError = failures.joined(separator: "\n") }
         }
+    }
+
+    /// Runs `work` after any import already under way, with `name` shown in
+    /// the Meetings list until it finishes.
+    func beginRecordingImport(named name: String, _ work: @escaping @MainActor (AppState) async -> Void) {
+        importingRecordings.append(name)
+        let previous = recordingImportTask
+        recordingImportTask = Task { @MainActor [weak self] in
+            await previous?.value
+            guard let self else { return }
+            await work(self)
+            if let index = self.importingRecordings.firstIndex(of: name) {
+                self.importingRecordings.remove(at: index)
+            }
+        }
+    }
+
+    /// Adds meetings an import wrote to the list, newest first.
+    func appendImportedMeetings(_ added: [Meeting]) {
+        guard !added.isEmpty else { return }
+        meetings += added
+        meetings.sort { $0.startedAt > $1.startedAt }
     }
 
     /// A recording from a paired device arrived as a meeting. It joins the

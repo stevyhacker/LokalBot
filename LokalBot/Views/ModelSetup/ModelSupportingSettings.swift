@@ -112,25 +112,46 @@ struct ModelSpeechSettingsSheet: View {
 
 struct ModelTranscriptionOptionsSheet: View {
     @ObservedObject var app: AppState
+    @ObservedObject var setup: ModelSetupController
     @Environment(\.dismiss) private var dismiss
+
+    init(app: AppState) {
+        self.app = app
+        setup = app.modelSetup
+    }
+
+    private var languageSelection: Binding<TranscriptionLanguage> {
+        Binding(get: { app.settings.transcriptionLanguage }, set: { language in
+            guard language != app.settings.transcriptionLanguage else { return }
+            if app.settings.transcriptionModel == .appleSpeech {
+                setup.apply(.init(transcription: .appleSpeech, language: language), title: "Apple Speech")
+            } else {
+                app.settings.transcriptionLanguage = language
+            }
+        })
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ModelSheetHeading(title: "Language & vocabulary", subtitle: "Options for the transcription model currently in use.")
             VStack(alignment: .leading, spacing: 18) {
                 Text(app.settings.transcriptionModelDisplayName).font(.scaled(.body).weight(.semibold))
-                Picker("Language", selection: $app.settings.transcriptionLanguage) {
+                Picker("Language", selection: languageSelection) {
                     ForEach(TranscriptionLanguage.allCases) { language in
-                        Text(LocalizedStringKey(language.displayName)).tag(language)
+                        Text(LocalizedStringKey(app.settings.transcriptionModel.languageDisplayName(for: language))).tag(language)
                             .selectionDisabled(!app.settings.transcriptionModel.isLanguageSelectable(language))
                     }
                 }
+                .disabled(app.settings.transcriptionModel == .appleSpeech && setup.pending != nil)
                 .accessibilityIdentifier("settings.transcriptionLanguage")
                 .settingTarget("settings.transcriptionLanguage", selected: app.focusedSettingID)
                 if let message = app.settings.transcriptionModel.languageSelectionMessage(for: app.settings.transcriptionLanguage) {
                     Text(LocalizedStringKey(message))
                         .font(.scaled(.callout)).foregroundStyle(.secondary)
                         .accessibilityIdentifier("models.transcription.languageSupport")
+                }
+                if app.settings.transcriptionModel == .appleSpeech {
+                    ModelSetupFeedback(controller: setup, roles: app.modelRoles)
                 }
                 VStack(alignment: .leading, spacing: 7) {
                     Text("Names and vocabulary").font(.scaled(.body).weight(.medium))

@@ -31,10 +31,22 @@
 #   WINGET_TOKEN           classic token (public_repo) of the account whose
 #                          microsoft/winget-pkgs fork wingetcreate pushes to
 #                          (winget.yml). Without it nothing goes to winget.
+#   SIGNPATH_API_TOKEN     SignPath.io API token and organization ID for
+#   SIGNPATH_ORG_ID        Authenticode-signing Windows binaries and installer
+#                          (windows-sign.yml). Active only while the
+#                          SIGNPATH_ENABLED repository variable is `true`.
 #   ANDROID_KEYSTORE_BASE64   base64 of the PKCS12 keystore that signs the Android
 #   ANDROID_KEYSTORE_PASSWORD app, and its password. Optional only until
 #                             Companion/android/release-certificate.sha256 is
 #                             committed; then a missing secret fails the job.
+#   PLAY_UPLOAD_KEYSTORE_BASE64   base64 of the Google Play upload keystore, its
+#   PLAY_UPLOAD_KEYSTORE_PASSWORD password (plus optional PLAY_UPLOAD_KEY_ALIAS /
+#   PLAY_SERVICE_ACCOUNT_JSON     PLAY_UPLOAD_KEY_PASSWORD) and Play API auth —
+#                                 either PLAY_SERVICE_ACCOUNT_JSON or keyless OIDC
+#                                 (PLAY_WORKLOAD_IDENTITY_PROVIDER +
+#                                 PLAY_SERVICE_ACCOUNT_EMAIL). Active only while
+#                                 the PLAY_PUBLISH repository variable is `true`
+#                                 (google-play.yml).
 #
 # Optional repository variable (no secret):
 #   MCP_REGISTRY_PUBLISH   `false` keeps stable releases out of the official
@@ -589,13 +601,42 @@ jobs:
           APK: ${{ steps.sign.outputs.apk }}
         run: gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber "$APK"
 
+  # Signs the Android App Bundle with the Play upload key and uploads it (with
+  # its R8 mapping) to Google Play once the macOS release gates and Android
+  # build/end-to-end test have passed. Active while PLAY_PUBLISH is `true`;
+  # pre-releases stay off Google Play. GitHub-hosted, like every job that sees
+  # a secret.
+  android-play:
+    name: Google Play
+    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    needs: [release, android]
+    uses: ./.github/workflows/google-play.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      PLAY_UPLOAD_KEYSTORE_BASE64: ${{ secrets.PLAY_UPLOAD_KEYSTORE_BASE64 }}
+      PLAY_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEYSTORE_PASSWORD }}
+      PLAY_UPLOAD_KEY_ALIAS: ${{ secrets.PLAY_UPLOAD_KEY_ALIAS }}
+      PLAY_UPLOAD_KEY_PASSWORD: ${{ secrets.PLAY_UPLOAD_KEY_PASSWORD }}
+      PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+      PLAY_WORKLOAD_IDENTITY_PROVIDER: ${{ secrets.PLAY_WORKLOAD_IDENTITY_PROVIDER }}
+      PLAY_SERVICE_ACCOUNT_EMAIL: ${{ secrets.PLAY_SERVICE_ACCOUNT_EMAIL }}
+    permissions:
+      contents: read
+      id-token: write # optional keyless GCP Workload Identity Federation auth
+
   # Adds a stable release's .deb and .rpm to the apt and dnf repositories at
   # pkg.lokalbot.com once they are attached (linux-repos.yml, which lists its
   # LINUX_REPO_* secrets and skips without them). GitHub-hosted, like every
-  # job that sees a secret.
+  # job that sees a secret. `always()` prevents GitHub Actions' implicit
+  # `success()` from skipping this job when optional `windows-sign` is skipped.
   linux-repos:
     name: apt and dnf repositories
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && !contains(github.ref_name, '-')
+      && needs.linux-windows-publish.result == 'success'
     needs: linux-windows-publish
     uses: ./.github/workflows/linux-repos.yml
     with:
@@ -608,6 +649,25 @@ jobs:
     permissions:
       contents: read
 
+  # Optional Authenticode signing of Windows binaries and the Inno Setup
+  # installer through SignPath.io (SignPath Foundation OSS certificate). Runs
+  # only on stable tags when the SIGNPATH_ENABLED repository variable is `true`,
+  # after macOS release gates pass, and before linux-windows-publish hashes the
+  # final Windows archive for windows-x86_64.json.
+  windows-sign:
+    name: Sign Windows binaries (SignPath)
+    if: github.event_name == 'push' && !contains(github.ref_name, '-') && vars.SIGNPATH_ENABLED == 'true'
+    needs: [release, linux-windows]
+    uses: ./.github/workflows/windows-sign.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+      SIGNPATH_ORG_ID: ${{ secrets.SIGNPATH_ORG_ID }}
+    permissions:
+      actions: read
+      contents: read
+
   # Runs only after the macOS job published the release (so its release gates
   # passed), signs the Linux and Windows update feeds with the Sparkle key the
   # DMG uses, checks them against SUPublicEDKey, and attaches archives and
@@ -615,8 +675,13 @@ jobs:
   # releases/latest/download/<platform>.json.
   linux-windows-publish:
     name: Sign and attach Linux and Windows updates
-    if: github.event_name == 'push'
-    needs: [release, linux-windows]
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && needs.release.result == 'success'
+      && needs.linux-windows.result == 'success'
+      && (needs.windows-sign.result == 'success' || needs.windows-sign.result == 'skipped')
+    needs: [release, linux-windows, windows-sign]
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
@@ -626,9 +691,13 @@ jobs:
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          pattern: release-*-x86_64
+          name: release-linux-x86_64
           path: LinuxWindows/dist
-          merge-multiple: true
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: ${{ needs.windows-sign.result == 'success' && 'release-windows-x86_64-signed' || 'release-windows-x86_64' }}
+          path: LinuxWindows/dist
 
       # Built before the key exists, so no build script runs beside it.
       - name: Build the feed tool
@@ -663,10 +732,15 @@ jobs:
   # is attached, checks it in a clean Arch container and pushes it with the
   # AUR_SSH_PRIVATE_KEY secret (skipped without it or the AUR_PUBLISH
   # variable). Pre-releases stay off the
-  # AUR. GitHub-hosted, like every job that sees a secret.
+  # AUR. GitHub-hosted, like every job that sees a secret. `always()` prevents
+  # optional skipped `windows-sign` from skipping downstream jobs.
   aur:
     name: AUR package
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && !contains(github.ref_name, '-')
+      && needs.linux-windows-publish.result == 'success'
     needs: linux-windows-publish
     uses: ./.github/workflows/aur.yml
     with:
@@ -679,10 +753,15 @@ jobs:
   # Opens the winget-pkgs pull request for this version once the Windows
   # installer is attached, with the WINGET_TOKEN secret (skipped without it).
   # Pre-releases stay off winget. GitHub-hosted, like every job that sees a
-  # secret.
+  # secret. `always()` prevents optional skipped `windows-sign` from skipping
+  # downstream jobs.
   winget:
     name: winget package
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: >-
+      always()
+      && github.event_name == 'push'
+      && !contains(github.ref_name, '-')
+      && needs.linux-windows-publish.result == 'success'
     needs: linux-windows-publish
     uses: ./.github/workflows/winget.yml
     with:

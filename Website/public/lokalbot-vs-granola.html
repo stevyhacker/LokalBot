@@ -28,7 +28,7 @@
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs Granola","description":"Compare Granola's cloud AI notepad with LokalBot, which takes bot-free meeting notes on your own computer. Free, open source, and no account.","datePublished":"2026-07-01","dateModified":"2026-11-10","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-granola","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"Granola"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs Granola","item":"https://www.lokalbot.com/lokalbot-vs-granola"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-granola#faq","mainEntity":[{"@type":"Question","name":"Isn't bot-free capture the differentiator?","acceptedAnswer":{"@type":"Answer","text":"Not anymore — Granola and several others skip the meeting bot now. The differentiator is where processing happens. LokalBot transcribes and summarizes on your computer with its built-in default; if you opt into a remote inference server, it receives the request context."}},{"@type":"Question","name":"What does LokalBot send over the network?","acceptedAnswer":{"@type":"Answer","text":"Model downloads, update checks, optional Agent Mode setup, and remote inference origins you explicitly approve. Audio stays on your computer; built-in inference keeps transcript and workday context there too."}},{"@type":"Question","name":"Can I try LokalBot next to Granola?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot is free — run it on your next few meetings and compare the notes. Neither app puts a bot in your call, so nobody on the call will notice either one."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot vs Granola","description":"Compare Granola's cloud AI notepad with LokalBot, which takes bot-free meeting notes on your own computer. Free, open source, and no account.","datePublished":"2026-07-01","dateModified":"2026-11-10","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-granola","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"Granola"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs Granola","item":"https://www.lokalbot.com/lokalbot-vs-granola"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-granola#faq","mainEntity":[{"@type":"Question","name":"Isn't bot-free capture the differentiator?","acceptedAnswer":{"@type":"Answer","text":"Not anymore — Granola and several others skip the meeting bot now. The differentiator is where processing happens. LokalBot transcribes and summarizes on your computer with its built-in default; if you opt into a remote inference server, it receives the request context."}},{"@type":"Question","name":"Can I bring my existing Granola notes with me?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot imports Granola exports directly into your local library, or you can convert Granola exports into clean Obsidian Markdown offline in your browser with the free Meeting Migrator (zero uploads)."}},{"@type":"Question","name":"What does LokalBot send over the network?","acceptedAnswer":{"@type":"Answer","text":"Model downloads, update checks, optional Agent Mode setup, and remote inference origins you explicitly approve. Audio stays on your computer; built-in inference keeps transcript and workday context there too."}},{"@type":"Question","name":"Can I try LokalBot next to Granola?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot is free — run it on your next few meetings and compare the notes. Neither app puts a bot in your call, so nobody on the call will notice either one."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -47,8 +47,8 @@
     </a>
     <nav class="nav__links" aria-label="Primary">
       <a href="/#features">Features</a>
-      <a href="/#how">How it works</a>
       <a href="/guides">Guides</a>
+      <a href="/benchmarks">Benchmarks</a>
       <a href="/blog">Blog</a>
     </nav>
     <div class="nav__actions">
@@ -204,6 +204,10 @@
           <p>Not anymore — Granola and several others skip the meeting bot now. The differentiator is where processing happens. LokalBot transcribes and summarizes on your computer with its built-in default; if you opt into a remote inference server, it receives the request context.</p>
         </details>
         <details class="qa">
+          <summary>Can I bring my existing Granola notes with me?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. LokalBot imports Granola exports directly into your local library, or you can convert Granola exports into clean Obsidian Markdown offline in your browser with the free <a href="/migrate">Meeting Migrator</a> (zero uploads).</p>
+        </details>
+        <details class="qa">
           <summary>What does LokalBot send over the network?<i class="ph ph-plus" aria-hidden="true"></i></summary>
           <p>Model downloads, update checks, optional Agent Mode setup, and remote inference origins you explicitly approve. Audio stays on your computer; built-in inference keeps transcript and workday context there too.</p>
         </details>
@@ -236,14 +240,17 @@
         <a href="lokalbot-vs-apple-notes">LokalBot vs Apple Notes</a>
         <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
         <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
-        <a href="lokalbot-vs-hyprnote">LokalBot vs Hyprnote</a>
+        <a href="lokalbot-vs-fathom">LokalBot vs Fathom</a>
+        <a href="lokalbot-vs-notion-ai">LokalBot vs Notion AI</a>
+        <a href="lokalbot-vs-read-ai">LokalBot vs Read.ai</a>
+        <a href="lokalbot-vs-hyprnote">LokalBot vs Anarlog (Hyprnote)</a>
         <a href="lokalbot-vs-meetily">LokalBot vs Meetily</a>
         <a href="lokalbot-vs-openwhispr">LokalBot vs OpenWhispr</a>
         <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
         <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
         <a href="lokalbot-vs-wispr-flow">LokalBot vs Wispr Flow</a>
         <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
-        <a href="lokalbot-vs-rewind">LokalBot vs Rewind</a>
+        <a href="lokalbot-vs-rewind">LokalBot vs Rewind / Limitless</a>
       </nav>
       <p class="compare-disclaimer">Granola is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on public pages and pricing as of October 2026 and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
     </section>
@@ -263,6 +270,9 @@
       <h3>Product</h3>
       <a href="/#features">Features</a>
       <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#android">Android app</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
@@ -274,14 +284,17 @@
       <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
       <a href="/lokalbot-vs-otter">vs Otter</a>
       <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
-      <a href="/lokalbot-vs-hyprnote">vs Hyprnote</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
       <a href="/lokalbot-vs-meetily">vs Meetily</a>
       <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
       <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
       <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
       <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
       <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
-      <a href="/lokalbot-vs-rewind">vs Rewind</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
     </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>

@@ -1,0 +1,176 @@
+{
+ "retrieval": {
+  "lokalbot-keyword": {
+   "questions": 1576,
+   "meeting_r1": 0.19289340101522842,
+   "meeting_r4": 0.3350253807106599,
+   "meeting_r10": 0.45621827411167515,
+   "mrr": 0.27374567411646433,
+   "gold_in_evidence": 0.26015228426395937,
+   "evidence_chars_median": 718.5,
+   "passage_hit1": 0.1446700507614213,
+   "passage_hit5": 0.2645939086294416,
+   "ms_p50": 5.8679429999999995,
+   "ms_p95": 17.165515,
+   "ms_mean": 7.466634634517766,
+   "unmapped_rows": 0
+  },
+  "gbrain-keyword": {
+   "questions": 1576,
+   "meeting_r1": 0.25317258883248733,
+   "meeting_r4": 0.41243654822335024,
+   "meeting_r10": 0.4676395939086294,
+   "mrr": 0.3251133067440174,
+   "gold_in_evidence": 0.4022842639593909,
+   "evidence_chars_median": 97444.0,
+   "passage_hit1": 0.18972081218274112,
+   "passage_hit5": 0.31408629441624364,
+   "ms_p50": 387.72034099997654,
+   "ms_p95": 549.3420430000242,
+   "ms_mean": 387.2100879790589,
+   "unmapped_rows": 133
+  }
+ },
+ "paired": {
+  "lokalbot-keyword - gbrain-keyword": {
+   "r1": {
+    "diff": -0.06027918781725891,
+    "ci95": [
+     -0.08375634517766498,
+     -0.037436548223350255
+    ]
+   },
+   "r4": {
+    "diff": -0.07741116751269034,
+    "ci95": [
+     -0.1034263959390863,
+     -0.053934010152284266
+    ]
+   },
+   "evidence_hit": {
+    "diff": -0.1421319796954315,
+    "ci95": [
+     -0.16687817258883247,
+     -0.11865482233502538
+    ]
+   },
+   "p5": {
+    "diff": -0.04949238578680204,
+    "ci95": [
+     -0.07296954314720812,
+     -0.02601522842639594
+    ]
+   }
+  }
+ },
+ "facts": {
+  "lb": {
+   "edit": {
+    "cases": 40,
+    "current_present": 39,
+    "stale_present": 0,
+    "both_present": 0,
+    "current_first_when_both": 0,
+    "items_mean": 23.1,
+    "chars_mean": 1988.75,
+    "read_ms_p50": 0.21804199999999999,
+    "write_ms_mean": 0.138070875
+   },
+   "restate": {
+    "cases": 40,
+    "current_present": 39,
+    "stale_present": 40,
+    "both_present": 39,
+    "current_first_when_both": 28,
+    "items_mean": 23.45,
+    "chars_mean": 1982.6,
+    "read_ms_p50": 0.320883,
+    "write_ms_mean": 0.15420177499999999
+   },
+   "forget": {
+    "cases": 40,
+    "current_present": 0,
+    "stale_present": 0,
+    "both_present": 0,
+    "current_first_when_both": 0,
+    "items_mean": 30.0,
+    "chars_mean": 2001.0,
+    "read_ms_p50": 0.086426,
+    "write_ms_mean": 0.0016993000000000002
+   }
+  },
+  "gb": {
+   "edit": {
+    "cases": 40,
+    "current_present": 38,
+    "stale_present": 0,
+    "both_present": 0,
+    "current_first_when_both": 0,
+    "items_mean": 1.25,
+    "chars_mean": 168.05,
+    "read_ms_p50": 19.75004700000227,
+    "write_ms_mean": 70.51950569998553
+   },
+   "restate": {
+    "cases": 40,
+    "current_present": 38,
+    "stale_present": 40,
+    "both_present": 38,
+    "current_first_when_both": 23,
+    "items_mean": 2.55,
+    "chars_mean": 329.75,
+    "read_ms_p50": 26.890736000041215,
+    "write_ms_mean": 62.78977442501059
+   },
+   "forget": {
+    "cases": 40,
+    "current_present": 0,
+    "stale_present": 0,
+    "both_present": 0,
+    "current_first_when_both": 0,
+    "items_mean": 0.125,
+    "chars_mean": 14.5,
+    "read_ms_p50": 20.34934100004193,
+    "write_ms_mean": 85.40248010000369
+   }
+  }
+ },
+ "pairs": {
+  "lb-before": {
+   "newer_top4": 19,
+   "older_top4": 19,
+   "newer_above_older": 3,
+   "current_in_evidence": 19,
+   "stale_in_evidence": 19,
+   "current_first": 3,
+   "cases": 20
+  },
+  "lb-after": {
+   "newer_top4": 19,
+   "older_top4": 0,
+   "newer_above_older": 19,
+   "current_in_evidence": 19,
+   "stale_in_evidence": 0,
+   "current_first": 19,
+   "cases": 20
+  },
+  "gb-before": {
+   "newer_top4": 15,
+   "older_top4": 17,
+   "newer_above_older": 6,
+   "current_in_evidence": 17,
+   "stale_in_evidence": 19,
+   "current_first": 6,
+   "cases": 20
+  },
+  "gb-after": {
+   "newer_top4": 15,
+   "older_top4": 0,
+   "newer_above_older": 19,
+   "current_in_evidence": 19,
+   "stale_in_evidence": 0,
+   "current_first": 19,
+   "cases": 20
+  }
+ }
+}

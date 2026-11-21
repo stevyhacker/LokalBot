@@ -1,17 +1,21 @@
-//! Think on the user's own ChatGPT or Claude plan instead of an API key
-//! (`Engines/Subscription/`). Signing in alone sends no content; Think uses a
-//! plan only after the user approves its consent entry
+//! Think on the user's own ChatGPT, Claude, Antigravity, or Gemini plan
+//! instead of an API key (`Engines/Subscription/`). Signing in alone sends no
+//! content; Think uses a plan only after the user approves its consent entry
 //! ([`SubscriptionPlan::consent_key`]). Plan errors stop the request; nothing
 //! falls back to another provider or billing path.
 
+pub mod antigravity;
 pub mod chatgpt;
 pub mod claude;
+pub(crate) mod cli;
+pub mod gemini;
 mod loopback;
 
 use lokalbot_core::settings::SubscriptionPlan;
 
 /// Failures a plan reports to the user (`ChatGPTPlanError`,
-/// `ClaudePlanError`, `SubscriptionPlanError`).
+/// `ClaudePlanError`, `AntigravityPlanError`, `GeminiPlanError`,
+/// `SubscriptionPlanError`).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PlanError {
     #[error("Choose a model for your {} under Settings → Models.", .0.title())]
@@ -59,6 +63,32 @@ pub enum PlanError {
     ClaudeUsageLimitReached(String),
     #[error("{0}")]
     ClaudeFailed(String),
+
+    #[error(
+        "Antigravity CLI (agy) isn't installed on this PC. Install it, sign in by running agy in a terminal, then choose Antigravity plan again under Settings → Models → Think."
+    )]
+    AntigravityNotInstalled,
+    #[error(
+        "Antigravity CLI isn't signed in. Run agy in a terminal and sign in with your Google account. LokalBot never sees your Antigravity sign-in."
+    )]
+    AntigravitySignInRequired,
+    #[error("Your Antigravity plan's usage limit was reached. {0}")]
+    AntigravityUsageLimitReached(String),
+    #[error("{0}")]
+    AntigravityFailed(String),
+
+    #[error(
+        "Gemini CLI isn't installed on this PC. Install it, sign in by running gemini in a terminal, then choose Gemini plan again under Settings → Models → Think."
+    )]
+    GeminiNotInstalled,
+    #[error(
+        "Gemini CLI isn't signed in. Run gemini in a terminal and sign in with your Google account. LokalBot never sees your Google sign-in."
+    )]
+    GeminiSignInRequired,
+    #[error("Your Gemini plan's usage limit was reached. {0}")]
+    GeminiUsageLimitReached(String),
+    #[error("{0}")]
+    GeminiFailed(String),
 }
 
 /// The [`PlanError`] inside an `anyhow::Error`, if any.

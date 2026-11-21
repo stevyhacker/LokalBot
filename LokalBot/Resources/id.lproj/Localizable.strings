@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Impor rekaman audio atau video";
 "Import Recording" = "Impor Rekaman";
 "Import Recording…" = "Impor Rekaman…";
+"Import Meetings From" = "Impor Rapat dari";
+"wants to import another app's meetings into LokalBot." = "ingin mengimpor rapat dari aplikasi lain ke LokalBot.";
 "Not inserted" = "Tidak disisipkan";
 "Pasted" = "Ditempel";
 "Recent dictations" = "Dikte terbaru";
@@ -2610,3 +2612,31 @@
 "This app is already on the list." = "Aplikasi ini sudah ada dalam daftar.";
 "Remove from call detection" = "Hapus dari deteksi panggilan";
 "Remove %@ from call detection" = "Hapus %@ dari deteksi panggilan";
+
+"Import past meetings" = "Impor rapat sebelumnya";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Bawa catatan dari Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, atau Zoom.";
+"Claude Code (MCP command)" = "Claude Code (perintah MCP)";
+"Claude Code (Plugin)" = "Claude Code (Plugin)";
+"Codex (Plugin)" = "Codex (Plugin)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "Konfigurasi MCP JSON (Cursor, Claude Desktop, …)";
+
+"System language" = "Bahasa sistem";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "Apple Speech memakai bahasa pilihan Anda di macOS jika didukung. Pilih bahasa yang sesuai untuk rekaman dalam bahasa lain.";
+"macOS may download a language asset when you use Apple Speech." = "macOS dapat mengunduh paket bahasa saat Anda menggunakan Apple Speech.";
+"Antigravity plan" = "Paket Antigravity";
+"Gemini plan" = "Paket Gemini";
+"Antigravity default" = "Bawaan Antigravity";
+"Gemini CLI default" = "Bawaan Gemini CLI";
+"Looking for Antigravity CLI…" = "Mencari Antigravity CLI…";
+"Looking for Gemini CLI…" = "Mencari Gemini CLI…";
+"Antigravity CLI isn't installed on this Mac." = "Antigravity CLI belum terinstal di Mac ini.";
+"Antigravity CLI isn't signed in." = "Antigravity CLI belum masuk ke akun.";
+"Gemini CLI isn't installed on this Mac." = "Gemini CLI belum terinstal di Mac ini.";
+"Gemini CLI installed" = "Gemini CLI terinstal";
+"How to install Antigravity CLI" = "Cara menginstal Antigravity CLI";
+"How to install Gemini CLI" = "Cara menginstal Gemini CLI";
+"Open Terminal, run agy, and sign in with your Google account. Then check again." = "Buka Terminal, jalankan agy, dan masuk dengan akun Google Anda. Lalu periksa lagi.";
+"Open Terminal, run gemini, and sign in with your Google account if you haven't already." = "Buka Terminal, jalankan gemini, dan masuk dengan akun Google Anda jika belum.";
+"Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Menjalankan Antigravity CLI (agy) milik Anda dengan alat-alatnya dimatikan. Anda masuk ke agy sendiri; LokalBot tidak pernah melihat info masuk Google Anda.";
+"Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Menjalankan Gemini CLI milik Anda dengan alat-alatnya dimatikan. Masuk ke gemini di Terminal terlebih dahulu; LokalBot tidak pernah melihat info masuk Google Anda.";
+"Signed in" = "Sudah masuk";

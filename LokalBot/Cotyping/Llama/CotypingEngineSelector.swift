@@ -314,6 +314,13 @@ final class CotypingEngineSelector: CotypingCompleting {
         try? await engine.prewarm(for: request)
     }
 
+    /// Only an in-process engine that already exists: warming never builds
+    /// one or verifies a model, and has nothing to do on the server routes.
+    func warmAfterPause() async {
+        guard !Self.usesServer(settings()), retryLocalAt == nil, let local else { return }
+        await local.warmAfterPause()
+    }
+
     func unload() async {
         unloadOperationsInFlight += 1
         defer { unloadOperationsInFlight -= 1 }

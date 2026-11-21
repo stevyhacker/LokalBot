@@ -108,15 +108,19 @@ actor QwenASREngine: TranscriptionEngine {
     /// Decodes merged windows, because the forced aligner re-times every word
     /// afterwards: segment granularity no longer depends on the decode window.
     /// On auto-detect it reports the language the track settled on, so a
-    /// fallback to speaker regions decodes in it too.
+    /// fallback to speaker regions decodes in it too. When that language is
+    /// one the aligner cannot time, the rest of the track is not decoded:
+    /// the speaker regions decode it instead.
     func transcribeForWordAttribution(audio url: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript {
         let result = try await transcribe(audio: url, language: language, prompt: prompt,
                                           windows: Self.wordAttributionWindows(for: variant))
-        return WordTimedTranscript(result.transcript, trackLanguage: result.pinned)
+        var timed = WordTimedTranscript(result.transcript, trackLanguage: result.decision.pinned)
+        timed.needsSpeakerRegions = result.decision.needsSpeakerRegions
+        return timed
     }
 
     private func transcribe(audio url: URL, language: String?, prompt: String?,
-                            windows: WordAttributionWindows?) async throws -> (transcript: Transcript, pinned: String?) {
+                            windows: WordAttributionWindows?) async throws -> (transcript: Transcript, decision: AutoLanguageDecision) {
         let choice: TranscriptionModelChoice = variant == .accuracy ? .qwenASR17B : .qwenASR06B
         try choice.validateLanguage(language)
         activeUses += 1
@@ -133,32 +137,128 @@ actor QwenASREngine: TranscriptionEngine {
         if let windows {
             spans = Self.merged(spans, maxGap: windows.maxGapSeconds, maxLength: windows.maxSeconds)
         }
-        func decode(language qwenLanguage: String?) async throws -> [Transcript.Segment] {
-            try await SpanTranscription.segments(in: url, spans: spans) { samples, _ in
+        let decode: SpanDecoder = { batch, qwenLanguage in
+            let segments = try await SpanTranscription.segments(in: url, spans: batch) { samples, _ in
                 try await Self.transcribeWindow(
                     samples: samples, language: qwenLanguage, prompt: prompt, server: server)
             }
+            return Self.withoutPromptEchoes(segments, prompt: prompt)
         }
-        var segments = try await decode(language: Self.qwenLanguage(language))
-        segments = Self.withoutPromptEchoes(segments, prompt: prompt)
-        var pinned: String?
-        if Self.qwenLanguage(language) == nil, let vote = Self.pinnedLanguage(for: segments.map(\.text)) {
-            // Per-window auto-detection misfires on short or accented speech;
-            // a track in one language decodes better pinned to it.
-            pinned = vote
-            // The forced aligner cannot time words in this language, so the
-            // track is attributed by speaker regions, decoded again in `vote`.
-            // A second whole-track pass here would be thrown away.
-            if windows == nil || QwenWordAligner.supports(vote) {
-                segments = try await decode(language: vote)
-                segments = Self.withoutPromptEchoes(segments, prompt: prompt)
-            }
+        let decision: AutoLanguageDecision
+        if let fixed = Self.qwenLanguage(language) {
+            decision = AutoLanguageDecision(segments: try await decode(spans, fixed), pinned: nil, sampled: 0,
+                                            decodedTwice: false, needsSpeakerRegions: false)
+        } else {
+            decision = try await Self.decodeOnAuto(spans, wordAttribution: windows != nil, decode: decode)
         }
         let elapsed = Date().timeIntervalSince(started)
         let duration = spans.last?.end ?? 0
+        let languageLabel = Self.qwenLanguage(language) ?? decision.pinned.map { "auto→\($0)" } ?? "auto"
         lokalbotLog(
-            "qwen-asr profile model=\(variant.modelID) spans=\(spans.count) merged=\(windows != nil) language=\(Self.qwenLanguage(language) ?? pinned.map { "auto→\($0)" } ?? "auto") elapsed=\(String(format: "%.2fs", elapsed)) rtfx=\(String(format: "%.1fx", elapsed > 0 ? duration / elapsed : 0))")
-        return (Transcript(segments: segments, engine: "\(variant.modelID) (llama.cpp)"), pinned)
+            "qwen-asr profile model=\(variant.modelID) spans=\(spans.count) merged=\(windows != nil) language=\(languageLabel) sampled=\(decision.sampled) twice=\(decision.decodedTwice) regions=\(decision.needsSpeakerRegions) elapsed=\(String(format: "%.2fs", elapsed)) rtfx=\(String(format: "%.1fx", elapsed > 0 ? duration / elapsed : 0))")
+        return (Transcript(segments: decision.segments, engine: "\(variant.modelID) (llama.cpp)"), decision)
+    }
+
+    /// Decodes `spans` in `language` (nil: auto-detect) and drops prompt echoes.
+    typealias SpanDecoder = (_ spans: [SpeechSpan], _ language: String?) async throws -> [Transcript.Segment]
+
+    /// How a track on auto-detect was decoded.
+    struct AutoLanguageDecision: Equatable, Sendable {
+        var segments: [Transcript.Segment]
+        /// The language the track was pinned to, if a vote held.
+        var pinned: String?
+        /// Spans decoded on auto before the first vote.
+        var sampled: Int
+        /// Every span was decoded twice: once on auto, then pinned.
+        var decodedTwice: Bool
+        /// `pinned` is a language the forced aligner cannot time: the caller
+        /// attributes by speaker regions, decoded in it, so the track was
+        /// not decoded pinned here.
+        var needsSpeakerRegions: Bool
+    }
+
+    /// Spans decoded on auto for the first language vote. Per-window
+    /// auto-detection misfires on short or accented speech, so a track in one
+    /// language decodes better pinned to it; voting on a sample instead of the
+    /// whole track lets most tracks decode once rather than twice.
+    ///
+    /// Benchmarks/transcribe/QwenLanguageSample: whole AMI meetings and the
+    /// owner's English and Serbian meetings voted 99–100% one language on
+    /// any sample of 4 to 16 spans. On code-switched FLEURS tracks the old
+    /// path left on auto, random samples (one span per group) pinned 4.3% of
+    /// the time with 8 spans and 2.9% with 12; 12 costs about 4% of the old
+    /// decode time more than 8 on long tracks.
+    static let languageSampleSize = 12
+
+    /// The sample's vote must reach this share to pin the track without
+    /// hearing the rest. Below it, the track decodes as it did before
+    /// sampling: everything on auto, then the whole-track vote at
+    /// `pinnedLanguage`'s 80%. A sample estimates the share coarsely. At
+    /// 80%, the sample of a track the whole-track vote left on auto (four
+    /// Serbian utterances to one English, 79.8%) pinned it. At 85%, random
+    /// 12-span samples still pinned it 39% of the time; at 90%, 23%, and
+    /// tracks 73% or less in one language almost never. Tracks in one
+    /// language vote 99–100%, so the stricter share costs them nothing.
+    static let sampleShare = 0.9
+
+    /// Indices of `spans` to decode first: the spans split into `count`
+    /// consecutive groups of (nearly) equal size, and the longest span of
+    /// each, so the vote hears the opening, the middle and the end, where a
+    /// late change of language would be. Every span when there are no more
+    /// than `count`, so short tracks and dictation decode as before.
+    nonisolated static func languageSample(_ spans: [SpeechSpan], count: Int = languageSampleSize) -> [Int] {
+        guard count > 0, spans.count > count else { return Array(spans.indices) }
+        func length(_ index: Int) -> TimeInterval { spans[index].end - spans[index].start }
+        return (0..<count).map { group in
+            let range = (group * spans.count / count)..<((group + 1) * spans.count / count)
+            // The longest span says the most; the earliest one wins ties.
+            return range.reduce(range.lowerBound) { length($1) > length($0) ? $1 : $0 }
+        }
+    }
+
+    /// Decodes a track whose language is on auto-detect.
+    ///
+    /// A sample of spans (`languageSample`) decodes on auto first. When one
+    /// language holds at least `sampleShare` of its text, the whole track
+    /// decodes once, pinned to it; the sampled spans decode again with the
+    /// rest, so every span is decoded the same way. Otherwise the rest
+    /// decodes on auto and the whole track votes as before: a mixed track
+    /// stays on per-window detection, and a track the sample misjudged is
+    /// still pinned, at the old cost of two passes.
+    ///
+    /// With `wordAttribution`, a pinned language the forced aligner cannot
+    /// time (Croatian, for Serbian, Bosnian and Montenegrin speech) ends the
+    /// decode: the caller attributes by speaker regions, decoded in that
+    /// language, and a pass here would be thrown away.
+    nonisolated static func decodeOnAuto(_ spans: [SpeechSpan], wordAttribution: Bool,
+                                         sampleSize: Int = languageSampleSize,
+                                         decode: SpanDecoder) async throws -> AutoLanguageDecision {
+        guard !spans.isEmpty else {
+            return AutoLanguageDecision(segments: [], pinned: nil, sampled: 0,
+                                        decodedTwice: false, needsSpeakerRegions: false)
+        }
+        let sample = languageSample(spans, count: sampleSize)
+        let sampled = try await decode(sample.map { spans[$0] }, nil)
+        func pinned(_ vote: String, segments: [Transcript.Segment], twice: Bool) async throws -> AutoLanguageDecision {
+            if wordAttribution && !QwenWordAligner.supports(vote) {
+                return AutoLanguageDecision(segments: segments, pinned: vote, sampled: sample.count,
+                                            decodedTwice: false, needsSpeakerRegions: true)
+            }
+            return AutoLanguageDecision(segments: try await decode(spans, vote), pinned: vote, sampled: sample.count,
+                                        decodedTwice: twice, needsSpeakerRegions: false)
+        }
+        if sample.count < spans.count, let vote = pinnedLanguage(for: sampled.map(\.text), minimumShare: sampleShare) {
+            return try await pinned(vote, segments: [], twice: false)
+        }
+        let chosen = Set(sample)
+        let unsampled = spans.indices.filter { !chosen.contains($0) }.map { spans[$0] }
+        let rest = unsampled.isEmpty ? [] : try await decode(unsampled, nil)
+        let all = (sampled + rest).sorted { $0.start < $1.start }
+        guard let vote = pinnedLanguage(for: all.map(\.text)) else {
+            return AutoLanguageDecision(segments: all, pinned: nil, sampled: sample.count,
+                                        decodedTwice: false, needsSpeakerRegions: false)
+        }
+        return try await pinned(vote, segments: all, twice: true)
     }
 
     /// One window through llama-server's `/completion` with speech-swift's
@@ -260,9 +360,9 @@ actor QwenASREngine: TranscriptionEngine {
     ]
 
     /// With the language on auto, the track's language when one supported
-    /// language holds at least 80% of its text. Mixed-language tracks stay on
-    /// per-window detection: a 50/50 English–German track votes up to 66%
-    /// German by text length (Benchmarks/transcribe/QwenSpanLength).
+    /// language holds at least `minimumShare` (80%) of its text. Mixed-language
+    /// tracks stay on per-window detection: a 50/50 English–German track votes
+    /// up to 66% German by text length (Benchmarks/transcribe/QwenSpanLength).
     ///
     /// A single window is never pinned: its only vote is its own decode, so
     /// decoding it again in that language cannot correct anything. Short
@@ -276,11 +376,11 @@ actor QwenASREngine: TranscriptionEngine {
     /// letters, Croatian 24.8% WER against 26.8% on auto, and the Montenegrin
     /// meeting 38.5% against 38.3%. `sr` read Serbian better (14.5% against
     /// 17.3%) but wrote half of everything in Cyrillic.
-    nonisolated static func pinnedLanguage(for texts: [String]) -> String? {
+    nonisolated static func pinnedLanguage(for texts: [String], minimumShare: Double = 0.8) -> String? {
         guard texts.count >= 2,
               let vote = TranscriptLanguageVote.dominant(
                   in: texts, aliases: TranscriptLanguageVote.serbianCroatianAliases),
-              vote.share >= 0.8,
+              vote.share >= minimumShare,
               supportedLanguages.contains(vote.code) || vote.code == "hr" else { return nil }
         return vote.code
     }

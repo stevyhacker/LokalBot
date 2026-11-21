@@ -112,6 +112,11 @@ protocol CotypingCompleting: AnyObject {
     /// Best-effort focus-time prompt prefill for in-process engines. This lets
     /// the first real keystroke reuse prompt KV when the user pauses after focus.
     func prewarm(for request: CotypingRequest) async throws
+    /// After a pause, readies an in-process model that is already loaded, so
+    /// the first suggestion is not slower than the rest. Never loads one.
+    /// Default is a no-op: only the in-process engine keeps a model in this
+    /// process.
+    func warmAfterPause() async
     /// Frees resources owned by the engine. The in-process engine releases its
     /// model/context; the HTTP engine stops its dedicated `llama-server`.
     /// Selectors await this hook before changing routes so two copies of the
@@ -134,6 +139,8 @@ extension CotypingCompleting {
     func prewarm(for request: CotypingRequest) async throws {
         try await prewarm()
     }
+
+    func warmAfterPause() async {}
 
     func unload() async {}
 }

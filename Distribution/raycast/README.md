@@ -60,3 +60,10 @@ helper bundled at:
 
 Override the path in the extension preferences only when LokalBot is installed
 somewhere else.
+
+## Resources
+
+- [LokalBot website](https://www.lokalbot.com/)
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks)
+- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)
+- [Guides & comparisons](https://www.lokalbot.com/guides)

@@ -149,14 +149,14 @@ final class ThinkExecution {
                 priority: priority,
                 purpose: purpose)
 
-        case .chatGPTPlan, .claudePlan:
+        case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan:
             guard let plan = SubscriptionPlan(backend: settings.summarizerBackend) else {
                 throw ThinkExecutionError.invalidConfiguration
             }
             guard plan.isApproved(in: settings) else { throw SubscriptionPlanError.approvalRequired(plan) }
             // Plan credentials are read per request (OpenAI) or never read at
-            // all (Claude Code keeps its own), so presentation-only engines
-            // need no special case.
+            // all (CLI-backed plans keep their own), so presentation-only
+            // engines need no special case.
             let base: TextEngine = switch plan {
             case .chatGPT:
                 ChatGPTPlanEngine(model: settings.chatGPTPlanModel,
@@ -164,6 +164,11 @@ final class ThinkExecution {
             case .claude:
                 ClaudePlanEngine(model: settings.claudePlanModel,
                                  reasoningLevel: settings.thinkReasoningLevel)
+            case .antigravity:
+                AntigravityPlanEngine(model: settings.antigravityPlanModel,
+                                      reasoningLevel: settings.thinkReasoningLevel)
+            case .gemini:
+                GeminiPlanEngine(model: settings.geminiPlanModel)
             }
             return GatedTextEngine(base: base, origin: plan.consentKey, priority: priority, purpose: purpose)
         }
@@ -298,11 +303,12 @@ final class ThinkExecution {
             }
             return .chatGPTPlan(model: model)
 
-        case .claudePlan:
-            // Claude Code is an agent of its own; `claude -p` offers no model
-            // endpoint for Agent Mode's runtime to call.
+        case .claudePlan, .antigravityPlan, .geminiPlan:
+            // CLI-backed plans run their own agent binary and offer no HTTP
+            // model endpoint for Agent Mode's runtime to call.
+            let title = SubscriptionPlan(backend: settings.summarizerBackend)?.title ?? settings.summarizerBackend.displayName
             return .unsupported(
-                reason: "Agent Mode can't run on your Claude plan yet. Switch the Think model to Built-in (on-device), Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.")
+                reason: "Agent Mode can't run on your \(title) yet. Switch the Think model to Built-in (on-device), Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.")
 
         case .ollama:
             guard let base = URL(string: settings.ollamaBaseURL) else {

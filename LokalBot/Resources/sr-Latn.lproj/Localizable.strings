@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Uvezi audio ili video snimak";
 "Import Recording" = "Uvezi snimak";
 "Import Recording…" = "Uvezi snimak…";
+"Import Meetings From" = "Uvezi sastanke iz";
+"wants to import another app's meetings into LokalBot." = "želi da uveze sastanke iz druge aplikacije u LokalBot.";
 "Not inserted" = "Nije umetnuto";
 "Pasted" = "Nalepljeno";
 "Recent dictations" = "Nedavna diktiranja";
@@ -2610,3 +2612,31 @@
 "This app is already on the list." = "Ova aplikacija je već na listi.";
 "Remove from call detection" = "Ukloni iz prepoznavanja poziva";
 "Remove %@ from call detection" = "Ukloni %@ iz prepoznavanja poziva";
+
+"Import past meetings" = "Uvezi prethodne sastanke";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Uvezi beleške iz aplikacija Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper ili Zoom.";
+"Claude Code (MCP command)" = "Claude Code (MCP komanda)";
+"Claude Code (Plugin)" = "Claude Code (dodatak)";
+"Codex (Plugin)" = "Codex (dodatak)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON konfiguracija (Cursor, Claude Desktop, …)";
+
+"System language" = "Jezik sistema";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "Apple Speech koristi željeni jezik u macOS-u ako je podržan. Za snimke na drugom jeziku izaberite jezik snimka.";
+"macOS may download a language asset when you use Apple Speech." = "macOS može da preuzme jezički paket kada koristite Apple Speech.";
+"Antigravity plan" = "Antigravity pretplata";
+"Gemini plan" = "Gemini pretplata";
+"Antigravity default" = "Podrazumevano za Antigravity";
+"Gemini CLI default" = "Podrazumevano za Gemini CLI";
+"Looking for Antigravity CLI…" = "Traženje alatke Antigravity CLI…";
+"Looking for Gemini CLI…" = "Traženje alatke Gemini CLI…";
+"Antigravity CLI isn't installed on this Mac." = "Antigravity CLI nije instaliran na ovom Mac-u.";
+"Antigravity CLI isn't signed in." = "Niste prijavljeni u Antigravity CLI.";
+"Gemini CLI isn't installed on this Mac." = "Gemini CLI nije instaliran na ovom Mac-u.";
+"Gemini CLI installed" = "Gemini CLI je instaliran";
+"How to install Antigravity CLI" = "Kako instalirati Antigravity CLI";
+"How to install Gemini CLI" = "Kako instalirati Gemini CLI";
+"Open Terminal, run agy, and sign in with your Google account. Then check again." = "Otvorite Terminal, pokrenite agy i prijavite se svojim Google nalogom. Zatim ponovo proverite.";
+"Open Terminal, run gemini, and sign in with your Google account if you haven't already." = "Otvorite Terminal, pokrenite gemini i prijavite se svojim Google nalogom ako već niste.";
+"Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Pokreće vaš Antigravity CLI (agy) sa isključenim alatima. U agy se prijavljujete sami; LokalBot nikada ne vidi vašu Google prijavu.";
+"Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Pokreće vaš Gemini CLI sa isključenim alatima. Prvo se prijavite u gemini u Terminalu; LokalBot nikada ne vidi vašu Google prijavu.";
+"Signed in" = "Prijavljeni ste";

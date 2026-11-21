@@ -276,6 +276,9 @@ final class MicRecorder {
     /// one bounded PCM copy, then serialize conversion, AAC encoding, preview
     /// resampling, and filesystem writes here.
     var speakerAudioClock: RecordingAudioClock?
+    /// Set before capture starts and cleared after it stops, like
+    /// `speakerAudioClock`. Shared with the meeting-audio recorder.
+    var soundMeter: RecordingSoundMeter?
     private let ioQueue: DispatchQueue
 
     init(writerQueue: DispatchQueue = DispatchQueue(label: "lokalbot.microphone.write", qos: .userInitiated),
@@ -1108,6 +1111,7 @@ final class MicRecorder {
         healthLock.unlock()
         speakerAudioClock?.record(hostTime: hostTime, valid: hostValid, startFrame: startFrame,
             frames: Int64(buffer.frameLength), sampleRate: buffer.format.sampleRate)
+        soundMeter?.record(rms: rms, frames: Int(buffer.frameLength), sampleRate: buffer.format.sampleRate)
         levelMeter.record(AudioLevelMeter.normalized(rms: rms))
         if !hasDeliveredFirstAudio {
             hasDeliveredFirstAudio = true

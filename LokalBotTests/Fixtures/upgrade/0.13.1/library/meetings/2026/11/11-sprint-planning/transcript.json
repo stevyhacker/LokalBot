@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 18,
+      "speaker": "me",
+      "text": "Committing three things this sprint: eviction-policy doc, the failover benchmark, and onboarding scoping."
+    },
+    {
+      "start": 18,
+      "end": 40,
+      "speaker": "them",
+      "text": "The Redis failover benchmark needs the load harness \u2014 search team said Thursday works."
+    },
+    {
+      "start": 40,
+      "end": 58,
+      "speaker": "me",
+      "text": "Booked. Stretch goal is the alerting backlog triage."
+    }
+  ]
+}

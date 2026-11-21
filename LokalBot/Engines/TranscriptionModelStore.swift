@@ -71,7 +71,8 @@ struct TranscriptionModelStore {
         environment: Environment = .live,
         graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
         funASRNanoDirectory: String = "",
-        remoteTranscriptionReady: Bool = false
+        remoteTranscriptionReady: Bool = false,
+        appleSpeechAssetInstalled: Bool = false
     ) -> Set<String> {
         Set(TranscriptionModelChoice.allCases.filter {
             isDownloaded(
@@ -79,7 +80,8 @@ struct TranscriptionModelStore {
                 environment: environment,
                 graniteConfiguration: graniteConfiguration,
                 funASRNanoDirectory: funASRNanoDirectory,
-                remoteTranscriptionReady: remoteTranscriptionReady)
+                remoteTranscriptionReady: remoteTranscriptionReady,
+                appleSpeechAssetInstalled: appleSpeechAssetInstalled)
         }.map(\.id))
     }
 
@@ -89,7 +91,8 @@ struct TranscriptionModelStore {
                              environment: Environment = .live,
                              graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,
                              funASRNanoDirectory: String = "",
-                             remoteTranscriptionReady: Bool = false) -> Bool {
+                             remoteTranscriptionReady: Bool = false,
+                             appleSpeechAssetInstalled: Bool = false) -> Bool {
         switch choice {
         case .parakeetUltra:
             return AsrModels.modelsExist(
@@ -132,6 +135,8 @@ struct TranscriptionModelStore {
             return onnxModelExists(model: .senseVoice, environment: environment)
         case .gigaamRussian:
             return onnxModelExists(model: .gigaamRussian, environment: environment)
+        case .appleSpeech:
+            return appleSpeechAssetInstalled
         case .remoteServer:
             return remoteTranscriptionReady
         }
@@ -187,6 +192,8 @@ struct TranscriptionModelStore {
         case .gigaamRussian:
             [onnxDirectory(folderName: "sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16",
                            environment: environment)]
+        case .appleSpeech:
+            [] // macOS manages SpeechAnalyzer's system assets.
         case .remoteServer:
             [] // Server settings are not an app-owned cache.
         }

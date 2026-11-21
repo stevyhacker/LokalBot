@@ -1,0 +1,33 @@
+# Notify IndexNow search engines (Bing / ChatGPT Search, Yandex, Naver, Seznam)
+# when production website assets change on master.
+
+name: IndexNow
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "Website/public/**"
+  workflow_dispatch:
+
+concurrency:
+  group: indexnow-master
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    name: Submit sitemap to IndexNow
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Wait for Cloudflare Workers deploy to settle
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Notify IndexNow
+        run: python3 Website/generator/indexnow.py

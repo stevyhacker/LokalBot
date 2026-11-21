@@ -15,6 +15,26 @@ enum RecordingImportPanel {
     }
 }
 
+/// The open panel behind Recording → Import Meetings From. The person picks
+/// the app's export or data folder; LokalBot adds the meetings it doesn't
+/// have yet. Choosing is the consent, so nothing asks again.
+enum ExternalImportPanel {
+    @MainActor static func choose(_ source: ExternalMeetingSource, into app: AppState) {
+        let panel = NSOpenPanel()
+        panel.title = source.title
+        panel.message = source.exportHint
+        panel.prompt = app.settings.appLanguage.localized("Import")
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = true
+        if let found = ExternalMeetingReaders.existingDefaultLocations(for: source).first {
+            panel.directoryURL = found.hasDirectoryPath ? found : found.deletingLastPathComponent()
+        }
+        guard panel.runModal() == .OK else { return }
+        app.importExternalMeetings(source, urls: panel.urls)
+    }
+}
+
 /// Accepts audio and video files dropped onto a view and imports them as
 /// meetings. Other files are refused with a short explanation.
 private struct RecordingImportDropTarget: ViewModifier {

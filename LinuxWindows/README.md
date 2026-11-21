@@ -22,7 +22,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | --- | --- | --- | --- |
 | Meetings: record mic + system audio | ✓ (the meeting app's own streams, else the PulseAudio/PipeWire monitor) | ✓ (process loopback on build 20348+, else WASAPI loopback) | No bot joins the call. Quitting saves a recording first; recording won't start with under 1 GB free. Tracks are 16 kHz WAV files; meetings recorded on macOS (AAC `.m4a`) play and transcribe too. A recording cut short by a crash or power loss is closed at its last audio when LokalBot starts again, then processed as usual. |
 | On-device transcription | ✓ | ✓ | sherpa-onnx: Qwen3-ASR 0.6B by default; Parakeet v3 and v2, SenseVoice, GigaAM Russian and Whisper turbo optional, or a transcription server you approve. Speakers are separated with pyannote segmentation and TitaNet embeddings. |
-| Notes, actions, decisions, day digest, project notes, follow-up drafts | ✓ | ✓ | The macOS prompts, run by the built-in llama.cpp server (Vulkan, experimental CUDA or CPU), Ollama, an OpenAI-compatible server you approve, or your own ChatGPT or Claude plan (see [Think providers](#think-providers)). Follow-ups are written only by a model on your computer, and LokalBot never sends them. |
+| Notes, actions, decisions, day digest, project notes, follow-up drafts | ✓ | ✓ | The macOS prompts, run by the built-in llama.cpp server (Vulkan, experimental CUDA or CPU), Ollama, an OpenAI-compatible server you approve, or your own ChatGPT, Claude, Antigravity, or Gemini plan (see [Think providers](#think-providers)). Follow-ups are written only by a model on your computer, and LokalBot never sends them. |
 | Ask with citations | ✓ | ✓ | As on macOS, the model looks things up with tools (search, list and read meetings, action items, screen text, app activity) and answers once it has enough; each citation must match a source a tool returned. A Think model running on the CPU, or one with a context window under 16K tokens, instead gets the relevant meetings found first (keyword and meaning search) and answers in one turn. |
 | Keyword and meaning search, Quick Recall | ✓ | ✓ | SQLite FTS5 plus EmbeddingGemma vectors, kept up to date in the background; Ask's result list fuses keyword and meaning matches by meeting, and saved screens can be found by what they show. Quick Recall opens from its system-wide shortcut or Ctrl+K inside LokalBot: it lists meetings, screens, files and agent notes three of each, runs every app command, and answers Ctrl+Return questions in place with numbered sources. |
 | Day memory (app and window activity) | X11, Hyprland, Sway, KDE; GNOME with the Window Calls extension | ✓ | Window titles are cleared after the retention window set in Settings → Screen & activity. |
@@ -148,10 +148,16 @@ supported GPU, local models are slow, so Settings → Models → Online services
 - **Claude plan**: runs the Claude Code you installed and signed in to yourself (`claude` on PATH,
   in `~/.local/bin`, or npm's `claude.cmd` on Windows), with its tools, MCP servers, settings and
   session history turned off. LokalBot never sees your Claude credentials.
+- **Antigravity plan**: runs the Antigravity CLI you installed and signed in to yourself (`agy` on
+  PATH or in standard install folders), with tools, MCP servers, and slash commands turned off.
+  LokalBot never sees your Google credentials.
+- **Gemini plan**: runs the Gemini CLI you installed and signed in to yourself (`gemini` on PATH,
+  in standard install folders, or npm's `gemini.cmd` on Windows), with tools, MCP servers,
+  extensions, hooks, and skills turned off. LokalBot never sees your Google credentials.
 
 Every remote server and each plan needs its own approval before any context leaves your computer. A Think server off this computer must use HTTPS, even on your own network or tailnet; transcription and autocomplete servers on your own network may use plain HTTP once approved. Each server gets at most two processing requests at once, one of them from scheduled work; chat, dictation and autocomplete never queue behind them, and after a rate limit every caller of that server waits out its pause.
 Agent Mode runs on the built-in model, Ollama, an OpenAI-compatible server or the ChatGPT plan, not
-on the Claude plan. On the ChatGPT plan each task starts a relay on `127.0.0.1` with its own random
+on the Claude, Antigravity, or Gemini plans. On the ChatGPT plan each task starts a relay on `127.0.0.1` with its own random
 key: the agent sends its requests there, and LokalBot adds the plan's token, so the agent and the
 commands it runs never hold your ChatGPT sign-in.
 
@@ -177,9 +183,12 @@ release has none yet, use a CI run's artifacts (`lokalbot-linux-x86_64`, `lokalb
   so when a newer version is out LokalBot asks you to download the new package and install it the same way.
 - **Windows** 10/11 (x64): run `LokalBot-<version>-windows-x86_64-setup.exe`. It installs for your user into
   `%LOCALAPPDATA%\Programs\LokalBot` without administrator rights, adds a Start menu shortcut (which also
-  lets notifications show LokalBot's name) and an Installed apps entry; uninstalling keeps your library. Or
-  extract the portable `LokalBot-<version>-windows-x86_64.zip` anywhere and run `lokalbot.exe`. Neither is
-  code-signed yet, so SmartScreen may ask you to confirm.
+  lets notifications show LokalBot's name), an Installed apps entry, and puts `lokalbot-cli` on your `PATH`;
+  uninstalling keeps your library. IT administrators can pass `/ALLUSERS /VERYSILENT` for machine-wide
+  deployment into `%ProgramFiles%\LokalBot`. Or install with [Scoop](https://github.com/stevyhacker/scoop-bucket):
+  `scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot`,
+  or extract the portable `LokalBot-<version>-windows-x86_64.zip` anywhere and run `lokalbot.exe`. Binaries are
+  not code-signed yet, so SmartScreen may ask you to confirm.
 
 ### Omarchy and other Hyprland desktops
 

@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "ఆడియో లేదా వీడియో రికార్డింగ్‌ను దిగుమతి చేయండి";
 "Import Recording" = "రికార్డింగ్‌ను దిగుమతి చేయండి";
 "Import Recording…" = "రికార్డింగ్‌ను దిగుమతి చేయండి…";
+"Import Meetings From" = "ఇతర యాప్ నుండి సమావేశాలను దిగుమతి చేయండి";
+"wants to import another app's meetings into LokalBot." = "మరో యాప్ సమావేశాలను LokalBotలోకి దిగుమతి చేయాలనుకుంటోంది.";
 "Not inserted" = "చొప్పించబడలేదు";
 "Pasted" = "పేస్ట్ చేయబడింది";
 "Recent dictations" = "ఇటీవలి డిక్టేషన్‌లు";
@@ -2610,3 +2612,31 @@
 "This app is already on the list." = "ఈ యాప్ ఇప్పటికే జాబితాలో ఉంది.";
 "Remove from call detection" = "కాల్ గుర్తింపు నుంచి తీసివేయండి";
 "Remove %@ from call detection" = "కాల్ గుర్తింపు నుంచి %@ తీసివేయండి";
+
+"Import past meetings" = "పాత మీటింగ్‌లను దిగుమతి చేయండి";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper లేదా Zoom నుండి నోట్స్ తీసుకురండి.";
+"Claude Code (MCP command)" = "Claude Code (MCP కమాండ్)";
+"Claude Code (Plugin)" = "Claude Code (ప్లగిన్)";
+"Codex (Plugin)" = "Codex (ప్లగిన్)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON కాన్ఫిగ్ (Cursor, Claude Desktop, …)";
+
+"System language" = "సిస్టమ్ భాష";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "మద్దతు ఉంటే Apple Speech మీరు macOSలో ఎంచుకున్న ప్రాధాన్య భాషను ఉపయోగిస్తుంది. వేరే భాషలోని రికార్డింగ్‌ల కోసం ఆ భాషను ఎంచుకోండి.";
+"macOS may download a language asset when you use Apple Speech." = "మీరు Apple Speech ఉపయోగించినప్పుడు macOS భాషా ప్యాక్‌ను డౌన్‌లోడ్ చేయవచ్చు.";
+"Antigravity plan" = "Antigravity ప్లాన్";
+"Gemini plan" = "Gemini ప్లాన్";
+"Antigravity default" = "Antigravity డిఫాల్ట్";
+"Gemini CLI default" = "Gemini CLI డిఫాల్ట్";
+"Looking for Antigravity CLI…" = "Antigravity CLI కోసం వెతుకుతోంది…";
+"Looking for Gemini CLI…" = "Gemini CLI కోసం వెతుకుతోంది…";
+"Antigravity CLI isn't installed on this Mac." = "ఈ Macలో Antigravity CLI ఇన్‌స్టాల్ కాలేదు.";
+"Antigravity CLI isn't signed in." = "Antigravity CLIలో సైన్ ఇన్ చేయలేదు.";
+"Gemini CLI isn't installed on this Mac." = "ఈ Macలో Gemini CLI ఇన్‌స్టాల్ కాలేదు.";
+"Gemini CLI installed" = "Gemini CLI ఇన్‌స్టాల్ అయింది";
+"How to install Antigravity CLI" = "Antigravity CLI ఎలా ఇన్‌స్టాల్ చేయాలి";
+"How to install Gemini CLI" = "Gemini CLI ఎలా ఇన్‌స్టాల్ చేయాలి";
+"Open Terminal, run agy, and sign in with your Google account. Then check again." = "Terminal తెరిచి, agy నడిపి, మీ Google ఖాతాతో సైన్ ఇన్ చేయండి. తర్వాత మళ్లీ తనిఖీ చేయండి.";
+"Open Terminal, run gemini, and sign in with your Google account if you haven't already." = "మీరు ఇంకా సైన్ ఇన్ చేయకపోతే, Terminal తెరిచి, gemini నడిపి, మీ Google ఖాతాతో సైన్ ఇన్ చేయండి.";
+"Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "మీ స్వంత Antigravity CLI (agy)ను దాని టూల్స్ ఆఫ్ చేసి రన్ చేస్తుంది. agyలో మీరే సైన్ ఇన్ చేస్తారు; LokalBot మీ Google సైన్-ఇన్‌ను ఎప్పుడూ చూడదు.";
+"Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "మీ స్వంత Gemini CLIను దాని టూల్స్ ఆఫ్ చేసి రన్ చేస్తుంది. ముందుగా Terminalలో geminiలో సైన్ ఇన్ చేయండి; LokalBot మీ Google సైన్-ఇన్‌ను ఎప్పుడూ చూడదు.";
+"Signed in" = "సైన్ ఇన్ అయ్యారు";

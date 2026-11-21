@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "Nhập bản ghi âm hoặc bản ghi video";
 "Import Recording" = "Nhập bản ghi âm";
 "Import Recording…" = "Nhập bản ghi âm…";
+"Import Meetings From" = "Nhập cuộc họp từ";
+"wants to import another app's meetings into LokalBot." = "muốn nhập cuộc họp từ một ứng dụng khác vào LokalBot.";
 "Not inserted" = "Chưa chèn";
 "Pasted" = "Đã dán";
 "Recent dictations" = "Các lần đọc chính tả gần đây";
@@ -2610,3 +2612,31 @@
 "This app is already on the list." = "Ứng dụng này đã có trong danh sách.";
 "Remove from call detection" = "Bỏ khỏi tính năng phát hiện cuộc gọi";
 "Remove %@ from call detection" = "Bỏ %@ khỏi tính năng phát hiện cuộc gọi";
+
+"Import past meetings" = "Nhập các cuộc họp trước";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Mang ghi chú từ Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper hoặc Zoom vào đây.";
+"Claude Code (MCP command)" = "Claude Code (lệnh MCP)";
+"Claude Code (Plugin)" = "Claude Code (Plugin)";
+"Codex (Plugin)" = "Codex (Plugin)";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "Cấu hình MCP JSON (Cursor, Claude Desktop, …)";
+
+"System language" = "Ngôn ngữ hệ thống";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "Apple Speech sử dụng ngôn ngữ macOS ưu tiên của bạn nếu được hỗ trợ. Với bản ghi bằng ngôn ngữ khác, hãy chọn ngôn ngữ đó.";
+"macOS may download a language asset when you use Apple Speech." = "macOS có thể tải xuống gói ngôn ngữ khi bạn dùng Apple Speech.";
+"Antigravity plan" = "Gói Antigravity";
+"Gemini plan" = "Gói Gemini";
+"Antigravity default" = "Mặc định Antigravity";
+"Gemini CLI default" = "Mặc định Gemini CLI";
+"Looking for Antigravity CLI…" = "Đang tìm Antigravity CLI…";
+"Looking for Gemini CLI…" = "Đang tìm Gemini CLI…";
+"Antigravity CLI isn't installed on this Mac." = "Antigravity CLI chưa được cài trên Mac này.";
+"Antigravity CLI isn't signed in." = "Antigravity CLI chưa đăng nhập.";
+"Gemini CLI isn't installed on this Mac." = "Gemini CLI chưa được cài trên Mac này.";
+"Gemini CLI installed" = "Đã cài Gemini CLI";
+"How to install Antigravity CLI" = "Cách cài Antigravity CLI";
+"How to install Gemini CLI" = "Cách cài Gemini CLI";
+"Open Terminal, run agy, and sign in with your Google account. Then check again." = "Mở Terminal, chạy agy và đăng nhập bằng tài khoản Google. Sau đó kiểm tra lại.";
+"Open Terminal, run gemini, and sign in with your Google account if you haven't already." = "Mở Terminal, chạy gemini và đăng nhập bằng tài khoản Google nếu bạn chưa đăng nhập.";
+"Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Chạy Antigravity CLI (agy) của chính bạn với các công cụ đã tắt. Bạn tự đăng nhập vào agy; LokalBot không bao giờ thấy thông tin đăng nhập Google của bạn.";
+"Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Chạy Gemini CLI của chính bạn với các công cụ đã tắt. Đăng nhập vào gemini trong Terminal trước; LokalBot không bao giờ thấy thông tin đăng nhập Google của bạn.";
+"Signed in" = "Đã đăng nhập";

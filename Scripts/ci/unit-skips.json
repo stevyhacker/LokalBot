@@ -39,6 +39,7 @@
         "LlamaCotypingRuntimeTests/testLoadsAndGeneratesDeterministically",
         "LlamaCotypingRuntimeTests/testOnTokenReturningFalseStopsDecode",
         "LlamaCotypingRuntimeTests/testReusedPrefixIsReflectedInPrefillTokenCount",
+        "LlamaCotypingRuntimeTests/testTouchKeepsTheCachedPromptAndTheSuggestion",
         "LocalLlamaCotypingEngineTests/testGenerateReturnsNormalizedResult",
         "LocalLlamaCotypingEngineTests/testStreamingFiresPartials"
       ]
@@ -53,8 +54,9 @@
       ]
     },
     {
-      "reason": "Latency benchmark over a downloaded GGUF (LOKALBOT_COTYPING_LATENCY_MODEL, with _CASES, _LIBRARY and _OUT). A measurement, run by hand.",
+      "reason": "Latency benchmarks over a downloaded GGUF (LOKALBOT_COTYPING_LATENCY_MODEL, with _CASES, _LIBRARY and _OUT; the pause benchmark also needs LOKALBOT_COTYPING_IDLE_GAPS). Measurements, run by hand.",
       "tests": [
+        "CotypingTypingLatencyBenchmarkTests/testFirstSuggestionAfterIdle",
         "CotypingTypingLatencyBenchmarkTests/testTypingLatency"
       ]
     },
@@ -70,6 +72,12 @@
       "reason": "Needs a pinned Qwen3-ASR GGUF pair (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR; LOKALBOT_QWEN_LLAMA_TEST_TIER=0.6b for the compact pair) and a public speech clip (LOKALBOT_QWEN_LLAMA_TEST_AUDIO). Run for a llama.cpp or Qwen3-ASR update.",
       "tests": [
         "QwenLlamaASRTests/testCachedModelsTranscribeAWindowOnTheAppServer"
+      ]
+    },
+    {
+      "reason": "Benchmarks Qwen3-ASR's language sampling on benchmark tracks (LOKALBOT_QWEN_SAMPLE_MANIFEST) with the pinned 1.7B GGUF pair (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR). Downloaded audio and models, run by hand; see Benchmarks/transcribe/QwenLanguageSample.",
+      "tests": [
+        "QwenLanguageSampleReplayTests/testReplayBenchmarkTracks"
       ]
     },
     {

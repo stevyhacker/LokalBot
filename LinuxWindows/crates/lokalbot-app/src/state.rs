@@ -1464,7 +1464,9 @@ pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedS
         SummarizerBackend::OpenAICompatible => Some(settings.openai_base_url.as_str()),
         SummarizerBackend::BuiltIn
         | SummarizerBackend::ChatGptPlan
-        | SummarizerBackend::ClaudePlan => None,
+        | SummarizerBackend::ClaudePlan
+        | SummarizerBackend::AntigravityPlan
+        | SummarizerBackend::GeminiPlan => None,
     };
     let mut hosts: Vec<SharedString> = Vec::new();
     if let Some(url) = url.filter(|url| !lokalbot_core::access::is_loopback_url(url)) {
@@ -1543,7 +1545,9 @@ pub fn remote_ai_hosts(settings: &Settings) -> Vec<String> {
                 SummarizerBackend::OpenAICompatible => Some(settings.openai_base_url.as_str()),
                 SummarizerBackend::BuiltIn
                 | SummarizerBackend::ChatGptPlan
-                | SummarizerBackend::ClaudePlan => None,
+                | SummarizerBackend::ClaudePlan
+                | SummarizerBackend::AntigravityPlan
+                | SummarizerBackend::GeminiPlan => None,
             };
             if let Some(host) = url
                 .map(str::trim)

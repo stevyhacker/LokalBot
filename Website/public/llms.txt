@@ -1,6 +1,6 @@
 # LokalBot
 
-> Your personal context engine. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service.
+> Your personal context engine. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service. Full benchmark tables, comparisons, and FAQs in one file: https://www.lokalbot.com/llms-full.txt
 
 Key facts:
 
@@ -13,7 +13,7 @@ Key facts:
 - Optional backends: Ollama, OpenAI-compatible servers, and the user's ChatGPT or Claude plan on every platform, plus Apple Intelligence on Mac (macOS 26+). A non-local server or plan must be explicitly approved before it receives meeting or workday context.
 - Languages: Qwen3-ASR transcribes 52 languages and dialects; meeting notes follow the meeting's language unless the user picks another; the interface is translated into 24 languages.
 - Workday memory: day tracking starts with app names and window titles only. Saved screen text and encrypted screenshots are opt-in; screenshots are deleted after 14 days by default.
-- Also includes: hold-to-talk dictation (⌥ Space on Mac, Alt+Space on Windows and Linux) with recent dictations kept to copy again, optional local autocomplete that can use the message being answered and the user's meetings, a sample meeting to try before recording, import of audio and video files as meetings, a morning look back at yesterday from the overnight review, a Raycast extension (https://www.raycast.com/stevan_bogosavljevic/lokalbot), selection actions for rewriting selected text, spoken summaries, search across folders the user chooses, Markdown/Obsidian/Logseq export, a read-only CLI and MCP server that stay off until the user turns them on in Settings, opening a meeting's action item in Claude Code or Codex, and opt-in Agent Mode, which works on files with approval and can run on a ChatGPT plan.
+- Also includes: hold-to-talk dictation (⌥ Space on Mac, Alt+Space on Windows and Linux) with recent dictations kept to copy again, optional local autocomplete that can use the message being answered and the user's meetings, a sample meeting to try before recording, import of audio and video files as meetings, a morning look back at yesterday from the overnight review, a Raycast extension (https://www.raycast.com/stevan_bogosavljevic/lokalbot), an open-source Obsidian plugin (https://github.com/stevyhacker/obsidian-lokalbot), selection actions for rewriting selected text, spoken summaries, search across folders the user chooses, Markdown/Obsidian/Logseq export, a read-only CLI and MCP server that stay off until the user turns them on in Settings, opening a meeting's action item in Claude Code or Codex, and opt-in Agent Mode, which works on files with approval and can run on a ChatGPT plan.
 - Projects: tracks a project by name and gathers the meetings, actions, and decisions that name it, writes a short "Where it stands" note with links back to its meetings, and suggests names that keep coming up.
 - Mainland China: records Tencent Meeting, VooV Meeting, Feishu, Lark, DingTalk, and WeCom calls; keyword search matches Chinese, Japanese, and Korean anywhere in a phrase; models can download from HF-Mirror or ModelScope instead of Hugging Face (Settings → Models).
 - Personal Context: an encrypted list of facts, preferences, goals, and principles about the user, from "Remember …" in Ask, items added in Settings, and what it learns overnight from the user's own words in meetings and typed requests. Ask uses it; agents can read only items the user shares, under a separate permission.
@@ -24,14 +24,20 @@ Key facts:
 ## Product
 
 - [LokalBot home](https://www.lokalbot.com/): features, demo, and FAQ
+- [Agent Wrapped](https://www.lokalbot.com/wrapped): local, zero-upload year in review for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI (`npx lokalbot`)
+- [Meeting Migrator](https://www.lokalbot.com/migrate): offline, zero-upload browser converter that turns Granola, Otter.ai, Fireflies, Fathom, and Zoom meeting exports into Obsidian Markdown notes with YAML frontmatter, speaker wikilinks, and a ZIP download
+- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware): interactive zero-upload browser calculator for Apple Silicon Macs, Windows, and Linux estimating exact disk downloads, resident RAM, KV-cache allowances, GPU VRAM offload, and LokalBot's 50% memory residency cap
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
 - [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, and Linux requirements, memory, disk, permissions, and what each platform supports
-- [Benchmarks](https://www.lokalbot.com/benchmarks): measured speech, speaker diarization, search, summary, autocomplete, and OCR results with methods and known gaps
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): interactive, reproducible benchmarks across 7 workloads and 17 suites (speech vs. cloud APIs, diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, extraction, OCR, TTS) with machine-readable JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
 - [Privacy policy](https://www.lokalbot.com/privacy): what stays on your computer and exactly when the app uses the network
 
 ## Blog
 
 - [LokalBot blog](https://www.lokalbot.com/blog): releases, local model benchmarks, and build notes ([Atom feed](https://www.lokalbot.com/blog/feed.xml))
+- [39 ms and 50 MB vs. 255 ms and 1 GB: QMSum local retrieval benchmark](https://www.lokalbot.com/blog/gbrain-vs-lokalbot-memory-benchmark): LokalBot's SQLite FTS5 + EmbeddingGemma 2 retrieval vs. GBrain across 232 public meetings and 1,576 questions
+- [Local speech-to-text vs. cloud APIs on real meetings](https://www.lokalbot.com/blog/local-stt-vs-cloud-apis): Qwen3-ASR 1.7B and Parakeet local vs. Gemini 3.5/3.8, GPT-4o Transcribe, GPT Transcribe, and Qwen-Audio on AMI and two-track calls
+- [56 ms local system-wide autocomplete benchmark](https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark): headless keystroke benchmark of Gemma 4 E2B vs. LFM2.5 1.2B across 788 word positions
 - [Recall vs. restraint](https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark): a 120-case benchmark of local models deciding what to save as a memory and what to leave out
 - [LokalBot is on Windows and Linux, in alpha](https://www.lokalbot.com/blog/windows-and-linux-alpha): what works, what is missing, default models, and installation
 - [How the Windows and Linux port was built](https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents): specs first, how coding agents' work was checked, and a link to the full write-up
@@ -59,14 +65,24 @@ Key facts:
 - [LokalBot vs Apple Notes](https://www.lokalbot.com/lokalbot-vs-apple-notes)
 - [LokalBot vs Otter.ai](https://www.lokalbot.com/lokalbot-vs-otter)
 - [LokalBot vs Fireflies.ai](https://www.lokalbot.com/lokalbot-vs-fireflies)
-- [LokalBot vs Hyprnote (anarlog)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
+- [LokalBot vs Fathom](https://www.lokalbot.com/lokalbot-vs-fathom)
+- [LokalBot vs Notion AI Meeting Notes](https://www.lokalbot.com/lokalbot-vs-notion-ai)
+- [LokalBot vs Read.ai](https://www.lokalbot.com/lokalbot-vs-read-ai)
+- [LokalBot vs Anarlog (Hyprnote)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
 - [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
 - [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
 - [LokalBot vs Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper)
 - [LokalBot vs Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow)
 - [LokalBot vs Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe)
-- [LokalBot vs Rewind](https://www.lokalbot.com/lokalbot-vs-rewind)
+- [LokalBot vs Rewind & Limitless](https://www.lokalbot.com/lokalbot-vs-rewind)
+
+## Languages
+
+- [Deutsch (German)](https://www.lokalbot.com/de): DSGVO-freundliche lokale KI-Meeting-Notizen ohne Meeting-Bot
+- [中文 (Simplified Chinese)](https://www.lokalbot.com/zh): 100% 本地开源会议纪要（支持腾讯会议/飞书/钉钉与 ModelScope）
+- [日本語 (Japanese)](https://www.lokalbot.com/ja): 完全ローカル・Bot不要の無料オープンソースAI議事録
+- [Русский (Russian)](https://www.lokalbot.com/ru): Локальные заметки встреч без облака (Яндекс Телемост, МТС Линк, GigaAM)
 
 ## Optional
 

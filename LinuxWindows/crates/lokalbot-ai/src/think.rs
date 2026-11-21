@@ -184,6 +184,8 @@ enum Backend {
     Anthropic(anthropic::Engine),
     ChatGptPlan(plans::chatgpt::Engine),
     ClaudePlan(plans::claude::Engine),
+    AntigravityPlan(plans::antigravity::Engine),
+    GeminiPlan(plans::gemini::Engine),
 }
 
 struct Inner {
@@ -232,7 +234,10 @@ fn autocomplete_consent(url: &str, approved: &[String]) -> Result<()> {
 pub fn allows_automatic_main_inference(settings: &Settings) -> bool {
     let base = match settings.summarizer_backend {
         SummarizerBackend::BuiltIn => return true,
-        SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => {
+        SummarizerBackend::ChatGptPlan
+        | SummarizerBackend::ClaudePlan
+        | SummarizerBackend::AntigravityPlan
+        | SummarizerBackend::GeminiPlan => {
             return settings
                 .think_plan()
                 .is_some_and(|plan| plan.is_approved(settings));
@@ -326,7 +331,10 @@ impl ThinkClient {
                     }
                 }
             }
-            SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => {
+            SummarizerBackend::ChatGptPlan
+            | SummarizerBackend::ClaudePlan
+            | SummarizerBackend::AntigravityPlan
+            | SummarizerBackend::GeminiPlan => {
                 let plan = settings
                     .think_plan()
                     .expect("a plan backend names its plan");
@@ -343,6 +351,17 @@ impl ThinkClient {
                         model: settings.claude_plan_model.trim().to_string(),
                         level: settings.think_reasoning_level,
                         runner: Arc::new(plans::claude::LiveRunner::default()),
+                    }),
+                    SubscriptionPlan::Antigravity => {
+                        Backend::AntigravityPlan(plans::antigravity::Engine {
+                            model: settings.antigravity_plan_model.trim().to_string(),
+                            level: settings.think_reasoning_level,
+                            runner: Arc::new(plans::antigravity::LiveRunner::default()),
+                        })
+                    }
+                    SubscriptionPlan::Gemini => Backend::GeminiPlan(plans::gemini::Engine {
+                        model: settings.gemini_plan_model.trim().to_string(),
+                        runner: Arc::new(plans::gemini::LiveRunner::default()),
                     }),
                 }
             }
@@ -481,6 +500,10 @@ impl ThinkClient {
             Backend::Anthropic(engine) => Some(remote_gate::origin(&engine.base)),
             Backend::ChatGptPlan(_) => Some(SubscriptionPlan::ChatGpt.consent_key().to_string()),
             Backend::ClaudePlan(_) => Some(SubscriptionPlan::Claude.consent_key().to_string()),
+            Backend::AntigravityPlan(_) => {
+                Some(SubscriptionPlan::Antigravity.consent_key().to_string())
+            }
+            Backend::GeminiPlan(_) => Some(SubscriptionPlan::Gemini.consent_key().to_string()),
         }
     }
 
@@ -558,6 +581,7 @@ impl ThinkClient {
             Backend::Anthropic(engine) => engine.level = level,
             Backend::ChatGptPlan(engine) => engine.level = level,
             Backend::ClaudePlan(engine) => engine.level = level,
+            Backend::AntigravityPlan(engine) => engine.level = level,
             _ => {}
         }
         self.rebuilt(backend, level)
@@ -568,6 +592,8 @@ impl ThinkClient {
         match &self.inner.backend {
             Backend::ChatGptPlan(_) => Some(SubscriptionPlan::ChatGpt),
             Backend::ClaudePlan(_) => Some(SubscriptionPlan::Claude),
+            Backend::AntigravityPlan(_) => Some(SubscriptionPlan::Antigravity),
+            Backend::GeminiPlan(_) => Some(SubscriptionPlan::Gemini),
             _ => None,
         }
     }
@@ -591,6 +617,8 @@ impl ThinkClient {
             Backend::Anthropic(engine) => named(&engine.model, "default model"),
             Backend::ChatGptPlan(engine) => named(&engine.model, SubscriptionPlan::ChatGpt.title()),
             Backend::ClaudePlan(engine) => named(&engine.model, "Claude Code default"),
+            Backend::AntigravityPlan(engine) => named(&engine.model, "Antigravity default"),
+            Backend::GeminiPlan(engine) => named(&engine.model, "Gemini CLI default"),
         }
     }
 
@@ -608,6 +636,8 @@ impl ThinkClient {
             Backend::Anthropic(engine) => crate::http::host_label(&engine.base),
             Backend::ChatGptPlan(_) => SubscriptionPlan::ChatGpt.destination_host().into(),
             Backend::ClaudePlan(_) => SubscriptionPlan::Claude.destination_host().into(),
+            Backend::AntigravityPlan(_) => SubscriptionPlan::Antigravity.destination_host().into(),
+            Backend::GeminiPlan(_) => SubscriptionPlan::Gemini.destination_host().into(),
         }
     }
 
@@ -638,7 +668,11 @@ impl ThinkClient {
         match &self.inner.backend {
             Backend::BuiltIn { .. } => true,
             Backend::Server { base, .. } | Backend::Ollama { base, .. } => is_loopback_url(base),
-            Backend::Anthropic(_) | Backend::ChatGptPlan(_) | Backend::ClaudePlan(_) => false,
+            Backend::Anthropic(_)
+            | Backend::ChatGptPlan(_)
+            | Backend::ClaudePlan(_)
+            | Backend::AntigravityPlan(_)
+            | Backend::GeminiPlan(_) => false,
         }
     }
 
@@ -673,6 +707,8 @@ impl ThinkClient {
             }
             Backend::ChatGptPlan(engine) => format!("chatgpt-plan|{}|responses", engine.model),
             Backend::ClaudePlan(engine) => format!("claude-plan|{}|claude-code", engine.model),
+            Backend::AntigravityPlan(engine) => format!("antigravity-plan|{}|agy", engine.model),
+            Backend::GeminiPlan(engine) => format!("gemini-plan|{}|gemini-cli", engine.model),
         }
     }
 
@@ -701,9 +737,12 @@ impl ThinkClient {
     pub fn structured_output_enum_limit(&self) -> Option<usize> {
         match &self.inner.backend {
             Backend::BuiltIn { .. } | Backend::Ollama { .. } => None,
-            // Anthropic publishes no enum limit, only that oversized schemas
-            // fail to compile; keep the ceiling used for other hosted servers.
-            Backend::Anthropic(_) | Backend::ClaudePlan(_) => Some(500),
+            // Anthropic, Antigravity, and Gemini publish no enum limit, only
+            // that oversized schemas fail; keep the ceiling used for hosted servers.
+            Backend::Anthropic(_)
+            | Backend::ClaudePlan(_)
+            | Backend::AntigravityPlan(_)
+            | Backend::GeminiPlan(_) => Some(500),
             // OpenAI documents 1,000 enum values for strict structured outputs.
             Backend::ChatGptPlan(_) => Some(1_000),
             Backend::Server { dialect, base, .. } => match dialect {
@@ -758,6 +797,10 @@ impl ThinkClient {
                 Backend::ChatGptPlan(engine) => plans::chatgpt::context_tokens(&engine.model),
                 // Claude Code's default window on subscription plans.
                 Backend::ClaudePlan(_) => 200_000,
+                Backend::AntigravityPlan(engine) => {
+                    plans::antigravity::context_tokens(&engine.model)
+                }
+                Backend::GeminiPlan(_) => 1_000_000,
             })
     }
 
@@ -882,6 +925,10 @@ impl ThinkClient {
                 self.replaying(|| engine.respond(request, None, &mut |_| {}))
             }
             Backend::ClaudePlan(engine) => self.replaying(|| engine.respond(request, None, None)),
+            Backend::AntigravityPlan(engine) => {
+                self.replaying(|| engine.respond(request, None, None))
+            }
+            Backend::GeminiPlan(engine) => self.replaying(|| engine.respond(request, None, None)),
         }
     }
 
@@ -975,6 +1022,12 @@ impl ThinkClient {
             Backend::ClaudePlan(engine) => {
                 self.streaming(cancel, || engine.respond(request, cancel, Some(on_delta)))
             }
+            Backend::AntigravityPlan(engine) => {
+                self.streaming(cancel, || engine.respond(request, cancel, Some(on_delta)))
+            }
+            Backend::GeminiPlan(engine) => {
+                self.streaming(cancel, || engine.respond(request, cancel, Some(on_delta)))
+            }
         }
     }
 
@@ -1010,8 +1063,12 @@ impl ThinkClient {
                 })
                 .unwrap_or(known)
             }
-            // These engines pick their own effort per request.
-            Backend::Anthropic(_) | Backend::ChatGptPlan(_) | Backend::ClaudePlan(_) => {
+            // These engines pick their own effort per request (or do not expose reasoning controls).
+            Backend::Anthropic(_)
+            | Backend::ChatGptPlan(_)
+            | Backend::ClaudePlan(_)
+            | Backend::AntigravityPlan(_)
+            | Backend::GeminiPlan(_) => {
                 return None;
             }
         };
@@ -1352,6 +1409,10 @@ pub fn reasoning_lookup_key(settings: &Settings) -> String {
         ),
         SummarizerBackend::ChatGptPlan => format!("chatGPTPlan|{}", settings.chatgpt_plan_model),
         SummarizerBackend::ClaudePlan => format!("claudePlan|{}", settings.claude_plan_model),
+        SummarizerBackend::AntigravityPlan => {
+            format!("antigravityPlan|{}", settings.antigravity_plan_model)
+        }
+        SummarizerBackend::GeminiPlan => format!("geminiPlan|{}", settings.gemini_plan_model),
     }
 }
 
@@ -1405,6 +1466,10 @@ pub fn reasoning_choices(settings: &Settings) -> (Vec<ReasoningLevel>, Option<Re
             plans::chatgpt::Engine::reasoning_support(settings.chatgpt_plan_model.trim())
         }
         SummarizerBackend::ClaudePlan => plans::claude::traits(&settings.claude_plan_model).0,
+        SummarizerBackend::AntigravityPlan => {
+            plans::antigravity::traits(&settings.antigravity_plan_model).0
+        }
+        SummarizerBackend::GeminiPlan => ReasoningSupport::new(&[], None),
     };
     (support.levels, support.default_level)
 }
@@ -3363,6 +3428,34 @@ mod tests {
         let (levels, _) = reasoning_choices(&settings);
         assert_eq!(levels.first(), Some(&ReasoningLevel::Low));
         settings.claude_plan_model = "claude-haiku-4-5".into();
+        assert!(reasoning_choices(&settings).0.is_empty());
+
+        settings.summarizer_backend = SummarizerBackend::AntigravityPlan;
+        assert!(ThinkClient::new(&runtime, &settings).is_err());
+        SubscriptionPlan::Antigravity.set_approved(&mut settings, true);
+        let client = ThinkClient::new(&runtime, &settings).unwrap();
+        assert_eq!(client.plan(), Some(SubscriptionPlan::Antigravity));
+        assert_eq!(
+            client.display_name(),
+            "Antigravity default · Antigravity plan"
+        );
+        assert_eq!(client.location(), "antigravity.google");
+        assert_eq!(client.context_tokens(), 200_000);
+        assert_eq!(
+            reasoning_choices(&settings).0.last(),
+            Some(&ReasoningLevel::Xhigh)
+        );
+        settings.antigravity_plan_model = "gemini-4-neon-high".into();
+        assert!(reasoning_choices(&settings).0.is_empty());
+
+        settings.summarizer_backend = SummarizerBackend::GeminiPlan;
+        assert!(ThinkClient::new(&runtime, &settings).is_err());
+        SubscriptionPlan::Gemini.set_approved(&mut settings, true);
+        let client = ThinkClient::new(&runtime, &settings).unwrap();
+        assert_eq!(client.plan(), Some(SubscriptionPlan::Gemini));
+        assert_eq!(client.display_name(), "Gemini CLI default · Gemini plan");
+        assert_eq!(client.location(), "cloudcode-pa.googleapis.com");
+        assert_eq!(client.context_tokens(), 1_000_000);
         assert!(reasoning_choices(&settings).0.is_empty());
     }
 

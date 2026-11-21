@@ -45,6 +45,9 @@ final class SystemAudioRecorder {
     private var timeline: RecordingAudioTimeline?
     /// Set before starting a tap, cleared only after the writer drains.
     var speakerAudioClock: RecordingAudioClock?
+    /// Set and cleared with `speakerAudioClock`. Shared with the microphone
+    /// recorder and kept across process handoffs.
+    var soundMeter: RecordingSoundMeter?
     private var framesWritten: AVAudioFramePosition = 0
     /// Frames delivered by the current tap only. Recovery padding deliberately
     /// does not advance this counter, so zero identifies a dead attachment.
@@ -279,6 +282,8 @@ final class SystemAudioRecorder {
                     self.lastAudioWriteAt = now
                     self.lastRMSLevel = rmsLevel
                     self.peakRMSLevel = max(self.peakRMSLevel, rmsLevel)
+                    self.soundMeter?.record(rms: rmsLevel, frames: Int(copy.frameLength),
+                                            sampleRate: fmt.sampleRate)
                     if rmsLevel >= Self.audibleRMSThreshold {
                         self.audibleFramesWritten += AVAudioFramePosition(copy.frameLength)
                         self.lastAudibleWriteAt = now

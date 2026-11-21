@@ -278,6 +278,8 @@ final class RecordingController: ObservableObject {
         var transcribe: Bool
         var summarize: Bool
         var metadataSaved = false
+        /// The saved-recording notification's title when it is not the usual one.
+        var stopNotice: String?
     }
     private var pendingFinalizations: [UUID: PendingFinalization] = [:]
     /// Surfaces user-facing problems (feeds `AppState.lastError`).
@@ -301,6 +303,11 @@ final class RecordingController: ObservableObject {
     private var speakerAudioClock: RecordingAudioClock?
     private var audioTimeline: RecordingAudioTimeline?
     private var microphoneAudioClock: RecordingAudioClock?
+    /// One per recording, fed by both writers. See `RecordingSilenceWatch`.
+    private var soundMeter: RecordingSoundMeter?
+    private var silenceWatch: RecordingSilenceWatch?
+    static let silenceStopNotice =
+        "Recording stopped: no one spoke for \(Int(RecordingSilenceWatch.quietLimit / 60)) minutes"
 
     private struct SystemAudioTarget {
         var bundleID: String
@@ -600,6 +607,11 @@ final class RecordingController: ObservableObject {
                 audioTimeline = timeline
                 systemRecorder.speakerAudioClock = speakerAudioClock
                 micRecorder.speakerAudioClock = microphoneAudioClock
+                let meter = RecordingSoundMeter()
+                soundMeter = meter
+                systemRecorder.soundMeter = meter
+                micRecorder.soundMeter = meter
+                silenceWatch = RecordingSilenceWatch(startedAt: Date())
                 try Task.checkCancellation()
                 try micRecorder.start(
                     writingTo: meeting.folderURL(in: storage).appendingPathComponent("mic.m4a"),
@@ -683,8 +695,9 @@ final class RecordingController: ObservableObject {
         return session?.state == .inCall && session?.url == app.meetingURL
     }
 
+    /// `stopNotice` replaces the title of the saved-recording notification.
     func stop(process: Bool = true, contentEndedAt: Date? = nil, deferProcessing: Bool = false,
-              allowsAutomaticRestart: Bool = false) {
+              allowsAutomaticRestart: Bool = false, stopNotice: String? = nil) {
         if isStarting {
             startTask?.cancel()
             systemAudioRecovery.cancel()
@@ -755,7 +768,7 @@ final class RecordingController: ObservableObject {
            recordedDuration < wallDuration * 0.8 {
             onError("Recording saved, but only \(meeting.durationLabel) of audio was captured from a \(Self.formatMinutes(wallDuration)) session.")
         }
-        finalize(meeting, process: process, deferProcessing: deferProcessing)
+        finalize(meeting, process: process, deferProcessing: deferProcessing, stopNotice: stopNotice)
         captureWarnings = []
         callObservationUnavailable = false
         // The call ended on its own; rejoining the same event records again.
@@ -804,11 +817,12 @@ final class RecordingController: ObservableObject {
     /// Finalization is separate from device shutdown so persistence failures
     /// and deferred work can be verified without opening a capture device.
     @discardableResult
-    func finalize(_ meeting: Meeting, process: Bool, deferProcessing: Bool = false) -> Bool {
+    func finalize(_ meeting: Meeting, process: Bool, deferProcessing: Bool = false,
+                  stopNotice: String? = nil) -> Bool {
         let endedAt = meeting.endedAt ?? Date()
         let pending = PendingFinalization(meeting: meeting,
             transcribe: (process || deferProcessing) && settings.autoTranscribe,
-            summarize: settings.autoSummarize)
+            summarize: settings.autoSummarize, stopNotice: stopNotice)
         pendingFinalizations[meeting.id] = pending
         lastCalendarEventID = meeting.calendarEventID
         lastCalendarEventEndedAt = endedAt
@@ -864,11 +878,15 @@ final class RecordingController: ObservableObject {
         let waitingForModels = willTranscribe
             && !ModelReadinessSnapshot.transcriptionReady(settings)
         if isInteractive() {
+            // A recording trimmed to its content reports the content's length.
+            let content = meeting.contentRange.flatMap { $0.isValid ? $0.end - $0.start : nil }
             RecordingNotifier.shared.recordingStopped(
                 title: meeting.title,
-                duration: meeting.recordedDuration ?? meeting.endedAt?.timeIntervalSince(meeting.startedAt) ?? 0,
+                duration: content ?? meeting.recordedDuration
+                    ?? meeting.endedAt?.timeIntervalSince(meeting.startedAt) ?? 0,
                 willTranscribe: willTranscribe && !waitingForModels,
-                waitingForModels: waitingForModels)
+                waitingForModels: waitingForModels,
+                headline: pending.stopNotice)
         }
         return true
     }
@@ -1081,6 +1099,10 @@ final class RecordingController: ObservableObject {
         audioTimeline = nil
         systemRecorder.speakerAudioClock = nil
         micRecorder.speakerAudioClock = nil
+        soundMeter = nil
+        silenceWatch = nil
+        systemRecorder.soundMeter = nil
+        micRecorder.soundMeter = nil
     }
 
     private func cleanupCancelledStart(created: Meeting?) {
@@ -1135,7 +1157,26 @@ final class RecordingController: ObservableObject {
         now = Date()
         recordingTick = Timer.publish(every: 1, on: .main, in: .common)
             .autoconnect()
-            .sink { [weak self] date in self?.now = date }
+            .sink { [weak self] date in
+                self?.now = date
+                self?.stopIfNobodyIsTalking(at: date)
+            }
+    }
+
+    /// Ends a recording that has gone `RecordingSilenceWatch.quietLimit`
+    /// without anyone talking, its content cut where the talking stopped. It
+    /// runs on the main run loop with the timer and reads the meter under a
+    /// lock, never on a Swift task: on 2026-11-17 the detector and the
+    /// capture-health watchdog both went quiet when the task pool appears to
+    /// have stalled, and this is what still has to work then.
+    private func stopIfNobodyIsTalking(at date: Date) {
+        guard isRecording, let meter = soundMeter, var watch = silenceWatch else { return }
+        let quiet = watch.observe(soundSeconds: meter.soundSeconds, at: date)
+        silenceWatch = watch
+        guard quiet else { return }
+        lokalbotLog("recording stopping: no one talking for "
+            + "\(Int(date.timeIntervalSince(watch.lastActivityAt)))s, sound=\(Int(meter.soundSeconds))s")
+        stop(contentEndedAt: watch.lastActivityAt, stopNotice: Self.silenceStopNotice)
     }
 
     private func stopRecordingTick() {

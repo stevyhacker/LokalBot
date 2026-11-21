@@ -15,6 +15,9 @@ path = "src/main.rs"
 name = "lokalbot_cli"
 path = "src/lib.rs"
 
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
 [dependencies]
 lokalbot-core.workspace = true
 anyhow.workspace = true
@@ -26,6 +29,8 @@ uuid.workspace = true
 rusqlite.workspace = true
 ureq.workspace = true
 directories.workspace = true
+memchr.workspace = true
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true

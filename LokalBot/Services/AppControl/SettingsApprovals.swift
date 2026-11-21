@@ -1,7 +1,8 @@
 import Foundation
 
 /// Requests from the terminal that wait for the person: settings changes that
-/// widen what LokalBot captures, reads, records, or sends, and new API keys.
+/// widen what LokalBot captures, reads, records, or sends, new API keys, and
+/// imports of another app's meetings into the library.
 /// Each request is one card in the approval window listing every change it
 /// makes. It is answered once, expires after a few minutes, and is never
 /// approved in bulk.
@@ -10,6 +11,15 @@ final class SettingsApprovals: ObservableObject {
     enum Subject: Equatable {
         case settings(SettingsChangeRequest)
         case secret(AppSecret, value: String)
+        /// Meetings from another app's exports or files. The files are read
+        /// again when the person approves, so the card's counts describe them
+        /// as they were when it was shown.
+        case meetingImport(MeetingImportRequest)
+    }
+
+    struct MeetingImportRequest: Equatable {
+        var source: ExternalMeetingSource
+        var paths: [String]
     }
 
     struct Request: Identifiable {
@@ -58,6 +68,8 @@ final class SettingsApprovals: ObservableObject {
             switch subject {
             case .secret(let secret, _):
                 return "Setting the \(secret.title)"
+            case .meetingImport(let request):
+                return "Importing meetings from \(request.source.title)"
             case .settings:
                 let titles = items.filter { $0.change == .widening }.map(\.spec.title)
                 return titles.isEmpty ? "This change" : titles.joined(separator: ", ")
@@ -93,7 +105,7 @@ final class SettingsApprovals: ObservableObject {
     func submit(_ subject: Subject, caller: String, items: [SettingsChangePlan.Item],
                 changes: [JSONValue], retention: RetentionReview? = nil) throws -> Request {
         expireStale()
-        if case .settings = subject,
+        if !subject.holdsSecret,
            let existing = pending.first(where: { $0.subject == subject && $0.caller == caller }) {
             return existing
         }
@@ -181,6 +193,15 @@ final class SettingsApprovals: ObservableObject {
             try? await Task.sleep(nanoseconds: UInt64((Self.lifetime + 1) * 1_000_000_000))
             self?.expireStale()
         }
+    }
+}
+
+extension SettingsApprovals.Subject {
+    /// An API key is never matched against another request or kept after
+    /// it is answered.
+    var holdsSecret: Bool {
+        if case .secret = self { return true }
+        return false
     }
 }
 

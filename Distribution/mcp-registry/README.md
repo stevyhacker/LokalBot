@@ -43,3 +43,10 @@ A pull request that changes this folder, the workflow or the build script runs
 the workflow's `check` job: `server.json` against the schema it names, and its
 `identifier` and `fileSha256` against the release's `LokalBot.mcpb`. It
 publishes nothing.
+
+## Resources
+
+- [LokalBot website](https://www.lokalbot.com/)
+- [Claude Code & Codex meeting notes guide](https://www.lokalbot.com/claude-code-codex-meeting-notes)
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks)
+- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)

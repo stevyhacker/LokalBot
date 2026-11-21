@@ -532,6 +532,8 @@
 "Import an audio or video recording" = "録音または録画をインポート";
 "Import Recording" = "録音をインポート";
 "Import Recording…" = "録音をインポート…";
+"Import Meetings From" = "他のアプリから会議をインポート";
+"wants to import another app's meetings into LokalBot." = "別のアプリの会議をLokalBotにインポートしようとしています。";
 "Not inserted" = "挿入されていません";
 "Pasted" = "ペーストしました";
 "Recent dictations" = "最近の音声入力";
@@ -2610,3 +2612,31 @@
 "This app is already on the list." = "このアプリはすでにリストにあります。";
 "Remove from call detection" = "通話検出の対象から外す";
 "Remove %@ from call detection" = "%@を通話検出の対象から外す";
+
+"Import past meetings" = "過去の会議をインポート";
+"Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola、Otter、Fireflies、Fathom、ボイスメモ、MacWhisper、Zoom からメモを取り込みます。";
+"Claude Code (MCP command)" = "Claude Code（MCP コマンド）";
+"Claude Code (Plugin)" = "Claude Code（プラグイン）";
+"Codex (Plugin)" = "Codex（プラグイン）";
+"MCP JSON config (Cursor, Claude Desktop, …)" = "MCP JSON 設定（Cursor、Claude Desktop など）";
+
+"System language" = "システムの言語";
+"Apple Speech uses your preferred macOS language when supported. Choose a language for recordings in another language." = "Apple Speech は、対応している場合に macOS の優先言語を使います。別の言語の録音には、その言語を選択してください。";
+"macOS may download a language asset when you use Apple Speech." = "Apple Speech を使用すると、macOS が言語パックをダウンロードする場合があります。";
+"Antigravity plan" = "Antigravityプラン";
+"Gemini plan" = "Geminiプラン";
+"Antigravity default" = "Antigravityのデフォルト";
+"Gemini CLI default" = "Gemini CLIのデフォルト";
+"Looking for Antigravity CLI…" = "Antigravity CLIを検索中…";
+"Looking for Gemini CLI…" = "Gemini CLIを検索中…";
+"Antigravity CLI isn't installed on this Mac." = "このMacにAntigravity CLIはインストールされていません。";
+"Antigravity CLI isn't signed in." = "Antigravity CLIにサインインしていません。";
+"Gemini CLI isn't installed on this Mac." = "このMacにGemini CLIはインストールされていません。";
+"Gemini CLI installed" = "Gemini CLIをインストール済み";
+"How to install Antigravity CLI" = "Antigravity CLIのインストール方法";
+"How to install Gemini CLI" = "Gemini CLIのインストール方法";
+"Open Terminal, run agy, and sign in with your Google account. Then check again." = "ターミナルでagyを実行し、Googleアカウントでサインインしてください。その後、再確認してください。";
+"Open Terminal, run gemini, and sign in with your Google account if you haven't already." = "まだサインインしていない場合は、ターミナルでgeminiを実行し、Googleアカウントでサインインしてください。";
+"Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "ツールをオフにした状態で、あなた自身の Antigravity CLI (agy) を実行します。agy へのサインインはご自身で行います。LokalBot が Google のサインイン情報を見ることはありません。";
+"Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "ツールをオフにした状態で、あなた自身の Gemini CLI を実行します。先にターミナルで gemini にサインインしてください。LokalBot が Google のサインイン情報を見ることはありません。";
+"Signed in" = "サインイン済み";

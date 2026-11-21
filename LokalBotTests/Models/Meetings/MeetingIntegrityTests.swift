@@ -130,6 +130,13 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertEqual(customApps.map(\.id), ["com.example.callapp", "corp.vks"])
     }
 
+    func testJoinScreenEndsOnlyTheCallInItsOwnWindow() {
+        XCTAssertEqual(BrowserMeetingSession.waitingRoomState(inBoundWindow: true), .ended)
+        // A reopened invite link shows the same room's lobby in another window
+        // while the user is still in the call.
+        XCTAssertNil(BrowserMeetingSession.waitingRoomState(inBoundWindow: false))
+    }
+
     func testTelemostCallTitleDoesNotMatchTheHomeTab() {
         let url = URL(string: "https://telemost.yandex.ru/j/12345678901")!
         let verified = "Идёт звонок · Яндекс Телемост"

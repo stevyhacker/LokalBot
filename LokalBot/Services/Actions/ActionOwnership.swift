@@ -176,6 +176,92 @@ struct ActionOwnership {
                     actors: SpokenUndertaking.otherActors(in: words))
     }
 
+    /// Deadline evidence stays within cited, single-speaker clauses. Adjacent
+    /// rows from the same turn can finish a clause split by transcription.
+    func supportsDeadline(_ due: String, task: String, cited: [Int], quote: String?) -> Bool {
+        var groups: [[String]] = []
+        var previous: Int?
+        for index in cited.sorted() {
+            guard isOwnVoice(index), let source = text(index) else { continue }
+            if let previous, index == previous + 1, sameVoice(previous, index),
+               transcript.segments[index].start - transcript.segments[previous].end <= Self.longestPause {
+                groups[groups.count - 1].append(source)
+            } else {
+                groups.append([source])
+            }
+            previous = index
+        }
+        let clauses = groups.flatMap { Self.deadlineClauses(in: SpokenUndertaking.words($0)) }
+        // A date in the generated title must not help choose its own source.
+        let dueWords = Set(SpokenUndertaking.words([due]).map(\.text))
+        let matches = clauses.map { clause in
+            SpokenUndertaking.alignment(task: task, clause: clause.filter { !dueWords.contains($0.text) })
+        }
+        let evidence: [[SpokenUndertaking.Word]]
+        let best = matches.map(\.matches).max() ?? 0
+        if best >= 2 || (best == 1 && SpokenUndertaking.words([task]).count == 1) {
+            evidence = zip(clauses, matches).compactMap { clause, match in
+                match.matches == best ? clause : nil
+            }
+        } else if !isEnglish, let quote {
+            // The title may be translated. The source quote still has to fit
+            // within a single clause.
+            evidence = clauses.filter { !SpokenUndertaking.occurrences(of: quote, in: $0).isEmpty }
+        } else {
+            return false
+        }
+        return !evidence.isEmpty && evidence.allSatisfy { Self.containsDeadline(due, in: $0) }
+    }
+
+    private static func deadlineClauses(in words: [SpokenUndertaking.Word]) -> [[SpokenUndertaking.Word]] {
+        guard !words.isEmpty else { return [] }
+        let subjects = Set(SpokenUndertaking.cues(in: words).map(\.words.lowerBound)
+            + SpokenUndertaking.otherActors(in: words).map(\.start))
+        var starts = [0]
+        var sawSubject = subjects.contains(0)
+        for index in words.indices.dropFirst() {
+            let prior = words[index - 1]
+            if prior.endsSentence, !SpokenUndertaking.isDangling(prior.text) {
+                starts.append(index)
+                sawSubject = subjects.contains(index)
+            } else if subjects.contains(index) {
+                if sawSubject || ["and", "but", "then"].contains(prior.text) { starts.append(index) }
+                sawSubject = true
+            }
+        }
+        var clauses: [[SpokenUndertaking.Word]] = []
+        for (start, end) in zip(starts, starts.dropFirst() + [words.count]) {
+            let clause = Array(words[start..<end])
+            let prefix = clause.prefix(3).map(\.text).joined(separator: " ")
+            // A speaker can give the immediately preceding task's timing
+            // in a short follow-up sentence: "It is due Thursday."
+            let continuation = prefix == "it is due" || prefix == "the deadline is" || prefix.hasPrefix("it's due ")
+            if continuation, !clauses.isEmpty {
+                clauses[clauses.count - 1] += clause
+            } else {
+                clauses.append(clause)
+            }
+        }
+        return clauses
+    }
+
+    private static func containsDeadline(_ due: String, in clause: [SpokenUndertaking.Word]) -> Bool {
+        let source = " " + OutcomeTextSimilarity.normalized(clause.map(\.text).joined(separator: " ")) + " "
+        func contains(_ phrase: String) -> Bool {
+            source.contains(" " + OutcomeTextSimilarity.normalized(phrase) + " ")
+        }
+        if contains(due) { return true }
+        // A local model can swap the day and clock: "today 16:00" for
+        // "16:00 today". Match both components together in the same clause.
+        let terms = SpokenUndertaking.words([due]).map(\.text).filter { $0 != "at" }
+        guard terms.count == 2,
+              let day = terms.first(where: { ["today", "tomorrow"].contains($0) }),
+              let clock = terms.first(where: { $0.range(of: #"^\d{1,2}:\d{2}$"#, options: .regularExpression) != nil }) else {
+            return false
+        }
+        return contains("\(day) \(clock)") || contains("\(day) at \(clock)") || contains("\(clock) \(day)")
+    }
+
     // MARK: - Evidence
 
     /// The speaker's own unrefused commitment starts in this row.

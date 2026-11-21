@@ -43,6 +43,8 @@ enum LibrarySearch {
         var position: Int
         var matched: [String]
         var exact: Bool
+        /// A transcript hit's start, formatted only if the hit is returned.
+        var start: TimeInterval?
     }
 
     static func hits(
@@ -58,11 +60,16 @@ enum LibrarySearch {
         guard !phrase.isEmpty else { return [] }
         let terms = quoted ? [phrase] : searchTerms(phrase)
         let all = try meetings ?? SessionLookup.loadAllMeetings()
+        let root = SessionLookup.storageRootURL
+        // Skips, from bytes alone, transcripts and texts that cannot match,
+        // which saves the decode and the fold; it never changes a result.
+        var prefilter = LibrarySearchPrefilter(terms: terms)
 
         var candidates: [Candidate] = []
         var coverage: [Int: Set<String>] = [:]
-        func consider(_ text: String, meeting index: Int, kind: Int, position: Int,
+        func consider(_ text: String, meeting index: Int, kind: Int, position: Int, start: TimeInterval? = nil,
                       hit: (String) -> SessionFormatter.SearchHit?) {
+            if prefilter?.mayMatch(text) == false { return }
             let haystack = folded(text)
             let matched = terms.filter { wordRange(of: $0, in: haystack) != nil }
             guard let first = matched.first else { return }
@@ -70,7 +77,7 @@ enum LibrarySearch {
             guard let value = (exact ? hit(phrase) : nil) ?? hit(first) else { return }
             coverage[index, default: []].formUnion(matched)
             candidates.append(Candidate(hit: value, meeting: index, kind: kind, position: position,
-                                        matched: matched, exact: exact))
+                                        matched: matched, exact: exact, start: start))
         }
 
         for (index, meeting) in all.enumerated() {
@@ -80,7 +87,7 @@ enum LibrarySearch {
                 .init(meeting_id: short, meeting_title: meeting.title, match_kind: "title",
                       snippet: meeting.title, timestamp: nil, sample: sample)
             }
-            if let summary = SessionLookup.summaryMarkdown(for: meeting) {
+            if let summary = SessionLookup.summaryMarkdown(for: meeting, root: root) {
                 consider(summary, meeting: index, kind: 1, position: 0) { needle in
                     snippet(in: summary, around: needle).map {
                         .init(meeting_id: short, meeting_title: meeting.title, match_kind: "summary",
@@ -88,12 +95,13 @@ enum LibrarySearch {
                     }
                 }
             }
-            if let transcript = SessionLookup.transcript(for: meeting) {
+            if let data = SessionLookup.transcriptData(for: meeting, root: root),
+               prefilter?.mayMatch(transcriptJSON: data) != false,
+               let transcript = SessionLookup.transcript(from: data) {
                 for (position, segment) in transcript.segments.enumerated() {
-                    consider(segment.text, meeting: index, kind: 2, position: position) { _ in
+                    consider(segment.text, meeting: index, kind: 2, position: position, start: segment.start) { _ in
                         .init(meeting_id: short, meeting_title: meeting.title, match_kind: "transcript",
-                              snippet: segment.text, timestamp: Transcript.stamp(segment.start),
-                              sample: sample)
+                              snippet: segment.text, timestamp: nil, sample: sample)
                     }
                 }
             }
@@ -143,7 +151,9 @@ enum LibrarySearch {
                 guard count < transcriptHitsPerMeeting else { continue }
                 transcriptHits[candidate.meeting] = count + 1
             }
-            hits.append(candidate.hit)
+            var hit = candidate.hit
+            if let start = candidate.start { hit.timestamp = Transcript.stamp(start) }
+            hits.append(hit)
         }
         return hits
     }
@@ -151,8 +161,32 @@ enum LibrarySearch {
     /// Case- and accent-insensitive form used only for matching, never for
     /// display: "izvestaj" finds "izveštaj" and "CAFE" finds "café".
     static func folded(_ text: String) -> String {
-        text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-            .split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let folding = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
+        // Collapsing whitespace walks every character; skip it when it would
+        // rebuild the text unchanged, as it does for most sentences.
+        if hasOnlySingleSpaces(folding) { return folding }
+        return folding.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+    }
+
+    /// Whether the only whitespace is single spaces, none first or last and
+    /// each before an ASCII character. Such a space is either a character of
+    /// its own, which the split turns back into one space, or the end of the
+    /// character before it ("\u{600} "), which the split keeps; either way
+    /// splitting on whitespace and joining with spaces returns the text as
+    /// it was.
+    private static func hasOnlySingleSpaces(_ text: String) -> Bool {
+        var previous: Unicode.Scalar?
+        for scalar in text.unicodeScalars {
+            if scalar == " " {
+                guard let before = previous, before != " " else { return false }
+            } else if scalar.isASCII ? (0x09...0x0D).contains(scalar.value) : scalar.properties.isWhitespace {
+                return false
+            } else if previous == " ", !scalar.isASCII {
+                return false
+            }
+            previous = scalar
+        }
+        return previous != " "
     }
 
     /// Distinct words in query order. A run of CJK characters stays one word

@@ -58,6 +58,8 @@ struct ModelSelectionPatch: Equatable {
     var remoteModel: String?
     var chatGPTPlanModel: String?
     var claudePlanModel: String?
+    var antigravityPlanModel: String?
+    var geminiPlanModel: String?
     var autocompleteModelID: String?
     var cotypingBackend: CotypingBackend?
     var cotypingServerBaseURL: String?
@@ -88,6 +90,8 @@ struct ModelSelectionPatch: Equatable {
         if let remoteModel { next.openAIModel = remoteModel }
         if let chatGPTPlanModel { next.chatGPTPlanModel = chatGPTPlanModel }
         if let claudePlanModel { next.claudePlanModel = claudePlanModel }
+        if let antigravityPlanModel { next.antigravityPlanModel = antigravityPlanModel }
+        if let geminiPlanModel { next.geminiPlanModel = geminiPlanModel }
         if let autocompleteModelID { next.cotypingBuiltInModelID = autocompleteModelID }
         if let cotypingBackend { next.cotypingBackend = cotypingBackend }
         if let cotypingServerBaseURL { next.cotypingServerBaseURL = cotypingServerBaseURL }
@@ -112,6 +116,8 @@ struct ModelSelectionPatch: Equatable {
             remoteModel: remoteModel.map { _ in settings.openAIModel },
             chatGPTPlanModel: chatGPTPlanModel.map { _ in settings.chatGPTPlanModel },
             claudePlanModel: claudePlanModel.map { _ in settings.claudePlanModel },
+            antigravityPlanModel: antigravityPlanModel.map { _ in settings.antigravityPlanModel },
+            geminiPlanModel: geminiPlanModel.map { _ in settings.geminiPlanModel },
             autocompleteModelID: autocompleteModelID.map { _ in settings.cotypingBuiltInModelID },
             cotypingBackend: cotypingBackend.map { _ in settings.cotypingBackend },
             cotypingServerBaseURL: cotypingServerBaseURL.map { _ in settings.cotypingServerBaseURL },
@@ -131,6 +137,8 @@ struct ModelSelectionPatch: Equatable {
                 == ModelCatalog.entry(id: id, custom: latest.customBuiltInModels) else { return false }
         }
         let target = applying(to: original)
+        if transcription == .appleSpeech,
+           original.transcriptionLanguage != latest.transcriptionLanguage { return false }
         if transcription == .graniteSpeech,
            original.graniteSpeechModel != latest.graniteSpeechModel { return false }
         if transcriptionToPrepare == .funASRNano,
@@ -139,7 +147,7 @@ struct ModelSelectionPatch: Equatable {
             switch target.summarizerBackend {
             case .openAICompatible: return original.openAIBaseURL == latest.openAIBaseURL
             case .ollama: return original.ollamaBaseURL == latest.ollamaBaseURL
-            case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan: break
+            case .builtIn, .appleIntelligence, .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: break
             }
         }
         return true
@@ -310,7 +318,7 @@ enum ModelSettingsPresentation {
         case .graniteSpeech5:
             safeCombinedBytes(GraniteSpeechModelConfiguration.speech5.model.sizeBytes,
                               GraniteSpeechModelConfiguration.speech5.projector.sizeBytes)
-        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .remoteServer: nil
+        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .appleSpeech, .remoteServer: nil
         }
     }
 

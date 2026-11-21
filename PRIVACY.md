@@ -82,6 +82,24 @@ other participants: naming one remembers that voice, and remembered voices can
 name its speakers. Screen memory from the file's time span is not attached to it,
 because the recording was not made on this Mac.
 
+**Meetings imported from other apps.** **Recording → Import Meetings From**
+reads another app's notes, transcripts, action items, and recordings — Granola,
+Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, or MacWhisper — from the
+export files or folder you choose, or from the app's own data folder on this Mac
+when it keeps one LokalBot can read. LokalBot only reads them: it never changes,
+moves, or deletes them, opens another app's database read-only, and contacts no
+account or server, so nothing is downloaded and no sign-in is used. Each meeting
+is saved in your library like a recorded one, with its source's name and its id
+there, so importing the same export again adds nothing twice; the source's notes
+are kept unchanged in `imported-notes.md` beside LokalBot's `summary.md`. A
+recording without a transcript is transcribed with your current Transcribe
+choice; Voice Memos recordings count as your own microphone, like a paired
+phone's. A recording or archive that has to be unpacked to be read is put in a
+private temporary folder and deleted when the import ends. Screen memory is not
+attached to imported meetings. The log records only
+how many meetings were imported, never their titles or contents. Deleting your
+account or data at the other app is up to you.
+
 **Sample meeting.** LokalBot includes a short made-up recording with synthetic
 voices. **Try a sample meeting** imports that bundled file the same way, so it
 needs no network access beyond the models you choose to download first. The
@@ -274,10 +292,12 @@ delete those existing copies.
 Browser meeting detection checks the supported document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Enabling **Detect other browser calls** also lets sustained microphone activity identify calls in ordinary browser windows. Additional call app identifiers explicitly designate native processes whose microphone activity can start call detection. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
 An authorized recording bound to a browser room continues when call observation is unavailable,
-including a temporarily missing browser host. It stops when you press Stop or
-when LokalBot positively verifies the call ended or its bound tab closed. The
-recording UI keeps the uncertainty visible. Capture is scoped to an application
-process, not reliably to one tab, so continuing browser capture may include
+including a temporarily missing browser host. It stops when you press Stop, when
+LokalBot positively verifies the call ended or its bound tab closed, or when no
+one has spoken for 15 minutes. That last rule applies to every recording: its
+transcript and summary end where the talking stopped, and the original audio is
+kept. The recording UI keeps the uncertainty visible. Capture is scoped to an
+application process, not reliably to one tab, so continuing browser capture may include
 other tabs playing audio in that process. A replacement browser host must verify
 the same call before recovery attaches; uncertainty does not authorize another
 app, a global audio tap, or a new automatic recording. Microphone-only recording
@@ -359,6 +379,10 @@ The app may make these outbound connections:
   Pyannote models, which download on first use like the speaker models.
   Turning on Files downloads EmbeddingGemma 2's image and audio projector
   (555 MB), pinned and checked like the other models.
+  On macOS 26+, preparing **Apple Speech** or changing its language in Settings
+  may install a missing language asset from Apple via `AssetInventory`.
+  `SpeechAnalyzer` transcribes and times words on this Mac. LokalBot sends no
+  audio or vocabulary to Apple and uses the timestamps provided by macOS.
 - **Updates:** the public GitHub Releases appcast and a signed update. Automatic
   checks are enabled for new installs and can be disabled in Settings; you can
   also run a manual check.
@@ -577,17 +601,18 @@ The app may make these outbound connections:
   stops audio uploads; meetings then
   wait for transcription. The operator of that server controls its privacy
   terms and what it keeps.
-- **Optional subscription plans:** Think can run on your own ChatGPT or Claude
-  plan instead of an API key. Each plan is set up and approved where you
-  choose the Think model (Settings → Models → Think), separately from any
-  API-server approval for the same company; signing in alone sends no
-  content, and an approval takes effect only when you choose Use model. Once approved, the plan receives
-  the same Think context described above, including scheduled daily summaries
-  and Dream runs, and the provider's terms for your account apply to it.
-  Requests count toward that plan's usage limits; when a limit is reached,
-  requests stop with a message and are never moved to another provider.
-  Agent Mode can use the ChatGPT plan but not the Claude plan; follow-up
-  drafts and pre-meeting briefs don't use a plan.
+- **Optional subscription plans:** Think can run on your own ChatGPT, Claude,
+  Antigravity, or Gemini plan instead of an API key. Each plan is set up and
+  approved where you choose the Think model (Settings → Models → Think),
+  separately from any API-server approval for the same company; signing in
+  alone sends no content, and an approval takes effect only when you choose
+  Use model. Once approved, the plan receives the same Think context described
+  above, including scheduled daily summaries and Dream runs, and the provider's
+  terms for your account apply to it. Requests count toward that plan's usage
+  limits; when a limit is reached, requests stop with a message and are never
+  moved to another provider. Agent Mode can use the ChatGPT plan but not the
+  CLI-backed plans (Claude, Antigravity, or Gemini); follow-up drafts and
+  pre-meeting briefs don't use a plan.
   - **ChatGPT plan** uses OpenAI's Sign in with ChatGPT for open-source apps.
     Sign-in opens `auth.openai.com` in your browser and returns to a listener
     on `127.0.0.1` that accepts only that redirect. LokalBot receives your
@@ -615,6 +640,36 @@ The app may make these outbound connections:
     whether it is signed in, LokalBot runs `claude auth status`, which reports
     the account email and plan without credentials. Claude Code's own
     telemetry and data settings apply to the requests it sends.
+  - **Antigravity plan** runs the Antigravity CLI you installed and signed in
+    to yourself (`agy`), unmodified. LokalBot never reads, stores, or forwards
+    your Google or Antigravity credentials and never offers an Antigravity
+    login of its own. Each request runs in a fresh private temporary folder
+    with three tool-isolation layers: a text-only custom agent restricting
+    tools to `finish`, session settings denying commands, files, URLs, and MCP
+    with slash commands off, and a `PreToolUse` hook denying every tool except
+    `finish` (used by `--json-schema`). Content travels over stdin
+    (`--input-format stream-json`), and structured schemas travel in a private
+    temporary file (`--json-schema`), never in command-line arguments; the
+    temporary folder is deleted afterwards. To check sign-in and list available
+    models without touching credentials, LokalBot runs `agy models`. `agy`
+    currently has no flag to disable local CLI conversation storage, so `agy`
+    itself may retain its own session records under `~/.gemini/antigravity-cli/`,
+    and Google's terms and Antigravity's own data settings apply to requests
+    it sends.
+  - **Gemini plan** runs the Gemini CLI you installed and signed in to
+    yourself (`gemini -p ""`), unmodified. LokalBot never reads, stores, or
+    forwards your Google credentials or `~/.gemini/` files and never offers a
+    Gemini login of its own. Each request runs in a fresh private temporary
+    folder with `--skip-trust`, `--admin-policy` denying every tool call,
+    `--extensions none`, and `GEMINI_CLI_SYSTEM_SETTINGS_PATH` turning off
+    built-in tools, MCP servers, hooks, skills, and CLI usage statistics while
+    keeping your existing Gemini CLI sign-in. The system prompt travels in a
+    private temporary file via `GEMINI_SYSTEM_MD` and request content travels
+    over stdin, never in command-line arguments; the temporary folder is
+    deleted afterwards. To populate the model picker, LokalBot runs
+    `gemini models -o json`. Gemini CLI manages its own session files under
+    `~/.gemini/`, and Google's terms for your account apply to requests it
+    sends.
 - **Optional Agent Mode:** enabling Agent Mode downloads its pinned runtime:
   Bun from GitHub, checked against a pinned SHA-256, and the pi agent
   packages from the npm registry, installed from the lockfile LokalBot ships.
@@ -1038,7 +1093,10 @@ request, with lists showing each entry added or removed. Nothing changes unless
 you click Approve, which applies only the changes the card shows. If your settings
 change while it waits so that approving would allow more, the card shows the new
 changes and asks again. Requests expire after five minutes. A shorter retention policy shows the same cleanup review as Settings,
-and approving deletes only what it lists. `lokalbot-cli secret set` can save an
+and approving deletes only what it lists. `lokalbot-cli import` can ask LokalBot to import
+another app's meetings from files it names; LokalBot reads the files itself, and
+the card shows the paths and how many new meetings they hold before you approve.
+`lokalbot-cli secret set` can save an
 API key, also only after you approve it; the card shows the key's last four
 characters, and keys are never read back. Each change is recorded, with the
 program that made it, in the library's `diagnostics/settings-changes.jsonl` and
@@ -1515,22 +1573,23 @@ platform differences:
     to your OpenRouter account, API key, workspace and guardrail settings.
     Reading OpenRouter's endpoint list for the model's context window sends
     only the model id, with no API key and no content.
-  - The ChatGPT and Claude plans each need their own approval, separate from
-    any API-server approval for the same company. Agent Mode can use the
-    ChatGPT plan through the same per-task relay on `127.0.0.1` as on macOS,
-    so the agent runtime never holds the plan's tokens; it can't use the
-    Claude plan. ChatGPT sign-in returns to a listener on `127.0.0.1` (port
-    1455, or a free port when that one is taken). Its tokens, app registration and
-    random per-install id are kept only in the system credential store,
-    split across several entries where an entry is small; without a
-    credential store the sign-in fails before your browser opens, and nothing
-    is written anywhere else.
-  - The Claude plan runs the Claude Code you installed and signed in to
-    yourself: `claude` on your PATH or in `~/.local/bin`, or npm's
-    `claude.cmd` on Windows, which LokalBot runs through the script it names.
-    It uses the same isolation flags and empty private temporary folder as on
-    macOS, with content on stdin. `claude auth status` is read to show the
-    account email and plan, never credentials.
+  - The ChatGPT, Claude, Antigravity, and Gemini plans each need their own
+    approval, separate from any API-server approval for the same company.
+    Agent Mode can use the ChatGPT plan through the same per-task relay on
+    `127.0.0.1` as on macOS, so the agent runtime never holds the plan's
+    tokens; it can't use the Claude, Antigravity, or Gemini plans. ChatGPT
+    sign-in returns to a listener on `127.0.0.1` (port 1455, or a free port
+    when that one is taken). Its tokens, app registration and random
+    per-install id are kept only in the system credential store, split across
+    several entries where an entry is small; without a credential store the
+    sign-in fails before your browser opens, and nothing is written anywhere
+    else.
+  - The Claude, Antigravity, and Gemini plans run the CLIs you installed and
+    signed in to yourself (`claude`, `agy`, or `gemini` on your PATH, in
+    standard install locations, or resolved from npm `.cmd` shims on Windows
+    without passing arguments through `cmd.exe`). They use the same private
+    temporary folders, tool-isolation layers, and stdin transport as on macOS,
+    and LokalBot never reads their credentials or `~/.gemini/` files.
 - **Updates.** While "Check for updates automatically" is on (the default),
   LokalBot reads one small update feed for its platform from GitHub Releases
   when it starts and once a day; "Check for Updates…" reads it on request.

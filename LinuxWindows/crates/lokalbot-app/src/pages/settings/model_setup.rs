@@ -140,7 +140,10 @@ impl ModelPatch {
                 SummarizerBackend::Ollama => {
                     return remote_block_reason(&target.ollama_base_url, approved);
                 }
-                SummarizerBackend::ChatGptPlan | SummarizerBackend::ClaudePlan => {
+                SummarizerBackend::ChatGptPlan
+                | SummarizerBackend::ClaudePlan
+                | SummarizerBackend::AntigravityPlan
+                | SummarizerBackend::GeminiPlan => {
                     if let Some(plan) = SubscriptionPlan::for_backend(target.summarizer_backend)
                         && !plan.is_approved(&target)
                     {
