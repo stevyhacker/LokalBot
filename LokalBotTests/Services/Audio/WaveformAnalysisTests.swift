@@ -217,6 +217,31 @@ final class WaveformAnalysisTests: XCTestCase {
         XCTAssertEqual(viewport.visibleEnd, 110)
     }
 
+    func testTwoClickSelectionCycleAndOrdering() {
+        var state = WaveformSelectionState()
+        let bounds = 10.0...100.0
+
+        state.handleLeftClick(at: 50, bounds: bounds)
+        XCTAssertEqual(state.pendingStart, 50)
+        XCTAssertNil(state.selection)
+
+        state.handleLeftClick(at: 20, bounds: bounds)
+        XCTAssertNil(state.pendingStart)
+        XCTAssertEqual(state.selection, .init(start: 20, end: 50))
+
+        state.handleLeftClick(at: 65, bounds: bounds)
+        XCTAssertEqual(state.pendingStart, 65)
+        XCTAssertNil(state.selection)
+
+        state.handleLeftClick(at: 65.1, bounds: bounds)
+        XCTAssertEqual(state.pendingStart, 65.1)
+        XCTAssertNil(state.selection)
+
+        state.clear()
+        XCTAssertNil(state.pendingStart)
+        XCTAssertNil(state.selection)
+    }
+
     private func temporaryFolder() throws -> URL {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

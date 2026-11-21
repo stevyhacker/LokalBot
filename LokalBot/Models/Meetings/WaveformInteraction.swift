@@ -83,3 +83,37 @@ struct WaveformViewport: Equatable, Sendable {
         clamp()
     }
 }
+
+struct WaveformSelectionState: Equatable, Sendable {
+    static let minimumRangeDuration: TimeInterval = 0.25
+
+    var pendingStart: TimeInterval?
+    var selection: Meeting.ContentRange?
+
+    mutating func handleLeftClick(at rawTime: TimeInterval, bounds: ClosedRange<TimeInterval>) {
+        guard rawTime.isFinite else { return }
+        let time = min(bounds.upperBound, max(bounds.lowerBound, rawTime))
+        if selection != nil {
+            selection = nil
+            pendingStart = time
+            return
+        }
+        guard let startAnchor = pendingStart else {
+            pendingStart = time
+            return
+        }
+        let lower = min(startAnchor, time)
+        let upper = max(startAnchor, time)
+        if upper - lower >= Self.minimumRangeDuration {
+            selection = Meeting.ContentRange(start: lower, end: upper)
+            pendingStart = nil
+        } else {
+            pendingStart = time
+        }
+    }
+
+    mutating func clear() {
+        pendingStart = nil
+        selection = nil
+    }
+}

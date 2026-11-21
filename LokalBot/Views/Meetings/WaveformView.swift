@@ -2,19 +2,27 @@ import AppKit
 import SwiftUI
 
 struct WaveformView: View {
+    private static let selectionYellow = Color(red: 0.96, green: 0.76, blue: 0.14)
+
     let sources: [WaveformAnalysis.Source]
     let currentTime: TimeInterval
     let duration: TimeInterval
     var windowStart: TimeInterval = 0
     var windowEnd: TimeInterval?
     var height: CGFloat = 60
+    @Binding var selection: Meeting.ContentRange?
+    var isBusy = false
+    var hasTrimmedBoundaries = false
     let onSeek: (TimeInterval) -> Void
+    var onTrimSelection: ((Meeting.ContentRange) -> Void)?
+    var onRestoreFullRecording: (() -> Void)?
 
     @State private var peaks: [Float]?
     @State private var loadedRequest: WaveformAnalysis.Request?
     @State private var isLoading = true
     @State private var hoverProgress: Double?
     @State private var scrubProgress: Double?
+    @State private var pendingSelectionStart: TimeInterval?
     @State private var viewport = WaveformViewport()
     @State private var viewWidth: CGFloat = 0
     @State private var isHovering = false
@@ -93,7 +101,12 @@ struct WaveformView: View {
                     previousScrollbarDragX = 0
                     if !wasScrollbar {
                         let fraction = position(value.location.x, width: geo.size.width)
-                        onSeek(viewport.time(atFraction: fraction))
+                        let clickedTime = viewport.time(atFraction: fraction)
+                        onSeek(clickedTime)
+                        var state = WaveformSelectionState(pendingStart: pendingSelectionStart, selection: selection)
+                        state.handleLeftClick(at: clickedTime, bounds: effectiveStart...effectiveEnd)
+                        pendingSelectionStart = state.pendingStart
+                        selection = state.selection
                         scrubProgress = nil
                     }
                 })
@@ -121,10 +134,36 @@ struct WaveformView: View {
                 .padding(-3)
                 .allowsHitTesting(false)
         }
+        .contextMenu {
+            Button("Trim to Selection") {
+                if let selection { onTrimSelection?(selection) }
+            }
+            .disabled(selection == nil || isBusy)
+            if selection != nil || pendingSelectionStart != nil {
+                Divider()
+                Button("Clear Selection") {
+                    pendingSelectionStart = nil
+                    selection = nil
+                }
+            }
+            if hasTrimmedBoundaries {
+                Divider()
+                Button("Use full recording") {
+                    onRestoreFullRecording?()
+                }
+                .disabled(isBusy)
+            }
+        }
         .onKeyPress(.leftArrow) { adjust(by: -5); return .handled }
         .onKeyPress(.rightArrow) { adjust(by: 5); return .handled }
         .onKeyPress(.home) { seek(to: effectiveStart); return .handled }
         .onKeyPress(.end) { seek(to: effectiveEnd); return .handled }
+        .onKeyPress(.escape) {
+            guard pendingSelectionStart != nil || selection != nil else { return .ignored }
+            pendingSelectionStart = nil
+            selection = nil
+            return .handled
+        }
         .accessibilityRepresentation {
             Slider(value: Binding(get: { currentTime }, set: { onSeek($0) }),
                    in: effectiveStart...max(effectiveStart + 1, effectiveEnd)) {
@@ -141,12 +180,14 @@ struct WaveformView: View {
             }
             .accessibilityIdentifier("meeting.playbackPosition")
         }
-        .help("Click or drag to seek. Scroll wheel zooms, Left and Right arrows move 5 seconds.")
+        .help("Click to seek and mark selection start/end. Scroll wheel zooms, Esc clears selection.")
         .task(id: request) { await load(request) }
         .onChange(of: effectiveStart) { _, _ in
+            pendingSelectionStart = nil
             viewport.updateBounds(windowStart: effectiveStart, windowEnd: effectiveEnd)
         }
         .onChange(of: effectiveEnd) { _, _ in
+            pendingSelectionStart = nil
             viewport.updateBounds(windowStart: effectiveStart, windowEnd: effectiveEnd)
         }
         .onDisappear {
@@ -170,6 +211,29 @@ struct WaveformView: View {
             let center = barAreaHeight / 2
             let playheadFraction = scrubProgress ?? viewport.fraction(at: currentTime)
             let cut = size.width * WaveformAnalysis.clamp(playheadFraction)
+            let selStartX = selection.map { viewport.fraction(at: $0.start) * size.width }
+            let selEndX = selection.map { viewport.fraction(at: $0.end) * size.width }
+
+            if let selStartX, let selEndX {
+                let left = max(0, min(selStartX, selEndX))
+                let right = min(size.width, max(selStartX, selEndX))
+                if right > left {
+                    context.fill(
+                        Path(CGRect(x: left, y: 0, width: right - left, height: barAreaHeight)),
+                        with: .color(Self.selectionYellow.opacity(0.18)))
+                }
+            } else if let pendingSelectionStart, let hoverProgress {
+                let pendingX = viewport.fraction(at: pendingSelectionStart) * size.width
+                let hoverX = hoverProgress * size.width
+                let left = max(0, min(pendingX, hoverX))
+                let right = min(size.width, max(pendingX, hoverX))
+                if right > left {
+                    context.fill(
+                        Path(CGRect(x: left, y: 0, width: right - left, height: barAreaHeight)),
+                        with: .color(Self.selectionYellow.opacity(0.10)))
+                }
+            }
+
             var shape = Path()
             if bars.isEmpty {
                 shape.addRoundedRect(in: CGRect(x: 0, y: center - 1, width: size.width, height: 2),
@@ -191,6 +255,30 @@ struct WaveformView: View {
                 var played = context
                 played.clip(to: Path(CGRect(x: 0, y: 0, width: cut, height: barAreaHeight)))
                 played.fill(shape, with: .color(Brand.teal))
+            }
+
+            if let selStartX, let selEndX {
+                let left = max(0, min(selStartX, selEndX))
+                let right = min(size.width, max(selStartX, selEndX))
+                if right > left {
+                    var selected = context
+                    selected.clip(to: Path(CGRect(x: left, y: 0, width: right - left, height: barAreaHeight)))
+                    selected.fill(shape, with: .color(Self.selectionYellow))
+                }
+                for boundaryX in [selStartX, selEndX] where boundaryX >= -2 && boundaryX <= size.width + 2 {
+                    let clampedX = min(max(0, boundaryX - 1), max(0, size.width - 2))
+                    context.fill(
+                        Path(roundedRect: CGRect(x: clampedX, y: 0, width: 2, height: barAreaHeight), cornerRadius: 1),
+                        with: .color(Self.selectionYellow))
+                }
+            } else if let pendingSelectionStart {
+                let pendingX = viewport.fraction(at: pendingSelectionStart) * size.width
+                if pendingX >= -2 && pendingX <= size.width + 2 {
+                    let clampedX = min(max(0, pendingX - 1), max(0, size.width - 2))
+                    context.fill(
+                        Path(roundedRect: CGRect(x: clampedX, y: 0, width: 2, height: barAreaHeight), cornerRadius: 1),
+                        with: .color(Self.selectionYellow))
+                }
             }
 
             if scrubProgress != nil || (playheadFraction >= 0 && playheadFraction <= 1) {

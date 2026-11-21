@@ -94,8 +94,8 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
     }
 
     var additionalSavedAudioDuration: TimeInterval {
-        guard let contentRange, let recordedDuration else { return 0 }
-        return max(0, recordedDuration - contentRange.end)
+        guard let contentRange, contentRange.isValid, let recordedDuration else { return 0 }
+        return max(0, contentRange.start) + max(0, recordedDuration - contentRange.end)
     }
 
     struct ContentRange: Codable, Equatable, Sendable {
