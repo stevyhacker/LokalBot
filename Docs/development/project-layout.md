@@ -21,7 +21,7 @@ repository/
 ├── Website/                   # lokalbot.com: public/ (served), generator/, worker/, HOSTING.md
 ├── Scripts/                   # build/, release/, test/, media/, cotyping/, dev/, ci/, tests/
 ├── Benchmarks/                # transcribe/, think/, autocomplete/, search/, voice/
-├── Docs/                      # decisions/ (ADRs), development/, releasing/, guides/, designs/, plans/, reports/, archive/
+├── Docs/                      # decisions/ (ADRs), development/, releasing/, guides/, explainers/, plus active designs/, plans/, reports/
 ├── Assets/                    # README, social and video media
 ├── Video/                     # video projects (HyperFrames and filming scripts); archive/ for finished ones
 ├── LICENSES/                  # license texts for bundled third-party code

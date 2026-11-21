@@ -25,7 +25,7 @@
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot system requirements","description":"Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.","datePublished":"2026-07-13","dateModified":"2026-11-11","mainEntityOfPage":"https://www.lokalbot.com/system-requirements","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot system requirements","item":"https://www.lokalbot.com/system-requirements"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/system-requirements#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot support Intel Macs?","acceptedAnswer":{"@type":"Answer","text":"No. Apple Silicon (M1 or later) is required."}},{"@type":"Question","name":"Does it support macOS 14?","acceptedAnswer":{"@type":"Answer","text":"No. The minimum supported version is macOS 15.0."}},{"@type":"Question","name":"Do I need 32 GB of memory?","acceptedAnswer":{"@type":"Answer","text":"No. Smaller models run on lower-memory Apple Silicon Macs and PCs. The 32 GB recommendation applies to the largest local language-model choices."}},{"@type":"Question","name":"Does it run on Windows on ARM or ARM Linux?","acceptedAnswer":{"@type":"Answer","text":"No. The Windows and Linux versions are built only for x64 (x86_64) processors."}},{"@type":"Question","name":"Can I move my library between a Mac and a PC?","acceptedAnswer":{"@type":"Answer","text":"Yes. The Mac, Windows, and Linux apps use the same library format, so a library recorded on one opens on the others. It lives in ~/Library/Application Support/me.dotenv.LokalBot on a Mac, %LOCALAPPDATA%\\LokalBot on Windows, and ~/.local/share/LokalBot on Linux."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"LokalBot system requirements","description":"Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, hardware, memory, disk, permissions, and model downloads.","datePublished":"2026-07-13","dateModified":"2026-11-21","mainEntityOfPage":"https://www.lokalbot.com/system-requirements","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot system requirements","item":"https://www.lokalbot.com/system-requirements"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/system-requirements#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot support Intel Macs?","acceptedAnswer":{"@type":"Answer","text":"No. Apple Silicon (M1 or later) is required."}},{"@type":"Question","name":"Does it support macOS 14?","acceptedAnswer":{"@type":"Answer","text":"No. The minimum supported version is macOS 15.0."}},{"@type":"Question","name":"Do I need 32 GB of memory?","acceptedAnswer":{"@type":"Answer","text":"No. Smaller models run on lower-memory Apple Silicon Macs and PCs. The 32 GB recommendation applies to the largest local language-model choices."}},{"@type":"Question","name":"Does it run on Windows on ARM or ARM Linux?","acceptedAnswer":{"@type":"Answer","text":"No. The Windows and Linux versions are built only for x64 (x86_64) processors."}},{"@type":"Question","name":"Can I move my library between a Mac and a PC?","acceptedAnswer":{"@type":"Answer","text":"Yes. The Mac, Windows, and Linux apps use the same library format, so a library recorded on one opens on the others. It lives in ~/Library/Application Support/me.dotenv.LokalBot on a Mac, %LOCALAPPDATA%\\LokalBot on Windows, and ~/.local/share/LokalBot on Linux."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -42,8 +42,8 @@
       <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Compatibility</span></nav>
       <p class="eyebrow">Compatibility</p>
       <h1>LokalBot system requirements</h1>
-      <p class="guide-hero__lead">The short version: an Apple Silicon Mac on macOS 15 or later, a Windows 10 or 11 x64 PC (alpha), or an x86_64 Linux desktop with glibc 2.39 or later (alpha), plus enough disk for the models you choose. The Android companion app needs Android 10 or later.</p>
-      <p class="guide-byline"><time datetime="2026-11-11">Updated November 11, 2026</time> · 7 min read</p>
+      <p class="guide-hero__lead">The short version: an Apple Silicon Mac on macOS 15 or later, a Windows 10 or 11 x64 PC (alpha), or an x86_64 Linux desktop with glibc 2.39 or later (alpha), plus enough disk for the models you choose. The iPhone and iPad companion app needs iOS or iPadOS 18 or later, and the Android app needs Android 10 or later.</p>
+      <p class="guide-byline"><time datetime="2026-11-21">Updated November 21, 2026</time> · 7 min read</p>
     </header>
 
     <article class="guide-article">
@@ -149,9 +149,9 @@
 
         <h2>Phones and tablets</h2>
         <ul>
+          <li><strong>iPhone and iPad:</strong> iOS or iPadOS 18 or later. Install the <a href="https://apps.apple.com/app/id6836773709" target="_blank" rel="noopener">app from the App Store</a>.</li>
           <li><strong>Android:</strong> Android 10 or later. Install the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app from Google Play</a>, or the APK attached to each <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">release</a>. They're signed with different keys, so Android won't update one with the other: switching means uninstalling first, which removes the phone's copy and its pairing.</li>
           <li><strong>A computer to pair with:</strong> LokalBot on a Mac, Windows, or Linux, with <strong>Settings → Phones &amp; tablets</strong> turned on. The phone reaches it over your local network or Tailscale, with no LokalBot server in between.</li>
-          <li><strong>iPhone and iPad:</strong> the app isn't in the App Store yet.</li>
         </ul>
 
         <h2>Before an important meeting</h2>
@@ -233,7 +233,7 @@
         <span class="brand__name">LokalBot</span>
       </a>
       <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Android &middot; Free &amp; open source</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
@@ -243,7 +243,7 @@
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
       <a href="/system-requirements">System requirements</a>
-      <a href="/#android">Android app</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">

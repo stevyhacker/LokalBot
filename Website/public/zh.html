@@ -35,7 +35,7 @@
 
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/zh#page","url":"https://www.lokalbot.com/zh","name":"LokalBot（中文）：100% 本地开源会议纪要与工作记忆 — 支持腾讯会议/飞书/钉钉与 ModelScope","description":"免费开源（GPLv3）的本地 AI 会议纪要、语音输入与工作记忆应用。免 Bot 录制腾讯会议、飞书、钉钉与企业微信，内置 Qwen3-ASR、Qwen3.5 与 ModelScope/HF-Mirror 下载源，支持 Obsidian 导出与 Claude Code MCP。","inLanguage":"zh-Hans","datePublished":"2026-11-20","dateModified":"2026-11-20","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"中文","item":"https://www.lokalbot.com/zh"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/zh#faq","mainEntity":[{"@type":"Question","name":"不挂代理能正常下载本地模型吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在应用内「设置 → 模型」中将下载源切换为 ModelScope（魔搭）或 HF-Mirror 即可直接高速下载，下载完成后全程断网也能离线录会、转写与总结。"}},{"@type":"Question","name":"为什么不会向会议里拉入机器人？","acceptedAnswer":{"@type":"Answer","text":"LokalBot 直接在你的电脑本地采集麦克风与会议软件音频流，不调用会议平台账号，也不会作为参会者加入房间。因此你仍需自行告知参会方正在录制。"}},{"@type":"Question","name":"Windows 和 Linux 版本目前可用程度如何？","acceptedAnswer":{"@type":"Answer","text":"Windows（x64）与 Linux（.deb / .rpm / AUR / .tar.gz）目前为原生 Rust + GPUI Alpha 版，与 Mac 版共享完全一致的本地 SQLite 数据库格式；Windows 安装包尚未完成代码签名，部分 Mac 专属能力（如 Nemotron 说话人分离）仍在移植中。"}},{"@type":"Question","name":"支持把外部模型或已有 API 接进来吗？","acceptedAnswer":{"@type":"Answer","text":"支持。除内置本地模型外，你可以按需启用 Ollama、任意 OpenAI 兼容接口或你自己的 Claude / ChatGPT 订阅；任何远端服务必须经你明确授权后才会发送上下文。"}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/zh#page","url":"https://www.lokalbot.com/zh","name":"LokalBot（中文）：100% 本地开源会议纪要与工作记忆 — 支持腾讯会议/飞书/钉钉与 ModelScope","description":"免费开源（GPLv3）的本地 AI 会议纪要、语音输入与工作记忆应用。免 Bot 录制腾讯会议、飞书、钉钉与企业微信，内置 Qwen3-ASR、Qwen3.5 与 ModelScope/HF-Mirror 下载源，支持 Obsidian 导出与 Claude Code MCP。","inLanguage":"zh-Hans","datePublished":"2026-11-20","dateModified":"2026-11-21","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"中文","item":"https://www.lokalbot.com/zh"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/zh#faq","mainEntity":[{"@type":"Question","name":"不挂代理能正常下载本地模型吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在应用内「设置 → 模型」中将下载源切换为 ModelScope（魔搭）或 HF-Mirror 即可直接高速下载，下载完成后全程断网也能离线录会、转写与总结。"}},{"@type":"Question","name":"为什么不会向会议里拉入机器人？","acceptedAnswer":{"@type":"Answer","text":"LokalBot 直接在你的电脑本地采集麦克风与会议软件音频流，不调用会议平台账号，也不会作为参会者加入房间。因此你仍需自行告知参会方正在录制。"}},{"@type":"Question","name":"Windows 和 Linux 版本目前可用程度如何？","acceptedAnswer":{"@type":"Answer","text":"Windows（x64）与 Linux（.deb / .rpm / AUR / .tar.gz）目前为原生 Rust + GPUI Alpha 版，与 Mac 版共享完全一致的本地 SQLite 数据库格式；Windows 安装包尚未完成代码签名，部分 Mac 专属能力（如 Nemotron 说话人分离）仍在移植中。"}},{"@type":"Question","name":"支持把外部模型或已有 API 接进来吗？","acceptedAnswer":{"@type":"Answer","text":"支持。除内置本地模型外，你可以按需启用 Ollama、任意 OpenAI 兼容接口或你自己的 Claude / ChatGPT 订阅；任何远端服务必须经你明确授权后才会发送上下文。"}}]}]}</script>
   <script src="/app.js" defer></script>
   <style>
     .loc-page {
@@ -199,7 +199,7 @@
         <a class="btn btn--ghost btn--lg" href="/benchmarks">查看开源实测榜单</a>
         <a class="btn btn--ghost btn--lg" href="/migrate">导出 Granola / Otter 笔记</a>
       </div>
-      <p class="loc-hero__meta">更新于 2026-11-20 · GPLv3 · macOS 15+ (Apple Silicon) · Windows &amp; Linux Alpha (Rust + GPUI) · Android 局域网端到端同步</p>
+      <p class="loc-hero__meta">更新于 2026-11-21 · GPLv3 · macOS 15+ (Apple Silicon) · Windows &amp; Linux Alpha (Rust + GPUI) · iOS &amp; Android 局域网端到端同步</p>
     </header>
 
     <section class="loc-grid" aria-label="LokalBot 核心功能">
@@ -231,7 +231,7 @@
       <article class="loc-tile">
         <p class="loc-tile__kicker">跨平台原生</p>
         <h2>非 Electron · 局域网端到端同步</h2>
-        <p>macOS 使用原生 Swift，Windows / Linux（Alpha）采用原生 Rust + GPUI（支持 Vulkan / CUDA / CPU）。Android 伴侣端支持通过局域网或 Tailscale 直接端到端加密同步，不经过云端中转。</p>
+        <p>macOS 使用原生 Swift，Windows / Linux（Alpha）采用原生 Rust + GPUI（支持 Vulkan / CUDA / CPU）。iOS 与 Android 伴侣端支持通过局域网或 Tailscale 直接端到端加密同步，不经过云端中转。</p>
       </article>
     </section>
 
@@ -297,7 +297,7 @@
         <span class="brand__name">LokalBot</span>
       </a>
       <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; Android &middot; Free &amp; open source</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
@@ -307,7 +307,7 @@
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
       <a href="/system-requirements">System requirements</a>
-      <a href="/#android">Android app</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">

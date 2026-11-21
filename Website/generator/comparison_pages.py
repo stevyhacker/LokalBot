@@ -20,7 +20,7 @@ VERIFIED catches up.
 
 VERIFIED = "2026-10-26"
 
-LOKALBOT_UPDATED = "2026-11-10"
+LOKALBOT_UPDATED = "2026-11-21"
 
 CHECK = '<i class="ph ph-check" aria-hidden="true"></i>'
 CROSS = '<i class="ph ph-x" aria-hidden="true"></i>'
@@ -30,7 +30,7 @@ LB_DICTATION = f"{CHECK}Hold ⌥ Space (Alt+Space on Windows and Linux) in any a
 LB_TIMELINE = f"{CHECK}App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days"
 LB_COTYPING = f"{CHECK}Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma)"
 LB_AGENTS = "Read-only CLI and MCP server, off until you turn them on in Settings"
-LB_PLATFORM = "macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; Android companion app"
+LB_PLATFORM = "macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps"
 LB_LANGUAGES = "On Mac: 52 languages and dialects with the default model; 99 with Whisper"
 NO = f"{CROSS}No"
 
@@ -118,7 +118,7 @@ PAGES = [
         "competitor_pick_items": [
             "You record lectures, voice notes, or in-person conversations near your Mac's microphone",
             "You record phone calls in the Phone app — both sides hear a notice, and the recording lands in Notes",
-            "You want recordings synced to your iPhone and iPad",
+            "You want recordings synced through iCloud to your iPhone and iPad",
             "You'd rather not download several gigabytes of models",
         ],
         "lokal_pick_sub": "For calls on Zoom, Teams, or Meet — and what you do after them.",
@@ -519,7 +519,7 @@ PAGES = [
         "competitor_pick_sub": "A dictation-first app with optional cloud extras.",
         "competitor_pick_items": [
             "Dictation is your main job: a voice assistant, translation, per-app tone, and snippets",
-            "You want it on an iPhone, an iPad, or an Intel Mac too",
+            "You want standalone dictation on an iPhone, an iPad, or an Intel Mac",
             "You'd like optional cloud sync, note sharing, and team spaces",
         ],
         "lokal_pick_sub": "Local by default, and more than meetings.",
