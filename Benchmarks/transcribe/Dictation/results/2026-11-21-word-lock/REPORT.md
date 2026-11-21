@@ -99,6 +99,12 @@ Scored against the recorded outputs in this folder's earlier results, using the 
 
 ## Not covered
 
+- **A cue anywhere exempts the whole dictation:** a self-correction cue ("actually", "rather", "wait", "sorry", "no,") switches
+  off the digit, negation and name checks for the entire dictation, not just near the cue. Long dictations contain such words
+  naturally: two of the eight long synthetic cases ("wait", "rather") did. Digit restoring still runs in that case; negation and
+  names do not. Scoping the exemption to the sentence with the cue is a possible follow-up, but it would make the lock fall
+  back more often on long dictation, so it needs its own measurement.
+
 - **Glossary respelling:** the replay has no personalization input, so this is covered by unit tests only. Without a glossary, a name the cleanup respells counts as lost, even when the respelling is right, as one real sample showed.
 - **English-only cues:** negation and self-correction cues are English. The digit check works in any language written with ASCII digits.
 - **Contractions as spoken:** "can't" may come back as "cannot". Someone who wants the wording as spoken, except in formal writing, would need a formality choice for cleanup; that is a separate idea.
