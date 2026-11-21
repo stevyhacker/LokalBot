@@ -301,6 +301,9 @@ fn run(
         &shared.library,
         &DreamRequest {
             day,
+            language: lokalbot_ai::language::DailySummaryLanguage::from_settings(
+                &shared.settings(),
+            ),
             is_automatic,
             transient_failures,
             make_engine: &make_engine,
@@ -525,6 +528,7 @@ pub fn review_once(
         library,
         &DreamRequest {
             day,
+            language: lokalbot_ai::language::DailySummaryLanguage::from_settings(settings),
             is_automatic: false,
             transient_failures: 0,
             make_engine: &make_engine,

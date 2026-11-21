@@ -196,7 +196,14 @@ fn two_passes_build_tasks_and_follow_ups() {
         }
     });
     let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
-    let overview = generate_overview(&think, &synthetic(), "", &mut |_| {}).unwrap();
+    let overview = generate_overview(
+        &think,
+        &synthetic(),
+        "",
+        &DailySummaryLanguage::default(),
+        &mut |_| {},
+    )
+    .unwrap();
     assert_eq!(overview.quality, DigestQuality::Complete);
     let summary = overview.summary;
     assert!(
@@ -220,7 +227,14 @@ fn two_passes_build_tasks_and_follow_ups() {
     assert!(summary.contains("### Decisions and next steps\n- Decision: Keep Redis as the cache.\n- Next — Caching review: Benchmark failover."), "{summary}");
     let first_run = calls.load(Ordering::SeqCst);
     // A second run reuses the cached answers for unchanged evidence.
-    generate_overview(&think, &synthetic(), "", &mut |_| {}).unwrap();
+    generate_overview(
+        &think,
+        &synthetic(),
+        "",
+        &DailySummaryLanguage::default(),
+        &mut |_| {},
+    )
+    .unwrap();
     assert_eq!(calls.load(Ordering::SeqCst), first_run);
     purge_cache(&[day()]);
 }
@@ -231,7 +245,14 @@ fn a_failing_model_still_writes_an_evidence_journal() {
     let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
     let mut evidence = synthetic();
     evidence.day = day() + Duration::days(400);
-    let overview = generate_overview(&think, &evidence, "", &mut |_| {}).unwrap();
+    let overview = generate_overview(
+        &think,
+        &evidence,
+        "",
+        &DailySummaryLanguage::default(),
+        &mut |_| {},
+    )
+    .unwrap();
     assert_eq!(overview.quality, DigestQuality::Fallback);
     assert!(
         overview
@@ -257,7 +278,14 @@ fn an_empty_day_needs_no_model() {
     );
     let server = StubServer::start(|_| panic!("no request expected"));
     let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
-    let overview = generate_overview(&think, &evidence, "", &mut |_| {}).unwrap();
+    let overview = generate_overview(
+        &think,
+        &evidence,
+        "",
+        &DailySummaryLanguage::default(),
+        &mut |_| {},
+    )
+    .unwrap();
     assert_eq!(
         evidence.render_document(&overview.summary),
         "## Day summary\n\n### At a glance\n_No activity was recorded._\n\n## Meetings\n\n_None._\n\n## Time allocation\n\n_No tracked app time._\n\n## Full activity log\n\n_No activity was recorded._\n"
@@ -421,7 +449,7 @@ fn a_session_with_outcomes_always_reaches_the_summary_and_settles_its_status() {
     let mut scheduled = burst("s2", 40, vec![CodingAgentAction::Pushed {}]);
     scheduled.prompts = vec!["Scheduled task: nightly".into()];
     let evidence = with_bursts(vec![merged, scheduled]);
-    let candidates = session_candidates(&evidence);
+    let candidates = session_candidates(&evidence, &DailySummaryLanguage::default());
     assert_eq!(candidates.len(), 1);
     assert_eq!(candidates[0].block.task, "Speed up the export (lokalbot)");
     assert_eq!(candidates[0].block.status, "completed");
@@ -437,6 +465,7 @@ fn a_session_with_outcomes_always_reaches_the_summary_and_settles_its_status() {
         }],
         None,
         &candidates,
+        &DailySummaryLanguage::default(),
     );
     assert!(
         rendered.contains("Speed up the export (lokalbot)"),
@@ -450,15 +479,15 @@ fn a_session_with_outcomes_always_reaches_the_summary_and_settles_its_status() {
         summary: "Reviewed it.".into(),
         next_step: String::new(),
     }];
-    merge_session_candidate(&candidates[0], &mut tasks);
+    merge_session_candidate(&candidates[0], &mut tasks, &DailySummaryLanguage::default());
     assert_eq!(tasks.len(), 1);
     assert_eq!(tasks[0].status, "completed");
     assert!(tasks[0].summary.contains("Pull requests: acme/lokalbot#12"));
-    merge_session_candidate(&candidates[0], &mut tasks);
+    merge_session_candidate(&candidates[0], &mut tasks, &DailySummaryLanguage::default());
     assert_eq!(tasks[0].summary.matches("acme/lokalbot#12").count(), 1);
 
     // With no model at all, the fallback still names the session's work.
-    let fallback = fallback_summary(&evidence);
+    let fallback = fallback_summary(&evidence, &DailySummaryLanguage::default());
     assert!(fallback.contains("Speed up the export"), "{fallback}");
     assert!(
         fallback.contains("Worked with Claude Code in lokalbot."),
@@ -543,4 +572,205 @@ fn sessions_in_the_library_wait_for_the_users_choice() {
     .unwrap();
     let evidence = DayEvidence::load(&library, day).unwrap();
     assert_eq!(evidence.coding_agent_bursts.len(), 1);
+}
+
+#[test]
+fn language_reaches_all_digest_stages_and_retries_and_separates_the_cache() {
+    let seen = Arc::new(parking_lot::Mutex::new(Vec::<String>::new()));
+    let captured = seen.clone();
+    let stages = Arc::new(parking_lot::Mutex::new((false, false)));
+    let state = stages.clone();
+    let server = StubServer::start(move |request| {
+        if request.path != "/v1/chat/completions" {
+            return Reply::Text(404, String::new());
+        }
+        let body = request.json();
+        let system = body["messages"][0]["content"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        captured.lock().push(system.clone());
+        let focus_stage = system.starts_with("You extract substantive work");
+        let russian = system.contains("memory text in Russian.");
+        let mut stages = state.lock();
+        let attempted = if focus_stage {
+            &mut stages.0
+        } else {
+            &mut stages.1
+        };
+        if russian && !*attempted {
+            *attempted = true;
+            return Reply::Json(
+                200,
+                json!({"choices":[{"message":{"content":"{"},"finish_reason":"length"}]}),
+            );
+        }
+        let (title, summary) = if russian {
+            ("Проверить кеш", "Проверили кеш.")
+        } else {
+            ("Vérifier le cache", "Cache vérifié.")
+        };
+        if focus_stage {
+            chat(
+                json!({"substantive":true,"task":title,"work_done":summary,"status":"completed",
+                        "outcome":"","next_step":"","source_ids":[],"other_tasks":[]}),
+            )
+        } else {
+            chat(
+                json!({"tasks":[{"title":title,"summary":summary,"status":"completed","next_step":"",
+                                "block_indices":[0]}],"decisions":[],"blockers":[]}),
+            )
+        }
+    });
+    let think = ThinkClient::llama_server(&server.url("/v1"), "t", "language-test");
+    let mut evidence = synthetic();
+    // Give this synthetic run its own cache day, independent of other tests.
+    evidence.day = day() + Duration::days(800);
+    let russian = DailySummaryLanguage::resolve("ru", "en", &["en"]);
+    let result = generate_overview(&think, &evidence, "", &russian, &mut |_| {}).unwrap();
+    assert!(result.summary.contains("Проверили кеш."));
+    let count = seen.lock().len();
+    assert!(count >= 4);
+    assert!(
+        seen.lock()
+            .iter()
+            .all(|s| s.contains("memory text in Russian."))
+    );
+    generate_overview(&think, &evidence, "", &russian, &mut |_| {}).unwrap();
+    assert_eq!(seen.lock().len(), count);
+    let french = DailySummaryLanguage::resolve("fr", "ru", &["en"]);
+    let changed = generate_overview(&think, &evidence, "", &french, &mut |_| {}).unwrap();
+    assert!(changed.summary.contains("Cache vérifié."));
+    let systems = seen.lock();
+    assert!(systems.len() > count);
+    assert!(
+        systems[count..]
+            .iter()
+            .any(|s| s.starts_with("You extract substantive work"))
+    );
+    assert!(
+        systems[count..]
+            .iter()
+            .all(|s| s.contains("memory text in French."))
+    );
+    drop(systems);
+    purge_cache(&[evidence.day]);
+}
+
+#[test]
+fn russian_digest_fallback_uses_catalog_labels_without_translating_evidence() {
+    let evidence = synthetic();
+    let fallback = fallback_summary(
+        &evidence,
+        &DailySummaryLanguage::resolve("ru", "en", &["en"]),
+    );
+    assert!(fallback.contains("Design review"));
+    assert!(fallback.contains("TimelineView.swift"));
+    assert!(fallback.contains("Только активность"));
+    assert!(!fallback.contains("Activity related to this item"));
+}
+
+#[test]
+fn best_available_digest_aggregation_also_obeys_the_language() {
+    let seen = Arc::new(parking_lot::Mutex::new(Vec::<String>::new()));
+    let captured = seen.clone();
+    let server = StubServer::start(move |request| {
+        if request.path != "/v1/chat/completions" {
+            return Reply::Text(404, String::new());
+        }
+        let body = request.json();
+        let system = body["messages"][0]["content"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        captured.lock().push(system.clone());
+        if system.starts_with("You extract substantive work") {
+            chat(focus("Изучить кеш", false))
+        } else {
+            chat(
+                json!({"tasks":[{"title":"Изучить кеш","summary":"Изучили кеш.","status":"unknown",
+                                "next_step":"","block_indices":[0]}],"decisions":[],"blockers":[]}),
+            )
+        }
+    });
+    let think = ThinkClient::llama_server(&server.url("/v1"), "t", "best-available-language-test");
+    let mut evidence = synthetic();
+    evidence.day = day() + Duration::days(801);
+    generate_overview(
+        &think,
+        &evidence,
+        "",
+        &DailySummaryLanguage::resolve("ru", "en", &["en"]),
+        &mut |_| {},
+    )
+    .unwrap();
+    let systems = seen.lock();
+    assert!(
+        systems
+            .iter()
+            .any(|s| s.starts_with(prompts::DAY_DIGEST_FALLBACK_SYSTEM))
+    );
+    assert!(
+        systems
+            .iter()
+            .all(|s| s.contains("memory text in Russian."))
+    );
+    drop(systems);
+    purge_cache(&[evidence.day]);
+}
+
+#[test]
+fn russian_post_model_session_copy_remains_localized_after_presentation_parsing() {
+    let mut first = burst(
+        "localized-a",
+        0,
+        vec![CodingAgentAction::Commit {
+            message: "Сохранить точную цитату".into(),
+        }],
+    );
+    first.title = "Проверить кеш".into();
+    let mut second = burst("localized-b", 1, vec![CodingAgentAction::Pushed {}]);
+    second.title = "Проверить кеш".into();
+    let evidence = with_bursts(vec![first, second]);
+    let language = DailySummaryLanguage::resolve("ru", "en", &["en"]);
+    let sessions = session_candidates(&evidence, &language);
+    let blocks = vec![FocusBlock {
+        task: "Другая задача".into(),
+        work_done: "Проверили результат.".into(),
+        status: "in_progress".into(),
+        outcome: String::new(),
+        next_step: String::new(),
+        source_ids: Vec::new(),
+    }];
+    for title in ["Другая задача", "lokalbot PR #12"] {
+        let draft = parse_digest(
+            &json!({"tasks":[{"title":title,"status":"in_progress",
+            "summary":"Проверили результат.","next_step":"","block_indices":[0]}],
+            "decisions":[],"blockers":[]})
+            .to_string(),
+        )
+        .unwrap();
+        let markdown = render(&blocks, Some(&draft), &sessions, &language);
+        let parsed = lokalbot_core::digest::parse_digest(&evidence.render_document(&markdown));
+        let task = parsed
+            .tasks
+            .iter()
+            .find(|task| task.summary.contains("acme/lokalbot#12"))
+            .unwrap();
+        assert_eq!(task.status, lokalbot_core::model::TaskStatus::InProgress);
+        assert_eq!(task.summary.matches("acme/lokalbot#12").count(), 1);
+        for prefix in [
+            "Worked with",
+            "Recorded actions:",
+            "Pull requests:",
+            "Outcome:",
+        ] {
+            assert!(!task.summary.contains(prefix), "{}", task.summary);
+        }
+        if title == "Другая задача" {
+            assert!(task.summary.contains("Действия:"), "{}", task.summary);
+            assert!(task.summary.contains("Итог: PR:"), "{}", task.summary);
+            assert!(task.summary.contains("commit: Сохранить точную цитату"));
+        }
+    }
 }

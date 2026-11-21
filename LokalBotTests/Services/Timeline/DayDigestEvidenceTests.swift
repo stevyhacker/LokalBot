@@ -39,8 +39,10 @@ final class DayDigestEvidenceTests: XCTestCase {
 
         private(set) var calls: [Call] = []
         private(set) var aggregationPrompts: [String] = []
+        private(set) var systems: [String] = []
 
-        func record(isFocus: Bool, options: TextGenerationOptions, prompt: String = "") -> Int {
+        func record(isFocus: Bool, options: TextGenerationOptions, prompt: String = "", system: String = "") -> Int {
+            systems.append(system)
             if !isFocus { aggregationPrompts.append(prompt) }
             calls.append(Call(
                 isFocus: isFocus,
@@ -80,8 +82,8 @@ final class DayDigestEvidenceTests: XCTestCase {
         func generate(system: String, prompt: String, context: [String],
                       schema: [String: Any],
                       options: TextGenerationOptions) async throws -> String {
-            let isFocus = system == PromptTemplates.dayDigestFocusSystem
-            let index = await recorder.record(isFocus: isFocus, options: options, prompt: prompt)
+            let isFocus = system.hasPrefix(PromptTemplates.dayDigestFocusSystem)
+            let index = await recorder.record(isFocus: isFocus, options: options, prompt: prompt, system: system)
             if isFocus {
                 if failedFocusCalls.contains(index) {
                     throw TextEngineError.serverUnreachable(
@@ -509,6 +511,66 @@ final class DayDigestEvidenceTests: XCTestCase {
         XCTAssertEqual(segments.count, 1)
         XCTAssertTrue(segments[0].evidence.contains("Send the migration deck"), "actions survive a busy segment")
         XCTAssertFalse(segments[0].evidence.contains("**Duration:**"))
+    }
+
+
+    func testDigestLanguageReachesEveryPassAndRetryAndSeparatesCachedLanguages() async throws {
+        let evidence = DayDigestEvidence.build(
+            day: day, blocks: [block(1, 8, "Cache implementation")],
+            screenContexts: [], meetings: [], calendar: calendar)
+        let recorder = GenerationRecorder()
+        let cache = DayDigestSegmentCache()
+        let russian = DailySummaryLanguage(notes: .ru, interface: .english)
+        let russianEngine = StructuredDigestEngine(
+            recorder: recorder, truncatedFocusCalls: [1], truncatedFinalCalls: [1],
+            focusResponses: [2: #"{"substantive":true,"task":"Проверить кеш","work_done":"Проверили кеш.","status":"completed","outcome":"","next_step":"","source_ids":[]}"#],
+            finalResponse: #"{"tasks":[{"title":"Проверить кеш","status":"completed","summary":"Проверили кеш.","next_step":"","block_indices":[0]}],"decisions":[],"blockers":[]}"#)
+        let generated = try await DayDigestOverviewGenerator.generateResult(
+            evidence: evidence, engine: russianEngine, customPrompt: "",
+            language: russian, calendar: calendar, segmentCache: cache)
+        XCTAssertTrue(generated.summary.contains("Проверили кеш."))
+        var systems = await recorder.systems
+        XCTAssertEqual(systems.count, 4)
+        XCTAssertTrue(systems.allSatisfy { $0.contains("memory text in Russian.") })
+        _ = try await DayDigestOverviewGenerator.generateResult(
+            evidence: evidence, engine: russianEngine, customPrompt: "",
+            language: russian, calendar: calendar, segmentCache: cache)
+        let reused = await recorder.systems
+        XCTAssertEqual(reused.count, 4)
+
+        let frenchEngine = StructuredDigestEngine(
+            recorder: recorder,
+            focusResponses: [3: #"{"substantive":true,"task":"Vérifier le cache","work_done":"Cache vérifié.","status":"completed","outcome":"","next_step":"","source_ids":[]}"#],
+            finalResponse: #"{"tasks":[{"title":"Vérifier le cache","status":"completed","summary":"Cache vérifié.","next_step":"","block_indices":[0]}],"decisions":[],"blockers":[]}"#)
+        let french = try await DayDigestOverviewGenerator.generateResult(
+            evidence: evidence, engine: frenchEngine, customPrompt: "",
+            language: DailySummaryLanguage(notes: .fr, interface: .russian),
+            calendar: calendar, segmentCache: cache)
+        XCTAssertTrue(french.summary.contains("Cache vérifié."))
+        XCTAssertFalse(french.summary.contains("Проверили кеш."))
+        systems = await recorder.systems
+        XCTAssertEqual(systems.count, 6)
+        XCTAssertTrue(systems.suffix(2).allSatisfy { $0.contains("memory text in French.") })
+    }
+
+    func testBestAvailableDigestAndModelFreeFallbackUseRussianAppText() async throws {
+        let evidence = DayDigestEvidence.build(
+            day: day, blocks: [block(1, 8, "Cache investigation")],
+            screenContexts: [], meetings: [], calendar: calendar)
+        let recorder = GenerationRecorder()
+        let language = DailySummaryLanguage(notes: .ru, interface: .english)
+        _ = try await DayDigestOverviewGenerator.generateResult(
+            evidence: evidence,
+            engine: StructuredDigestEngine(recorder: recorder, bestAvailableFocusIndices: [1]),
+            customPrompt: "", language: language, calendar: calendar)
+        let systems = await recorder.systems
+        XCTAssertEqual(systems.count, 2)
+        XCTAssertTrue(systems.allSatisfy { $0.contains("memory text in Russian.") })
+        XCTAssertTrue(systems.last?.hasPrefix(PromptTemplates.dayDigestFallbackSystem) == true)
+        let fallback = DayDigestOverviewGenerator.fallback(evidence, language: language)
+        XCTAssertTrue(fallback.contains("Cache investigation"))
+        XCTAssertTrue(fallback.contains(language.text("Activity only")))
+        XCTAssertFalse(fallback.contains("Activity related to this item"))
     }
 
     func testOverviewGeneratorExtractsEverySegmentBeforeTaskAggregation() async throws {
