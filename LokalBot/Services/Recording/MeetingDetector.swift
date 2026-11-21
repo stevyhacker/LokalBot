@@ -579,6 +579,14 @@ final class MeetingDetector {
             pendingStop = nil
             let previousEventID = activeCalendarEvent?.externalID
             activeApp = app
+            if app.usesMicrophoneDetection {
+                // The call may precede its output helper. Reuse the verified
+                // source event to wake the existing recording's tap recovery.
+                onVerifiedSourceAvailable?(.init(
+                    detectedApp: app, calendarEvent: activeCalendarEvent,
+                    confidence: .high, reason: "verified-microphone-source",
+                    detectorSessionID: activeSessionID))
+            }
             if let calendarEvent {
                 activeCalendarEvent = calendarEvent
                 if MeetingMatcher.shouldSplitForCalendarHandoff(

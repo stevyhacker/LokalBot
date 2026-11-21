@@ -48,9 +48,15 @@ protocol AccessibilitySource: Sendable {
     func focusedWindowTitle(processID: pid_t) -> String?
     func browserMeetingSnapshot(processID: pid_t, expectedURL: URL?) -> BrowserMeetingSession.Snapshot?
     func browserReadIssue(processID: pid_t) -> BrowserMeetingSession.ReadIssue?
+    /// Whether every browser window was readable and non-private. Only this
+    /// decision, never the window titles, is recorded for microphone fallback.
+    func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool
 }
 
 extension AccessibilitySource {
+    /// Sources without this privacy observation must abstain.
+    func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool { false }
+
     /// Recorded and replayed environments answer with their metadata read.
     func readWindow(processID: pid_t) -> AccessibilityRead {
         read(processID: processID, includeText: false)

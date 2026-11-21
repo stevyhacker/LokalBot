@@ -117,6 +117,7 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertTrue(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video"]))
         XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed([]))
         XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", nil]))
+        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", "  "]))
         XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", "New Tab - Incognito"]))
     }
 

@@ -16,7 +16,8 @@
 //! never replaces it: a browser holding the microphone during an event with
 //! a conferencing link is a call even without a Meet title, a chat app starts
 //! without the sustained wait while an event is on, and a native app gets
-//! extra stop grace inside its event's scheduled window.
+//! extra stop grace inside its event's scheduled window. Apps detected only
+//! through sustained microphone use keep the configured stop delay.
 //!
 //! Poll [`MeetingDetector::poll`] every ~2 s from one background thread.
 
@@ -61,7 +62,7 @@ pub struct CalendarHint {
     /// Browser calls count only with `meeting_url` (`requireCalendarForBrowser`).
     pub require_for_browser: bool,
     /// Stop grace for a native app while its event is in its scheduled window
-    /// (`calendarBackedGrace`). Browser calls never get it.
+    /// (`calendarBackedGrace`). Browser and sustained-microphone calls never get it.
     pub grace: Option<Duration>,
 }
 
@@ -393,6 +394,8 @@ struct Candidate {
     kind: AppKind,
     /// Browser family for Meet, so a call stays with its browser.
     family: Option<&'static str>,
+    /// Normalized executable key selected by the user; display names need not be unique.
+    configured_executable: Option<String>,
     meeting: DetectedMeeting,
 }
 
@@ -400,11 +403,7 @@ impl Candidate {
     fn same_app(&self, other: &Candidate) -> bool {
         self.kind == other.kind
             && self.family == other.family
-            && self.configured_name() == other.configured_name()
-    }
-
-    fn configured_name(&self) -> Option<&str> {
-        (self.kind == AppKind::ConfiguredDesktop).then_some(self.meeting.app_name.as_str())
+            && self.configured_executable == other.configured_executable
     }
 }
 
@@ -415,7 +414,7 @@ struct Confirmation {
     kind: AppKind,
     family: Option<&'static str>,
     room: Option<String>,
-    configured_name: Option<String>,
+    configured_executable: Option<String>,
     first_seen: Instant,
     last_seen: Instant,
 }
@@ -541,6 +540,7 @@ impl Core {
                     found.push(Candidate {
                         kind,
                         family: Some(document.family),
+                        configured_executable: None,
                         meeting: DetectedMeeting {
                             app_name: kind.name().to_string(),
                             process_name: document.family.to_string(),
@@ -647,6 +647,7 @@ impl Core {
             let next = Candidate {
                 kind,
                 family,
+                configured_executable: configured.map(|(key, _)| key.clone()),
                 meeting: DetectedMeeting {
                     app_name: configured
                         .map(|(_, name)| name.clone())
@@ -691,7 +692,7 @@ impl Core {
             pending.kind == candidate.kind
                 && pending.family == candidate.family
                 && pending.room == room
-                && pending.configured_name.as_deref() == candidate.configured_name()
+                && pending.configured_executable == candidate.configured_executable
                 && now.duration_since(pending.last_seen) <= gap
         });
         if continues {
@@ -703,7 +704,7 @@ impl Core {
                 kind: candidate.kind,
                 family: candidate.family,
                 room,
-                configured_name: candidate.configured_name().map(str::to_string),
+                configured_executable: candidate.configured_executable.clone(),
                 first_seen: now,
                 last_seen: now,
             });
@@ -802,8 +803,12 @@ impl Core {
             None => self.expire_pending(now),
         }
 
-        let debounce = match (current.kind.in_browser(), self.calendar.grace) {
-            (false, Some(grace)) => self.stop_debounce.max(grace),
+        let debounce = match (
+            current.kind.in_browser(),
+            current.kind.requires_sustained_mic(),
+            self.calendar.grace,
+        ) {
+            (false, false, Some(grace)) => self.stop_debounce.max(grace),
             _ => self.stop_debounce,
         };
         let ended = self.active.as_mut().is_some_and(|active| {
@@ -1113,6 +1118,101 @@ mod tests {
             assert!(matches!(run(core, t0, 0, 12, &evidence).as_slice(),
                 [(12, DetectorEvent::Started(meeting))] if meeting.app_name == display && meeting.audio_pid == 7));
         }
+    }
+
+    #[test]
+    fn microphone_call_apps_use_the_stop_delay_even_during_a_calendar_event() {
+        let t0 = Instant::now();
+        for executable in ["eXpress.exe", "CorporateClient.exe"] {
+            let mut detector = MeetingDetector::new();
+            detector.set_call_detection(
+                false,
+                &[AdditionalCallApp {
+                    identifier: "CorporateClient.exe".into(),
+                    name: Some("Corporate Calls".into()),
+                }],
+            );
+            detector.set_calendar(CalendarHint {
+                active: true,
+                grace: Some(lokalbot_core::calendar::CALENDAR_BACKED_GRACE),
+                ..Default::default()
+            });
+            let core = &mut detector.core;
+            let call = evidence(&[stream(123, executable)]);
+            assert!(run(core, t0, 0, 10, &call).is_empty(), "{executable}");
+            assert!(
+                matches!(
+                    core.step(&call, t0 + Duration::from_secs(12)).as_slice(),
+                    [DetectorEvent::Started(_)]
+                ),
+                "{executable}"
+            );
+            assert!(run(core, t0, 14, 28, &Evidence::default()).is_empty());
+            assert!(
+                matches!(
+                    core.step(&Evidence::default(), t0 + Duration::from_secs(29)).as_slice(),
+                    [DetectorEvent::Ended(meeting)] if meeting.pid == 123
+                ),
+                "{executable}"
+            );
+        }
+    }
+
+    #[test]
+    fn configured_executables_with_the_same_display_name_confirm_independently() {
+        let t0 = Instant::now();
+        let mut detector = MeetingDetector::new();
+        detector.set_call_detection(
+            false,
+            &["FirstClient.exe", "SecondClient.exe"].map(|identifier| AdditionalCallApp {
+                identifier: identifier.into(),
+                name: Some("Corporate Calls".into()),
+            }),
+        );
+        let core = &mut detector.core;
+        let first = evidence(&[stream(123, "FIRSTCLIENT.EXE")]);
+        let second = evidence(&[stream(456, "secondclient.exe")]);
+        assert!(run(core, t0, 0, 10, &first).is_empty());
+        assert!(run(core, t0, 12, 22, &second).is_empty());
+        assert!(matches!(
+            core.step(&second, t0 + Duration::from_secs(24)).as_slice(),
+            [DetectorEvent::Started(meeting)] if meeting.pid == 456
+        ));
+    }
+
+    #[test]
+    fn configured_executables_with_the_same_display_name_handoff_as_separate_apps() {
+        let t0 = Instant::now();
+        let mut detector = MeetingDetector::new();
+        detector.set_call_detection(
+            false,
+            &["FirstClient.exe", "SecondClient.exe"].map(|identifier| AdditionalCallApp {
+                identifier: identifier.into(),
+                name: Some("Corporate Calls".into()),
+            }),
+        );
+        let core = &mut detector.core;
+        let first = evidence(&[stream(123, "FirstClient.exe")]);
+        let second = evidence(&[stream(456, "SecondClient.exe")]);
+        assert!(matches!(
+            run(core, t0, 0, 12, &first).as_slice(),
+            [(12, DetectorEvent::Started(meeting))] if meeting.pid == 123
+        ));
+        let both = evidence(&[
+            stream(123, "FirstClient.exe"),
+            stream(456, "SecondClient.exe"),
+        ]);
+        assert_eq!(
+            core.candidates(&both, None, t0 + Duration::from_secs(12))
+                .len(),
+            2
+        );
+        assert!(run(core, t0, 14, 24, &second).is_empty());
+        assert!(matches!(
+            core.step(&second, t0 + Duration::from_secs(26)).as_slice(),
+            [DetectorEvent::Ended(old), DetectorEvent::Started(next)]
+                if old.pid == 123 && next.pid == 456 && old.app_name == next.app_name
+        ));
     }
 
     #[cfg(windows)]

@@ -41,6 +41,8 @@ final class ReplayCaptureEnvironmentTests: XCTestCase {
         let environment = ReplayCaptureEnvironment(trace: trace([]), start: Date()).environment
         XCTAssertNil(environment.workspace.frontmostApplication())
         XCTAssertTrue(environment.accessibility.isTrusted())
+        XCTAssertFalse(environment.accessibility.browserMicrophoneWindowsAllowed(processID: 501),
+                       "old traces without a microphone privacy check must abstain")
         XCTAssertFalse(environment.windows.screenCaptureGranted())
         XCTAssertEqual(try environment.audio.processes(), [])
     }
@@ -61,6 +63,37 @@ final class ReplayCaptureEnvironmentTests: XCTestCase {
         let url = FileManager.default.temporaryDirectory.appendingPathComponent("trace-\(UUID()).json")
         try original.write(to: url)
         XCTAssertEqual(try CaptureTrace.load(from: url), original)
+    }
+
+    func testMicrophoneWindowPrivacyDecisionsRecordAndReplayWithoutTitles() async throws {
+        let base = ReplayCaptureEnvironment(trace: trace([
+            .init(t: 0, query: .browserMicrophoneWindowsAllowed, processID: 501, flag: true),
+            .init(t: 0, query: .browserMicrophoneWindowsAllowed, processID: 502, flag: false),
+        ]), start: Date(timeIntervalSince1970: 1_000))
+        let recorder = CaptureTraceRecorder(scenario: "microphone-window-privacy", origin: .scripted,
+                                            base: base.environment)
+        CaptureEnvironment.install(recorder.environment)
+        defer { CaptureEnvironment.reset() }
+        let allowed = await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: [501, 502, 503])
+        XCTAssertEqual(allowed, [501])
+
+        let directory = FileManager.default.temporaryDirectory.appendingPathComponent("trace-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let url = try recorder.finish(to: directory, recordedAt: Date(timeIntervalSince1970: 1_000))
+        let recorded = try CaptureTrace.load(from: url)
+        XCTAssertEqual(recorded.events.map(\.query), Array(repeating: .browserMicrophoneWindowsAllowed, count: 3))
+        XCTAssertEqual(recorded.events.map(\.flag), [true, false, false])
+        for event in recorded.events {
+            XCTAssertNil(event.title)
+            XCTAssertNil(event.read)
+            XCTAssertNil(event.windows)
+        }
+
+        let replay = ReplayCaptureEnvironment(trace: recorded, start: Date(timeIntervalSince1970: 1_000))
+        CaptureEnvironment.install(replay.environment)
+        await replay.clock.advance(to: (recorded.events.map(\.t).max() ?? 0) + 1)
+        let restored = await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: [501, 502, 503])
+        XCTAssertEqual(restored, [501])
     }
 
     func testRealTimeReplayFollowsTheWallClock() async throws {

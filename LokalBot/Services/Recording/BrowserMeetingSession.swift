@@ -52,17 +52,11 @@ enum BrowserMeetingSession {
 
     static func microphoneFallbackAllowed(processIDs: [pid_t]) async -> Set<pid_t> {
         guard !processIDs.isEmpty else { return [] }
+        let accessibility = CaptureEnvironment.current.accessibility
         return await withCheckedContinuation { continuation in
             observationQueue.async {
-                guard AXIsProcessTrusted() else { continuation.resume(returning: []); return }
-                let eligible = processIDs.filter { pid in
-                    let app = AXUIElementCreateApplication(pid)
-                    AXUIElementSetMessagingTimeout(app, 0.012)
-                    guard let windows = value(app, kAXWindowsAttribute) as? [AXUIElement],
-                          windows.count <= 32 else { return false }
-                    return microphoneFallbackWindowsAllowed(windows.map {
-                        value($0, kAXTitleAttribute) as? String
-                    })
+                let eligible = processIDs.filter {
+                    accessibility.browserMicrophoneWindowsAllowed(processID: $0)
                 }
                 continuation.resume(returning: Set(eligible))
             }
