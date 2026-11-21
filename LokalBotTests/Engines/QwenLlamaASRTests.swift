@@ -50,17 +50,17 @@ final class QwenLlamaASRTests: XCTestCase {
         let appSupport = URL(fileURLWithPath: "/tmp/app", isDirectory: true)
         let accuracy = QwenLlamaASR.accuracy, compact = QwenLlamaASR.compact
         XCTAssertEqual(accuracy.url(for: accuracy.model, appSupport: appSupport).path,
-                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-1.7B-Q8_0/Qwen3-ASR-1.7B-Q8_0.gguf")
+                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-1.7B-Q8_0/Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf")
         XCTAssertEqual(
             accuracy.downloadURL(for: accuracy.projector).absoluteString,
-            "https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF/resolve/"
-                + "36a678687ba7d07a74ca70ccb0e36902e005fb80/mmproj-Qwen3-ASR-1.7B-Q8_0.gguf")
+            "https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF/resolve/"
+                + "33ca434ce773d56914f609cec80e843d085b5645/mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf")
         XCTAssertEqual(compact.url(for: compact.model, appSupport: appSupport).path,
-                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-0.6B-Q8_0/Qwen3-ASR-0.6B-Q8_0.gguf")
+                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-0.6B-Q8_0/Qwen3-ASR-0.6B-LokalBot-v1-Q8_0.gguf")
         XCTAssertEqual(
             compact.downloadURL(for: compact.projector).absoluteString,
-            "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/"
-                + "928ab958557df9aa2ef1c93e0e83c7ad0933fae2/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf")
+            "https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF/resolve/"
+                + "4f9e435248343b208223ce33fa1a8b0b2f2e6bc6/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf")
         for file in accuracy.files + compact.files {
             XCTAssertEqual(file.sha256.count, 64, file.name)
         }

@@ -122,7 +122,7 @@ const fn text(
     }
 }
 
-static CATALOG: [ModelEntry; 15] = [
+static CATALOG: [ModelEntry; 16] = [
     text(
         COMPACT_FALLBACK_ID,
         "Qwen3.5 0.8B",
@@ -164,6 +164,22 @@ static CATALOG: [ModelEntry; 15] = [
             3_845_328_608,
             "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
             "Default autocomplete model for higher-quality suggestions. 16 GB+ RAM.",
+            false,
+            true,
+        )
+    },
+    ModelEntry {
+        license: Some("Apache 2.0"),
+        ..text(
+            "gemma4-e2b-lokalbot-v3",
+            "Gemma 4 E2B (LokalBot v3)",
+            "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
+            "9077a7e38b00cacfaaa71493c8bfaaeea7fc0e56",
+            "Gemma-4-E2B-LokalBot-v3-i1-Q6_K.gguf",
+            "i1-Q6_K",
+            3_845_323_008,
+            "ffc99e0d22b9a3fee2c7555f3c78e1f1b266b5cba6376ecf9d42541d632aea4d",
+            "LokalBot fine-tuned autocomplete model for EN/SR and grounded context. 16 GB+ RAM.",
             false,
             true,
         )
@@ -817,10 +833,22 @@ mod tests {
             assert!(entry(preset.think).unwrap().think);
             assert!(entry(preset.autocomplete).unwrap().autocomplete);
         }
-        assert!(!think_entries().any(|e| e.id == QUALITY_AUTOCOMPLETE_ID || e.id == EMBEDDING_ID));
+        assert!(!think_entries().any(|e| {
+            e.id == QUALITY_AUTOCOMPLETE_ID
+                || e.id == "gemma4-e2b-lokalbot-v3"
+                || e.id == EMBEDDING_ID
+        }));
         let autocomplete: Vec<_> = autocomplete_entries(None).map(|e| e.id).collect();
         assert!(autocomplete.contains(&"gemma4-e2b-base-q6"));
+        assert!(autocomplete.contains(&"gemma4-e2b-lokalbot-v3"));
         assert!(autocomplete.contains(&"gemma4-e4b-q5-xl"));
+        let gemma_ft = entry("gemma4-e2b-lokalbot-v3").unwrap();
+        assert_eq!(gemma_ft.size_bytes, 3_845_323_008);
+        assert_eq!(gemma_ft.license, Some("Apache 2.0"));
+        assert_eq!(
+            gemma_ft.sha256,
+            "ffc99e0d22b9a3fee2c7555f3c78e1f1b266b5cba6376ecf9d42541d632aea4d"
+        );
         for excluded in [
             "gemma4-e4b",
             "granite-4.1-3b",
