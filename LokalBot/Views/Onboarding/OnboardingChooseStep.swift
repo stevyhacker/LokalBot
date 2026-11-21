@@ -124,12 +124,12 @@ struct OnboardingChooseStep: View {
     private var codingAgents: some View {
         OnboardingRow(symbol: "apple.terminal") {
             Text("Coding agent sessions").font(.scaled(.body).weight(.semibold))
-            description("Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac.")
+            description("Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac.")
         } trailing: {
             Toggle("Coding agent sessions", isOn: $draft.codingAgentSessions)
                 .labelsHidden()
                 .accessibilityLabel("Read coding agent sessions")
-                .accessibilityHint("Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac.")
+                .accessibilityHint("Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac.")
                 .accessibilityIdentifier("onboarding.codingAgentSessions")
         }
     }

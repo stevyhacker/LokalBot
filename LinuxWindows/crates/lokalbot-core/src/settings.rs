@@ -60,6 +60,8 @@ pub struct Settings {
     pub coding_agent_evidence_enabled: bool,
     pub coding_agent_reads_claude_code: bool,
     pub coding_agent_reads_codex: bool,
+    pub coding_agent_reads_antigravity: bool,
+    pub coding_agent_reads_t3_code: bool,
     /// The user chose to let coding-agent sessions into day memory. The Mac
     /// asks during setup; installs here saved the enabled key as true without
     /// ever asking, so reading also needs this (not a Mac key).
@@ -343,6 +345,8 @@ impl Default for Settings {
             coding_agent_evidence_enabled: true,
             coding_agent_reads_claude_code: true,
             coding_agent_reads_codex: true,
+            coding_agent_reads_antigravity: true,
+            coding_agent_reads_t3_code: true,
             coding_agent_evidence_confirmed: false,
 
             excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
@@ -645,13 +649,15 @@ impl Settings {
     /// chosen: `coding_agent_evidence_enabled` defaults to true and is saved
     /// without being asked, so on its own it proves nothing.
     pub fn enabled_coding_agents(&self) -> Vec<crate::coding_agents::CodingAgentKind> {
-        use crate::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
+        use crate::coding_agents::CodingAgentKind::{Antigravity, ClaudeCode, Codex, T3Code};
         if !self.coding_agent_evidence_active() {
             return Vec::new();
         }
         [
             (ClaudeCode, self.coding_agent_reads_claude_code),
             (Codex, self.coding_agent_reads_codex),
+            (Antigravity, self.coding_agent_reads_antigravity),
+            (T3Code, self.coding_agent_reads_t3_code),
         ]
         .into_iter()
         .filter_map(|(agent, reads)| reads.then_some(agent))

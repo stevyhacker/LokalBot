@@ -2,24 +2,37 @@
 //! project-folder exclusions before anything leaves the reader
 //! (`CodingAgentSessionScanner.swift`).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 
 use chrono::{DateTime, Duration, NaiveDate, Utc};
 use lokalbot_core::coding_agents::{CodingAgentBurst, CodingAgentKind};
 use lokalbot_core::time::{local_day, local_day_bounds};
 
+use super::antigravity::AntigravityReader;
 use super::builder::{self, Transcript};
 use super::cache::ParseCache;
 use super::claude::ClaudeCodeReader;
 use super::codex::CodexReader;
+use super::t3code::T3CodeReader;
 use super::text;
+
+/// Identifies one agent session for cross-reader deduplication (for example,
+/// when T3 Code owns an underlying Claude Code or Codex session).
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct SessionKey {
+    pub agent: CodingAgentKind,
+    pub session_id: String,
+}
 
 /// What one reader found. Unreadable files are reported, never fatal: an agent
 /// update that changes its format must not stop the digest.
 #[derive(Debug, Default)]
 pub struct ReadResult {
     pub transcripts: Vec<Transcript>,
+    /// Native sessions owned by this reader's sessions, so other enabled
+    /// readers do not double-count the same work.
+    pub claimed_sessions: HashSet<SessionKey>,
     pub files_read: usize,
     pub bytes_read: u64,
     pub unreadable_files: Vec<String>,
@@ -41,6 +54,8 @@ pub struct DayScan {
 enum Reader {
     ClaudeCode(ClaudeCodeReader),
     Codex(CodexReader),
+    Antigravity(AntigravityReader),
+    T3Code(T3CodeReader),
 }
 
 pub struct Scanner {
@@ -67,6 +82,12 @@ impl Scanner {
                 CodingAgentKind::Codex => Reader::Codex(CodexReader {
                     root: home.join(".codex"),
                 }),
+                CodingAgentKind::Antigravity => {
+                    Reader::Antigravity(AntigravityReader::standard(home))
+                }
+                CodingAgentKind::T3Code => Reader::T3Code(T3CodeReader {
+                    root: home.join(".t3").join("userdata"),
+                }),
             })
             .collect();
         Self {
@@ -92,15 +113,32 @@ impl Scanner {
             unreadable_files: Vec::new(),
             excluded_sessions: 0,
         };
-        for reader in &self.readers {
-            let result = match reader {
+        let results: Vec<ReadResult> = self
+            .readers
+            .iter()
+            .map(|reader| match reader {
                 Reader::ClaudeCode(reader) => reader.transcripts(start, end, cache),
                 Reader::Codex(reader) => reader.transcripts(start, end, cache),
-            };
+                Reader::Antigravity(reader) => reader.transcripts(start, end, cache),
+                Reader::T3Code(reader) => reader.transcripts(start, end),
+            })
+            .collect();
+        let mut claimed: HashSet<SessionKey> = HashSet::new();
+        for result in &results {
             scan.files_read += result.files_read;
             scan.bytes_read += result.bytes_read;
-            scan.unreadable_files.extend(result.unreadable_files);
+            scan.unreadable_files
+                .extend(result.unreadable_files.iter().cloned());
+            claimed.extend(result.claimed_sessions.iter().cloned());
+        }
+        for result in results {
             for transcript in result.transcripts {
+                if claimed.contains(&SessionKey {
+                    agent: transcript.agent,
+                    session_id: transcript.session_id.clone(),
+                }) {
+                    continue;
+                }
                 if self.is_excluded(transcript.working_directory.as_deref()) {
                     scan.excluded_sessions += 1;
                     continue;

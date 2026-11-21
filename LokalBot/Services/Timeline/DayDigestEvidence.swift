@@ -410,13 +410,16 @@ struct DayDigestEvidence: Equatable, Sendable {
     /// mostly that session on screen, which the session evidence already
     /// states more exactly.
     private static let codingAgentHostApps: Set<String> = [
-        "claude", "codex", "terminal", "iterm", "iterm2", "ghostty", "warp", "alacritty",
-        "kitty", "wezterm", "cursor", "zed", "code", "visual studio code", "windsurf",
+        "claude", "codex", "antigravity", "t3 code", "terminal", "iterm", "iterm2", "ghostty",
+        "warp", "alacritty", "kitty", "wezterm", "cursor", "zed", "code", "visual studio code",
+        "windsurf",
     ]
+    private static let codingAgentHostPrefixes = ["t3 code", "antigravity ", "zed "]
 
     private func isCoveredByCodingAgentSession(app: String, from start: Date, to end: Date) -> Bool {
         let name = app.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        guard Self.codingAgentHostApps.contains(name) else { return false }
+        guard Self.codingAgentHostApps.contains(name)
+            || Self.codingAgentHostPrefixes.contains(where: { name.hasPrefix($0) }) else { return false }
         return codingAgentBursts.contains { $0.start <= end && start <= $0.end }
     }
 

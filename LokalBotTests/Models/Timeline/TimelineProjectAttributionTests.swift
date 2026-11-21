@@ -108,6 +108,16 @@ final class TimelineProjectAttributionTests: XCTestCase {
         let terminal = attribution.shares(for: block(4, app: "Ghostty", start: 0, end: 600))
         XCTAssertEqual(Set(terminal.map(\.project)), ["bizstats", "LokalBot"])
         XCTAssertEqual(attribution.dominantProject(for: block(5, app: "T3 Code (Nightly)", start: 0, end: 600)) != nil, true)
+
+        let multi = TimelineProjectAttribution(bursts: [
+            burst("alpha", agent: .antigravity, start: 0, end: 1_800),
+            burst("LokalBot", agent: .t3Code, start: 0, end: 1_800),
+        ])
+        XCTAssertEqual(multi.dominantProject(for: block(6, app: "Antigravity", start: 0, end: 600)), "alpha")
+        XCTAssertEqual(multi.dominantProject(for: block(7, app: "Ghostty", start: 0, end: 600)), "alpha",
+                       "agy CLI runs in terminals while T3 Code runs in its own app")
+        XCTAssertEqual(multi.dominantProject(for: block(8, app: "T3 Code (Nightly)", start: 0, end: 600)), "LokalBot")
+        XCTAssertNil(multi.dominantProject(for: block(9, app: "Claude", start: 0, end: 600)))
     }
 
     func testWindowNamingAProjectOrItsRepositoryCountsTowardIt() {

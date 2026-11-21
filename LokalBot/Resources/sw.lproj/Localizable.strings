@@ -849,7 +849,7 @@
 "Question or search" = "Swali au utafutaji";
 "Quit LokalBot" = "Ondoka LokalBot";
 "Read coding agent sessions" = "Soma vipindi vya wakala wa programu";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Soma vipindi vyako vya Claude Code na Codex ili LokalBot ikumbuke kile mawakala wako walifanya. Faili hubaki kwenye Mac hii.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Soma vipindi vyako vya Claude Code, Codex, Antigravity na T3 Code ili LokalBot ikumbuke kile mawakala wako walifanya. Faili hubaki kwenye Mac hii.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Husoma maandishi ya dirisha linalotumika kutoka picha ya skrini. Inahitaji Kurekodi Skrini; picha na maandishi havihifadhiwi.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Husoma maandishi ya kiolesura yanayoonekana kupitia Ufikivu; hakuna picha za skrini zinazohifadhiwa.";
 "Reads window titles and visible interface text for activity and text-context features." = "Husoma vichwa vya madirisha na maandishi ya kiolesura yanayoonekana kwa vipengele vya shughuli na muktadha wa maandishi.";
@@ -2626,3 +2626,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Huendesha Antigravity CLI (agy) yako mwenyewe huku zana zake zikiwa zimezimwa. Unaingia kwenye agy mwenyewe; LokalBot haioni kamwe maelezo yako ya kuingia kwenye Google.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Huendesha Gemini CLI yako mwenyewe huku zana zake zikiwa zimezimwa. Ingia kwenye gemini katika Terminal kwanza; LokalBot haioni kamwe maelezo yako ya kuingia kwenye Google.";
 "Signed in" = "Umeingia";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot huacha kusoma vipindi vya mawakala wa msimbo na kufuta ilichohifadhi. Claude Code, Codex, Antigravity na T3 Code hubaki na faili zao za vipindi.";

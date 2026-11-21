@@ -379,12 +379,15 @@ struct AppSettings: Codable, Equatable {
 
     // MARK: - Coding agent sessions
 
-    /// Read local Claude Code and Codex transcripts into day evidence. On by
-    /// default: much of the day's work runs in agents the screen never sees.
-    /// Reading stays local; folder exclusions and deletion live in Settings.
+    /// Read local Claude Code, Codex, Antigravity, and T3 Code transcripts into
+    /// day evidence. On by default: much of the day's work runs in agents the
+    /// screen never sees. Reading stays local; folder exclusions and deletion
+    /// live in Settings.
     var codingAgentEvidenceEnabled: Bool = true
     var codingAgentReadsClaudeCode: Bool = true
     var codingAgentReadsCodex: Bool = true
+    var codingAgentReadsAntigravity: Bool = true
+    var codingAgentReadsT3Code: Bool = true
     /// Comma-separated folders whose sessions are never read.
     var codingAgentExcludedFolders: String = ""
     var codingAgentExcludedFolderList: [String] {
@@ -399,6 +402,8 @@ struct AppSettings: Codable, Equatable {
         var agents: Set<CodingAgentKind> = []
         if codingAgentReadsClaudeCode { agents.insert(.claudeCode) }
         if codingAgentReadsCodex { agents.insert(.codex) }
+        if codingAgentReadsAntigravity { agents.insert(.antigravity) }
+        if codingAgentReadsT3Code { agents.insert(.t3Code) }
         return agents
     }
 
@@ -1078,6 +1083,8 @@ struct AppSettings: Codable, Equatable {
         case codingAgentEvidenceEnabled
         case codingAgentReadsClaudeCode
         case codingAgentReadsCodex
+        case codingAgentReadsAntigravity
+        case codingAgentReadsT3Code
         case codingAgentExcludedFolders
         case codingAgentNotesEnabled
         case dailyMemoryExportEnabled
@@ -1316,6 +1323,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(codingAgentEvidenceEnabled, forKey: .codingAgentEvidenceEnabled)
         try c.encode(codingAgentReadsClaudeCode, forKey: .codingAgentReadsClaudeCode)
         try c.encode(codingAgentReadsCodex, forKey: .codingAgentReadsCodex)
+        try c.encode(codingAgentReadsAntigravity, forKey: .codingAgentReadsAntigravity)
+        try c.encode(codingAgentReadsT3Code, forKey: .codingAgentReadsT3Code)
         try c.encode(codingAgentExcludedFolders, forKey: .codingAgentExcludedFolders)
         try c.encode(codingAgentNotesEnabled, forKey: .codingAgentNotesEnabled)
         try c.encode(dailyMemoryExportEnabled, forKey: .dailyMemoryExportEnabled)
@@ -1542,6 +1551,9 @@ struct AppSettings: Codable, Equatable {
         codingAgentReadsClaudeCode = decode(
             .codingAgentReadsClaudeCode, defaults.codingAgentReadsClaudeCode)
         codingAgentReadsCodex = decode(.codingAgentReadsCodex, defaults.codingAgentReadsCodex)
+        codingAgentReadsAntigravity = decode(
+            .codingAgentReadsAntigravity, defaults.codingAgentReadsAntigravity)
+        codingAgentReadsT3Code = decode(.codingAgentReadsT3Code, defaults.codingAgentReadsT3Code)
         codingAgentExcludedFolders = decode(
             .codingAgentExcludedFolders, defaults.codingAgentExcludedFolders)
         codingAgentNotesEnabled = decode(.codingAgentNotesEnabled, defaults.codingAgentNotesEnabled)

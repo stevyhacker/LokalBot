@@ -8,14 +8,17 @@
 //! same path as deleting screen evidence. A read failure is never taken as a
 //! deletion.
 //!
-//! Nothing under `~/.claude` or `~/.codex` is opened until the person has chosen
-//! to allow it: [`Settings::enabled_coding_agents`] is empty before that.
+//! Nothing under `~/.claude`, `~/.codex`, `~/.gemini/antigravity*`, or `~/.t3`
+//! is opened until the person has chosen to allow it:
+//! [`Settings::enabled_coding_agents`] is empty before that.
 
+mod antigravity;
 mod builder;
 mod cache;
 mod claude;
 mod codex;
 mod scanner;
+mod t3code;
 #[cfg(test)]
 mod tests;
 pub mod text;

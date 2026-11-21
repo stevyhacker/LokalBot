@@ -6,11 +6,15 @@ import Foundation
 enum CodingAgentKind: String, CaseIterable, Codable, Sendable {
     case claudeCode = "claude-code"
     case codex
+    case antigravity
+    case t3Code = "t3-code"
 
     var displayName: String {
         switch self {
         case .claudeCode: "Claude Code"
         case .codex: "Codex"
+        case .antigravity: "Antigravity"
+        case .t3Code: "T3 Code"
         }
     }
 }
@@ -505,13 +509,17 @@ enum CodingAgentBurstBuilder {
     }
 
     /// The repository name, not the checkout folder: agent worktrees live
-    /// under `<repo>/.claude/worktrees/<name>`.
+    /// under `<repo>/.claude/worktrees/<name>` or `~/.t3/worktrees/<repo>/<name>`.
     static func projectName(for workingDirectory: String?) -> String {
         guard let workingDirectory, !workingDirectory.isEmpty else { return unknownProject }
         let components = URL(fileURLWithPath: workingDirectory).standardizedFileURL.pathComponents
         if let marker = components.lastIndex(of: ".claude"), marker > 1,
            components.indices.contains(marker + 1), components[marker + 1] == "worktrees" {
             return components[marker - 1]
+        }
+        if let marker = components.lastIndex(of: ".t3"),
+           components.indices.contains(marker + 2), components[marker + 1] == "worktrees" {
+            return components[marker + 2]
         }
         return components.last.flatMap(nonEmpty) ?? unknownProject
     }

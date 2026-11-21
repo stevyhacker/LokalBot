@@ -1105,8 +1105,9 @@ final class AppState: ObservableObject {
         settings: { [store = settingsStore] in store.current },
         prepareEvidence: { [weak self] day in await self?.codingAgentEvidence.refresh(including: day) },
         onGenerated: { [weak self] day in self?.dayDigestDidChange(on: day) })
-    /// Settled Claude Code and Codex work, read into the activity store while
-    /// the person has opted in, and never before setup is finished.
+    /// Settled Claude Code, Codex, Antigravity, and T3 Code work, read into
+    /// the activity store while the person has opted in, and never before setup
+    /// is finished.
     private(set) lazy var codingAgentEvidence = CodingAgentEvidenceIngestor(
         store: activityStore,
         configuration: { [store = settingsStore] in AppState.codingAgentConfiguration(store.current) },

@@ -178,8 +178,9 @@ enum DayDigestCLIOutput {
 }
 
 /// `LokalBot --agent-sessions [yyyy-MM-dd]`: the evidence the day digest
-/// would receive from local Claude Code and Codex sessions, for inspecting
-/// the transcript readers against real data. Read-only; nothing is stored.
+/// would receive from local Claude Code, Codex, Antigravity, and T3 Code
+/// sessions, for inspecting the transcript readers against real data.
+/// Read-only; nothing is stored.
 enum CodingAgentSessionsCLI {
     static func run(dayKey: String?, now: Date = Date()) -> Int32 {
         let day: Date

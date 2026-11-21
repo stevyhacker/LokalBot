@@ -244,7 +244,12 @@ fn reading_needs_both_the_setting_and_a_choice_the_person_made() {
     };
     assert_eq!(
         chosen.enabled_coding_agents(),
-        vec![CodingAgentKind::ClaudeCode, CodingAgentKind::Codex]
+        vec![
+            CodingAgentKind::ClaudeCode,
+            CodingAgentKind::Codex,
+            CodingAgentKind::Antigravity,
+            CodingAgentKind::T3Code,
+        ]
     );
     let declined = Settings {
         coding_agent_evidence_enabled: false,
@@ -255,6 +260,8 @@ fn reading_needs_both_the_setting_and_a_choice_the_person_made() {
     let one_agent = Settings {
         coding_agent_evidence_confirmed: true,
         coding_agent_reads_claude_code: false,
+        coding_agent_reads_antigravity: false,
+        coding_agent_reads_t3_code: false,
         ..Settings::default()
     };
     assert_eq!(
@@ -417,6 +424,11 @@ fn hosts_cover_each_platforms_terminals_and_outcomes_count_once() {
     assert!(hosts("WindowsTerminal", CodingAgentKind::ClaudeCode));
     assert!(hosts("Claude", CodingAgentKind::ClaudeCode));
     assert!(!hosts("Claude", CodingAgentKind::Codex));
+    assert!(hosts("Antigravity", CodingAgentKind::Antigravity));
+    assert!(hosts("Konsole", CodingAgentKind::Antigravity));
+    assert!(!hosts("Antigravity", CodingAgentKind::ClaudeCode));
+    assert!(hosts("T3 Code (Nightly)", CodingAgentKind::T3Code));
+    assert!(!hosts("Konsole", CodingAgentKind::T3Code));
     assert!(!hosts("Slack", CodingAgentKind::ClaudeCode));
     let mut work = burst("s", at(0), at(30));
     work.actions = vec![

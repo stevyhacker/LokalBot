@@ -131,8 +131,8 @@ pub(crate) struct Draft {
     meeting_mode: AutoRecordMode,
     day_memory: bool,
     context_mode: ScreenContextMode,
-    /// The master switch for reading Claude Code and Codex sessions. The
-    /// per-agent switches and folder exclusions stay with Settings.
+    /// The master switch for reading coding-agent sessions. The per-agent
+    /// switches and folder exclusions stay with Settings.
     coding_agent_sessions: bool,
     /// What a detected call does while Meeting notes is on. The switch
     /// returns to it, so turning it off and on keeps the choice.

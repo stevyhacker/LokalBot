@@ -139,9 +139,8 @@ struct TimelineProjectAttribution: Sendable {
     }
 
     private func agentShares(for block: ActivityBlock, duration: TimeInterval) -> [Share] {
-        let runsClaudeCode = Self.hosts(app: block.app, agent: .claudeCode)
-        let runsCodex = Self.hosts(app: block.app, agent: .codex)
-        guard runsClaudeCode || runsCodex else { return [] }
+        let hostedAgents = Set(CodingAgentKind.allCases.filter { Self.hosts(app: block.app, agent: $0) })
+        guard !hostedAgents.isEmpty else { return [] }
         let window = DateInterval(start: block.start.addingTimeInterval(-Self.edgeMargin),
                                   end: block.end.addingTimeInterval(Self.edgeMargin))
         var weights: [String: TimeInterval] = [:]
@@ -149,8 +148,7 @@ struct TimelineProjectAttribution: Sendable {
         for (burst, project) in zip(bursts, burstProjects) {
             // Bursts are in start order, so none after this one can overlap.
             if burst.start.addingTimeInterval(-Self.edgeMargin) >= window.end { break }
-            let runsAgent = burst.agent == .claudeCode ? runsClaudeCode : runsCodex
-            guard let project, runsAgent else { continue }
+            guard let project, hostedAgents.contains(burst.agent) else { continue }
             let start = max(burst.start.addingTimeInterval(-Self.edgeMargin), window.start)
             let end = min(burst.end.addingTimeInterval(Self.edgeMargin), window.end)
             guard end > start else { continue }
@@ -204,10 +202,13 @@ struct TimelineProjectAttribution: Sendable {
     /// so time spent elsewhere while agents work stays unattributed.
     static func hosts(app: String, agent: CodingAgentKind) -> Bool {
         let name = app.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if agent == .t3Code { return name.hasPrefix("t3 code") }
         if sharedHosts.contains(name) || sharedHostPrefixes.contains(where: { name.hasPrefix($0) }) { return true }
         switch agent {
         case .claudeCode: return name == "claude"
         case .codex: return name == "codex" || name == "chatgpt"
+        case .antigravity: return name == "antigravity" || name.hasPrefix("antigravity ")
+        case .t3Code: return false
         }
     }
 

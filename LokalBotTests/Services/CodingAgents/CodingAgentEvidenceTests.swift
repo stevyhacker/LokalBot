@@ -465,7 +465,7 @@ final class CodingAgentEvidenceTests: XCTestCase {
 
     func testSettingsDefaultOnAndRoundTrip() throws {
         XCTAssertTrue(AppSettings().codingAgentEvidenceEnabled)
-        XCTAssertEqual(AppSettings().enabledCodingAgents, [.claudeCode, .codex])
+        XCTAssertEqual(AppSettings().enabledCodingAgents, [.claudeCode, .codex, .antigravity, .t3Code])
         var off = AppSettings()
         off.codingAgentEvidenceEnabled = false
         XCTAssertTrue(off.enabledCodingAgents.isEmpty)
@@ -473,10 +473,11 @@ final class CodingAgentEvidenceTests: XCTestCase {
         var settings = AppSettings()
         settings.codingAgentEvidenceEnabled = true
         settings.codingAgentReadsCodex = false
+        settings.codingAgentReadsT3Code = false
         settings.codingAgentExcludedFolders = "~/Client, /tmp/private"
         let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
 
-        XCTAssertEqual(decoded.enabledCodingAgents, [.claudeCode])
+        XCTAssertEqual(decoded.enabledCodingAgents, [.claudeCode, .antigravity])
         XCTAssertEqual(decoded.codingAgentExcludedFolderList, ["~/Client", "/tmp/private"])
         let configuration = CodingAgentEvidenceIngestor.Configuration(settings: decoded)
         XCTAssertEqual(configuration.retentionDays, decoded.retentionDays)
@@ -493,12 +494,14 @@ final class CodingAgentEvidenceTests: XCTestCase {
         let configuration = AppState.codingAgentConfiguration(saved, defaults: defaults)
         XCTAssertEqual(configuration, CodingAgentEvidenceIngestor.Configuration(settings: saved),
                        "settings alone decide once setup is finished")
-        XCTAssertEqual(configuration.agents, [.claudeCode])
+        XCTAssertEqual(configuration.agents, [.claudeCode, .antigravity, .t3Code])
         XCTAssertEqual(configuration.excludedFolders, ["~/Client"])
 
         let legacy = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
-        XCTAssertEqual(AppState.codingAgentConfiguration(legacy, defaults: defaults).agents, [.claudeCode, .codex],
-                       "settings saved before setup offered this choice keep reading")
+        XCTAssertEqual(
+            AppState.codingAgentConfiguration(legacy, defaults: defaults).agents,
+            [.claudeCode, .codex, .antigravity, .t3Code],
+            "settings saved before setup offered this choice keep reading")
         var off = saved
         off.codingAgentEvidenceEnabled = false
         XCTAssertTrue(AppState.codingAgentConfiguration(off, defaults: defaults).agents.isEmpty)

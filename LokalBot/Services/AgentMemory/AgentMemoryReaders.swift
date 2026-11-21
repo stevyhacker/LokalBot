@@ -18,7 +18,7 @@ struct AgentMemoryScanner: Sendable {
     ) -> AgentMemoryScanner {
         let readers: [any AgentMemoryReader] = CodingAgentKind.allCases
             .filter(agents.contains)
-            .map { agent in
+            .compactMap { agent -> (any AgentMemoryReader)? in
                 switch agent {
                 case .claudeCode:
                     ClaudeCodeMemoryReader(
@@ -26,6 +26,8 @@ struct AgentMemoryScanner: Sendable {
                 case .codex:
                     CodexMemoryReader(
                         root: home.appendingPathComponent(".codex/memories", isDirectory: true))
+                case .antigravity, .t3Code:
+                    nil
                 }
             }
         return AgentMemoryScanner(readers: readers, exclusions: AgentMemoryExclusions(folders: excludedFolders))

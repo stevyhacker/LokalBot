@@ -1,9 +1,19 @@
 import Foundation
 
+/// Identifies one agent session for cross-reader deduplication (for example,
+/// when T3 Code owns an underlying Claude Code or Codex session).
+struct CodingAgentSessionKey: Hashable, Sendable {
+    var agent: CodingAgentKind
+    var sessionID: String
+}
+
 /// What one reader found for a day. Unreadable files are reported, never
 /// fatal: an agent update that changes its format must not stop the digest.
 struct CodingAgentReadResult: Sendable {
     var transcripts: [CodingAgentTranscript] = []
+    /// Native sessions owned by this reader's sessions, so other enabled
+    /// readers do not double-count the same work.
+    var claimedSessions: Set<CodingAgentSessionKey> = []
     var filesRead = 0
     var bytesRead = 0
     var unreadableFiles: [String] = []

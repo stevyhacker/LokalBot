@@ -1,3 +1,4 @@
+import SQLite3
 import XCTest
 @testable import LokalBot
 
@@ -456,6 +457,220 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertFalse(CodingAgentCompressedTranscript.isCompressed(URL(fileURLWithPath: "/x/notes.zst")))
     }
 
+    // MARK: - Antigravity
+
+    func testAntigravityReaderKeepsWorkSkipsThinkingAndDeduplicatesAcrossRoots() throws {
+        let ag = root.appendingPathComponent("antigravity", isDirectory: true)
+        let agCLI = root.appendingPathComponent("antigravity-cli", isDirectory: true)
+        let transcriptURL = ag.appendingPathComponent("brain/conv-1/.system_generated/logs/transcript.jsonl")
+        let lines = [
+            #"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","created_at":"2026-09-29T09:00:00.000Z","content":"<USER_REQUEST>\nAdd Antigravity support with ghp_abcdefghijklmnopqrstuvwx1234\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\n{\"os\":\"mac\"}\n</ADDITIONAL_METADATA>"}"#,
+            #"{"step_index":1,"source":"SYSTEM","type":"USER_INPUT","created_at":"2026-09-29T09:00:30.000Z","content":"System reminder should stay activity"}"#,
+            #"{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":"2026-09-29T09:01:00.000Z","#
+                + #""thinking":"PRIVATE REASONING NEVER KEPT","content":"Editing the files now.","tool_calls":["#
+                + #"{"name":"run_command","args":{"Cwd":"\"/Users/me/Code/LokalBot\"","#
+                + #""CommandLine":"\"swift test && git commit -m 'Add Antigravity' && git push\""}},"#
+                + #"{"name":"edit_file","args":{"Path":"\"/Users/me/Code/LokalBot/LokalBot/Reader.swift\""}},"#
+                + #"{"name":"write_file","args":{"Path":"\"/Users/me/.gemini/antigravity/brain/conv-1/plan.md\""}},"#
+                + #"{"name":"mcp_t3-code_pull_request_create","args":{"title":"\"Add Antigravity reader\""}},"#
+                + #"{"name":"mcp_t3-code_link_pull_request","args":{"url":"\"https://github.com/stevyhacker/LokalBot/pull/501\""}}]}"#,
+            #"{"step_index":3,"source":"TOOL","type":"TOOL_RESULT","created_at":"2026-09-29T09:02:00.000Z","content":"TOOL OUTPUT NEVER KEPT"}"#,
+            #"{"step_index":4,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":"2026-09-29T09:05:00.000Z","thinking":"MORE SECRET THOUGHTS","content":"Added Antigravity support and opened PR #501."}"#,
+        ]
+        try write(lines, to: transcriptURL, created: "2026-09-29T09:00:00Z", modified: "2026-09-29T09:05:00Z")
+        try writeText(
+            #"title: "Add Antigravity \"support\"""# + "\n",
+            to: ag.appendingPathComponent("annotations/conv-1.pbtxt"),
+            created: "2026-09-29T09:00:00Z", modified: "2026-09-29T09:05:00Z")
+        // Full transcript must never be read.
+        try writeText(
+            "FULL TRANSCRIPT SECRET CONTENT\n",
+            to: ag.appendingPathComponent("brain/conv-1/.system_generated/logs/transcript_full.jsonl"),
+            created: "2026-09-29T09:00:00Z", modified: "2026-09-29T09:05:00Z")
+        // Older copy in a second Antigravity root is deduplicated away.
+        try write(
+            [#"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","created_at":"2026-09-29T08:00:00.000Z","content":"<USER_REQUEST>\nOlder duplicate\n</USER_REQUEST>"}"#],
+            to: agCLI.appendingPathComponent("brain/conv-1/.system_generated/logs/transcript.jsonl"),
+            created: "2026-09-29T08:00:00Z", modified: "2026-09-29T08:05:00Z")
+
+        let reader = AntigravitySessionReader(roots: [ag, agCLI])
+        let cache = CodingAgentParseCache()
+        let first = reader.transcripts(in: dayInterval, cache: cache)
+        let again = reader.transcripts(in: dayInterval, cache: cache)
+
+        XCTAssertEqual(first.filesRead, 1, "older duplicate in another root is not read")
+        XCTAssertEqual(again.filesRead, 0, "unchanged file is reused from cache")
+        XCTAssertEqual(again.transcripts, first.transcripts)
+
+        let bursts = first.transcripts.flatMap { CodingAgentBurstBuilder.bursts(from: $0) }
+        XCTAssertEqual(bursts.count, 1)
+        let burst = try XCTUnwrap(bursts.first)
+        XCTAssertEqual(burst.agent, .antigravity)
+        XCTAssertEqual(burst.sessionID, "conv-1")
+        XCTAssertEqual(burst.title, #"Add Antigravity "support""#)
+        XCTAssertEqual(burst.project, "LokalBot")
+        XCTAssertEqual(burst.prompts, ["Add Antigravity support with [REDACTED_TOKEN]"])
+        XCTAssertEqual(burst.changedFiles, ["LokalBot/Reader.swift"])
+        XCTAssertEqual(burst.actions, [
+            .commit(message: "Add Antigravity"),
+            .pushed,
+            .ranTests,
+            .openedPullRequest(title: "Add Antigravity reader"),
+        ])
+        XCTAssertEqual(burst.pullRequests, ["https://github.com/stevyhacker/LokalBot/pull/501"])
+        XCTAssertEqual(burst.finalReply, "Added Antigravity support and opened PR #501.")
+        XCTAssertEqual(burst.toolCallCount, 5)
+
+        let evidence = burst.evidenceText(calendar: calendar)
+        for leaked in [
+            "PRIVATE REASONING", "MORE SECRET THOUGHTS", "TOOL OUTPUT NEVER KEPT",
+            "FULL TRANSCRIPT SECRET", "Older duplicate", "System reminder", "plan.md", "ghp_",
+        ] {
+            XCTAssertFalse(evidence.contains(leaked), "leaked \(leaked)")
+        }
+
+        // Incremental append only reads the newly appended bytes.
+        let extra = #"{"step_index":5,"source":"USER_EXPLICIT","type":"USER_INPUT","created_at":"2026-09-29T09:06:00.000Z","content":"<USER_REQUEST>\nFollow up\n</USER_REQUEST>"}"#
+        try write(lines + [extra], to: transcriptURL, created: "2026-09-29T09:00:00Z", modified: "2026-09-29T09:06:00Z")
+        let appended = reader.transcripts(in: dayInterval, cache: cache)
+        XCTAssertEqual(appended.filesRead, 1)
+        XCTAssertEqual(appended.bytesRead, extra.utf8.count + 1)
+        XCTAssertEqual(appended.transcripts, reader.transcripts(in: dayInterval).transcripts)
+    }
+
+    func testAntigravityInfersProjectAndWithholdsRepliesAfterLokalBotAccess() throws {
+        let ag = root.appendingPathComponent("antigravity", isDirectory: true)
+        try write(
+            [
+                #"{"step_index":0,"source":"USER_EXPLICIT","type":"USER_INPUT","created_at":"2026-09-29T10:00:00.000Z","content":"<USER_REQUEST>\nCheck what Ana asked and update Theme\n</USER_REQUEST>"}"#,
+                #"{"step_index":1,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":"2026-09-29T10:01:00.000Z","tool_calls":[{"name":"read_file","args":{"Path":"\"/Users/me/.gemini/antigravity/brain/conv-2/notes.md\""}},{"name":"edit_file","args":{"Path":"\"/Users/me/Code/Mojo/Sources/Theme.swift\""}},{"name":"run_command","args":{"CommandLine":"\"lokalbot-cli search Ana\""}}]}"#,
+                #"{"step_index":2,"source":"MODEL","type":"PLANNER_RESPONSE","created_at":"2026-09-29T10:02:00.000Z","content":"Ana asked for dark mode, updated Theme.swift."}"#,
+            ],
+            to: ag.appendingPathComponent("brain/conv-2/.system_generated/logs/transcript.jsonl"),
+            created: "2026-09-29T10:00:00Z", modified: "2026-09-29T10:02:00Z")
+
+        let bursts = AntigravitySessionReader(root: ag).transcripts(in: dayInterval)
+            .transcripts.flatMap { CodingAgentBurstBuilder.bursts(from: $0) }
+        let burst = try XCTUnwrap(bursts.first)
+        XCTAssertEqual(burst.project, "Mojo")
+        XCTAssertEqual(burst.changedFiles, ["Sources/Theme.swift"])
+        XCTAssertNil(burst.finalReply, "replies are withheld after LokalBot CLI access")
+    }
+
+    // MARK: - T3 Code
+
+    func testT3CodeV2ReaderDeduplicatesNativeSessionsSkipsSubagentsAndRespectsExclusions() throws {
+        let t3Root = root.appendingPathComponent("t3-userdata", isDirectory: true)
+        let dbURL = t3Root.appendingPathComponent("statev2.sqlite")
+        try buildT3V2Database(at: dbURL)
+        try FileManager.default.setAttributes(
+            [.modificationDate: try utc("2026-09-29T12:00:00Z")], ofItemAtPath: dbURL.path)
+
+        // Native Claude & Codex sessions: one owned by T3 Code and one standalone each.
+        try writeClaudeSession("CLAUDE_OWNED", lines: [
+            claudeUser(uuid: "co1", at: "2026-09-29T09:00:00Z", text: "Owned by T3 Code"),
+            claudeAssistantText(uuid: "co2", at: "2026-09-29T09:01:00Z", text: "Handled via T3."),
+        ], created: "2026-09-29T09:00:00Z")
+        try writeClaudeSession("CLAUDE_STANDALONE", lines: [
+            claudeUser(uuid: "cs1", at: "2026-09-29T11:00:00Z", text: "Standalone Claude work"),
+            claudeAssistantText(uuid: "cs2", at: "2026-09-29T11:01:00Z", text: "Done."),
+        ], created: "2026-09-29T11:00:00Z")
+        let codex = root.appendingPathComponent("codex", isDirectory: true)
+        try write(
+            [
+                #"{"timestamp":"2026-09-29T09:05:00.000Z","type":"session_meta","payload":{"id":"CODEX_SUBAGENT","cwd":"/Users/me/Code/LokalBot","source":"vscode"}}"#,
+                #"{"timestamp":"2026-09-29T09:05:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Delegated Codex review"}]}}"#,
+            ],
+            to: codex.appendingPathComponent("sessions/2026/09/29/rollout-2026-09-29T09-05-00-CODEX_SUBAGENT.jsonl"),
+            created: "2026-09-29T09:05:00Z", modified: "2026-09-29T09:06:00Z")
+        try write(
+            [
+                #"{"timestamp":"2026-09-29T11:30:00.000Z","type":"session_meta","payload":{"id":"CODEX_STANDALONE","cwd":"/Users/me/Code/Mojo","source":"cli"}}"#,
+                #"{"timestamp":"2026-09-29T11:30:01.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"Standalone Codex work"}]}}"#,
+            ],
+            to: codex.appendingPathComponent("sessions/2026/09/29/rollout-2026-09-29T11-30-00-CODEX_STANDALONE.jsonl"),
+            created: "2026-09-29T11:30:00Z", modified: "2026-09-29T11:31:00Z")
+
+        let scanner = CodingAgentSessionScanner(
+            readers: [
+                ClaudeCodeSessionReader(root: root.appendingPathComponent("claude")),
+                CodexSessionReader(root: codex),
+                T3CodeSessionReader(root: t3Root),
+            ],
+            excludedFolders: ["/Users/me/Code/SecretClient"])
+
+        let result = scanner.scan(day: day, calendar: calendar)
+
+        XCTAssertEqual(result.excludedSessions, 1, "T3 Code session in excluded workspace_root is dropped")
+        XCTAssertEqual(
+            Set(result.bursts.map(\.sessionID)),
+            ["t-main", "t-lokalbot", "CLAUDE_STANDALONE", "CODEX_STANDALONE"],
+            "claimed native Claude and delegated Codex transcripts are deduplicated")
+
+        let main = try XCTUnwrap(result.bursts.first { $0.sessionID == "t-main" })
+        XCTAssertEqual(main.agent, .t3Code)
+        XCTAssertEqual(main.title, "Wire T3 Code sessions")
+        XCTAssertEqual(main.project, "LokalBot")
+        XCTAssertEqual(main.branch, "t3/wire-sessions")
+        XCTAssertEqual(main.prompts, ["Add T3 Code session support", "Scheduled task: Nightly audit"])
+        XCTAssertEqual(main.changedFiles, ["LokalBot/T3Reader.swift"])
+        XCTAssertEqual(main.actions, [
+            .commit(message: "Add T3 reader"),
+            .pushed,
+            .openedPullRequest(title: "Add T3 Code reader"),
+        ])
+        XCTAssertEqual(main.pullRequests, ["https://github.com/stevyhacker/LokalBot/pull/612"])
+        XCTAssertEqual(main.finalReply, "Added T3 Code support and opened PR #612.")
+        XCTAssertEqual(main.toolCallCount, 3)
+
+        let consulted = try XCTUnwrap(result.bursts.first { $0.sessionID == "t-lokalbot" })
+        XCTAssertEqual(consulted.prompts, ["Summarize what we found"])
+        XCTAssertNil(consulted.finalReply, "LokalBot access on an earlier day still withholds today's replies")
+
+        let evidence = result.bursts.map { $0.evidenceText(calendar: calendar) }.joined(separator: "\n")
+        for leaked in [
+            "SECRET COMMAND OUTPUT", "SECRET DIFF", "SECRET REASONING", "SECRET AUTH TOKEN",
+            "Delegated task node", "Subagent prompt", "Deleted thread prompt", "Client secret work",
+        ] {
+            XCTAssertFalse(evidence.contains(leaked), "leaked \(leaked)")
+        }
+
+        // Disabling T3 Code lets the native Claude & Codex readers report those sessions normally.
+        let withoutT3 = CodingAgentSessionScanner(readers: [
+            ClaudeCodeSessionReader(root: root.appendingPathComponent("claude")),
+            CodexSessionReader(root: codex),
+        ]).scan(day: day, calendar: calendar)
+        XCTAssertEqual(
+            Set(withoutT3.bursts.map(\.sessionID)),
+            ["CLAUDE_OWNED", "CLAUDE_STANDALONE", "CODEX_SUBAGENT", "CODEX_STANDALONE"])
+    }
+
+    func testT3CodeV1FallbackAndCorruptDatabaseHandling() throws {
+        let t3Root = root.appendingPathComponent("t3-v1", isDirectory: true)
+        let v1URL = t3Root.appendingPathComponent("state.sqlite")
+        try buildT3V1Database(at: v1URL)
+        try FileManager.default.setAttributes(
+            [.modificationDate: try utc("2026-09-29T12:00:00Z")], ofItemAtPath: v1URL.path)
+
+        let v1Result = T3CodeSessionReader(root: t3Root).transcripts(in: dayInterval)
+        XCTAssertTrue(v1Result.unreadableFiles.isEmpty)
+        XCTAssertEqual(v1Result.claimedSessions, [CodingAgentSessionKey(agent: .claudeCode, sessionID: "V1_CLAUDE")])
+        let burst = try XCTUnwrap(v1Result.transcripts.flatMap { CodingAgentBurstBuilder.bursts(from: $0) }.first)
+        XCTAssertEqual(burst.agent, .t3Code)
+        XCTAssertEqual(burst.sessionID, "t-v1")
+        XCTAssertEqual(burst.title, "Legacy T3 session")
+        XCTAssertEqual(burst.project, "Mojo")
+        XCTAssertEqual(burst.prompts, ["Fix legacy layout"])
+        XCTAssertEqual(burst.pullRequests, ["https://github.com/stevyhacker/Mojo/pull/9"])
+        XCTAssertEqual(burst.finalReply, "Fixed legacy layout.")
+
+        let corruptURL = t3Root.appendingPathComponent("statev2.sqlite")
+        try writeText("not a sqlite file", to: corruptURL, created: "2026-09-29T09:00:00Z", modified: "2026-09-29T12:00:00Z")
+        let withCorrupt = T3CodeSessionReader(root: t3Root).transcripts(in: dayInterval)
+        XCTAssertEqual(withCorrupt.unreadableFiles, [corruptURL.path])
+        XCTAssertEqual(withCorrupt.transcripts.map(\.sessionID), ["t-v1"])
+    }
+
     // MARK: - Scanner and bursts
 
     func testScannerDropsSessionsInsideExcludedFolders() throws {
@@ -608,6 +823,22 @@ final class CodingAgentSessionTests: XCTestCase {
         XCTAssertNil(CodingAgentText.prompt("Caveat: The messages below were generated by the user"))
         XCTAssertEqual(
             CodingAgentText.prompt("deploy with password: hunter2hunter2"), "deploy with password: [REDACTED]")
+        XCTAssertEqual(
+            CodingAgentText.prompt("""
+                <USER_REQUEST>
+                Add Antigravity reader
+                </USER_REQUEST>
+                <ADDITIONAL_METADATA>
+                {"cwd":"/Users/me/Code/App"}
+                </ADDITIONAL_METADATA>
+                """),
+            "Add Antigravity reader")
+        XCTAssertEqual(
+            CodingAgentText.prompt("<USER_REQUEST>\n<t3_code_instructions>rules</t3_code_instructions>\n<user_request>\nShip T3 Code\n</user_request>\n</USER_REQUEST>"),
+            "Ship T3 Code")
+        XCTAssertEqual(
+            CodingAgentText.prompt("<USER_REQUEST>\nTruncated prompt without closing tag"),
+            "Truncated prompt without closing tag")
     }
 
     func testActionsAreParsedFromTheCommandsTheAgentRan() {
@@ -659,6 +890,9 @@ final class CodingAgentSessionTests: XCTestCase {
             CodingAgentText.displayPath("/Users/me/.codex/worktrees/f2bb/Colony/web/page.tsx", workingDirectory: nil),
             "web/page.tsx")
         XCTAssertEqual(
+            CodingAgentText.displayPath("/Users/me/.t3/worktrees/LokalBot/t3-abc/Sources/A.swift", workingDirectory: nil),
+            "Sources/A.swift")
+        XCTAssertEqual(
             CodingAgentText.displayPath(
                 "/private/tmp/claude-501/-Users-me-Code-App/1ac1dcdf-d832-4204-904b-f3e4e9a6f33c/scratchpad/x/team.html",
                 workingDirectory: "/Users/me/Code/App"),
@@ -668,6 +902,9 @@ final class CodingAgentSessionTests: XCTestCase {
             "~/Notes/plan.md")
         XCTAssertEqual(
             CodingAgentBurstBuilder.projectName(for: "/Users/me/Code/LokalBot/.claude/worktrees/agent-session-evidence"),
+            "LokalBot")
+        XCTAssertEqual(
+            CodingAgentBurstBuilder.projectName(for: "/Users/me/.t3/worktrees/LokalBot/t3-abc"),
             "LokalBot")
         XCTAssertEqual(CodingAgentBurstBuilder.projectName(for: nil), "Unknown project")
     }
@@ -888,6 +1125,180 @@ final class CodingAgentSessionTests: XCTestCase {
         try FileManager.default.setAttributes(
             [.creationDate: try utc(created), .modificationDate: try utc(modified)],
             ofItemAtPath: url.path)
+    }
+
+    private func execSQL(_ sql: String, in url: URL) throws {
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        var db: OpaquePointer?
+        XCTAssertEqual(sqlite3_open(url.path, &db), SQLITE_OK)
+        defer { sqlite3_close(db) }
+        var errMsg: UnsafeMutablePointer<CChar>?
+        let status = sqlite3_exec(db, sql, nil, nil, &errMsg)
+        if status != SQLITE_OK {
+            let message = errMsg.map { String(cString: $0) } ?? "sqlite error \(status)"
+            sqlite3_free(errMsg)
+            XCTFail(message)
+        }
+    }
+
+    private func buildT3V2Database(at url: URL) throws {
+        try execSQL("""
+            PRAGMA journal_mode=WAL;
+            CREATE TABLE auth_sessions (token TEXT);
+            INSERT INTO auth_sessions VALUES ('SECRET AUTH TOKEN');
+            CREATE TABLE projection_projects (project_id TEXT PRIMARY KEY, workspace_root TEXT);
+            INSERT INTO projection_projects VALUES ('p1', '/Users/me/Code/LokalBot');
+            INSERT INTO projection_projects VALUES ('p2', '/Users/me/Code/SecretClient');
+
+            CREATE TABLE orchestration_v2_projection_threads (
+                thread_id TEXT PRIMARY KEY, project_id TEXT, title TEXT,
+                created_at TEXT, updated_at TEXT, deleted_at TEXT, payload_json TEXT
+            );
+            INSERT INTO orchestration_v2_projection_threads VALUES (
+                't-main', 'p1', 'Wire T3 Code sessions',
+                '2026-09-29T09:00:00.000Z', '2026-09-29T09:10:00.000Z', NULL,
+                '{"branch":"t3/wire-sessions","worktreePath":"/Users/me/.t3/worktrees/LokalBot/wt-1","pullRequests":[]}'
+            );
+            INSERT INTO orchestration_v2_projection_threads VALUES (
+                't-deleted', 'p1', 'Deleted thread',
+                '2026-09-29T09:00:00.000Z', '2026-09-29T09:05:00.000Z', '2026-09-29T09:06:00.000Z', '{}'
+            );
+            INSERT INTO orchestration_v2_projection_threads VALUES (
+                't-sub', 'p1', 'Subagent thread',
+                '2026-09-29T09:05:00.000Z', '2026-09-29T09:06:00.000Z', NULL,
+                '{"lineage":{"parentThreadId":"t-main","relationshipToParent":"subagent"}}'
+            );
+            INSERT INTO orchestration_v2_projection_threads VALUES (
+                't-excluded', 'p2', 'Client work',
+                '2026-09-29T10:00:00.000Z', '2026-09-29T10:05:00.000Z', NULL, '{}'
+            );
+            INSERT INTO orchestration_v2_projection_threads VALUES (
+                't-lokalbot', 'p1', 'Meeting lookup',
+                '2026-09-28T10:00:00.000Z', '2026-09-29T10:05:00.000Z', NULL, '{}'
+            );
+
+            CREATE TABLE orchestration_v2_projection_messages (
+                message_id TEXT PRIMARY KEY, thread_id TEXT, role TEXT,
+                created_at TEXT, updated_at TEXT, payload_json TEXT
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm1', 't-main', 'user', '2026-09-29T09:00:00.000Z', '2026-09-29T09:00:00.000Z',
+                '{"text":"Add T3 Code session support","createdBy":"user"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm2', 't-main', 'user', '2026-09-29T09:01:00.000Z', '2026-09-29T09:01:00.000Z',
+                '{"text":"Delegated task node: child finished","createdBy":"agent","creationSource":"server"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm3', 't-main', 'user', '2026-09-29T09:02:00.000Z', '2026-09-29T09:02:00.000Z',
+                '{"text":"Nightly audit","createdBy":"agent","creationSource":"schedule"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm4', 't-main', 'assistant', '2026-09-29T09:08:00.000Z', '2026-09-29T09:09:00.000Z',
+                '{"text":"Added T3 Code support and opened PR #612."}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm5', 't-deleted', 'user', '2026-09-29T09:00:00.000Z', '2026-09-29T09:00:00.000Z',
+                '{"text":"Deleted thread prompt"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm6', 't-sub', 'user', '2026-09-29T09:05:00.000Z', '2026-09-29T09:05:00.000Z',
+                '{"text":"Subagent prompt"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm7', 't-excluded', 'user', '2026-09-29T10:00:00.000Z', '2026-09-29T10:00:00.000Z',
+                '{"text":"Client secret work"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm8', 't-lokalbot', 'user', '2026-09-29T10:00:00.000Z', '2026-09-29T10:00:00.000Z',
+                '{"text":"Summarize what we found"}'
+            );
+            INSERT INTO orchestration_v2_projection_messages VALUES (
+                'm9', 't-lokalbot', 'assistant', '2026-09-29T10:02:00.000Z', '2026-09-29T10:02:00.000Z',
+                '{"text":"You promised Ana the report."}'
+            );
+
+            CREATE TABLE orchestration_v2_projection_turn_items (
+                turn_item_id TEXT PRIMARY KEY, thread_id TEXT, type TEXT,
+                ordinal INTEGER, updated_at TEXT, payload_json TEXT
+            );
+            INSERT INTO orchestration_v2_projection_turn_items VALUES (
+                'i1', 't-main', 'command_execution', 1, '2026-09-29T09:03:00.000Z',
+                '{"startedAt":"2026-09-29T09:03:00.000Z","input":"git commit -m ''Add T3 reader'' && git push","output":"SECRET COMMAND OUTPUT"}'
+            );
+            INSERT INTO orchestration_v2_projection_turn_items VALUES (
+                'i2', 't-main', 'file_change', 2, '2026-09-29T09:04:00.000Z',
+                '{"completedAt":"2026-09-29T09:04:00.000Z","changes":[{"path":"/Users/me/.t3/worktrees/LokalBot/wt-1/LokalBot/T3Reader.swift","diff":"SECRET DIFF"}]}'
+            );
+            INSERT INTO orchestration_v2_projection_turn_items VALUES (
+                'i3', 't-main', 'dynamic_tool', 3, '2026-09-29T09:05:00.000Z',
+                '{"startedAt":"2026-09-29T09:05:00.000Z","toolName":"pull_request_create","input":{"title":"Add T3 Code reader"}}'
+            );
+            INSERT INTO orchestration_v2_projection_turn_items VALUES (
+                'i4', 't-main', 'reasoning', 4, '2026-09-29T09:06:00.000Z',
+                '{"startedAt":"2026-09-29T09:06:00.000Z","text":"SECRET REASONING"}'
+            );
+            INSERT INTO orchestration_v2_projection_turn_items VALUES (
+                'i5', 't-lokalbot', 'dynamic_tool', 1, '2026-09-28T10:01:00.000Z',
+                '{"startedAt":"2026-09-28T10:01:00.000Z","toolName":"mcp__lokalbot__search","input":{"query":"Ana"}}'
+            );
+
+            CREATE TABLE orchestration_v2_projection_provider_threads (
+                provider_thread_id TEXT PRIMARY KEY, driver TEXT, updated_at TEXT, payload_json TEXT
+            );
+            INSERT INTO orchestration_v2_projection_provider_threads VALUES (
+                'pt1', 'claudeAgent', '2026-09-29T09:09:00.000Z',
+                '{"createdAt":"2026-09-29T09:00:00.000Z","nativeThreadRef":{"nativeId":"CLAUDE_OWNED"}}'
+            );
+            INSERT INTO orchestration_v2_projection_provider_threads VALUES (
+                'pt2', 'codex', '2026-09-29T09:06:00.000Z',
+                '{"createdAt":"2026-09-29T09:05:00.000Z","nativeThreadRef":{"nativeId":"CODEX_SUBAGENT"}}'
+            );
+
+            CREATE TABLE projection_thread_pull_requests (
+                thread_id TEXT, url TEXT, linked_at TEXT
+            );
+            INSERT INTO projection_thread_pull_requests VALUES (
+                't-main', 'https://github.com/stevyhacker/LokalBot/pull/612', '2026-09-29T09:07:00.000Z'
+            );
+            """, in: url)
+    }
+
+    private func buildT3V1Database(at url: URL) throws {
+        try execSQL("""
+            CREATE TABLE projection_projects (project_id TEXT PRIMARY KEY, workspace_root TEXT);
+            INSERT INTO projection_projects VALUES ('p1', '/Users/me/Code/Mojo');
+            CREATE TABLE projection_threads (
+                thread_id TEXT PRIMARY KEY, project_id TEXT, title TEXT, branch TEXT, worktree_path TEXT,
+                created_at TEXT, updated_at TEXT, deleted_at TEXT
+            );
+            INSERT INTO projection_threads VALUES (
+                't-v1', 'p1', 'Legacy T3 session', 'main', NULL,
+                '2026-09-29T08:00:00.000Z', '2026-09-29T08:10:00.000Z', NULL
+            );
+            CREATE TABLE projection_thread_messages (
+                message_id TEXT PRIMARY KEY, thread_id TEXT, role TEXT, text TEXT, created_at TEXT, updated_at TEXT
+            );
+            INSERT INTO projection_thread_messages VALUES (
+                'vm1', 't-v1', 'user', 'Fix legacy layout', '2026-09-29T08:00:00.000Z', '2026-09-29T08:00:00.000Z'
+            );
+            INSERT INTO projection_thread_messages VALUES (
+                'vm2', 't-v1', 'assistant', 'Fixed legacy layout.', '2026-09-29T08:05:00.000Z', '2026-09-29T08:05:00.000Z'
+            );
+            CREATE TABLE projection_thread_sessions (
+                thread_id TEXT, provider_name TEXT, provider_session_id TEXT, provider_thread_id TEXT, updated_at TEXT
+            );
+            INSERT INTO projection_thread_sessions VALUES (
+                't-v1', 'claudeAgent', 'V1_CLAUDE', NULL, '2026-09-29T08:05:00.000Z'
+            );
+            CREATE TABLE projection_thread_pull_requests (
+                thread_id TEXT, url TEXT, linked_at TEXT
+            );
+            INSERT INTO projection_thread_pull_requests VALUES (
+                't-v1', 'https://github.com/stevyhacker/Mojo/pull/9', '2026-09-29T08:06:00.000Z'
+            );
+            """, in: url)
     }
 
     private func utc(_ value: String) throws -> Date {
