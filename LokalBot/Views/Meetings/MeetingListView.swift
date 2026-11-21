@@ -185,6 +185,10 @@ struct MeetingListView: View {
             } actions: {
                 Button("Import Recording…") { RecordingImportPanel.choose(into: app) }
                     .accessibilityIdentifier("meeting.emptyImport")
+                if WisprFlowLibrary.defaultFolder != nil {
+                    Button("Import from Wispr Flow…") { ExternalImportPanel.choose(.wisprFlow, into: app) }
+                        .accessibilityIdentifier("meeting.emptyImportWisprFlow")
+                }
                 Button("Try a sample meeting") { app.trySampleMeeting() }
                     .accessibilityIdentifier("meeting.emptySample")
             }

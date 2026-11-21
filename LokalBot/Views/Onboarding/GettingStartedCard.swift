@@ -44,6 +44,10 @@ struct GettingStartedCard: View {
                     .accessibilityIdentifier("welcome.record")
                     Button("Import Recording…") { RecordingImportPanel.choose(into: app) }
                         .accessibilityIdentifier("welcome.importRecording")
+                    if WisprFlowLibrary.defaultFolder != nil {
+                        Button("Import from Wispr Flow…") { ExternalImportPanel.choose(.wisprFlow, into: app) }
+                            .accessibilityIdentifier("welcome.importWisprFlow")
+                    }
                 }
                 Divider()
                 step(done: app.sampleMeeting != nil) {

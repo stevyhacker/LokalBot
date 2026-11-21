@@ -255,6 +255,12 @@ MacWhisper's database is opened with `immutable=1`, which never creates `-wal` o
 
 Where: `LokalBot/CLISupport/MeetingImport/Readers/MacWhisperMeetingReader.swift` (`MacWhisperDatabase`), `LokalBotTests/CLISupport/MeetingImport/Readers/VoiceMemosMeetingReaderTests.swift` (`testLibraryFolderRoundTrip`).
 
+### Wispr Flow meetings come from the refined transcript, named by the speaker map
+
+Wispr Flow keeps a meeting's row in `flow.sqlite` and its transcript in `meetings/<id>/refined.ndjson`, one line per turn with a start time from the beginning of the meeting and a speaker number. The refined file is the finished transcript and `live.ndjson` the in-call draft, so only the refined one is read. A speaker number takes the name of the person its speaker-map assignment settled on (`consensus`), and the person Wispr marks `self` is the person's own microphone; numbers with no settled person stay "Speaker N". Deleted meetings and Wispr's tour demo are skipped. Audio is not imported: Wispr uploads it and keeps only some recordings locally, as Ogg. Tested with Wispr Flow 1.6.1483.
+
+Where: `LokalBot/CLISupport/MeetingImport/Readers/WisprFlowMeetingReader.swift` (`WisprFlowMeetingReader.speakers`, `WisprFlowMeetingReader.lines`), `LokalBot/CLISupport/MeetingImport/WisprFlowLibrary.swift` (`WisprFlowLibrary.meetings`), `LokalBotTests/CLISupport/MeetingImport/Readers/WisprFlowMeetingReaderTests.swift`.
+
 ### Voice Memos are imported on the microphone track
 
 Voice Memos are recorded on the person's own microphone, so "My microphone is me" applies to them; other sources' recordings are imported as calls.

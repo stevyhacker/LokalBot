@@ -12,6 +12,19 @@ enum WisprFlowLibrary {
         var lastUsed: String?
     }
 
+    struct MeetingRecord: Equatable, Sendable {
+        var id: String
+        var title: String?
+        var createdAt: String?
+        var endedAt: Double?
+        var recordedMs: Double?
+        var summary: String?
+        var speakerMap: String?
+        var participantNames: String?
+        var isDeleted = false
+        var isTourDemo = false
+    }
+
     static let defaultLocation = "~/Library/Application Support/Wispr Flow/flow.sqlite"
     static let databaseName = "flow.sqlite"
 
@@ -29,18 +42,7 @@ enum WisprFlowLibrary {
     }
 
     static func dictionary(at picked: URL) throws -> [DictionaryEntry] {
-        let url = databaseURL(for: picked)
-        guard FileManager.default.fileExists(atPath: url.path) else { throw ExternalImportError.notFound(url.path) }
-        let database: WisprFlowDatabase
-        do {
-            database = try WisprFlowDatabase(url)
-        } catch let failure as WisprFlowDatabase.Failure {
-            throw ExternalImportError.unreadable(url.path, failure.reason)
-        }
-        let tables = database.tables()
-        guard tables.contains("dictionary"), tables.contains("sequelizemeta") else {
-            throw ExternalImportError.unreadable(url.path, "it isn't Wispr Flow's database")
-        }
+        let database = try open(picked, requiring: "dictionary")
         let wanted = ["phrase", "replacement", "isSnippet", "isDeleted", "isStarred", "frequencyUsed", "lastUsed"]
         return database.records("Dictionary", wanted).compactMap { row in
             guard let phrase = row["phrase"] as? String else { return nil }
@@ -53,6 +55,42 @@ enum WisprFlowLibrary {
                 timesUsed: Int(number(row["frequencyused"]) ?? 0),
                 lastUsed: row["lastused"] as? String)
         }
+    }
+
+    static func meetings(at picked: URL) throws -> [MeetingRecord] {
+        let database = try open(picked, requiring: "meetings")
+        let wanted = ["id", "title", "createdAt", "endedAt", "recordedMs", "summary", "speakerMap", "participantNames",
+                      "isDeleted", "isTourDemo"]
+        return database.records("Meetings", wanted).compactMap { row in
+            guard let id = row["id"] as? String, !id.isEmpty else { return nil }
+            return MeetingRecord(
+                id: id,
+                title: row["title"] as? String,
+                createdAt: row["createdat"] as? String,
+                endedAt: number(row["endedat"]),
+                recordedMs: number(row["recordedms"]),
+                summary: row["summary"] as? String,
+                speakerMap: row["speakermap"] as? String,
+                participantNames: row["participantnames"] as? String,
+                isDeleted: flag(row["isdeleted"]),
+                isTourDemo: flag(row["istourdemo"]))
+        }
+    }
+
+    private static func open(_ picked: URL, requiring table: String) throws -> WisprFlowDatabase {
+        let url = databaseURL(for: picked)
+        guard FileManager.default.fileExists(atPath: url.path) else { throw ExternalImportError.notFound(url.path) }
+        let database: WisprFlowDatabase
+        do {
+            database = try WisprFlowDatabase(url)
+        } catch let failure as WisprFlowDatabase.Failure {
+            throw ExternalImportError.unreadable(url.path, failure.reason)
+        }
+        let tables = database.tables()
+        guard tables.contains(table), tables.contains("sequelizemeta") else {
+            throw ExternalImportError.unreadable(url.path, "it isn't Wispr Flow's database")
+        }
+        return database
     }
 
     private static func number(_ value: Any?) -> Double? {
