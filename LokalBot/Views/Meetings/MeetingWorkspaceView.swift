@@ -579,7 +579,6 @@ private struct MeetingWorkspaceDetail: View {
                 playhead: derived.playhead,
                 speakerName: { key in transcript.map { speakerPresentation.speaker(key, in: $0) } ?? key },
                 speakerColorIndex: { speakerPresentation.colorIndex(for: $0) },
-                showsTranscriptLink: tab != .transcript,
                 onShowInTranscript: showInTranscript)
         } else {
             HStack(spacing: 12) {

@@ -4,7 +4,7 @@ struct WaveformView: View {
     let sources: [WaveformAnalysis.Source]
     let currentTime: TimeInterval
     let duration: TimeInterval
-    var height: CGFloat = 40
+    var height: CGFloat = 60
     let onSeek: (TimeInterval) -> Void
 
     @State private var peaks: [Float]?
