@@ -1,0 +1,889 @@
+{
+  "summary": {
+    "neither": {
+      "cases": 8,
+      "errors": 0,
+      "selectionFailures": 0,
+      "forbiddenReads": 0,
+      "modelCallFailures": 0,
+      "screenReadFailures": 0,
+      "routingFailures": 0,
+      "medianMs": 2215.50925,
+      "byKind": {
+        "fidelity": {
+          "correct": 4,
+          "cases": 8
+        }
+      }
+    },
+    "visible": {
+      "cases": 8,
+      "errors": 0,
+      "selectionFailures": 0,
+      "forbiddenReads": 0,
+      "modelCallFailures": 0,
+      "screenReadFailures": 0,
+      "routingFailures": 0,
+      "medianMs": 2091.664833,
+      "byKind": {
+        "fidelity": {
+          "correct": 4,
+          "cases": 8
+        }
+      }
+    },
+    "memory": {
+      "cases": 8,
+      "errors": 0,
+      "selectionFailures": 0,
+      "forbiddenReads": 0,
+      "modelCallFailures": 0,
+      "screenReadFailures": 0,
+      "routingFailures": 0,
+      "medianMs": 2101.8186459999997,
+      "byKind": {
+        "fidelity": {
+          "correct": 4,
+          "cases": 8
+        }
+      }
+    },
+    "both": {
+      "cases": 8,
+      "errors": 0,
+      "selectionFailures": 0,
+      "forbiddenReads": 0,
+      "modelCallFailures": 0,
+      "screenReadFailures": 0,
+      "routingFailures": 0,
+      "medianMs": 2082.8512705000003,
+      "byKind": {
+        "fidelity": {
+          "correct": 4,
+          "cases": 8
+        }
+      }
+    },
+    "all": {
+      "cases": 8,
+      "errors": 0,
+      "selectionFailures": 0,
+      "forbiddenReads": 0,
+      "modelCallFailures": 0,
+      "screenReadFailures": 0,
+      "routingFailures": 0,
+      "medianMs": 2092.259,
+      "byKind": {
+        "fidelity": {
+          "correct": 4,
+          "cases": 8
+        }
+      }
+    }
+  },
+  "controls": [
+    {
+      "id": "s1-plan-45",
+      "unchanged": true
+    },
+    {
+      "id": "s2-numbers-70",
+      "unchanged": true
+    },
+    {
+      "id": "s3-recap-100",
+      "unchanged": true
+    },
+    {
+      "id": "s4-trip-150",
+      "unchanged": true
+    },
+    {
+      "id": "s5-stutter-120",
+      "unchanged": true
+    },
+    {
+      "id": "s6-feedback-200",
+      "unchanged": true
+    },
+    {
+      "id": "s7-brainstorm-250",
+      "unchanged": true
+    },
+    {
+      "id": "s8-handoff-90",
+      "unchanged": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "s1-plan-45",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "So the plan for tomorrow is pretty simple. We start at 9 with the design review. Then Petra walks everyone through the new onboarding screens, and after lunch we split into two groups to test the checkout flow on 3 devices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1203.805458
+    },
+    {
+      "id": "s2-numbers-70",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "Okay, so I looked at the numbers from last week, and uh, the signups went from 412 to 538, which is a lot better than we expected. But the churn didn't really change; it's still around 6 percent. So I don't think we should celebrate yet. I think we need to look at why people leave in the first two weeks before we spend more on ads.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1555.7899579999998
+    },
+    {
+      "id": "s3-recap-100",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "Quick recap of the call with the Halden team: they want the first delivery by March 14, not March 7 like we said before, because their legal review takes longer than they thought. Jonas is going to send the updated contract on Monday, and we need to sign it within 5 business days. The price stays the same for the first phase, but they asked if we can add the reporting module for an extra fee. I said we would look at it, but I didn't promise anything. So let's talk about it on Thursday before we reply to them.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2104.765042
+    },
+    {
+      "id": "s4-trip-150",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "Alright, so for the trip next month, here's what I have so far: we fly out on the 12th at 6:40 in the morning, which is early but was $200 cheaper than the afternoon flight. The hotel is booked for 4 nights near the old town and has free cancellation until the 5th, so we can still change it if we want. For the first day, I don't want to plan too much because we'll be tired, so maybe just a walk and dinner somewhere close. On the second day, there's the boat tour at 10 that Mira recommended. On the third day, we could rent bikes and ride out to the lake; it's about 15 kilometers each way, which should be fine if the weather holds. The last day is open; we can decide when we get there. Oh, and remember to renew the passport because it expires in June.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3402.65775
+    },
+    {
+      "id": "s5-stutter-120",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "We need to talk about the release schedule because honestly, it's not working right now. The last three releases all slipped by at least a week, and every time it's the same thing. Uh, the testing starts too late, and then we find the big bugs on the last day. So what I want to try is a code freeze five days before each release: no new features after that, only fixes. Lena has agreed to run the test pass on the Monday of release week instead of the Thursday. I know this means some features will wait an extra cycle, but I would rather ship on time with less than keep moving the date.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2326.253458
+    },
+    {
+      "id": "s6-feedback-200",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "Okay, here's my feedback on the new app after using it for about a week. Overall, I like it a lot more than the old one. The home screen is cleaner and it loads way faster, maybe 2 seconds instead of 5. But there are a few things that bug me: first, the search doesn't remember what I searched before, so I end up typing the same thing over and over. Second, when I add an item to the list, it jumps to the top instead of staying where I was, which is really annoying when the list is long, like 40 or 50 items. Third, the dark mode isn't really dark; it's more like a gray, and the text is hard to read at night. And one more thing: the notifications come in at random times, sometimes 3 or 4 in a row. I would love a setting to bundle them into one summary in the morning. Other than that, it's great, and I've already told Tomas and Ivana to try it.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3737.382791
+    },
+    {
+      "id": "s7-brainstorm-250",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "I've been thinking about the garden for next year. I want to try something different instead of the long rows we did this year. I want to build six raised beds, each about four feet by eight feet, with paths in between wide enough for the wheelbarrow. The soil in the back corner never drained well, so the beds should fix that. They'll warm up earlier in the spring, which means we can start the peas and lettuce maybe two weeks sooner. For the layout, I'm thinking the two beds closest to the house get herbs and salad greens because we pick those every day. The middle two get tomatoes and peppers since they need the most sun, and the last two get squash and beans, which can sprawl. I don't want to plant potatoes again; they took up too much space and we barely ate them. For watering, I'd like a simple drip line on a timer so we're not out there every evening with the hose. The whole thing will probably cost around $300 for lumber and another $150 for soil and the drip kit. I asked Marko at the hardware store, and he said the cedar boards go on sale in February, so maybe we wait until then to buy them.",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 4377.7675
+    },
+    {
+      "id": "s8-handoff-90",
+      "kind": "fidelity",
+      "variant": "neither",
+      "text": "Hey, so before I leave for the week, a few things for whoever picks this up: the backup job runs every night at 2, and if it fails, you'll get an email from the monitor. Don't restart the server; just rerun the job from the dashboard. Uh, the client portal update is half done. The login page is finished, but the invoice page still shows the old totals, and Aiko knows the details. If you get stuck, I'll be back on the 21st.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1903.19075
+    },
+    {
+      "id": "s1-plan-45",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "So the plan for tomorrow is pretty simple. We start at 9 with the design review. Then Petra walks everyone through the new onboarding screens, and after lunch we split into two groups to test the checkout flow on 3 devices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 901.110625
+    },
+    {
+      "id": "s2-numbers-70",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "Okay, so I looked at the numbers from last week, and uh, the signups went from 412 to 538, which is a lot better than we expected. But the churn didn't really change; it's still around 6 percent. So I don't think we should celebrate yet. I think we need to look at why people leave in the first two weeks before we spend more on ads.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1590.789708
+    },
+    {
+      "id": "s3-recap-100",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "Quick recap of the call with the Halden team: they want the first delivery by March 14, not March 7 like we said before, because their legal review takes longer than they thought. Jonas is going to send the updated contract on Monday, and we need to sign it within 5 business days. The price stays the same for the first phase, but they asked if we can add the reporting module for an extra fee. I said we would look at it, but I didn't promise anything. So let's talk about it on Thursday before we reply to them.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2079.933791
+    },
+    {
+      "id": "s4-trip-150",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "Alright, so for the trip next month, here's what I have so far: we fly out on the 12th at 6:40 in the morning, which is early but was $200 cheaper than the afternoon flight. The hotel is booked for 4 nights near the old town and has free cancellation until the 5th, so we can still change it if we want. For the first day, I don't want to plan too much because we'll be tired, so maybe just a walk and dinner somewhere close. On the second day, there's the boat tour at 10 that Mira recommended. On the third day, we could rent bikes and ride out to the lake; it's about 15 kilometers each way, which should be fine if the weather holds. The last day is open; we can decide when we get there. Oh, and remember to renew the passport because it expires in June.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3114.908958
+    },
+    {
+      "id": "s5-stutter-120",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "We need to talk about the release schedule because honestly, it's not working right now. The last three releases all slipped by at least a week, and every time it's the same thing. Uh, the testing starts too late, and then we find the big bugs on the last day. So what I want to try is a code freeze five days before each release: no new features after that, only fixes. Lena has agreed to run the test pass on the Monday of release week instead of the Thursday. I know this means some features will wait an extra cycle, but I would rather ship on time with less than keep moving the date.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2103.395875
+    },
+    {
+      "id": "s6-feedback-200",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "Okay, here's my feedback on the new app after using it for about a week. Overall, I like it a lot more than the old one. The home screen is cleaner and it loads way faster, maybe 2 seconds instead of 5. But there are a few things that bug me: first, the search doesn't remember what I searched before, so I end up typing the same thing over and over. Second, when I add an item to the list, it jumps to the top instead of staying where I was, which is really annoying when the list is long, like 40 or 50 items. Third, the dark mode isn't really dark; it's more like a gray, and the text is hard to read at night. And one more thing: the notifications come in at random times, sometimes 3 or 4 in a row. I would love a setting to bundle them into one summary in the morning. Other than that, it's great, and I've already told Tomas and Ivana to try it.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3429.305042
+    },
+    {
+      "id": "s7-brainstorm-250",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "I've been thinking about the garden for next year. I want to try something different instead of the long rows we did this year. I want to build six raised beds, each about four feet by eight feet, with paths in between wide enough for the wheelbarrow. The soil in the back corner never drained well, so the beds should fix that. They'll warm up earlier in the spring, which means we can start the peas and lettuce maybe two weeks sooner. For the layout, I'm thinking the two beds closest to the house get herbs and salad greens because we pick those every day. The middle two get tomatoes and peppers since they need the most sun, and the last two get squash and beans, which can sprawl. I don't want to plant potatoes again; they took up too much space and we barely ate them. For watering, I'd like a simple drip line on a timer so we're not out there every evening with the hose. The whole thing will probably cost around $300 for lumber and another $150 for soil and the drip kit. I asked Marko at the hardware store, and he said the cedar boards go on sale in February, so maybe we wait until then to buy them.",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 4052.698333
+    },
+    {
+      "id": "s8-handoff-90",
+      "kind": "fidelity",
+      "variant": "visible",
+      "text": "Hey, so before I leave for the week, a few things for whoever picks this up: the backup job runs every night at 2, and if it fails, you'll get an email from the monitor. Don't restart the server; just rerun the job from the dashboard. Uh, the client portal update is half done. The login page is finished, but the invoice page still shows the old totals, and Aiko knows the details. If you get stuck, I'll be back on the 21st.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1898.204459
+    },
+    {
+      "id": "s1-plan-45",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "So the plan for tomorrow is pretty simple. We start at 9 with the design review. Then Petra walks everyone through the new onboarding screens, and after lunch we split into two groups to test the checkout flow on 3 devices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 908.791083
+    },
+    {
+      "id": "s2-numbers-70",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "Okay, so I looked at the numbers from last week, and uh, the signups went from 412 to 538, which is a lot better than we expected. But the churn didn't really change; it's still around 6 percent. So I don't think we should celebrate yet. I think we need to look at why people leave in the first two weeks before we spend more on ads.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1543.095458
+    },
+    {
+      "id": "s3-recap-100",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "Quick recap of the call with the Halden team: they want the first delivery by March 14, not March 7 like we said before, because their legal review takes longer than they thought. Jonas is going to send the updated contract on Monday, and we need to sign it within 5 business days. The price stays the same for the first phase, but they asked if we can add the reporting module for an extra fee. I said we would look at it, but I didn't promise anything. So let's talk about it on Thursday before we reply to them.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2109.983083
+    },
+    {
+      "id": "s4-trip-150",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "Alright, so for the trip next month, here's what I have so far: we fly out on the 12th at 6:40 in the morning, which is early but was $200 cheaper than the afternoon flight. The hotel is booked for 4 nights near the old town and has free cancellation until the 5th, so we can still change it if we want. For the first day, I don't want to plan too much because we'll be tired, so maybe just a walk and dinner somewhere close. On the second day, there's the boat tour at 10 that Mira recommended. On the third day, we could rent bikes and ride out to the lake; it's about 15 kilometers each way, which should be fine if the weather holds. The last day is open; we can decide when we get there. Oh, and remember to renew the passport because it expires in June.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3091.317916
+    },
+    {
+      "id": "s5-stutter-120",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "We need to talk about the release schedule because honestly, it's not working right now. The last three releases all slipped by at least a week, and every time it's the same thing. Uh, the testing starts too late, and then we find the big bugs on the last day. So what I want to try is a code freeze five days before each release: no new features after that, only fixes. Lena has agreed to run the test pass on the Monday of release week instead of the Thursday. I know this means some features will wait an extra cycle, but I would rather ship on time with less than keep moving the date.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2093.654209
+    },
+    {
+      "id": "s6-feedback-200",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "Okay, here's my feedback on the new app after using it for about a week. Overall, I like it a lot more than the old one. The home screen is cleaner and it loads way faster, maybe 2 seconds instead of 5. But there are a few things that bug me: first, the search doesn't remember what I searched before, so I end up typing the same thing over and over. Second, when I add an item to the list, it jumps to the top instead of staying where I was, which is really annoying when the list is long, like 40 or 50 items. Third, the dark mode isn't really dark; it's more like a gray, and the text is hard to read at night. And one more thing: the notifications come in at random times, sometimes 3 or 4 in a row. I would love a setting to bundle them into one summary in the morning. Other than that, it's great, and I've already told Tomas and Ivana to try it.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3412.479875
+    },
+    {
+      "id": "s7-brainstorm-250",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "I've been thinking about the garden for next year. I want to try something different instead of the long rows we did this year. I want to build six raised beds, each about four feet by eight feet, with paths in between wide enough for the wheelbarrow. The soil in the back corner never drained well, so the beds should fix that. They'll warm up earlier in the spring, which means we can start the peas and lettuce maybe two weeks sooner. For the layout, I'm thinking the two beds closest to the house get herbs and salad greens because we pick those every day. The middle two get tomatoes and peppers since they need the most sun, and the last two get squash and beans, which can sprawl. I don't want to plant potatoes again; they took up too much space and we barely ate them. For watering, I'd like a simple drip line on a timer so we're not out there every evening with the hose. The whole thing will probably cost around $300 for lumber and another $150 for soil and the drip kit. I asked Marko at the hardware store, and he said the cedar boards go on sale in February, so maybe we wait until then to buy them.",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 4024.384
+    },
+    {
+      "id": "s8-handoff-90",
+      "kind": "fidelity",
+      "variant": "memory",
+      "text": "Hey, so before I leave for the week, a few things for whoever picks this up: the backup job runs every night at 2, and if it fails, you'll get an email from the monitor. Don't restart the server; just rerun the job from the dashboard. Uh, the client portal update is half done. The login page is finished, but the invoice page still shows the old totals, and Aiko knows the details. If you get stuck, I'll be back on the 21st.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1889.017792
+    },
+    {
+      "id": "s1-plan-45",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "So the plan for tomorrow is pretty simple. We start at 9 with the design review. Then Petra walks everyone through the new onboarding screens, and after lunch we split into two groups to test the checkout flow on 3 devices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 894.748041
+    },
+    {
+      "id": "s2-numbers-70",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Okay, so I looked at the numbers from last week, and uh, the signups went from 412 to 538, which is a lot better than we expected. But the churn didn't really change; it's still around 6 percent. So I don't think we should celebrate yet. I think we need to look at why people leave in the first two weeks before we spend more on ads.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1539.68575
+    },
+    {
+      "id": "s3-recap-100",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Quick recap of the call with the Halden team: they want the first delivery by March 14, not March 7 like we said before, because their legal review takes longer than they thought. Jonas is going to send the updated contract on Monday, and we need to sign it within 5 business days. The price stays the same for the first phase, but they asked if we can add the reporting module for an extra fee. I said we would look at it, but I didn't promise anything. So let's talk about it on Thursday before we reply to them.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2079.003333
+    },
+    {
+      "id": "s4-trip-150",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Alright, so for the trip next month, here's what I have so far: we fly out on the 12th at 6:40 in the morning, which is early but was $200 cheaper than the afternoon flight. The hotel is booked for 4 nights near the old town and has free cancellation until the 5th, so we can still change it if we want. For the first day, I don't want to plan too much because we'll be tired, so maybe just a walk and dinner somewhere close. On the second day, there's the boat tour at 10 that Mira recommended. On the third day, we could rent bikes and ride out to the lake; it's about 15 kilometers each way, which should be fine if the weather holds. The last day is open; we can decide when we get there. Oh, and remember to renew the passport because it expires in June.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3074.977334
+    },
+    {
+      "id": "s5-stutter-120",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "We need to talk about the release schedule because honestly, it's not working right now. The last three releases all slipped by at least a week, and every time it's the same thing. Uh, the testing starts too late, and then we find the big bugs on the last day. So what I want to try is a code freeze five days before each release: no new features after that, only fixes. Lena has agreed to run the test pass on the Monday of release week instead of the Thursday. I know this means some features will wait an extra cycle, but I would rather ship on time with less than keep moving the date.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2086.699208
+    },
+    {
+      "id": "s6-feedback-200",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Okay, here's my feedback on the new app after using it for about a week. Overall, I like it a lot more than the old one. The home screen is cleaner and it loads way faster, maybe 2 seconds instead of 5. But there are a few things that bug me: first, the search doesn't remember what I searched before, so I end up typing the same thing over and over. Second, when I add an item to the list, it jumps to the top instead of staying where I was, which is really annoying when the list is long, like 40 or 50 items. Third, the dark mode isn't really dark; it's more like a gray, and the text is hard to read at night. And one more thing: the notifications come in at random times, sometimes 3 or 4 in a row. I would love a setting to bundle them into one summary in the morning. Other than that, it's great, and I've already told Tomas and Ivana to try it.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3418.33225
+    },
+    {
+      "id": "s7-brainstorm-250",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "I've been thinking about the garden for next year. I want to try something different instead of the long rows we did this year. I want to build six raised beds, each about four feet by eight feet, with paths in between wide enough for the wheelbarrow. The soil in the back corner never drained well, so the beds should fix that. They'll warm up earlier in the spring, which means we can start the peas and lettuce maybe two weeks sooner. For the layout, I'm thinking the two beds closest to the house get herbs and salad greens because we pick those every day. The middle two get tomatoes and peppers since they need the most sun, and the last two get squash and beans, which can sprawl. I don't want to plant potatoes again; they took up too much space and we barely ate them. For watering, I'd like a simple drip line on a timer so we're not out there every evening with the hose. The whole thing will probably cost around $300 for lumber and another $150 for soil and the drip kit. I asked Marko at the hardware store, and he said the cedar boards go on sale in February, so maybe we wait until then to buy them.",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 4040.357542
+    },
+    {
+      "id": "s8-handoff-90",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Hey, so before I leave for the week, a few things for whoever picks this up: the backup job runs every night at 2, and if it fails, you'll get an email from the monitor. Don't restart the server; just rerun the job from the dashboard. Uh, the client portal update is half done. The login page is finished, but the invoice page still shows the old totals, and Aiko knows the details. If you get stuck, I'll be back on the 21st.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1890.5483749999999
+    },
+    {
+      "id": "s1-plan-45",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "So the plan for tomorrow is pretty simple. We start at 9 with the design review. Then Petra walks everyone through the new onboarding screens, and after lunch we split into two groups to test the checkout flow on 3 devices.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 897.173667
+    },
+    {
+      "id": "s2-numbers-70",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Okay, so I looked at the numbers from last week, and uh, the signups went from 412 to 538, which is a lot better than we expected. But the churn didn't really change; it's still around 6 percent. So I don't think we should celebrate yet. I think we need to look at why people leave in the first two weeks before we spend more on ads.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1544.925708
+    },
+    {
+      "id": "s3-recap-100",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Quick recap of the call with the Halden team: they want the first delivery by March 14, not March 7 like we said before, because their legal review takes longer than they thought. Jonas is going to send the updated contract on Monday, and we need to sign it within 5 business days. The price stays the same for the first phase, but they asked if we can add the reporting module for an extra fee. I said we would look at it, but I didn't promise anything. So let's talk about it on Thursday before we reply to them.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2082.241583
+    },
+    {
+      "id": "s4-trip-150",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Alright, so for the trip next month, here's what I have so far: we fly out on the 12th at 6:40 in the morning, which is early but was $200 cheaper than the afternoon flight. The hotel is booked for 4 nights near the old town and has free cancellation until the 5th, so we can still change it if we want. For the first day, I don't want to plan too much because we'll be tired, so maybe just a walk and dinner somewhere close. On the second day, there's the boat tour at 10 that Mira recommended. On the third day, we could rent bikes and ride out to the lake; it's about 15 kilometers each way, which should be fine if the weather holds. The last day is open; we can decide when we get there. Oh, and remember to renew the passport because it expires in June.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3106.477458
+    },
+    {
+      "id": "s5-stutter-120",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "We need to talk about the release schedule because honestly, it's not working right now. The last three releases all slipped by at least a week, and every time it's the same thing. Uh, the testing starts too late, and then we find the big bugs on the last day. So what I want to try is a code freeze five days before each release: no new features after that, only fixes. Lena has agreed to run the test pass on the Monday of release week instead of the Thursday. I know this means some features will wait an extra cycle, but I would rather ship on time with less than keep moving the date.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 2102.276417
+    },
+    {
+      "id": "s6-feedback-200",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Okay, here's my feedback on the new app after using it for about a week. Overall, I like it a lot more than the old one. The home screen is cleaner and it loads way faster, maybe 2 seconds instead of 5. But there are a few things that bug me: first, the search doesn't remember what I searched before, so I end up typing the same thing over and over. Second, when I add an item to the list, it jumps to the top instead of staying where I was, which is really annoying when the list is long, like 40 or 50 items. Third, the dark mode isn't really dark; it's more like a gray, and the text is hard to read at night. And one more thing: the notifications come in at random times, sometimes 3 or 4 in a row. I would love a setting to bundle them into one summary in the morning. Other than that, it's great, and I've already told Tomas and Ivana to try it.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 3420.013917
+    },
+    {
+      "id": "s7-brainstorm-250",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "I've been thinking about the garden for next year. I want to try something different instead of the long rows we did this year. I want to build six raised beds, each about four feet by eight feet, with paths in between wide enough for the wheelbarrow. The soil in the back corner never drained well, so the beds should fix that. They'll warm up earlier in the spring, which means we can start the peas and lettuce maybe two weeks sooner. For the layout, I'm thinking the two beds closest to the house get herbs and salad greens because we pick those every day. The middle two get tomatoes and peppers since they need the most sun, and the last two get squash and beans, which can sprawl. I don't want to plant potatoes again; they took up too much space and we barely ate them. For watering, I'd like a simple drip line on a timer so we're not out there every evening with the hose. The whole thing will probably cost around $300 for lumber and another $150 for soil and the drip kit. I asked Marko at the hardware store, and he said the cedar boards go on sale in February, so maybe we wait until then to buy them.",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 4025.681875
+    },
+    {
+      "id": "s8-handoff-90",
+      "kind": "fidelity",
+      "variant": "all",
+      "text": "Hey, so before I leave for the week, a few things for whoever picks this up: the backup job runs every night at 2, and if it fails, you'll get an email from the monitor. Don't restart the server; just rerun the job from the dashboard. Uh, the client portal update is half done. The login page is finished, but the invoice page still shows the old totals, and Aiko knows the details. If you get stuck, I'll be back on the 21st.",
+      "correct": false,
+      "forbiddenFacts": [
+        "uh"
+      ],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 1890.046583
+    }
+  ],
+  "manifest": {
+    "appSHA256": "cb3fa2f461ac68deb35893f1286e0f7d0109ca709052b42e3bab9ce8de1a61e3",
+    "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
+    "modelSHA256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+    "modelFile": "Qwen3.5-4B-Q4_K_M.gguf",
+    "corpusSHA256": "fccaae5f4b344da2291c7c24ac6f856a4dba2d5704298c1d449d1a0a658310ea",
+    "scriptSHA256": "4369c9253b63a29e3361cf6522e9c9b77a073cb60f4f6feaa0cfc7dc91c71551",
+    "split": "heldout",
+    "caseIDs": [
+      "s1-plan-45",
+      "s2-numbers-70",
+      "s3-recap-100",
+      "s4-trip-150",
+      "s5-stutter-120",
+      "s6-feedback-200",
+      "s7-brainstorm-250",
+      "s8-handoff-90"
+    ],
+    "serverArguments": [
+      "/private/tmp/lokalbot-bench/app-speed/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
+      "-m",
+      "~/Library/Application Support/me.dotenv.LokalBot.dev/models/Qwen3.5-4B-Q4_K_M.gguf",
+      "--host",
+      "127.0.0.1",
+      "--port",
+      "57651",
+      "-c",
+      "32768",
+      "-ngl",
+      "99",
+      "--parallel",
+      "1",
+      "--jinja",
+      "--no-webui",
+      "--seed",
+      "12648430"
+    ],
+    "variants": [
+      "neither",
+      "visible",
+      "memory",
+      "both",
+      "all"
+    ],
+    "windowPolicies": {
+      "head": {
+        "limit": 12000,
+        "keepsEnd": false
+      },
+      "tail": {
+        "limit": 2000,
+        "keepsEnd": true
+      }
+    },
+    "routing": "production",
+    "cleanupPrompt": "production",
+    "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+    "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+  }
+}
