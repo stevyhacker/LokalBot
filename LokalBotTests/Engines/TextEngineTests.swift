@@ -655,7 +655,7 @@ final class TextEngineTests: XCTestCase {
             JSONSerialization.jsonObject(with: data) as? [String: Any])
         let provider = try XCTUnwrap(body["provider"] as? [String: Any])
 
-        XCTAssertEqual(body["max_tokens"] as? Int, 300)
+        XCTAssertEqual(body["max_tokens"] as? Int, 600, "an unknown model may reason, so it gets room to")
         XCTAssertEqual(body["temperature"] as? Double, 0.4)
         XCTAssertEqual(provider["data_collection"] as? String, "deny")
         XCTAssertNil(provider["require_parameters"])
