@@ -58,7 +58,7 @@ fn serve() -> anyhow::Result<()> {
     let input_method: ZwpInputMethodV1 = globals
         .bind(&qh, 1..=1, ())
         .context("KWin offered no input method protocol")?;
-    let overlay = OverlayPill::bind(&globals, &qh);
+    let overlay = OverlayPill::bind_panel(&globals, &qh);
     if overlay.is_none() {
         log::warn!("kwin input method: KWin offered no input panel; suggestions cannot be drawn");
     }
@@ -395,8 +395,8 @@ impl Helper {
     }
 
     fn set_grab(&mut self, on: bool) {
-        self.wants_grab = on;
-        if !on {
+        self.wants_grab = on && self.overlay.is_some();
+        if !self.wants_grab {
             self.end_grab();
         } else if self.keyboard.is_none()
             && let Some(context) = &self.context

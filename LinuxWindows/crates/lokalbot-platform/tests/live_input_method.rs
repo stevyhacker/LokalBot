@@ -234,10 +234,23 @@ fn field_where(
     }
 }
 
+fn sway_places_input_popups() -> bool {
+    let output = Command::new("swaymsg")
+        .args(["-t", "get_version", "-r"])
+        .output()
+        .expect("swaymsg");
+    let version: serde_json::Value =
+        serde_json::from_slice(&output.stdout).expect("sway's version");
+    let major = version["major"].as_u64().unwrap_or(0);
+    let minor = version["minor"].as_u64().unwrap_or(0);
+    (major, minor) >= (1, 10)
+}
+
 #[test]
 #[ignore]
 fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     let _ = env_logger::builder().is_test(false).try_init();
+    let popups = sway_places_input_popups();
     let (focus_tx, focus) = channel();
     let (key_tx, keys_taken) = channel();
     let mut keyboard = Keyboard::new();
@@ -265,8 +278,12 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
 
     ghost.show(&typed, " up on it");
     keys.set_active(true);
-    field.expect("preedit ' up on it'");
-    std::thread::sleep(Duration::from_millis(200));
+    if popups {
+        field.assert_no_nonempty_preedit(Duration::from_millis(250));
+    } else {
+        field.expect("preedit ' up on it'");
+        std::thread::sleep(Duration::from_millis(200));
+    }
 
     keyboard.tap(KEY_TAB);
     assert_eq!(
@@ -278,12 +295,20 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
         ..Edit::default()
     };
     ghost.accept(&typed, &typed.before, &typed.after, &accept, " on it");
-    field.expect("text 'hello up'");
-    field.expect("preedit ' on it'");
+    if popups {
+        field.expect_without_preedit("text 'hello up'");
+    } else {
+        field.expect("text 'hello up'");
+        field.expect("preedit ' on it'");
+    }
 
     keyboard.type_letters("z");
-    field.expect("text 'hello upz'");
-    field.expect("preedit ' on it'");
+    if popups {
+        field.expect_without_preedit("text 'hello upz'");
+    } else {
+        field.expect("text 'hello upz'");
+        field.expect("preedit ' on it'");
+    }
     let advanced = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello upz");
     assert_eq!(keys_taken.try_recv().ok(), None);
 
@@ -299,7 +324,9 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     );
     ghost.show(&advanced, "");
     keys.set_active(false);
-    field.expect("preedit ''");
+    if !popups {
+        field.expect("preedit ''");
+    }
     std::thread::sleep(Duration::from_millis(200));
 
     keyboard.tap(KEY_GRAVE);
@@ -308,6 +335,22 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
         None
     );
     drop(field);
+
+    if popups {
+        let blur_field = GtkField::start("commit_on_blur");
+        field_where(&focus, Duration::from_secs(20), |f| f.before.is_empty());
+        keyboard.type_letters("draft");
+        blur_field.expect_without_preedit("text 'draft'");
+        let draft = field_where(&focus, Duration::from_secs(10), |f| f.before == "draft");
+        ghost.show(&draft, " for tomorrow");
+        keys.set_active(true);
+        blur_field.assert_no_nonempty_preedit(Duration::from_millis(500));
+        let other_window = GtkField::start("plain");
+        blur_field.expect_without_preedit("blur 'draft'");
+        keys.set_active(false);
+        drop(other_window);
+        drop(blur_field);
+    }
 
     let password = GtkField::start("password");
     let deadline = Instant::now() + Duration::from_secs(10);
