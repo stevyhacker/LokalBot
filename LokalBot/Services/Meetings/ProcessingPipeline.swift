@@ -848,6 +848,7 @@ final class ProcessingPipeline: ObservableObject {
             titles = MeetingScreenContext.build(
                 meeting: meeting,
                 screenshots: store.screenshots(forMeeting: meeting.id,
+                                               additionalMeetingID: meeting.extractedFromMeetingID,
                                                from: meeting.startedAt.addingTimeInterval(-5),
                                                to: end.addingTimeInterval(5))).materialTitles
         }

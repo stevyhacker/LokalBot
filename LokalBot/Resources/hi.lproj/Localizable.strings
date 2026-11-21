@@ -2629,3 +2629,4 @@
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot कोडिंग एजेंट सत्र पढ़ना बंद कर देता है और जो सहेजा था उसे हटा देता है। Claude Code, Codex, Antigravity और T3 Code अपनी सत्र फ़ाइलें खुद रखते हैं।";
 "Clear Selection" = "चयन साफ़ करें";
 "Trim to Selection" = "चयन तक काटें";
+"New Meeting from Selection" = "चयन से नई मीटिंग";

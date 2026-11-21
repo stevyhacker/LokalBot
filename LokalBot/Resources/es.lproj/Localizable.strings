@@ -2629,3 +2629,4 @@
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot deja de leer las sesiones de agentes de código y elimina lo que guardó. Claude Code, Codex, Antigravity y T3 Code conservan sus propios archivos de sesión.";
 "Clear Selection" = "Borrar selección";
 "Trim to Selection" = "Recortar a la selección";
+"New Meeting from Selection" = "Nueva reunión desde la selección";

@@ -167,6 +167,7 @@ private struct MeetingWorkspaceDetail: View {
     @State private var exportError: String?
     @State private var editingBoundaries = false
     @State private var audioSelection: Meeting.ContentRange?
+    @State private var isExtractingSelection = false
     @State private var undoMergeConfirmation = false
     @State private var speechError: String?
     @State private var isExportingAudio = false
@@ -585,10 +586,11 @@ private struct MeetingWorkspaceDetail: View {
                 speakerName: { key in transcript.map { speakerPresentation.speaker(key, in: $0) } ?? key },
                 speakerColorIndex: { speakerPresentation.colorIndex(for: $0) },
                 selection: $audioSelection,
-                isBusy: isProcessing,
+                isBusy: isProcessing || isExtractingSelection,
                 hasTrimmedBoundaries: meeting.contentRange != nil,
                 onShowInTranscript: showInTranscript,
                 onTrimSelection: trimToSelection,
+                onExtractSelection: extractSelection,
                 onRestoreFullRecording: restoreFullRecording)
         } else {
             HStack(spacing: 12) {
@@ -1332,6 +1334,21 @@ private struct MeetingWorkspaceDetail: View {
             audioSelection = nil
         } catch {
             exportError = error.localizedDescription
+        }
+    }
+
+    private func extractSelection(_ range: Meeting.ContentRange) {
+        exportError = nil
+        player.pause()
+        isExtractingSelection = true
+        Task {
+            defer { isExtractingSelection = false }
+            do {
+                _ = try await app.extractMeeting(from: meeting, range: range)
+                audioSelection = nil
+            } catch {
+                exportError = error.localizedDescription
+            }
         }
     }
 

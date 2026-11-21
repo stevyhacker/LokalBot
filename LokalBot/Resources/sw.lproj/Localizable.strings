@@ -2629,3 +2629,4 @@
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot huacha kusoma vipindi vya mawakala wa msimbo na kufuta ilichohifadhi. Claude Code, Codex, Antigravity na T3 Code hubaki na faili zao za vipindi.";
 "Clear Selection" = "Ondoa Uteuzi";
 "Trim to Selection" = "Kata hadi Uteuzi";
+"New Meeting from Selection" = "Mkutano Mpya kutoka Uteuzi";

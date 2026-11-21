@@ -2628,3 +2628,4 @@
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot 会停止读取编程智能体会话并删除已保存的内容。Claude Code、Codex、Antigravity 和 T3 Code 自己的会话文件不受影响。";
 "Clear Selection" = "清除选区";
 "Trim to Selection" = "裁剪为所选范围";
+"New Meeting from Selection" = "从所选范围新建会议";

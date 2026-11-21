@@ -23,6 +23,8 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
 
     var mergedIntoMeetingID: UUID?
 
+    var extractedFromMeetingID: UUID?
+
     var importedFileNames: [String]?
 
     var importSource: ImportSource?

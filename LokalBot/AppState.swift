@@ -2164,6 +2164,32 @@ final class AppState: ObservableObject {
         reprocess(updated, transcribe: true, summarize: true)
     }
 
+    @discardableResult
+    func extractMeeting(
+        from sourceMeeting: Meeting,
+        range: Meeting.ContentRange
+    ) async throws -> Meeting {
+        if let stage = pipeline.stages[sourceMeeting.id], !stage.isFailure {
+            throw TextEngineError.badResponse("Wait for meeting processing to finish before creating a meeting from a selection.")
+        }
+        let created = try await MeetingSelectionExtractService.extract(
+            from: sourceMeeting,
+            range: range,
+            storage: storage)
+        meetings.append(created)
+        meetings.sort { $0.startedAt > $1.startedAt }
+        outcomeIndex.refresh(meetings: meetings)
+        primaryEvidenceDidChange(for: [created])
+        reindexSearchInBackground(created)
+        if settings.semanticSearchEnabled {
+            reindexEmbeddingInBackground(created)
+        }
+        selectedMeetingIDs = [created.id]
+        navSection = .meetings
+        reprocess(created, transcribe: true, summarize: true)
+        return created
+    }
+
     func reprocess(_ meeting: Meeting, transcribe: Bool, summarize: Bool) {
         lastError = nil
         switch pipeline.enqueue(

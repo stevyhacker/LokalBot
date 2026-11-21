@@ -15,6 +15,7 @@ struct WaveformView: View {
     var hasTrimmedBoundaries = false
     let onSeek: (TimeInterval) -> Void
     var onTrimSelection: ((Meeting.ContentRange) -> Void)?
+    var onExtractSelection: ((Meeting.ContentRange) -> Void)?
     var onRestoreFullRecording: (() -> Void)?
 
     @State private var peaks: [Float]?
@@ -137,6 +138,10 @@ struct WaveformView: View {
         .contextMenu {
             Button("Trim to Selection") {
                 if let selection { onTrimSelection?(selection) }
+            }
+            .disabled(selection == nil || isBusy)
+            Button("New Meeting from Selection") {
+                if let selection { onExtractSelection?(selection) }
             }
             .disabled(selection == nil || isBusy)
             if selection != nil || pendingSelectionStart != nil {

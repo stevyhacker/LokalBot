@@ -14,6 +14,7 @@ struct MeetingPlayerBar: View {
     var hasTrimmedBoundaries = false
     let onShowInTranscript: (MeetingDetailPresentation.Caption) -> Void
     let onTrimSelection: (Meeting.ContentRange) -> Void
+    let onExtractSelection: (Meeting.ContentRange) -> Void
     let onRestoreFullRecording: () -> Void
 
     init(
@@ -27,6 +28,7 @@ struct MeetingPlayerBar: View {
         hasTrimmedBoundaries: Bool = false,
         onShowInTranscript: @escaping (MeetingDetailPresentation.Caption) -> Void,
         onTrimSelection: @escaping (Meeting.ContentRange) -> Void,
+        onExtractSelection: @escaping (Meeting.ContentRange) -> Void,
         onRestoreFullRecording: @escaping () -> Void
     ) {
         self.player = player
@@ -40,6 +42,7 @@ struct MeetingPlayerBar: View {
         self.hasTrimmedBoundaries = hasTrimmedBoundaries
         self.onShowInTranscript = onShowInTranscript
         self.onTrimSelection = onTrimSelection
+        self.onExtractSelection = onExtractSelection
         self.onRestoreFullRecording = onRestoreFullRecording
     }
 
@@ -76,6 +79,7 @@ struct MeetingPlayerBar: View {
                         hasTrimmedBoundaries: hasTrimmedBoundaries,
                         onSeek: { player.seek(to: $0) },
                         onTrimSelection: onTrimSelection,
+                        onExtractSelection: onExtractSelection,
                         onRestoreFullRecording: onRestoreFullRecording)
                         .id(folder)
                 }
@@ -147,11 +151,18 @@ struct MeetingPlayerBar: View {
             Button("Trim to Selection") {
                 onTrimSelection(range)
             }
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .disabled(isBusy)
+            .accessibilityIdentifier("meeting.selection.trim")
+            Button("New Meeting from Selection") {
+                onExtractSelection(range)
+            }
             .buttonStyle(.borderedProminent)
             .tint(Brand.tealFill)
             .controlSize(.small)
             .disabled(isBusy)
-            .accessibilityIdentifier("meeting.selection.trim")
+            .accessibilityIdentifier("meeting.selection.extract")
             Button {
                 selection = nil
             } label: {
