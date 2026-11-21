@@ -21,8 +21,9 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         var reasons: [Reason] = []
         let heard = Set(digitRuns(spoken))
         let written = Set(digitRuns(cleaned))
-        if !written.isSubset(of: heard) || (!corrects && !heard.isSubset(of: written)) { reasons.append(.digits) }
-        if !corrects, !negations(spoken).isSubset(of: negations(cleaned)) { reasons.append(.negation) }
+        let invented = !written.isSubset(of: heard) && !saysNumberWords(spoken)
+        if invented || (!corrects && !heard.isSubset(of: written)) { reasons.append(.digits) }
+        if !corrects, !negations(spoken).isEmpty, negations(cleaned).isEmpty { reasons.append(.negation) }
         if !corrects, !missingNames(spoken: spoken, cleaned: cleaned, glossary: glossary).isEmpty {
             reasons.append(.names)
         }
@@ -65,11 +66,22 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
     }
 
     static func missingNames(spoken: String, cleaned: String, glossary: String?) -> [String] {
-        let written = Set(words(cleaned))
-        let respellings = words(glossary ?? "").filter(written.contains)
+        let written = Set(words(cleaned).map { $0.lowercased() })
+        let respellings = words(glossary ?? "").map { $0.lowercased() }.filter(written.contains)
         return names(spoken).filter { name in
-            !written.contains(name) && !respellings.contains { distance($0.lowercased(), name.lowercased()) <= 2 }
+            let key = name.lowercased()
+            return !written.contains(key) && !respellings.contains { distance($0, key) <= 2 }
         }
+    }
+
+    static let numberWords: Set<String> = [
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve",
+        "thirteen", "fourteen", "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty", "thirty", "forty",
+        "fifty", "sixty", "seventy", "eighty", "ninety", "hundred", "thousand", "million", "billion", "half", "quarter",
+    ]
+
+    static func saysNumberWords(_ text: String) -> Bool {
+        words(text.lowercased()).contains { numberWords.contains($0) }
     }
 
     static func names(_ text: String) -> [String] {
@@ -102,7 +114,9 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
     }
 
     static func digitRuns(_ text: String) -> [String] {
-        text.split { !$0.isASCII || !$0.isNumber }.map(String.init)
+        let grouped = text.replacingOccurrences(of: #"(?<=\d)[,\x{00A0}\x{202F} ](?=\d{3}(?!\d))"#, with: "",
+                                                options: .regularExpression)
+        return grouped.split { !$0.isASCII || !$0.isNumber }.map(String.init)
     }
 
     private static func distance(_ lhs: String, _ rhs: String) -> Int {
