@@ -1,9 +1,3 @@
-//! Yesterday's brief on Today (`YesterdayBriefPanel`, `DreamBriefText`): the
-//! overnight review's narrative, its priorities with their real checkable
-//! actions, and its notes. Reads what the review saved; never starts one by
-//! itself. Pinning the projects and goals it keeps is in Settings › Day
-//! memory, as on the Mac.
-
 use std::collections::HashMap;
 
 use chrono::NaiveDate;
@@ -29,16 +23,13 @@ use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::section_panel::{SectionPanel, footer_text, panel_label};
 use crate::ui::{self, Ico};
 
-/// What Today reads for the brief, off the main thread.
 #[derive(Default)]
 pub(super) struct BriefModel {
     report: Option<DreamReport>,
-    /// Action threads a top action can point at, by id.
     threads: HashMap<String, ActionThread>,
 }
 
 impl BriefModel {
-    /// There is a brief to show.
     pub(super) fn has_report(&self) -> bool {
         self.report.is_some()
     }
@@ -68,8 +59,6 @@ pub(super) fn load(library: &Library, today: NaiveDate) -> BriefModel {
     BriefModel { report, threads }
 }
 
-/// `DreamReport.provenanceDescription`, translated for the page. The saved
-/// Markdown keeps the English.
 fn provenance_line(report: &DreamReport) -> String {
     if let Some(engine) = &report.engine_name {
         return match report.inference_provenance.as_ref().map(|p| p.location) {
@@ -113,7 +102,6 @@ fn provenance_line(report: &DreamReport) -> String {
     .to_string()
 }
 
-/// One section of a brief: selectable-looking text whose cited meetings open.
 fn brief_text(
     id: SharedString,
     text: &str,
@@ -178,10 +166,6 @@ fn note(text: impl Into<SharedString>, cx: &App) -> gpui_kit::Div {
 }
 
 impl TodayPage {
-    /// Yesterday's overnight brief as a panel (`YesterdayBriefPanel`): what
-    /// happened, the priorities it leaves and its notes without a click,
-    /// "Open day", and the brief's own account of how it was written in the
-    /// footer. A brief older than yesterday is titled with its own day.
     pub(super) fn render_yesterday(
         &self,
         model: &BriefModel,
@@ -217,9 +201,6 @@ impl TodayPage {
         if !report.top_actions.is_empty() {
             let mut list = v_flex().w_full().gap(px(3.));
             for (index, action) in report.top_actions.iter().enumerate() {
-                // A top action taken from the recorded candidates is the real
-                // thread: it can be checked off here and stays in sync. The
-                // rest are numbered advice.
                 let thread = report
                     .top_action_thread_id(index)
                     .and_then(|id| model.threads.get(id));
@@ -337,14 +318,12 @@ impl TodayPage {
                     )
                 })
                 .child(body)
-                // The report's own account of which model wrote it and where.
                 .footer(footer_text(provenance_line(report)))
                 .into_any_element(),
         )
     }
 }
 
-/// "Nov 12, 2026".
 fn abbreviated(day: NaiveDate) -> String {
     day.format_localized(
         lokalbot_i18n::date_pattern("%b %-d, %Y"),
@@ -353,8 +332,6 @@ fn abbreviated(day: NaiveDate) -> String {
     .to_string()
 }
 
-/// Whose priorities the brief holds: today's for yesterday's brief, an older
-/// day's by its weekday within the week and its date beyond.
 fn priorities_label(report_day: &str, today: NaiveDate) -> String {
     use super::model::{DayNaming, PrioritiesSource};
     match super::model::priorities_source(report_day, today) {
@@ -374,7 +351,6 @@ fn priorities_label(report_day: &str, today: NaiveDate) -> String {
     }
 }
 
-/// Reloads before changing, so a page can't overwrite what a review wrote since.
 pub(crate) fn set_pinned(data: &Entity<AppData>, pinned: bool, entry: MemoryEntry, cx: &mut App) {
     if data.read(cx).dream.is_dreaming {
         data.update(cx, |data, cx| {

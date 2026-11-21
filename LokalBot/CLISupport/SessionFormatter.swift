@@ -1,21 +1,11 @@
 import Foundation
 
-/// Renders `Meeting` lists and individual sessions for the CLI in three
-/// shapes: JSON (default — easy for agents to consume), plain-text table
-/// (for humans), and combined Markdown (the in-app export plus tagged
-/// transcripts so `[user]` / `[transcript]` are distinguishable).
-///
-/// Mirrors Seminarly's `SessionFormatter`. Pure value-in / string-out so it
-/// can be unit-tested without the file system.
 enum SessionFormatter {
 
     struct GetOptions: Equatable {
         var includeSummary: Bool
         var includeTranscript: Bool
         var includeMetadata: Bool
-        /// Clients with an output limit (MCP) read a long transcript in
-        /// windows: entries from `transcriptFrom` on, up to this many
-        /// characters. Nil returns the whole transcript, as the CLI does.
         var transcriptCharacters: Int?
         var transcriptFrom: TimeInterval?
 
@@ -24,13 +14,6 @@ enum SessionFormatter {
                                     includeMetadata: true)
     }
 
-    // MARK: - list
-
-    /// `list --include summary` (MCP: `list_meetings` with `include`): the
-    /// listed summaries share one character budget, so ten hour-long
-    /// meetings fit a small model's context. A short summary comes whole and
-    /// leaves the rest of its share to longer ones; a cut one ends in "…"
-    /// with `summary_truncated`, and `get` reads it whole.
     static let listSummaryBudget = 20_000
     static let listSummaryCap = 5_000
     static let defaultSummaryListCount = 10
@@ -87,9 +70,6 @@ enum SessionFormatter {
         case unknown([String])
     }
 
-    /// Whether `list --include` (MCP `include`) asks for summaries. Entries
-    /// always carry metadata, so `metadata` changes nothing; transcripts are
-    /// read one meeting at a time with `get`.
     static func listIncludesSummary(_ include: String) throws -> Bool {
         let parts = Set(include.split(separator: ",")
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
@@ -100,8 +80,6 @@ enum SessionFormatter {
         return parts.contains("summary")
     }
 
-    /// Each summary cut to its share of `listSummaryBudget`; nil where a
-    /// meeting has none.
     static func listSummaries(_ summaries: [String?]) -> [(text: String, truncated: Bool)?] {
         let texts = summaries.map { summary -> String? in
             guard let trimmed = summary?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -118,9 +96,6 @@ enum SessionFormatter {
         return result
     }
 
-    /// Shortest first, each takes what it needs up to an equal split of
-    /// what is left (and at most `cap`), so short summaries leave room for
-    /// long ones.
     static func summaryShares(_ lengths: [Int], budget: Int, cap: Int) -> [Int] {
         var shares = Array(repeating: 0, count: lengths.count)
         var remaining = budget
@@ -132,8 +107,6 @@ enum SessionFormatter {
         return shares
     }
 
-    /// The text when it has at most `limit` characters; otherwise its start,
-    /// cut at the last line break when that keeps at least half, and "…".
     static func shortened(_ text: String, to limit: Int) -> (text: String, truncated: Bool) {
         guard text.count > limit else { return (text, false) }
         var kept = String(text.prefix(max(0, limit - 2)))
@@ -144,8 +117,6 @@ enum SessionFormatter {
         while kept.last?.isWhitespace == true { kept.removeLast() }
         return (kept + "\n…", true)
     }
-
-    // MARK: - get
 
     static func getJSON(_ meeting: Meeting, options: GetOptions) -> String {
         let entry = GetEntry(
@@ -202,9 +173,6 @@ enum SessionFormatter {
         return lines.joined(separator: "\n")
     }
 
-    /// Whole entries from `start` on, up to `maxCharacters`; `nextFrom` is the
-    /// stamp of the first entry left out. The first entry is always kept, so a
-    /// caller paging through a transcript always makes progress.
     static func transcriptWindow(_ transcript: Transcript, from start: TimeInterval,
                                  maxCharacters: Int) -> (text: String, nextFrom: String?) {
         let roster = transcript.speakerRoster
@@ -221,7 +189,6 @@ enum SessionFormatter {
         return (kept.joined(separator: "\n\n"), nil)
     }
 
-    /// Seconds for "HH:MM:SS", "MM:SS", or a plain number of seconds.
     static func seconds(fromStamp stamp: String) -> TimeInterval? {
         let parts = stamp.trimmingCharacters(in: .whitespaces).split(separator: ":", omittingEmptySubsequences: false)
         guard (1...3).contains(parts.count) else { return nil }
@@ -233,15 +200,12 @@ enum SessionFormatter {
         return total
     }
 
-    // MARK: - search
-
     struct SearchHit: Encodable {
         var meeting_id: String
         var meeting_title: String
-        var match_kind: String          // "title" | "summary" | "transcript"
+        var match_kind: String
         var snippet: String
-        var timestamp: String?          // "00:14:32" for transcript hits
-        /// Only on LokalBot's sample meeting: made up, with synthetic voices.
+        var timestamp: String?
         var sample: Bool?
     }
 
@@ -263,8 +227,6 @@ enum SessionFormatter {
         }
         return renderTable(header: header, rows: rows)
     }
-
-    // MARK: - Private
 
     private struct ListEntry: Encodable {
         var id: String

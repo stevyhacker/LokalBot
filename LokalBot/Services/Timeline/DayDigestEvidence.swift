@@ -1,9 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// One retained, privacy-scrubbed screen-context record used by the day digest.
-/// Pixels never enter this value; `text` is the same local Accessibility/OCR
-/// text already stored in the screen-memory index.
 struct DayScreenContext: Equatable, Sendable {
     var snapshotID: Int64
     var capturedAt: Date
@@ -12,8 +9,6 @@ struct DayScreenContext: Equatable, Sendable {
     var text: String
 }
 
-/// Meeting evidence folded into the workday summary without making the day
-/// pipeline parse meeting artifacts itself.
 struct DayDigestMeetingEvidence: Equatable, Sendable {
     var id: UUID
     var title: String
@@ -22,8 +17,6 @@ struct DayDigestMeetingEvidence: Equatable, Sendable {
     var endedAt: Date
     var sourceSummary: String
     var outcomes: String
-    /// Latest write among the summary/outcomes files consumed for this meeting.
-    /// It is evidence even when the meeting's own end time is unchanged.
     var artifactModifiedAt: Date?
 }
 
@@ -35,7 +28,6 @@ enum DayDigestMeetingArtifacts {
     ]
 
     static func latestModifiedAt(in folder: URL) -> Date? {
-        // Archive-only corrections are not consumed by the current digest.
         let hasCurrentOutcomes = FileManager.default.fileExists(
             atPath: folder.appendingPathComponent(MeetingOutcomes.fileName).path)
         return fileNames.compactMap { name -> Date? in
@@ -47,12 +39,6 @@ enum DayDigestMeetingArtifacts {
     }
 }
 
-/// Answers to day-digest prompts already asked today, keyed by the exact
-/// prompt. A digest is regenerated whenever a meeting finishes or evidence
-/// settles; without this every run re-asked the model about every segment,
-/// including morning segments whose evidence had not changed (16 full runs on
-/// 2026-10-01). In memory only, bounded, and purged with a day's journal when
-/// evidence is deleted or corrected, so no derived text outlives its source.
 final class DayDigestSegmentCache: @unchecked Sendable {
     static let shared = DayDigestSegmentCache()
 
@@ -102,10 +88,6 @@ final class DayDigestSegmentCache: @unchecked Sendable {
     }
 }
 
-/// One deterministic slice of the day that receives a substantive-work
-/// eligibility pass. Character pressure may split a long active session, while
-/// a real idle gap always starts a new slice. Metadata-only slices stay in the
-/// lossless journal without becoming visible summary items.
 struct DayDigestSummarySegment: Equatable, Sendable {
     var start: Date
     var end: Date
@@ -115,9 +97,6 @@ struct DayDigestSummarySegment: Equatable, Sendable {
     var sourceIDs: [Int64]
 }
 
-/// Complete, ordered evidence for one local calendar day. The model consumes
-/// bounded chunks of this value, while the journal's chronological log is
-/// rendered directly so model brevity or failure can never omit activity.
 struct DayDigestEvidence: Equatable, Sendable {
     struct Activity: Equatable, Sendable {
         var id: Int64
@@ -133,8 +112,6 @@ struct DayDigestEvidence: Equatable, Sendable {
     var activities: [Activity]
     var standaloneContexts: [DayScreenContext]
     var meetings: [DayDigestMeetingEvidence]
-    /// Settled coding-agent work. Like meetings, it arrives pre-structured
-    /// and is rendered in its own lossless journal section.
     var codingAgentBursts: [CodingAgentBurst] = []
 
     var isEmpty: Bool {
@@ -209,11 +186,6 @@ struct DayDigestEvidence: Equatable, Sendable {
                 })
     }
 
-    /// Full-day evidence for LLM summarization. Every summary-worthy activity
-    /// and meeting appears in exactly one segment, and each long block contributes
-    /// evenly spaced context in proportion to its duration rather than letting
-    /// the morning exhaust a global cap. An idle gap creates a hard boundary,
-    /// so short morning work cannot be obscured by an afternoon session.
     func summarySegments(
         maxCharacters: Int = 12_000,
         inactivityGap: TimeInterval = 10 * 60,
@@ -234,9 +206,6 @@ struct DayDigestEvidence: Equatable, Sendable {
             }
         }
 
-        // More isolated sessions than the day's limit are rare, but merging the
-        // shortest adjacent pair preserves every event without letting a few
-        // brief interruptions consume most of the bounded UI.
         while sessions.count > maxSegments {
             var smallestIndex = 0
             var smallestDuration = coveredDuration(
@@ -255,11 +224,6 @@ struct DayDigestEvidence: Equatable, Sendable {
                 contentsOf: sessions.remove(at: smallestIndex + 1))
         }
 
-        // Each segment shows a bounded sample of its events, so a session gets
-        // one segment per `targetSegmentDuration` of active time (never more
-        // than it has events). A fixed eight-segment plan gave a six-hour,
-        // 809-event block the same sample budget as a one-event session.
-        // Short days no longer split into extra calls just to reach a quota.
         var needs: [Int] = []
         for session in sessions {
             let hours = Int(ceil(coveredDuration(of: session) / max(60, targetSegmentDuration)))
@@ -293,7 +257,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         }
     }
 
-    /// The segments' evidence text alone. Only tests call it.
     func summaryChunks(maxCharacters: Int = 12_000) -> [String] {
         summarySegments(maxCharacters: maxCharacters).map(\.evidence)
     }
@@ -307,8 +270,6 @@ struct DayDigestEvidence: Equatable, Sendable {
             "## Day summary\n\n\(summaryBody)",
             "## Meetings\n\n\(meetingsSection(calendar: calendar))",
         ]
-        // Only days with agent work gain the section, so journals written
-        // without the feature keep their existing shape.
         if !codingAgentBursts.isEmpty {
             sections.append("## Agent sessions\n\n\(agentSessionsSection(calendar: calendar))")
         }
@@ -319,7 +280,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         return sections.joined(separator: "\n\n") + "\n"
     }
 
-    /// Bursts of one session, in order, one group per session.
     var codingAgentSessions: [[CodingAgentBurst]] {
         var order: [String] = []
         var groups: [String: [CodingAgentBurst]] = [:]
@@ -362,10 +322,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         }
     }
 
-    /// A long uninterrupted app/window block used to expose only three screen
-    /// samples—the same evidence depth as a five-minute task. Increase breadth
-    /// with active duration while keeping excerpts inside a fixed character
-    /// budget, so hours of work are represented across their full span.
     private func summaryContexts(for activity: Activity) -> [DayScreenContext] {
         let duration = max(0, activity.end.timeIntervalSince(activity.start))
         let proportionalLimit = Int(ceil(duration / (30 * 60))) + 1
@@ -377,8 +333,6 @@ struct DayDigestEvidence: Equatable, Sendable {
     private struct SummaryEvent {
         enum Source: Equatable {
             case meeting
-            /// `recordedOutcome`: the burst committed, opened or merged a PR,
-            /// released, pushed, or ran tests.
             case agentSession(recordedOutcome: Bool)
             case activity
             case screenContext
@@ -391,10 +345,8 @@ struct DayDigestEvidence: Equatable, Sendable {
         var sourceIDs: [Int64]
         var app: String
         var title: String
-        /// The burst behind an agent-session event; several after merging.
         var agentBursts: [CodingAgentBurst] = []
 
-        /// Tie-break for events that begin together.
         var order: Int {
             switch source {
             case .meeting: 0
@@ -405,10 +357,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         }
     }
 
-    /// Apps that host coding agents: their chat window, a terminal, or an
-    /// editor. Screen text captured there while a stored session ran is
-    /// mostly that session on screen, which the session evidence already
-    /// states more exactly.
     private static let codingAgentHostApps: Set<String> = [
         "claude", "codex", "antigravity", "t3 code", "terminal", "iterm", "iterm2", "ghostty",
         "warp", "alacritty", "kitty", "wezterm", "cursor", "zed", "code", "visual studio code",
@@ -428,8 +376,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         return duration > 0 ? duration : Double(events.count)
     }
 
-    /// Union the recorded intervals so overlapping meeting and app evidence is
-    /// not double-counted when deciding how much narrative space a segment gets.
     private func coveredDuration(of events: [SummaryEvent]) -> TimeInterval {
         let intervals = events.compactMap { event -> DateInterval? in
             guard event.end > event.start else { return nil }
@@ -517,9 +463,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         }
         for meeting in meetings {
             var lines = ["WORK SOURCE: MEETING", "Task context: \(meeting.title)"]
-            // Outcomes lead. A busy segment cuts each source to a few hundred
-            // characters from the front, which kept the summary's generated
-            // title and provenance line and dropped every action and decision.
             let outcomes = PromptContextSanitizer.sanitize(
                 meeting.outcomes, maxCharacters: 3_000)
             if !outcomes.isEmpty { lines.append("Outcomes:\n" + outcomes) }
@@ -557,10 +500,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         return events
     }
 
-    /// Login transitions are useful in the lossless activity log, but they are
-    /// not work topics and should not consume scarce overview space.
-    /// The summary without its generated title and provenance line; the
-    /// meeting event already carries both as task context and trace metadata.
     static func summaryBody(_ summary: String) -> String {
         SummaryPresentation.split(summary).body
             .components(separatedBy: "\n")
@@ -617,9 +556,6 @@ struct DayDigestEvidence: Equatable, Sendable {
             sourceIDs: sourceIDs)
     }
 
-    /// A session often has several bursts in one segment. Show it once, with
-    /// every burst's requests, actions, and files, so parallel sessions do
-    /// not crowd each other out of the detail budget.
     private func mergingAgentSessions(_ events: [SummaryEvent]) -> [SummaryEvent] {
         var merged: [SummaryEvent] = []
         var positions: [String: Int] = [:]
@@ -647,11 +583,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         }
     }
 
-    /// Meetings are already structured work evidence, so a busy interval must
-    /// not sample around them merely because it contains many short activity
-    /// events. Agent sessions that recorded an outcome get the same guarantee,
-    /// up to `reservedAgentSessions`, ahead of those that did not. Fill the
-    /// remaining detail budget evenly across the interval.
     private func summaryDetailIndices(
         events: [SummaryEvent],
         limit: Int,
@@ -791,8 +722,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         }.joined(separator: "\n\n")
     }
 
-    /// Recorded facts only, one entry per session. The agent's own report is
-    /// a claim for the model to corroborate, so it stays out of this section.
     private func agentSessionsSection(calendar: Calendar) -> String {
         codingAgentSessions.compactMap { bursts -> String? in
             guard let first = bursts.first else { return nil }
@@ -843,14 +772,12 @@ struct DayDigestEvidence: Equatable, Sendable {
         }.joined(separator: "\n\n")
     }
 
-    /// `owner/repo#N` for a GitHub pull request URL.
     static func pullRequestLabel(_ url: String) -> String? {
         let parts = url.split(separator: "/")
         guard parts.count >= 6, parts[parts.count - 2] == "pull" else { return nil }
         return "\(parts[parts.count - 4])/\(parts[parts.count - 3])#\(parts[parts.count - 1])"
     }
 
-    /// A Markdown link labelled `owner/repo#N`.
     static func pullRequestLink(_ url: String) -> String {
         pullRequestLabel(url).map { "[\($0)](\(url))" } ?? "<\(url)>"
     }
@@ -880,9 +807,6 @@ struct DayDigestEvidence: Equatable, Sendable {
         return lines.joined(separator: "\n")
     }
 
-    /// Remove recurring Accessibility chrome only from the model-facing
-    /// excerpt. The deterministic journal below retains the original scrubbed
-    /// evidence verbatim, including source IDs, for inspection and export.
     private func summaryExcerpt(_ value: String, maxCharacters: Int) -> String {
         var result = PromptContextSanitizer.sanitize(value)
         let recurringChrome = [
@@ -940,9 +864,6 @@ struct DayDigestGeneratedFocusBlock: Equatable, Sendable {
     var sourceIDs: [Int64]
 }
 
-/// Conservative lexical overlap detection for short, structured digest text.
-/// It catches copied or lightly rephrased facts without treating every mention
-/// of the same project as redundant.
 enum DayDigestTextSimilarity {
     private static let ignoredWords: Set<String> = [
         "a", "an", "and", "are", "as", "at", "be", "been", "being", "by",
@@ -997,10 +918,6 @@ struct DayDigestOverviewGeneration: Equatable, Sendable {
     var coverage: DayDigestCoverage?
 }
 
-/// How much of the day's tracked activity reached the digest: active seconds
-/// of evidence segments whose extraction produced a usable block, over the
-/// active seconds of all segments. Lost segments (truncation, provider stop,
-/// unusable output) lower it.
 struct DayDigestCoverage: Codable, Equatable, Sendable {
     var coveredSeconds: TimeInterval
     var trackedSeconds: TimeInterval
@@ -1008,8 +925,6 @@ struct DayDigestCoverage: Codable, Equatable, Sendable {
     var ratio: Double? { trackedSeconds > 0 ? coveredSeconds / trackedSeconds : nil }
 }
 
-/// How far a digest run has come, for progress surfaces. Segment extraction
-/// is most of the work; aggregation is the final step.
 struct DayDigestProgress: Equatable, Sendable {
     var completedSegments: Int
     var totalSegments: Int
@@ -1026,14 +941,7 @@ struct DayDigestProgress: Equatable, Sendable {
 
 typealias DayDigestProgressHandler = @MainActor @Sendable (DayDigestProgress) -> Void
 
-/// Converts deterministic, gap-aware evidence segments into the compact
-/// human layer shown above the lossless journal. A first model pass rejects
-/// metadata-only segments and extracts structured work candidates. A second
-/// pass groups those candidates by task; code retains every accepted candidate
-/// even if that aggregation pass fails or omits one.
 enum DayDigestOverviewGenerator {
-    /// Display limits for journal task copy. Sized so titles wrap and
-    /// summaries stay complete sentences instead of ending on an ellipsis.
     private enum FieldLimit {
         static let titleCharacters = 160
         static let summaryWords = 120
@@ -1049,8 +957,6 @@ enum DayDigestOverviewGenerator {
         var outcome: String
         var nextStep: String
         var sourceIDs: [Int64]
-        /// Other distinct work in the same segment. Answers saved before it
-        /// existed decode with none.
         var otherTasks: [FocusDraft]?
 
         enum CodingKeys: String, CodingKey {
@@ -1168,8 +1074,6 @@ enum DayDigestOverviewGenerator {
             try Task.checkCancellation()
             await progress?(DayDigestProgress(completedSegments: index, totalSegments: segments.count))
             let startedAt = Date()
-            // The prompt depends only on the segment's own evidence, so an
-            // unchanged segment can reuse its earlier answer.
             let focusPrompt = """
                 Extract the substantive-work candidates from this evidence segment.
                 Decide eligibility from the work content, not from time spent or app usage.
@@ -1285,8 +1189,6 @@ enum DayDigestOverviewGenerator {
                 }
             }
             if parsed == nil { degraded = true }
-            // A cancelled run is answering for evidence that just changed or
-            // was deleted; never keep its answer.
             if parsed != nil, !Task.isCancelled { segmentCache?.store(output, day: cacheDay, key: cacheKey) }
             if let parsed { accept(parsed) }
             lokalbotLog(
@@ -1299,16 +1201,9 @@ enum DayDigestOverviewGenerator {
                     + String(format: "%.2fs", Date().timeIntervalSince(startedAt)))
         }
 
-        // Segment extraction keeps at most three items per segment, and a
-        // small model rarely fills them all, so parallel sessions could still
-        // vanish. Those that recorded an outcome are stated from their actions
-        // and added after aggregation: a small model asked to merge them
-        // blends unrelated sessions.
         let sessionTasks = sessionCandidates(evidence)
 
         let usesBestAvailableActivity = substantiveBlocks.isEmpty
-        // Substantive work leads; lighter but identifiable work follows it
-        // instead of disappearing whenever one segment clears the bar.
         let selectedBlocks = substantiveBlocks + fallbackBlocks
         let marksPriority = !substantiveBlocks.isEmpty && !fallbackBlocks.isEmpty
         guard !selectedBlocks.isEmpty else {
@@ -1414,26 +1309,15 @@ enum DayDigestOverviewGenerator {
             coverage: DayDigestCoverage(coveredSeconds: coveredSeconds, trackedSeconds: trackedSeconds))
     }
 
-    /// Routed reasoning models can spend most of a small budget thinking even
-    /// when asked not to. The compact focus JSON needs far less than this; the
-    /// headroom only matters for those models, and llama-server keeps its own
-    /// thinking budget independent of the larger cap.
     static let focusTokens = 2_048
     static let focusRetryTokens = 4_096
     static let aggregationTokens = 1_600
     static let aggregationRetryTokens = 3_200
 
-    /// The first aggregation pass gets room for each candidate beyond eight
-    /// (about 150 tokens per task), now that a long day can produce up to 16.
-    /// A fixed 1,600 tokens was truncated on the first 16-segment day.
     static func aggregationTokens(candidates: Int) -> Int {
         min(aggregationRetryTokens, aggregationTokens + max(0, candidates - 8) * 150)
     }
 
-    /// Remote providers intermittently answer 429/5xx or drop the connection.
-    /// Replay that one request after the shared policy delay instead of
-    /// losing the rest of the day. Managed local engines already relaunch and
-    /// replay inside `LeasedTextEngine`, so they are never retried twice.
     private static func generateReplayingTransientFailure(
         engine: TextEngine,
         stage: String,
@@ -1483,25 +1367,17 @@ enum DayDigestOverviewGenerator {
         Do not quote or restate candidate metadata.
         """
 
-    /// One candidate per agent session that recorded an outcome, from
-    /// recorded facts only. Scheduled runs are left to segment extraction:
-    /// their reports often describe other days.
     static func agentSessionCandidates(_ evidence: DayDigestEvidence) -> [DayDigestGeneratedFocusBlock] {
         sessionCandidates(evidence).map(\.block)
     }
 
-    /// A session's task, with what identifies its work when matching it to
-    /// the model's tasks.
     private struct SessionCandidate {
         var block: DayDigestGeneratedFocusBlock
-        /// The work title without its project.
         var name: String
         var project: String?
         var pullRequests: [CodingAgentPullRequest]
     }
 
-    /// Tasks are named by the work, not by the first request or the folder
-    /// the session started in.
     private static func sessionCandidates(_ evidence: DayDigestEvidence) -> [SessionCandidate] {
         evidence.codingAgentSessions.compactMap { bursts -> SessionCandidate? in
             guard let session = CodingAgentBurstBuilder.merging(bursts), session.recordedOutcome,
@@ -1545,10 +1421,6 @@ enum DayDigestOverviewGenerator {
         return "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
     }
 
-    /// Last-resort output for engine failures or evidence that every model
-    /// pass rejected. Prefer meeting content, then the most sustained named
-    /// activity contexts. This path stays deliberately conservative: it names
-    /// what was present without inventing an accomplishment or outcome.
     private static func bestAvailableFallbackBlocks(
         _ evidence: DayDigestEvidence,
         limit: Int = 6
@@ -1569,8 +1441,6 @@ enum DayDigestOverviewGenerator {
             if blocks.count == limit { return blocks }
         }
 
-        // Agent sessions name their work and record their actions, which
-        // says more than a window title without claiming an outcome.
         for session in evidence.codingAgentSessions {
             guard let merged = CodingAgentBurstBuilder.merging(session) else { continue }
             var actions: [String] = []
@@ -1789,8 +1659,6 @@ enum DayDigestOverviewGenerator {
         }
         var parsed = ParsedFocus(block: main, isSubstantive: draft.substantive)
         var seen = [normalizedTaskKey(main.task)]
-        // At most two others, as the schema asks; a repeat of a task already
-        // kept does not use a slot.
         for other in draft.otherTasks ?? [] where parsed.others.count < 2 {
             guard let block = focusBlock(other, segment: segment),
                   !seen.contains(normalizedTaskKey(block.task)) else { continue }
@@ -1933,10 +1801,6 @@ enum DayDigestOverviewGenerator {
             blockIndices: [index]))
     }
 
-    /// A session already described by a task adds its recorded facts to that
-    /// task; otherwise it becomes its own task after the model's. A task
-    /// describes the session when its title says the same, names one of the
-    /// session's pull requests, or holds every word of the session's name.
     private static func mergeSessionCandidate(
         _ candidate: SessionCandidate,
         index: Int,
@@ -1961,15 +1825,10 @@ enum DayDigestOverviewGenerator {
             tasks[taskIndex].summary = cleanSummary(
                 tasks[taskIndex].summary + " " + addition, maxWords: FieldLimit.summaryWords)
         }
-        // A recorded merge or release settles the status; nothing weaker
-        // overrides what the model concluded.
         if block.status == "completed" { tasks[taskIndex].status = "completed" }
         tasks[taskIndex].blockIndices.append(index)
     }
 
-    /// The title names one of the session's pull requests: `owner/repo#12`,
-    /// or `#12` or `PR 12` beside the repository's name. A number alone could
-    /// belong to another repository's pull request.
     private static func namesPullRequest(_ title: String, of candidate: SessionCandidate) -> Bool {
         candidate.pullRequests.contains { pullRequest in
             let label = "\(pullRequest.owner)/\(pullRequest.repository)#\(pullRequest.number)"
@@ -1981,10 +1840,6 @@ enum DayDigestOverviewGenerator {
         }
     }
 
-    /// Every word of the session's name is in the task's title, the task is
-    /// about the session's project, and the two name no different pull
-    /// requests: "Review all open PRs" in LokalBot is "LokalBot open PR
-    /// review and fixes", while "Review PR" is not "LokalBot PR #290 review".
     private static func describesSameWork(_ task: NormalizedTask, as candidate: SessionCandidate) -> Bool {
         var words = workWords(candidate.name)
         if let project = candidate.project {
@@ -2003,7 +1858,6 @@ enum DayDigestOverviewGenerator {
             options: [.regularExpression, .caseInsensitive]) != nil
     }
 
-    /// Numbers written as `#12`, `PR 12`, or `PRs #12`.
     private static func pullRequestNumbers(in text: String) -> Set<Int> {
         var numbers: Set<Int> = []
         var rest = text[...]
@@ -2015,8 +1869,6 @@ enum DayDigestOverviewGenerator {
         return numbers
     }
 
-    /// Lowercased content words in singular form, with "pull request" as "pr",
-    /// so "Review the pull requests" and "open PR review" share their words.
     private static func workWords(_ text: String) -> Set<String> {
         let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .lowercased()
@@ -2043,9 +1895,6 @@ enum DayDigestOverviewGenerator {
         "the", "these", "this", "those", "to", "with",
     ]
 
-    /// The part of a session's outcome a task does not state yet. Several
-    /// sessions can merge into one task, so each adds only pull requests it
-    /// has not already named; `#10` is not mentioned by `#105`.
     private static func unmentionedOutcome(_ outcome: String, in summary: String) -> String {
         let prefix = "Pull requests: "
         guard outcome.hasPrefix(prefix) else {
@@ -2175,9 +2024,6 @@ enum DayDigestOverviewGenerator {
 }
 
 extension Calendar {
-    /// "HH:mm" in this calendar's time zone, as a POSIX-locale `DateFormatter`
-    /// writes it. A digest asks for thousands of these, and building a
-    /// formatter for each was most of the cost.
     func clockStamp(_ date: Date) -> String {
         let parts = dateComponents([.hour, .minute], from: date)
         return String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
@@ -2230,9 +2076,6 @@ enum DayDigestGenerationMetadataStore {
         return metadata
     }
 
-    /// Records whether this journal still needs a model-backed repair. Repeated
-    /// degraded writes for unchanged evidence increment a durable budget so a
-    /// persistently crashing model cannot be relaunched forever.
     @discardableResult
     static func record(
         quality: DayDigestGenerationQuality,
@@ -2327,9 +2170,6 @@ enum DayDigestGenerationMetadataStore {
         return journalMatches(metadata, at: journalURL)
     }
 
-    /// Legacy or externally edited journals keep their modification-time
-    /// semantics. A matching degraded sidecar returns nil while a bounded quiet
-    /// repair is still eligible, making the scheduler treat it as unfinished.
     static func completedAt(for journalURL: URL) -> Date? {
         guard let attributes = try? FileManager.default.attributesOfItem(
             atPath: journalURL.path),

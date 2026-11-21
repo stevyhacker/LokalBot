@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// The agent setup window: an agent ran `lokalbot-cli setup start` and asks
-/// to set LokalBot up for the person. Allow turns on settings access and any
-/// read access the person ticks; Don't Allow leaves everything off.
 struct AgentSetupView: View {
     @EnvironmentObject private var app: AppState
 
@@ -87,7 +84,6 @@ private struct AgentSetupCard: View {
         }
     }
 
-    /// A new install still needs its setup, so declining leads to onboarding.
     private func decline() {
         requests.deny()
         if !UserDefaults.standard.bool(forKey: AppState.onboardingShownKey) {

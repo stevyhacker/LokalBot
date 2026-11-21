@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// A ▶ time beside a decision or action. It plays from there in place, so the
-/// reader stays on the summary.
 struct MeetingPlayTimeButton: View {
     let time: TimeInterval
     var excerpt = ""
@@ -26,7 +24,6 @@ struct MeetingPlayTimeButton: View {
             }
             .font(AppFont.scaled(.callout).monospacedDigit())
             .foregroundStyle(LBTokens.Palette.accentText)
-            // A comfortable click target around the small timestamp.
             .padding(.horizontal, Self.hitInset)
             .padding(.vertical, 3)
             .contentShape(Rectangle())
@@ -36,12 +33,9 @@ struct MeetingPlayTimeButton: View {
         .accessibilityLabel("Play from \(stamp)")
     }
 
-    /// Room for the pointer on each side of the time.
     static let hitInset: CGFloat = 4
 }
 
-/// One decision in the Decisions panel: what was decided, and at the row's
-/// trailing edge the time it was said. The panel's header carries the symbol.
 struct MeetingDecisionRow: View {
     let decision: MeetingOutcomes.Decision
     let displayText: String
@@ -68,8 +62,6 @@ struct MeetingDecisionRow: View {
                     searchLocation: .decision(id: decision.id, field: .evidence)) {
                     onPlay(citation)
                 }
-                // The time, not the room around it for the pointer, meets
-                // the row's trailing edge.
                 .padding(.trailing, -MeetingPlayTimeButton.hitInset)
                 .accessibilityIdentifier("meeting.decision.play.\(decision.id)")
             }
@@ -84,14 +76,10 @@ struct MeetingDecisionRow: View {
     }
 }
 
-/// One action on the meeting page. Someone else's action carries its owner as
-/// a small menu; the owner turns amber while it is missing or still an unnamed
-/// voice.
 struct MeetingActionRow: View {
     @EnvironmentObject var app: AppState
     let reference: OutcomeActionReference
     let displayOwner: String?
-    /// Shown on other people's actions. Your own say so by their group.
     var showsOwner = true
     var ownerOptions: [MeetingDetailPresentation.OwnerOption] = []
     var canNameSpeakers = false
@@ -189,8 +177,6 @@ struct MeetingActionRow: View {
         }
     }
 
-    /// Overdue reads red, due within the week amber, anything later quiet,
-    /// the same rule the Actions list uses.
     private var dueColor: Color {
         switch MeetingDetailPresentation.dueUrgency(resolved: reference.resolvedDueDate, status: reference.status) {
         case .overdue: LBTokens.Palette.recordingText
@@ -236,10 +222,6 @@ struct MeetingActionRow: View {
     }
 }
 
-/// An action's owner as a small menu on its row: you, this meeting's
-/// speakers, people invited to it, or no owner. The chip is drawn here and the
-/// app's native pull-down lies over it undrawn, because a SwiftUI `Menu` gives
-/// assistive tools no way to open it.
 struct MeetingActionOwnerMenu: View {
     let owner: String?
     let needsAttention: Bool
@@ -280,7 +262,6 @@ struct MeetingActionOwnerMenu: View {
             RoundedRectangle(cornerRadius: 5, style: .continuous)
                 .strokeBorder(stroke)
         }
-        // The pull-down over the chip is what assistive tools read and press.
         .accessibilityHidden(true)
         .overlay {
             WorkspaceMenu(title: shown, label: "\(language.localized("Owner")): \(shown)",
@@ -289,10 +270,8 @@ struct MeetingActionOwnerMenu: View {
         .fixedSize()
     }
 
-    /// Search and VoiceOver read the same words the chip shows.
     static let missingOwnerText = "No owner"
 
-    /// "You" and "No owner" in the app's language; a person's name as it is.
     static func title(of option: MeetingDetailPresentation.OwnerOption, in language: AppLanguage) -> String {
         switch option.kind {
         case .you, .none: language.localized(option.title)

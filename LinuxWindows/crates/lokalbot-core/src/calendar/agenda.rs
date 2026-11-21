@@ -1,7 +1,3 @@
-//! `CalendarAgenda.sanitize` (`MeetingGenerationContext.swift`): the agenda
-//! part of an invitation, without joining instructions, links, phone numbers,
-//! addresses or markup. Kept only when the user turns on agenda use.
-
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -54,7 +50,6 @@ const JOINING_MARKERS: &[&str] = &[
     "view all guest info",
 ];
 
-/// The invitation's agenda, or `None` when nothing meaningful is left.
 pub fn sanitize_agenda(notes: Option<&str>) -> Option<String> {
     let text = notes.filter(|n| !n.is_empty())?;
     let text = LINE_BREAK_TAGS.replace_all(text, "\n");
@@ -94,7 +89,6 @@ fn is_joining_boilerplate(line: &str) -> bool {
     if JOINING_MARKERS.iter().any(|marker| lower.contains(marker)) {
         return true;
     }
-    // Separator rules and bare phone numbers.
     if line
         .chars()
         .all(|c| "-_=~─━.:*#".contains(c) || c.is_whitespace())

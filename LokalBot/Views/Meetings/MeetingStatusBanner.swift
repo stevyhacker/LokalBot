@@ -1,12 +1,8 @@
 import SwiftUI
 
-/// One line of status at the top of a meeting's content: what happened and,
-/// when there is one, the single thing to do about it.
 struct MeetingStatusBanner<Message: View, Trailing: View>: View {
     enum Tone {
-        /// Something to notice or fix.
         case attention
-        /// Work in progress or an offer.
         case info
     }
 
@@ -16,7 +12,6 @@ struct MeetingStatusBanner<Message: View, Trailing: View>: View {
     @ViewBuilder var message: Message
     @ViewBuilder var trailing: Trailing
 
-    /// A narrow column puts the action under the words instead of squeezing them.
     @State private var stacked = false
 
     var body: some View {

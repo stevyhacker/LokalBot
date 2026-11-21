@@ -1,7 +1,3 @@
-//! Today's meeting schedule (`UpcomingMeetingSelector`,
-//! `UpcomingMeetingPresentation`): which events are listed, which one leads,
-//! and how their time is described.
-
 use std::sync::LazyLock;
 
 use chrono::{DateTime, NaiveDate, Utc};
@@ -9,16 +5,10 @@ use regex::Regex;
 
 use super::CalendarEvent;
 
-/// How Today treats a calendar event.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum UpcomingKind {
-    /// Other people or a conferencing link: a call LokalBot can record.
     Meeting,
-    /// Only the user is invited, but the title names a meeting (a standup
-    /// joined from elsewhere). Listed, without Join or Record.
     SoloMeeting,
-    /// Only the user, with a non-meeting title (a doctor's visit, an errand).
-    /// Never listed as a meeting.
     Personal,
 }
 
@@ -33,8 +23,6 @@ pub fn kind(event: &CalendarEvent) -> UpcomingKind {
     }
 }
 
-/// Meeting words in English and Serbian. A personal appointment title rarely
-/// uses them; a meeting kept on a private calendar usually does.
 static MEETING_TITLE: LazyLock<Regex> = LazyLock::new(|| {
     let words = [
         r"meet(?:ing|up)?s?",
@@ -79,9 +67,6 @@ pub fn looks_like_meeting(title: &str) -> bool {
     MEETING_TITLE.is_match(title)
 }
 
-/// Every meeting overlapping the local `day`, including meetings that ended
-/// and meetings hours away, by start then end. Personal appointments are left
-/// out so they cannot take a meeting's place.
 pub fn schedule(events: &[CalendarEvent], day: NaiveDate) -> Vec<CalendarEvent> {
     let (start, end) = crate::time::local_day_bounds(day);
     let mut result: Vec<CalendarEvent> = events
@@ -94,9 +79,6 @@ pub fn schedule(events: &[CalendarEvent], day: NaiveDate) -> Vec<CalendarEvent> 
     result
 }
 
-/// The meeting whose preparation deserves emphasis: an in-progress event
-/// first, otherwise the next one at any later time today. The event being
-/// recorded is skipped; Today has its own live card for it.
 pub fn primary<'a>(
     schedule: &'a [CalendarEvent],
     now: DateTime<Utc>,
@@ -120,7 +102,6 @@ pub fn primary<'a>(
     candidates.into_iter().next()
 }
 
-/// When an event happens relative to now (`UpcomingMeetingPresentation.statusLabel`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum EventStatus {
     Ended,
@@ -150,7 +131,6 @@ pub fn status(event: &CalendarEvent, now: DateTime<Utc>) -> EventStatus {
     }
 }
 
-/// Up to four attendee names, then "+N".
 pub fn participant_label(event: &CalendarEvent) -> Option<String> {
     if event.participant_names.is_empty() {
         return None;

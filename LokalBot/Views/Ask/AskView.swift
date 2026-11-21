@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// One field, one flow: typing lists what matches, Return asks about it. A
-/// new question has the field mid-page with its matches underneath; inside a
-/// conversation the field is docked and the matches rise in a tray above it,
-/// so the conversation stays on screen.
 struct AskView: View {
     @EnvironmentObject var app: AppState
 
@@ -42,28 +38,20 @@ private struct AskContent: View {
     }
     private var sources: Set<AskSourceScope> { recall.state.sources }
 
-    /// What the field's text matches. A keyword's answer is limited to
-    /// these; a full question reads the chosen sources (`AskAnswerScope`).
     @State private var matches = AskMatches()
     @State private var screenApps: [String] = []
     @State private var searchTask: Task<Void, Never>?
     @State private var isSearching = false
     @State private var searchedQuery = ""
     @State private var pendingQuestion: String?
-    /// In the field, Return asks. Once the arrow keys move onto a match,
-    /// Return opens that match.
     @State private var cursor = AskMatchCursor()
-    /// Escape folds the tray to its heading so the conversation is clear.
     @State private var trayCollapsed = false
-    /// Match rows whose folded lines are showing.
     @State private var expandedMatches: Set<String> = []
     @State private var choosingDate = false
     @FocusState private var inputFocused: Bool
 
     private var phase: AskPhase { AskRouter.phase(query: query, hasMessages: !model.messages.isEmpty) }
     private var localized: (String) -> String { app.settings.appLanguage.catalog }
-
-    // MARK: - Page
 
     private var page: some View {
         VStack(spacing: 0) {
@@ -79,8 +67,6 @@ private struct AskContent: View {
                 .accessibilityIdentifier("ask.persistenceError")
             }
             aboveField
-            // The field is the same view on both pages, so it keeps its text
-            // and focus when the first answer turns the page into a thread.
             fieldColumn
             belowField
         }
@@ -151,8 +137,6 @@ private struct AskContent: View {
             model.preserveSelectionDuringHistoryLoad()
             cursor.returnToField()
             if query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { trayCollapsed = false }
-            // Return can arrive before this observer. Preserve only a request
-            // for this exact text; editing a queued question cancels it.
             if pendingQuestion != query { pendingQuestion = nil }
             runSearch(cancelPendingQuestion: false)
         }
@@ -184,8 +168,6 @@ private struct AskContent: View {
         .onKeyPress(.escape) { leaveMatches() }
         .onChange(of: app.navigationHandoff.revision) { consumeNavigationHandoff() }
         .onChange(of: model.currentID) {
-            // A saved conversation selection is an explicit mode switch. An
-            // old search query must not stay in the selected conversation's field.
             openSelectedConversation()
         }
         .onChange(of: model.navigationRevision) { openSelectedConversation() }
@@ -217,8 +199,6 @@ private struct AskContent: View {
             query = handedQuery
         }
         pinnedScreens = []
-        // A single moment is an attachment; a result/session collection is a
-        // retrieval boundary. Do not eagerly copy an entire session into a prompt.
         let attachedIDs = handoff.screenSnapshotIDs?.count == 1 ? handoff.screenSnapshotIDs ?? [] : []
         if !attachedIDs.isEmpty {
             rememberScreenAccessBeforePinning()
@@ -238,10 +218,6 @@ private struct AskContent: View {
         return true
     }
 
-    // MARK: - Keys
-
-    /// Return asks. After the arrow keys moved onto a match it opens that
-    /// match instead.
     private func submitQuery() {
         switch AskReturnAction.resolve(query: query, resultCount: matches.count,
                                        pickedWithKeyboard: cursor.isInMatches) {
@@ -261,7 +237,6 @@ private struct AskContent: View {
         return .handled
     }
 
-    /// Escape first returns the keyboard to the field, then folds the tray.
     private func leaveMatches() -> KeyPress.Result {
         if cursor.isInMatches {
             cursor.returnToField()
@@ -286,8 +261,6 @@ private struct AskContent: View {
         case .agentNote(let hit): AgentNoteOpener.open(hit)
         }
     }
-
-    // MARK: - Field
 
     private var composerPanel: some View {
         let canSubmit = !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -325,8 +298,6 @@ private struct AskContent: View {
         .composerChrome(focused: inputFocused)
     }
 
-    /// Ask, disabled while the field is empty. While an answer is being
-    /// written the same place holds Stop.
     @ViewBuilder private func sendControl(canSubmit: Bool) -> some View {
         if model.isResponding {
             Button(action: model.stop) {
@@ -351,8 +322,6 @@ private struct AskContent: View {
         }
     }
 
-    /// The screen moments a keyword's answer reads: the listed sessions and
-    /// any attached screen.
     private var answerScreenIDs: Set<Int64> {
         matches.screenIDs.union(pinnedScreens.map(\.snapshotID))
     }
@@ -360,21 +329,12 @@ private struct AskContent: View {
     private func askAboutResults() {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
               !model.isResponding else { return }
-        // Never submit rows belonging to the previous text if Return beats
-        // onChange. Completion below uses the same scoped submission path.
         if searchedQuery != query { runSearch() }
         if isSearching {
             pendingQuestion = query
             return
         }
         pendingQuestion = nil
-        // A full question reads everything in the chosen sources and dates,
-        // so the sources menu keeps saying what was chosen. A keyword is a
-        // search being asked about: its answer is limited to the listed
-        // matches, and the menu then names that limit. A "Remember …"
-        // statement is saved as is and limits nothing. Scope set on purpose
-        // before this (a handed-over meeting, an attached screen, the menu's
-        // "Only …" state) stays in `recall.state` either way.
         let remembers = app.settings.askMemoryEnabled && RememberIntent.parse(query) != nil
         let scope = AskAnswerScope.resolve(query: query, hasMatches: !matches.isEmpty,
                                            isRememberStatement: remembers)
@@ -386,8 +346,6 @@ private struct AskContent: View {
         }
         escalate()
     }
-
-    // MARK: - Scope: the two menus
 
     private var filesEnabled: Bool { app.settings.fileSearchEnabled }
     private var agentNotesEnabled: Bool { app.settings.codingAgentNotesEnabled }
@@ -412,9 +370,6 @@ private struct AskContent: View {
             localize: localized)
     }
 
-    /// Sources, their finer filters and the way to source permissions. When
-    /// the question is limited to earlier matches or to evidence another page
-    /// handed over, the button names that limit and the menu offers to widen it.
     private var sourcesMenu: some View {
         let summary = scopeSummary
         return WorkspaceMenu(title: summary.title, label: localized("Sources"), identifier: "ask.sources",
@@ -459,8 +414,6 @@ private struct AskContent: View {
         return items
     }
 
-    /// Lift the limit to particular meetings and screen moments, back to the
-    /// sources that were chosen before it.
     private func widenSources() {
         clearPinnedScreens(restoringScope: true)
         recall.state.clearEvidence()
@@ -480,7 +433,6 @@ private struct AskContent: View {
     private func toggleSource(_ source: AskSourceScope) {
         var selection = sources
         if selection.contains(source) {
-            // A source that is not offered (Files while it is off) never counts as the last one.
             if selection.intersection(availableSources).count > 1 { selection.remove(source) }
         } else {
             selection.insert(source)
@@ -489,7 +441,6 @@ private struct AskContent: View {
         if !selection.contains(.screen) { selectedScreenApp = nil }
     }
 
-    /// One date scope for search and answers across every source.
     private var timeMenu: some View {
         WorkspaceMenu(title: timeScopeLabel, label: localized("Date"), identifier: "ask.timeScope",
                       items: timeMenuItems, font: .systemFont(ofSize: 13))
@@ -542,8 +493,6 @@ private struct AskContent: View {
 
     private var timeScopeLabel: String { localized(app.askDateScope?.label() ?? "Any time") }
 
-    /// Shown only when it changes where the question goes: a remote model,
-    /// or a model connection that is blocked.
     @ViewBuilder private var inferenceStatus: some View {
         let state = InferencePresentation(settings: app.settings)
         if state.isRemote || state.isBlocked {
@@ -622,12 +571,6 @@ private struct AskContent: View {
         .accessibilityIdentifier("ask.screen.context")
     }
 
-    // MARK: - Asking
-
-    /// Hand the question to the assistant. The send appends messages, which
-    /// turns the page into the conversation; clearing the field folds the
-    /// matches away. A day scope from Capture is prepended so the agent
-    /// reaches for its activity-summary tool with the right date.
     private func escalate() {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty, !model.isResponding else { return }
@@ -695,8 +638,6 @@ private struct AskContent: View {
         recall.state.clearPins(restoringScope: true)
     }
 
-    // MARK: - Matches
-
     private var matchesList: AskMatchesList {
         AskMatchesList(matches: matches, query: searchedQuery,
                        style: phase.matchesPlacement == .trayAboveField ? .tray : .card,
@@ -712,7 +653,6 @@ private struct AskContent: View {
                          hints: matches.isEmpty ? [] : hints)
     }
 
-    /// A new question: the matches sit under the field.
     private var matchesUnderField: some View {
         VStack(alignment: .leading, spacing: 8) {
             matchesHeader(hints: [.init(key: "↓", action: "to open"), .init(key: "↩", action: "to ask")])
@@ -749,8 +689,6 @@ private struct AskContent: View {
         .accessibilityIdentifier("ask.matches.none")
     }
 
-    /// Inside a conversation: the matches rise above the docked field and
-    /// the thread stays where it is. Nothing to list means no tray.
     @ViewBuilder private var matchesTray: some View {
         if phase.matchesPlacement == .trayAboveField, isSearching || !matches.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
@@ -802,7 +740,6 @@ private struct AskContent: View {
         searchTask?.cancel()
         let q = query, request = recall.state, dateScope = app.askDateScope
         searchedQuery = q
-        // Never leave rows from a previous query available to Return.
         matches = AskMatches()
         expandedMatches = []
         cursor.returnToField()
@@ -810,7 +747,6 @@ private struct AskContent: View {
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(160))
             #if LOKALBOT_UI_TEST_HOST
-            // Hold retrieval in flight for deterministic hosted Return tests.
             if let delay = Int(ProcessInfo.processInfo.environment["LOKALBOT_ASK_SEARCH_DELAY_MS"] ?? "") {
                 try? await Task.sleep(for: .milliseconds(min(max(delay, 0), 10_000)))
             }
@@ -850,10 +786,6 @@ private struct AskContent: View {
         }
     }
 
-    // MARK: - An empty page
-
-    /// Questions about the person's own latest meeting, a colleague and a
-    /// project, read from what is already loaded, then one word to search.
     private var suggestions: [AskSuggestion] {
         let latest = app.meetings
             .filter { $0.isOwnWork && $0.endedAt != nil }
@@ -921,8 +853,6 @@ private struct AskContent: View {
     }
 }
 
-/// The bordered look of the composer's two menus. A menu that limits the
-/// question (to earlier matches, a filter, or dates) is tinted.
 private struct AskMenuChrome: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
     let highlighted: Bool
@@ -942,7 +872,6 @@ private struct AskMenuChrome: ViewModifier {
     }
 }
 
-/// The raised panel the matches tray sits on.
 private struct AskTrayChrome: ViewModifier {
     @Environment(\.colorSchemeContrast) private var contrast
 

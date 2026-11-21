@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// SQLite's unicode61 tokenizer indexes an unbroken run of CJK text as one
-/// token, so keyword search found a Chinese word only at the start of a phrase:
-/// 深色模式 matched 深色模式下设置页面…, but 对比度 and 三台设备 matched nothing.
 final class CJKKeywordSearchTests: XCTestCase {
     private var root: URL!
 
@@ -44,9 +41,6 @@ final class CJKKeywordSearchTests: XCTestCase {
         XCTAssertTrue(index.search("对比度", kind: .title).isEmpty, "the kind filter still applies")
     }
 
-    /// The chat tool retries a natural-language question in relaxed (OR) mode.
-    /// A spaceless Chinese question is one long term, so its two-character
-    /// pieces are matched instead and the passage sharing the most ranks first.
     func testRelaxedSearchRanksTheBestChineseMatchFirst() throws {
         let release = UUID()
         let index = try index([
@@ -60,9 +54,6 @@ final class CJKKeywordSearchTests: XCTestCase {
         XCTAssertEqual(hits.first?.sourceText, "王静负责在周二之前写好发布说明。")
     }
 
-    /// A Latin word glued to Chinese text is part of that run's token. The
-    /// substring fallback runs only when FTS finds nothing, and only over rows
-    /// that contain CJK text, so English rows never match by substring.
     func testLatinWordGluedToChineseIsFoundWithoutSubstringMatchingEnglish() throws {
         let interview = UUID()
         let index = try index([

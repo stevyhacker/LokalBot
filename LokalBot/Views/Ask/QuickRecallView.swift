@@ -1,12 +1,6 @@
 import SwiftUI
 
-/// The small window the system-wide shortcut and ⌘K open: type to search
-/// meetings, screen history and files, run a command, or ask. Results are
-/// grouped by kind; Return opens the selected one and ⌘Return asks, with the
-/// answer shown here. Before anything is typed it lists recent items and the
-/// commands.
 struct QuickRecallView: View {
-    /// The window, title bar included.
     static let size = CGSize(width: 660, height: 512)
 
     @EnvironmentObject private var app: AppState
@@ -37,25 +31,19 @@ private struct QuickRecallContent: View {
     @State private var isTruncated = false
     @State private var savedMoments: [ActivityStore.SavedMoment] = []
     @State private var cursor = QuickRecallCursor()
-    /// Groups whose heading was asked to list everything here (commands).
     @State private var expanded: Set<QuickRecallGroup.Kind> = []
-    /// The answer is showing in place of the results.
     @State private var showingConversation = false
     @State private var recalledQuery = ""
     @State private var isSearching = false
     @State private var searchTask: Task<Void, Never>?
-    /// ⌘Return arrived while a word's matches were still being found.
     @State private var pendingQuestion: String?
     @State private var focusRequest = 0
     @State private var titleBar: CGFloat = 0
 
     var body: some View {
-        // Built once per update: rows clean every result snippet, and the
-        // window stays alive while hidden, redrawing on every AppState change.
         let groups = showingConversation ? [] : groups
         let rows = groups.flatMap(\.rows)
         VStack(spacing: 0) {
-            // The field sits in the window's top bar.
             field(rows)
                 .padding(.top, -titleBar)
             Divider()
@@ -71,7 +59,6 @@ private struct QuickRecallContent: View {
                 }
             }
         }
-        // The title bar is part of the window's height, so the content gives it up.
         .frame(width: QuickRecallView.size.width, height: QuickRecallView.size.height - titleBar)
         .onGeometryChange(for: CGFloat.self) { $0.safeAreaInsets.top } action: { titleBar = $0 }
         .background {
@@ -101,7 +88,6 @@ private struct QuickRecallContent: View {
             pendingQuestion = nil
         }
         .onChange(of: model.messages.isEmpty) {
-            // The conversation was deleted or replaced elsewhere.
             if model.messages.isEmpty, showingConversation { showRecall() }
         }
         .onChange(of: query) {
@@ -111,18 +97,13 @@ private struct QuickRecallContent: View {
             search()
         }
         .onChange(of: app.quickRecallOpenedFromMainWindow) {
-            // The commands of the main window's page came or went.
             if trimmedQuery.isEmpty, !showingConversation { cursor.reset(rowCount: rowCount) }
         }
-        // The field handles Escape while it has the keyboard; this covers a
-        // button that took focus with Full Keyboard Access.
         .onKeyPress(.escape) {
             dismiss()
             return .handled
         }
     }
-
-    // MARK: - Field
 
     private func field(_ rows: [QuickRecallRowModel]) -> some View {
         HStack(spacing: 12) {
@@ -183,16 +164,12 @@ private struct QuickRecallContent: View {
         .frame(height: 58 * min(textScale, 1.3))
     }
 
-    // MARK: - Results
-
     @ViewBuilder
     private func resultList(_ groups: [QuickRecallGroup], rows: [QuickRecallRowModel]) -> some View {
         let indices = Dictionary(rows.enumerated().map { ($1.id, $0) }, uniquingKeysWith: { first, _ in first })
         let selected = cursor.target(rowCount: rows.count, hasAsk: hasAskRow)
         ScrollViewReader { proxy in
             ScrollView {
-                // Not lazy: the list is short, and every command stays
-                // reachable by VoiceOver and by name before it scrolls in.
                 VStack(alignment: .leading, spacing: 0) {
                     ForEach(groups) { group in
                         QuickRecallGroupHeader(group: group) { showAll(group) }
@@ -240,7 +217,6 @@ private struct QuickRecallContent: View {
         .accessibilityValue(row.accessibilityValue)
     }
 
-    /// Pinned under the results. ⌘Return asks from anywhere in the window.
     private func askRow(rowCount: Int) -> some View {
         let language = app.settings.appLanguage
         let detail = QuickRecallAskScope.askRowDetail(
@@ -279,15 +255,11 @@ private struct QuickRecallContent: View {
         Set(screenGroups.flatMap(\.matches).map(\.snapshotID))
     }
 
-    /// Every palette command. Those of the page the main window is showing
-    /// (the Agent screen's) are offered when the window was opened from it.
     private var commands: [PaletteCommand] {
         PaletteCommandCatalog.commands(app: app, source: "quick-recall",
                                        inWorkspace: app.quickRecallOpenedFromMainWindow)
     }
 
-    /// The newest few meetings. `app.meetings` is kept newest first; a meeting
-    /// merged into another is listed by the merged one.
     private var recentMeetings: [QuickRecallRecent.MeetingItem] {
         var items: [QuickRecallRecent.MeetingItem] = []
         for meeting in app.meetings where !meeting.isMergedSource {
@@ -324,13 +296,10 @@ private struct QuickRecallContent: View {
         found.files = fileHits.map { QuickRecallRowModel.file($0, localize: language.catalog) }
         found.agentNotes = noteHits.map(QuickRecallRowModel.agentNote)
         found.isTruncated = isTruncated
-        // Agent notes are a source only while their own setting is on.
         return QuickRecallGrouping.groups(found, expanded: expanded,
                                           showsAgentNotes: app.settings.codingAgentNotesEnabled)
     }
 
-    /// Nothing in memory matched. Under matching commands it is one quiet
-    /// line; alone it also says what was searched.
     private func noMatchesState(besideCommands: Bool) -> some View {
         VStack(spacing: 6) {
             HStack(spacing: 6) {
@@ -353,8 +322,6 @@ private struct QuickRecallContent: View {
         .padding(.horizontal, 20)
     }
 
-    // MARK: - Search
-
     private func search() {
         searchTask?.cancel()
         let currentQuery = trimmedQuery
@@ -370,7 +337,6 @@ private struct QuickRecallContent: View {
             return
         }
         isSearching = true
-        // Matching commands are listed at once; Return runs the first.
         cursor.reset(rowCount: rowCount)
         searchTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(120))
@@ -388,18 +354,12 @@ private struct QuickRecallContent: View {
         }
     }
 
-    // MARK: - Keys
-
-    /// Up and Down go round the rows and the Ask row. Inside an answer the
-    /// field keeps them.
     private func move(by offset: Int, rowCount: Int) -> Bool {
         guard !showingConversation else { return false }
         cursor.move(by: offset, rowCount: rowCount, hasAsk: hasAskRow)
         return true
     }
 
-    /// Return opens the selected row; on the Ask row, and inside an answer,
-    /// it asks.
     private func submit(_ rows: [QuickRecallRowModel]) {
         if showingConversation {
             ask(trimmedQuery)
@@ -424,12 +384,10 @@ private struct QuickRecallContent: View {
         case .recentMeeting(let id):
             app.openMeeting(id)
         case .file(let hit):
-            // Files open in their own window or app, not in LokalBot's main window.
             FileSearchOpener.open(hit, query: trimmedQuery)
             dismiss()
             return
         case .agentNote(let hit):
-            // A note opens the agent's own file, not LokalBot's main window.
             AgentNoteOpener.open(hit)
             dismiss()
             return
@@ -449,13 +407,10 @@ private struct QuickRecallContent: View {
             command.action()
             WindowAccess.shared.open("main")
         case .background:
-            // Recording and dictation act on the app the person came from.
             app.returnFocusToShortcutSource(then: command.action)
         }
     }
 
-    /// "Show all N": a kind of result opens the full Ask screen on this
-    /// search, narrowed to that kind's source. Commands list here instead.
     private func showAll(_ group: QuickRecallGroup) {
         guard let source = group.kind.askSource else {
             let wasOnAsk = cursor.target(rowCount: rowCount, hasAsk: hasAskRow) == .ask
@@ -468,20 +423,14 @@ private struct QuickRecallContent: View {
         dismiss()
     }
 
-    // MARK: - Asking
-
     private func isRememberStatement(_ text: String) -> Bool {
         app.settings.askMemoryEnabled && RememberIntent.parse(text) != nil
     }
 
-    /// Asks here. From the results this starts a new conversation; inside an
-    /// answer it is a follow-up with the scope of the question before it.
     private func ask(_ question: String) {
         let value = question.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return }
         guard !model.isResponding else {
-            // An answer is already being written (asked here or in the main
-            // window): show it instead of dropping the key.
             if !showingConversation { showConversation(recalling: value) }
             return
         }
@@ -496,11 +445,8 @@ private struct QuickRecallContent: View {
             return
         }
         let remembers = isRememberStatement(value)
-        // A word or short phrase is answered from its matches, so it waits
-        // for them. A full question does not depend on what is listed.
         if isSearching, !remembers, !AskAnswerScope.isFullQuestion(value) {
             pendingQuestion = value
-            // Show that the key was taken while the matches arrive.
             cursor.select(.ask, rowCount: rowCount)
             return
         }
@@ -524,7 +470,6 @@ private struct QuickRecallContent: View {
         focusRequest &+= 1
     }
 
-    /// The back arrow: the results, with the search that led to the answer.
     private func showRecall() {
         showingConversation = false
         query = recalledQuery
@@ -533,15 +478,12 @@ private struct QuickRecallContent: View {
         focusRequest &+= 1
     }
 
-    /// Both surfaces share this conversation; opening it never asks again.
     private func continueInMainWindow() {
         app.continueQuickRecallConversationInAsk()
         WindowAccess.shared.open("main")
         dismiss()
     }
 
-    /// A source was opened from the answer. Meetings and screen moments show
-    /// in the main window; files and agent notes open on their own.
     private func sourceOpened(_ kind: ChatCitation.Kind) {
         if kind == .meeting || kind == .screen { WindowAccess.shared.open("main") }
         dismiss()

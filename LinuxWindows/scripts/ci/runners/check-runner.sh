@@ -1,13 +1,4 @@
 #!/usr/bin/env bash
-# First step of a job on a self-hosted Linux runner (setup-linux-runner.sh):
-# - fails if the runner can reach the Tailscale network, which its systemd
-#   unit is meant to block;
-# - points XDG directories at this job's temp folder, so app state doesn't
-#   carry over between jobs the way it can't on GitHub's fresh machines;
-# - trims the warm target directory when it, or the disk, gets too full, and
-#   with --gradle (the Android runner, the only one that uses them), Gradle's
-#   caches when the disk does. ~/.m2 stays, since Maven Central can refuse to
-#   send it all again.
 set -euo pipefail
 
 gradle=false
@@ -21,8 +12,6 @@ fi
 for dir in config data cache state; do
   mkdir -p "$RUNNER_TEMP/xdg/$dir"
 done
-# The app's single-instance socket lives in XDG_RUNTIME_DIR, which must be
-# private to its owner.
 mkdir -p -m 700 "$RUNNER_TEMP/xdg/runtime"
 {
   echo "XDG_CONFIG_HOME=$RUNNER_TEMP/xdg/config"

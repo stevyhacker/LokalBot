@@ -1,7 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// One question and its answer, or what to do when the Mac can't answer.
 struct AskTurnView: View {
     @Environment(CompanionSession.self) private var session
     let turn: AskModel.Turn
@@ -109,7 +108,6 @@ struct AskTurnView: View {
             })
     }
 
-    /// `[n]` source badges inside the answer: teal on a teal wash.
     static func styledCitations(_ text: String) -> AttributedString {
         var attributed = MarkdownInline.attributed(text)
         for run in attributed.runs where run.link?.scheme == AskCitationParser.scheme {
@@ -142,7 +140,6 @@ struct AskTurnView: View {
         .foregroundStyle(LBTokens.Palette.supporting)
     }
 
-    /// Numbered sources, as the Mac lists them under an answer.
     private func sources(_ citations: [AskCitation]) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Label("Sources", systemImage: "checkmark.shield")
@@ -189,8 +186,6 @@ struct AskTurnView: View {
         .accessibilityHint(available ? "Opens the meeting at this moment" : "A screen moment, shown as text only")
     }
 
-    /// Where the answer was produced: teal for the Mac's own engine, amber
-    /// for an approved remote engine.
     private func origin(_ result: AskResult) -> some View {
         let remote = result.location == .remote
         return HStack(spacing: 6) {
@@ -254,7 +249,6 @@ struct AskTurnView: View {
     }
 }
 
-/// "Search this device" results, each opening its meeting or day.
 struct LocalResults: View {
     let hits: [SearchHit]
 

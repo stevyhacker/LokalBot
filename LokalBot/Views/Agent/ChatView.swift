@@ -2,29 +2,11 @@ import SwiftUI
 import AppKit
 import AVFoundation
 
-// The assistant's conversation surfaces: the transcript embedded by the Ask
-// section (questions, answers with numbered citations, a sources list under
-// each answer), and the saved-conversation list shown in Ask's content column. The assistant itself is a small ReAct agent
-// (`ChatAgent`) over the summarisation `TextEngine` that can search
-// transcripts, list meetings, and read a meeting's summary or transcript
-// via tool calls — all on-device.
-
-// MARK: - Editorial transcript
-
-/// The conversation transcript: each question as a heading with its time,
-/// then the answer as flat text with tool activity collapsed to one line,
-/// its sources and its actions. Embedded by the Ask surface.
 struct ChatTranscriptView: View {
-    /// `page` is the Ask screen. `compact` is the answer inside the Quick
-    /// Recall window: tighter margins, the question under "You" and its time,
-    /// sources as rows like that window's results, and no per-answer actions
-    /// (the window's foot has Copy).
     enum Style { case page, compact }
 
     @ObservedObject var model: ChatViewModel
     var style: Style = .page
-    /// Called after a source was opened from an answer, so a small window
-    /// can bring the main window forward and close.
     var onOpenSource: ((ChatCitation.Kind) -> Void)?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isNearBottom = true
@@ -181,7 +163,6 @@ private struct ChatTranscriptEntry: Identifiable {
     let startsQuestion: Bool
     let dateDividerTitle: String?
     let isLatestQuestion: Bool
-    /// For an answer, the question it replied to.
     let question: ChatMessage?
     let isLastTurn: Bool
     var id: UUID { message.id }
@@ -207,8 +188,6 @@ enum ChatTranscriptPresentation {
         return message.createdAt.formatted(date: .long, time: .omitted)
     }
 
-    /// The divider a question shows above it. A conversation that starts
-    /// today needs none: each question already carries its time.
     static func visibleDateDividerTitle(
         for message: ChatMessage,
         after previousUser: ChatMessage?,
@@ -260,9 +239,7 @@ private struct EditorialTurn: View {
     let startsQuestion: Bool
     let dateDividerTitle: String?
     let isLatestQuestion: Bool
-    /// The question an answer replied to.
     let question: ChatMessage?
-    /// The answer that ends the conversation; a failed one keeps its matches.
     let isLastTurn: Bool
     var style: ChatTranscriptView.Style = .page
     var onOpenSource: ((ChatCitation.Kind) -> Void)?
@@ -300,9 +277,6 @@ private struct EditorialTurn: View {
         }
     }
 
-    /// The question in its own words, with the time it was asked. What it
-    /// was limited to is in the time's tooltip and the spoken value; the
-    /// composer's two menus are where scope is chosen.
     private var userRow: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline, spacing: 12) {
@@ -334,7 +308,6 @@ private struct EditorialTurn: View {
         .accessibilityValue(userTurnAccessibilityValue)
     }
 
-    /// Quick Recall: "You" and the time on a quiet line, the question under it.
     private var compactUserRow: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(verbatim: compactAskedLine)
@@ -422,8 +395,6 @@ private struct EditorialTurn: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// The answer as one selectable text. A citation number is a small pill;
-    /// clicking it shows the quoted passage at the number, in place.
     @ViewBuilder
     private func answerText(_ parsed: (display: String, citations: [ChatCitation])) -> some View {
         Group {
@@ -445,7 +416,6 @@ private struct EditorialTurn: View {
                             let citation = parsed.citations[open.number - 1]
                             CitationPassagePopover(citation: citation) {
                                 openCitation = nil
-                                // The popover opens its source right after this.
                                 if let onOpenSource {
                                     DispatchQueue.main.async { onOpenSource(citation.kind) }
                                 }
@@ -468,8 +438,6 @@ private struct EditorialTurn: View {
             }
     }
 
-    /// The passage opened from a number in the text (the sources list opens
-    /// its own, at its own numbers).
     private var answerPassage: Binding<OpenCitation?> {
         Binding(
             get: { openCitation?.isFromAnswer == true ? openCitation : nil },
@@ -515,7 +483,6 @@ private struct EditorialTurn: View {
         return parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    /// A short notice in place of an answer, with the way to fix it.
     private func statusCard(
         title: LocalizedStringKey,
         detail: String?,
@@ -530,8 +497,6 @@ private struct EditorialTurn: View {
                 .frame(width: 18)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                // The turn's own identifier is pushed onto the card's group,
-                // so the card is found by its title.
                 Text(title).font(AppFont.scaled(.body).weight(.semibold))
                     .accessibilityIdentifier("chat.answer.status")
                 if let detail {
@@ -562,7 +527,6 @@ private struct EditorialTurn: View {
         .accessibilityElement(children: .contain)
     }
 
-    /// Copy, read aloud and ask again: quiet icons, each named for VoiceOver.
     private func answerActions(copyText: String) -> some View {
         HStack(spacing: 2) {
             if !copyText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -675,8 +639,6 @@ private struct EditorialTurn: View {
                     voice: app.settings.speechVoice,
                     speed: app.settings.speechSpeed,
                     outputURL: nil))
-                // Caller owns this plaintext temporary output, including
-                // cancellation, superseded playback and player failures.
                 defer { try? FileManager.default.removeItem(at: url) }
                 try Task.checkCancellation()
                 let player = try AVAudioPlayer(contentsOf: url)
@@ -725,7 +687,6 @@ private struct EditorialTurn: View {
     }
 }
 
-/// The reply to a "Remember …" message: saved locally, no model involved.
 private struct RememberReceiptCard: View {
     @EnvironmentObject var app: AppState
     let message: ChatMessage
@@ -788,8 +749,6 @@ private struct RememberReceiptCard: View {
     }
 }
 
-/// The matches for a question whose answer failed, found again on this Mac
-/// within the sources, dates and evidence limits recorded with the question.
 private struct FailedAnswerMatches: View {
     @EnvironmentObject private var app: AppState
     let question: ChatMessage
@@ -823,9 +782,6 @@ private struct FailedAnswerMatches: View {
     }
 }
 
-/// Tool activity collapsed to a single caption line ("worked: searched
-/// transcripts · read summary"); expands to the per-step rows on click.
-/// While a step is in flight it shows that step with a spinner instead.
 private struct WorkedLine: View {
     let activities: [ChatMessage.Activity]
     @State private var expanded = false
@@ -880,9 +836,6 @@ private struct ActivityRow: View {
     }
 }
 
-/// The Ask section's question history — a selectable list of saved conversations
-/// plus a visible "New conversation" action. Selecting one loads it into the transcript;
-/// conversations persist across launches via `ChatStore`.
 struct ChatConversationList: View {
     @EnvironmentObject var app: AppState
     var body: some View { ConversationListContent(model: app.chat) }
@@ -933,9 +886,6 @@ private struct ConversationListContent: View {
             .scrollContentBackground(.hidden)
             .tint(Brand.tealFill)
         }
-        // One native title owns both the visible toolbar label and the window's
-        // accessibility title. The detail column deliberately adds no second
-        // Ask label.
         .navigationTitle("Ask")
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Conversation history")
@@ -957,7 +907,6 @@ private struct ConversationListContent: View {
         }
     }
 
-    /// A search field and the New button; the list below needs no heading.
     private var historyHeader: some View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
@@ -1051,7 +1000,6 @@ private struct ConversationListContent: View {
     }
 
     private func row(_ conversation: Conversation) -> some View {
-        // A conversation that has no question yet reads "New question".
         let title = conversation.messages.isEmpty && conversation.title == ChatViewModel.newChatTitle
             ? app.settings.appLanguage.localized("New question")
             : ChatViewModel.displayTitle(for: conversation)

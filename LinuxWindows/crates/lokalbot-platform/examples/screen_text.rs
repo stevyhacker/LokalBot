@@ -1,13 +1,3 @@
-//! Prints what screen context sees in the window in front: its title,
-//! process, rectangle and the accessibility snapshot, and optionally saves
-//! its pixels as a PPM image.
-//!
-//! ```text
-//! cargo run -p lokalbot-platform --example screen_text -- [--delay <seconds>] [--save <file.ppm>]
-//! ```
-//!
-//! Switch to the window to inspect during the delay (3 s by default).
-
 use std::time::Duration;
 
 use lokalbot_platform::screen;

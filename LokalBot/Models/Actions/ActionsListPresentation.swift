@@ -1,13 +1,9 @@
 import Foundation
 
 extension OutcomeStatus {
-    /// The catalog key for the status as a state. "Open" on its own is the
-    /// verb on buttons, which most languages translate differently.
     var stateKey: String { self == .open ? "Open (status)" : label }
 }
 
-/// What the Actions page lists: one status, a search, and the choices of its
-/// Filter menu.
 struct ActionsListFilter: Equatable, Sendable {
     enum Due: String, CaseIterable, Sendable {
         case any, overdue, dated, undated
@@ -22,16 +18,12 @@ struct ActionsListFilter: Equatable, Sendable {
     var due: Due = .any
     var personID: String?
     var projectID: String?
-    /// Every meeting with this title, so a weekly standup is one choice.
     var meetingTitle: String?
-    /// Open actions nobody has mentioned for three weeks (`ActionThread.isStale`).
     var staleOnly = false
     var grouping: Grouping = .due
 
-    /// The stale review only exists among open actions.
     var isStaleReview: Bool { status == .open && staleOnly }
     var trimmedQuery: String { query.trimmingCharacters(in: .whitespacesAndNewlines) }
-    /// Filter menu choices that narrow the list; each shows as a chip.
     var hasMenuFilters: Bool {
         due != .any || personID != nil || projectID != nil || meetingTitle != nil || isStaleReview
     }
@@ -46,8 +38,6 @@ struct ActionsListFilter: Equatable, Sendable {
         staleOnly = false
     }
 
-    /// Done actions are outside the People and Projects read models, and the
-    /// stale review is about open work, so leaving Open drops what cannot apply.
     mutating func show(_ status: OutcomeStatus) {
         self.status = status
         if status != .open { staleOnly = false }
@@ -65,7 +55,6 @@ struct ActionsListFilter: Equatable, Sendable {
         var id: ChipKind { kind }
     }
 
-    /// The active Filter menu choices, in the order the menu lists them.
     func chips(links: ActionThreadLinks = .init(), localize: (String) -> String = { $0 }) -> [Chip] {
         var chips: [Chip] = []
         switch due {
@@ -102,23 +91,16 @@ struct ActionsListFilter: Equatable, Sendable {
     }
 }
 
-/// The people and projects an action belongs to, looked up backwards from
-/// the People and Projects read models. Those models list the user's open
-/// and deferred work per person and per project; nothing new is derived here.
 struct ActionThreadLinks: Equatable, Sendable {
     struct Link: Identifiable, Equatable, Hashable, Sendable {
         let id: String
         let name: String
     }
 
-    /// People and projects with at least one of the user's actions.
     private(set) var people: [Link] = []
     private(set) var projects: [Link] = []
-    /// Action reference id to positions in `people` and `projects`. A thread
-    /// is found by its references, so re-threading does not lose the link.
     private var peopleByReference: [String: [Int]] = [:]
     private var projectsByReference: [String: [Int]] = [:]
-    /// Ids of people folded into another person.
     private var personAliases: [String: String] = [:]
 
     init(people: [PersonProfile] = [], projects: [ProjectProfile] = []) {
@@ -130,7 +112,6 @@ struct ActionThreadLinks: Equatable, Sendable {
                 peopleByReference[reference, default: []].append(index)
             }
         }
-        // Projects the user tracks lead; suggested ones follow.
         let ordered = projects.filter(\.isTracked) + projects.filter { !$0.isTracked }
         for project in ordered where !project.myActions.isEmpty {
             let index = self.projects.count
@@ -176,17 +157,11 @@ struct ActionThreadLinks: Equatable, Sendable {
     }
 }
 
-/// Day and due wording for the Actions page. Catalog keys go through
-/// `localize`, so a view passes the interface language and a test reads
-/// plain English.
 enum ActionListWording {
-    /// "Thu, Nov 12".
     static func weekdayDate(_ date: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         date.formatted(style(calendar: calendar, locale: locale).weekday(.abbreviated).month(.abbreviated).day())
     }
 
-    /// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
-    /// "Oct 27", with the year once it is not this year.
     static func day(_ date: Date, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current,
                     localize: (String) -> String = { $0 }) -> String {
         let daysAgo = calendar.dateComponents(
@@ -199,10 +174,6 @@ enum ActionListWording {
         return date.formatted(sameYear ? monthDay : monthDay.year())
     }
 
-    /// The due text on a row. Overdue open work reads as "Was due", due
-    /// today or within the week keeps the amber tone, and a later date, a
-    /// phrase that names no day, and work that is no longer open stay quiet.
-    /// The Done list shows when the action was completed instead.
     static func dueLabel(for thread: ActionThread, listing: OutcomeStatus = .open, now: Date = Date(),
                          calendar: Calendar = .current, locale: Locale = .current,
                          localize: (String) -> String = { $0 }) -> ActionsListContent.DueLabel? {
@@ -230,20 +201,17 @@ enum ActionListWording {
         return .init(text: String(format: localize("Due %@"), dateText), tone: tone)
     }
 
-    /// When the action's last mention was marked done.
     static func completionDate(of thread: ActionThread) -> Date {
         thread.references.filter { $0.status == .done }.map(\.stateUpdatedAt).max()
             ?? thread.latestReference.stateUpdatedAt
     }
 
-    /// "Design review meeting", or "In 2 meetings" for an action said twice.
     static func source(of thread: ActionThread, localize: (String) -> String = { $0 }) -> String {
         thread.hasMultipleMeetings
             ? String(format: localize("In %lld meetings"), thread.meetingCount)
             : thread.latestReference.meetingTitle
     }
 
-    /// Under a meeting heading the row only says where else it was said.
     static func otherMeetings(of thread: ActionThread, localize: (String) -> String = { $0 }) -> String {
         switch thread.meetingCount - 1 {
         case ..<1: ""
@@ -252,7 +220,6 @@ enum ActionListWording {
         }
     }
 
-    /// "8 open actions haven’t been mentioned in 3 weeks."
     static func staleSummary(count: Int, localize: (String) -> String = { $0 }) -> String {
         count == 1
             ? localize("1 open action hasn’t been mentioned in 3 weeks.")
@@ -270,14 +237,12 @@ enum ActionListWording {
         }
     }
 
-    /// "Mail showed “Message sent” · Mon 5:48 PM" beside "Looks done?" on a row.
     static func completionHint(_ hint: ActionCompletionHint, calendar: Calendar = .current,
                                locale: Locale = .current, localize: (String) -> String = { $0 }) -> String {
         String(format: localize("%1$@ showed “%2$@”"), hint.app, hint.cue)
             + " · " + hintTime(hint, calendar: calendar, locale: locale)
     }
 
-    /// The same evidence as a sentence, for the details pane.
     static func completionHintSentence(_ hint: ActionCompletionHint, calendar: Calendar = .current,
                                        locale: Locale = .current, localize: (String) -> String = { $0 }) -> String {
         String(format: localize("%1$@ showed “%2$@” on %3$@, after this was said."), hint.app, hint.cue,
@@ -293,8 +258,6 @@ enum ActionListWording {
     }
 }
 
-/// The Actions list as it is drawn: filtered, ordered and grouped threads
-/// with each row's wording already made, so rows do no work of their own.
 struct ActionsListContent: Equatable, Sendable {
     struct DueLabel: Equatable, Sendable {
         enum Tone: Equatable, Sendable { case late, soon, calm }
@@ -304,8 +267,6 @@ struct ActionsListContent: Equatable, Sendable {
 
     struct Row: Identifiable, Equatable, Sendable {
         let thread: ActionThread
-        /// The meeting it came from, with a day where the group does not
-        /// already give one. Empty under a meeting heading.
         let source: String
         let due: DueLabel?
         var id: String { thread.id }
@@ -313,20 +274,15 @@ struct ActionsListContent: Equatable, Sendable {
 
     struct Section: Identifiable, Equatable, Sendable {
         let id: String
-        /// Nil for a list without headings.
         let title: String?
         var isLate = false
         let rows: [Row]
     }
 
     private(set) var sections: [Section] = []
-    /// Row ids from top to bottom, for the arrow keys and range selection.
     private(set) var order: [String] = []
-    /// The user's open actions, whatever the list is showing.
     private(set) var openCount = 0
-    /// Open actions the stale review would list.
     private(set) var staleCount = 0
-    /// Meeting titles the user's actions came from, newest first.
     private(set) var meetingTitles: [String] = []
     private var rowsByID: [String: Row] = [:]
 
@@ -336,9 +292,6 @@ struct ActionsListContent: Equatable, Sendable {
     static let maximumMeetingChoices = 40
     static let recentlyDoneDays = 7
 
-    /// - Parameter kept: threads whose status the user just changed in this
-    ///   view. They stay listed until the view or its filters change, so a
-    ///   ticked row does not vanish under the pointer.
     static func build(
         threads: [ActionThread], filter: ActionsListFilter, links: ActionThreadLinks = .init(),
         kept: Set<String> = [], now: Date = Date(), calendar: Calendar = .current,
@@ -428,7 +381,6 @@ struct ActionsListContent: Equatable, Sendable {
             for (offset, thread) in listed.enumerated() {
                 dated.append((thread, ActionListWording.completionDate(of: thread), offset))
             }
-            // Threads done at the same moment keep their list order.
             dated.sort { $0.date == $1.date ? $0.offset < $1.offset : $0.date > $1.date }
             var recent: [Row] = []
             var earlier: [Row] = []
@@ -448,8 +400,6 @@ struct ActionsListContent: Equatable, Sendable {
         return content
     }
 
-    /// Whether the filter lists this thread, before the rows the user just
-    /// changed are added back.
     static func matches(_ thread: ActionThread, filter: ActionsListFilter, links: ActionThreadLinks = .init(),
                         now: Date = Date(), calendar: Calendar = .current) -> Bool {
         guard thread.status == filter.status else { return false }
@@ -489,14 +439,9 @@ struct ActionsListContent: Equatable, Sendable {
     }
 }
 
-/// Which rows the Actions list acts on. One row is always current, as in
-/// Mail: the chosen rows that are still listed, or else the first row.
-/// ⌘-click adds or removes a row and Shift-click takes a range.
 struct ActionListSelection: Equatable, Sendable {
     var chosen: Set<String> = []
-    /// Where a Shift range starts.
     var anchor: String?
-    /// The row the arrow keys move from.
     var lead: String?
 
     func current(in order: [String]) -> [String] {
@@ -512,7 +457,6 @@ struct ActionListSelection: Equatable, Sendable {
         } else if command {
             var next = Set(current(in: order))
             if next.contains(id) { next.remove(id) } else { next.insert(id) }
-            // The last row cannot be deselected: one row is always current.
             chosen = next.isEmpty ? [id] : next
             anchor = id
         } else {
@@ -522,7 +466,6 @@ struct ActionListSelection: Equatable, Sendable {
         lead = id
     }
 
-    /// Moves up or down one row and returns the row to keep in view.
     @discardableResult
     mutating func move(by step: Int, extending: Bool = false, order: [String]) -> String? {
         let current = current(in: order)
@@ -551,7 +494,6 @@ struct ActionListSelection: Equatable, Sendable {
         lead = order.last
     }
 
-    /// Back to one row: the one the keyboard was on, or the first chosen.
     mutating func collapse(in order: [String]) {
         let current = current(in: order)
         guard let keep = lead.flatMap({ current.contains($0) ? $0 : nil }) ?? current.first else { return }
@@ -565,11 +507,7 @@ struct ActionListSelection: Equatable, Sendable {
     }
 }
 
-/// What the details pane says about one action, and the corrections it saves
-/// through `OutcomeIndex.correctAction`.
 enum ActionDetailsPresentation {
-    /// The Due control: the resolved day, "Pick a date" for a phrase that
-    /// names no day, or "No date".
     static func dueTitle(for thread: ActionThread, calendar: Calendar = .current, locale: Locale = .current,
                          localize: (String) -> String = { $0 }) -> String {
         if let date = thread.resolvedDueDate {
@@ -578,8 +516,6 @@ enum ActionDetailsPresentation {
         return localize(thread.due == nil ? "No date" : "Pick a date")
     }
 
-    /// Due phrases as they were said, newest meeting first, without the days
-    /// someone typed in.
     static func saidDuePhrases(in thread: ActionThread) -> [String] {
         thread.references.compactMap { $0.action.due?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty && !ActionDuePresentation.isExplicitDate($0) }
@@ -590,7 +526,6 @@ enum ActionDetailsPresentation {
             }
     }
 
-    /// "You said “by Thursday”. Before that, “next week”."
     static func dueNote(for thread: ActionThread, localize: (String) -> String = { $0 }) -> String? {
         let phrases = saidDuePhrases(in: thread)
         guard let latest = phrases.first else { return nil }
@@ -601,15 +536,12 @@ enum ActionDetailsPresentation {
         return note
     }
 
-    /// "Said in 2 meetings", or "What was said" for one meeting.
     static func mentionsHeading(for thread: ActionThread, localize: (String) -> String = { $0 }) -> String {
         thread.hasMultipleMeetings
             ? String(format: localize("Said in %lld meetings"), thread.meetingCount)
             : localize("What was said")
     }
 
-    /// One call to `OutcomeIndex.correctAction`. Fields the change does not
-    /// touch keep a saved correction and otherwise stay as extracted.
     struct Correction: Equatable, Sendable {
         let actionID: String
         let meetingID: UUID
@@ -618,8 +550,6 @@ enum ActionDetailsPresentation {
         let due: String?
     }
 
-    /// A due day chosen in the details pane, or none. It is saved on the
-    /// newest mention, whose correction a thread takes as its due date.
     static func dueCorrection(_ date: Date?, for thread: ActionThread, calendar: Calendar = .current) -> Correction {
         let reference = thread.latestReference
         return Correction(
@@ -629,8 +559,6 @@ enum ActionDetailsPresentation {
             due: date.map { AskDayScope.key(for: $0, calendar: calendar) } ?? "")
     }
 
-    /// "Not mine": every mention loses its owner, so the action leaves the
-    /// user's list in each meeting it was said in.
     static func notMineCorrections(for thread: ActionThread) -> [Correction] {
         thread.references.filter(\.isForUser).map { reference in
             Correction(

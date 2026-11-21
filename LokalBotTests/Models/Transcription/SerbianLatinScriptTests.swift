@@ -15,7 +15,6 @@ final class SerbianLatinScriptTests: XCTestCase {
         XCTAssertEqual(SerbianLatinScript.latin("Џон"), "Džon")
     }
 
-    /// A model drifting out of Serbian writes Russian or Macedonian letters.
     func testRussianAndMacedonianLettersTakeTheirClosestSerbianSpelling() {
         XCTAssertEqual(SerbianLatinScript.latin("Хорошо, такой план"), "Horošo, takoj plan")
         XCTAssertEqual(SerbianLatinScript.latin("Мој предлог е да се сретнеме утре"),
@@ -49,8 +48,6 @@ final class SerbianLatinScriptTests: XCTestCase {
         XCTAssertEqual(SerbianLatinScript.latinTranscript(russian, language: "en").changedSegments, 0)
     }
 
-    /// Apple's recognizer reads Serbian Cyrillic as Kazakh or Ukrainian, so
-    /// Serbian's own letters decide it.
     func testSerbianCyrillicIsRecognizedByItsOwnLetters() {
         XCTAssertTrue(SerbianLatinScript.isSerbianCyrillic("мислим да ћемо рок ипак стићи"))
         XCTAssertTrue(SerbianLatinScript.isSerbianCyrillic("Између нас, ђе си био?"))

@@ -1,7 +1,3 @@
-//! A narrow fallback for near-identical digital echoes
-//! (`EchoWaveformEvidence.swift`). Normal room echoes are handled by echo
-//! cancellation; words alone can't authorize deleting speech.
-
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -14,32 +10,22 @@ use lokalbot_core::{AttributionSource, Segment, Transcript};
 use crate::echo::{correlation, estimate_delay};
 
 const SAMPLE_RATE: u32 = lokalbot_audio::SAMPLE_RATE;
-/// An echo's waveform is compared only over this much speech.
 const MIN_SECONDS: f64 = 1.0;
 const MAX_SECONDS: f64 = 30.0;
-/// One second at 16 kHz.
 const MIN_SAMPLES: usize = 16_000;
-/// The two spans may differ by this many samples.
 const MAX_LENGTH_DIFFERENCE: usize = 32;
-/// Below this the call track is silent.
 const MIN_REFERENCE_POWER: f64 = 0.000_001;
-/// This uncalibrated conservative flag means uncertainty, never identity.
 const SUSPECTED_CORRELATION: f64 = 0.75;
-/// Accepts only near-exact copies, not two people speaking the same words, or
-/// a mixture containing a quiet reply.
 const IDENTICAL_CORRELATION: f64 = 0.999;
 const DECIMATION: usize = 16;
 const SEARCH_RADIUS: i64 = 20;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct EchoAnalysis {
-    /// Rows the waveform proves are copies of the call track.
     pub verified: HashSet<usize>,
-    /// Rows whose loudness follows the call track. It never deletes speech.
     pub suspected: HashSet<usize>,
 }
 
-/// Measures the microphone rows of `segments` against the call track.
 pub fn analyze(
     segments: &[Segment],
     mic: &Path,
@@ -65,8 +51,6 @@ pub fn analyze(
             break;
         }
         let segment = &segments[index];
-        // With clock anchors, a row they can't map isn't compared. Without
-        // any, the same second on each track is the best known alignment.
         let reference = match clock {
             TrackClock::Unknown => Some((segment.start, segment.end)),
             known => known
@@ -82,8 +66,6 @@ pub fn analyze(
         ) else {
             continue;
         };
-        // Acoustic suspicion doesn't require the recognizer to choose identical
-        // words, or even the same language.
         if suspected_echo(&microphone, &reference) {
             result.suspected.insert(index);
         }
@@ -104,7 +86,6 @@ fn is_measured(segment: &Segment) -> bool {
         && (MIN_SECONDS..=MAX_SECONDS).contains(&duration)
 }
 
-/// The loudness contour tolerates room coloration and playback delay.
 pub fn suspected_echo(microphone: &[f32], reference: &[f32]) -> bool {
     if microphone.len() < MIN_SAMPLES
         || microphone.len().abs_diff(reference.len()) > MAX_LENGTH_DIFFERENCE
@@ -122,7 +103,6 @@ pub fn suspected_echo(microphone: &[f32], reference: &[f32]) -> bool {
         && estimate_delay(microphone, reference).correlation >= SUSPECTED_CORRELATION
 }
 
-/// Decimated waveform comparison keeps the bounded fallback inexpensive.
 pub fn near_identical(microphone: &[f32], reference: &[f32]) -> bool {
     if microphone.len() < MIN_SAMPLES
         || microphone.len().abs_diff(reference.len()) > MAX_LENGTH_DIFFERENCE
@@ -146,7 +126,6 @@ pub fn near_identical(microphone: &[f32], reference: &[f32]) -> bool {
         .any(|shift| correlation(&mic, &remote, shift) >= IDENTICAL_CORRELATION)
 }
 
-/// Reads spans of a track at 16 kHz without holding the track in memory.
 struct SpanReader {
     reader: TrackReader,
     rate: u32,
@@ -186,7 +165,6 @@ mod tests {
     use super::*;
     use lokalbot_core::{SpeakerAttribution, TimingPrecision};
 
-    /// Speech-like audio: bursts of a tone, so its loudness has a contour.
     fn speech(seconds: f64, pitch: f32) -> Vec<f32> {
         let count = (seconds * SAMPLE_RATE as f64) as usize;
         (0..count)
@@ -276,7 +254,6 @@ mod tests {
         let segments = vec![
             remote_row(1.0, 5.0, words),
             mic_row(1.1, 5.1, words),
-            // Follows the call track too, but its words differ: only suspected.
             mic_row(6.0, 10.0, "Completely different words came out here"),
         ];
         let analysis = analyze(

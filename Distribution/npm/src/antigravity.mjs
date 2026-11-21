@@ -1,13 +1,3 @@
-// Reads Antigravity conversation transcripts from:
-//   - `~/.gemini/antigravity/brain/<id>/.system_generated/logs/transcript.jsonl`
-//   - `~/.gemini/antigravity-cli/brain/<id>/...`
-//   - `~/.gemini/antigravity-ide/brain/<id>/...`
-//   - `~/.t3/userdata/providers/antigravity/<hash>/antigravity-acp/brain/<id>/...`
-//
-// Each line is one step (`USER_INPUT`, `PLANNER_RESPONSE`, `CHECKPOINT`, or a
-// tool step). `input_tokens` is uncached input; `cache_read_tokens` is cached
-// input read from prompt cache. No prompt or reply text is kept.
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -45,7 +35,6 @@ export function antigravityRoots(env, home) {
 export function readAntigravity(roots, collector, onProgress = () => {}) {
   if (!Array.isArray(roots) || roots.length === 0) return;
 
-  // Deduplicate by conversation id in case two roots point at the same brain.
   const byId = new Map();
   for (const root of roots) {
     for (const conv of entries(root)) {
@@ -192,14 +181,12 @@ function readTranscript({ id, file }, collector) {
   if (session) addActions(session, tally);
 }
 
-/** Extracts a plausible project folder from a file path, ignoring agent-internal state folders. */
 function inferFolder(target) {
   if (typeof target !== 'string' || target.length === 0) return null;
   if (target.includes('/.gemini/') || target.includes('/.t3/') || target.includes('\\.gemini\\') || target.includes('\\.t3\\')) {
     return null;
   }
   const normalized = target.replaceAll('\\', '/');
-  // If path contains a common checkout root (`GitHub/<repo>/...` or `code/<repo>/...`), stop at `<repo>`.
   const repoMatch = /^((?:[A-Za-z]:)?\/.*?\/(?:GitHub|github|repos|repositories|projects|code|dev|workspace|workspaces)\/[^/]+)/.exec(normalized);
   if (repoMatch) return repoMatch[1];
   return path.posix.dirname(normalized);

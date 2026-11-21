@@ -1,8 +1,3 @@
-//! Setup, step 3 (`OnboardingDownloadStep.swift`): each model's job and size
-//! and the free space before anything downloads, then progress per model
-//! and overall, with the time left once the speed is known. Nothing
-//! downloads until Download is pressed.
-
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::time::Instant;
 
@@ -32,20 +27,13 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 use lokalbot_i18n::{interface_directional, mac};
 
-/// Slack a download needs beyond its own size (`DiskSpacePrecheck.headroomBytes`).
 const HEADROOM_BYTES: u64 = 2_000_000_000;
 
-/// What the download step and its footer share while the window is open
-/// (`OnboardingDownloadSession`).
 pub(super) struct Session {
     pub include_autocomplete: bool,
     pub opens_sample_meeting: bool,
-    /// Download was pressed in this window.
     started: bool,
-    /// What was on this computer when the download began, so progress counts
-    /// only what this download fetches.
     ready_before: Option<HashSet<String>>,
-    /// Ids this window asked for, so each is asked for once until Retry.
     requested: HashSet<String>,
     estimator: Estimator,
     last_downloaded: Option<u64>,
@@ -69,9 +57,7 @@ impl Default for Session {
 pub(super) enum Role {
     Transcribe,
     Think,
-    /// Port-only: search by meaning's embedding model (the Mac's is built in).
     Search,
-    /// Port-only: screen text recognition, when the workday keeps text.
     ScreenText,
     Autocomplete,
 }
@@ -79,11 +65,9 @@ pub(super) enum Role {
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum ModelState {
     NotStarted,
-    /// How far, 0…1.
     Downloading(f32),
     Stopped(String),
     Ready,
-    /// Nothing downloads for it here: a model server does the work.
     Elsewhere,
 }
 
@@ -91,29 +75,22 @@ pub(super) enum ModelState {
 pub(super) struct Model {
     pub role: Role,
     pub name: String,
-    /// What downloads for it, with the llama.cpp runtime on the first role
-    /// that needs it.
     pub ids: Vec<String>,
     pub state: ModelState,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Phase {
-    /// Nothing has been asked for yet.
     Before,
     Running,
-    /// At least one download failed; others may still be running.
     Stopped,
-    /// Nothing is left to download.
     Finished,
 }
 
-/// What the plan reads.
 pub(super) struct Inputs<'a> {
     pub settings: &'a Settings,
     pub installed: &'a [String],
     pub downloads: &'a HashMap<String, DownloadProgress>,
-    /// What screen text recognition would download for the draft's choice.
     pub screen_text: Option<(String, u64)>,
     pub include_autocomplete: bool,
     pub started: bool,
@@ -121,24 +98,15 @@ pub(super) struct Inputs<'a> {
     pub available_bytes: Option<u64>,
 }
 
-/// `OnboardingDownloadPlan`.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Plan {
-    /// The rows, in order. Autocomplete is listed while it can still be
-    /// chosen and once it is part of the download.
     pub models: Vec<Model>,
     selected: Vec<Role>,
     pub phase: Phase,
-    /// A download is running now, also beside one that stopped.
     pub is_downloading: bool,
-    /// Free space on the drive that holds the library.
     pub available_bytes: Option<u64>,
-    /// Bytes of the selected models that were not here when the download
-    /// began.
     pub total_bytes: u64,
-    /// Of `total_bytes`, how much has arrived.
     pub downloaded_bytes: u64,
-    /// What Download will fetch now.
     pub remaining_bytes: u64,
     bytes: HashMap<String, u64>,
 }
@@ -247,7 +215,6 @@ impl Plan {
         if autocomplete_chosen {
             selected.push(Role::Autocomplete);
         }
-        // The runtime downloads with the first selected role that runs on it.
         if let Some((_, _, ids)) = roles.iter_mut().find(|(role, _, ids)| {
             !ids.is_empty()
                 && selected.contains(role)
@@ -328,7 +295,6 @@ impl Plan {
         } else if is_downloading {
             Phase::Running
         } else if waiting {
-            // Between the button and the first progress there is no state yet.
             if input.started {
                 Phase::Running
             } else {
@@ -356,21 +322,17 @@ impl Plan {
             .filter(|m| self.selected.contains(&m.role))
     }
 
-    /// Every selected model can be used now.
     pub(super) fn all_ready(&self) -> bool {
         self.chosen()
             .all(|m| matches!(m.state, ModelState::Ready | ModelState::Elsewhere))
     }
 
-    /// 0…1 across the whole download.
     pub(super) fn fraction(&self) -> Option<f32> {
         (self.total_bytes > 0).then(|| {
             (self.downloaded_bytes as f64 / self.total_bytes as f64).clamp(0.0, 1.0) as f32
         })
     }
 
-    /// Whether the download and the headroom it needs fit in the free space.
-    /// True when the free space is unknown.
     pub(super) fn fits_on_disk(&self) -> bool {
         match self.available_bytes {
             Some(available) if self.remaining_bytes > 0 => {
@@ -386,7 +348,6 @@ impl Plan {
             .collect()
     }
 
-    /// What the row weighs: its ids still to come, or all of them once here.
     fn row_bytes(&self, model: &Model, installed: &[String]) -> u64 {
         let missing: u64 = model
             .ids
@@ -406,9 +367,6 @@ impl Plan {
     }
 }
 
-/// Time left for a download, from how fast the bytes arrived over the last
-/// half minute. It says nothing until it has watched for a few seconds, and
-/// nothing while no bytes arrive (`DownloadTimeEstimator`).
 #[derive(Default)]
 pub(super) struct Estimator {
     samples: VecDeque<(Instant, u64)>,
@@ -419,7 +377,6 @@ impl Estimator {
     const MINIMUM_SPAN_SECS: f64 = 5.;
 
     pub(super) fn record(&mut self, downloaded: u64, at: Instant) {
-        // A retried download starts over, so earlier speeds no longer apply.
         if let Some((last_at, last)) = self.samples.back()
             && (downloaded < *last || at < *last_at)
         {
@@ -450,7 +407,6 @@ impl Estimator {
         Some((total - last) as f64 / (arrived as f64 / span))
     }
 
-    /// Whole minutes, never less than one.
     pub(super) fn minutes_left(&self, total: u64) -> Option<u64> {
         self.seconds_left(total)
             .map(|seconds| ((seconds / 60.).round() as u64).max(1))
@@ -476,15 +432,12 @@ impl Onboarding {
             ready_before: self.download.ready_before.as_ref(),
             available_bytes: lokalbot_ai::download::free_space(data.library.paths().root()),
         });
-        // A download that began outside this window (before a relaunch, or
-        // from Settings) counts what is missing from when it is first seen.
         if plan.phase != Phase::Before && self.download.ready_before.is_none() {
             self.download.ready_before = Some(data.models.installed.iter().cloned().collect());
         }
         plan
     }
 
-    /// Feeds the time-left estimate as bytes arrive.
     pub(super) fn download_changed(&mut self, cx: &App) {
         if self.step != super::Step::Download {
             return;
@@ -500,9 +453,6 @@ impl Onboarding {
         }
     }
 
-    /// Asks for every selected model this computer lacks that this window
-    /// hasn't asked for yet. The meeting models go through `PrepareModels`,
-    /// which fetches them one at a time.
     fn start_download(&mut self, cx: &mut Context<Self>) {
         if !self.download.started {
             let installed = self
@@ -551,7 +501,6 @@ impl Onboarding {
         cx.notify();
     }
 
-    /// Retry asks again for what stopped.
     fn retry(&mut self, cx: &mut Context<Self>) {
         self.download.requested.clear();
         self.start_download(cx);
@@ -563,7 +512,6 @@ impl Onboarding {
             let data = self.data.read(cx);
             (data.settings.clone(), data.models.installed.clone())
         };
-        // The microphone row's own state: allowed, or a microphone found.
         let microphone_allowed = self
             .access_rows(cx)
             .first()
@@ -652,7 +600,6 @@ impl Onboarding {
             .text_color(lb.text)
     }
 
-    /// The overall line: time left or the outcome, the amount, and the bar.
     fn hero(&self, plan: &Plan, cx: &App) -> Div {
         let lb = cx.lb();
         let title: AnyElement =
@@ -695,7 +642,6 @@ impl Onboarding {
             if plan.phase == Phase::Finished {
                 mac("%@ downloaded", &[&size_label(plan.total_bytes)])
             } else {
-                // Sizes carry their unit, so the pair reads the same in every language.
                 format!(
                     "{} / {}",
                     size_label(plan.downloaded_bytes),
@@ -855,7 +801,6 @@ impl Onboarding {
         row(symbol, false, detail, trailing, cx)
     }
 
-    /// Before the download: the total and the free space, then what to expect.
     fn before_notes(&self, plan: &Plan, settings: &Settings, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let total = (plan.remaining_bytes > 0).then(|| size_label(plan.remaining_bytes));
@@ -905,7 +850,6 @@ impl Onboarding {
                 false,
                 move |source, _, cx| {
                     source_page.update(cx, |this, cx| {
-                        // Only where to download from: Download still starts it.
                         this.data.update(cx, |data, cx| {
                             data.update_settings(|s| s.model_download_source = source, cx)
                         });
@@ -933,8 +877,6 @@ impl Onboarding {
             .children(source)
     }
 
-    /// While it downloads, and after: the sample meeting, and that recording
-    /// already works.
     fn after_options(&self, plan: &Plan, microphone_allowed: bool, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let waiting = plan.phase != Phase::Finished;
@@ -1033,8 +975,6 @@ impl Onboarding {
             )
     }
 
-    /// Skip and "Download 5.9 GB" before anything downloads, then the way
-    /// into the app while it runs (`OnboardingDownloadFooterContent`).
     pub(super) fn download_footer(
         &self,
         footer: Div,
@@ -1066,7 +1006,6 @@ impl Onboarding {
             ),
             Phase::Finished => footer,
         };
-        // The note while it downloads takes the free width itself.
         let footer = footer
             .when(
                 !matches!(plan.phase, Phase::Running | Phase::Stopped),
@@ -1098,32 +1037,21 @@ impl Onboarding {
     }
 }
 
-/// Opens the sample meeting now when its models are here, or once they land
-/// (`openSampleMeetingWhenReady`). Nothing more downloads for it: setup's
-/// download already asked for its models.
 pub(super) fn open_sample_when_ready(data: &mut AppData, cx: &mut Context<AppData>) {
     data.try_sample(cx);
     match &mut data.sample_setup {
-        // Waiting for its models: continue on its own once they land.
         Some(setup) if !setup.importing => {
             setup.downloading = true;
             cx.notify();
         }
-        // Opened or being added: show it.
         _ => crate::desktop::show_main_window(cx),
     }
 }
 
-/// huggingface.co is blocked in mainland China, so the first download offers
-/// HF-Mirror and ModelScope there: on a computer set to that region or to
-/// Simplified Chinese, or once a mirror is already chosen. Settings → Models
-/// always has the same picker.
 fn shows_download_source(settings: &Settings) -> bool {
     settings.model_download_source != ModelDownloadSource::HuggingFace || in_mainland_china()
 }
 
-/// The interface is in Simplified Chinese, or the system prefers a
-/// mainland-China locale.
 fn in_mainland_china() -> bool {
     lokalbot_i18n::current().code == "zh-Hans"
         || lokalbot_i18n::system_preferences()
@@ -1131,33 +1059,23 @@ fn in_mainland_china() -> bool {
             .is_some_and(|preference| is_mainland_china_locale(preference))
 }
 
-/// `zh-Hans`, `zh_CN.UTF-8`, `en-CN`: Simplified Chinese or the CN region.
 fn is_mainland_china_locale(preference: &str) -> bool {
     let code = preference.split('.').next().unwrap_or(preference);
     let code = code.replace('_', "-").to_lowercase();
     code.starts_with("zh-hans") || code.split('-').skip(1).any(|part| part == "cn")
 }
 
-/// What setup downloads for the choices on screen.
 #[derive(Debug, PartialEq)]
 struct SetupDownloads {
-    /// What the engine's `PrepareModels` fetches, one at a time: Transcribe
-    /// with voice detection and speaker separation, Think, search by meaning
-    /// and the llama.cpp runtime.
     meeting: Vec<String>,
-    /// The rest, each asked for on its own: what the chosen screen text
-    /// needs, and Autocomplete's model when asked for.
     extra: Vec<String>,
 }
 
-/// `screen_text` is the download the draft's screen context would need.
 fn setup_downloads(
     settings: &Settings,
     screen_text: Option<&str>,
     include_autocomplete: bool,
 ) -> SetupDownloads {
-    // `PrepareModels` leaves Autocomplete to its own switch, and screen text
-    // to what the settings, not the draft, chose.
     let meeting_settings = Settings {
         cotyping_enabled: false,
         ..settings.clone()
@@ -1175,7 +1093,6 @@ fn setup_downloads(
     SetupDownloads { meeting, extra }
 }
 
-/// What preparing Autocomplete means for what it reads (`OnboardingView`).
 fn autocomplete_disclosure() -> &'static str {
     lokalbot_i18n::tr(
         "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once its text recognition model is downloaded, the whole window with on-device text recognition. It stays on this PC and is never saved; turn either off in Settings → Autocomplete.",
@@ -1227,7 +1144,6 @@ mod tests {
         let roles: Vec<Role> = plan.models.iter().map(|m| m.role).collect();
         assert_eq!(roles.first(), Some(&Role::Transcribe));
         assert_eq!(roles.get(1), Some(&Role::Think));
-        // Autocomplete is offered, unselected, while nothing has started.
         assert_eq!(roles.last(), Some(&Role::Autocomplete));
         let expected: u64 = meeting_ids(&settings)
             .iter()
@@ -1239,7 +1155,6 @@ mod tests {
                 .iter()
                 .all(|m| m.state == ModelState::NotStarted)
         );
-        // The runtime downloads with Think, once.
         let think = &plan.models[1];
         assert!(think.ids.contains(&RUNTIME_ID.to_string()));
         assert_eq!(
@@ -1258,7 +1173,6 @@ mod tests {
         let with = plan(&settings, &[], &HashMap::new(), true, false, None);
         let autocomplete = model_bytes(&settings.cotyping_built_in_model_id, &settings);
         assert_eq!(with.remaining_bytes, without.remaining_bytes + autocomplete);
-        // Once the download is under way the unchosen option goes away.
         let started = plan(&settings, &[], &HashMap::new(), false, true, None);
         assert!(started.models.iter().all(|m| m.role != Role::Autocomplete));
         assert_eq!(started.phase, Phase::Running);
@@ -1268,7 +1182,6 @@ mod tests {
     fn progress_counts_only_what_this_download_fetches() {
         let settings = Settings::default();
         let ids = meeting_ids(&settings);
-        // The first piece was here already; the second is half way.
         let before: HashSet<String> = [ids[0].clone()].into_iter().collect();
         let installed = vec![ids[0].clone()];
         let half = model_bytes(&ids[1], &settings);
@@ -1332,7 +1245,6 @@ mod tests {
         let think = plan.models.iter().find(|m| m.role == Role::Think).unwrap();
         assert_eq!(think.state, ModelState::Elsewhere);
         assert!(!plan.models.iter().any(|m| m.role == Role::Search));
-        // No role on this computer runs on llama.cpp, so it isn't fetched.
         assert!(
             !plan
                 .models
@@ -1379,15 +1291,11 @@ mod tests {
         let mut estimator = Estimator::default();
         estimator.record(0, start);
         estimator.record(10_000_000, start + std::time::Duration::from_secs(2));
-        // Two seconds is too short to say.
         assert_eq!(estimator.minutes_left(1_000_000_000), None);
         estimator.record(60_000_000, start + std::time::Duration::from_secs(6));
-        // 10 MB/s with 940 MB to go: about a minute and a half.
         assert_eq!(estimator.minutes_left(1_000_000_000), Some(2));
-        // A retry starts over.
         estimator.record(0, start + std::time::Duration::from_secs(7));
         assert_eq!(estimator.minutes_left(1_000_000_000), None);
-        // Almost done still says one minute, never zero.
         let mut fast = Estimator::default();
         fast.record(0, start);
         fast.record(500_000_000, start + std::time::Duration::from_secs(5));
@@ -1408,8 +1316,6 @@ mod tests {
         assert!(!plain.meeting.contains(&autocomplete));
         assert!(plain.extra.is_empty());
 
-        // The runtime comes with the meeting models; screen text and
-        // Autocomplete's model are asked for on their own, once each.
         let both = setup_downloads(&settings, Some(OCR_LANGUAGES_ID), true);
         assert_eq!(both.meeting, plain.meeting);
         assert_eq!(
@@ -1417,8 +1323,6 @@ mod tests {
             [OCR_LANGUAGES_ID.to_string(), autocomplete.clone()]
         );
 
-        // Autocomplete already on, or screen text already chosen in settings,
-        // still isn't something `PrepareModels` downloads.
         let on = Settings {
             cotyping_enabled: true,
             screen_context_capture_mode: ScreenContextMode::Text,
@@ -1428,8 +1332,6 @@ mod tests {
         assert!(!meeting.contains(&autocomplete));
         assert!(!meeting.contains(&OCR_MODEL_ID.to_string()));
 
-        // With Think on a server and no search by meaning, Autocomplete
-        // brings the runtime itself.
         let remote = Settings {
             summarizer_backend: SummarizerBackend::Ollama,
             semantic_search_enabled: false,

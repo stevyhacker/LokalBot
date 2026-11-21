@@ -8,10 +8,8 @@ struct MainWindowView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Native sidebar toggle and restored visibility share the same binding.
     @SceneStorage("workspace.sidebar.visible") private var sidebarVisible = true
     @State private var pendingDelete: Set<Meeting.ID>?
-    /// Timeline's day, kept across visits to other pages.
     @StateObject private var capture = CaptureModel()
 
     var body: some View {
@@ -40,15 +38,11 @@ struct MainWindowView: View {
                 .environmentObject(app)
         }
         .task {
-            // Let non-View code (menu bar, AppDelegate reopen) open windows.
-            // First-run permission onboarding is now triggered from AppState.
             WindowAccess.shared.register { openWindow(id: $0) }
         }
 
     }
 
-    /// Every workspace keeps its own list-and-page split inside the detail
-    /// column, rather than adding global navigation columns.
     private var navigation: some View {
         NavigationSplitView(columnVisibility: Binding(
             get: { sidebarVisible ? .all : .detailOnly },
@@ -60,9 +54,6 @@ struct MainWindowView: View {
         } detail: {
             workspace
                 .safeAreaInset(edge: .bottom, spacing: 0) { errorFeedback }
-                // Model code sets this feedback, so animate on its values: the
-                // bar enters from the bottom edge while the workspace above
-                // yields its space in the same motion.
                 .animation(bottomFeedbackAnimation, value: app.lastError)
                 .animation(bottomFeedbackAnimation, value: app.micRecoveryNeeded)
                 .animation(bottomFeedbackAnimation, value: app.textRecognitionStalled)
@@ -73,8 +64,6 @@ struct MainWindowView: View {
         .splitStructureDirection()
     }
 
-    /// Reserve space for recovery feedback so it cannot cover a workspace's
-    /// composer, transport, or other bottom controls.
     @ViewBuilder private var errorFeedback: some View {
         if app.micRecoveryNeeded {
             ErrorToast(
@@ -143,9 +132,6 @@ struct MainWindowView: View {
         }
     }
 
-    /// Today and Actions lead; Remember holds what was captured; Assistant
-    /// holds the two places you ask for work. Settings and the storage line
-    /// sit in the footer, outside the destinations list.
     private var sidebar: some View {
         List(selection: sidebarSelection) {
             sidebarDestination(
@@ -186,9 +172,6 @@ struct MainWindowView: View {
 
     }
 
-    /// Native source-list selection gives VoiceOver and keyboard navigation
-    /// one semantic destination per row. Section headings remain static text.
-    /// Scripted exports leave it empty; `sidebarRowBackground` marks the row.
     private var sidebarSelection: Binding<AppState.NavSection?> {
         Binding(
             get: { isScriptedCapture ? nil : app.navSection },
@@ -200,11 +183,6 @@ struct MainWindowView: View {
             })
     }
 
-    /// `cacheDisplay` does not flatten the sidebar's vibrancy text correctly:
-    /// AppKit gives the offscreen bitmap the mask color (black) instead of the
-    /// composited label color. The selection highlight gets the same mask, a
-    /// solid black bar. Use resolved colors only for scripted exports;
-    /// normal app and UI-test windows keep the native sidebar rendering.
     @ViewBuilder
     private func sidebarDestination(
         _ title: String,
@@ -224,8 +202,6 @@ struct MainWindowView: View {
         .accessibilityAddTraits(app.navSection == section ? .isSelected : [])
     }
 
-    /// Scripted exports draw AppKit's unemphasized selection color in place of
-    /// the masked native highlight.
     @ViewBuilder
     private func sidebarRowBackground(_ section: AppState.NavSection) -> some View {
         if isScriptedCapture && app.navSection == section {
@@ -270,7 +246,6 @@ struct MainWindowView: View {
 
 }
 
-/// Read prominence inside the row so native selection supplies its foreground.
 private struct SidebarDestinationLabel: View {
     @Environment(\.backgroundProminence) private var prominence
     let title: String
@@ -299,8 +274,6 @@ private struct SidebarDestinationLabel: View {
     }
 }
 
-/// The number of open actions that are yours. It observes the outcome index
-/// itself, so a status change redraws this number and not the whole sidebar.
 private struct SidebarOpenActionCount: View {
     @ObservedObject var index: OutcomeIndex
     let scriptedLabelColor: Color?
@@ -316,8 +289,6 @@ private struct SidebarOpenActionCount: View {
     }
 }
 
-/// The sidebar's foot: what is running now, then Settings, then where the
-/// library and the AI are.
 private struct SidebarFooter: View {
     @EnvironmentObject private var app: AppState
     let scriptedLabelColor: Color?
@@ -353,9 +324,6 @@ private struct SidebarFooter: View {
     }
 }
 
-/// Settings is a place you visit rarely, so it sits at the foot and not among
-/// the destinations. It looks like a sidebar row and opens the Settings
-/// window, so it never shows as selected: the main window stays where it was.
 private struct SidebarSettingsRow: View {
     @EnvironmentObject private var app: AppState
     let scriptedLabelColor: Color?
@@ -382,17 +350,11 @@ private struct SidebarSettingsRow: View {
     }
 }
 
-/// Reflects the *actual* privacy posture instead of a hardcoded claim. With
-/// everything local it is one line. With a remote Think, transcription or
-/// autocomplete server it names storage and AI separately and lists each
-/// host once, because meeting and workday text goes to those origins.
 private struct SidebarPrivacyLine: View {
     @EnvironmentObject private var app: AppState
 
     private var destination: InferencePresentation { InferencePresentation(settings: app.settings) }
 
-    /// Think's server, the transcription server and autocomplete's server,
-    /// each named once.
     private var remoteHosts: [String] { app.settings.remoteAIHosts }
 
     private var blocked: Bool {
@@ -441,8 +403,6 @@ private struct SidebarPrivacyLine: View {
     }
 }
 
-/// While sharing is on, the storage line says the library also has copies
-/// on the person's paired phones and tablets.
 private struct SidebarCompanionLine: View {
     @ObservedObject var host: CompanionHost
 

@@ -1,15 +1,11 @@
 import Foundation
 
-/// What importing from another app would add, counted without writing
-/// anything. The approval card and `lokalbot-cli import --dry-run` show it.
 struct ExternalImportPlan: Equatable, Sendable {
     var source: ExternalMeetingSource
     var paths: [String]
     var found = 0
     var newMeetings = 0
     var alreadyImported = 0
-    /// New meetings that bring a recording without a transcript, which
-    /// LokalBot transcribes on this computer.
     var toTranscribe = 0
     var earliest: Date?
     var latest: Date?
@@ -35,8 +31,6 @@ struct ExternalImportPlan: Equatable, Sendable {
         }
     }
 
-    /// The plan as the socket and the approval card report it. Paths and
-    /// counts only, never a meeting's contents.
     var json: JSONValue {
         var object: [String: JSONValue] = [
             "source": .string(source.rawValue),
@@ -55,7 +49,6 @@ struct ExternalImportPlan: Equatable, Sendable {
     }
 }
 
-/// How an import went, for the person and the log.
 struct ExternalImportSummary: Equatable {
     var source: ExternalMeetingSource
     var imported: [UUID] = []
@@ -64,8 +57,6 @@ struct ExternalImportSummary: Equatable {
     var failures: [String] = []
     var problems: [ExternalImportScan.Problem] = []
 
-    /// What the person sees when the import ends, or nil when it simply
-    /// worked and the new meetings speak for themselves.
     var message: String? {
         var parts: [String] = []
         if imported.isEmpty {
@@ -84,8 +75,6 @@ struct ExternalImportSummary: Equatable {
 }
 
 extension AppState {
-    /// Reads the files off the main thread and counts what an import would
-    /// add. Writes nothing.
     func planExternalImport(_ source: ExternalMeetingSource, urls: [URL]) async -> ExternalImportPlan {
         let result = await Task.detached(priority: .userInitiated) {
             ExternalMeetingReaders.scan(source, urls: urls)
@@ -98,9 +87,6 @@ extension AppState {
             libraryIDs: Set(library.map(\.id)))
     }
 
-    /// Imports every meeting in `urls` that isn't in the library yet. The
-    /// person chose the files, or approved the request, so nothing asks
-    /// again. Imports run one after another, after any recording imports.
     func importExternalMeetings(_ source: ExternalMeetingSource, urls: [URL]) {
         guard !urls.isEmpty else { return }
         let label = "\(source.title) meetings"
@@ -112,8 +98,6 @@ extension AppState {
         }
     }
 
-    /// The import itself, returning what happened. Meetings already in the
-    /// library, by their source id or LokalBot id, are skipped.
     @discardableResult
     func runExternalImport(_ source: ExternalMeetingSource, urls: [URL], now: Date = Date()) async -> ExternalImportSummary {
         let result = await Task.detached(priority: .userInitiated) {
@@ -140,7 +124,6 @@ extension AppState {
                 summary.failures.append("\(ExternalMeetingWriter.title(for: external)): \(error.localizedDescription)")
             }
         }
-        // One list update for the whole batch rather than one per meeting.
         appendImportedMeetings(written.map(\.meeting))
         for outcome in written {
             summary.imported.append(outcome.meeting.id)
@@ -151,7 +134,6 @@ extension AppState {
                 meetingArtifactsWritten(outcome.meeting)
             }
         }
-        // Counts only: titles and paths stay out of the log.
         lokalbotLog("external import source=\(source.rawValue) imported=\(summary.imported.count) "
             + "skipped=\(summary.alreadyImported) transcribing=\(summary.transcribing) "
             + "failed=\(summary.failures.count) unreadable=\(summary.problems.count)")

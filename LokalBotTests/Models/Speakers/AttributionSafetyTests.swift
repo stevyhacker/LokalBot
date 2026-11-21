@@ -357,7 +357,6 @@ final class AttributionSafetyTests: XCTestCase {
 
     func testMicrophoneCommitmentDefaultsToUserAcrossEchoModesAndPersistence() throws {
         for status: TranscriptEchoReport.Status in [.disabled, .uncertain, .failed, .noReference, .applied] {
-            // `.unresolved` covers transcripts persisted while the default was off.
             for method: SpeakerAttribution.Method in [.track, .diarization, .legacy] {
                 let original = Transcript(segments: [
                     .init(start: 0, end: 5, speaker: "local 1", text: "Yeah, I can do that.",
@@ -388,7 +387,6 @@ final class AttributionSafetyTests: XCTestCase {
         XCTAssertEqual(TranscriptEchoReport(status: .disabled).explanation,
                        "Echo removal is off. Unconfirmed microphone speakers remain unidentified.")
         for method: SpeakerAttribution.Method in [.track, .diarization, .legacy] {
-            // `.user` covers defaults persisted while the setting was on.
             let original = Transcript(segments: [
                 .init(start: 0, end: 5, speaker: "local 1", text: "I will send the report.",
                       attribution: .init(source: .microphone, identity: .user, method: method))

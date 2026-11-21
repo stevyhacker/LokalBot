@@ -85,7 +85,6 @@ struct SetupStartCommand: ParsableCommand {
         var result: [String: JSONValue] = ["state": .string(answer?.state.rawValue ?? SettingsRequestState.pending.rawValue)]
         if let answer { result["grants"] = .array(answer.grants.map { .string($0.rawValue) }) }
         if answer?.state == .approved {
-            // The socket opens right after the person allows it.
             result["appResponding"] = .bool(
                 (try? client.request(.hello, launch: false, launchTimeout: 10)) != nil)
         }
@@ -93,8 +92,6 @@ struct SetupStartCommand: ParsableCommand {
         if let exit = ControlOutput.exitCode(for: answer?.state.rawValue) { throw exit }
     }
 
-    /// Opens LokalBot on the request, or tells a running copy to show it.
-    /// Returns a hint when this CLI can't start LokalBot itself.
     private static func show(client: AppControlClient) throws -> String? {
         if client.isAppRunning {
             #if os(macOS)

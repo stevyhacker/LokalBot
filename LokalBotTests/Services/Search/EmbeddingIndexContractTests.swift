@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The embedding contract that has to change together with the model: prompts,
-/// request options, response decoding, score floors, and obsolete-model cleanup.
 final class EmbeddingIndexContractTests: XCTestCase {
     private func vectorData(_ values: [Float]) -> Data {
         values.withUnsafeBufferPointer { buffer in
@@ -16,7 +14,6 @@ final class EmbeddingIndexContractTests: XCTestCase {
 
         XCTAssertEqual(body["input"] as? [String], ["task: search result | query: budget review"])
         XCTAssertEqual(body["model"] as? String, EmbeddingIndex.modelID)
-        // A bidirectional encoder must never reuse another input's cached prompt.
         XCTAssertEqual(body["cache_prompt"] as? Bool, false)
         XCTAssertEqual(
             EmbeddingIndex.embeddingRequestBody(["notes"], prefix: EmbeddingIndex.documentPrefix)["input"]
@@ -44,8 +41,6 @@ final class EmbeddingIndexContractTests: XCTestCase {
         XCTAssertThrowsError(try EmbeddingIndex.embeddingVectors(fromResponse: Data("{}".utf8)))
     }
 
-    /// EmbeddingGemma 2 scores unrelated meeting chunks around 0.59, above
-    /// Harrier's 0.45 floor, so the recalibrated floor must drop them.
     func testMeetingRankingDropsChunksBelowTheEmbeddingFloor() {
         let meetingID = UUID()
         let candidates = [

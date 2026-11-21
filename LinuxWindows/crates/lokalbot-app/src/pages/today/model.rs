@@ -1,10 +1,3 @@
-//! What Today decides before it draws (`TodayPanels.swift`, `TodayAgenda.swift`,
-//! `TodayDreamSelection`): when the panels form two columns, the bars of So far
-//! today, what Needs attention says about itself, today's one list of
-//! meetings, the recap line under a recorded meeting, the digest line, the
-//! page's layout and the rows of "Before you join". Display-only: nothing here
-//! is stored or sent.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, NaiveDate, Utc};
@@ -14,33 +7,16 @@ use lokalbot_core::calendar::upcoming as selector;
 use lokalbot_core::{ActionThread, DayDigest, Meeting};
 use uuid::Uuid;
 
-/// Rows Needs attention shows on the page.
 pub(super) const ATTENTION_LIMIT: usize = 3;
-/// Apps So far today names before folding the rest into "Other".
 pub(super) const APP_LIMIT: usize = 4;
 
-// ---------------------------------------------------------------- columns
-
-/// One column or two (`TodayColumns`). The panels sit side by side when the
-/// page is wide enough for a readable leading column beside the fixed
-/// trailing one, and stack in reading order otherwise. Widths are logical
-/// pixels at the standard text size and grow with larger text.
 pub(super) mod columns {
-    /// The trailing column (So far today, Yesterday).
     pub const TRAILING_WIDTH: f32 = 336.;
-    /// The narrowest leading column (Needs attention, Meetings today) that
-    /// still reads well beside the trailing one.
     pub const LEADING_MINIMUM_WIDTH: f32 = 480.;
-    /// Between the columns, and between panels in a column.
     pub const GAP: f32 = 16.;
-    /// The page's widest, side padding included: two columns, or cards that
-    /// span the page (`WorkspaceMetric.todayMaxWidth`).
     pub const WIDE_PAGE: f32 = 1064.;
-    /// A page whose panels can only form one column
-    /// (`WorkspaceMetric.todayReadingMaxWidth`).
     pub const READING_PAGE: f32 = 780.;
 
-    /// How much wider than at the standard text size the columns are.
     pub fn factor(text_scale: f32) -> f32 {
         text_scale.max(0.5)
     }
@@ -49,14 +25,10 @@ pub(super) mod columns {
         (TRAILING_WIDTH * factor(text_scale)).round()
     }
 
-    /// The narrowest page content, inside its side padding, that shows two
-    /// columns.
     pub fn two_column_minimum_width(text_scale: f32) -> f32 {
         (LEADING_MINIMUM_WIDTH * factor(text_scale)).round() + GAP + trailing_width(text_scale)
     }
 
-    /// `width` is the page content inside its side padding. A side with no
-    /// panels leaves no gutter: the page is one column.
     pub fn count(width: f32, text_scale: f32, has_leading: bool, has_trailing: bool) -> usize {
         if has_leading && has_trailing && width >= two_column_minimum_width(text_scale) {
             2
@@ -65,8 +37,6 @@ pub(super) mod columns {
         }
     }
 
-    /// Two columns and the cards that span them use the full width; panels
-    /// that can only ever form one column keep the narrower reading width.
     pub fn page_maximum_width(has_leading: bool, has_trailing: bool) -> f32 {
         if has_leading != has_trailing {
             READING_PAGE
@@ -76,22 +46,14 @@ pub(super) mod columns {
     }
 }
 
-// ------------------------------------------------------------- app bars
-
-/// One app's row in So far today (`TodayAppBars.Bar`).
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct AppBar {
-    /// The app as captured; empty for the folded tail, which reads "Other".
     pub label: String,
     pub seconds: f64,
-    /// 0…1, where the longest row is 1.
     pub fraction: f64,
     pub is_other: bool,
 }
 
-/// The busiest apps with at least a minute each, up to `cap`, then the rest
-/// as one "Other" row (`AppTimePresentation.rows`), each as a share of the
-/// longest row.
 pub(super) fn app_bars(per_app: &[(String, f64)], cap: usize) -> Vec<AppBar> {
     let mut sorted: Vec<&(String, f64)> = per_app.iter().filter(|(_, s)| *s > 0.).collect();
     sorted.sort_by(|a, b| b.1.total_cmp(&a.1));
@@ -130,18 +92,11 @@ pub(super) fn app_bars(per_app: &[(String, f64)], cap: usize) -> Vec<AppBar> {
     rows
 }
 
-// -------------------------------------------------------- needs attention
-
-/// What Needs attention says about itself (`TodayAttentionSummary`): how
-/// many actions are open, how many of those are overdue, and how many it
-/// leaves to Actions.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct AttentionSummary {
     pub open: usize,
     pub overdue: usize,
-    /// Rows on the page.
     pub shown: usize,
-    /// Open actions the panel leaves to the Actions page.
     pub remainder: usize,
 }
 
@@ -157,19 +112,13 @@ impl AttentionSummary {
         }
     }
 
-    /// The footer appears only when Actions holds more than the rows shown.
     pub fn shows_footer(&self) -> bool {
         self.remainder > 0
     }
 }
 
-// ----------------------------------------------------------------- agenda
-
-/// Within this a calendar meeting earns the card at the top of Today, and
-/// its status reads in the accent (`TodayAgenda.nextMeetingWindow`).
 pub(super) const NEXT_MEETING_WINDOW_SECONDS: i64 = 60 * 60;
 
-/// Where a meeting stands in the day.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum EntryStatus {
     Recording,
@@ -180,28 +129,22 @@ pub(crate) enum EntryStatus {
     Upcoming { minutes: i64 },
 }
 
-/// One line of Meetings today: a recording made today or a calendar event
-/// nothing was recorded for (`TodayAgenda.Entry`).
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Entry {
     pub id: String,
-    /// The recording, when this is one.
     pub meeting: Option<Meeting>,
     pub title: String,
     pub start: DateTime<Utc>,
     pub status: EntryStatus,
-    /// Starts within the hour, so its status reads in the accent.
     pub is_soon: bool,
 }
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) enum AgendaRow {
     Entry(Box<Entry>),
-    /// The line between what has started and what is still ahead.
     Now(DateTime<Utc>),
 }
 
-/// Where a calendar event stands at `now`.
 pub(crate) fn event_status(event: &CalendarEvent, now: DateTime<Utc>) -> EntryStatus {
     match selector::status(event, now) {
         selector::EventStatus::Ended => EntryStatus::Ended,
@@ -214,9 +157,6 @@ pub(crate) fn event_status(event: &CalendarEvent, now: DateTime<Utc>) -> EntrySt
     }
 }
 
-/// The calendar events in `events` some recording is linked to. They are
-/// listed once, as that recording, and never offered again as the next
-/// meeting. Any recording claims its event, a merged source included.
 pub(crate) fn recorded_event_ids(
     recordings: &[&Meeting],
     events: &[CalendarEvent],
@@ -230,8 +170,6 @@ pub(crate) fn recorded_event_ids(
         .collect()
 }
 
-/// Today's recordings and calendar events as one list, earliest first. A
-/// recording that stores its calendar event stands in for that event.
 pub(super) fn agenda_entries(
     recordings: &[&Meeting],
     events: &[CalendarEvent],
@@ -283,15 +221,12 @@ pub(super) fn agenda_entries(
     entries.sort_by(|a, b| {
         a.start
             .cmp(&b.start)
-            // At the same minute the recording is the thing that happened.
             .then_with(|| b.meeting.is_some().cmp(&a.meeting.is_some()))
             .then_with(|| a.id.cmp(&b.id))
     });
     entries
 }
 
-/// The list with the now line before the first entry still ahead. A day with
-/// nothing ahead has no line.
 pub(super) fn agenda_rows(entries: Vec<Entry>, now: DateTime<Utc>) -> Vec<AgendaRow> {
     let next = entries.iter().position(|e| e.start > now);
     let mut rows: Vec<AgendaRow> = entries
@@ -304,15 +239,10 @@ pub(super) fn agenda_rows(entries: Vec<Entry>, now: DateTime<Utc>) -> Vec<Agenda
     rows
 }
 
-/// A hairline divides two meetings. The now line draws its own rule, so the
-/// meeting before it has none, and the last row ends at the panel.
 pub(super) fn has_hairline_after(index: usize, rows: &[AgendaRow]) -> bool {
     matches!(rows.get(index + 1), Some(AgendaRow::Entry(_)))
 }
 
-/// The meeting for the card at the top of Today: the one under way, or the
-/// next one once it is within the hour. Events already recorded, and the one
-/// being recorded now, are passed over (`TodayAgenda.nextMeeting`).
 pub(super) fn next_meeting<'a>(
     schedule: &'a [CalendarEvent],
     now: DateTime<Utc>,
@@ -330,16 +260,9 @@ pub(super) fn next_meeting<'a>(
     schedule.iter().find(|e| e.external_id == next.external_id)
 }
 
-// ------------------------------------------------------------ recap line
-
-/// The longest recap line, in characters, before it is cut at a word.
 pub(super) const RECAP_MAXIMUM_CHARACTERS: usize = 220;
 const OVERVIEW_SECTIONS: [&str; 4] = ["tldr", "summary", "overview", "recap"];
 
-/// One line saying what a recorded meeting was about: the first sentence-like
-/// line under its summary's TL;DR (or Summary, Overview, Recap) heading
-/// (`TodayMeetingRecap.line`). `None` when the summary has no such section.
-/// No model runs for this.
 pub(super) fn recap_line(markdown: &str) -> Option<String> {
     let mut in_overview = false;
     for raw in markdown.lines() {
@@ -357,7 +280,6 @@ pub(super) fn recap_line(markdown: &str) -> Option<String> {
             continue;
         }
         let line = strip_list_marker(line);
-        // Checkbox bullets are actions, not a recap.
         if line.starts_with('[') {
             continue;
         }
@@ -379,7 +301,6 @@ pub(super) fn recap_line(markdown: &str) -> Option<String> {
     None
 }
 
-/// The words of a Markdown heading (`#` to `######` and a space).
 fn heading_text(line: &str) -> Option<&str> {
     let hashes = line.chars().take_while(|c| *c == '#').count();
     if !(1..=6).contains(&hashes) {
@@ -390,7 +311,6 @@ fn heading_text(line: &str) -> Option<&str> {
         .then(|| rest.trim_start())
 }
 
-/// "- ", "* ", "• ", "1. " or "1) ".
 fn strip_list_marker(line: &str) -> &str {
     let mut chars = line.char_indices();
     let marker_end = match chars.next() {
@@ -407,7 +327,6 @@ fn strip_list_marker(line: &str) -> &str {
     }
 }
 
-/// A leading "**Speaker:**" label.
 fn strip_speaker(line: &str) -> &str {
     let Some(rest) = line.strip_prefix("**") else {
         return line;
@@ -426,7 +345,6 @@ fn strip_speaker(line: &str) -> &str {
     rest[star + 2..].trim_start()
 }
 
-/// A time stamp's length at the start of `text`: `[1:23]`, `[01:02:03]`.
 fn stamp_length(text: &str) -> Option<usize> {
     let bytes = text.as_bytes();
     if bytes.first() != Some(&b'[') {
@@ -453,8 +371,6 @@ fn stamp_length(text: &str) -> Option<usize> {
     (groups > 0 && bytes.get(index) == Some(&b']')).then_some(index + 1)
 }
 
-/// A cited time or range at the start of `text`, with its optional
-/// parentheses: "[00:12]", "([1:02] – [1:30])".
 fn citation_length(text: &str) -> Option<usize> {
     let mut index = usize::from(text.starts_with('('));
     index += stamp_length(&text[index..])?;
@@ -476,7 +392,6 @@ fn citation_length(text: &str) -> Option<usize> {
     Some(index)
 }
 
-/// Removes every cited time, with the space before it.
 fn remove_stamps(line: &str) -> String {
     let mut out = String::with_capacity(line.len());
     let mut index = 0;
@@ -497,7 +412,6 @@ fn remove_stamps(line: &str) -> String {
     out
 }
 
-/// A dash left at the end once its citation is gone.
 fn strip_trailing_dash(line: &str) -> String {
     let trimmed = line.trim_end();
     match trimmed.chars().last() {
@@ -520,10 +434,6 @@ fn shortened(text: &str) -> String {
     format!("{kept}…")
 }
 
-// ---------------------------------------------------------- so far today
-
-/// The few lines of the day digest that Today shows: its "At a glance", or
-/// the titles of its first tasks when it has none (`TodayDigestHighlights`).
 pub(super) fn highlights_markdown(digest: Option<&DayDigest>) -> String {
     const TASK_FALLBACK_LIMIT: usize = 3;
     let Some(digest) = digest.filter(|d| !d.markdown.is_empty()) else {
@@ -543,16 +453,11 @@ pub(super) fn highlights_markdown(digest: Option<&DayDigest>) -> String {
         .join("\n")
 }
 
-/// The one line under So far today that says where the digest stands
-/// (`TodayDigestLine`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum DigestLine {
-    /// A digest is being written, by hand or on schedule.
     Writing,
-    /// No digest for today yet.
     Missing,
     Current(Option<DateTime<Utc>>),
-    /// Activity arrived after the digest was written; Update rewrites it.
     Stale(Option<DateTime<Utc>>),
 }
 
@@ -574,22 +479,15 @@ impl DigestLine {
         }
     }
 
-    /// A current digest with no known time has nothing to say.
     pub fn shows_footer(self) -> bool {
         self != DigestLine::Current(None)
     }
 }
 
-// ------------------------------------------------------------------ page
-
-/// What the page is made of (`TodayPageLayout`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum PageLayout {
-    /// The day's panels. Get started stays under them until hidden.
     Sections { getting_started_below: bool },
-    /// Nothing to show yet: the Get started steps are the page.
     GettingStarted,
-    /// Nothing to show and Get started is hidden.
     Placeholder,
 }
 
@@ -611,8 +509,6 @@ impl PageLayout {
     }
 }
 
-// ------------------------------------------------------- before you join
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum PreparationKind {
     Decision,
@@ -621,18 +517,14 @@ pub(super) enum PreparationKind {
     RecentMeeting,
 }
 
-/// One thing to know before joining (`TodayPreparation.Row`).
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct PreparationRow {
     pub id: String,
     pub kind: PreparationKind,
     pub text: String,
-    /// Where it comes from: a meeting title or an owner. An owner who is the
-    /// user is `None` here and reads "You".
     pub source: Option<String>,
     pub source_is_user: bool,
     pub date: Option<NaiveDate>,
-    /// The meeting it opens.
     pub target: Option<Uuid>,
 }
 
@@ -674,9 +566,6 @@ fn project_row(project: &lokalbot_ai::upcoming::UpcomingProject) -> PreparationR
     }
 }
 
-/// One row of each kind the evidence holds. A meeting with no decisions,
-/// commitments or projects falls back to the closest earlier meeting
-/// (`TodayPreparation.primaryRows`).
 pub(super) fn preparation_rows(evidence: &UpcomingEvidence) -> Vec<PreparationRow> {
     let mut rows = Vec::new();
     rows.extend(evidence.decisions.first().map(reference_row));
@@ -700,7 +589,6 @@ pub(super) fn preparation_rows(evidence: &UpcomingEvidence) -> Vec<PreparationRo
     rows
 }
 
-/// Everything past the first of each kind (`TodayPreparation.moreRows`).
 pub(super) fn more_preparation_rows(evidence: &UpcomingEvidence) -> Vec<PreparationRow> {
     evidence
         .decisions
@@ -712,23 +600,14 @@ pub(super) fn more_preparation_rows(evidence: &UpcomingEvidence) -> Vec<Preparat
         .collect()
 }
 
-/// A brief the model wrote is always shown. The template brief only restates
-/// the rows, so it is shown when there are no rows to read.
 pub(super) fn shows_brief(generated_by_model: bool, row_count: usize) -> bool {
     generated_by_model || row_count == 0
 }
 
-// -------------------------------------------------------------- yesterday
-
-/// Whose priorities a brief holds (`TodayDreamSelection.PrioritiesSource`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) enum PrioritiesSource {
-    /// The brief covers yesterday.
     Today,
-    /// An older brief's day: its weekday within the last week, its date
-    /// beyond that.
     Day(NaiveDate, DayNaming),
-    /// The covered day is unreadable.
     PreviousWorkday,
 }
 
@@ -738,17 +617,12 @@ pub(super) enum DayNaming {
     Date,
 }
 
-/// A brief covering yesterday is the current one; anything older is labelled
-/// with its own day (`TodayDreamSelection.isCurrent`).
 pub(super) fn brief_is_current(report_day: &str, today: NaiveDate) -> bool {
     today
         .pred_opt()
         .is_some_and(|yesterday| report_day == lokalbot_core::dream::day_key(yesterday))
 }
 
-/// A brief from yesterday earns "Priorities for today"; anything older is
-/// framed with its own day, so a Friday brief on Monday never reads as
-/// current (`TodayDreamSelection.prioritiesSource`).
 pub(super) fn priorities_source(report_day: &str, today: NaiveDate) -> PrioritiesSource {
     if brief_is_current(report_day, today) {
         return PrioritiesSource::Today;
@@ -775,8 +649,6 @@ mod tests {
     use crate::test_support::{reference, thread};
 
     fn at(hour: u32, minute: u32) -> DateTime<Utc> {
-        // Noon-ish local times on one day, whatever the test machine's zone:
-        // built from the local day so `local_day` agrees.
         let day = NaiveDate::from_ymd_opt(2026, 11, 12).unwrap();
         day.and_hms_opt(hour, minute, 0)
             .unwrap()
@@ -821,7 +693,6 @@ mod tests {
         assert_eq!(columns::count(832., 1.0, true, true), 2);
         assert_eq!(columns::count(831., 1.0, true, true), 1);
         assert_eq!(columns::count(0., 1.0, true, true), 1);
-        // The widest page, inside its padding, has room; the reading page has not.
         assert_eq!(columns::count(columns::WIDE_PAGE - 56., 1.0, true, true), 2);
         assert_eq!(
             columns::count(columns::READING_PAGE - 56., 1.0, true, true),
@@ -891,7 +762,6 @@ mod tests {
         assert_eq!(other.seconds, 390. + 380. + 370. + 360. + 350.);
         assert_eq!(other.fraction, 1.);
         assert!((bars[0].fraction - 1000. / other.seconds).abs() < 1e-9);
-        // Under a minute folds even with room left.
         let short = app_bars(&[("Xcode".into(), 600.), ("Finder".into(), 30.)], 4);
         assert_eq!(short.len(), 2);
         assert!(short[1].is_other);
@@ -1013,7 +883,6 @@ mod tests {
             "the last row ends at the panel"
         );
 
-        // Nothing ahead: no line. A morning before everything starts with it.
         let past = agenda_entries(&[&recording(1, "Standup", at(10, 0))], &[], None, now);
         assert!(
             agenda_rows(past, now)
@@ -1288,7 +1157,7 @@ mod tests {
 
     #[test]
     fn priorities_are_today_s_for_yesterday_s_brief_and_named_for_older_ones() {
-        let today = NaiveDate::from_ymd_opt(2026, 11, 16).unwrap(); // a Monday
+        let today = NaiveDate::from_ymd_opt(2026, 11, 16).unwrap();
         assert!(brief_is_current("2026-11-15", today));
         assert!(!brief_is_current("2026-11-13", today));
         assert_eq!(

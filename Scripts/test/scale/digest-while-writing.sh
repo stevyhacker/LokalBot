@@ -1,6 +1,4 @@
 #!/usr/bin/env bash
-# 0.9.1 regression: new activity written while a digest generates must not
-# fail the digest. Runs --digest while another process inserts activity.
 set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
 BIN="${LOKALBOT_APP:?}/Contents/MacOS/LokalBot"

@@ -1,7 +1,3 @@
-//! Desktop integration: the tray icon, global shortcuts, commands from a
-//! second `lokalbot` process, and notifications. Platform callbacks arrive on
-//! their own threads and are forwarded to the UI thread through one channel.
-
 use std::path::Path;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -24,35 +20,25 @@ use crate::state::{AppData, AppEvent, DictationHud, MeetingTab, SettingsCategory
 const DICTATION_ID: &str = "dictation";
 const QUICK_RECALL_ID: &str = "quick-recall";
 const SELECTION_ACTIONS_ID: &str = "selection-actions";
-/// Esc while dictating, plain and with the dictation shortcut's modifiers
-/// still held. Taken only while starting or recording.
 const DICTATION_CANCEL_ID: &str = "dictation-cancel";
 const DICTATION_CANCEL_HELD_ID: &str = "dictation-cancel-held";
-/// A dictation press shorter than this keeps recording until the next tap
-/// ("Tap or hold").
 const TAP_THRESHOLD: Duration = Duration::from_millis(300);
 
 enum DesktopEvent {
     Tray(TrayEvent),
     Shortcut(ShortcutEvent),
     Ipc(IpcCommand),
-    /// The user chose an action on the "Meeting detected" notification.
     RecordDetected {
         title: String,
         app_name: String,
     },
-    /// The "LokalBot <version> is available" notification was clicked.
     ShowUpdate,
-    /// What one pass over the shortcuts came to.
     ShortcutsApplied(Vec<ShortcutOutcome>),
-    /// This desktop has no way to register shortcuts at all.
     ShortcutsUnavailable,
-    /// The system asked LokalBot to end: logging out, say, or a `kill`.
     #[cfg(target_os = "linux")]
     Terminate,
 }
 
-/// One shortcut after trying to register it.
 pub struct ShortcutOutcome {
     id: &'static str,
     shortcut: Shortcut,
@@ -61,16 +47,10 @@ pub struct ShortcutOutcome {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Refusal {
-    /// Against this platform's rules, as a library from a Mac can be: not
-    /// something to change in the settings the Mac reads too.
     Rule,
-    /// Another app holds it. The Mac's answer is to go back to the shortcut
-    /// that worked, or turn the feature off.
     Taken,
 }
 
-/// What a refused Ask or selection actions shortcut leads to
-/// (`applyQuickRecallSetting`, `applySelectionActionsSetting`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum RefusalAnswer {
     Leave,
@@ -78,7 +58,6 @@ pub enum RefusalAnswer {
     TurnOff,
 }
 
-/// The previous shortcut when one worked and it isn't the refused one; else off.
 pub fn refusal_answer(refusal: Refusal, refused: &str, working: Option<&str>) -> RefusalAnswer {
     match (refusal, working) {
         (Refusal::Rule, _) => RefusalAnswer::Leave,
@@ -89,7 +68,6 @@ pub fn refusal_answer(refusal: Refusal, refused: &str, working: Option<&str>) ->
     }
 }
 
-/// The shortcuts one [`sync_shortcuts_later`] call asks for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct WantedShortcuts {
     dictation: Option<Shortcut>,
@@ -99,27 +77,18 @@ struct WantedShortcuts {
     paused: bool,
 }
 
-/// Which [`sync_shortcuts_later`] call may register, and what is registered.
-/// Most settings changes leave the shortcuts alone, and taking them down
-/// to put the same ones back would lose a press made in between.
 #[derive(Default)]
 struct ShortcutSyncs {
     calls: u64,
-    /// What the last call registered, when all of it was accepted and no
-    /// later call has begun to change it.
     registered: Option<WantedShortcuts>,
 }
 
 impl ShortcutSyncs {
-    /// A call for `wanted`. Its number, or `None` when that is registered
-    /// already. Either way, calls still waiting to register give up.
     fn request(&mut self, wanted: WantedShortcuts) -> Option<u64> {
         self.calls += 1;
         (self.registered != Some(wanted)).then_some(self.calls)
     }
 
-    /// Whether call `number` is still the newest, at the moment it starts to
-    /// register. From here until [`Self::finish`] nothing counts as registered.
     fn begin(&mut self, number: u64) -> bool {
         if self.calls != number {
             return false;
@@ -128,8 +97,6 @@ impl ShortcutSyncs {
         true
     }
 
-    /// Call `number` registered `wanted`; `accepted` when nothing was refused.
-    /// A refused shortcut is tried again by the next call.
     fn finish(&mut self, number: u64, wanted: WantedShortcuts, accepted: bool) {
         if self.calls == number && accepted {
             self.registered = Some(wanted);
@@ -137,24 +104,17 @@ impl ShortcutSyncs {
     }
 }
 
-/// Handles that must live as long as the app.
 pub struct Desktop {
     tray: Option<Tray>,
     tray_state: Mutex<Option<TrayMenuState>>,
     shortcuts: Arc<Mutex<Option<GlobalShortcuts>>>,
-    /// Of several [`sync_shortcuts_later`] calls waiting to apply, only the
-    /// newest does, and one that would change nothing does not start.
     shortcut_syncs: Arc<Mutex<ShortcutSyncs>>,
     _ipc: Option<IpcServer>,
     sender: smol::channel::Sender<DesktopEvent>,
     dictation_pressed_at: Mutex<Option<Instant>>,
-    /// Esc is wanted for cancelling: dictation is starting or recording.
     dictation_cancel_keys: Arc<AtomicBool>,
     pub main_window: Mutex<Option<AnyWindowHandle>>,
-    /// The shortcut text that last registered, by id.
     working_shortcuts: Mutex<std::collections::HashMap<&'static str, String>>,
-    /// What was last said about a refused shortcut, so a settings change doesn't
-    /// repeat it.
     reported_shortcuts: Mutex<std::collections::HashMap<&'static str, String>>,
 }
 
@@ -163,7 +123,6 @@ impl Desktop {
         self.tray.is_some()
     }
 
-    /// Whether this desktop let LokalBot register system-wide shortcuts.
     pub fn shortcuts_ready(&self) -> bool {
         self.shortcuts.lock().is_some()
     }
@@ -181,7 +140,6 @@ pub fn desktop(cx: &App) -> Option<Arc<Desktop>> {
     cx.try_global::<DesktopHandle>().map(|d| d.0.clone())
 }
 
-/// Starts the tray, the IPC listener and (in the background) global shortcuts.
 pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
     let (sender, receiver) = smol::channel::unbounded::<DesktopEvent>();
 
@@ -197,8 +155,6 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
                     tray_update(cx),
                     0,
                 )),
-                // Only Windows' menus draw row icons from pixels; Linux names
-                // theme icons.
                 if cfg!(windows) {
                     crate::tray_status::glyph_pixels()
                 } else {
@@ -254,8 +210,6 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
         });
     }
 
-    // Shortcuts can block for seconds on Wayland while the desktop asks the
-    // user, so they are created off the UI thread.
     {
         let shortcuts = desktop.shortcuts.clone();
         let tx = sender;
@@ -269,7 +223,6 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
             }
         });
     }
-    // Register once the manager exists, and again whenever settings change.
     sync_shortcuts_later(cx);
 
     let data = data.clone();
@@ -280,7 +233,6 @@ pub fn start(data: &Entity<AppData>, root: &Path, cx: &mut App) {
     })
     .detach();
 
-    // Keep the tray's status block, its timers and the icon current.
     let data_for_tray = AppData::global(cx);
     cx.spawn(async move |cx| {
         loop {
@@ -300,7 +252,6 @@ fn tray_icon_rgba() -> Option<(Vec<u8>, u32, u32)> {
     Some((image.into_raw(), width, height))
 }
 
-/// The update row, from the updater's state.
 fn tray_update(cx: &App) -> Option<TrayUpdate> {
     let updates = crate::updates::global(cx)?;
     let updates = updates.read(cx);
@@ -316,9 +267,6 @@ fn tray_update(cx: &App) -> Option<TrayUpdate> {
     })
 }
 
-/// Sends the tray what changed since the last call; `opening` sends the menu
-/// even when nothing did, for the tray to apply anything still waiting (a
-/// Windows menu that was open when the last change came).
 fn refresh_tray(data: &Entity<AppData>, opening: bool, cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let Some(tray) = desktop.tray.as_ref() else {
@@ -336,8 +284,6 @@ fn refresh_tray(data: &Entity<AppData>, opening: bool, cx: &mut App) {
     if !opening && last.as_ref() == Some(&state) {
         return;
     }
-    // The timers are in the menu too: Linux hosts get only the changed
-    // labels; Windows takes the new menu the next time it opens.
     let _ = tray.set_items(tray::standard_items(&state));
     if last
         .as_ref()
@@ -348,7 +294,6 @@ fn refresh_tray(data: &Entity<AppData>, opening: bool, cx: &mut App) {
     *last = Some(state);
 }
 
-/// Re-registers global shortcuts from the current settings, off the UI thread.
 pub fn sync_shortcuts_later(cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let data = AppData::global(cx);
@@ -363,8 +308,6 @@ pub fn sync_shortcuts_later(cx: &mut App) {
     let selection_actions = (data.settings.selection_actions_enabled && !paused)
         .then(|| Shortcut::parse(&data.settings.selection_actions_shortcut).ok())
         .flatten();
-    // A library from a Mac may carry a combination that means something else
-    // here, such as Ctrl+Shift+W, which closes tabs.
     let breaks_a_rule = [
         dictation.as_ref().and_then(|s| s.dictation_problem(None)),
         quick_recall
@@ -390,7 +333,6 @@ pub fn sync_shortcuts_later(cx: &mut App) {
         return;
     };
     std::thread::spawn(move || {
-        // The manager may still be starting (Wayland asks the user first).
         for _ in 0..50 {
             if shortcuts.lock().is_some() {
                 break;
@@ -398,8 +340,6 @@ pub fn sync_shortcuts_later(cx: &mut App) {
             std::thread::sleep(Duration::from_millis(200));
         }
         let mut guard = shortcuts.lock();
-        // A later call carries newer settings and applies all of them, so an
-        // older one that got here late must not put its own back.
         if !syncs.lock().begin(sync) {
             return;
         }
@@ -443,15 +383,12 @@ pub fn sync_shortcuts_later(cx: &mut App) {
         }
         let accepted = outcomes.iter().all(|outcome| outcome.refusal.is_none());
         syncs.lock().finish(sync, wanted, accepted);
-        // While a shortcut is being recorded nothing is registered on purpose.
         if !paused {
             let _ = sender.send_blocking(DesktopEvent::ShortcutsApplied(outcomes));
         }
     });
 }
 
-/// Tells the person about shortcuts that didn't register and takes the Mac's
-/// way out for Ask and selection actions.
 fn shortcuts_applied(data: &Entity<AppData>, outcomes: Vec<ShortcutOutcome>, cx: &mut App) {
     use lokalbot_platform::shortcuts as messages;
     let Some(desktop) = desktop(cx) else { return };
@@ -527,8 +464,6 @@ fn shortcuts_applied(data: &Entity<AppData>, outcomes: Vec<ShortcutOutcome>, cx:
     });
 }
 
-/// Takes Esc only while dictation is starting or recording, and gives it back
-/// at once. Wayland lets no app take a key, so there the overlay's X cancels.
 pub fn sync_dictation_cancel_keys(cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let data = AppData::global(cx);
@@ -551,8 +486,6 @@ pub fn sync_dictation_cancel_keys(cx: &mut App) {
         let Some(manager) = guard.as_mut() else {
             return;
         };
-        // Quick presses queue here: the latest wish decides, so Esc is never
-        // left taken after dictation ended.
         if flag.load(Ordering::SeqCst) {
             let plain = Shortcut::parse("Esc").ok();
             for (id, key) in [
@@ -575,8 +508,6 @@ pub fn sync_dictation_cancel_keys(cx: &mut App) {
     });
 }
 
-/// The selection actions shortcut or command. While the setting is off nothing
-/// is read: the command opens the setting instead.
 pub fn invoke_selection_actions(data: &Entity<AppData>, cx: &mut App) {
     if data.read(cx).settings.selection_actions_enabled {
         crate::bridge::send(Command::Selection(SelectionCommand::Invoke), cx);
@@ -588,7 +519,6 @@ pub fn invoke_selection_actions(data: &Entity<AppData>, cx: &mut App) {
 fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
     match event {
         DesktopEvent::Tray(TrayEvent::Activated) => show_main_window(cx),
-        // The host is about to show the menu: bring its status up to date.
         DesktopEvent::Tray(TrayEvent::MenuOpening) => refresh_tray(data, true, cx),
         DesktopEvent::Tray(TrayEvent::Item(id)) => match id.as_str() {
             item_ids::RECORD => crate::bridge::send(
@@ -748,7 +678,6 @@ fn handle(data: &Entity<AppData>, event: DesktopEvent, cx: &mut App) {
     }
 }
 
-/// The calendar event the tray menu named, as the calendar has it now.
 fn calendar_event(
     data: &Entity<AppData>,
     external_id: &str,
@@ -762,8 +691,6 @@ fn calendar_event(
         .cloned()
 }
 
-/// Push to talk records while held; Toggle starts and stops on presses;
-/// Tap or hold keeps recording after a short tap until the next press.
 fn dictation_shortcut(data: &Entity<AppData>, pressed: bool, cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let mode = data.read(cx).settings.dictation_trigger_mode;
@@ -791,7 +718,6 @@ fn dictation_shortcut(data: &Entity<AppData>, pressed: bool, cx: &mut App) {
     }
 }
 
-/// Activates the main window, reopening it if it was closed to the tray.
 pub fn show_main_window(cx: &mut App) {
     let existing = desktop(cx).and_then(|d| *d.main_window.lock());
     if let Some(handle) = existing
@@ -804,7 +730,6 @@ pub fn show_main_window(cx: &mut App) {
     crate::open_main_window(AppData::global(cx), cx);
 }
 
-/// Shows "Meeting detected — Record <title>?" with Record and Ignore.
 pub fn notify_meeting_detected(app_name: String, title: String, cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let tx = desktop.sender.clone();
@@ -837,8 +762,6 @@ pub fn notify_meeting_detected(app_name: String, title: String, cx: &mut App) {
     });
 }
 
-/// "Recording saved · <title> · N min", like the macOS notification. It says
-/// "transcribing…" only when that is what happens next.
 pub fn notify_recording_saved(saved: lokalbot_engine::RecordingSaved) {
     std::thread::spawn(move || {
         if let Err(err) = lokalbot_platform::notify(
@@ -852,7 +775,6 @@ pub fn notify_recording_saved(saved: lokalbot_engine::RecordingSaved) {
     });
 }
 
-/// A capture warning that lasted long enough to interrupt the call for.
 pub fn notify_capture_needs_attention(message: String) {
     std::thread::spawn(move || {
         if let Err(err) = lokalbot_platform::notify(
@@ -866,9 +788,6 @@ pub fn notify_capture_needs_attention(message: String) {
     });
 }
 
-/// "LokalBot <version> is available", once per version found by an
-/// automatic check (Sparkle shows its update alert then), with `body` saying
-/// how to get it. Clicking it opens Settings → General, where it is offered.
 pub fn notify_update_available(version: String, body: SharedString, cx: &mut App) {
     let Some(desktop) = desktop(cx) else { return };
     let tx = desktop.sender.clone();
@@ -905,7 +824,6 @@ mod tests {
         }
     }
 
-    /// Syncs with `shortcuts` registered and accepted.
     fn registered(shortcuts: WantedShortcuts) -> ShortcutSyncs {
         let mut syncs = ShortcutSyncs::default();
         let call = syncs.request(shortcuts).unwrap();
@@ -918,7 +836,6 @@ mod tests {
     fn a_sync_that_would_change_nothing_does_not_start() {
         let space = wanted("Ctrl+Shift+Space");
         let mut syncs = registered(space);
-        // Some other setting changed: the same shortcuts are asked for.
         assert_eq!(syncs.request(space), None);
         assert_eq!(syncs.request(space), None);
         assert!(syncs.request(wanted("Ctrl+Alt+K")).is_some());
@@ -952,8 +869,6 @@ mod tests {
         let mut syncs = registered(space);
         let changing = syncs.request(other).unwrap();
         assert!(syncs.begin(changing));
-        // The other shortcut is being registered now, so the first one no
-        // longer counts as registered and has to be asked for again.
         let back = syncs.request(space).expect("nothing would put it back");
         syncs.finish(changing, other, true);
         assert!(syncs.begin(back));
@@ -968,7 +883,6 @@ mod tests {
             refusal_answer(Refusal::Taken, "Ctrl+Alt+K", Some("Ctrl+Shift+Space")),
             RefusalAnswer::Restore("Ctrl+Shift+Space".into())
         );
-        // Nothing to go back to, or that one was refused too.
         assert_eq!(
             refusal_answer(Refusal::Taken, "Ctrl+Alt+K", None),
             RefusalAnswer::TurnOff
@@ -979,8 +893,6 @@ mod tests {
         );
     }
 
-    /// A library from a Mac may carry what's fine there and not here. The Mac
-    /// reads the same settings, so they stay as they are.
     #[test]
     fn breaking_this_platforms_rules_changes_no_settings() {
         assert_eq!(

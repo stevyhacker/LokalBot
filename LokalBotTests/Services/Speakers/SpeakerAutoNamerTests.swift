@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Attendance never identifies a voice, including a single invited guest.
 final class SpeakerAutoNamerTests: XCTestCase {
 
     private func transcript(speakers: [String]) -> Transcript {
@@ -22,7 +21,6 @@ final class SpeakerAutoNamerTests: XCTestCase {
         XCTAssertNil(named.speakerAliases["them"])
         XCTAssertNil(named.calendarIdentityID(for: "them"))
         XCTAssertEqual(named.displaySpeaker(for: "them"), "Them")
-        // Raw labels stay untouched — only the alias layer changes.
         XCTAssertTrue(named.segments.allSatisfy { $0.speaker == "me" || $0.speaker == "them" })
     }
 

@@ -4,8 +4,6 @@ import XCTest
 @testable import LokalBot
 
 final class AppLanguageRootTests: XCTestCase {
-    /// In-process environment propagation: no window is shown and no input is
-    /// sent. Two independently created hosting views share the production root.
     @MainActor
     func testIndependentHostingRootsUpdateInPlaceAndOverrideInheritedLocale() async {
         var initialSettings = AppSettings()
@@ -37,7 +35,6 @@ final class AppLanguageRootTests: XCTestCase {
             host.layoutSubtreeIfNeeded()
             return host
         }
-        // Retain the hosts while SwiftUI processes publisher updates.
         defer { _ = hosts }
         await fulfillment(of: [steps[0]], timeout: 3)
         XCTAssertEqual(observed, [["en"], ["en"]])

@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Tests for the in-app meeting chat assistant: the tolerant tool-call protocol,
-/// the system-prompt builder, the ReAct loop (driven by a scripted engine and a
-/// fake tool runner), the pure observation formatters, and the live tool runner
-/// against a planted on-disk library.
 @MainActor
 final class ChatAgentTests: XCTestCase {
     func testAgentValidatesNormalAndForcedAnswersAgainstTypedToolEvidence() async throws {
@@ -95,8 +91,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertEqual(ChatPrompt.finalText("FINAL_ANSWER:\nThe decision was Redis"), "The decision was Redis")
     }
 
-    // MARK: - Protocol parsing
-
     func testParsePlainToolCall() {
         let action = ChatPrompt.parse(
             #"{"tool":"search_meetings","arguments":{"query":"redis"}}"#,
@@ -120,7 +114,6 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testParseUnknownToolNameIsTreatedAsAnswer() {
-        // Shaped like a tool call, but the name isn't registered — never execute it.
         let action = ChatPrompt.parse(#"{"tool":"delete_everything","arguments":{}}"#,
                                       tools: ["search_meetings"])
         guard case .answer = action else { return XCTFail("unknown tool must not be called") }
@@ -143,7 +136,6 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testParseCoercesNumericAndFlatArguments() {
-        // No "arguments" wrapper, and a numeric value the model didn't quote.
         guard case .call(let call) = ChatPrompt.parse(#"{"tool":"list_meetings","limit":5}"#,
                                                       tools: ["list_meetings"]) else {
             return XCTFail("expected a tool call")
@@ -174,7 +166,6 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testParseNativeFunctionCallWithTokens() {
-        // Some Qwen-compatible local models emit this form instead of JSON.
         let text = "<|tool_call_start|>[get_meeting(id='abc12345', include='summary')]<|tool_call_end|>"
         guard case .call(let call) = ChatPrompt.parse(text, tools: ["get_meeting"]) else {
             return XCTFail("native function-call form should parse as a tool call")
@@ -201,22 +192,13 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertEqual(answer, "Here is your answer.")
     }
 
-    // MARK: - Malformed-attempt detection + constrained retry
-
     func testLooksLikeToolAttemptDetection() {
-        // Balanced JSON with a misspelled tool name.
         XCTAssertTrue(ChatPrompt.looksLikeToolAttempt(#"{"tool":"search_meeting","arguments":{}}"#))
-        // Truncated tool-call JSON that never balanced.
         XCTAssertTrue(ChatPrompt.looksLikeToolAttempt(#"{"tool": "get_meeting", "arguments": {"id": "ab"#))
-        // Wrapper tokens around nothing usable.
         XCTAssertTrue(ChatPrompt.looksLikeToolAttempt("<|tool_call_start|><|tool_call_end|>"))
-        // Bare call form with an unknown name.
         XCTAssertTrue(ChatPrompt.looksLikeToolAttempt("search_meeting(query='x')"))
-        // Plain prose stays an answer.
         XCTAssertFalse(ChatPrompt.looksLikeToolAttempt("We decided to adopt Redis."))
-        // Tokens around prose stay an answer (models wrap answers in stray tokens).
         XCTAssertFalse(ChatPrompt.looksLikeToolAttempt("<|tool_call_start|>Here you go.<|tool_call_end|>"))
-        // JSON quoted inside prose without a tool-name key.
         XCTAssertFalse(ChatPrompt.looksLikeToolAttempt(#"The config is {"retries": 3}."#))
     }
 
@@ -245,14 +227,13 @@ final class ChatAgentTests: XCTestCase {
         let limit = try XCTUnwrap(argumentProperties["limit"] as? [String: Any])
         XCTAssertEqual(limit["type"] as? [String], ["string", "null"])
         XCTAssertNil(OpenAIStrictSchemaValidator.validationIssue(in: schema))
-        // Must serialise — it's sent verbatim as the response_format schema.
         XCTAssertNoThrow(try JSONSerialization.data(withJSONObject: schema))
     }
 
     func testMalformedToolAttemptRetriesWithConstrainedDecode() async throws {
         let engine = ScriptedEngine([
-            #"{"tool": "search_meetings", "arguments": {"query": "redis""#,       // truncated
-            #"{"call": {"tool": "search_meetings", "arguments": {"query": "redis"}}}"#, // constrained retry
+            #"{"tool": "search_meetings", "arguments": {"query": "redis""#,
+            #"{"call": {"tool": "search_meetings", "arguments": {"query": "redis"}}}"#,
             "We picked Redis.",
         ])
         let runner = FakeRunner(
@@ -265,11 +246,8 @@ final class ChatAgentTests: XCTestCase {
         let answer = try await agent.respond(history: [], latest: "what did we pick?") { _ in }
         XCTAssertEqual(answer, "We picked Redis.")
         XCTAssertEqual(runner.calls.map(\.name), ["search_meetings"])
-        // Exactly one engine call carried the constraining schema.
         XCTAssertEqual(engine.schemas.compactMap { $0 }.count, 1)
     }
-
-    // MARK: - System prompt
 
     func testSystemPromptIncludesCitationInstructions() {
         let prompt = ChatPrompt.systemPrompt(tools: [], libraryOverview: "")
@@ -299,7 +277,6 @@ final class ChatAgentTests: XCTestCase {
             workMemory: "## Active projects\n- Atlas — in review")
         XCTAssertTrue(with.contains("work memory"))
         XCTAssertTrue(with.contains("Atlas — in review"))
-        // Memory is background context, not ground truth the model may cite as fact.
         XCTAssertTrue(with.contains("may lag reality"))
     }
 
@@ -320,8 +297,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertTrue(context.contains("Atlas"))
         XCTAssertLessThanOrEqual(context.count, 6_100)
     }
-
-    // MARK: - Agent loop
 
     func testAgentRunsToolThenAnswers() async throws {
         let engine = ScriptedEngine([
@@ -348,7 +323,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertEqual(runner.calls.map(\.name), ["search_meetings"])
         XCTAssertEqual(runner.calls.first?.string("query"), "redis")
         XCTAssertEqual(events, ["start:search_meetings", "finish:search_meetings"])
-        // The observation must have been fed back into the second generate call.
         XCTAssertTrue(engine.prompts.last?.context.contains { $0.contains("Observation: Hit: adopt Redis") } ?? false)
     }
 
@@ -372,7 +346,6 @@ final class ChatAgentTests: XCTestCase {
         agent.maxSteps = 2
 
         let answer = try await agent.respond(history: [], latest: "find x") { _ in }
-        // 2 in-loop tool calls, then a forced pass that still loops → fallback.
         XCTAssertEqual(runner.calls.count, 2)
         XCTAssertEqual(answer, ChatPrompt.fallbackAnswer)
     }
@@ -449,8 +422,6 @@ final class ChatAgentTests: XCTestCase {
         }
     }
 
-    // MARK: - Pure formatters
-
     func testLibraryOverviewEmptyAndPopulated() {
         XCTAssertEqual(MeetingChatFormat.libraryOverview([], limit: 5),
                        "The user has no recorded meetings yet.")
@@ -477,8 +448,8 @@ final class ChatAgentTests: XCTestCase {
         let text = MeetingChatFormat.searchResults(query: "budget", keyword: [hit],
                                                    semantic: [], meetings: [meeting])
         XCTAssertTrue(text.contains("Budget review"))
-        XCTAssertTrue(text.contains("00:01:30"))      // timestamp from start=90
-        XCTAssertFalse(text.contains("«"))            // FTS markers stripped
+        XCTAssertTrue(text.contains("00:01:30"))
+        XCTAssertFalse(text.contains("«"))
     }
 
     func testMeetingIncludeSelectsSections() {
@@ -529,9 +500,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertTrue(prompt.hasPrefix(ChatPrompt.currentTimeLine(now: now)), prompt)
     }
 
-    /// Anthropic caches whole blocks up to each breakpoint. A clock in the
-    /// system prompt changed it every minute, so each new message rewrote the
-    /// cached system prompt and replayed history at the cache-write price.
     func testSystemPromptAndHistoryStayIdenticalAcrossMessagesMinutesApart() async throws {
         let engine = ScriptedEngine(["First answer.", "Second answer."])
         var agent = ChatAgent(engine: engine, runner: FakeRunner(specs: [], overview: "no meetings", results: [:]))
@@ -550,8 +518,6 @@ final class ChatAgentTests: XCTestCase {
                        "the earlier question must stay a cached prefix of the next request")
         XCTAssertTrue(engine.prompts[1].prompt.hasPrefix(ChatPrompt.currentTimeLine(now: second)))
     }
-
-    // MARK: - Live tool runner (planted library)
 
     func testKeywordSearchKeepsANegationOutsideTheSnippetWindow() async throws {
         let root = FileManager.default.temporaryDirectory
@@ -644,7 +610,7 @@ final class ChatAgentTests: XCTestCase {
             try? FileManager.default.removeItem(at: root)
         }
 
-        let storage = StorageManager()      // rooted at our temp dir via the env hook
+        let storage = StorageManager()
         let meeting = Meeting(
             id: UUID(uuidString: "11111111-2222-4333-8444-555555555555")!,
             title: "Caching strategy", appName: "Zoom",
@@ -674,7 +640,7 @@ final class ChatAgentTests: XCTestCase {
         let activityStore = ActivityStore(databaseURL: sqlite)
 
         var settings = AppSettings()
-        settings.semanticSearchEnabled = false      // keep the test offline (no embed server)
+        settings.semanticSearchEnabled = false
 
         let tools = MeetingChatTools(
             meetings: { [meeting] }, storage: storage,
@@ -785,8 +751,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertFalse(scoped.text.contains("Needle priority"), "scoped: \(scoped.text)")
     }
 
-    // MARK: - Screen / activity tools
-
     func testSearchScreenAndActivitySummaryAgainstPlantedStore() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-screen-\(UUID().uuidString)", isDirectory: true)
@@ -819,8 +783,6 @@ final class ChatAgentTests: XCTestCase {
             ts: nextDay, path: "/tmp/y.heic.enc", app: "Safari",
             windowTitle: "Other day refund docs", trigger: "app_switch",
             ocr: "How to issue a refund for an invoice in the Stripe dashboard")
-        // More than the tool's result limit on another day: date filtering must
-        // happen in SQL before LIMIT or the valid selected-day hit disappears.
         for index in 0..<13 {
             try activityStore.insertScreenshot(
                 ts: nextDay.addingTimeInterval(TimeInterval(index)),
@@ -857,7 +819,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertTrue(scopedHit.text.contains("Stripe invoicing docs"), "scoped: \(scopedHit.text)")
         XCTAssertFalse(scopedHit.text.contains("Other day refund docs"), "scoped: \(scopedHit.text)")
 
-        // Natural-language question rescued by the relaxed OR fallback.
         let rescued = await tools.run(ChatToolCall(name: "search_screen",
                                                    arguments: ["query": "how do I refund that invoice"]))
         XCTAssertFalse(rescued.text.contains("No screen-text matches"), "rescued: \(rescued.text)")
@@ -922,7 +883,6 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertTrue(text.contains("Xcode: 2h 00m"), text)
         XCTAssertTrue(text.contains("Slack: 10m"), text)
         XCTAssertTrue(text.contains("Standup"), text)
-        // Longest-title-first within an app.
         XCTAssertTrue(text.range(of: "bar.swift")!.lowerBound
                       < text.range(of: "foo.swift")!.lowerBound, text)
     }
@@ -933,18 +893,13 @@ final class ChatAgentTests: XCTestCase {
         XCTAssertEqual(MeetingChatFormat.durationLabel(7_500), "2h 05m")
     }
 
-    // MARK: - FTS query relaxation
-
     func testFtsQueryStrictAndsTermsButRelaxesOnRequest() {
-        // Default: quote + AND every term, prefix-match the last (search-as-you-type).
         XCTAssertEqual(SearchIndex.ftsQuery(from: "what did we decide about caching"),
                        #""what" "did" "we" "decide" "about" "caching" *"#)
-        // Relaxed: drop stop words, OR the content terms for recall.
         XCTAssertEqual(
             SearchIndex.ftsQuery(from: "what did we decide about caching",
                                  matchAll: false, dropStopWords: true),
             #""decide" OR "caching""#)
-        // All terms are stop words → keep them rather than emit an empty query.
         XCTAssertEqual(
             SearchIndex.ftsQuery(from: "what did we", matchAll: false, dropStopWords: true),
             #""what" OR "did" OR "we""#)
@@ -983,7 +938,7 @@ final class ChatAgentTests: XCTestCase {
         let activityStore = ActivityStore(databaseURL: sqlite)
 
         var settings = AppSettings()
-        settings.semanticSearchEnabled = false      // no embed server in tests
+        settings.semanticSearchEnabled = false
 
         let tools = MeetingChatTools(
             meetings: { [meeting] }, storage: storage,
@@ -991,16 +946,12 @@ final class ChatAgentTests: XCTestCase {
             activityStore: activityStore,
             settings: { settings })
 
-        // Strict FTS ANDs every stop word and finds nothing on the raw question…
         XCTAssertTrue(searchIndex.search("what did we decide about caching").isEmpty)
-        // …but the chat tool's keyword fallback rescues the content terms.
         let search = await tools.run(ChatToolCall(name: "search_meetings",
                                                   arguments: ["query": "what did we decide about caching"]))
         XCTAssertFalse(search.text.contains("No matches"), "search: \(search.text)")
         XCTAssertTrue(search.text.contains("Caching strategy"), "search: \(search.text)")
     }
-
-    // MARK: - Helpers
 
     private func sampleMeeting(title: String) -> Meeting {
         Meeting(id: UUID(), title: title, appName: "Zoom",
@@ -1009,8 +960,6 @@ final class ChatAgentTests: XCTestCase {
                 relativePath: "meetings/sample", hasSystemTrack: false)
     }
 }
-
-// MARK: - Test doubles
 
 @MainActor
 private final class StreamingAnswerEngine: TextEngine {
@@ -1028,12 +977,9 @@ private final class StreamingAnswerEngine: TextEngine {
     }
 }
 
-/// A `TextEngine` that returns canned outputs in order and records every call,
-/// so the agent loop can be exercised deterministically with no model.
 private final class ScriptedEngine: TextEngine {
     private var outputs: [String]
     private(set) var prompts: [(system: String, prompt: String, context: [String])] = []
-    /// One entry per generate call: the constraining schema, or nil for plain calls.
     private(set) var schemas: [[String: Any]?] = []
 
     init(_ outputs: [String]) { self.outputs = outputs }

@@ -1,9 +1,3 @@
-//! The real [`Launcher`]: resolves the Think endpoint (leasing the built-in
-//! llama-server when that is the model, or starting a ChatGPT plan relay),
-//! audits the runtime, issues a scoped `lokalbot-cli` grant, writes the
-//! extension and starts pi (`AgentSessionController.start`,
-//! `ThinkExecution.prepareAgentConnection`).
-
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 
@@ -22,7 +16,6 @@ use crate::rpc::{LineTransport, REQUEST_TIMEOUT, RpcClient, Sink};
 use crate::session::{LaunchError, LaunchRequest, Launched, Launcher, RequestTag};
 use crate::shell::ShellChoice;
 
-/// A scoped grant lasts at most a day; revoking it on stop is the norm.
 const CAPABILITY_LIFETIME_HOURS: i64 = 24;
 
 pub type ApiKeySource = Arc<dyn Fn() -> Option<String> + Send + Sync>;
@@ -33,20 +26,14 @@ pub struct PiLauncher {
     pub dirs: AgentDirectories,
     pub layout: RuntimeLayout,
     pub manifest: RuntimeManifest,
-    /// The app's llama.cpp runtime (the engine's), for the built-in model.
     pub runtime: Option<RuntimeManager>,
-    /// The stored OpenAI-compatible key, read at launch only.
     pub api_key: ApiKeySource,
-    /// The ChatGPT plan sign-in a plan task's relay draws its tokens from.
     pub chatgpt_account: Arc<chatgpt::Account>,
-    /// The folder holding `lokalbot-cli`, put first on the agent's PATH.
     pub helpers_dir: Option<PathBuf>,
-    /// The command shell; `None` detects it ([`ShellChoice::detect`]).
     pub shell: Option<ShellChoice>,
 }
 
 impl PiLauncher {
-    /// `lokalbot-cli` next to the running executable, when it is there.
     pub fn bundled_helpers_dir() -> Option<PathBuf> {
         let dir = std::env::current_exe().ok()?.parent()?.to_path_buf();
         let name = if cfg!(windows) {
@@ -154,10 +141,7 @@ impl PiLauncher {
         }
     }
 
-    /// The endpoint, with what must stay alive while the task runs.
     fn connect(&self, request: &LaunchRequest) -> Result<Connection, LaunchError> {
-        // Only an OpenAI-compatible server takes a key; reading the system
-        // keyring can block for a long time when no secret service answers.
         let api_key = match request.settings.summarizer_backend {
             SummarizerBackend::OpenAICompatible => (self.api_key)(),
             SummarizerBackend::BuiltIn
@@ -210,10 +194,7 @@ impl PiLauncher {
         }
     }
 
-    /// A relay for this task on 127.0.0.1. pi gets its random key; only the
-    /// relay holds the plan's tokens.
     fn connect_chatgpt_plan(&self, model: String) -> Result<Connection, LaunchError> {
-        // A missing sign-in opens Models now instead of failing the first turn.
         let status = self
             .chatgpt_account
             .status()
@@ -245,8 +226,6 @@ impl PiLauncher {
     }
 }
 
-/// A task's model connection. The lease keeps the built-in model loaded; the
-/// relay serves the ChatGPT plan. Both last until the task stops.
 struct Connection {
     endpoint: LlmEndpoint,
     lease: Option<lokalbot_ai::Lease>,
@@ -270,8 +249,6 @@ impl Launcher for PiLauncher {
     }
 }
 
-/// The client writes through a weak handle: dropping the session's process
-/// ends pi even while the reader thread still holds the client.
 struct ProcessTransport(Weak<PiProcess>);
 
 impl LineTransport for ProcessTransport {
@@ -290,7 +267,6 @@ struct CapabilityRecord {
     expires_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Deletes expired grants (`AgentAccessGate.removeExpiredCapabilities`).
 pub fn remove_expired_capabilities(paths: &LibraryPaths) {
     let dir = paths.control_dir().join("agent-capabilities");
     let Ok(entries) = std::fs::read_dir(&dir) else {
@@ -398,7 +374,6 @@ mod tests {
         let endpoint = &connection.endpoint;
         assert_eq!(endpoint.base_url, relay.base_url());
         assert!(lokalbot_core::access::is_loopback_url(&endpoint.base_url));
-        // pi holds the relay's key, never the plan token or a stored API key.
         assert_eq!(endpoint.api_key.as_deref(), Some(relay.key()));
         assert_eq!(endpoint.model, "gpt-6.1-sol");
         assert_eq!(endpoint.api, ProviderApi::Responses);
@@ -408,7 +383,6 @@ mod tests {
         assert!(connection.lease.is_none());
         let port = relay.port();
         drop(connection);
-        // The relay stops with the connection.
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
         while std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
             assert!(

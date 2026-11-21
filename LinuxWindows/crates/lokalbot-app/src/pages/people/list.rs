@@ -1,7 +1,3 @@
-//! The list column (`PeopleListColumn`): the search field with "Where People
-//! comes from" as its header, then people under Coming up, Last 2 weeks and
-//! Earlier. Hidden entries are restored from its foot.
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::Input;
 use gpui_kit::component::menu::ContextMenuExt as _;
@@ -28,8 +24,6 @@ impl PeoplePage {
         let selected_id = self.selected_person().map(|p| p.id.clone());
         let mut rows: Vec<AnyElement> = Vec::new();
         for section in &content.sections {
-            // A heading row, as in the Meetings list: it scrolls with its
-            // people.
             rows.push(
                 div()
                     .id(SharedString::from(format!(
@@ -67,8 +61,6 @@ impl PeoplePage {
         } else {
             None
         };
-        // Over the list where people would be (`overlay`), above the
-        // restore link.
         if let Some(text) = overlay {
             rows.push(
                 div()
@@ -156,8 +148,6 @@ impl PeoplePage {
             )
     }
 
-    /// One person in the list (`PersonRow`): avatar, name and when, then the
-    /// latest or next meeting and which way open work runs.
     fn render_row(&self, row: &Row, selected: bool, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let id = row.id.clone();

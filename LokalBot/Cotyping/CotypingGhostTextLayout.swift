@@ -1,8 +1,5 @@
 import AppKit
 
-/// Pre-wraps popup/mirror ghost text so multi-line suggestions do not collapse
-/// into a single truncated row. Inline uses `CotypingInlineGhostLayout`; popup
-/// has its own chrome and independently bounded rows.
 nonisolated enum CotypingGhostTextLayout {
     static let maxMirrorTextWidth: CGFloat = 420
     static let minMirrorTextWidth: CGFloat = 80

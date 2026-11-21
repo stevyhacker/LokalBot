@@ -1,9 +1,3 @@
-//! The one way the terminal can ask for access (`AgentSetup.swift`): a
-//! short-lived request file in the library's `control/` folder that the app
-//! shows to the person. Only the app writes grant markers, and only after the
-//! person allows the request in LokalBot. A request written by any other
-//! process gains nothing without that click.
-
 use std::path::{Path, PathBuf};
 
 use chrono::{DateTime, Duration, Utc};
@@ -13,7 +7,6 @@ use serde_json::{Map, Value, json};
 
 use super::protocol::{ControlError, MODEL_PRESETS, RequestState};
 
-/// Passed by `lokalbot-cli setup start` when it opens the app.
 pub const LAUNCH_ARGUMENT: &str = "--lokalbot-agent-setup";
 pub const LIFETIME_SECONDS: i64 = 5 * 60;
 pub const MAXIMUM_FILE_BYTES: u64 = 16_384;
@@ -24,7 +17,6 @@ pub enum Grant {
     Settings,
     MeetingLibrary,
     ScreenMemory,
-    /// Search the folders chosen under Files (`search_files`).
     Files,
 }
 
@@ -43,7 +35,6 @@ fn request_version() -> i64 {
     1
 }
 
-// Sorted keys, as Swift's encoder writes them.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct SetupRequest {
     #[serde(rename = "createdAt", with = "super::iso8601")]
@@ -52,8 +43,6 @@ pub struct SetupRequest {
     pub expires_at: DateTime<Utc>,
     pub grants: Vec<Grant>,
     pub nonce: String,
-    /// Who asked, as the CLI saw its own process tree, for example
-    /// "lokalbot-cli via claude". Shown to the person, never trusted.
     pub requester: String,
     #[serde(default = "request_version")]
     pub version: i64,
@@ -74,7 +63,6 @@ impl SetupRequest {
 pub struct SetupAnswer {
     #[serde(rename = "answeredAt", with = "super::iso8601")]
     pub answered_at: DateTime<Utc>,
-    /// What the person allowed; empty when they declined.
     pub grants: Vec<Grant>,
     pub nonce: String,
     pub state: RequestState,
@@ -96,7 +84,6 @@ pub fn read<T: DeserializeOwned>(path: &Path) -> Option<T> {
     serde_json::from_slice(&std::fs::read(path).ok()?).ok()
 }
 
-/// Writes into the private control folder, readable by this user only.
 pub fn write<T: Serialize>(value: &T, path: &Path) -> std::io::Result<()> {
     if let Some(directory) = path.parent() {
         crate::access::ensure_private_dir(directory)?;
@@ -107,9 +94,6 @@ pub fn write<T: Serialize>(value: &T, path: &Path) -> std::io::Result<()> {
     Ok(())
 }
 
-/// What `setup plan` prints and `setup apply` reads: the settings a setup
-/// conversation covers, a model preset, and launch at login. `settings` has the
-/// same shape as `config export`, so `config import` reads it too.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SetupPlan {
     pub settings: Map<String, Value>,
@@ -118,7 +102,6 @@ pub struct SetupPlan {
 }
 
 impl SetupPlan {
-    /// The settings to talk through with the person, in the order to ask.
     pub const KEYS: [&'static str; 13] = [
         "autoRecordMode",
         "calendarDetectionEnabled",
@@ -182,9 +165,6 @@ impl SetupPlan {
     }
 }
 
-/// Names the program behind a process: its own name and, when it runs under a
-/// shell, the nearest ancestor that is not one, such as "lokalbot-cli via
-/// claude". Used for the audit log and the setup request. Never trusted.
 pub fn describe_process(pid: u32) -> Option<String> {
     let name = process_name(pid)?;
     let mut ancestor = parent_of(pid);
@@ -246,8 +226,6 @@ fn snapshot_entry(pid: u32) -> Option<(String, u32)> {
         CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW,
         TH32CS_SNAPPROCESS,
     };
-    // SAFETY: the snapshot handle is checked and closed here, and the entry is
-    // a plain struct whose size field the API requires.
     unsafe {
         let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
         if snapshot == INVALID_HANDLE_VALUE {
@@ -359,14 +337,12 @@ mod tests {
                 0o700
             );
         }
-        // A file as Swift writes it.
         std::fs::write(
             &path,
             r#"{"createdAt":"2026-10-17T12:00:00Z","expiresAt":"2026-10-17T12:05:00Z","grants":["settings"],"nonce":"N","requester":"r","version":1}"#,
         )
         .unwrap();
         assert_eq!(read::<SetupRequest>(&path).unwrap().nonce, "N");
-        // Oversized files are not read.
         std::fs::write(&path, vec![b' '; MAXIMUM_FILE_BYTES as usize + 1]).unwrap();
         assert!(read::<SetupRequest>(&path).is_none());
     }

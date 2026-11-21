@@ -1,7 +1,5 @@
 import Foundation
 
-/// Prepares replacement models before publishing a narrow, atomic settings
-/// update. The owner outlives sheets, so a switch can finish in the background.
 @MainActor
 final class ModelSetupController: ObservableObject {
     typealias Prepare = @MainActor (ModelSelectionPatch, AppSettings) async throws -> Void
@@ -55,8 +53,6 @@ final class ModelSetupController: ObservableObject {
                     throw ModelDownloadManager.PreparationError.failed(
                         "The model files or connection changed while preparing. Your changes were kept. Choose the model again to switch.")
                 }
-                // Revalidate the live endpoint policy; an approval can be
-                // revoked while the replacement's local downloads are running.
                 if patch.backend != nil {
                     let destination = InferencePresentation(settings: patch.applying(to: latest))
                     if case .blocked(let reason) = destination {
@@ -68,8 +64,6 @@ final class ModelSetupController: ObservableObject {
             } catch {
                 guard generation == token, !Task.isCancelled else { return }
                 failure = error.localizedDescription
-                // Without a failed change there is nothing to retry, so the
-                // banner offers only Dismiss for a source that always fails.
                 let retryable = (error as? ModelDownloadManager.PreparationError)?.isRetryable ?? true
                 failedChange = retryable ? change : nil
             }
@@ -79,8 +73,6 @@ final class ModelSetupController: ObservableObject {
         }
     }
 
-    /// Shared downloads may also serve first-use requests. Cancelling the
-    /// switch prevents activation; Downloaded exposes explicit download cancellation.
     func cancelSwitch() {
         generation = UUID()
         task?.cancel()
@@ -99,8 +91,6 @@ final class ModelSetupController: ObservableObject {
             self.completed = nil
             return
         }
-        // Undo uses the same preparation gate: the old files may have been
-        // removed since the switch, so never restore an unavailable assignment.
         apply(completed.previous, title: "Previous model setup")
     }
 

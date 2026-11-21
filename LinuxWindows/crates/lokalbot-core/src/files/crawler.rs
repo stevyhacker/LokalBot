@@ -1,6 +1,3 @@
-//! Walks the chosen folders and applies the rules (`Crawler`). Reads metadata
-//! only, never file contents (except the sniff in `rules`).
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -8,16 +5,13 @@ use std::time::{Duration, Instant};
 use super::rules::{self, Classification};
 use super::{Candidate, FileKind, IndexOptions, home_dir};
 
-/// A file's own facts, not following a link (`FileSystem.info`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct FileInfo {
-    /// Not a link, device or socket.
     pub is_regular: bool,
     pub size: i64,
     pub mtime: f64,
     pub inode: u64,
     pub device: u64,
-    /// A cloud placeholder whose contents would be downloaded on read: never read.
     pub dataless: bool,
 }
 
@@ -38,7 +32,6 @@ pub fn file_info(path: &Path) -> Option<FileInfo> {
 #[cfg(windows)]
 pub fn file_info(path: &Path) -> Option<FileInfo> {
     use std::os::windows::fs::MetadataExt as _;
-    // RECALL_ON_DATA_ACCESS, RECALL_ON_OPEN, OFFLINE: OneDrive's placeholders.
     const CLOUD: u32 = 0x0040_0000 | 0x0004_0000 | 0x0000_1000;
     let meta = std::fs::symlink_metadata(path).ok()?;
     let dataless = meta.file_attributes() & CLOUD != 0;
@@ -63,8 +56,6 @@ pub fn file_info(path: &Path) -> Option<FileInfo> {
     })
 }
 
-/// The file's id on its volume stands in for the inode: it's what lets a moved
-/// file keep its vectors.
 #[cfg(windows)]
 fn windows_file_id(path: &Path) -> Option<(u64, u64)> {
     use std::os::windows::ffi::OsStrExt as _;
@@ -75,8 +66,6 @@ fn windows_file_id(path: &Path) -> Option<(u64, u64)> {
         GetFileInformationByHandle, OPEN_EXISTING,
     };
     let wide: Vec<u16> = path.as_os_str().encode_wide().chain([0]).collect();
-    // SAFETY: `wide` is a NUL-terminated path that outlives the call; the handle
-    // is checked and closed, and `info` is a plain struct filled by the call.
     unsafe {
         let handle = CreateFileW(
             wide.as_ptr(),
@@ -102,8 +91,6 @@ fn windows_file_id(path: &Path) -> Option<(u64, u64)> {
     }
 }
 
-/// The folder exists and opens for listing (`isReadableFolder`): an unplugged
-/// drive or a refused folder says no.
 pub fn is_readable_folder(path: &Path) -> bool {
     path.is_dir() && std::fs::read_dir(path).is_ok()
 }
@@ -126,11 +113,8 @@ fn is_hidden(entry: &std::fs::DirEntry) -> bool {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CrawlReport {
     pub candidates: Vec<Candidate>,
-    /// Reason → files.
     pub skipped: BTreeMap<String, usize>,
-    /// Reason → folders not walked into.
     pub skipped_folders: BTreeMap<String, usize>,
-    /// Folder → files skipped as a dataset.
     pub datasets: HashMap<String, usize>,
 }
 
@@ -144,8 +128,6 @@ impl CrawlReport {
     }
 }
 
-/// Walks `roots`, calling `progress` with the entries checked so far, at most
-/// four times a second.
 pub fn crawl(
     roots: &[PathBuf],
     options: &IndexOptions,
@@ -170,8 +152,6 @@ pub fn crawl(
             report.skip_folder("cache folder");
             continue;
         }
-        // A folder chosen on purpose is read whole, whatever markers it holds;
-        // the code-project rule applies to project folders found inside it.
         let mut stack = vec![root.clone()];
         while let Some(folder) = stack.pop() {
             let Ok(entries) = std::fs::read_dir(&folder) else {
@@ -238,7 +218,6 @@ pub fn crawl(
         }
     }
 
-    // Inside a code project only screenshots count.
     let mut in_project: HashMap<PathBuf, bool> = HashMap::new();
     let mut kept = Vec::with_capacity(found.len());
     for file in found {

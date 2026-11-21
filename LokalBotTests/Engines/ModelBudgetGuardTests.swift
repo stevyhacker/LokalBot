@@ -1,11 +1,7 @@
 import XCTest
 @testable import LokalBot
 
-/// A token budget cut that would truncate a model we ship presets for fails
-/// here, before release. This happened twice (e5077c3, then #117).
 final class ModelBudgetGuardTests: XCTestCase {
-    /// The muse-spark behaviour behind #117: about 1,400 reasoning tokens
-    /// regardless of `effort: none`, then a ~300-token focus answer.
     static let reasoningHeavyTokens = 1_400
     static let typicalFocusAnswerTokens = 300
     static let headroom = 1.25
@@ -39,7 +35,6 @@ final class ModelBudgetGuardTests: XCTestCase {
         case .notes:
             MeetingNotesGenerator.expandedStructuredOutputTokens(
                 from: call.maxTokens ?? 4_096, input: 0, contextTokens: 32_768) ?? (call.maxTokens ?? 4_096)
-        // Repairs get no expanded retry; a truncated one doubles up to 4K.
         case .notesRepair: 4_096
         case .ask: ChatAgent.answerTokens
         }

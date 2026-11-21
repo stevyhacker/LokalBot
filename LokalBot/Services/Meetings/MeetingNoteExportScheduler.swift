@@ -1,23 +1,14 @@
 import Foundation
 
-/// Runs the optional meeting note export. A pass starts when the export is
-/// configured and after meeting evidence, People, or Projects change, at most
-/// once a minute and never while `canRun` says processing is busy. Each pass
-/// re-renders only the meetings whose sources changed since the last one, so
-/// following corrections does not reread the whole library.
 @MainActor
 final class MeetingNoteExportScheduler {
     struct Configuration: Equatable, Sendable {
         var enabled: Bool
-        /// Folder, format, and transcript choice. Changing any of them
-        /// exports every meeting again into the chosen folder.
         var destinationID: String
     }
 
     typealias Export = @Sendable ([UUID: String]) async throws -> MeetingNoteExportReport
 
-    /// A failed pass waits this long before it is tried again, which gives a
-    /// removable or network volume time to return.
     nonisolated static let retryInterval: TimeInterval = 15 * 60
 
     private let now: () -> Date
@@ -27,7 +18,6 @@ final class MeetingNoteExportScheduler {
     private var errorHandler: ((String) -> Void)?
     private var timer: Timer?
     private var task: Task<Void, Never>?
-    /// Source fingerprints from the last pass, by meeting.
     private var fingerprints: [UUID: String] = [:]
     private var pending = false
     private var retryAfter: Date?
@@ -71,7 +61,6 @@ final class MeetingNoteExportScheduler {
         timer = nil
     }
 
-    /// Something a note shows may have changed. The next tick looks.
     func reconsider() {
         pending = true
     }
@@ -121,7 +110,6 @@ final class MeetingNoteExportScheduler {
         retryAfter = now().addingTimeInterval(Self.retryInterval)
     }
 
-    /// A cancelled pass may have left notes behind; the next start redoes it.
     private func cancel() {
         generation &+= 1
         if let task {
@@ -131,8 +119,6 @@ final class MeetingNoteExportScheduler {
         task = nil
     }
 
-    /// A structured utility-priority child, so cancelling the pass reaches
-    /// the filesystem worker itself.
     private nonisolated static func run(
         _ export: @escaping Export,
         previous: [UUID: String]

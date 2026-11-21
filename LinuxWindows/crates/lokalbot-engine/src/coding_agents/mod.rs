@@ -1,17 +1,3 @@
-//! Keeps stored coding-agent evidence in step with the agents' transcripts
-//! (`CodingAgentEvidenceIngestor.swift`).
-//!
-//! Scans run on a background thread over a recent window. Only settled bursts
-//! are stored, so a digest's inputs cannot change while it is written. New
-//! bursts are plain additions. Removing or correcting a stored burst (a deleted
-//! session, a new folder exclusion) withdraws dependent products through the
-//! same path as deleting screen evidence. A read failure is never taken as a
-//! deletion.
-//!
-//! Nothing under `~/.claude`, `~/.codex`, `~/.gemini/antigravity*`, or `~/.t3`
-//! is opened until the person has chosen to allow it:
-//! [`Settings::enabled_coding_agents`] is empty before that.
-
 mod antigravity;
 mod builder;
 mod cache;
@@ -39,19 +25,14 @@ use crate::{EngineEvent, Shared};
 use cache::ParseCache;
 use scanner::{DayScan, Scanner};
 
-/// Matches the digest scheduler's catch-up window (`DayDigestScheduler.catchUpDays`).
 pub const WINDOW_DAYS: i64 = 7;
 const REFRESH_INTERVAL: Duration = Duration::from_secs(10 * 60);
-/// The first refresh parses every transcript in the window, so it waits for the
-/// app to finish starting.
 const FIRST_REFRESH_DELAY: Duration = Duration::from_secs(30);
 
-/// What a scan reads and keeps.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Configuration {
     pub agents: Vec<CodingAgentKind>,
     pub excluded_folders: Vec<String>,
-    /// Agent text expires with screen text; `None` keeps it indefinitely.
     pub retention_days: Option<u32>,
 }
 
@@ -73,9 +54,6 @@ fn session_day(burst: &CodingAgentBurst) -> (String, NaiveDate) {
     (burst.session_key(), local_day(burst.start))
 }
 
-/// Sessions on days before `today` whose stored bursts hold the same work, in
-/// order, as the scan's. Ids follow a burst's first event, so a moved edge reads
-/// as a different burst; the work does not.
 fn session_days_with_unchanged_work(
     existing: &[CodingAgentBurst],
     fresh: &[CodingAgentBurst],
@@ -107,8 +85,6 @@ fn session_days_with_unchanged_work(
         .collect()
 }
 
-/// Stores settled bursts from `scan`, replacing what the store holds for the
-/// scanned agents and days. Returns the days that changed.
 pub fn apply_scan(
     library: &Library,
     scan: &DayScan,
@@ -133,10 +109,6 @@ pub fn apply_scan(
         .into_iter()
         .filter(|burst| configuration.agents.contains(&burst.agent))
         .collect();
-    // A finished day keeps the bursts its digest and overnight review were
-    // written with until a session's work there changes or the session is gone.
-    // Sessions that moved to another branch would otherwise relabel earlier
-    // days' bursts, and each relabel would rebuild those days' digests.
     let today = start_of_day(scanned_at);
     let unchanged = session_days_with_unchanged_work(&existing, &fresh, today);
     fresh.retain(|burst| !unchanged.contains(&session_day(burst)));
@@ -160,7 +132,6 @@ pub fn apply_scan(
         })
         .cloned()
         .collect();
-    // An unreadable transcript is not a deleted one.
     let removed: Vec<&CodingAgentBurst> = if scan.unreadable_files.is_empty() {
         existing
             .iter()
@@ -198,8 +169,6 @@ pub fn apply_scan(
     Ok(days.into_iter().collect())
 }
 
-/// The refresh state: one scan runs at a time, and each reuses what the last
-/// one parsed, so a refresh parses only the lines agents appended since.
 #[derive(Default)]
 pub struct Ingestor {
     cache: ParseCache,
@@ -212,8 +181,6 @@ impl Ingestor {
         self.last_error.lock().clone()
     }
 
-    /// Scans the recent window, plus `day` when it is older, and stores what
-    /// changed. Does nothing until the person has allowed reading.
     pub fn refresh(
         &self,
         library: &Library,
@@ -235,7 +202,6 @@ impl Ingestor {
         now: DateTime<Utc>,
     ) -> Vec<NaiveDate> {
         let configuration = Configuration::new(&settings());
-        // Before anything opens a file: this is the consent gate.
         if configuration.agents.is_empty() || library.is_read_only() {
             return Vec::new();
         }
@@ -249,8 +215,6 @@ impl Ingestor {
         let window_start = today - chrono::Duration::days(WINDOW_DAYS - 1);
         let mut ranges = vec![(window_start, today, true)];
         if let Some(day) = day.filter(|day| *day < window_start) {
-            // An older day reaches past what the cache keeps: reading it there
-            // would reparse the window's files and drop the rest.
             ranges.push((day, day, false));
         }
         let mut changed = BTreeSet::new();
@@ -264,8 +228,6 @@ impl Ingestor {
                 scan.unreadable_files.len(),
                 scan.excluded_sessions
             );
-            // Turning the feature off, deleting saved sessions or adding an
-            // exclusion during the scan must not be undone by its result.
             if Configuration::new(&settings()) != configuration {
                 break;
             }
@@ -284,7 +246,6 @@ impl Ingestor {
     }
 }
 
-/// Refreshes every ten minutes while reading is allowed.
 pub(crate) fn start(shared: Arc<Shared>) {
     let spawned = std::thread::Builder::new()
         .name("lokalbot-coding-agents".into())
@@ -304,7 +265,6 @@ pub(crate) fn start(shared: Arc<Shared>) {
     }
 }
 
-/// One refresh, reporting what changed.
 pub(crate) fn refresh(shared: &Arc<Shared>, day: Option<NaiveDate>) {
     let changed = shared
         .coding_agents

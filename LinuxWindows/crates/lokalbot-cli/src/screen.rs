@@ -1,7 +1,3 @@
-//! Read-only screen memory for MCP (`ScreenMemoryReader.swift`): OCR text,
-//! window titles and activity metadata from `lokalbotv3.sqlite`, opened
-//! read-only for every request. Never pixels or screenshot file paths.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result};
@@ -108,8 +104,6 @@ pub struct ScreenshotDetail {
     pub privacy_redaction_count: i64,
 }
 
-/// One coding-agent session for the briefing: where and what came out, never
-/// prompts, replies or file contents.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AgentSession {
     pub agent: String,
@@ -158,7 +152,6 @@ impl ScreenReader {
             .is_some())
     }
 
-    /// OR of the quoted query words, best match first.
     pub fn search(
         &self,
         query: &str,
@@ -398,8 +391,6 @@ impl ScreenReader {
         Ok(detail)
     }
 
-    /// Coding-agent sessions that began in the interval, newest first;
-    /// scheduled runs are not the person's work.
     pub fn agent_sessions(
         &self,
         start: DateTime<Utc>,

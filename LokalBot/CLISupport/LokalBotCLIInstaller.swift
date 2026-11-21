@@ -5,9 +5,6 @@ private let logger = Logger(
     subsystem: AppIdentifiers.appBundleID,
     category: "CLIInstaller")
 
-/// Installs the bundled CLI and skill for shell agents. The binary always
-/// stays symlinked into the app so Sparkle updates keep it current; skills can
-/// be linked or copied. Both ~/.agents/skills and ~/.claude/skills are served.
 struct LokalBotCLIInstaller {
     var home: URL
     var bundledBinary: URL?
@@ -30,8 +27,6 @@ struct LokalBotCLIInstaller {
             environment: ProcessInfo.processInfo.environment)
     }
 
-    /// Resolves the app bundle from the embedded helper's own path. A shell
-    /// that finds the helper on PATH passes only the bare name as argv[0].
     static func fromCurrentBinary(
         path: String = Bundle.main.executablePath ?? CommandLine.arguments[0],
         fileManager: FileManager = .default
@@ -124,7 +119,6 @@ struct LokalBotCLIInstaller {
         for destination in destinations {
             try requireOwnedOrMissing(destination)
         }
-        // Finish every copy/link before touching any current installation.
         var prepared: [(destination: URL, staged: URL)] = []
         defer {
             for item in prepared { try? fileManager.removeItem(at: item.staged) }
@@ -146,7 +140,6 @@ struct LokalBotCLIInstaller {
         logger.info("CLI installed at \(binLink.path) -> \(binary.path)")
     }
 
-    /// Removes only LokalBot links and copies stamped by this installer.
     func uninstall() throws {
         for link in [binLink, skillLink, claudeSkillLink] {
             if isOwned(link) {

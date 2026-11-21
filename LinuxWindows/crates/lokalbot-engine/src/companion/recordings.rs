@@ -1,8 +1,3 @@
-//! Makes meetings of the recordings paired devices send
-//! (`CompanionRecordingReceiver.swift`). A device deletes its copy once it hears
-//! `accepted`, so that answer waits until the meeting is stored; `rejected` is
-//! for what no retry can fix, and everything else is `deferred`.
-
 use std::path::Path;
 
 use chrono::{DateTime, Utc};
@@ -14,16 +9,12 @@ use uuid::Uuid;
 use super::records;
 use crate::library_ops::{self, DeviceImport, DeviceRecording, ImportFailure};
 
-/// ADTS AAC, which a recorder that dies leaves readable.
 const SUPPORTED_FORMAT: &str = "aac-adts";
 const UNREADABLE_DESCRIPTION: &str = "The recording's description could not be read.";
 
-/// What became of one recording.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Received {
     pub outcome: UploadOutcome,
-    /// The meeting this call made of it. One from an earlier attempt already
-    /// went through the queue, and may have notes by now.
     pub new_meeting: Option<Uuid>,
 }
 
@@ -39,9 +30,6 @@ fn outcome(status: &str, message: impl Into<String>) -> UploadOutcome {
     }
 }
 
-/// Reads `file` and makes a meeting of it. `recording_json` is the recording as
-/// `receive_recording` describes it (Companion/protocol/ffi.md); the device name
-/// comes from the pairing, the rest from the device.
 pub fn receive(
     library: &Library,
     recording_json: &str,
@@ -86,7 +74,6 @@ pub fn receive(
             }
         }
         Err(failure) => {
-            // The message names the recording; keep titles out of the log.
             log::warn!("device recording import failed id={id}");
             Received {
                 outcome: failure_outcome(&failure, &recording.meeting_title()),
@@ -96,7 +83,6 @@ pub fn receive(
     }
 }
 
-/// `name` says which recording, for a device holding several.
 pub fn failure_outcome(failure: &ImportFailure, name: &str) -> UploadOutcome {
     match failure {
         ImportFailure::Unreadable | ImportFailure::NoAudio => outcome(

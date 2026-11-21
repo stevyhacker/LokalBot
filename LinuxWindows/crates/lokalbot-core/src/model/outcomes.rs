@@ -1,10 +1,3 @@
-//! `outcomes.json` and `outcome-state.json` (`LokalBot/Models/Meetings/MeetingOutcomes.swift`,
-//! `MeetingOutcomeState.swift`).
-//!
-//! Decoding normalizes records exactly as the Swift decoders do: ownership
-//! is reconciled with the stored attribution, the user's items are owned by
-//! `Me` and phrased in first person, and missing IDs get their stable FNV ID.
-
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
@@ -22,9 +15,6 @@ pub const OUTCOMES_SCHEMA_VERSION: u32 = 4;
 pub struct MeetingOutcomes {
     #[serde(default = "default_outcomes_schema")]
     pub schema_version: u32,
-    /// Matches `Transcript` evidence revision; a mismatch makes outcomes stale.
-    /// This port cannot reproduce Swift's JSON bytes, so it does not check
-    /// it (see `Library::outcomes` and `Library::save_new_transcript`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub transcript_revision: Option<String>,
     #[serde(default, alias = "action_items")]
@@ -39,7 +29,6 @@ fn default_outcomes_schema() -> u32 {
     OUTCOMES_SCHEMA_VERSION
 }
 
-/// v1 stored decisions as plain strings.
 fn decisions_compat<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Vec<Decision>, D::Error> {
@@ -82,9 +71,6 @@ impl MeetingOutcomes {
             .filter(|a| a.ownership_is_unclear())
     }
 
-    /// The user's work first, then unclear-owner actions spoken on this
-    /// computer's microphone, then everything else by importance
-    /// (`prioritizingActionItems`). Nothing is dropped.
     pub fn prioritized(mut self) -> Self {
         let items = std::mem::take(&mut self.action_items);
         let (user, rest): (Vec<_>, Vec<_>) = items.into_iter().partition(|a| a.is_for_user);
@@ -97,14 +83,12 @@ impl MeetingOutcomes {
         self
     }
 
-    /// Microphone speaker keys ("me", "local", "local 2", merged "source1:local 2").
     pub fn is_microphone_speaker(speaker: &str) -> bool {
         let key = crate::model::Transcript::canonical_speaker_key(speaker);
         let local = key.rsplit(':').next().unwrap_or(&key);
         local == "me" || local == "local" || local.starts_with("local ")
     }
 
-    /// FNV-1a over the normalized `kind|text|owner|due|citations…` fields.
     pub fn stable_id(
         kind: &str,
         text: &str,
@@ -145,10 +129,8 @@ pub struct ActionItem {
     #[serde(default = "default_outcomes_schema")]
     pub schema_version: u32,
     pub text: String,
-    /// As named; `Me` for the user's own items; `None` when unresolved.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub owner: Option<String>,
-    /// The due phrase as spoken ("by Friday"), not normalized.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub due: Option<String>,
     #[serde(default)]
@@ -160,7 +142,6 @@ pub struct ActionItem {
     pub attribution: Option<ActionAttribution>,
 }
 
-/// The stored shape before Swift's decoder normalization.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RawActionItem {
@@ -222,7 +203,6 @@ impl From<RawActionItem> for ActionItem {
 }
 
 impl ActionItem {
-    /// A new extracted action, normalized like the Swift initializer.
     pub fn new(
         text: &str,
         owner: Option<&str>,
@@ -251,8 +231,6 @@ impl ActionItem {
             || self.owner.is_none()
     }
 
-    /// Unclear ownership whose evidence was spoken on the microphone: most
-    /// likely the user's own work.
     pub fn is_likely_user_action(&self) -> bool {
         if self.is_for_user || !self.ownership_is_unclear() {
             return false;
@@ -265,7 +243,6 @@ impl ActionItem {
         speaker.is_some_and(MeetingOutcomes::is_microphone_speaker)
     }
 
-    /// The text as shown: first person for the user, "Requested: " for requests.
     pub fn display_text(&self) -> String {
         let prose = action_text(&self.text, self.is_for_user);
         let is_request = self
@@ -285,7 +262,6 @@ static ME_POSSESSIVE: LazyLock<regex::Regex> =
 static ME_SUBJECT: LazyLock<regex::Regex> =
     LazyLock::new(|| regex::Regex::new(r"(?i)^me\b").expect("valid regex"));
 
-/// `OutcomeProse.actionText`: the internal `Me` owner label becomes "I"/"My".
 pub fn action_text(text: &str, is_for_user: bool) -> String {
     if !is_for_user {
         return text.to_string();
@@ -352,7 +328,6 @@ impl Decision {
         decision
     }
 
-    /// "<Speaker>: <text>" when attributed.
     pub fn display_text(&self) -> String {
         match &self.attribution {
             Some(a) => format!("{}: {}", a.speaker_label, self.text),
@@ -393,8 +368,6 @@ pub struct ActionAttribution {
 }
 
 impl ActionAttribution {
-    /// A stored attribution that disagrees with the stored `isForUser` flag
-    /// becomes unresolved (`OutcomeAttribution.consistent(with:)`).
     pub fn consistent_with(self, for_user: Option<bool>) -> Self {
         match for_user {
             Some(flag) if flag != (self.resolution == OwnerResolution::User) => ActionAttribution {
@@ -408,7 +381,6 @@ impl ActionAttribution {
         }
     }
 
-    /// Attribution for records written before attribution existed.
     pub fn legacy(owner: Option<&str>, for_user: Option<bool>) -> Self {
         let name = owner.map(str::trim).filter(|o| !o.is_empty());
         let user = name.is_some_and(|n| n.eq_ignore_ascii_case("me"));
@@ -461,7 +433,6 @@ pub struct DecisionAttribution {
     pub quote: String,
 }
 
-/// `outcome-state.json`: the user's corrections layered over extracted actions.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OutcomeState {
@@ -497,7 +468,6 @@ impl ActionStatus {
         }
     }
 
-    /// The lowercase JSON value (`open`, `done`, `deferred`).
     pub fn raw(self) -> &'static str {
         match self {
             ActionStatus::Open => "open",
@@ -577,8 +547,6 @@ struct RawActionState {
 }
 
 impl From<RawActionState> for ActionState {
-    /// Legacy records without per-field correction dates freeze them at
-    /// `updatedAt`, before a later status write advances it.
     fn from(raw: RawActionState) -> Self {
         let status = raw.status.unwrap_or_default();
         let updated_at = millis(raw.updated_at.unwrap_or_else(Utc::now));
@@ -620,7 +588,6 @@ impl From<RawActionState> for ActionState {
     }
 }
 
-/// Millisecond precision, as persisted (`outcomePersistedTimestamp`).
 pub fn millis(value: DateTime<Utc>) -> DateTime<Utc> {
     DateTime::from_timestamp_millis(value.timestamp_millis()).unwrap_or(value)
 }
@@ -643,7 +610,6 @@ impl ActionState {
         }
     }
 
-    /// The untouched default for an action without saved state.
     pub fn untouched() -> Self {
         Self {
             user_edited: false,
@@ -652,8 +618,6 @@ impl ActionState {
     }
 }
 
-/// An action item with the user's corrections applied, joined to its meeting
-/// (`OutcomeActionReference`). `id` is `"<MEETING-UUID>:<actionID>"`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActionReference {
     pub id: String,
@@ -661,9 +625,7 @@ pub struct ActionReference {
     pub meeting_title: String,
     pub meeting_started_at: DateTime<Utc>,
     pub action_id: String,
-    /// The corrected text, or the extracted display text.
     pub text: String,
-    /// The extracted display text.
     pub original_text: String,
     pub owner: Option<String>,
     pub due: Option<String>,
@@ -672,9 +634,7 @@ pub struct ActionReference {
     pub status: ActionStatus,
     pub importance: u8,
     pub citations: Vec<OutcomeSourceCitation>,
-    /// The extracted action, normalized but without corrections.
     pub action: ActionItem,
-    /// When the user last edited it, or the meeting start when never edited.
     pub state_updated_at: DateTime<Utc>,
     pub text_was_corrected: bool,
     pub owner_was_corrected: bool,
@@ -690,13 +650,10 @@ impl ActionReference {
         self.citations.first()
     }
 
-    /// Open (or deferred) work whose resolved due day is before `today`.
     pub fn is_overdue(&self, today: NaiveDate) -> bool {
         self.status != ActionStatus::Done && self.resolved_due_date.is_some_and(|due| due < today)
     }
 
-    /// A corrected due phrase is read from the day the user typed it; an
-    /// extracted one from the day of the meeting.
     pub fn due_reference_date(&self) -> DateTime<Utc> {
         if self.due_was_corrected {
             self.due_corrected_at.unwrap_or(self.state_updated_at)
@@ -705,7 +662,6 @@ impl ActionReference {
         }
     }
 
-    /// The extracted action with the user's corrections applied.
     pub fn effective_action(&self) -> ActionItem {
         let mut result = self.action.clone();
         result.text = self.text.clone();
@@ -733,31 +689,22 @@ impl ActionReference {
     }
 }
 
-/// The same commitment across meetings (`ActionThreads.swift`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct ActionThread {
-    /// `thread-%016llx` of the sorted reference IDs.
     pub id: String,
-    /// The folded clustering key of the newest member (empty when the
-    /// thread could not be clustered, e.g. too few significant words).
     pub canonical_text: String,
-    /// Newest meeting first.
     pub references: Vec<ActionReference>,
-    /// The text to show: the latest correction, else the most descriptive.
     pub text: String,
     pub owner: Option<String>,
     pub due: Option<String>,
     pub due_source_meeting_date: Option<DateTime<Utc>>,
-    /// The day the effective due phrase was said or corrected.
     pub due_reference_date: Option<DateTime<Utc>>,
     pub resolved_due_date: Option<NaiveDate>,
 }
 
 impl ActionThread {
-    /// Days after the last mention when open, undated work counts as stale.
     pub const STALE_AFTER_DAYS: i64 = 21;
 
-    /// Open if any member is open, else deferred if any, else done.
     pub fn status(&self) -> ActionStatus {
         if self
             .references
@@ -781,7 +728,6 @@ impl ActionThread {
         self.references.iter().any(|r| Some(r.status) != first)
     }
 
-    /// "Mixed" or the status label.
     pub fn status_label(&self) -> &'static str {
         if self.is_mixed() {
             "Mixed"
@@ -790,7 +736,6 @@ impl ActionThread {
         }
     }
 
-    /// The newest member.
     pub fn latest(&self) -> &ActionReference {
         &self.references[0]
     }
@@ -806,7 +751,6 @@ impl ActionThread {
         self.references.len()
     }
 
-    /// The newest owner correction decides; otherwise every member must be the user's.
     pub fn is_for_user(&self) -> bool {
         let correction = self
             .references
@@ -819,17 +763,14 @@ impl ActionThread {
         }
     }
 
-    /// Open work whose resolved due day is behind `today`.
     pub fn is_overdue(&self, today: NaiveDate) -> bool {
         self.status() == ActionStatus::Open && self.resolved_due_date.is_some_and(|due| due < today)
     }
 
-    /// Whole days since the newest meeting that mentioned this work.
     pub fn days_since_last_mention(&self, today: NaiveDate) -> i64 {
         (today - crate::time::local_day(self.latest().meeting_started_at)).num_days()
     }
 
-    /// Open work nobody mentioned for weeks and that is not due ahead.
     pub fn is_stale(&self, today: NaiveDate) -> bool {
         if self.status() != ActionStatus::Open {
             return false;
@@ -840,7 +781,6 @@ impl ActionThread {
         self.days_since_last_mention(today) >= Self::STALE_AFTER_DAYS
     }
 
-    /// Distinct due phrases, newest first, case-insensitively.
     pub fn due_history(&self) -> Vec<String> {
         let mut out: Vec<String> = Vec::new();
         for due in self.references.iter().filter_map(|r| r.due.as_ref()) {

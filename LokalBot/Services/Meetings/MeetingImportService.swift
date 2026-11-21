@@ -2,20 +2,10 @@ import AVFoundation
 import Foundation
 import UniformTypeIdentifiers
 
-/// Turns an audio or video file the user brings in into a meeting. The file's
-/// audio becomes the meeting's system track, so it is diarized like call audio
-/// and, like any remote participant's, its voices are never enrolled or matched
-/// against voice profiles. The original file is only read; the meeting keeps
-/// its own AAC copy, and the normal processing pipeline does the rest. A
-/// recording from a paired phone or tablet takes the same path, except that it
-/// becomes the microphone track: see `importDeviceRecording`.
 enum MeetingImportService {
 
-    /// Shown where a recorded meeting shows its meeting app.
     static let appName = "Imported file"
 
-    /// What the import panel offers. A drop accepts the same kinds of file;
-    /// AVFoundation decides whether it can actually read the audio.
     static let contentTypes: [UTType] = [.audio, .movie]
 
     enum ImportError: LocalizedError {
@@ -45,19 +35,13 @@ enum MeetingImportService {
         return type?.conforms(to: .audiovisualContent) == true
     }
 
-    /// A recording a paired phone or tablet made.
     struct DeviceOrigin: Equatable, Sendable {
-        /// The device chose it, so the meeting keeps it and a resend finds it.
         var id: UUID
         var title: String
-        /// When the device started recording. The device's clock decides, but
-        /// the meeting never ends in the future.
         var startedAt: Date?
         var deviceName: String
     }
 
-    /// `sample` marks the import as LokalBot's sample meeting: it is titled in
-    /// its own language, dated now, and carries its id.
     static func importRecording(from url: URL, storage: StorageManager,
                                 now: Date = Date(),
                                 sample: SampleMeeting.Recording? = nil) async throws -> Meeting {
@@ -67,11 +51,6 @@ enum MeetingImportService {
             sampleID: sample?.id, datedNow: sample != nil))
     }
 
-    /// A recording that came with a meeting from another app (Zoom, Voice
-    /// Memos, MacWhisper): its id, title, and start come from that app. Call
-    /// audio goes on the system track like any imported file; a recording the
-    /// person made on their own device's microphone, as Voice Memos are, goes
-    /// on the microphone track like a paired phone's.
     static func importExternalRecording(from url: URL, id: UUID, title: String, appName: String,
                                         startedAt: Date?, track: MeetingAudioFiles.Track = .system,
                                         storage: StorageManager, now: Date = Date()) async throws -> Meeting {
@@ -80,12 +59,6 @@ enum MeetingImportService {
             importedFileName: url.lastPathComponent, track: track, statedStart: startedAt))
     }
 
-    /// Makes a meeting of a recording from a paired device. It is the device's
-    /// microphone, the person's own, so it becomes the microphone track: their
-    /// speech counts as theirs under "My microphone is me", and other voices
-    /// in the room are treated as the Mac's microphone treats them, not as call
-    /// participants. Like any import it takes no screen context, because the
-    /// person wasn't at this Mac.
     static func importDeviceRecording(from url: URL, origin: DeviceOrigin, storage: StorageManager,
                                       now: Date = Date()) async throws -> Meeting {
         try await makeMeeting(from: url, storage: storage, now: now, plan: Plan(
@@ -94,9 +67,6 @@ enum MeetingImportService {
             wholeDuration: adtsDuration(of: url), isOnlyCopy: true))
     }
 
-    /// How long an ADTS stream really is: its frames counted, 1024 samples each.
-    /// Stops at a frame cut short or damage, so it never overstates. Nil when
-    /// it doesn't start with a frame.
     static func adtsDuration(of url: URL) -> TimeInterval? {
         guard let data = try? Data(contentsOf: url, options: .alwaysMapped) else { return nil }
         let sampleRates: [Double] = [96_000, 88_200, 64_000, 48_000, 44_100, 32_000, 24_000, 22_050, 16_000, 12_000, 11_025, 8_000, 7_350]
@@ -107,7 +77,6 @@ enum MeetingImportService {
                 let rateIndex = Int(bytes[offset + 2] >> 2) & 0xF
                 let length = (Int(bytes[offset + 3]) & 0x3) << 11 | Int(bytes[offset + 4]) << 3 | Int(bytes[offset + 5]) >> 5
                 guard rateIndex < sampleRates.count, length >= 7, offset + length <= bytes.count else { break }
-                // Each ADTS frame holds 1 to 4 raw blocks of 1024 samples.
                 seconds += Double(Int(bytes[offset + 6] & 0x3) + 1) * 1_024 / sampleRates[rateIndex]
                 offset += length
             }
@@ -115,9 +84,7 @@ enum MeetingImportService {
         }
     }
 
-    /// What differs between kinds of import.
     private struct Plan {
-        /// How errors name the recording.
         var name: String
         var id: UUID
         var title: String
@@ -125,23 +92,15 @@ enum MeetingImportService {
         var importedFileName: String
         var track: MeetingAudioFiles.Track
         var sampleID: String?
-        /// Outranks what the file itself says about when it began.
         var statedStart: Date?
-        /// Recorded just now, whatever the file says.
         var datedNow = false
-        /// What the conversion must keep, when that can be known.
         var wholeDuration: TimeInterval?
-        /// The sender deletes its file once this returns, so the meeting has to
-        /// be on the disk by then rather than in its cache.
         var isOnlyCopy = false
     }
 
     private static func makeMeeting(from url: URL, storage: StorageManager, now: Date,
                                     plan: Plan) async throws -> Meeting {
         let name = plan.name
-        // Without precise timing AVFoundation guesses the length of a file with
-        // no index (ADTS, some MP3s) from its first frames, and the export stops
-        // there: 27 minutes that started loud and went quiet came out as 3.5.
         let asset = AVURLAsset(url: url, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
         let audioTracks: [AVAssetTrack]
         do {
@@ -151,9 +110,6 @@ enum MeetingImportService {
         }
         guard !audioTracks.isEmpty else { throw ImportError.noAudio(name) }
 
-        // Convert beside the library so the finished file moves into the
-        // meeting folder without a cross-volume copy, and a failed conversion
-        // never leaves a half-made meeting in the library.
         let staging: URL
         do {
             staging = try FileManager.default.url(
@@ -185,8 +141,6 @@ enum MeetingImportService {
             metadataDate: plan.statedStart ?? metadataDate, fileCreated: values?.creationDate,
             fileModified: values?.contentModificationDate, duration: duration, now: now)
 
-        // The meeting appears in the library only once its metadata is
-        // written, which is last, so a library scan never sees it half-made.
         let relativePath: String
         do {
             relativePath = try storage.reserveMeetingFolder(title: plan.title, startedAt: startedAt)
@@ -219,20 +173,12 @@ enum MeetingImportService {
         return meeting
     }
 
-    /// The file name without its extension, so "Team sync.m4a" becomes
-    /// "Team sync".
     static func title(for url: URL) -> String {
         let stem = url.deletingPathExtension().lastPathComponent
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return stem.isEmpty ? "Imported recording" : stem
     }
 
-    /// Best guess at when the recording began, never so late that it would
-    /// end in the future. A recorder's own creation date names the start. File
-    /// dates are weaker: modification usually marks when recording stopped and
-    /// survives a copy, while a copy's creation date is when it was copied, so
-    /// the earlier of the two readings wins. Dates before 2001 are unset
-    /// container fields, not real recordings.
     static func recordingStart(metadataDate: Date?, fileCreated: Date?, fileModified: Date?,
                                duration: TimeInterval, now: Date) -> Date {
         let latest = now.addingTimeInterval(-duration)
@@ -247,8 +193,6 @@ enum MeetingImportService {
         return date
     }
 
-    /// Every enabled audio track, mixed to AAC. A video's picture is dropped;
-    /// a screen recording's separate microphone and system tracks are mixed.
     private static func exportAudio(from tracks: [AVAssetTrack], to outputURL: URL,
                                     name: String) async throws {
         var enabled: [AVAssetTrack] = []

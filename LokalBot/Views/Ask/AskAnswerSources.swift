@@ -1,11 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// Which citation's passage is showing, and where it was opened: at the
-/// number in the answer's text, or at the number in the sources list.
 struct OpenCitation: Equatable, Identifiable {
     enum Origin: Equatable {
-        /// The clicked spot in the answer text, when it is known.
         case answer(CGRect?)
         case sources
     }
@@ -20,18 +17,13 @@ struct OpenCitation: Equatable, Identifiable {
     }
 }
 
-/// The list that ends an answer: a row per meeting, file, screen moment or
-/// saved agent note it cited, with the answer's numbers and their times, and one row for what the
-/// person told LokalBot about themselves when that went into the answer.
 struct AnswerSourcesList: View {
     @EnvironmentObject private var app: AppState
     let citations: [ChatCitation]
     var claimIDs: [UUID] = []
     var personalModel: PersonalModelController?
     @Binding var open: OpenCitation?
-    /// Cited files, looked up in the Files index.
     @State private var files: [Int64: FileSearchHit] = [:]
-    /// Cited coding-agent notes, looked up in the saved notes.
     @State private var notes: [String: AgentNoteHit] = [:]
 
     var body: some View {
@@ -127,8 +119,6 @@ struct AnswerSourcesList: View {
         }
     }
 
-    /// Each number opens its passage here; a meeting time opens the meeting
-    /// at that moment.
     @ViewBuilder private func citationGroups(_ group: AnswerSourceGroup, available: Bool) -> some View {
         ForEach(group.entries) { entry in
             HStack(spacing: 5) {
@@ -215,8 +205,6 @@ struct AnswerSourcesList: View {
         }
     }
 
-    /// Notes are read only while Read coding agent notes is on, as on the
-    /// rest of the page.
     private func loadCitedNotes() async {
         let ids = citations.compactMap(\.noteID)
         guard !ids.isEmpty, app.settings.codingAgentNotesEnabled else { return }
@@ -241,8 +229,6 @@ struct AnswerSourcesList: View {
     }
 }
 
-/// What the person told LokalBot about themselves that went into this answer.
-/// Quick Recall's sources end with the same row.
 struct PersonalContextRow: View {
     @EnvironmentObject private var app: AppState
     let claimIDs: [UUID]
@@ -282,7 +268,6 @@ struct PersonalContextRow: View {
     }
 }
 
-/// A citation number as a small pill. Filled while its passage is showing.
 struct CitationPill: View {
     let number: Int
     let isOn: Bool
@@ -309,9 +294,6 @@ struct CitationPill: View {
     }
 }
 
-/// The passage a citation points at, read in place: the source, its time and
-/// speaker, the quote, then a button to play from there or show the file,
-/// and one to open the source. Nothing leaves Ask until one of those is used.
 struct CitationPassagePopover: View {
     @EnvironmentObject private var app: AppState
     let citation: ChatCitation
@@ -348,8 +330,6 @@ struct CitationPassagePopover: View {
         .task(id: citation.id) { await load() }
         .onDisappear { player.stop() }
     }
-
-    // MARK: Kinds
 
     @ViewBuilder private func meetingPassage(_ meeting: Meeting, line: CitationPassage.Line?) -> some View {
         let locale = app.settings.appLanguage.locale
@@ -421,7 +401,6 @@ struct CitationPassagePopover: View {
         }
     }
 
-    /// A saved coding-agent note: what it says, and the agent's own file.
     @ViewBuilder private func notePassage(_ hit: AgentNoteHit) -> some View {
         header(title: hit.title,
                meta: [hit.sourceLabel, AskDateLabel.day(hit.modified, locale: app.settings.appLanguage.locale)]) {
@@ -434,8 +413,6 @@ struct CitationPassagePopover: View {
             openLink("Open") { AgentNoteOpener.open(hit) }
         }
     }
-
-    // MARK: Parts
 
     private func header<Lead: View>(title: String, meta: [String?], @ViewBuilder lead: () -> Lead) -> some View {
         HStack(spacing: 10) {
@@ -476,8 +453,6 @@ struct CitationPassagePopover: View {
         .buttonStyle(.workspaceLink)
         .accessibilityIdentifier("chat.citation.open")
     }
-
-    // MARK: Loading
 
     private func load() async {
         switch citation.kind {
@@ -526,15 +501,10 @@ struct CitationPassagePopover: View {
     }
 }
 
-/// Finds where in an answer's text a citation number was clicked, so its
-/// passage opens at the number. The answer is one selectable text, which has
-/// no frame per link; the click that activated the link has a location.
 @MainActor
 final class CitationClickProbe {
     fileprivate weak var view: NSView?
 
-    /// The clicked spot in the text's own coordinates, or nil when the link
-    /// was not activated by a click inside it (the keyboard, VoiceOver).
     func clickRect() -> CGRect? {
         guard let view, let window = view.window, let event = NSApp.currentEvent,
               event.window === window,
@@ -545,7 +515,6 @@ final class CitationClickProbe {
     }
 }
 
-/// Sits behind the answer text and shares its bounds.
 struct CitationClickProbeView: NSViewRepresentable {
     let probe: CitationClickProbe
 
@@ -558,7 +527,6 @@ struct CitationClickProbeView: NSViewRepresentable {
     func updateNSView(_ view: NSView, context: Context) { probe.view = view }
 
     private final class ProbeView: NSView {
-        // SwiftUI's coordinates start at the top leading corner.
         override var isFlipped: Bool { true }
         override func hitTest(_ point: NSPoint) -> NSView? { nil }
     }

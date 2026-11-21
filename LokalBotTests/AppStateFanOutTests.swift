@@ -2,8 +2,6 @@ import XCTest
 import Combine
 @testable import LokalBot
 
-/// Every AppState change re-renders every view observing AppState, so
-/// high-frequency state must reach only the views that draw it.
 @MainActor
 final class AppStateFanOutTests: XCTestCase {
     func testTypingMeetingNotesDoesNotRepublishAppState() {
@@ -71,7 +69,6 @@ final class AppStateFanOutTests: XCTestCase {
         let scene = AppSceneState(app: app)
         var updates = 0
         let observer = scene.objectWillChange.sink { updates += 1 }
-        // AppState changes no menu, window title or status glyph reads.
         app.textRecognitionStalled = true
         app.actionSelection = ["action"]
         app.selectedPersonID = "person"
@@ -87,9 +84,6 @@ final class AppStateFanOutTests: XCTestCase {
         withExtendedLifetime(observer) {}
     }
 
-    /// The status item carries a dot while something waits for the person:
-    /// an error message, or a settings change from the terminal, which
-    /// AppState itself does not republish.
     func testTheStatusGlyphFollowsWhatNeedsAttention() async throws {
         let app = AppState()
         let scene = AppSceneState(app: app)
@@ -138,7 +132,6 @@ final class AppStateFanOutTests: XCTestCase {
         var modelViewUpdates = 0
         var relayed = 0
         let viewObserver = roles.objectWillChange.sink { modelViewUpdates += 1 }
-        // AppState forwards exactly this publisher.
         let relayObserver = roles.readinessChanges.sink { relayed += 1 }
 
         downloads.download(url: "https://models.example.test/think.gguf", fileName: "think.gguf",
@@ -157,7 +150,6 @@ final class AppStateFanOutTests: XCTestCase {
         withExtendedLifetime((viewObserver, relayObserver)) {}
     }
 
-    /// Runs after every block already queued on the main queue.
     private func drainMainQueue() async {
         await withCheckedContinuation { continuation in
             DispatchQueue.main.async { continuation.resume() }

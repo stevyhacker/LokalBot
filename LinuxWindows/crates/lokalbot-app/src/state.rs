@@ -1,9 +1,3 @@
-//! App-wide state shared by every page: the library, settings, navigation,
-//! recording and background-work status.
-//!
-//! Pages read it with `AppData::global(cx).read(cx)` and change it only through
-//! the methods below, so the engine wiring stays in one place.
-
 use std::collections::HashMap;
 use std::time::Instant;
 
@@ -12,8 +6,6 @@ use gpui_kit::{App, AppContext as _, Context, Entity, Global, SharedString};
 use lokalbot_core::{ActionStatus, Library, Meeting, Settings};
 use uuid::Uuid;
 
-/// A destination in the main window's sidebar (`AppState.NavSection`).
-/// Settings is not one: it has its own window ([`AppData::open_settings`]).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Section {
     Today,
@@ -40,10 +32,6 @@ impl Section {
         }
     }
 
-    /// The icon beside the section in the sidebar. Panels that lead to a
-    /// section show the same one (`NavSection.symbol`, as Lucide icons:
-    /// sun.max, checkmark.circle, waveform.circle, calendar.day.timeline.left,
-    /// person.2, folder, sparkle.magnifyingglass, wand.and.sparkles).
     pub fn icon(self) -> crate::ui::Ico {
         use crate::ui::Ico;
         match self {
@@ -58,10 +46,6 @@ impl Section {
         }
     }
 
-    /// Section names accepted by `--page` and deep links. "capture" (the old
-    /// merged section) lands on Timeline and "search"/"chat" on Ask, as on
-    /// the Mac (`NavSection.init(captureName:)`). Settings pages have their
-    /// own window: see `SettingsCategory::named`.
     pub fn named(name: &str) -> Option<Section> {
         Some(match name.to_ascii_lowercase().as_str() {
             "today" => Section::Today,
@@ -77,7 +61,6 @@ impl Section {
     }
 }
 
-/// Tabs of the meeting workspace.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum MeetingTab {
     #[default]
@@ -86,44 +69,27 @@ pub enum MeetingTab {
     Notes,
 }
 
-/// A Settings page (`AppState.SettingsTab`). Each feature has one page with
-/// everything that sets it up; the window lists them in
-/// `pages::settings::CATEGORIES`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub enum SettingsCategory {
-    /// The LokalBot row at the top of the list: what needs you, where your
-    /// data is, and the keyboard shortcuts.
     #[default]
     Overview,
     General,
     Models,
-    /// Privacy & permissions: what LokalBot may use here, and what leaves.
     Privacy,
     Meetings,
-    /// Screen & activity.
     DayMemory,
     Files,
-    /// Quick Recall, selection actions and what Ask can search.
     Ask,
-    /// About you.
     PersonalContext,
-    /// The day digest, the overnight review, routines and the daily note.
     DailyReview,
-    /// Autocomplete.
     Writing,
     Dictation,
-    /// AI agents: what external agents may read or change, and the CLI.
     Agents,
-    /// Phones & tablets.
     Devices,
-    /// Diagnostics.
     Advanced,
 }
 
 impl SettingsCategory {
-    /// The Settings page a `--page` name opens: "settings" is Overview, and
-    /// "settings-<page>" names one page, by its name now or before Settings
-    /// was organized by feature (`SettingsTab.init(captureName:)`).
     pub fn named(name: &str) -> Option<SettingsCategory> {
         let name = name.to_ascii_lowercase();
         if name == "settings" {
@@ -150,8 +116,6 @@ impl SettingsCategory {
         })
     }
 
-    /// The Mac's raw value (`SettingsTab.rawValue`), which is what
-    /// `Settings::settings_page` keeps.
     pub fn key(self) -> &'static str {
         match self {
             SettingsCategory::Overview => "overview",
@@ -172,7 +136,6 @@ impl SettingsCategory {
         }
     }
 
-    /// The page a saved [`Self::key`] names; anything else opens Overview.
     pub fn from_key(key: &str) -> SettingsCategory {
         crate::pages::settings::CATEGORIES
             .into_iter()
@@ -188,7 +151,6 @@ pub enum RecordingState {
     Recording {
         meeting: Meeting,
         started: Instant,
-        /// False when system audio could not be captured.
         has_system_audio: bool,
         mic_level: f32,
         system_level: f32,
@@ -208,7 +170,6 @@ impl RecordingState {
     }
 }
 
-/// Where a meeting is in transcription and summarization.
 #[derive(Clone, Debug, PartialEq)]
 pub enum ProcessingStage {
     Queued,
@@ -228,14 +189,12 @@ pub enum BackgroundKind {
     Reindex,
 }
 
-/// One row of the sidebar's "In progress" card.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BackgroundItem {
     pub id: SharedString,
     pub kind: BackgroundKind,
     pub title: SharedString,
     pub detail: SharedString,
-    /// 0.0–1.0 when known.
     pub progress: Option<f32>,
 }
 
@@ -245,24 +204,19 @@ pub struct Toast {
     pub is_error: bool,
 }
 
-/// A question to put into Ask when navigating there.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AskRequest {
     pub question: String,
-    /// Limit sources to these meetings.
     pub meeting_ids: Vec<Uuid>,
     pub submit: bool,
-    /// Limit sources to this day (Ask About Today, Ask About This Day).
     pub day: Option<chrono::NaiveDate>,
 }
 
-/// Where a meeting opened from evidence goes Back to (`evidenceReturnSection`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct EvidenceReturn {
     pub section: Section,
 }
 
-/// What the palette asks of the Agent page.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AgentRequest {
     NewTask,
@@ -270,22 +224,16 @@ pub enum AgentRequest {
     FindInTask,
     ToggleResults,
     SelectTask(Uuid),
-    /// A prompt from another page, for the selected task's draft. Never sent.
     Prompt(String),
 }
 
-/// A request to show a day on Timeline, optionally with a work session or
-/// a screen moment open.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TimelineFocus {
     pub day: chrono::NaiveDate,
-    /// `WorkSession::id`.
     pub session_id: Option<String>,
-    /// `ScreenMoment::id`.
     pub moment_id: Option<i64>,
 }
 
-/// A request to show a meeting, optionally at a moment of its transcript.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeetingFocus {
     pub meeting_id: Uuid,
@@ -296,159 +244,91 @@ pub struct MeetingFocus {
 pub struct AppData {
     pub library: Library,
     pub settings: Settings,
-    /// Visible meetings, newest first.
     pub meetings: Vec<Meeting>,
     pub meetings_loaded: bool,
-    /// How many [`Self::reload`]s have started, and the latest whose list was
-    /// taken: one that started earlier and finished later is out of date.
     reloads_started: u64,
     reload_applied: u64,
-    /// Bumped whenever library content changes, so pages can reload lazily.
     pub revision: u64,
     pub section: Section,
-    /// The page the Settings window shows, or opens on.
     pub settings_category: SettingsCategory,
-    /// The Settings window is open (`windows::settings`).
     pub settings_window_open: bool,
-    /// A setting for Settings to scroll to and highlight (`focusedSettingID`).
     pub settings_focus: Option<String>,
     pub meeting_focus: Option<MeetingFocus>,
-    /// Where evidence was opened from, for the Back button (`evidenceReturnSection`).
     pub evidence_return: Option<EvidenceReturn>,
-    /// Warnings of the recording in progress.
     pub capture_warnings: Vec<SharedString>,
     pub ask_request: Option<AskRequest>,
-    /// For the Agent page to act on when it next draws.
     pub agent_request: Option<AgentRequest>,
-    /// Ctrl+F on the meeting page, waiting for the page to open Find.
     pub meeting_find_requested: bool,
-    /// A meeting whose follow-up draft should open.
     pub follow_up_request: Option<Uuid>,
-    /// A screen moment to attach to the next question ("Ask About This…").
     pub ask_screen: Option<lokalbot_core::ScreenMoment>,
-    /// A work session's moments, as the next question's boundary.
     pub ask_screens: Option<Vec<i64>>,
-    /// The sources the next question searches, when the handoff narrows them
-    /// (Quick Recall's "Show all" for one kind). `None` leaves them as chosen.
     pub ask_sources: Option<Vec<lokalbot_core::AskSourceScope>>,
-    /// A conversation for Ask to open (Quick Recall's Continue in main window).
     pub ask_open_conversation: Option<Uuid>,
-    /// The latest question of each conversation that attached screens. Their
-    /// ids stay in memory for a retry; only their days reach the conversation.
     pub attached_asks: std::collections::HashMap<Uuid, AskScope>,
-    /// What Files is doing now.
     pub files: lokalbot_engine::files::FileSearchStatus,
-    /// How many coding-agent notes are saved, or why none could be.
     pub agent_notes: lokalbot_engine::agent_notes::AgentNotesStatus,
     pub timeline_focus: Option<TimelineFocus>,
-    /// A person (`PersonProfile::id`) for People to select.
     pub person_focus: Option<String>,
-    /// A project (`ProjectProfile::id`) for Projects to select.
     pub project_focus: Option<String>,
     pub recording: RecordingState,
     pub processing: HashMap<Uuid, ProcessingStage>,
-    /// File names waiting to be imported, the one in progress first.
     pub importing: Vec<SharedString>,
     pub background: Vec<BackgroundItem>,
     pub toast: Option<Toast>,
     pub day_memory_paused: bool,
-    /// What Settings says about Think and its hosts ([`inference_presentation`]).
     pub inference_label: SharedString,
     pub remote_hosts: Vec<SharedString>,
-    /// The sidebar's line about where the library and the AI are.
     pub privacy: PrivacyLine,
-    /// How many open action threads are the user's: the Actions row's count
-    /// (`OutcomeIndex.openUserActionThreads`). `None` until first counted.
     pub open_action_count: Option<usize>,
-    /// The library revision `open_action_count` was counted at.
     open_actions_counted: Option<u64>,
-    /// The answer being written right now, if any. The engine appends text
-    /// as it streams and saves the finished turn into the conversation file.
     pub ask_stream: Option<AskStream>,
-    /// Model downloads by catalog id.
     pub downloads: HashMap<String, DownloadProgress>,
-    /// Which models are present and which runtime the Think role uses.
     pub models: ModelStatus,
-    /// Day whose digest is being written.
     pub digest_running: Option<chrono::NaiveDate>,
-    /// Project ids whose "Where it stands" note is being written.
     pub project_notes_running: Vec<String>,
-    /// Text of the last dictation shown in LokalBot (output mode "Show in LokalBot").
     pub last_dictation: Option<SharedString>,
-    /// How the last dictation came about, for Last result.
     pub last_dictation_details: Option<LastDictationDetails>,
-    /// The latest dictations, newest first, for copying one again.
     pub recent_dictations: Vec<lokalbot_core::dictation_history::Entry>,
-    /// Settings and Today read this for the overnight review.
     pub dream: lokalbot_engine::dreaming::DreamStatus,
-    /// Microphone names for the device pickers in Settings, filled by the engine.
     pub audio_inputs: Vec<SharedString>,
-    /// What this computer allows, as setup and Settings both show it
-    /// (`crate::access`), read by `refresh_access`.
     pub access: crate::access::Probe,
     access_read_at: Option<std::time::Instant>,
     access_reading: bool,
-    /// Settings is recording a new shortcut: global shortcuts should pause
-    /// so the keystroke reaches the recorder.
     pub shortcut_recording: bool,
-    /// Dictation's shortcut is on but didn't register.
     pub dictation_shortcut_inactive: bool,
-    /// The floating dictation status.
     pub dictation: DictationHud,
-    /// The rolling transcript the overlay shows while dictating.
     pub dictation_transcript: lokalbot_ai::dictation_preview::LiveTranscript,
-    /// Tells a timed dismissal whether its notice is still the one showing.
     pub dictation_notice_serial: u64,
-    /// Selection actions' panel, as the engine last reported it.
     pub selection_actions: lokalbot_engine::SelectionView,
-    /// "Mic · Receiving audio" / "System · Not attached" while recording.
     pub recording_statuses: Option<(SharedString, SharedString)>,
-    /// When a lost track last came back; kept until the next recording starts.
     pub last_audio_recovery: Option<DateTime<Utc>>,
-    /// The latest "Write with Think" for a meeting's follow-up.
     pub follow_up: Option<(Uuid, FollowUpWriting)>,
-    /// The opt-in live transcript preview of the meeting being recorded.
     pub live_preview: lokalbot_engine::LivePreview,
-    /// Read aloud: what is being read, and its last failure.
     pub speech: lokalbot_engine::SpeechStatus,
-    /// Check model setup: the role being checked and the results so far.
     pub model_checks: lokalbot_engine::ModelCheckStatus,
-    /// The last "Check connection".
     pub connection_check: lokalbot_engine::ConnectionCheck,
-    /// Downloads cancelled since a model switch last started, so it can stop.
     pub cancelled_downloads: Vec<String>,
-    /// Screen context capture, as the engine reports it.
     pub screen: lokalbot_engine::ScreenStatus,
-    /// The user's calendars, as the engine last read them.
     pub calendar: lokalbot_engine::CalendarSnapshot,
-    /// Paired phones and tablets, as the engine last reported them.
     pub companion: lokalbot_engine::CompanionSnapshot,
-    /// The pairing request whose question is on screen.
     pub pairing_prompt: Option<u64>,
-    /// Today's preparation for the next meeting (in memory only).
     pub meeting_preparation: Option<lokalbot_engine::MeetingPreparation>,
-    /// "Try a sample meeting" waiting for its models (`sample.rs`).
     pub sample_setup: Option<crate::sample::SampleSetup>,
-    /// What the routines are doing, and their recent runs.
     pub routines: lokalbot_engine::routines::RoutineStatus,
-    /// The last retention pass.
     pub retention: lokalbot_engine::RetentionStatus,
 }
 
-/// A follow-up being rewritten with Think (`FollowUpDraftSheet`).
 #[derive(Clone, Debug, PartialEq)]
 pub enum FollowUpWriting {
     Writing,
     Written {
         subject: SharedString,
         body: SharedString,
-        /// "Qwen3.5 4B", for "Written on this PC by …".
         model: SharedString,
     },
     Failed(SharedString),
 }
 
-/// What the dictation overlay shows.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub enum DictationHud {
     #[default]
@@ -457,47 +337,33 @@ pub enum DictationHud {
     Listening {
         level: f32,
         elapsed: f64,
-        /// Until the microphone delivers audio the overlay says it is starting.
         microphone_live: bool,
-        /// A microphone problem, in place of the level bars.
         capture_status: SharedString,
     },
     Transcribing,
-    /// The speech model is loading, or downloading (how far, 0–1).
     Preparing(Option<f32>),
-    /// The speech model did not load; Retry keeps the audio.
     PreparationFailed(SharedString),
     Composing,
-    /// "Copied to the clipboard" and similar, shown briefly.
     Notice(SharedString),
-    /// Pasted text the field did not show, with Copy.
     Undelivered {
         copied: bool,
     },
     Failed(SharedString),
 }
 
-/// How the last dictation came about (`DictationView.lastResultSection`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct LastDictationDetails {
-    /// What was said, when Compose wrote something else from it.
     pub spoken: Option<SharedString>,
-    /// "Used: focused window; visible text".
     pub context: Option<SharedString>,
-    /// "Parakeet v3 → Qwen3.5 4B · on this PC".
     pub engine: Option<SharedString>,
 }
 
-/// Progress of an answer in Ask.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AskStream {
     pub conversation_id: Uuid,
     pub question: String,
-    /// Assistant text so far, with `[meeting:…]` citations inline.
     pub text: String,
-    /// Steps shown as "worked: searched meetings · read “Design review”".
     pub activity: Vec<String>,
-    /// "Preparing Qwen3.5 4B" while the model loads.
     pub status: Option<SharedString>,
     pub error: Option<SharedString>,
 }
@@ -519,46 +385,33 @@ impl DownloadProgress {
     }
 }
 
-/// Readiness of each model role, refreshed by the engine.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ModelStatus {
-    /// Catalog ids that are fully downloaded.
     pub installed: Vec<String>,
     pub transcription_ready: bool,
     pub think_ready: bool,
     pub autocomplete_ready: bool,
     pub embeddings_ready: bool,
-    /// Some screen text recognition engine can read now.
     pub screen_text_ready: bool,
-    /// Which one, in which languages, and what download would help.
     pub screen_text: lokalbot_ai::ocr::OcrStatus,
-    /// "CUDA", "Vulkan" or "CPU" for the selected built-in runtime, once installed.
     pub runtime_backend: Option<SharedString>,
-    /// CUDA is downloaded, but its setup GPU check has not passed.
     pub runtime_needs_check: bool,
     pub runtime_storage: Vec<lokalbot_ai::runtime::RuntimeStorage>,
 }
 
-/// Sources and date range for a question in Ask.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AskScope {
-    /// Empty means every meeting.
     pub meeting_ids: Vec<Uuid>,
     pub include_meetings: bool,
     pub include_activity: bool,
     pub include_screen: bool,
-    /// The folders chosen under Files; the engine honours it only while Files is on.
     pub include_files: bool,
-    /// Saved coding-agent notes; the engine honours it only while they are read.
     pub include_agent_notes: bool,
-    /// Screens this question is bound to or attaches.
     pub screen_ids: Vec<i64>,
-    /// `screen_ids` were attached by the person, as primary evidence.
     pub attached_screens: bool,
     pub screen_app: Option<String>,
     pub since: Option<DateTime<Utc>>,
     pub until: Option<DateTime<Utc>>,
-    /// The boundary saved with the question's turns.
     pub saved: lokalbot_core::QuestionScope,
 }
 
@@ -566,8 +419,6 @@ pub struct AppHandle(pub Entity<AppData>);
 
 impl Global for AppHandle {}
 
-/// What the microphone pickers offer. A device with no name can't be chosen,
-/// because the setting stores the name.
 fn microphone_names(devices: &[lokalbot_audio::AudioDevice]) -> Vec<SharedString> {
     devices
         .iter()
@@ -582,8 +433,6 @@ impl AppData {
     }
 
     pub fn new(library: Library, mut settings: Settings) -> Self {
-        // Each enabled period of the overnight review has a start, so an update
-        // to a version that has it doesn't review older days.
         let normalized = settings.normalize_dreaming_boundary(chrono::Local::now().date_naive());
         let autocomplete = settings.cotyping_built_in_model_id.clone();
         let adopted = lokalbot_ai::catalog::adopt_default_autocomplete(&mut settings);
@@ -676,15 +525,10 @@ impl AppData {
         }
     }
 
-    /// Asks the engine for work. Pages call this instead of emitting directly
-    /// so every request goes through one place.
     pub fn request(&mut self, event: AppEvent, cx: &mut Context<Self>) {
         cx.emit(event);
     }
 
-    // ------------------------------------------------------------ navigation
-
-    /// Lists microphones away from the UI thread: audio backends can be slow.
     pub fn refresh_audio_inputs(&mut self, cx: &mut Context<Self>) {
         cx.spawn(async move |this, cx| {
             let devices = cx
@@ -699,9 +543,6 @@ impl AppData {
         .detach();
     }
 
-    /// Reads what this computer allows away from the UI thread: the checks
-    /// can wait on the session bus and the screenshot portal for seconds.
-    /// Only reads; nothing prompts or turns on.
     pub fn refresh_access(&mut self, cx: &mut Context<Self>) {
         if self.access_reading {
             return;
@@ -724,8 +565,6 @@ impl AppData {
         .detach();
     }
 
-    /// `refresh_access`, unless the reading is only a few seconds old, for
-    /// views that show it while open.
     pub fn refresh_access_if_stale(&mut self, cx: &mut Context<Self>) {
         if self
             .access_read_at
@@ -735,7 +574,6 @@ impl AppData {
         }
     }
 
-    /// What the running app has seen for itself, beside the reading.
     pub fn access_observed(&self) -> crate::access::Observed {
         crate::access::Observed {
             microphone_found: !self.audio_inputs.is_empty(),
@@ -771,7 +609,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// Back to where evidence was opened from (`returnFromEvidence`).
     pub fn return_from_evidence(&mut self, cx: &mut Context<Self>) {
         if let Some(back) = self.evidence_return.take() {
             self.section = back.section;
@@ -779,8 +616,6 @@ impl AppData {
         }
     }
 
-    /// Repeats only what failed (`AppState.retryProcessing`). A person's retry
-    /// may download what it needs.
     pub fn retry_processing(&mut self, meeting_id: Uuid, cx: &mut Context<Self>) {
         let Some(meeting) = self.meeting(meeting_id).cloned() else {
             return;
@@ -814,7 +649,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// Timeline with one screen moment open (`ScreenMomentDetailView`).
     pub fn open_screen_moment(&mut self, id: i64, ts: DateTime<Utc>, cx: &mut Context<Self>) {
         if self.section != Section::Timeline {
             self.evidence_return = Some(EvidenceReturn {
@@ -830,7 +664,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// The Actions page (`openActions`).
     pub fn open_actions(&mut self, cx: &mut Context<Self>) {
         self.navigate(Section::Actions, cx);
     }
@@ -847,10 +680,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// Opens the Settings window on `category`, or brings it forward there
-    /// (`AppState.openSettings(tab:)`). The main window stays where it was.
-    /// Every link, menu, command and notification that leads to Settings
-    /// comes through here.
     pub fn open_settings(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
         self.refresh_audio_inputs(cx);
         self.refresh_access(cx);
@@ -859,9 +688,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// A category picked inside the Settings window, which is already open.
-    /// It is remembered, so Settings opens on it again after a relaunch
-    /// (`AppState.settingsTab`).
     pub fn select_settings_category(&mut self, category: SettingsCategory, cx: &mut Context<Self>) {
         if self.settings_category == category {
             return;
@@ -871,8 +697,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// Saves the page shown without telling the engine: nothing it does
-    /// depends on which page Settings shows.
     fn remember_settings_page(&mut self, cx: &mut Context<Self>) {
         let key = self.settings_category.key();
         if self.settings.settings_page == key {
@@ -889,13 +713,10 @@ impl AppData {
         .detach();
     }
 
-    /// The Settings window shows `category` right now.
     pub fn settings_showing(&self, category: SettingsCategory) -> bool {
         self.settings_window_open && self.settings_category == category
     }
 
-    /// Counts the user's open action threads again when the library changed
-    /// since the last count. The count runs off the UI thread.
     pub fn refresh_open_action_count(&mut self, cx: &mut Context<Self>) {
         if !self.meetings_loaded || self.open_actions_counted == Some(self.revision) {
             return;
@@ -912,7 +733,6 @@ impl AppData {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                // A newer count has started; it will report.
                 if this.open_actions_counted != Some(revision) {
                     return;
                 }
@@ -935,7 +755,6 @@ impl AppData {
         cx.notify();
     }
 
-    /// Sends a question, keeping what a retry of it would need.
     pub fn ask_question(
         &mut self,
         conversation_id: Uuid,
@@ -960,16 +779,12 @@ impl AppData {
         );
     }
 
-    /// Agent with `prompt` in its composer, unsent (`AppState.openAgent`).
     pub fn open_agent(&mut self, prompt: String, cx: &mut Context<Self>) {
         self.agent_request = Some(AgentRequest::Prompt(prompt));
         self.section = Section::Agent;
         cx.notify();
     }
 
-    // --------------------------------------------------------------- library
-
-    /// Reloads the meeting list on a background thread.
     pub fn reload(&mut self, cx: &mut Context<Self>) {
         let library = self.library.clone();
         self.reloads_started += 1;
@@ -979,8 +794,6 @@ impl AppData {
                 .background_spawn(async move { library.list_meetings() })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                // Reads overlap; a slower, older one would bring back a
-                // meeting that a newer one no longer lists.
                 if reload <= this.reload_applied {
                     return;
                 }
@@ -1007,8 +820,6 @@ impl AppData {
         self.meetings.iter().find(|m| m.id == id)
     }
 
-    /// A page wrote meeting files itself (corrections, speaker names): pages
-    /// that show them reload on the next `revision`.
     pub fn mark_library_changed(&mut self, cx: &mut Context<Self>) {
         self.revision += 1;
         cx.notify();
@@ -1048,17 +859,12 @@ impl AppData {
         .detach();
     }
 
-    /// Processing that blocks merging, undoing a merge or new boundaries:
-    /// anything but a failed run.
     pub fn is_processing(&self, meeting_id: Uuid) -> bool {
         self.processing
             .get(&meeting_id)
             .is_some_and(|stage| !matches!(stage, ProcessingStage::Failed(_)))
     }
 
-    /// Imports files as meetings one at a time, then queues each for
-    /// transcription and, when on, notes (`AppState.importRecordings`).
-    /// Failures are reported together once the batch ends.
     pub fn import_recordings(&mut self, paths: Vec<std::path::PathBuf>, cx: &mut Context<Self>) {
         let files: Vec<_> = paths.into_iter().filter(|p| p.is_file()).collect();
         if files.is_empty() {
@@ -1116,7 +922,6 @@ impl AppData {
                             this.open_meeting(meeting.id, MeetingTab::Summary, None, cx);
                         }
                         Err(failure) => {
-                            // The message names the file; keep file names out of the log.
                             log::warn!("recording import failed extension={extension}");
                             failures.push(failure.localized(&label));
                         }
@@ -1131,7 +936,6 @@ impl AppData {
         .detach();
     }
 
-    /// Removes a merged meeting and restores its sources (`AppState.undoMerge`).
     pub fn undo_merge(&mut self, meeting_id: Uuid, cx: &mut Context<Self>) {
         let Some(merged) = self.meeting(meeting_id).cloned() else {
             return;
@@ -1149,7 +953,6 @@ impl AppData {
         cx.spawn(async move |this, cx| {
             let result = cx
                 .background_spawn(async move {
-                    // The merged meeting's own contributions leave remembered voices.
                     if let Err(err) =
                         lokalbot_engine::voice::memory(&library).prepare_deletion(&merged)
                     {
@@ -1174,8 +977,6 @@ impl AppData {
     }
 
     pub fn delete_meeting(&mut self, meeting_id: Uuid, cx: &mut Context<Self>) {
-        // The recorder is still writing into the folder of the meeting being
-        // recorded; it can be deleted once the recording has stopped.
         if self
             .recording
             .meeting()
@@ -1218,8 +1019,6 @@ impl AppData {
         .detach();
     }
 
-    /// Saves a screen moment (or changes its note); saved moments are kept
-    /// past the retention window.
     pub fn save_screen_moment(&mut self, id: i64, note: String, cx: &mut Context<Self>) {
         let library = self.library.clone();
         self.run_library_change(
@@ -1238,7 +1037,6 @@ impl AppData {
         );
     }
 
-    /// Deletes a moment's image, text and metadata.
     pub fn delete_screen_moment(&mut self, id: i64, cx: &mut Context<Self>) {
         let library = self.library.clone();
         self.run_library_change(
@@ -1248,8 +1046,6 @@ impl AppData {
         );
     }
 
-    /// Deletes every saved agent session, withdrawing the generated journals that
-    /// used them. The agents' own files stay.
     pub fn delete_coding_agent_evidence(&mut self, cx: &mut Context<Self>) {
         let library = self.library.clone();
         self.run_library_change(
@@ -1287,9 +1083,6 @@ impl AppData {
         .detach();
     }
 
-    // -------------------------------------------------------------- settings
-
-    /// Applies a settings change and saves it in the background.
     pub fn update_settings(&mut self, change: impl FnOnce(&mut Settings), cx: &mut Context<Self>) {
         let before = self.settings.clone();
         change(&mut self.settings);
@@ -1301,7 +1094,6 @@ impl AppData {
         if before.app_language != self.settings.app_language {
             crate::i18n::apply(&self.settings.app_language, cx);
         }
-        // The engine applies it too, but the meeting view redraws first.
         lokalbot_core::SpeakerAttribution::set_microphone_is_user(self.settings.microphone_is_user);
         let (label, hosts) = inference_presentation(&self.settings);
         self.inference_label = label;
@@ -1324,8 +1116,6 @@ impl AppData {
         cx.notify();
     }
 
-    // ------------------------------------------------------------- recording
-
     pub fn toggle_recording(&mut self, cx: &mut Context<Self>) {
         if self.recording.is_active() {
             self.stop_recording(cx);
@@ -1341,8 +1131,6 @@ impl AppData {
     pub fn stop_recording(&mut self, cx: &mut Context<Self>) {
         cx.emit(AppEvent::StopRecording);
     }
-
-    // ---------------------------------------------------------------- toasts
 
     pub fn show_message(&mut self, message: impl Into<SharedString>, cx: &mut Context<Self>) {
         self.toast = Some(Toast {
@@ -1366,89 +1154,60 @@ impl AppData {
     }
 }
 
-/// Requests that the engine bridge (in `main.rs`) handles. Results come back
-/// as changes to `AppData` fields (`processing`, `ask_stream`, `downloads`,
-/// `digest_running`, …) followed by `revision` bumps when files changed.
 #[derive(Clone, Debug, PartialEq)]
 pub enum AppEvent {
-    /// A name was given or applied: remember the voice and suggest it elsewhere.
     LearnSpeakerVoices,
     StartRecording,
     StopRecording,
     SettingsChanged,
     AppearanceChanged,
-    /// The overnight review, now.
     ReviewNow,
-    /// Delete every overnight review and the work memory.
     ClearWorkMemory,
-    /// Transcribe and/or summarize a meeting again (Retry, "Transcribe & Summarize", "Summarize again").
     ProcessMeeting {
         meeting_id: Uuid,
         transcribe: bool,
         summarize: bool,
     },
-    /// Write or rewrite the day digest.
     RegenerateDigest(chrono::NaiveDate),
-    /// Ask a question in a conversation (a new id starts a new conversation).
     AskQuestion {
         conversation_id: Uuid,
         question: String,
         scope: Box<AskScope>,
-        /// The failed turn this asks again.
         retry_of: Option<Uuid>,
     },
     StopAnswer,
-    /// Download a model by catalog id (Think, Autocomplete, embeddings or speech).
     DownloadModel(String),
     CancelDownload(String),
     DeleteModel(String),
-    /// Download every model the current settings need.
     PrepareModels,
     SetDayMemoryPaused(bool),
-    /// Write the "Where it stands" note for a project id.
     WriteProjectNote(String),
-    /// Rewrite a meeting's follow-up outline with the local Think model.
     WriteFollowUp(Uuid),
-    /// Start, pause, resume or retry the live transcript preview.
     LivePreview(lokalbot_engine::LivePreviewCommand),
     OpenOnboarding,
-    /// Start or stop dictation from the UI ("Try here").
     ToggleDictation,
     CancelDictation,
-    /// A meeting app started a call while recording asks first.
     MeetingDetected {
         app_name: String,
         title: String,
     },
-    /// Store the API key for the OpenAI-compatible server in the system
-    /// credential store (never in settings.json).
     SaveApiKey(String),
-    /// Saves, or when blank removes, autocomplete's own server key.
     SaveAutocompleteServerKey(String),
-    /// "Capture Screen Now" (tray and Timeline).
     CaptureScreenNow,
-    /// Today's Record on a calendar event.
     RecordCalendarEvent(Box<lokalbot_core::calendar::CalendarEvent>),
-    /// Replace the private calendar links kept in the credential store.
     SetCalendarLinks(Vec<String>),
     RefreshCalendar,
-    /// Gather (and with `generate`, write a brief for) an upcoming meeting.
     PrepareMeeting {
         event: Box<lokalbot_core::calendar::CalendarEvent>,
         generate: bool,
     },
-    /// "Run now" for a routine.
     RunRoutine(lokalbot_core::settings::MemoryRoutineKind),
-    /// "Run retention now".
     RunRetentionNow,
     RestartMemoryCapture,
 }
 
 impl gpui_kit::EventEmitter<AppEvent> for AppData {}
 
-/// Think's line and the hosts Settings names in its disclosures (Overview's
-/// Models status, Compose dictation, phones' questions). The sidebar's own
-/// line is [`PrivacyLine`].
 pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedString>) {
     use lokalbot_core::settings::SummarizerBackend;
     if let Some(plan) = settings.think_plan() {
@@ -1487,17 +1246,9 @@ pub fn inference_presentation(settings: &Settings) -> (SharedString, Vec<SharedS
     }
 }
 
-/// The sidebar's line about where the library and the AI are
-/// (`SidebarPrivacyLine`). It reflects the actual setup instead of a fixed
-/// claim: with everything on this computer it is one line; a remote Think,
-/// transcription or autocomplete server, or a Think connection that is
-/// blocked, splits storage from AI and names each host once, because
-/// meeting and workday text goes to those hosts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PrivacyLine {
-    /// "On this PC".
     Local,
-    /// "Storage: this PC", the AI line, then each host.
     Split { blocked: bool, hosts: Vec<String> },
 }
 
@@ -1512,8 +1263,6 @@ impl PrivacyLine {
         }
     }
 
-    /// The AI line under "Storage: this PC": what the Mac's sidebar says for
-    /// a split setup.
     pub fn ai_label(blocked: bool) -> &'static str {
         if blocked {
             lokalbot_i18n::tr("AI: connection blocked")
@@ -1523,11 +1272,6 @@ impl PrivacyLine {
     }
 }
 
-/// Every server that receives what this computer's AI features send, each
-/// named once: Think's (while its connection is allowed), the transcription
-/// server and, while autocomplete is on, the server it sends typing to
-/// (`AppSettings.remoteAIHosts`). Leaving autocomplete out once read "on this
-/// computer" while every suggestion request went to a server.
 pub fn remote_ai_hosts(settings: &Settings) -> Vec<String> {
     use lokalbot_core::settings::SummarizerBackend;
     let mut hosts: Vec<String> = Vec::new();
@@ -1570,8 +1314,6 @@ pub fn remote_ai_hosts(settings: &Settings) -> Vec<String> {
     hosts
 }
 
-/// How many action threads are open and the user's: the number beside
-/// Actions in the sidebar (`OutcomeIndex.openUserActionThreads.count`).
 pub fn open_user_action_count(threads: &[lokalbot_core::ActionThread]) -> usize {
     threads
         .iter()
@@ -1579,7 +1321,6 @@ pub fn open_user_action_count(threads: &[lokalbot_core::ActionThread]) -> usize 
         .count()
 }
 
-/// Friendly day label for list groups: "Today", "Yesterday", "Wednesday, October 7".
 pub fn day_label(at: DateTime<Utc>) -> String {
     let day = lokalbot_core::time::local_day(at);
     let today = chrono::Local::now().date_naive();
@@ -1605,7 +1346,6 @@ mod tests {
     #[test]
     fn everything_on_this_computer_is_one_line() {
         assert_eq!(PrivacyLine::new(&Settings::default()), PrivacyLine::Local);
-        // A model server on this computer is still this computer.
         let ollama = Settings {
             summarizer_backend: SummarizerBackend::Ollama,
             ollama_base_url: "http://127.0.0.1:11434".into(),
@@ -1640,7 +1380,6 @@ mod tests {
                 hosts: vec!["api.openai.com".into()]
             }
         );
-        // A subscription plan names the host it sends to once approved.
         let mut plan = backend(SummarizerBackend::ChatGptPlan);
         SubscriptionPlan::ChatGpt.set_approved(&mut plan, true);
         assert_eq!(
@@ -1686,12 +1425,10 @@ mod tests {
                 hosts: vec!["complete.example".into()]
             }
         );
-        // Autocomplete on Think's own server lists that server once.
         let mut think = openai("https://api.openai.com/v1", &["https://api.openai.com"]);
         think.cotyping_enabled = true;
         think.cotyping_backend = CotypingBackend::ThinkServer;
         assert_eq!(remote_ai_hosts(&think), vec!["api.openai.com".to_string()]);
-        // On this computer it sends nothing anywhere.
         think.cotyping_backend = CotypingBackend::OnDevice;
         assert_eq!(remote_ai_hosts(&think), vec!["api.openai.com".to_string()]);
     }
@@ -1702,9 +1439,7 @@ mod tests {
             thread(vec![reference("a", ActionStatus::Open, true, None, 2)]),
             thread(vec![reference("b", ActionStatus::Done, true, None, 3)]),
             thread(vec![reference("c", ActionStatus::Deferred, true, None, 4)]),
-            // Someone else's work is theirs to count.
             thread(vec![reference("d", ActionStatus::Open, false, None, 5)]),
-            // Done in one meeting, still open in another: open.
             thread(vec![
                 reference("e", ActionStatus::Done, true, None, 7),
                 reference("e", ActionStatus::Open, true, None, 6),
@@ -1720,7 +1455,6 @@ mod tests {
         assert_eq!(Section::named("Timeline"), Some(Section::Timeline));
         assert_eq!(Section::named("capture"), Some(Section::Timeline));
         assert_eq!(Section::named("search"), Some(Section::Ask));
-        // Settings is a window, not a section.
         assert_eq!(Section::named("settings"), None);
         assert_eq!(
             SettingsCategory::named("settings"),
@@ -1731,7 +1465,6 @@ mod tests {
             Some(SettingsCategory::Models)
         );
         assert_eq!(SettingsCategory::named("today"), None);
-        // Former page names still land on the page that holds them now.
         assert_eq!(
             SettingsCategory::named("settings-diagnostics"),
             Some(SettingsCategory::Advanced)

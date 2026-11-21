@@ -1,11 +1,3 @@
-//! Autocomplete's input method against a real compositor and real GTK fields,
-//! ignored by default. Run it with `crates/lokalbot-platform/scripts/live-sway.sh`,
-//! which also needs Python with GTK 3 (`gi`).
-//!
-//! The keyboard here is one virtual keyboard with a US keymap for the whole
-//! run, so keys arrive with a physical keyboard's scancodes and without the new
-//! device, and the focus events that go with it, that each `wtype` run makes.
-
 #![cfg(target_os = "linux")]
 
 use std::io::{BufRead as _, BufReader, Seek as _, Write as _};
@@ -112,7 +104,6 @@ impl Keyboard {
     }
 }
 
-/// One GTK field in a window of its own, which prints what happens to it.
 struct GtkField {
     child: Child,
     lines: Receiver<String>,
@@ -142,7 +133,6 @@ impl GtkField {
     fn start(kind: &str) -> Self {
         let mut child = Command::new("python3")
             .args(["-c", GTK_FIELD, kind])
-            // Cargo points this at its build output, which GTK must not load from.
             .env_remove("LD_LIBRARY_PATH")
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
@@ -158,7 +148,6 @@ impl GtkField {
         Self { child, lines }
     }
 
-    /// Waits for a line, skipping others such as the same preedit again.
     fn expect(&self, wanted: &str) {
         let deadline = Instant::now() + Duration::from_secs(5);
         let mut seen = Vec::new();
@@ -205,7 +194,6 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     let _ = env_logger::builder().is_test(false).try_init();
     let (focus_tx, focus) = channel();
     let (key_tx, keys_taken) = channel();
-    // Sway focuses a text field only once the seat has a keyboard.
     let mut keyboard = Keyboard::new();
     let field = GtkField::start("plain");
     let policy = ReadPolicy {
@@ -222,10 +210,8 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     })
     .unwrap();
     keys.set_keys(AcceptKeys::default());
-    // The seat is taken once the young session has settled.
     field_where(&focus, Duration::from_secs(40), |_| true);
 
-    // Nothing is taken while no suggestion shows.
     keyboard.type_letters("hello");
     field.expect("text 'hello'");
     let typed = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello");
@@ -236,7 +222,6 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     field.expect("preedit ' up on it'");
     std::thread::sleep(Duration::from_millis(200));
 
-    // Tab is taken, and an accept goes in with what is left.
     keyboard.tap(KEY_TAB);
     assert_eq!(
         keys_taken.recv_timeout(Duration::from_secs(2)).unwrap(),
@@ -250,14 +235,12 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     field.expect("text 'hello up'");
     field.expect("preedit ' on it'");
 
-    // Any other key goes on to the field, and the ghost steps aside for it.
     keyboard.type_letters("z");
     field.expect("text 'hello upz'");
     field.expect("preedit ' on it'");
     let advanced = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello upz");
     assert_eq!(keys_taken.try_recv().ok(), None);
 
-    // The key left of 1 and Esc are taken too.
     keyboard.tap(KEY_GRAVE);
     assert_eq!(
         keys_taken.recv_timeout(Duration::from_secs(2)).unwrap(),
@@ -273,7 +256,6 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     field.expect("preedit ''");
     std::thread::sleep(Duration::from_millis(200));
 
-    // With the suggestion gone the keyboard is the field's again.
     keyboard.tap(KEY_GRAVE);
     assert_eq!(
         keys_taken.recv_timeout(Duration::from_millis(300)).ok(),
@@ -281,7 +263,6 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     );
     drop(field);
 
-    // A password field is refused and nothing of it is reported.
     let password = GtkField::start("password");
     let deadline = Instant::now() + Duration::from_secs(10);
     let refused = loop {
@@ -302,9 +283,6 @@ fn sway_input_method_shows_accepts_and_stays_out_of_passwords() {
     drop(watcher);
 }
 
-/// A keyboard under KWin, which offers no virtual keyboard protocol: keys go
-/// in through its EIS endpoint, as a remote desktop session's do, so they take
-/// the same path through KWin as a real keyboard's.
 struct EisKeyboard {
     child: Child,
     stdin: std::process::ChildStdin,
@@ -393,10 +371,8 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     })
     .unwrap();
     keys.set_keys(AcceptKeys::default());
-    // Typing waits for the window to have focus.
     field_where(&focus, Duration::from_secs(20), |f| f.before.is_empty());
 
-    // Nothing is taken while no suggestion shows.
     keyboard.type_letters("hello");
     field.expect("text 'hello'");
     let typed = field_where(&focus, Duration::from_secs(10), |f| f.before == "hello");
@@ -407,7 +383,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     field.expect("preedit ' up on it'");
     std::thread::sleep(Duration::from_millis(200));
 
-    // Tab is taken, and an accept goes in with what is left.
     keyboard.tap(KEY_TAB);
     assert_eq!(
         keys_taken.recv_timeout(Duration::from_secs(2)).unwrap(),
@@ -421,14 +396,12 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     field.expect("text 'hello up'");
     field.expect("preedit ' on it'");
 
-    // Any other key goes on to the field, and the ghost steps aside for it.
     keyboard.type_letters("z");
     field.expect("text 'hello upz'");
     field.expect("preedit ' on it'");
     let advanced = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello upz");
     assert_eq!(keys_taken.try_recv().ok(), None);
 
-    // A word typed after an accept deletes and replaces around the caret.
     let replace = Edit {
         text: "s".into(),
         backward: 1,
@@ -437,7 +410,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     ghost.accept(&advanced, &advanced.before, &advanced.after, &replace, "");
     field.expect("text 'hello ups'");
 
-    // The key left of 1 and Esc are taken too.
     let replaced = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello ups");
     ghost.show(&replaced, " on it");
     field.expect("preedit ' on it'");
@@ -456,7 +428,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     field.expect("preedit ''");
     std::thread::sleep(Duration::from_millis(200));
 
-    // With the suggestion gone the keyboard is the field's again.
     keyboard.tap(KEY_GRAVE);
     assert_eq!(
         keys_taken.recv_timeout(Duration::from_millis(300)).ok(),
@@ -464,7 +435,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     );
     drop(field);
 
-    // A password field is refused and nothing of it is reported.
     let password = GtkField::start("password");
     let deadline = Instant::now() + Duration::from_secs(10);
     let refused = loop {
@@ -482,7 +452,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     }
     drop(password);
 
-    // KWin names the app, so an excluded one is refused before its text is used.
     let field = GtkField::start("plain");
     let named = field_where(&focus, Duration::from_secs(20), |f| f.before.is_empty());
     assert!(!named.app_id.is_empty(), "KWin named no app");
@@ -510,8 +479,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     });
     drop(field);
 
-    // Quitting LokalBot with a suggestion on show leaves the field as it was,
-    // and typing goes on as without an input method.
     let field = GtkField::start("plain");
     field_where(&focus, Duration::from_secs(20), |f| f.before.is_empty());
     keyboard.type_letters("hi");
@@ -524,7 +491,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     drop(ghost);
     drop(watcher);
     field.expect("preedit ''");
-    // The full-accept key types its character again.
     keyboard.tap(KEY_GRAVE);
     field.expect("text 'hi`'");
 }

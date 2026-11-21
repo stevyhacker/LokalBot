@@ -1,13 +1,10 @@
 import AppKit
 import SwiftUI
 
-/// Setup, step 1: what LokalBot does, that it stays on this Mac, and the
-/// choices, each with its one real option beside it.
 struct OnboardingChooseStep: View {
     @Binding var draft: CaptureSetupDraft
     let settings: AppSettings
 
-    /// Nothing the AI features send leaves this Mac.
     private var everythingLocal: Bool {
         settings.remoteAIHosts.isEmpty && !InferencePresentation(settings: settings).isBlocked
     }
@@ -32,8 +29,6 @@ struct OnboardingChooseStep: View {
                     OnboardingNote(
                         symbol: "info.circle",
                         text: "Private and incognito browser windows are captured like any other window unless you exclude the browser or site in Settings → Screen & Activity.")
-                    // Shown for every workday choice, app names only included:
-                    // it is what the person agrees to before picking more.
                     OnboardingNote(
                         symbol: "lock",
                         text: "Text and images build on app activity. Images are encrypted on disk; captured text remains searchable under your retention policy.")
@@ -62,7 +57,6 @@ struct OnboardingChooseStep: View {
                 .frame(maxWidth: 480)
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Image(systemName: "lock").accessibilityHidden(true)
-                // A server set up before setup was reopened is named for what it is.
                 Text(LocalizedStringKey(everythingLocal
                     ? "Everything is processed and stored on this Mac. No account needed."
                     : "Local models process on this Mac. Each remote server requires its own approval before context can leave the Mac."))
@@ -141,11 +135,6 @@ struct OnboardingChooseStep: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// The one option a choice has, on its own line under the description.
-    /// What the chosen option means is the pop-up's help, and for the workday,
-    /// where it says what is kept, a line of its own. The menu is a plain
-    /// pop-up like the app's others: rows with a second line drew over the
-    /// pop-up's arrows in right-to-left languages.
     private func option(_ label: LocalizedStringKey, meaning: String, showsMeaning: Bool,
                         @ViewBuilder control: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -172,8 +161,6 @@ struct OnboardingChooseStep: View {
 }
 
 private extension AppSettings.AutoRecordMode {
-    /// The option's name in setup's "When a call starts" menu, and what it
-    /// means, which is the menu's help while it is chosen.
     var setupTitle: String {
         switch self {
         case .automatic: "Record automatically"
@@ -192,7 +179,6 @@ private extension AppSettings.AutoRecordMode {
 }
 
 private extension AppSettings.ScreenContextCaptureMode {
-    /// The option's name in setup's "Keeps" menu.
     var setupTitle: String {
         switch self {
         case .activityOnly: "App names only"

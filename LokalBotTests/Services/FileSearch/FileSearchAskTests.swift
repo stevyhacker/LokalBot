@@ -2,8 +2,6 @@ import DigUpKit
 import XCTest
 @testable import LokalBot
 
-/// Files in Ask: the source, the agent's `search_files` tool, `[file:]`
-/// citations and the result-evidence boundary.
 @MainActor
 final class FileSearchAskTests: XCTestCase {
     private var root: URL!
@@ -152,7 +150,6 @@ private final class FilesRecordingRunner: ChatToolRunner {
     }
 }
 
-/// Every text points the same way, so search here is by words.
 private final class WordsEmbedder: Embedder {
     static let workerInfo = WorkerInfo(model: "test/words", revision: "0000000", runtime: "words", dtype: "f32",
                                        dim: 768, textOnly: false, loadSeconds: nil)

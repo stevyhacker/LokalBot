@@ -1,9 +1,3 @@
-//! Setup, step 2 (`OnboardingAccessStep.swift`): only what the choices need,
-//! each row naming the feature it serves, why, and where it stands. Linux and
-//! Windows have no permission prompts like macOS: each row shows what this
-//! computer can be seen to allow (`lokalbot_platform::access`), and a row
-//! whose state can't be known before the feature runs claims none.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::{Sizable as _, v_flex};
@@ -20,9 +14,6 @@ use super::{Draft, Onboarding, card, done_label, heading, quiet, row, row_title}
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
-/// The microphone always (Record uses it even with detection off), window
-/// titles for the workday, accessibility once it keeps text, and screenshots
-/// with their key only for screenshots (`OnboardingAccess.permissions`).
 pub(super) fn permissions(draft: &Draft) -> Vec<Permission> {
     let mut result = vec![Permission::Microphone];
     if draft.day_memory {
@@ -44,8 +35,6 @@ pub(super) struct Row {
     pub state: RowState,
 }
 
-/// The rows for `draft`, each in the state Settings shows for it too
-/// (`crate::access`).
 pub(super) fn rows(draft: &Draft, probe: &Probe, observed: &Observed, linux: bool) -> Vec<Row> {
     permissions(draft)
         .into_iter()
@@ -56,8 +45,6 @@ pub(super) fn rows(draft: &Draft, probe: &Probe, observed: &Observed, linux: boo
         .collect()
 }
 
-/// "2 of 3 allowed", counting only rows whose state is known; `None` when
-/// no row's is.
 pub(super) fn allowed_count(rows: &[Row]) -> Option<(usize, usize)> {
     let known: Vec<&Row> = rows
         .iter()
@@ -84,7 +71,6 @@ fn symbol(permission: Permission) -> Ico {
     }
 }
 
-/// The setup choice it serves, shown as a tag on its row.
 fn feature(permission: Permission) -> &'static str {
     match permission {
         Permission::Microphone => lokalbot_i18n::tr("Meeting notes"),
@@ -93,7 +79,6 @@ fn feature(permission: Permission) -> &'static str {
 }
 
 impl Onboarding {
-    /// The rows, from the reading Settings shows too (`AppData::access`).
     pub(super) fn access_rows(&self, cx: &App) -> Vec<Row> {
         let data = self.data.read(cx);
         rows(
@@ -189,7 +174,6 @@ impl Onboarding {
     }
 }
 
-/// A line in the attention colour with a warning symbol.
 fn warning(text: &'static str, cx: &App) -> Div {
     let lb = cx.lb();
     h_flex()
@@ -275,7 +259,6 @@ mod tests {
                 RowState::Missing(Gap::CredentialStore),
             ]
         );
-        // The unknown screenshot row counts neither way.
         assert_eq!(allowed_count(&rows), Some((2, 4)));
     }
 

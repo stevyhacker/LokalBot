@@ -4,51 +4,35 @@ import ImageIO
 import UniformTypeIdentifiers
 import Vision
 
-/// The answer to a question asked in the meeting, read from something the
-/// person had on screen earlier.
 struct RadarScreenAnswer: Codable, Equatable, Sendable {
     var text: String
-    /// What the screenshot says, as read on this Mac; the model's quote had
-    /// to match it.
     var quote: String
     var snapshotID: Int64
     var capturedAt: Date
     var app: String
     var windowTitle: String
-    /// The crop the answer was read from, relative to the meeting folder.
     var image: String
     var model: String
 }
 
-/// A screen capture local search found for a question.
 struct RadarScreenCapture: Sendable {
     let snapshotID: Int64
     let capturedAt: Date
     let app: String
     let windowTitle: String
-    /// The decrypted image (HEIC, PNG or JPEG), read only when needed.
     let imageData: @Sendable () async -> Data?
 }
 
-/// Screen memory as the radar sees it: captures from before now whose text
-/// matches a question. Search runs on this Mac.
 @MainActor
 protocol RadarScreenSource: AnyObject {
     func captures(for question: String, before: Date, limit: Int) async -> [RadarScreenCapture]
 }
 
-/// The part of a capture that is sent, and its text as read on this Mac.
 struct RadarScreenCrop: Sendable {
     let jpeg: Data
     let text: String
 }
 
-/// Screen answers: when Live Radar catches a question, local screen search
-/// finds earlier captures that mention it, Vision on this Mac crops each one
-/// to the rows that do, and the Think model reads the text of the crops. An
-/// answer counts only when its quote is in the crop's own text, so the model
-/// can't invent one. Off by default; only that text (with each crop's app,
-/// window title, and time) is given to the model.
 enum RadarScreenAnswers {
     static let maximumCrops = 3
     static let maximumCropWidth = 1_600
@@ -85,8 +69,6 @@ enum RadarScreenAnswers {
         "question", "open", "asked", "know", "remember", "again", "anyone", "someone", "still",
     ]
 
-    /// Words worth finding on screen: no question words or fillers, three or
-    /// more letters, or any number.
     static func terms(_ question: String) -> [String] {
         var seen = Set<String>()
         return MeetingRadarAnalyzer.normalized(question).split(separator: " ").map(String.init).filter { word in
@@ -94,14 +76,10 @@ enum RadarScreenAnswers {
         }
     }
 
-    /// What to look for: the question as the radar wrote it, plus the words
-    /// actually said.
     static func question(_ item: RadarItem) -> String {
         item.text == item.quote ? item.quote : "\(item.text) (“\(item.quote)”)"
     }
 
-    /// Local search, then cropping on this Mac: up to `maximumCrops` captures
-    /// whose text mentions the question's words.
     @MainActor
     static func crops(for question: String, from source: RadarScreenSource,
                       before: Date = Date()) async -> [(capture: RadarScreenCapture, crop: RadarScreenCrop)] {
@@ -117,10 +95,6 @@ enum RadarScreenAnswers {
         return crops
     }
 
-    // MARK: - Cropping
-
-    /// Loads Vision's text recognizer ahead of the first question. Its very
-    /// first use on a Mac can take many seconds.
     nonisolated static func warmUp() {
         guard let context = CGContext(data: nil, width: 64, height: 64, bitsPerComponent: 8, bytesPerRow: 0,
                                       space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue),
@@ -130,9 +104,6 @@ enum RadarScreenAnswers {
         try? VNImageRequestHandler(cgImage: image).perform([request])
     }
 
-    /// Reads the capture's text on this Mac and keeps a band around the lines
-    /// that mention the question's words, as wide as the text in it. Nil when
-    /// none do.
     nonisolated static func crop(_ data: Data, terms: [String]) -> RadarScreenCrop? {
         guard !terms.isEmpty,
               let source = CGImageSourceCreateWithData(data as CFData, nil),
@@ -156,8 +127,6 @@ enum RadarScreenAnswers {
         }
         let best = scored.map(\.score).max() ?? 0
         guard best > 0 else { return nil }
-        // The strongest matches, and the band around them, at most half the
-        // screen tall, centered on the best one when they spread wider.
         let matched = scored.filter { $0.score >= max(1, best - 1) }.map(\.line.box)
         let top = scored.first { $0.score == best }!.line.box
         let pad = 0.06
@@ -167,21 +136,16 @@ enum RadarScreenAnswers {
         }
         band = CGRect(x: 0, y: max(0, band.minY), width: 1, height: min(1, band.maxY) - max(0, band.minY))
         let inside = lines.filter { band.contains(CGPoint(x: $0.box.midX, y: $0.box.midY)) }
-        // Only as wide as the text in the band, so the crop stays readable
-        // in the narrow radar pane and leaves the rest of the screen out.
         let columns = inside.map(\.box).reduce(top) { $0.union($1) }
         band.origin.x = max(0, columns.minX - 0.03)
         band.size.width = min(1, columns.maxX + 0.03) - band.origin.x
         let width = CGFloat(image.width), height = CGFloat(image.height)
-        // Vision's origin is bottom-left; CGImage cropping is top-left.
         let pixels = CGRect(x: band.minX * width, y: (1 - band.maxY) * height,
                             width: band.width * width, height: band.height * height).integral
         guard let cropped = image.cropping(to: pixels), let jpeg = jpegData(cropped) else { return nil }
         return RadarScreenCrop(jpeg: jpeg, text: readingOrder(inside))
     }
 
-    /// Top to bottom, and left to right within a row, so a label and its value
-    /// on one row read as one line.
     static func readingOrder(_ lines: [(text: String, box: CGRect)]) -> String {
         var rows: [[(text: String, box: CGRect)]] = []
         for line in lines.sorted(by: { $0.box.midY > $1.box.midY }) {
@@ -214,10 +178,6 @@ enum RadarScreenAnswers {
         return CGImageDestinationFinalize(destination) ? data as Data : nil
     }
 
-    // MARK: - Request and grounding
-
-    /// The request for a model that reads images: each crop as a picture.
-    /// The Think model reads text, so Live Radar sends `textMessages`.
     static func messages(question: String, meetingTitle: String, meetingDate: Date,
                          crops: [(capture: RadarScreenCapture, crop: RadarScreenCrop)]) -> [[String: Any]] {
         var content: [[String: Any]] = [[
@@ -247,8 +207,6 @@ enum RadarScreenAnswers {
     use outside knowledge.
     """
 
-    /// The same request with each crop as the text read from it on this Mac,
-    /// which is also what the quote is checked against. No pixels are sent.
     static func textMessages(question: String, meetingTitle: String, meetingDate: Date,
                              crops: [(capture: RadarScreenCapture, crop: RadarScreenCrop)]) -> [[String: Any]] {
         var parts = ["Meeting: \(meetingTitle), \(meetingDate.formatted(date: .complete, time: .shortened))\nQuestion: \(question)"]
@@ -260,8 +218,6 @@ enum RadarScreenAnswers {
         return [["role": "system", "content": textSystem], ["role": "user", "content": parts.joined(separator: "\n\n")]]
     }
 
-    /// The answer and which crop it came from, when its quote is in that
-    /// crop's own text.
     static func answer(from reply: String, crops: [RadarScreenCrop]) -> (text: String, quote: String, index: Int)? {
         guard let data = reply.data(using: .utf8),
               let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -273,8 +229,6 @@ enum RadarScreenAnswers {
         return (answer, quote, image - 1)
     }
 
-    /// The whole quote in the crop's text, ignoring case and punctuation, or
-    /// most of a longer quote's words, as radar quotes are checked.
     static func quoteIsOnScreen(_ quote: String, text: String) -> Bool {
         let quoteText = MeetingRadarAnalyzer.normalized(quote)
         guard !quoteText.isEmpty else { return false }
@@ -285,8 +239,6 @@ enum RadarScreenAnswers {
     }
 }
 
-/// Screen memory through the app's activity store: OCR search on this Mac,
-/// captures from before the question, never LokalBot's own windows.
 @MainActor
 final class LibraryRadarScreenSource: RadarScreenSource {
     private let store: ActivityStore

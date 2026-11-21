@@ -1,8 +1,5 @@
 import Foundation
 
-/// Sends one request to the running app, starting the app in the background
-/// when no copy is running for this library. Every settings read and write
-/// goes through the app, so its decoding and coupling rules apply once.
 struct AppControlClient {
     var root: URL
     var gate: SettingsControlGate
@@ -17,14 +14,12 @@ struct AppControlClient {
         AppControlSocket.path(controlDirectory: gate.controlDirectory)
     }
 
-    /// The result of `method`, or a thrown `AppControlError`.
     func request(
         _ method: AppControlProtocol.Method,
         params: [String: JSONValue]? = nil,
         launch: Bool = true,
         launchTimeout: TimeInterval = 30
     ) throws -> JSONValue {
-        // Never start the app for an agent the person has not allowed.
         guard gate.isEnabled else { throw AppControlError.settingsAccessDisabled }
         let request = AppControlRequest(method: method, params: params)
         if let response = try? send(request) { return try unwrap(response) }
@@ -48,7 +43,6 @@ struct AppControlClient {
         throw AppControlError.appNotResponding
     }
 
-    /// One connection, one request line, one response line.
     func send(_ request: AppControlRequest) throws -> AppControlResponse {
         let descriptor = try AppControlSocket.connect(path: socketPath, timeout: requestTimeout)
         defer { Darwin.close(descriptor) }
@@ -64,7 +58,6 @@ struct AppControlClient {
         return response.result ?? .null
     }
 
-    /// True while a GUI copy holds this library's instance lock.
     var isAppRunning: Bool {
         let path = root.appendingPathComponent(LibraryInstanceLock.fileName).path
         let descriptor = open(path, O_RDONLY | O_CLOEXEC)
@@ -77,9 +70,6 @@ struct AppControlClient {
         return errno == EWOULDBLOCK
     }
 
-    /// The LokalBot app bundle containing this executable, resolved through
-    /// the installed `~/.local/bin` symlink. Launching by path, never by
-    /// name, keeps a CLI from starting a different copy with another library.
     static func enclosingApp(forExecutable executable: URL?) -> URL? {
         var directory = executable?.resolvingSymlinksInPath().deletingLastPathComponent()
         while let candidate = directory, candidate.path != "/" {
@@ -93,8 +83,6 @@ struct AppControlClient {
         return nil
     }
 
-    /// Starts the app hidden and in the background; it stays running as the
-    /// normal menu-bar app afterwards.
     static func launchInBackground(_ app: URL) throws {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/open")

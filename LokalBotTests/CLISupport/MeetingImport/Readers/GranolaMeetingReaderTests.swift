@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Every fixture is synthetic and built here: the shapes follow Granola's
-/// historical data export (Settings → Profile → Generate CSV) and what its
-/// "Copy notes" and transcript-panel copy put on the clipboard.
 final class GranolaMeetingReaderTests: XCTestCase {
     private enum Fixture {
         static let header = "document_id,user_email,document_title,workspace_name,document_created,summary,notes,transcript"
@@ -34,8 +31,6 @@ final class GranolaMeetingReaderTests: XCTestCase {
             cells.map(field).joined(separator: ",")
         }
 
-        /// UTF-8 with a byte-order mark, CRLF rows, every field quoted, and
-        /// cells with commas, quotes, and line breaks.
         static var exportCSV: String {
             let rows = [
                 header,
@@ -108,8 +103,6 @@ final class GranolaMeetingReaderTests: XCTestCase {
         try write(Fixture.exportCSV, to: try temporaryDirectory("granola-export"), "granola-export.csv")
     }
 
-    // MARK: Historical data export
-
     func testExportRoundTripKeepsTitleStartSpeakersNotesAndActions() throws {
         let csv = try exportFile()
         let scan = try GranolaMeetingReader.read(csv)
@@ -142,8 +135,6 @@ final class GranolaMeetingReaderTests: XCTestCase {
             .init(text: "Draft the pricing FAQ"),
         ])
 
-        // How the writer stores it: "Me" is the person's microphone, "Them"
-        // nobody in particular, and the actions are already in the notes.
         let transcript = try XCTUnwrap(ExternalMeetingWriter.transcript(for: pricing))
         XCTAssertEqual(transcript.segments.map(\.speaker), ["me", "them 1", "them", "them 1"])
         XCTAssertEqual(transcript.speakerAliases, ["them 1": "Ana Petrović"])
@@ -221,8 +212,6 @@ final class GranolaMeetingReaderTests: XCTestCase {
         XCTAssertEqual(try GranolaMeetingReader.read(transcript).meetings.first?.sourceID, copyID)
     }
 
-    // MARK: Copies
-
     func testCopiedNoteAndTranscriptReadAloneAndPairUpInAFolder() throws {
         let folder = try temporaryDirectory("granola-copies")
         let notesURL = try write(Fixture.copiedNotes, to: folder, "Weekly sync notes.md")
@@ -266,8 +255,6 @@ final class GranolaMeetingReaderTests: XCTestCase {
         XCTAssertEqual(meeting.sourceID, ExternalImportText.stableID("granola-copy", "standup", "2026-11-04"))
         XCTAssertEqual(meeting.notes, "- Nothing blocking")
     }
-
-    // MARK: Recognizing and problems
 
     func testRecognizesOnlyGranolaFiles() throws {
         let folder = try temporaryDirectory("granola-recognize")

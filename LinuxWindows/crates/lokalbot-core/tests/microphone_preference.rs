@@ -1,6 +1,3 @@
-//! "My microphone is me" is one value for the process, so this test has a
-//! binary of its own: flipping it cannot race the library's other tests.
-
 use lokalbot_core::{
     AttributionMethod, AttributionSource, Segment, SpeakerAttribution, SpeakerIdentity, Transcript,
 };

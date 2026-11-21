@@ -1,10 +1,3 @@
-//! The text shown just above the focused field, such as the conversation
-//! being answered (`CotypingVisibleContext.swift`). One bounded walk over
-//! the window's accessibility tree runs in the background once per field:
-//! metadata is checked before text, rejected branches are never read, and
-//! only static labels and links in a column above the field count. Nothing
-//! is kept once focus leaves the field.
-
 use std::collections::HashSet;
 use std::hash::Hash;
 
@@ -16,22 +9,15 @@ pub const MAX_EXCERPTS: usize = 3;
 const MAX_EXCERPT: usize = 240;
 const MAX_RAW: usize = 8_000;
 const MAX_CHILDREN: usize = 80;
-/// The column above the field: this tall, and this much wider on each side.
 const CORRIDOR_HEIGHT: f32 = 600.0;
 const CORRIDOR_MARGIN: f32 = 24.0;
 
-/// What kind of node a toolkit reports, as far as the walk cares.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NodeKind {
-    /// A label or paragraph whose text may be read.
     StaticText,
     Link,
-    /// A container that clips its children to its frame (scroll areas,
-    /// web documents, windows).
     ClippingContainer,
     Container,
-    /// Never entered: toolbars, menus, trees, and any editable or secure
-    /// field (another field's draft is not context).
     Excluded,
 }
 
@@ -42,21 +28,17 @@ pub struct Node {
     pub hidden: bool,
 }
 
-/// A tree to walk, with its own time budget.
 pub trait VisibleSource {
     type Id: Clone + Eq + Hash;
 
     fn node(&mut self, id: &Self::Id) -> Option<Node>;
     fn children(&mut self, id: &Self::Id) -> Vec<Self::Id>;
-    /// The text of a [`NodeKind::StaticText`] or [`NodeKind::Link`] node.
     fn text(&mut self, id: &Self::Id) -> Option<String>;
     fn within_budget(&self) -> bool;
 }
 
-/// Where the walk starts and what it is for.
 #[derive(Clone, Debug)]
 pub struct Target<Id> {
-    /// A container with room above the field, usually the pane holding it.
     pub scope: Id,
     pub scope_frame: Rect,
     pub window_frame: Rect,
@@ -64,7 +46,6 @@ pub struct Target<Id> {
     pub field_frame: Rect,
 }
 
-/// The column above the field inside its window and scope.
 pub fn corridor(window: Rect, scope: Rect, field: Rect) -> Option<Rect> {
     if !window.contains_rect(&field) || !scope.contains_rect(&field) {
         return None;
@@ -78,8 +59,6 @@ pub fn corridor(window: Rect, scope: Rect, field: Rect) -> Option<Rect> {
     column.intersection(&window)?.intersection(&scope)
 }
 
-/// Up to three excerpts from just above the field, nearest first in
-/// selection and in reading order in the result, joined by " | ".
 pub fn capture<S: VisibleSource>(source: &mut S, target: &Target<S::Id>) -> Option<String> {
     let area = corridor(target.window_frame, target.scope_frame, target.field_frame)?;
     let start_view = target.scope_frame.intersection(&target.window_frame)?;
@@ -129,7 +108,6 @@ pub fn capture<S: VisibleSource>(source: &mut S, target: &Target<S::Id>) -> Opti
             queue.push_back((child, clipped));
         }
     }
-    // The nearest text above the field first.
     candidates.sort_by(|a, b| b.1.bottom().total_cmp(&a.1.bottom()));
     let mut excerpts: Vec<(Rect, String)> = Vec::new();
     let mut seen = HashSet::new();
@@ -169,10 +147,6 @@ pub fn capture<S: VisibleSource>(source: &mut S, target: &Target<S::Id>) -> Opti
     )
 }
 
-/// An excerpt fit for a prompt, or `None` when it carries a credential or
-/// reads like an instruction to the model (`CotypingMemoryContext.sanitized`,
-/// `PromptContextSanitizer`). Control characters become spaces, whitespace
-/// collapses, and the text is cut at a word boundary with an ellipsis.
 pub fn sanitize_excerpt(raw: &str, max_characters: usize) -> Option<String> {
     if super::policy::is_secure_field([raw]) || crate::privacy::redact(raw).1 > 0 {
         return None;
@@ -212,7 +186,6 @@ pub fn sanitize_excerpt(raw: &str, max_characters: usize) -> Option<String> {
     if cleaned.chars().count() <= max_characters {
         return Some(cleaned);
     }
-    // Leave room for the ellipsis and cut after a word.
     let mut cut: String = cleaned
         .chars()
         .take(max_characters.saturating_sub(1))
@@ -265,8 +238,6 @@ mod tests {
         }
     }
 
-    /// A chat window: two messages above the reply box, one in a toolbar,
-    /// one far to the side, and another field's draft.
     fn chat() -> (Tree, Target<u32>) {
         let window = Rect::new(0.0, 0.0, 800.0, 720.0);
         let field = Rect::new(40.0, 560.0, 720.0, 120.0);
@@ -352,7 +323,6 @@ mod tests {
             text,
             "Sarah: The migration timeline still works. | Sarah: Daniel can start on Thursday."
         );
-        // Excluded branches and fields are never read.
         let reads = tree.reads.borrow();
         assert!(!reads.contains(&8));
         assert!(!reads.contains(&5));
@@ -362,7 +332,6 @@ mod tests {
     fn hidden_and_outside_text_is_skipped() {
         let (mut tree, target) = chat();
         tree.nodes.get_mut(&2).unwrap().0.hidden = true;
-        // Far to the left of the field's column.
         tree.nodes.get_mut(&3).unwrap().0.frame = Some(Rect::new(-500.0, 500.0, 100.0, 40.0));
         assert_eq!(capture(&mut tree, &target), None);
     }

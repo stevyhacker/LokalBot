@@ -1,8 +1,3 @@
-//! LokalBot's background engine for Linux and Windows.
-//!
-//! The app sends [`Command`]s; the engine does the work on its own threads and
-//! reports back through [`EngineEvent`]s. Nothing here touches the UI.
-
 pub mod agent_notes;
 mod ask;
 mod autocomplete;
@@ -68,55 +63,36 @@ pub use resources::{GenerationMetric, LoadedModel, ResourceSampler, ResourceSnap
 pub use selection::{SelectionPhase, SelectionView};
 pub use speak::EXPORT_KEY as SPEECH_EXPORT_KEY;
 
-/// State every subsystem shares.
 pub(crate) struct Shared {
     pub library: Library,
     settings: RwLock<Settings>,
     emit: Box<dyn Fn(EngineEvent) + Send + Sync>,
-    /// True while a meeting or dictation is capturing audio; heavy work waits.
     pub capture_active: AtomicBool,
-    /// True while a meeting is being recorded.
     pub recording_active: AtomicBool,
-    /// The meeting being recorded, which screen captures are linked to.
     pub recording_meeting: Mutex<Option<uuid::Uuid>>,
-    /// An autocomplete suggestion is on screen.
     pub autocomplete_visible: AtomicBool,
-    /// Autocomplete is asking its model for a suggestion.
     pub autocomplete_generating: AtomicBool,
-    /// A dictation is being transcribed or composed.
     pub dictation_working: AtomicBool,
-    /// Where the dictation in progress is, which a recording may not start over.
     pub dictation_state: Arc<Mutex<dictation::State>>,
     pub speech: Arc<speech::SpeechCache>,
     pub generation_metrics: resources::GenerationMetrics,
     pub runtime: lokalbot_ai::runtime::RuntimeManager,
     background: Mutex<Vec<BackgroundItem>>,
     pub shutting_down: AtomicBool,
-    /// The user's calendars, cached by the calendar thread.
     pub calendar: calendar::Calendar,
-    /// The app of the call the detector is following, if any, so a recording
-    /// the user starts during it carries the calendar event too.
     pub detected_call: Mutex<Option<String>>,
-    /// That call in full: whose sound to record, and its room when known.
     pub detected_meeting: Mutex<Option<lokalbot_platform::DetectedMeeting>>,
     pub coding_agents: coding_agents::Ingestor,
-    /// The notes coding agents keep for themselves, as a search source.
     pub agent_notes: agent_notes::Ingestor,
     pub exports: exports::Exports,
     pub routines: routines::Routines,
     pub dreams: dreaming::Dreams,
-    /// Days whose evidence changed, for the digest scheduler.
     pub digest_invalidated: Mutex<std::collections::HashSet<chrono::NaiveDate>>,
-    /// The processing queue has work, so meeting notes wait for it to finish.
     pub pipeline_busy: AtomicBool,
     pub retention: Mutex<RetentionStatus>,
-    /// Paired phones and tablets, while sharing is on.
     pub companion: companion::Companion,
-    /// Files' control thread, once the dispatcher has started it.
     pub files: Mutex<Option<files::FileSearch>>,
-    /// The words at a file's matched moment, for the assistant.
     pub moments: Mutex<Option<Arc<files::moments::MomentTranscriber>>>,
-    /// Vectors of saved screens' text and pictures.
     pub screen_vectors: Mutex<Option<screen_vectors::ScreenVectors>>,
 }
 
@@ -161,7 +137,6 @@ impl Shared {
         })
     }
 
-    /// A shared state for tests, reporting events to `emit`.
     #[cfg(test)]
     pub(crate) fn for_tests(
         library: Library,
@@ -197,7 +172,6 @@ impl Shared {
         });
     }
 
-    /// Adds or replaces one row of the sidebar's "In progress" card.
     pub fn set_background(&self, item: BackgroundItem) {
         let snapshot = {
             let mut items = self.background.lock();
@@ -219,7 +193,6 @@ impl Shared {
         self.emit(EngineEvent::Background(snapshot));
     }
 
-    /// The Think client for the current settings, with the stored API key.
     pub fn think(&self, settings: &Settings) -> Result<lokalbot_ai::think::ThinkClient> {
         let client = lokalbot_ai::think::ThinkClient::new(&self.runtime, settings)?;
         Ok(match settings.summarizer_backend {
@@ -230,7 +203,6 @@ impl Shared {
         })
     }
 
-    /// A recording started or stopped: Files and picture vectors wait or go on.
     pub fn background_conditions_changed(&self) {
         if let Some(files) = self.files.lock().as_ref() {
             files.conditions_changed();
@@ -244,8 +216,6 @@ impl Shared {
         self.shutting_down.load(Ordering::Relaxed)
     }
 
-    /// One route for every source change, so exports, routines and reused digest
-    /// answers can't diverge from what changed (`primaryEvidenceDidChange`).
     fn evidence_changed(&self, dates: &[chrono::DateTime<Utc>]) {
         let mut days: Vec<chrono::NaiveDate> = dates
             .iter()
@@ -253,25 +223,20 @@ impl Shared {
             .collect();
         days.sort_unstable();
         days.dedup();
-        // Deleted or corrected evidence must not survive in reused answers.
         lokalbot_ai::digest::purge_cache(&days);
         self.digest_invalidated.lock().extend(days.iter().copied());
         self.exports.reconsider_daily(&days);
         self.exports.reconsider_notes();
         self.routines.reconsider_evidence();
         self.companion.evidence_changed(&days);
-        // Learned items go with the source they came from.
         self.library.personal().retract_if_loaded();
         self.dreams.reconsider(&days);
     }
 }
 
-/// The running engine, for searches that embed their words.
 static RUNNING: std::sync::RwLock<std::sync::Weak<Shared>> =
     std::sync::RwLock::new(std::sync::Weak::new());
 
-/// A search's words as a vector, on the small text embedder: `None` while search
-/// by meaning is off or its model isn't downloaded. Never downloads anything.
 pub fn query_vector(text: &str) -> Option<Vec<f32>> {
     let shared = RUNNING.read().ok()?.upgrade()?;
     if !shared.settings().semantic_search_enabled
@@ -288,7 +253,6 @@ pub fn query_vector(text: &str) -> Option<Vec<f32>> {
         .ok()
 }
 
-/// Handle to the running engine. Dropping it shuts the engine down.
 pub struct Engine {
     commands: Sender<Command>,
     shared: Arc<Shared>,
@@ -296,8 +260,6 @@ pub struct Engine {
 }
 
 impl Engine {
-    /// Starts every background service. `on_event` is called from engine
-    /// threads; it must be cheap (forward into a channel).
     pub fn start(
         library: Library,
         settings: Settings,
@@ -310,8 +272,6 @@ impl Engine {
         lokalbot_ai::download_source::set_source(settings.model_download_source);
         lokalbot_ai::catalog::set_custom(&settings.custom_built_in_models);
         let shared = Shared::new(library, settings, runtime, Box::new(on_event));
-        // Library writes anywhere in this process report here. The observer can
-        // outlive this engine, so it holds a weak handle.
         let observed = Arc::downgrade(&shared);
         lokalbot_core::evidence::observe(move |root, dates| {
             if let Some(shared) = observed.upgrade()
@@ -344,9 +304,6 @@ impl Engine {
         }
     }
 
-    /// Stops any recording and saves it, leaving its processing for the next
-    /// launch. Blocks until that is done, and false means something could not
-    /// be saved: stay open, as the macOS app does, so a later quit can retry.
     pub fn prepare_for_quit(&self) -> bool {
         let (reply, answer) = crossbeam_channel::bounded(1);
         if self.commands.send(Command::PrepareForQuit(reply)).is_err() {
@@ -355,8 +312,6 @@ impl Engine {
         answer.recv().unwrap_or(true)
     }
 
-    /// [`Self::prepare_for_quit`] that gives up after `wait`, when the app is
-    /// going regardless. An engine that took longer answers false.
     pub fn prepare_for_quit_within(&self, wait: std::time::Duration) -> bool {
         let (reply, answer) = crossbeam_channel::bounded(1);
         if self.commands.send(Command::PrepareForQuit(reply)).is_err() {
@@ -365,7 +320,6 @@ impl Engine {
         answer.recv_timeout(wait).unwrap_or(false)
     }
 
-    /// A clone of the command channel, for platform callbacks (tray, shortcuts).
     pub fn sender(&self) -> Sender<Command> {
         self.commands.clone()
     }
@@ -374,18 +328,14 @@ impl Engine {
         &self.shared.library
     }
 
-    /// The llama.cpp runtime the engine's model roles share. Agent Mode leases
-    /// the Think server from it so both use one process on port 17872.
     pub fn runtime(&self) -> &lokalbot_ai::runtime::RuntimeManager {
         &self.shared.runtime
     }
 
-    /// Speech models in this process, for the resource readout.
     pub fn loaded_speech_models(&self) -> Vec<(&'static str, String)> {
         self.shared.speech.loaded_models()
     }
 
-    /// The last generations, newest first.
     pub fn recent_generations(&self) -> Vec<GenerationMetric> {
         self.shared.generation_metrics.recent()
     }
@@ -400,16 +350,12 @@ impl Drop for Engine {
     }
 }
 
-/// Calendar settings that change what the calendar thread reads.
 fn calendar_settings_changed(old: &Settings, new: &Settings) -> bool {
     old.calendar_detection_enabled != new.calendar_detection_enabled
         || old.calendar_evolution_enabled != new.calendar_evolution_enabled
         || old.calendar_my_email_addresses != new.calendar_my_email_addresses
 }
 
-/// The folder of the recording a start request began, given the recording
-/// folder `before` and `after` it. A request refused because a recording was
-/// already running began nothing, so that recording keeps its live transcript.
 fn newly_recording(
     before: Option<std::path::PathBuf>,
     after: Option<std::path::PathBuf>,
@@ -464,14 +410,11 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
     companion::start(shared.clone(), models.clone(), pipeline.clone());
 
     while let Ok(command) = receiver.recv() {
-        // Autocomplete's commands carry typed text, which is never logged.
         if !matches!(command, Command::Autocomplete(_)) {
             log::debug!("engine command: {command:?}");
         }
         match command {
             Command::StartRecording { title, app_name } => {
-                // A recording the user starts during a detected call is for
-                // that call and its calendar event (`recordingContext(for:)`).
                 let app_name = app_name.or_else(|| shared.detected_call.lock().clone());
                 let calendar = app_name
                     .as_ref()
@@ -581,14 +524,10 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 let calendar_changed = calendar_settings_changed(&before, &settings);
                 let calendar_turned_on =
                     settings.calendar_detection_enabled && !before.calendar_detection_enabled;
-                // Reading starts as soon as the person allows it, and a new
-                // exclusion takes effect without waiting for the next refresh.
                 let read_sessions = !settings.enabled_coding_agents().is_empty()
                     && (before.enabled_coding_agents() != settings.enabled_coding_agents()
                         || before.coding_agent_excluded_folders
                             != settings.coding_agent_excluded_folders);
-                // Notes are read, narrowed or deleted as soon as their setting,
-                // an agent switch or an exclusion changes.
                 let read_notes = agent_notes::Configuration::new(&before)
                     != agent_notes::Configuration::new(&settings);
                 let reviews_changed = before.dreaming_enabled != settings.dreaming_enabled
@@ -623,7 +562,6 @@ fn dispatch(shared: Arc<Shared>, commands: Sender<Command>, receiver: Receiver<C
                 if reviews_changed {
                     shared.dreams.settings_changed();
                 }
-                // Off deletes every kept dictation at once; on drops expired ones.
                 if dictation_learning_changed {
                     let log = shared.library.dictation_log();
                     let cleaned = if dictation_learning {
@@ -696,8 +634,6 @@ mod tests {
 
     use super::newly_recording;
 
-    /// Record pressed during a recording is refused, and the recording that
-    /// is running must keep its live transcript.
     #[test]
     fn a_refused_start_is_not_a_new_recording() {
         let (first, second) = (PathBuf::from("meetings/a"), PathBuf::from("meetings/b"));

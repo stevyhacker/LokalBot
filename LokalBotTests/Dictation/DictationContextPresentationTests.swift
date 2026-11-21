@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The Dictation page explains what the Compose context settings contributed.
 @MainActor
 final class DictationContextPresentationTests: XCTestCase {
     func testLastResultSaysWhichContextWasUsed() {

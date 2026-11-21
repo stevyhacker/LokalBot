@@ -2,8 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// A long dictation that finished after focus moved went to the clipboard, and
-/// the next copy replaced it. Recent dictations keep it, across a restart too.
 @MainActor
 final class DictationHistoryTests: XCTestCase {
     private var root: URL!
@@ -70,7 +68,6 @@ final class DictationHistoryTests: XCTestCase {
 
         XCTAssertEqual(store().load(now: now).entries, [recent])
         DictationHistoryStore.flush()
-        // Read as of a time when the old one was still fresh: it is gone from the file.
         XCTAssertEqual(store().load(now: old.date).entries, [recent])
 
         let later = now.addingTimeInterval(DictationHistory.maximumAge)

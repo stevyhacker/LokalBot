@@ -2,19 +2,12 @@ import CoreGraphics
 import CryptoKit
 import Foundation
 
-/// Text read from the focused window's pixels for the "Use the focused window
-/// as context" grant. Accessibility exposes little of what browsers, Electron
-/// and Qt apps show; on-device text recognition sees every line. This is the
-/// pure half: which recognized lines enter the prompt, in what order, and when
-/// a newer read replaces the one in use. `CotypingWindowTextCapture` reads.
 enum CotypingWindowText {
-    /// One recognized line in AX global coordinates (origin at the top left).
     struct Line: Equatable, Sendable {
         var text: String
         var frame: CGRect
     }
 
-    /// An on-screen window as ScreenCaptureKit lists it.
     struct WindowCandidate: Equatable, Sendable {
         var processID: pid_t
         var title: String?
@@ -22,28 +15,15 @@ enum CotypingWindowText {
         var layer: Int
     }
 
-    /// About 500–700 prompt tokens: a typical chat or mail pane whole. The
-    /// model reads it once when the window changes and reuses it while typing.
     static let maximumCharacters = 2_000
     static let maximumLineCharacters = 300
-    /// Lines this close to the field are its border, label or placeholder.
     static let fieldMargin: CGFloat = 4
-    /// Message bubbles sit a little inside or outside the field's edges.
     static let columnSlack: CGFloat = 24
-    /// How long text that scrolled out of view may stay in use.
     static let maximumHeldAge: TimeInterval = 60
-    /// New text shorter than this (a timestamp, a typing indicator) does not
-    /// replace the text in use, which would make the model read it all again.
     static let minimumAddedCharacters = 12
 
-    /// Identifies what text recognition would read from a window image apart
-    /// from the field being typed in (its draft and blinking caret), whose
-    /// lines a prompt never uses. Equal fingerprints let a reread reuse the
-    /// last lines instead of recognizing the same window again (150–250 ms).
-    /// The frames are part of it because they place the lines.
     static func fingerprint(of image: CGImage, windowFrame: CGRect, fieldFrame: CGRect) -> Data? {
         guard image.width > 0, image.height > 0, windowFrame.width > 0, windowFrame.height > 0 else { return nil }
-        // Area-averaged to 512 pixels wide, a changed word still changes pixels.
         let width = 512
         let height = max(1, Int((Double(image.height) * Double(width) / Double(image.width)).rounded()))
         var pixels = [UInt8](repeating: 0, count: width * height)
@@ -56,7 +36,6 @@ enum CotypingWindowText {
             return true
         }
         guard drawn else { return nil }
-        // Rows are stored top first, like the global coordinates of both frames.
         let field = fieldFrame.insetBy(dx: -fieldMargin, dy: -fieldMargin).intersection(windowFrame)
         if !field.isNull, !field.isEmpty {
             let scaleX = Double(width) / windowFrame.width
@@ -79,12 +58,6 @@ enum CotypingWindowText {
         return Data(hasher.finalize())
     }
 
-    /// The lines a prompt gets, in reading order. The draft itself never
-    /// enters: it is already the text before the caret. Lines in the field's
-    /// column above it come first, nearest the field first, so a long
-    /// conversation keeps its newest messages; the rest of the window (titles,
-    /// sidebars, panes beside or below the field) fills what is left and is
-    /// placed before them, so the conversation ends right where the draft begins.
     static func excerpts(
         from lines: [Line], fieldFrame: CGRect, windowFrame: CGRect,
         maximumCharacters: Int = maximumCharacters
@@ -104,7 +77,6 @@ enum CotypingWindowText {
             }
         }
         var remaining = maximumCharacters
-        // Stop at the first line that does not fit, so the kept part has no holes.
         func take(_ ordered: [CotypingVisibleContext.Excerpt]) -> [CotypingVisibleContext.Excerpt] {
             var kept: [CotypingVisibleContext.Excerpt] = []
             for excerpt in ordered {
@@ -120,10 +92,6 @@ enum CotypingWindowText {
         return surroundings + conversation.sorted(by: readingOrder)
     }
 
-    /// Whether a newer read should replace the window text in use. Rereading
-    /// an unchanged window changes nothing, and lines that only scrolled out
-    /// of view stay for a while, so the model's reading of the prompt survives
-    /// typing; new text (a reply arriving) replaces it at once.
     static func shouldReplace(
         _ current: CotypingVisibleContext.Snapshot?, with new: CotypingVisibleContext.Snapshot,
         heldFor age: TimeInterval
@@ -139,8 +107,6 @@ enum CotypingWindowText {
         return added >= minimumAddedCharacters
     }
 
-    /// The window a capture reads: the focused one's process and frame, and
-    /// its title when the frame alone is ambiguous. Nil rather than a guess.
     static func windowIndex(in candidates: [WindowCandidate], processID: pid_t,
                             title: String?, frame: CGRect) -> Int? {
         let matches = candidates.indices.filter { index in
@@ -154,8 +120,6 @@ enum CotypingWindowText {
         return titled.count == 1 ? titled[0] : nil
     }
 
-    /// A Vision bounding box (normalized, origin at the bottom left) in the
-    /// AX coordinates of the window the image shows.
     static func frame(ofNormalized box: CGRect, in windowFrame: CGRect) -> CGRect {
         CGRect(x: windowFrame.minX + box.minX * windowFrame.width,
                y: windowFrame.minY + (1 - box.maxY) * windowFrame.height,
@@ -163,18 +127,12 @@ enum CotypingWindowText {
                height: box.height * windowFrame.height)
     }
 
-    /// Identifies one field's window between reads. Field height and position
-    /// are left out because a reply box grows as you type; a different title
-    /// is another document, tab or conversation, whose text is not reused.
     static func key(processID: pid_t, role: String, windowTitle: String, fieldFrame: CGRect) -> String {
         [String(processID), role, windowTitle,
          String(Int(fieldFrame.minX.rounded())), String(Int(fieldFrame.width.rounded()))]
             .joined(separator: "\u{1f}")
     }
 
-    /// Whether `key` can be for a field at this place: the same process,
-    /// role and column. The window title takes another Accessibility read,
-    /// so a match may still be another document; the next read settles that.
     static func key(_ key: String, mayBelongToProcess processID: pid_t, role: String, fieldFrame: CGRect?) -> Bool {
         let parts = key.components(separatedBy: "\u{1f}")
         guard let fieldFrame, parts.count >= 5, parts[0] == String(processID), parts[1] == role,
@@ -182,8 +140,6 @@ enum CotypingWindowText {
         return abs(x - Int(fieldFrame.minX.rounded())) <= 1 && abs(width - Int(fieldFrame.width.rounded())) <= 1
     }
 
-    /// Drops credential-bearing lines rather than teaching the model to
-    /// complete a redaction marker, and lines with no letters or digits.
     static func cleaned(_ raw: String) -> String? {
         guard !CotypingSecureFieldDetector.isSecure(
             role: nil, subrole: nil, roleDescription: nil, title: raw, descriptionLabel: nil),
@@ -192,7 +148,6 @@ enum CotypingWindowText {
         return String(text.prefix(maximumLineCharacters))
     }
 
-    /// Bottom-most first: the line just above the field is the newest message.
     private static func nearestFirst(_ left: CotypingVisibleContext.Excerpt,
                                      _ right: CotypingVisibleContext.Excerpt) -> Bool {
         left.frame.maxY == right.frame.maxY ? left.frame.minX < right.frame.minX : left.frame.maxY > right.frame.maxY

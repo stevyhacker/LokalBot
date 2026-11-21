@@ -1,7 +1,5 @@
 import Foundation
 
-/// Synthetic post-ASR replay through the same preparation/selection/engine
-/// path as Compose. No microphone, AppState, user library or live AX access.
 enum DictationContextReplay {
     struct Input: Decodable {
         var cases: [Case]
@@ -10,7 +8,6 @@ enum DictationContextReplay {
         var useVisibleContext: Bool
         var useMeetingMemory: Bool
         var useScreenMemory: Bool = false
-        /// The focused-window (OCR) option. Optional so older fixtures decode.
         var useScreenContext: Bool?
         var windowTextPolicy: DictationWindowTextPolicy?
         var routing: DictationRequestRouting?
@@ -22,7 +19,6 @@ enum DictationContextReplay {
         var speech: String
         var transcribe: Bool?
         var visible: CotypingVisibleContextReplay.Fixture?
-        /// Synthetic OCR text of the focused window.
         var screen: ScreenFixture?
     }
 
@@ -42,7 +38,6 @@ enum DictationContextReplay {
         var textReadIDs: [String]
         var modelCalls: Int
         var screenReads: Int
-        /// Whether the routing rule treated the speech as a writing request.
         var routedAsRequest: Bool?
         var latencyMs: Double
         var error: String?

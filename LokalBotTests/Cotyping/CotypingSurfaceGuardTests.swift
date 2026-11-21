@@ -2,12 +2,10 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-/// Open and save dialogs stay quiet: a file name is not prose.
 final class CotypingFileDialogDetectorTests: XCTestCase {
     func testOpenAndSavePanelsAreRecognizedByTheirWindow() {
         XCTAssertTrue(CotypingFileDialogDetector.isFileDialog(windowIdentifiers: ["save-panel"]))
         XCTAssertTrue(CotypingFileDialogDetector.isFileDialog(windowIdentifiers: ["open-panel"]))
-        // Go to Folder: a sheet whose own window has no name, on the panel.
         XCTAssertTrue(CotypingFileDialogDetector.isFileDialog(windowIdentifiers: [nil, "save-panel"]))
     }
 
@@ -19,7 +17,6 @@ final class CotypingFileDialogDetectorTests: XCTestCase {
                        "AppKit's name is lowercase; a look-alike app label is not the panel")
     }
 
-    /// AppKit's own name for the panels, read in-process with no window shown.
     @MainActor
     func testAppKitStillNamesItsPanelsThisWay() {
         XCTAssertEqual(NSSavePanel().accessibilityIdentifier(), "save-panel")
@@ -27,7 +24,6 @@ final class CotypingFileDialogDetectorTests: XCTestCase {
     }
 }
 
-/// macOS's own inline predictions compete with autocomplete at the caret.
 final class CotypingSystemInlinePredictionsTests: XCTestCase {
     private let key = CotypingSystemInlinePredictions.defaultsKey
 
@@ -44,7 +40,6 @@ final class CotypingSystemInlinePredictionsTests: XCTestCase {
     }
 }
 
-/// Keyboard hooks left behind by an app slow every keystroke on the Mac.
 final class EventTapAuditTests: XCTestCase {
     private let names: [pid_t: (String, String?)] = [
         10: ("Mouse Utility", "com.example.mouse"),

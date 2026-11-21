@@ -1,9 +1,3 @@
-//! Which models are installed, and downloading the ones a feature needs.
-//!
-//! Ids are shared with the UI: GGUF catalog ids (`qwen3.5-4b`), speech model
-//! ids (`qwen3-asr-0.6b`), `llama-runtime` for the llama.cpp binaries, and
-//! `ocrs-text` and `tesseract-languages` for screen text recognition.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -21,9 +15,7 @@ pub const RUNTIME_ID: &str = "llama-runtime";
 pub struct Models {
     shared: Arc<Shared>,
     active: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
-    /// How far each running download is, 0–1.
     progress: Arc<Mutex<HashMap<String, f32>>>,
-    /// [`Self::finish_runtime_update`] is at work, including between retries.
     runtime_updating: Arc<AtomicBool>,
 }
 
@@ -75,8 +67,6 @@ impl Models {
         }
     }
 
-    /// A transcription server has nothing to download; it needs the approval
-    /// [`Self::transcription_server_blocked`] checks.
     fn transcription_ids(settings: &lokalbot_core::Settings) -> Vec<String> {
         if lokalbot_speech::models::is_remote(&settings.transcription_model) {
             Vec::new()
@@ -85,7 +75,6 @@ impl Models {
         }
     }
 
-    /// The chosen transcription server isn't set up or may not receive audio yet.
     pub fn transcription_server_blocked(&self) -> bool {
         let settings = self.shared.settings();
         lokalbot_speech::models::is_remote(&settings.transcription_model)
@@ -93,7 +82,6 @@ impl Models {
                 .is_ready()
     }
 
-    /// Ids the current settings need for meeting processing.
     pub fn meeting_requirements(&self, summarize: bool) -> Vec<String> {
         let settings = self.shared.settings();
         let mut ids = Self::transcription_ids(&settings);
@@ -106,8 +94,6 @@ impl Models {
         ids
     }
 
-    /// Ids the Think role needs: the built-in model and runtime, or nothing
-    /// for an external server.
     pub fn think_requirements(&self) -> Vec<String> {
         let settings = self.shared.settings();
         match settings.summarizer_backend {
@@ -125,8 +111,6 @@ impl Models {
         ]
     }
 
-    /// Screen context reads text with OCR when accessibility has little. What
-    /// that takes depends on this computer: maybe nothing at all.
     pub fn screen_requirements(&self) -> Vec<String> {
         let settings = self.shared.settings();
         if settings.screen_context_capture_mode == lokalbot_core::ScreenContextMode::ActivityOnly {
@@ -146,13 +130,10 @@ impl Models {
         ids
     }
 
-    /// A download of `id` is running.
     pub fn is_downloading(&self, id: &str) -> bool {
         self.active.lock().contains_key(id)
     }
 
-    /// Counts `id` as downloading without fetching anything, so a test can
-    /// hold a caller at "waiting for the model".
     #[cfg(test)]
     pub(crate) fn pretend_downloading(&self, id: &str) {
         self.active
@@ -160,15 +141,11 @@ impl Models {
             .insert(id.to_string(), Arc::new(AtomicBool::new(false)));
     }
 
-    /// How far the first running download among `ids` is. `Some(None)` is one
-    /// that hasn't reported yet; `None` means nothing is downloading.
     pub fn download_progress(&self, ids: &[String]) -> Option<Option<f32>> {
         let id = ids.iter().find(|id| self.is_downloading(id))?;
         Some(self.progress.lock().get(id).copied())
     }
 
-    /// [`Self::ensure`] for a download the user asked for, so the llama.cpp
-    /// runtime is the one they chose. Fails with why `ids` are not installed.
     pub fn ensure_installed(&self, ids: &[String]) -> Result<()> {
         install_all(
             ids,
@@ -200,8 +177,6 @@ impl Models {
                 })
                 .map(|model| model.id.to_string()),
         );
-        // Built-in models stay ready on Vulkan or CPU while a CUDA selection
-        // waits for setup; `runtime_backend` reports the selected runtime.
         let runtime_backend = self.shared.runtime.installed_backend();
         if self.shared.runtime.usable_backend().is_some() {
             installed.push(RUNTIME_ID.to_string());
@@ -218,7 +193,6 @@ impl Models {
             transcription_ready: ready(self.dictation_requirements())
                 && !self.transcription_server_blocked(),
             think_ready: ready(self.think_requirements()),
-            // A server needs no download, only its setup finished.
             autocomplete_ready: match lokalbot_ai::autocomplete::server::route(&settings, None) {
                 lokalbot_ai::autocomplete::server::Route::OnDevice => ready(vec![
                     settings.cotyping_built_in_model_id.clone(),
@@ -238,14 +212,12 @@ impl Models {
         self.shared.emit(EngineEvent::Models(status));
     }
 
-    /// Downloads the models the current settings need, one after another.
     pub fn prepare_for_settings(&self) {
         let mut ids = self.meeting_requirements(true);
         if self.shared.settings().semantic_search_enabled {
             ids.extend(self.embedding_requirements());
         }
         ids.extend(self.screen_requirements());
-        // Think and search both need the runtime; download it once.
         let mut seen = std::collections::HashSet::new();
         ids.retain(|id| seen.insert(id.clone()));
         let missing = self.missing(&ids);
@@ -281,10 +253,6 @@ impl Models {
         });
     }
 
-    /// Ensures the given ids are installed, downloading them when allowed.
-    /// Returns `Ok(false)` when something is missing and downloads are not allowed.
-    /// A download someone else started is waited for, and `Ok(true)` means
-    /// every id is installed.
     pub fn ensure(&self, ids: &[String], allow_download: bool) -> Result<bool> {
         let missing = self.missing(ids);
         if missing.is_empty() {
@@ -293,8 +261,6 @@ impl Models {
         if !allow_download {
             return Ok(false);
         }
-        // Nobody asked to set up CUDA here, so built-in models get what they
-        // run on until they do.
         install_all(
             &missing,
             |id| self.is_downloading(id),
@@ -305,12 +271,6 @@ impl Models {
         Ok(true)
     }
 
-    /// Run at launch. An app update can move to another llama.cpp build, and
-    /// every feature counts the runtime as missing until it's there. Someone
-    /// who had set it up shouldn't have to find that out, so this fetches the
-    /// new build in the background, keeps trying when that fails, and removes
-    /// what the older versions installed once it's there. CUDA stays an
-    /// explicit download; built-in models run on Vulkan or CPU until then.
     pub fn finish_runtime_update(&self) {
         if !self.shared.runtime.has_other_builds() {
             return;
@@ -329,8 +289,6 @@ impl Models {
         }
     }
 
-    /// [`Self::finish_runtime_update`] may still bring the runtime. For work
-    /// that checks for it once per launch.
     pub fn runtime_updating(&self) -> bool {
         self.runtime_updating.load(Ordering::Acquire)
     }
@@ -366,8 +324,6 @@ impl Models {
     pub fn delete(&self, id: &str) {
         let paths = self.shared.library.paths().clone();
         let result = match Self::resolve(id) {
-            // With its digest sidecar: a sidecar left behind would vouch for
-            // whatever file is put at that path later.
             Some(ModelRef::Gguf(entry)) => {
                 lokalbot_ai::catalog::delete_model(&paths, entry).map_err(anyhow::Error::from)
             }
@@ -389,8 +345,6 @@ impl Models {
         self.download_tracked(id, true)
     }
 
-    /// With `explicit` false, the llama.cpp runtime is what built-in models
-    /// run on, never CUDA.
     fn download_tracked(&self, id: &str, explicit: bool) -> Result<()> {
         let cancel = Arc::new(AtomicBool::new(false));
         {
@@ -518,8 +472,6 @@ fn install_all(
     Ok(())
 }
 
-/// How long to wait after a failed runtime update. Offline at launch is the
-/// usual reason, and an app can stay open for days.
 fn runtime_update_delay(failures: u32) -> std::time::Duration {
     std::time::Duration::from_secs(match failures {
         0 | 1 => 60,
@@ -529,8 +481,6 @@ fn runtime_update_delay(failures: u32) -> std::time::Duration {
     })
 }
 
-/// Tries until nothing is pending. Cancelling in Settings ends it for this
-/// launch; a failure is only logged, since nobody asked for this download.
 fn retry_runtime_update(
     pending: impl Fn() -> bool,
     mut fetch: impl FnMut() -> Result<()>,
@@ -605,8 +555,6 @@ mod tests {
         assert_eq!(attempts.get(), 2, "someone set it up meanwhile, or quit");
     }
 
-    /// A library an older LokalBot used, with this build's CPU archive already
-    /// in the download folder, so these tests fetch nothing.
     #[cfg(unix)]
     fn updated_library(
         backend: &str,
@@ -680,8 +628,6 @@ mod tests {
             .collect()
     }
 
-    /// The upgrade check: without [`Models::finish_runtime_update`], think,
-    /// search and on-device autocomplete all stay unavailable after an update.
     #[test]
     #[cfg(unix)]
     fn launching_after_an_update_brings_the_runtime_back() {
@@ -718,21 +664,17 @@ mod tests {
     fn background_work_never_starts_a_cuda_download() {
         let (_dir, models, _older, _events) = updated_library("cuda", "b11669-ubuntu-x64");
 
-        // Only the CPU archive is there; a CUDA download would fail this.
         assert!(models.ensure(&ids(&[RUNTIME_ID]), true).unwrap());
 
         assert!(models.is_installed(RUNTIME_ID));
         assert_eq!(models.shared.runtime.installed_backend(), None);
     }
 
-    /// Processing a meeting while Settings was downloading the same model
-    /// went on without it, and the job failed.
     #[test]
     #[cfg(unix)]
     fn ensure_waits_for_a_download_someone_else_started() {
         let (_dir, models, _older, _events) = updated_library("auto", "b11669-ubuntu-x64");
         models.pretend_downloading(RUNTIME_ID);
-        // That download ends without installing anything.
         let other = {
             let models = models.clone();
             std::thread::spawn(move || {

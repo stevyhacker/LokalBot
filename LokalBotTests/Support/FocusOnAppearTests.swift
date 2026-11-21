@@ -3,10 +3,6 @@ import SwiftUI
 import XCTest
 @testable import LokalBot
 
-/// The Quick Recall window opens ready for typing. On hosted macOS 26 it
-/// opened with no field focused, so Return did nothing until the field was
-/// clicked. The window here is off-screen and never key, as a window is while
-/// the app is still coming forward.
 @MainActor
 final class FocusOnAppearTests: XCTestCase {
     private struct SearchWindow: View {
@@ -34,14 +30,11 @@ final class FocusOnAppearTests: XCTestCase {
         window.orderBack(nil)
         defer { window.close() }
         try await Task.sleep(for: .seconds(1))
-        // An editing text field's first responder is its field editor.
         let editor = try XCTUnwrap(window.firstResponder as? NSTextView,
                                    "first responder: \(String(describing: window.firstResponder.map { type(of: $0) }))")
         XCTAssertTrue(editor.isFieldEditor)
     }
 
-    /// Quick Recall's own field: one AppKit responder for typing and for the
-    /// keys that move through the list.
     private struct QuickRecallWindow: View {
         @ObservedObject var probe: Probe
 
@@ -97,15 +90,12 @@ final class FocusOnAppearTests: XCTestCase {
         XCTAssertEqual(field.placeholderString, "Search, ask, or run a command")
         XCTAssertEqual(field.accessibilityHelp(), "Return opens the selected result. Command-Return asks.")
 
-        // Losing the keyboard and asking for it again (the back arrow, Clear).
         XCTAssertTrue(window.makeFirstResponder(nil))
         probe.focusRequest += 1
         try await Task.sleep(for: .milliseconds(400))
         XCTAssertTrue((window.firstResponder as? NSTextView)?.isFieldEditor == true)
     }
 
-    /// The ⌘K palette's guarantee, kept for this field: a typed character
-    /// reaches the text once, and the list's keys reach the list, not the text.
     func testQuickRecallFieldTypesOnceAndSendsListKeysToTheList() async throws {
         let probe = Probe()
         let window = quickRecallWindow(probe)
@@ -124,7 +114,6 @@ final class FocusOnAppearTests: XCTestCase {
         XCTAssertEqual(probe.events, ["down", "up", "return", "escape"])
         XCTAssertEqual(probe.query, "AI tooling", "none of those keys edits the text")
 
-        // Inside an answer the list is gone, so the field keeps its arrows.
         probe.handlesArrows = false
         probe.query = "AI"
         try await Task.sleep(for: .milliseconds(200))

@@ -143,7 +143,6 @@ struct AskModelTests {
         await model.submit(session)
         let id = try #require(model.current?.turns.first?.id)
         #expect(model.turn(id)?.state == .waiting)
-        // The question waits in the queue, and a reload keeps the turn as it was.
         #expect(try await store.queuedQuestions().map(\.requestId) == [id])
         await model.load(session)
         #expect(model.turn(id)?.state == .waiting)

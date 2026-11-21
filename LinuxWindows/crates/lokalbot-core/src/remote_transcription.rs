@@ -1,22 +1,8 @@
-//! A speech-to-text server the user configures, speaking OpenAI's
-//! `/audio/transcriptions` API (`RemoteTranscriptionConfiguration`). Audio leaves
-//! this computer only for an origin approved for transcription; loopback needs
-//! no approval, and plain HTTP is accepted only on the user's own network or
-//! tailnet. The approvals are separate from Think's: approving a Think server
-//! never sends it audio.
-
 use crate::access::{is_loopback_url, is_private_network_url, origin_of};
 use crate::settings::Settings;
 
-/// `transcriptionModel` when audio goes to a server (the Mac's raw value).
 pub const MODEL_ID: &str = "remote-server";
 
-/// Models checked to return word times for `response_format=verbose_json` with
-/// `timestamp_granularities[]=word`, by origin (`wordTimingModels`). Other servers
-/// keep plain `json`: several reject those fields. On OpenRouter, 2026-10-19, these
-/// placed every speaker turn within 0.25 s of its onset in 30 s windows, whichever
-/// provider served them. whisper-large-v3 is left out: one of its providers stretched
-/// a word across the pause before the next speaker.
 const WORD_TIMING_MODELS: &[(&str, &[&str])] = &[(
     "https://openrouter.ai",
     &[
@@ -26,7 +12,6 @@ const WORD_TIMING_MODELS: &[(&str, &[&str])] = &[(
     ],
 )];
 
-/// One word on the timeline of the clip that was uploaded.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TimedWord {
     pub text: String,
@@ -34,8 +19,6 @@ pub struct TimedWord {
     pub end: f64,
 }
 
-/// One clip's reply (`WindowTranscription`). `words` are relative to the clip; empty
-/// when the server returned no usable word times.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct WindowTranscription {
     pub text: String,
@@ -62,7 +45,6 @@ pub enum RemoteTranscriptionError {
 pub struct RemoteTranscription {
     pub base_url: String,
     pub model: String,
-    /// `approvedRemoteTranscriptionOrigins`.
     pub approved_origins: Vec<String>,
 }
 
@@ -79,7 +61,6 @@ impl RemoteTranscription {
         self.model.trim()
     }
 
-    /// The server times words itself, so its windows can span speaker turns.
     pub fn requests_word_timings(&self) -> bool {
         let model = self.trimmed_model().to_lowercase();
         self.origin().is_some_and(|origin| {
@@ -89,7 +70,6 @@ impl RemoteTranscription {
         })
     }
 
-    /// Remembers a rejection of the word-timing fields per server and model.
     pub fn word_timing_key(&self) -> String {
         format!(
             "{}|{}",
@@ -102,9 +82,6 @@ impl RemoteTranscription {
         !self.base_url.trim().is_empty()
     }
 
-    /// The request URL. A base such as `https://api.openai.com/v1` gets
-    /// `/audio/transcriptions` appended; a URL that already names that
-    /// endpoint, or whisper.cpp's default `/inference`, is used as is.
     pub fn endpoint(&self) -> Option<String> {
         let raw = self.base_url.trim();
         let origin = origin_of(raw)?;
@@ -131,7 +108,6 @@ impl RemoteTranscription {
         self.endpoint().as_deref().and_then(origin_of)
     }
 
-    /// The endpoint audio may be sent to now, or why not.
     pub fn validated_endpoint(&self) -> Result<String, RemoteTranscriptionError> {
         if !self.is_configured() {
             return Err(RemoteTranscriptionError::NotConfigured);
@@ -157,18 +133,14 @@ impl RemoteTranscription {
         }
     }
 
-    /// Configured and allowed to receive audio. Readiness treats this as the
-    /// model being "on disk".
     pub fn is_ready(&self) -> bool {
         self.validated_endpoint().is_ok()
     }
 
-    /// The server stays on this computer, so no audio leaves it.
     pub fn is_on_this_computer(&self) -> bool {
         self.endpoint().as_deref().is_some_and(is_loopback_url)
     }
 
-    /// "whisper-1 · api.openai.com".
     pub fn display_name(&self) -> String {
         let host = self
             .origin()
@@ -181,7 +153,6 @@ impl RemoteTranscription {
         }
     }
 
-    /// Recorded in `transcript.json`. Never includes credentials.
     pub fn transcript_engine(&self) -> String {
         let model = if self.trimmed_model().is_empty() {
             "server default"
@@ -193,9 +164,6 @@ impl RemoteTranscription {
     }
 }
 
-/// The host audio goes to now (`transcriptionPresentation`): `None` for a model
-/// on this computer, a server on this computer or one not allowed to receive
-/// audio yet.
 pub fn audio_destination(settings: &Settings) -> Option<String> {
     if settings.transcription_model != MODEL_ID {
         return None;
@@ -208,10 +176,6 @@ pub fn audio_destination(settings: &Settings) -> Option<String> {
     origin.split_once("://").map(|(_, host)| host.to_string())
 }
 
-/// The key sent with requests: the server's own key, or, when none is saved
-/// and the server is the same origin as Think's OpenAI-compatible connection,
-/// that connection's key, so one OpenAI or OpenRouter key serves both. Never
-/// sent to another origin.
 pub fn request_key(
     transcription_base_url: &str,
     think_base_url: &str,
@@ -228,7 +192,6 @@ pub fn request_key(
     }
 }
 
-/// The transcription server and Think's server share an origin.
 pub fn uses_think_key(transcription_base_url: &str, think_base_url: &str) -> bool {
     let transcription = RemoteTranscription {
         base_url: transcription_base_url.to_string(),
@@ -257,7 +220,6 @@ mod tests {
         ] {
             assert!(server(openrouter, model).requests_word_timings(), "{model}");
         }
-        // One of its providers stretched a word across a pause.
         assert!(!server(openrouter, "openai/whisper-large-v3").requests_word_timings());
         assert!(
             !server("https://api.openai.com/v1", "openai/whisper-large-v3-turbo")
@@ -329,17 +291,14 @@ mod tests {
             server("https://x.example/v1?a", &[]).validated_endpoint(),
             Err(RemoteTranscriptionError::InvalidUrl)
         );
-        // Loopback stays on this computer and needs no approval.
         assert!(server("http://127.0.0.1:9000/v1", &[]).is_ready());
         assert!(server("http://127.0.0.1:9000/v1", &[]).is_on_this_computer());
-        // Internet servers need HTTPS, however approved.
         assert_eq!(
             server("http://x.example/v1", &["http://x.example"]).validated_endpoint(),
             Err(RemoteTranscriptionError::Insecure(
                 "http://x.example".into()
             ))
         );
-        // Each origin needs its approval; another origin's doesn't count.
         assert_eq!(
             server("https://x.example/v1", &["https://y.example"]).validated_endpoint(),
             Err(RemoteTranscriptionError::ApprovalRequired(
@@ -348,7 +307,6 @@ mod tests {
         );
         assert!(server("https://x.example/v1", &["https://x.example"]).is_ready());
         assert!(!server("https://x.example/v1", &["https://x.example"]).is_on_this_computer());
-        // Plain HTTP on the user's own network, once approved.
         assert_eq!(
             server("http://192.168.1.5:8080/inference", &[]).validated_endpoint(),
             Err(RemoteTranscriptionError::ApprovalRequired(
@@ -382,7 +340,6 @@ mod tests {
             approved_remote_transcription_origins: vec!["https://x.example".into()],
             ..Default::default()
         };
-        // Set up, but a model on this computer is what's chosen.
         assert_eq!(audio_destination(&settings), None);
         settings.transcription_model = MODEL_ID.into();
         assert_eq!(audio_destination(&settings).as_deref(), Some("x.example"));

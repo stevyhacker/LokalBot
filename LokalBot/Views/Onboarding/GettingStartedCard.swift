@@ -1,15 +1,10 @@
 import SwiftUI
 
-/// The first-day steps. On a day with nothing to show yet they are Today's
-/// content; after that they stay under the day until hidden. Hiding is
-/// remembered via `@AppStorage`.
 struct GettingStartedCard: View {
     @EnvironmentObject var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @AppStorage("lokalbotv3.gettingStartedDismissed") private var dismissed = false
 
-    // Transcription-model step: front-load the download so it doesn't
-    // ambush the user's first recap.
     @State private var modelDownloaded = false
     @State private var preparingModel = false
     @State private var modelProgress: Double?
@@ -104,8 +99,6 @@ struct GettingStartedCard: View {
         }
     }
 
-    /// Get the transcription model onto disk before the first recap needs it.
-    /// `prepare` is idempotent, so racing a first transcription is harmless.
     @ViewBuilder private var modelLabel: some View {
         if modelDownloaded {
             Text(app.settings.transcriptionModel.isRemote
@@ -153,8 +146,6 @@ struct GettingStartedCard: View {
         }
     }
 
-    /// A hollow circle until the step is done, its words, and its buttons at
-    /// the trailing edge. A narrow page puts the buttons under the words.
     private func step<Words: View, Actions: View>(
         done: Bool,
         @ViewBuilder _ words: () -> Words,

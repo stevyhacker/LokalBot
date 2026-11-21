@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// 2026-11-10: OpenRouter stopped accepting the saved key. Every dictation
-/// recorded, was refused with HTTP 401, and ended with nothing typed and a
-/// message only LokalBot's own window shows.
 @MainActor
 final class DictationTranscriptionFallbackTests: XCTestCase {
     private let rejected = RemoteTranscriptionError.rejected(status: 401, detail: "User not found.")
@@ -22,7 +19,6 @@ final class DictationTranscriptionFallbackTests: XCTestCase {
         XCTAssertEqual(transcribedWith, .qwenASR06B)
         XCTAssertEqual(spoken.transcript.segments.map(\.text), ["Ship it on Thursday"])
         XCTAssertEqual(spoken.fallback?.choice, .qwenASR06B)
-        // The HUD says what the server said, so the key gets fixed.
         let notice = DictationProblemNotice.transcribedOnThisMac(try XCTUnwrap(spoken.fallback))
         XCTAssertEqual(notice.title, "Transcribed on this Mac")
         XCTAssertEqual(
@@ -43,14 +39,12 @@ final class DictationTranscriptionFallbackTests: XCTestCase {
     }
 
     func testTheServerErrorIsReportedWhenNothingCanTakeOver() async {
-        // No model on disk.
         await assertServerError {
             try await DictationTranscriptionFallback.transcribe(
                 settings: self.settings(), localChoice: { _ in nil },
                 selected: { throw self.rejected },
                 onThisMac: { _ in self.transcript("never", engine: "") })
         }
-        // The stand-in failed too: the key is still what needs fixing.
         await assertServerError {
             try await DictationTranscriptionFallback.transcribe(
                 settings: self.settings(), localChoice: { _ in .whisperLarge },
@@ -60,7 +54,6 @@ final class DictationTranscriptionFallbackTests: XCTestCase {
     }
 
     func testOnlyAServerFailureIsReplaced() async {
-        // "No speech", a cancelled dictation and the like keep their meaning.
         do {
             _ = try await DictationTranscriptionFallback.transcribe(
                 settings: settings(), localChoice: { _ in .qwenASR06B },
@@ -86,15 +79,11 @@ final class DictationTranscriptionFallbackTests: XCTestCase {
         XCTAssertNil(choice(settings(), onDisk: []), "nothing is downloaded for a failed dictation")
         XCTAssertNil(choice(settings(.qwenASR17B), onDisk: onDisk), "only the server is replaced")
 
-        // English-only models stand in for English alone, and narrow ones never.
         XCTAssertNil(choice(settings(), onDisk: [.parakeetV2, .gigaamRussian, .senseVoice]))
         XCTAssertEqual(choice(settings(language: .en), onDisk: [.parakeetV2, .gigaamRussian]), .parakeetV2)
-        // Qwen cannot be told to write Ukrainian; Whisper can.
         XCTAssertEqual(choice(settings(language: .uk), onDisk: [.qwenASR17B, .whisperLarge]), .whisperLarge)
         XCTAssertNil(choice(settings(language: .uk), onDisk: [.qwenASR17B]))
     }
-
-    // MARK: - Helpers
 
     private func settings(
         _ model: TranscriptionModelChoice = .remoteServer, language: TranscriptionLanguage = .auto

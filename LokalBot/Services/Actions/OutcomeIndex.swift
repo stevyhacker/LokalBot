@@ -6,17 +6,12 @@ extension MeetingOutcomeProjection {
     }
 }
 
-/// Read model shared by Today, Timeline, Meetings, Ask, and Agent. Every
-/// mutation is persisted atomically in the relevant meeting folder before the
-/// published projection is replaced.
 @MainActor
 final class OutcomeIndex: ObservableObject {
     private var loadGeneration = 0
     private var projectionRevisions: [UUID: Int] = [:]
     @Published private(set) var projections: [Meeting.ID: MeetingOutcomeProjection] = [:]
     @Published private(set) var userActionThreads: [ActionThread] = []
-    /// Every current thread, including other people's, so People and
-    /// Projects can change status through the same stale-snapshot check.
     private(set) var allActionThreads: [ActionThread] = []
 
     private let storage: StorageManager
@@ -80,7 +75,6 @@ final class OutcomeIndex: ObservableObject {
         }.value
         guard !Task.isCancelled, generation == loadGeneration else { return }
         var next = Dictionary(uniqueKeysWithValues: loaded.map { ($0.id, $0) })
-        // Preserve edits/refreshes made while file validation was running.
         for id in Set(projectionRevisions.keys).union(revisions.keys)
             where projectionRevisions[id] != revisions[id] {
             next[id] = projections[id]
@@ -247,10 +241,6 @@ final class OutcomeIndex: ObservableObject {
         actionState.updatedAt = Date().outcomePersistedTimestamp
         projection.state.actions[actionID] = actionState
         do {
-            // The host holds its evidence-revocation lock through these writes.
-            // A failed preflight cannot change either the source correction or
-            // its derived narrative, and another process cannot regenerate
-            // memory between revocation and the durable source mutation.
             try mutateEvidence([projection.meeting]) {
                 let folder = projection.meeting.folderURL(in: storage)
                 try MeetingOutcomeStore.writeState(projection.state, to: folder)
@@ -260,17 +250,12 @@ final class OutcomeIndex: ObservableObject {
                 let dueChanged = previous.dueOverride != actionState.dueOverride
                     || previous.dueWasCleared != actionState.dueWasCleared
                 guard !projection.isArchived, ownerOrTextChanged || dueChanged else { return }
-                // The summary keeps its narrative and shows the corrected action
-                // list. An older free-text summary can name the old owner in its
-                // prose, so an owner or text correction still asks for a refresh.
                 let kept = try MeetingSummaryOutcomeSynchronizer.applyActionCorrections(
                     in: folder, outcomes: projection.correctedOutcomes)
                 if !kept, ownerOrTextChanged {
                     try MeetingAttributionArtifacts.invalidate(in: folder, preservingOutcomes: true)
                 }
             }
-            // Archived extraction stays out of Today, Ask, and action threads.
-            // Review can still persist corrections for the explicit refresh.
             if current != nil { projections[meetingID] = projection }
             projectionRevisions[meetingID, default: 0] &+= 1
             if rebuildThreads && !projection.isArchived { rebuildActionThreads() }
@@ -298,8 +283,6 @@ final class OutcomeIndex: ObservableObject {
         if !changed.isEmpty { onEvidenceChanged(changed) }
     }
 
-    /// Action lists come from the user's own meetings: the sample meeting's
-    /// made-up actions stay on its own page.
     private func rebuildActionThreads() {
         allActionThreads = ActionThreadClusterer.cluster(
             all.filter(\.meeting.isOwnWork).flatMap(\.actionReferences))

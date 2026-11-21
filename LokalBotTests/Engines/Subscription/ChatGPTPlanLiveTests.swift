@@ -1,16 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Sends Agent Mode's requests to the ChatGPT plan route with the sign-in
-/// this Mac's LokalBot already holds: first the bodies pi-ai 1.3.0's
-/// Responses client builds for a tool turn and its follow-up (instructions
-/// as a developer message, top-level function tools, encrypted reasoning
-/// replayed with the call and its output), then a real pi turn through
-/// `ChatGPTPlanRelay`. Runs only when
-/// `LOKALBOT_CHATGPT_PLAN_LIVE=1` (pass `TEST_RUNNER_LOKALBOT_CHATGPT_PLAN_LIVE=1`
-/// through xcodebuild). A test build's first Keychain read asks for approval;
-/// a refreshed token is saved back, so the app stays signed in.
-/// `LOKALBOT_CHATGPT_PLAN_MODEL` overrides the first listed model.
 final class ChatGPTPlanLiveTests: XCTestCase {
     private struct Reply {
         var status = 0
@@ -131,8 +121,6 @@ final class ChatGPTPlanLiveTests: XCTestCase {
             with: Data((call["arguments"] as? String ?? "").utf8)) as? [String: Any]
         XCTAssertEqual(arguments?["box"] as? Int, 7)
 
-        // Replay as pi does: reasoning items as returned, the call without
-        // its status, then the tool's output.
         for item in first.items {
             switch item["type"] as? String {
             case "reasoning":
@@ -151,12 +139,6 @@ final class ChatGPTPlanLiveTests: XCTestCase {
         XCTAssertTrue(second.text.localizedCaseInsensitiveContains("heliotrope"), second.text)
     }
 
-    /// Agent Mode's whole path: the installed pi runtime with this build's
-    /// extension speaks the Responses API to the relay, which forwards to the
-    /// plan. pi reads a file in its working folder (no approval needed) and
-    /// answers from it, so the turn needs a tool call, its result, and pi's
-    /// replay of the encrypted reasoning. `LOKALBOT_AGENT_RUNTIME_ROOT`
-    /// overrides the installed runtime.
     func testPiRunsAToolTurnOnThePlanThroughTheRelay() async throws {
         let model = try await liveModel()
         let runtime = URL(fileURLWithPath: ProcessInfo.processInfo.environment["LOKALBOT_AGENT_RUNTIME_ROOT"]
@@ -214,7 +196,6 @@ final class ChatGPTPlanLiveTests: XCTestCase {
                     if !text.isEmpty { reply = text }
                     if stopReason == "error" { failure = errorMessage ?? "error" }
                 case .extensionUIRequest(let request):
-                    // Nothing in this turn needs approval.
                     try await rpc.sendResponse(.uiConfirmResponse(requestID: request.id, confirmed: false))
                 case .extensionError(let message):
                     failure = message

@@ -9,7 +9,6 @@ struct ModelPickerSheet: View {
     @Environment(\.dismiss) private var dismiss
     let role: ModelPickerRole
     let openConnections: () -> Void
-    /// Previews and screenshots pass a signed-in sample account.
     let chatGPTAccount: ChatGPTPlanAccount
 
     @State private var selectedID: String
@@ -20,7 +19,6 @@ struct ModelPickerSheet: View {
     @State private var claudePlanModel: String
     @State private var antigravityPlanModel: String
     @State private var geminiPlanModel: String
-    /// Plan approvals apply with Use model, so Cancel changes nothing.
     @State private var chatGPTConsent: Bool
     @State private var claudeConsent: Bool
     @State private var antigravityConsent: Bool
@@ -34,15 +32,10 @@ struct ModelPickerSheet: View {
     @State private var granite: GraniteSpeechModelConfiguration
     @State private var remoteTranscriptionURL: String
     @State private var remoteTranscriptionModel: String
-    /// Typed key, saved to Keychain with Use model. Empty keeps the saved one.
     @State private var remoteTranscriptionKey = ""
     @State private var remoteTranscriptionKeySaved: Bool
-    /// Audio approval for the draft server's origin; applied with Use model,
-    /// so Cancel changes nothing.
     @State private var remoteTranscriptionConsent: Bool
-    /// The local model to return to from the transcription server pane.
     @State private var lastLocalTranscriptionID: String
-    /// Where autocomplete runs and its server setup; applied with Use model.
     @State private var cotypingDraft: CotypingServerDraft
     @State private var query = ""
     @State private var installedOnly = false
@@ -110,7 +103,6 @@ struct ModelPickerSheet: View {
             && funASRNanoDirectory.isEmpty && !app.settings.funASRNanoModelDirectory.isEmpty
     }
 
-    /// The server being set up, with its approval as the toggle stands.
     private var remoteTranscriptionDraft: RemoteTranscriptionConfiguration {
         var draft = RemoteTranscriptionConfiguration(
             baseURL: remoteTranscriptionURL.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -125,8 +117,6 @@ struct ModelPickerSheet: View {
 
     private var editsRemoteTranscription: Bool { role == .transcription && transcription == .remoteServer }
 
-    /// A new key or approval is worth applying even when the server and model
-    /// themselves are unchanged.
     private var changesRemoteTranscriptionAccess: Bool {
         editsRemoteTranscription
             && (!remoteTranscriptionKey.isEmpty
@@ -165,8 +155,6 @@ struct ModelPickerSheet: View {
 
     private var editsAutocompleteServer: Bool { role == .autocomplete && cotypingDraft.backend != .onDevice }
 
-    /// A new key or approval is worth applying even when the server and model
-    /// themselves are unchanged.
     private var changesAutocompleteAccess: Bool {
         editsAutocompleteServer
             && ((cotypingDraft.backend == .server && !cotypingDraft.apiKey.isEmpty)
@@ -236,7 +224,6 @@ struct ModelPickerSheet: View {
             switch plan {
             case .chatGPT:
                 return chatGPTReady && !chatGPTPlanModel.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            // An empty model uses the CLI's own default.
             case .claude: return claudeReady
             case .antigravity: return antigravityReady
             case .gemini: return geminiReady
@@ -295,8 +282,6 @@ struct ModelPickerSheet: View {
                 ModelSheetHeading(title: "\(role.title) model", subtitle: role.detail)
             }
             if role == .assistant {
-                // Where Think runs, then that choice's own setup: one place
-                // to choose and configure, with no nested or segmented picks.
                 HStack(alignment: .top, spacing: 0) {
                     providerList.frame(width: 272)
                     Divider()
@@ -462,7 +447,6 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// What Think is for, in the picker's heading.
     private var thinkSubtitle: String {
         let language = app.settings.appLanguage
         let job = language.localized("Think writes summaries and answers in Ask and Agent.")
@@ -470,7 +454,6 @@ struct ModelPickerSheet: View {
         return job + " " + language.localized("Dictation’s Compose uses it too.")
     }
 
-    /// A model's size on disk and, for Think, the memory it needs to run.
     private func catalogDetail(_ entry: ModelCatalog.Entry) -> String {
         let size = ModelSettingsPresentation.sizeLabel(entry)
         guard role == .assistant, let memory = ModelSettingsPresentation.memoryNeed(entry) else {
@@ -496,7 +479,6 @@ struct ModelPickerSheet: View {
     }
 
     private var transcriptionChoices: [TranscriptionModelChoice] {
-        // The transcription server has its own pane, beside the list.
         TranscriptionModelChoice.allCases.filter { choice in
             guard !choice.isRemote else { return false }
             let downloaded = TranscriptionModelStore.isDownloaded(choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory)
@@ -537,7 +519,6 @@ struct ModelPickerSheet: View {
                     Label(advisory, systemImage: "memorychip").font(.scaled(.callout)).foregroundStyle(.orange)
                 }
                 if let blocker = selectedBlocker {
-                    // Autocomplete's picker has no Browse button; say where it is.
                     Label(role == .autocomplete
                           ? blocker + " Browse Hugging Face is under Advanced in the Think model picker."
                           : blocker,
@@ -618,8 +599,6 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// The transcription server's own pane: the fields get the room the
-    /// local model list would take, with one short hint each.
     private var remoteTranscriptionSetup: some View {
         let draft = remoteTranscriptionDraft
         return VStack(alignment: .leading, spacing: 20) {
@@ -677,14 +656,11 @@ struct ModelPickerSheet: View {
         }
         .padding(.top, 16)
         .onChange(of: draft.origin) {
-            // An approval belongs to one origin. Show the saved choice for a
-            // newly entered server rather than carrying the toggle over.
             remoteTranscriptionConsent = remoteTranscriptionDraft.origin
                 .map { app.settings.approvedRemoteTranscriptionOrigins.contains($0) } ?? false
         }
     }
 
-    /// No key of its own yet, and the same origin as Think's server.
     private var usesThinkKey: Bool {
         guard !remoteTranscriptionKeySaved, remoteTranscriptionKey.isEmpty,
               let origin = remoteTranscriptionDraft.origin else { return false }
@@ -728,8 +704,6 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// Saves the typed key and the audio approval for the chosen server. The
-    /// approval list is replaced as a whole so unchecking revokes the origin.
     private func applyRemoteTranscriptionAccess() {
         guard editsRemoteTranscription else { return }
         let changedAccess = changesRemoteTranscriptionAccess
@@ -740,8 +714,6 @@ struct ModelPickerSheet: View {
         if changedAccess { app.modelChecks.invalidate([.transcribe]) }
     }
 
-    /// Only the list entry goes: the role assignments and downloaded file
-    /// checks in `customModelRemoval` keep this from orphaning anything.
     private func removeCustomModel(_ entry: ModelCatalog.Entry) {
         app.settings.customBuiltInModels.removeAll { $0.id == entry.id }
         selectedID = Self.assignedID(for: role, in: app.settings)
@@ -774,8 +746,6 @@ struct ModelPickerSheet: View {
         .font(.scaled(.callout)).foregroundStyle(.secondary).padding(.top, 8)
     }
 
-    /// Where Think runs. Each choice is one backend; its setup appears beside
-    /// the list.
     private enum ThinkProvider: String, CaseIterable, Identifiable {
         case onDevice, appleIntelligence, chatGPTPlan, claudePlan, antigravityPlan, geminiPlan, ollama, server
 
@@ -820,7 +790,6 @@ struct ModelPickerSheet: View {
             }
         }
 
-        /// One plain line about the choice.
         var detail: String {
             switch self {
             case .onDevice: "Downloads once, then runs here."
@@ -845,15 +814,11 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// A server at this Mac's own address keeps what Think reads here, so
-    /// it is listed with the models on this Mac.
     private func staysOnThisMac(_ provider: ThinkProvider) -> Bool {
         switch provider {
         case .onDevice, .appleIntelligence: return true
         case .chatGPTPlan, .claudePlan, .antigravityPlan, .geminiPlan: return false
         case .ollama, .server:
-            // "Another service" is one only once it is the one in use: its
-            // address starts out as a placeholder on this Mac.
             if provider == .server, app.settings.summarizerBackend != .openAICompatible { return false }
             let address = provider == .ollama ? app.settings.ollamaBaseURL : app.settings.openAIBaseURL
             return URL(string: address.trimmingCharacters(in: .whitespacesAndNewlines))
@@ -861,8 +826,6 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// Two groups: what stays on this Mac, and what sends Think's reading
-    /// to a service.
     private var providerGroups: [(title: String, icon: String, providers: [ThinkProvider])] {
         [("On this Mac · private, works offline", "laptopcomputer", ThinkProvider.allCases.filter(staysOnThisMac)),
          ("Online · what Think reads is sent to the service", "globe",
@@ -900,8 +863,6 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// Where Transcribe runs: a model on this Mac, or a server whose setup
-    /// replaces the model list.
     private var transcriptionLocationList: some View {
         VStack(alignment: .leading, spacing: 2) {
             locationRow("On this Mac", icon: "desktopcomputer",
@@ -924,8 +885,6 @@ struct ModelPickerSheet: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// Where autocomplete runs: a model on this Mac, or a server whose setup
-    /// replaces the model list.
     private var autocompleteLocationList: some View {
         VStack(alignment: .leading, spacing: 2) {
             ForEach(CotypingBackend.allCases) { location in
@@ -941,8 +900,6 @@ struct ModelPickerSheet: View {
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    /// Plain rows with an explicit highlight: the selection reads the same in
-    /// a sheet whether or not its window is key.
     private func locationRow(_ title: LocalizedStringKey, detail: String? = nil, icon: String, selected: Bool,
                              inUse: Bool, identifier: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
@@ -1007,7 +964,6 @@ struct ModelPickerSheet: View {
         }
     }
 
-    /// The selected plan is approved in the sheet but not yet in settings.
     private var approvesSelectedPlan: Bool {
         guard role == .assistant, let plan = SubscriptionPlan(backend: backend) else { return false }
         return consent(for: plan).wrappedValue && !plan.isApproved(in: app.settings)

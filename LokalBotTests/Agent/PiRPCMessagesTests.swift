@@ -3,8 +3,6 @@ import XCTest
 
 final class PiRPCMessagesTests: XCTestCase {
 
-    // MARK: - Command encoding
-
     func testPromptEncodesSingleLine() throws {
         let line = PiCommand.prompt(id: "req-1", message: "Hello\nworld", streamingBehavior: nil).jsonLine
         XCTAssertFalse(line.contains("\n"), "must be one JSONL record")
@@ -49,8 +47,6 @@ final class PiRPCMessagesTests: XCTestCase {
         }
     }
 
-    // MARK: - Event decoding
-
     func testDecodesResponse() {
         let event = PiEvent.decode(line: #"{"id": "req-1", "type": "response", "command": "prompt", "success": true}"#)
         XCTAssertEqual(event, .response(PiResponse(
@@ -90,7 +86,6 @@ final class PiRPCMessagesTests: XCTestCase {
         XCTAssertEqual(end, .toolExecutionEnd(callID: "call_abc123", output: "total 48", isError: false))
     }
 
-    /// Displayed tool args keep paths readable: "/Users/…", not "\/Users\/…".
     func testToolArgsDoNotEscapeSlashes() {
         let start = PiEvent.decode(line: #"{"type":"tool_execution_start","toolCallId":"call_1","toolName":"read","args":{"path":"/Users/me/notes.md"}}"#)
         XCTAssertEqual(start, .toolExecutionStart(callID: "call_1", name: "read",

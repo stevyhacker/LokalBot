@@ -1,8 +1,3 @@
-//! Coding-agent evidence (`CodingAgentSession.swift`): Claude Code and Codex
-//! work saved as bursts in `coding_agent_bursts`, with sorted-key JSON payloads
-//! whose dates are Swift-reference seconds. The transcript readers live in
-//! `lokalbot-engine`; this is the data every other feature reads.
-
 pub mod attribution;
 pub mod text;
 
@@ -19,17 +14,13 @@ use crate::library::Library;
 use crate::time::{swift_date, to_epoch};
 use crate::timeline::table_exists;
 
-/// Matches the digest's segment split: later events start a new burst.
 pub const INACTIVITY_GAP_SECONDS: f64 = 10.0 * 60.0;
-/// Longer gaps between events count as waiting, not active work.
 pub const ACTIVE_GAP_CAP_SECONDS: f64 = 5.0 * 60.0;
 pub const STORED_PROMPTS: usize = 6;
 pub const STORED_FILES: usize = 16;
-/// The title of a session with neither a title nor a request.
 pub const UNTITLED: &str = "Untitled session";
 pub const UNKNOWN_PROJECT: &str = "Unknown project";
 
-/// `CodingAgentKind`, by its stored raw value.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub enum CodingAgentKind {
     #[serde(rename = "claude-code")]
@@ -69,9 +60,6 @@ impl CodingAgentKind {
     }
 }
 
-/// An outcome parsed from a command the agent ran. These are recorded actions,
-/// unlike the agent's own report, which is only a claim. Encoded as Swift
-/// encodes enums with associated values: `{"commit":{"message":"…"}}`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CodingAgentAction {
@@ -81,7 +69,6 @@ pub enum CodingAgentAction {
     OpenedPullRequest {
         title: String,
     },
-    /// `number` is absent when the command merged the current branch's PR.
     MergedPullRequest {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         number: Option<i64>,
@@ -107,7 +94,6 @@ impl CodingAgentAction {
     }
 }
 
-/// A GitHub-style pull request a session linked.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct PullRequestReference {
     pub owner: String,
@@ -129,7 +115,6 @@ impl PullRequestReference {
     }
 }
 
-/// `owner/repo#N` for a GitHub pull request URL (`DayDigestEvidence.pullRequestLabel`).
 pub fn pull_request_label(url: &str) -> Option<String> {
     let parts: Vec<&str> = url.split('/').filter(|p| !p.is_empty()).collect();
     if parts.len() < 6 || parts[parts.len() - 2] != "pull" {
@@ -143,9 +128,6 @@ pub fn pull_request_label(url: &str) -> Option<String> {
     ))
 }
 
-/// A contiguous run of agent work inside one session. The fields are in
-/// sorted-key order, so the payload reads as the Mac's `.sortedKeys` encoder
-/// writes it. Absent optionals are left out, as Swift leaves them out.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CodingAgentBurst {
@@ -182,7 +164,6 @@ pub struct CodingAgentBurst {
     pub tool_call_count: usize,
 }
 
-/// `String(Double)`, as the Mac's evidence signatures format numbers.
 fn number(value: f64) -> String {
     format!("{value:?}")
 }
@@ -192,7 +173,6 @@ fn time(at: DateTime<Utc>) -> String {
 }
 
 impl CodingAgentBurst {
-    /// Stable within a day: bursts are keyed by session and first event.
     pub fn id(&self) -> String {
         format!(
             "{}:{}:{}",
@@ -202,20 +182,14 @@ impl CodingAgentBurst {
         )
     }
 
-    /// `agent:session`, for grouping a session's bursts.
     pub fn session_key(&self) -> String {
         format!("{}:{}", self.agent.raw_value(), self.session_id)
     }
 
-    /// A burst idle for the full inactivity gap can never grow again. Only
-    /// settled bursts become evidence, so a saved digest's inputs cannot
-    /// change underneath it.
     pub fn is_settled(&self, now: DateTime<Utc>) -> bool {
         (now - self.end).num_milliseconds() as f64 / 1000.0 >= INACTIVITY_GAP_SECONDS
     }
 
-    /// Every request came from a schedule, not from the person at the time.
-    /// Such runs often report on earlier days.
     pub fn is_scheduled_run(&self) -> bool {
         !self.prompts.is_empty()
             && self
@@ -224,17 +198,10 @@ impl CodingAgentBurst {
                 .all(|p| p.starts_with("Scheduled automation:") || p.starts_with("Scheduled task:"))
     }
 
-    /// Committed, opened or merged a pull request, released, pushed, ran
-    /// tests, or linked a pull request.
     pub fn recorded_outcome(&self) -> bool {
         !self.actions.is_empty() || !self.pull_requests.is_empty()
     }
 
-    /// The same requests, reply, actions, pull requests and tool calls in the
-    /// same session. A settled burst's work never changes, but how it is
-    /// presented can: a session is renamed, and bursts saved by earlier readers
-    /// carry the session's folder and branch, file names relative to another
-    /// folder, and edges moved by activity on the other side of midnight.
     pub fn has_same_work(&self, other: &Self) -> bool {
         self.agent == other.agent
             && self.session_id == other.session_id
@@ -246,9 +213,6 @@ impl CodingAgentBurst {
             && self.tool_call_count == other.tool_call_count
     }
 
-    /// Equal in every stored field. Times and durations are compared to within
-    /// a millisecond: a scan's times come from the transcript, a stored burst's
-    /// from Swift-reference seconds, and the two differ by rounding only.
     pub fn is_same_as_stored(&self, other: &Self) -> bool {
         let close = |a: DateTime<Utc>, b: DateTime<Utc>| {
             (a - b)
@@ -266,8 +230,6 @@ impl CodingAgentBurst {
             && self.changed_file_count == other.changed_file_count
     }
 
-    /// Every field the digest can read, in a fixed order, for evidence
-    /// signatures that change exactly when the burst's content does.
     pub fn signature_fields(&self) -> Vec<String> {
         vec![
             self.id(),
@@ -294,8 +256,6 @@ impl CodingAgentBurst {
         ]
     }
 
-    /// Model-facing evidence in the same shape as the digest's other work
-    /// sources: substantive content first, trace metadata last and labeled.
     pub fn evidence_text(&self, max_prompts: usize) -> String {
         let short_session: String = self.session_id.chars().take(8).collect();
         let mut lines = vec![
@@ -305,8 +265,6 @@ impl CodingAgentBurst {
             ),
             format!("Agent: {}", self.agent.display_name()),
         ];
-        // A request or placeholder title names no work; the requests below
-        // already say what was asked.
         if self.title_names_work() {
             lines.push(format!("Session: {}", self.title));
         }
@@ -388,9 +346,6 @@ impl CodingAgentBurst {
         lines.join("\n")
     }
 
-    /// The title came from the transcript and names the work. A session the
-    /// transcript leaves untitled is labeled with its first request or a
-    /// placeholder, which name a conversation instead.
     pub fn title_names_work(&self) -> bool {
         if self.title == UNTITLED {
             return false;
@@ -403,11 +358,6 @@ impl CodingAgentBurst {
         !text::reads_as_request(&self.title)
     }
 
-    /// A short work title for a task list: the session's own title when it
-    /// names the work, otherwise the deliverable its recorded actions name (an
-    /// opened pull request, then a commit), then its request when that is a
-    /// short instruction. "can you add a demo to the PR?" and "Untitled
-    /// session" never become a task.
     pub fn work_title(&self) -> String {
         if self.title_names_work() {
             return self.title.clone();
@@ -457,10 +407,6 @@ impl CodingAgentBurst {
         format!("{} session", self.agent.display_name())
     }
 
-    /// The repository the work belongs to. A session started in a folder that
-    /// names no project, such as a scratch folder or the folder holding every
-    /// checkout, takes it from its pull requests, as does a sibling checkout
-    /// such as `LokalBot-port`. `None` when nothing names one.
     pub fn work_project(&self) -> Option<String> {
         let mut repositories: Vec<String> = Vec::new();
         for pull_request in self.pull_request_references() {
@@ -500,22 +446,17 @@ impl CodingAgentBurst {
     }
 }
 
-/// The title of a session its transcript leaves untitled: its first request.
 pub fn request_title(prompt: &str) -> String {
     crate::text::sanitize(prompt, Some(80))
 }
 
 static WORK_SUBJECT_TYPE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^[a-z]+(\([^)]*\))?!?:\s+").expect("valid regex"));
-/// Scaffolding that names a step rather than the work: temporary and
-/// work-in-progress commits, fixups, merges and reverts.
 static PROVISIONAL_COMMIT: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"(?i)^\s*((temporary|temp|tmp|wip|merge|revert)\b|(fixup|squash|amend)!)")
         .expect("valid regex")
 });
 
-/// A commit or pull request title as a work title, without a
-/// conventional-commit type such as `feat(onchain):`.
 fn work_subject(message: &str) -> Option<String> {
     let trimmed = message.trim();
     let mut subject = WORK_SUBJECT_TYPE.replace(trimmed, "").into_owned();
@@ -527,8 +468,6 @@ fn work_subject(message: &str) -> Option<String> {
     Some(first.to_uppercase().chain(chars).collect())
 }
 
-/// One session's bursts as a single view, for a summary that should see the
-/// session once rather than once per burst.
 pub fn merging(bursts: &[CodingAgentBurst]) -> Option<CodingAgentBurst> {
     let mut ordered: Vec<&CodingAgentBurst> = bursts.iter().collect();
     ordered.sort_by_key(|b| b.start);
@@ -574,7 +513,6 @@ pub fn merging(bursts: &[CodingAgentBurst]) -> Option<CodingAgentBurst> {
     Some(merged)
 }
 
-/// Bursts of one session, in order, one group per session.
 pub fn sessions(bursts: &[CodingAgentBurst]) -> Vec<Vec<CodingAgentBurst>> {
     let mut order: Vec<String> = Vec::new();
     let mut groups: HashMap<String, Vec<CodingAgentBurst>> = HashMap::new();
@@ -605,8 +543,6 @@ fn path_components(path: &str) -> Vec<&str> {
     components
 }
 
-/// The repository name, not the checkout folder: agent worktrees live under
-/// `<repo>/.claude/worktrees/<name>` or `~/.t3/worktrees/<repo>/<name>`.
 pub fn project_name(working_directory: Option<&str>) -> String {
     let Some(directory) = working_directory.filter(|d| !d.is_empty()) else {
         return UNKNOWN_PROJECT.into();
@@ -653,9 +589,6 @@ const CHECKOUT_FOLDERS: &[&str] = &[
 static SCRATCH_FOLDER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"^scratch(-[0-9a-f-]+)?$").expect("valid regex"));
 
-/// A folder that holds work without naming it: no folder at all, a Claude
-/// scratch folder such as `scratch-2026-10-19-6f7eb7`, or a folder that holds
-/// checkouts, such as `~/Documents/GitHub` or the home folder.
 pub fn names_no_project(name: &str) -> bool {
     let lowered = name.to_lowercase();
     let user = std::env::var("USER")
@@ -668,15 +601,11 @@ pub fn names_no_project(name: &str) -> bool {
         || SCRATCH_FOLDER.is_match(&lowered)
 }
 
-/// A stored payload; one that doesn't decode reads as nothing.
 fn decode(payload: &str) -> Option<CodingAgentBurst> {
     serde_json::from_str(payload).ok()
 }
 
 impl Library {
-    /// Settled bursts that began in `[start, end)`, oldest first. A burst never
-    /// crosses midnight, so its start names its day. An undecodable payload
-    /// is skipped, as the Mac skips it.
     pub fn coding_agent_bursts(
         &self,
         start: DateTime<Utc>,
@@ -707,8 +636,6 @@ impl Library {
         self.coding_agent_bursts(start, end)
     }
 
-    /// Inserts or replaces bursts by id. Callers compute what changed; this
-    /// only writes, so a failure never looks like an empty source.
     pub fn upsert_coding_agent_bursts(&self, bursts: &[CodingAgentBurst]) -> Result<()> {
         if bursts.is_empty() {
             return Ok(());
@@ -753,7 +680,6 @@ impl Library {
         })
     }
 
-    /// Start times of every stored burst, for the days a full clear withdraws.
     pub fn coding_agent_burst_starts(&self) -> Result<HashMap<String, DateTime<Utc>>> {
         self.with_db(|db| {
             if !table_exists(db, "coding_agent_bursts")? {
@@ -770,9 +696,6 @@ impl Library {
         })
     }
 
-    /// Deletes every saved burst, withdrawing the generated journals that used
-    /// them (`AppState.deleteCodingAgentEvidence`). The agents' own transcripts
-    /// are never touched. The caller stops reading first.
     pub fn delete_coding_agent_evidence(&self) -> Result<usize> {
         let starts = self.coding_agent_burst_starts()?;
         if starts.is_empty() {

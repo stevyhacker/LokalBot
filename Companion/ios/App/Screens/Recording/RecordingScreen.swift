@@ -2,9 +2,6 @@ import LokalBotCompanionKit
 import SwiftUI
 import UIKit
 
-/// Recording a meeting: the time, a level that shows the microphone is
-/// hearing, a name, and Stop. It stays up until the recording ends, and carries
-/// on with the screen locked.
 struct RecordingScreen: View {
     @Environment(RecordingModel.self) private var recording
     @Environment(CompanionSession.self) private var session
@@ -29,7 +26,6 @@ struct RecordingScreen: View {
             }
         }
         .interactiveDismissDisabled(recording.isActive)
-        // Asked here rather than at a pause, when nobody is looking.
         .task { await QueuedAnswerNotification.requestPermission() }
     }
 
@@ -131,7 +127,6 @@ struct RecordingScreen: View {
     }
 }
 
-/// The microphone's level as a row of bars, quiet at the edges.
 private struct LevelMeter: View {
     let level: Float
     private let bars = 24
@@ -154,8 +149,6 @@ private struct LevelMeter: View {
     }
 }
 
-/// Starts a recording, or returns to the one that's running. Only with a
-/// paired computer, because that is the only place it can go.
 struct RecordToolbarItem: ToolbarContent {
     @Environment(CompanionSession.self) private var session
     @Environment(RecordingModel.self) private var recording
@@ -175,8 +168,6 @@ struct RecordToolbarItem: ToolbarContent {
     }
 }
 
-/// After the Mac removed this device: recordings it hadn't received yet, which
-/// exist nowhere else. Pairing again sends them.
 struct HeldRecordingsNotice: View {
     @Environment(CompanionSession.self) private var session
     @State private var confirmingDelete = false
@@ -209,8 +200,6 @@ struct HeldRecordingsNotice: View {
     }
 }
 
-/// Recordings on this device, above the Mac's meetings, until their meeting
-/// arrives from the computer.
 struct DeviceRecordingsSection: View {
     @Environment(CompanionSession.self) private var session
     @State private var discarding: RecordingItem?
@@ -283,7 +272,6 @@ struct DeviceRecordingsSection: View {
     }
 }
 
-/// One recording and where it stands.
 struct RecordingRow: View {
     @Environment(CompanionSession.self) private var session
     @Environment(RecordingModel.self) private var recording

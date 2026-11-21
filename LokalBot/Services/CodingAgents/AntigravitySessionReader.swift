@@ -1,16 +1,7 @@
 import Foundation
 
-/// Reads Antigravity sessions from `~/.gemini/antigravity/brain`,
-/// `~/.gemini/antigravity-cli/brain`, and `~/.gemini/antigravity-ide/brain`,
-/// plus sibling `annotations/<id>.pbtxt` files for conversation titles.
-///
-/// Only `transcript.jsonl` (never `transcript_full.jsonl`), user prompts,
-/// assistant text replies, and tool call inputs for file edits, shell commands,
-/// and PR tools are read. Reasoning (`thinking`), tool output, file contents,
-/// credentials, settings, and databases are never opened or kept.
 struct AntigravitySessionReader: CodingAgentSessionReader {
     var agent: CodingAgentKind { .antigravity }
-    /// Antigravity state folders, each holding `brain/` and `annotations/`.
     var roots: [URL]
 
     static func standard(home: URL = FileManager.default.homeDirectoryForCurrentUser) -> AntigravitySessionReader {
@@ -36,8 +27,6 @@ struct AntigravitySessionReader: CodingAgentSessionReader {
 
     func transcripts(in interval: DateInterval, cache: CodingAgentParseCache?) -> CodingAgentReadResult {
         var result = CodingAgentReadResult()
-        // Deduplicate by conversation id across antigravity / -cli / -ide:
-        // the copy written last wins so the same session is never read twice.
         var chosen: [String: (candidate: CodingAgentCandidateFile, root: URL)] = [:]
         for root in roots {
             let brain = root.appendingPathComponent("brain", isDirectory: true)
@@ -91,7 +80,6 @@ struct AntigravitySessionReader: CodingAgentSessionReader {
     }
 
     private static func conversationID(of transcriptURL: URL) -> String {
-        // .../<root>/brain/<id>/.system_generated/logs/transcript.jsonl
         transcriptURL
             .deletingLastPathComponent()
             .deletingLastPathComponent()
@@ -99,7 +87,6 @@ struct AntigravitySessionReader: CodingAgentSessionReader {
             .lastPathComponent
     }
 
-    /// Reads the `title: "..."` field from `<root>/annotations/<id>.pbtxt`.
     static func annotationTitle(for conversationID: String, under root: URL) -> String? {
         let file = root
             .appendingPathComponent("annotations", isDirectory: true)
@@ -118,20 +105,15 @@ struct AntigravitySessionReader: CodingAgentSessionReader {
         return nil
     }
 
-    /// Decodes a JSON/pbtxt quoted string literal such as `"Fix \"bug\""`.
     static func decodeJSONStringLiteral(_ raw: String) -> String? {
         guard raw.count >= 2, raw.first == "\"", raw.last == "\"" else { return nil }
         return try? JSONDecoder().decode(String.self, from: Data(raw.utf8))
     }
 }
 
-/// What the Antigravity reader keeps of one transcript file between scans:
-/// per-record working directories, compacted events, and whether the session
-/// consulted LokalBot's library.
 struct AntigravitySessionSummary: CodingAgentFileSummary {
     struct Record: Sendable {
         var at: Date
-        /// Index into `workingDirectories`, or `-1` for none.
         var directory: Int32
     }
 
@@ -244,8 +226,6 @@ struct AntigravitySessionSummary: CodingAgentFileSummary {
 
     private mutating func appendPlannerResponse(_ record: [String: Any], at: Date) {
         let toolCalls = record["tool_calls"] as? [[String: Any]] ?? []
-        // Update working directory from this response's tool calls before
-        // labeling the record, so file changes and replies on this step carry it.
         for call in toolCalls {
             let name = call["name"] as? String ?? ""
             let args = call["args"] as? [String: Any] ?? [:]
@@ -255,7 +235,6 @@ struct AntigravitySessionSummary: CodingAgentFileSummary {
         let index = appendRecord(at: at, directory: directoryIndex(workingDirectory))
         var appended = false
 
-        // Never read `thinking`: reasoning stays private.
         if let content = record["content"] as? String, let reply = CodingAgentText.reply(content) {
             append(.reply(reply), at: at, record: index)
             appended = true
@@ -363,8 +342,6 @@ struct AntigravitySessionSummary: CodingAgentFileSummary {
         return CodingAgentTimestamp.date(value)
     }
 
-    /// Antigravity encodes tool-call argument values as JSON literals inside
-    /// strings (e.g. `"\"/path/to/file\""`), though plain strings also appear.
     private static func unquoteArg(_ raw: Any?) -> String? {
         guard let text = raw as? String else { return nil }
         if text.count >= 2, text.first == "\"", text.last == "\"",

@@ -6,12 +6,9 @@ public enum WorkspaceMotionKind: Sendable {
     case drawer
     case tabs
     case autoScroll
-    /// Rare moments: paired with a Mac, the first sync done.
     case milestone
 }
 
-/// The Mac's motion policy, with durations from tokens.json. Everything is off
-/// under Reduce Motion.
 public enum WorkspaceMotion {
     public static func animation(_ kind: WorkspaceMotionKind, reduceMotion: Bool) -> Animation? {
         guard !reduceMotion else { return nil }
@@ -27,7 +24,6 @@ public enum WorkspaceMotion {
 }
 
 extension View {
-    /// Animates `value` changes with a motion kind, or not at all under Reduce Motion.
     public func workspaceAnimation<V: Equatable>(_ kind: WorkspaceMotionKind, value: V) -> some View {
         modifier(WorkspaceAnimationModifier(kind: kind, value: value))
     }

@@ -1,13 +1,5 @@
 import XCTest
 
-/// The Chat section surfaces persisted conversation history. A conversation
-/// seeded on disk (under `<root>/chats/`) before launch must appear in the
-/// conversation-list column and open its messages in the transcript — proving
-/// `ChatStore` load + the three-column chat wiring end to end, without ever
-/// touching the local LLM.
-///
-/// Its own `setUp` (separate from `MainWindowUITests`) plants a chat-seeded
-/// root, so the shared empty-state chat test stays unaffected.
 final class ChatHistoryUITests: XCTestCase {
 
     private var root: URL!
@@ -25,7 +17,6 @@ final class ChatHistoryUITests: XCTestCase {
         continueAfterFailure = false
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("ChatHistoryUITests-\(UUID().uuidString)", isDirectory: true)
-        // The app expects a `meetings/` dir; chat history lives under `chats/`.
         try FileManager.default.createDirectory(
             at: root.appendingPathComponent("meetings"), withIntermediateDirectories: true)
         try seedConversation()
@@ -44,18 +35,15 @@ final class ChatHistoryUITests: XCTestCase {
     func testPersistedConversationLoadsIntoChat() {
         UITestHarness.clickSidebar("sidebar.ask", in: app)
 
-        // The seeded conversation appears in the history list…
         let conversation = conversationButton(conversationID)
         XCTAssertTrue(conversation.waitForExistence(timeout: 6),
                       "seeded conversation title missing from the chat history list")
         XCTAssertTrue(conversation.label.localizedCaseInsensitiveContains(conversationTitle),
                       "seeded conversation row did not expose its title")
 
-        // …and the most-recent conversation opens, rendering its messages.
         XCTAssertTrue(text(containing: assistantLine).waitForExistence(timeout: 6),
                       "seeded assistant message missing from the transcript")
 
-        // The new-chat affordance is present in the history column.
         let newQuestion = app.buttons.matching(NSPredicate(
             format: "identifier == %@ OR label == %@", "chat.new", "New conversation"
         )).firstMatch
@@ -118,8 +106,6 @@ final class ChatHistoryUITests: XCTestCase {
             .firstMatch
     }
 
-    /// Write one conversation JSON in exactly the shape `ChatStore` decodes
-    /// (per-conversation file, ISO-8601 dates, `role` raw values).
     private func seedConversation() throws {
         let chats = root.appendingPathComponent("chats", isDirectory: true)
         try FileManager.default.createDirectory(at: chats, withIntermediateDirectories: true)

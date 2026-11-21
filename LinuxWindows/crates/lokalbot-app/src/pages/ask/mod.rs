@@ -1,10 +1,3 @@
-//! Ask (`AskView.swift`, `ChatView.swift`): saved conversations in a
-//! resizable column; beside it one field, one flow. Typing lists what matches
-//! (under the field on a new question, in a tray above it inside a
-//! conversation, which stays put); Return asks, ↓ then Return opens a match.
-//! A full question reads everything in the chosen sources and dates; a word
-//! or short phrase is answered from its matches (`AskAnswerScope`).
-
 mod composer;
 mod history;
 mod matches;
@@ -58,22 +51,16 @@ pub fn bind_keys(cx: &mut App) {
     )]);
 }
 
-/// What the field's text matches (`AskMatches`). A word's answer is limited
-/// to these; a full question reads the chosen sources.
 #[derive(Default)]
 struct Results {
-    /// The query these results belong to.
     query: String,
     running: bool,
     found: search::Results,
-    /// In the field, Return asks; on a match, it opens it.
     cursor: MatchCursor,
-    /// Rows whose folded lines are showing.
     expanded: HashSet<String>,
 }
 
 impl Results {
-    /// Meeting groups, screen moments, files and agent notes, in list order.
     fn count(&self) -> usize {
         self.found.meetings.len()
             + self.found.screens.len()
@@ -82,14 +69,11 @@ impl Results {
     }
 }
 
-/// A colleague and a project an empty page can name.
 pub(super) struct SuggestionNames {
     person: Option<String>,
     project: Option<String>,
 }
 
-/// Opens a screen moment from Ask or Quick Recall in Timeline
-/// (`ScreenMomentDetailView`).
 pub fn open_screen_moment(
     data: &Entity<AppData>,
     moment: &lokalbot_core::ScreenMoment,
@@ -99,10 +83,8 @@ pub fn open_screen_moment(
     data.update(cx, |data, cx| data.open_screen_moment(id, ts, cx));
 }
 
-/// Per-message state in the conversation.
 #[derive(Default)]
 struct TurnState {
-    /// Long questions shown in full.
     questions: HashSet<Uuid>,
     copied: Option<Uuid>,
     answers: HashMap<Uuid, (u64, Rc<Answer>)>,
@@ -112,18 +94,12 @@ pub struct AskPage {
     data: Entity<AppData>,
     conversations: Vec<Conversation>,
     conversations_loaded: bool,
-    /// How many reloads have started, and the latest one taken: a read that
-    /// started earlier and finished later is out of date, and so is every
-    /// read that started before a conversation was deleted here.
     reloads_started: u64,
     reload_applied: u64,
-    /// Why saved conversations couldn't all be opened or saved.
     conversations_problem: Option<String>,
     remember: remember::RememberState,
     loaded_revision: Option<u64>,
-    /// The conversation on screen; `None` is a new, empty conversation.
     selected: Option<Uuid>,
-    /// Selected before it was loaded: its scope is restored once it is.
     pending_restore: Option<Uuid>,
     history_input: Entity<InputState>,
     history_query: String,
@@ -132,50 +108,31 @@ pub struct AskPage {
     sources: Sources,
     date_scope: DateScope,
     facet: Facet,
-    /// Evidence boundary from "Ask This Meeting" or from asking about results.
     meeting_scope: Option<Vec<Uuid>>,
-    /// The screen moments among the results a question was asked about, or a work
-    /// session's moments from Timeline.
     screen_scope: Option<Vec<i64>>,
-    /// The sources to go back to when a session's boundary is cleared.
     sources_before_evidence: Option<Sources>,
-    /// Asked about results: a selected Activity source stays, and Files with file rows.
     scope_from_results: bool,
     scope_had_files: bool,
-    /// Asking about results kept Agent notes: note rows were among them.
     scope_had_notes: bool,
-    /// Screens attached to the next question as primary evidence.
     pins: Vec<lokalbot_core::ScreenMoment>,
     thumbnails: ScreenThumbnails,
-    /// Limit screen results and the assistant's screen search to one app.
     screen_app: Option<String>,
-    /// The apps in the last results, for the filter.
     screen_apps: Vec<String>,
-    /// A question asked while its search was still running.
     pending_question: Option<String>,
-    /// Escape folded the tray above a docked field to its heading.
     tray_collapsed: bool,
-    /// The time menu shows its date picker.
     choosing_date: bool,
-    /// The passage behind a clicked citation number.
     passage: Option<passage::OpenPassage>,
-    /// The passage a press outside it just closed, so a press on its own
-    /// number closes it rather than opening it again.
     passage_dismissed: Option<(std::time::Instant, (Uuid, usize))>,
-    /// Matches for a failed last answer, by answer; `None` while they load.
     failed_matches: HashMap<Uuid, Option<search::Results>>,
     suggestion_names: Option<SuggestionNames>,
     suggestion_names_revision: Option<u64>,
-    /// When the unsaved new question was started, for its row in the list.
     draft_started: DateTime<Utc>,
-    /// The page and language the field's placeholder was written for.
     placeholder: Option<(PageKind, &'static str)>,
     date_picker: Entity<CalendarState>,
     picked_day: Option<chrono::NaiveDate>,
     results: Results,
     search_task: Option<Task<()>>,
     turns: TurnState,
-    /// Screen moments the answers cite, loaded on demand.
     screen_citations: crate::ui::citations::ScreenCitations,
     loading_screen_citations: HashSet<i64>,
     loading_file_citations: HashSet<i64>,
@@ -183,7 +140,6 @@ pub struct AskPage {
     transcript_scroll: ScrollHandle,
     results_scroll: ScrollHandle,
     history_scroll: ScrollHandle,
-    /// Keep the conversation pinned to its end while an answer streams.
     follow_stream: bool,
     last_section: Section,
     last_stream_len: usize,
@@ -353,8 +309,6 @@ impl AskPage {
         cx.notify();
     }
 
-    // ------------------------------------------------------------ library
-
     fn reload_conversations(&mut self, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
         self.loaded_revision = Some(self.data.read(cx).revision);
@@ -364,7 +318,6 @@ impl AskPage {
             let (loaded, claims) = cx
                 .background_spawn(async move {
                     let loaded = library.load_conversations();
-                    // Only conversations that used it wake the credential store.
                     let uses_claims = loaded.conversations.iter().any(|c| {
                         c.messages
                             .iter()
@@ -411,7 +364,6 @@ impl AskPage {
         let library = self.data.read(cx).library.clone();
         self.data.update(cx, |data, cx| {
             data.attached_asks.remove(&id);
-            // An answer still being written doesn't bring it back.
             if data
                 .ask_stream
                 .as_ref()
@@ -421,8 +373,6 @@ impl AskPage {
             }
         });
         self.conversations.retain(|c| c.id != id);
-        // A read already under way may still list it, so none of those is
-        // taken; the read below, after the file is gone, replaces them.
         self.reload_applied = self.reloads_started;
         if self.selected == Some(id) {
             self.selected = None;
@@ -450,9 +400,6 @@ impl AskPage {
         .detach();
     }
 
-    // ---------------------------------------------------------- navigation
-
-    /// Consumes a question handed over by another page (`navigationHandoff`).
     fn take_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(id) = self
             .data
@@ -480,40 +427,34 @@ impl AskPage {
         self.meeting_scope = (!meeting_ids.is_empty()).then_some(meeting_ids);
         self.screen_scope = None;
         self.restore_sources();
-        // Quick Recall's "Show all" for one kind searches only that source.
         if let Some(sources) = self.data.update(cx, |data, _| data.ask_sources.take()) {
             self.sources = Sources::from_saved(&sources);
         }
         self.scope_from_results = false;
         self.scope_had_files = false;
         self.scope_had_notes = false;
-        // A single moment is an attachment, not a retrieval boundary.
         self.pins.clear();
         if let Some(moment) = self.data.update(cx, |data, _| data.ask_screen.take()) {
             self.pins.push(moment);
         }
-        // A session's moments are a boundary: never copied into the prompt.
         if let Some(ids) = self.data.update(cx, |data, _| data.ask_screens.take()) {
             self.sources_before_evidence = Some(self.sources);
             self.sources = scope::evidence_sources(self.meeting_scope.as_deref(), &ids);
             self.screen_scope = Some(ids);
         }
         self.set_composer_text(&question, window, cx);
-        // A handed-over question is sent as it is, within what was handed over.
         if submit && !question.trim().is_empty() && !self.is_responding(cx) {
             self.ask(question.trim().to_string(), false, window, cx);
         }
         self.focus_composer(window, cx);
     }
 
-    /// `clearEvidence`: a session's boundary narrowed the sources; this undoes it.
     fn restore_sources(&mut self) {
         if let Some(sources) = self.sources_before_evidence.take() {
             self.sources = sources;
         }
     }
 
-    /// `resetAskScope`: everything open again, for a new question.
     fn reset_scope(&mut self) {
         self.meeting_scope = None;
         self.screen_scope = None;
@@ -527,8 +468,6 @@ impl AskPage {
         self.sources = Sources::default();
     }
 
-    /// `restoreAskScope`: the composer goes back to what the conversation's latest
-    /// question asked within, so what's asked next can't reach further unnoticed.
     fn restore_question_scope(&mut self, id: Uuid) {
         let Some(saved) = self
             .conversation(id)
@@ -598,14 +537,10 @@ impl AskPage {
             .update(cx, |data, cx| data.open_meeting(meeting_id, tab, at, cx));
     }
 
-    // ------------------------------------------------------------ composer
-
     fn set_composer_text(&mut self, text: &str, window: &mut Window, cx: &mut Context<Self>) {
         self.query = text.to_string();
         self.composer.update(cx, |state, cx| {
             state.set_value(text.to_string(), window, cx);
-            // A multi-line field puts its caret at the start; a question
-            // handed over from elsewhere goes on from its end, as on the Mac.
             let end = state.text().len();
             state.set_selected_range(end..end, cx);
         });
@@ -617,8 +552,6 @@ impl AskPage {
             .update(cx, |state, cx| state.focus(window, cx));
     }
 
-    /// `AskRouter.phase`: a conversation once the selected one has turns (or
-    /// one is being written), and typing whenever the field holds text.
     fn ask_phase(&self, cx: &App) -> AskPhase {
         let has_messages = self
             .selected_conversation()
@@ -640,8 +573,6 @@ impl AskPage {
             .is_some_and(|s| s.error.is_none())
     }
 
-    /// Return asks. After the arrow keys moved onto a match it opens that match
-    /// instead (`AskReturnAction`).
     fn submit(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         match model::return_action(
             &self.query,
@@ -658,8 +589,6 @@ impl AskPage {
         }
     }
 
-    /// `askAboutResults`: the button and Return. A question typed before its
-    /// matches are in waits for them, so it never reads rows of earlier text.
     fn ask_about_results(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let question = self.query.trim().to_string();
         if question.is_empty() || self.is_responding(cx) {
@@ -673,9 +602,6 @@ impl AskPage {
         self.ask(question, true, window, cx);
     }
 
-    /// Sends `question`. `from_field` applies `AskAnswerScope`: asked from the
-    /// field, a word or short phrase is limited to its listed matches; a
-    /// suggestion or a handed-over question is sent as it is.
     fn ask(
         &mut self,
         question: String,
@@ -684,12 +610,6 @@ impl AskPage {
         cx: &mut Context<Self>,
     ) {
         self.pending_question = None;
-        // A full question reads everything in the chosen sources and dates, so
-        // the sources menu keeps saying what was chosen. A word or short
-        // phrase is a search being asked about: its answer is limited to the
-        // listed matches, and the menu then names that limit. A "Remember …"
-        // statement is saved as is. Scope set on purpose before this (a meeting
-        // handed over, an attached screen, the menu's "Only …" state) stays.
         let remembers = self.data.read(cx).settings.ask_memory_enabled
             && lokalbot_core::personal::remember_statement(&question).is_some();
         let listed = self.results.query.trim() == question && self.results.count() > 0;
@@ -697,7 +617,6 @@ impl AskPage {
             && self.pins.is_empty()
             && AnswerScope::resolve(&question, listed, remembers) == AnswerScope::ListedMatches
         {
-            // Bounds meetings and screen moments to the rows.
             let found = &self.results.found;
             self.meeting_scope = Some(found.meetings.iter().map(|g| g.meeting.id).collect());
             self.screen_scope = Some(found.screens.iter().map(|s| s.moment.id).collect());
@@ -707,8 +626,6 @@ impl AskPage {
         }
         let conversation_id = *self.selected.get_or_insert_with(Uuid::new_v4);
         let scope = scope::ask_scope(self.sources, self.date_scope, &self.evidence());
-        // What it attached stays the boundary for the questions after it; only
-        // the captured text leaves (`clearPins(restoringScope: false)`).
         if !self.pins.is_empty() {
             self.screen_scope = Some(self.pins.iter().map(|pin| pin.id).collect());
             self.sources.screen = true;
@@ -727,7 +644,6 @@ impl AskPage {
         cx.notify();
     }
 
-    /// Asks a suggestion straight away (`sendSuggestion`).
     fn ask_suggestion(&mut self, suggestion: &str, window: &mut Window, cx: &mut Context<Self>) {
         if self.is_responding(cx) {
             return;
@@ -741,8 +657,6 @@ impl AskPage {
             .update(cx, |data, cx| data.request(AppEvent::StopAnswer, cx));
     }
 
-    /// `ChatViewModel.retry`: asks the question behind a failed turn again, within
-    /// the scope it was asked in, not whatever the composer holds now.
     fn retry(&mut self, assistant_id: Uuid, cx: &mut Context<Self>) {
         let Some(conversation) = self.selected_conversation() else {
             return;
@@ -774,8 +688,6 @@ impl AskPage {
         self.transcript_scroll.scroll_to_bottom();
     }
 
-    /// `ChatViewModel.askAgain`: a finished answer's question, asked again as
-    /// a new turn within the sources, dates and evidence it was asked in.
     fn ask_again(&mut self, assistant_id: Uuid, cx: &mut Context<Self>) {
         if self.is_responding(cx) {
             return;
@@ -814,10 +726,7 @@ impl AskPage {
         .detach();
     }
 
-    // -------------------------------------------------------------- search
-
     fn on_query_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        // Return can arrive before this; only a request for this exact text stays.
         if self.pending_question.as_deref() != Some(self.query.as_str()) {
             self.pending_question = None;
         }
@@ -842,7 +751,6 @@ impl AskPage {
         }
     }
 
-    /// The optional sources that are on, so they can be offered and searched.
     fn offered(&self, cx: &App) -> scope::Offered {
         scope::Offered::new(&self.data.read(cx).settings)
     }
@@ -850,7 +758,6 @@ impl AskPage {
     fn run_search(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let text = self.query.trim().to_string();
         self.results.query = self.query.clone();
-        // Never leave rows from a previous query available to Return.
         self.results.found = search::Results::default();
         self.results.cursor.return_to_field();
         self.results.expanded.clear();
@@ -921,7 +828,6 @@ impl AskPage {
             if !query.wants_meaning() {
                 return;
             }
-            // Meaning second, so words show at once.
             let refined = cx
                 .background_spawn(async move {
                     let vector = lokalbot_engine::query_vector(query.text.trim())?;
@@ -968,8 +874,6 @@ impl AskPage {
         }
     }
 
-    /// Attaches a screen moment to the next question, or takes it off. Attached
-    /// moments outside the chosen dates are dropped as the dates change.
     fn toggle_pin(&mut self, moment: &lokalbot_core::ScreenMoment, cx: &mut Context<Self>) {
         if let Some(at) = self.pins.iter().position(|pin| pin.id == moment.id) {
             self.pins.remove(at);
@@ -979,8 +883,6 @@ impl AskPage {
         cx.notify();
     }
 
-    /// The arrow keys move between the field and the matches. `false` when
-    /// the key is the field's (Up in the field, or nothing listed).
     fn move_cursor(&mut self, down: bool, cx: &mut Context<Self>) -> bool {
         let phase = self.ask_phase(cx);
         let count = self.results.count();
@@ -990,7 +892,6 @@ impl AskPage {
         self.tray_collapsed = false;
         self.pending_question = None;
         if let Some(index) = self.results.cursor.index() {
-            // Under the field the heading is the scrolling column's first child.
             let offset = usize::from(phase.page == PageKind::NewQuestion);
             self.results_scroll.scroll_to_item(index + offset);
         }
@@ -998,8 +899,6 @@ impl AskPage {
         true
     }
 
-    /// Escape first returns the keyboard to the field, then stops an answer
-    /// being written, then folds the tray. `false` when it isn't Ask's.
     fn escape(&mut self, cx: &mut Context<Self>) -> bool {
         if self.passage.is_some() {
             self.close_passage(cx);
@@ -1032,8 +931,6 @@ impl AskPage {
         cx.notify();
     }
 
-    /// Lifts the limit to particular meetings and screen moments, back to the
-    /// sources chosen before it (`widenSources`).
     fn widen_sources(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.pins.clear();
         self.meeting_scope = None;
@@ -1045,8 +942,6 @@ impl AskPage {
         self.scope_changed(window, cx);
     }
 
-    /// An explicit source choice supersedes an earlier temporary narrowing's
-    /// way back (`chooseSources`).
     fn toggle_source(&mut self, source: Source, window: &mut Window, cx: &mut Context<Self>) {
         let offered = self.offered(cx);
         self.sources.toggle(source, offered);
@@ -1057,7 +952,6 @@ impl AskPage {
         self.scope_changed(window, cx);
     }
 
-    /// What the sources menu's button says, and its "Only …" rows.
     fn scope_summary(&self, cx: &App) -> model::ScopeSummary {
         let offered = self.offered(cx);
         let bound = scope::ask_scope(self.sources, self.date_scope, &self.evidence());
@@ -1068,7 +962,6 @@ impl AskPage {
             files: bound.include_files,
             agent_notes: bound.include_agent_notes,
         };
-        // Attached screens limit the screen source to themselves.
         let pins: Vec<i64> = self.pins.iter().map(|pin| pin.id).collect();
         let screen_ids = self
             .screen_scope
@@ -1095,7 +988,6 @@ impl AskPage {
         )
     }
 
-    /// Re-runs the search after a source, date or facet change.
     fn scope_changed(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some((since, until)) = self.date_scope.bounds() {
             self.pins.retain(|pin| pin.ts >= since && pin.ts < until);
@@ -1104,7 +996,6 @@ impl AskPage {
         cx.notify();
     }
 
-    /// The field's placeholder names what it does on this page.
     fn sync_placeholder(&mut self, page: PageKind, window: &mut Window, cx: &mut Context<Self>) {
         let language = lokalbot_i18n::current().code;
         if self.placeholder == Some((page, language)) {
@@ -1144,7 +1035,6 @@ impl Render for AskPage {
         let field = self.render_field_column(phase.page, window, cx);
         let detail = match phase.page {
             PageKind::NewQuestion => {
-                // The field sits a sixth of the way down, never past 150 pt.
                 let height = window.viewport_size().height - crate::theme::metric::TOOLBAR_HEIGHT;
                 let top = (height * 0.17).clamp(gpui_kit::px(28.), gpui_kit::px(150.));
                 let below = if phase.shows_suggestions() {

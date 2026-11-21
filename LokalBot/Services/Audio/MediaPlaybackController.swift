@@ -3,10 +3,6 @@ import Darwin
 import Foundation
 import os
 
-/// Pauses media that was actively playing when dictation begins and resumes
-/// exactly that media when the dictation capture ends. AppleScript work runs in
-/// short-lived helper processes off the main actor and is forcibly bounded so
-/// an unresponsive media app can never delay push-to-talk indefinitely.
 enum MediaPlaybackController {
     struct PauseSession: Sendable {
         fileprivate let targets: [PausedTarget]
@@ -25,31 +21,20 @@ enum MediaPlaybackController {
     struct PausedTarget: Sendable, Equatable {
         let controlBundleID: String
         let processNames: [String]
-        /// Opaque state returned by the pause script. QuickTime uses document
-        /// names; browsers use a per-dictation DOM marker token.
         let resumeToken: String
     }
 
-    /// How a pause script ended.
     enum ScriptOutcome: Sendable, Equatable {
         case output(String)
-        /// Stopped at the time limit, possibly part of the way through.
         case cutOff
         case failed
     }
 
-    /// Browsers whose tabs are paused one by one and marked with the
-    /// dictation's token, so only what this dictation paused plays again.
     static let markerBrowserBundleIDs: Set<String> = [
         "com.google.Chrome", "com.microsoft.edgemac", "com.brave.Browser",
         "company.thebrowser.Browser", "com.apple.Safari",
     ]
 
-    /// What to resume after a pause script, or nil when it paused nothing.
-    /// A browser script that ran out of time may already have paused some
-    /// tabs: with many tabs open it used to be stopped after pausing the
-    /// video, nothing was recorded, and the video stayed paused after the
-    /// dictation. Resuming by the token is safe when nothing carries it.
     static func pausedTarget(controlBundleID: String, processNames: [String], outcome: ScriptOutcome,
                              token: String) -> PausedTarget? {
         switch outcome {
@@ -342,9 +327,7 @@ enum MediaPlaybackController {
             .replacingOccurrences(of: "'", with: "\\'")
     }
 
-    /// Pausing delays the start of a dictation, so it gets little time.
     static let pauseTimeoutSeconds = 1.5
-    /// Resuming delays nothing, and has to reach every tab the pause reached.
     static let resumeTimeoutSeconds = 5.0
 
     private static func runAppleScript(_ source: String, timeoutSeconds: Double) async -> ScriptOutcome {
@@ -386,9 +369,6 @@ enum MediaPlaybackController {
     }
 }
 
-/// Bridges the AppleScript timeout/cancellation path to its blocking helper.
-/// SIGTERM gets a brief grace period before a PID-identity-checked SIGKILL so
-/// the stdout reader and `waitUntilExit()` cannot remain blocked forever.
 final class ScriptProcessController: @unchecked Sendable {
     typealias ProcessStartTime = @Sendable (pid_t) -> UInt64?
     typealias SignalSender = @Sendable (pid_t, Int32) -> Void

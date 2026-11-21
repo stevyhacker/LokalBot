@@ -20,7 +20,6 @@ fn canonical_json_sorts_keys_and_drops_whitespace() {
         content_hash(&canonical_json(&a)),
         content_hash(&canonical_json(&b))
     );
-    // Escapes, non-ASCII text and numbers are stable.
     let c = json!({ "t": "line\n\"quote\" — 深色", "n": 721.4, "i": -3, "z": 0 });
     assert_eq!(
         canonical_json(&c),
@@ -39,7 +38,6 @@ fn publishing_the_same_content_is_a_no_op() {
             .unwrap()
     );
     assert_eq!(server.current_seq().unwrap(), 1);
-    // Same content, different key order and spacing.
     let reordered = r#"{ "meetingIds": [], "displayName": "Maya", "id": "p1" }"#;
     assert!(
         !server
@@ -116,7 +114,6 @@ fn removal_writes_a_tombstone() {
         meeting_field(DESIGN_REVIEW, "startedAt")
     );
 
-    // Publishing again revives it with the next version, even unchanged.
     let body = fixture()
         .into_iter()
         .find(|e| e["key"] == DESIGN_REVIEW && e["kind"] == "meeting")
@@ -152,12 +149,10 @@ fn sort_keys_follow_records_md() {
     for day in fixture_days() {
         assert_eq!(sort_key("day", &day), day);
     }
-    // People, projects and the manifest use the publish time.
     let published = sort_key("person", "person:maya-chen");
     let published = chrono::DateTime::parse_from_rfc3339(&published).unwrap();
     let age = chrono::Utc::now().signed_duration_since(published);
     assert!(age.num_seconds().abs() < 60, "{published}");
-    // A transcript published before its meeting falls back to the publish time.
     host.server
         .publish(
             "transcript".into(),
@@ -186,10 +181,8 @@ fn catch_up_order_is_newest_first_with_meetings_before_transcripts() {
     let position =
         |kind: &str, key: &str| keys.iter().position(|k| k.0 == kind && k.1 == key).unwrap();
     assert!(position("meeting", DESIGN_REVIEW) < position("transcript", DESIGN_REVIEW));
-    // The newest meeting comes before the oldest day.
     let oldest_day = fixture_days().pop().unwrap();
     assert!(position("meeting", super::STANDUP) < position("day", &oldest_day));
-    // Only records after the cursor.
     assert_eq!(store.changed_keys(seq - 2, seq).unwrap().len(), 2);
     assert!(store.changed_keys(seq, seq).unwrap().is_empty());
 }

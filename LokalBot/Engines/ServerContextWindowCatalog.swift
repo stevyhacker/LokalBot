@@ -1,29 +1,12 @@
 import Foundation
 
-/// The context window an OpenAI-compatible server reports for the selected
-/// model. Model lists carry it as `max_model_len` (vLLM), `context_window`
-/// (Groq), `context_length` (Together, DeepInfra, Fireworks), or
-/// `max_context_length` (Mistral). Servers on this Mac report the window they
-/// run with outside that list: llama-server's `/props` and LM Studio's
-/// `/api/v0/models/<id>`. Anthropic's API reports `max_input_tokens` for one
-/// model at `/v1/models/<id>`. OpenAI and Cerebras report none, so their
-/// documented windows apply; OpenRouter has its own lookup
-/// (`OpenRouterModelCatalog`).
-///
-/// It is read only from a server allowed for inference, with the API key the
-/// inference requests already carry and no content. The last answer is kept
-/// so a failed lookup cannot re-plan a meeting and discard its partial notes.
 actor ServerContextWindowCatalog {
     typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     static let shared = ServerContextWindowCatalog()
     static let defaultsKey = "lokalbotv3.serverContextTokens"
-    /// A server can be restarted with another window; look again once a day.
     static let refreshInterval: TimeInterval = 86_400
-    /// A server that did not answer is asked again after this long, so one
-    /// that is offline does not add a timeout to every meeting.
     static let retryInterval: TimeInterval = 600
-    /// Model-list fields that name a window, in any order; the smallest wins.
     static let modelListFields = ["max_model_len", "context_window", "context_length", "max_context_length"]
 
     private static let session = InferenceURLSession.make(requestTimeout: 5, resourceTimeout: 10)
@@ -40,9 +23,6 @@ actor ServerContextWindowCatalog {
         self.now = now
     }
 
-    /// Nil when the server is not allowed for inference, is OpenRouter, or
-    /// has never reported a usable window for this model. `apiKey` is read
-    /// only when a request is actually sent.
     func contextTokens(model: String, baseURL: URL, approvedOrigins: [String],
                        apiKey: @Sendable () -> String?) async -> Int? {
         guard !model.isEmpty, ChatCompletionDialect.inferred(from: baseURL) != .openRouter,
@@ -75,8 +55,6 @@ actor ServerContextWindowCatalog {
         if let tokens = await read(baseURL.appendingPathComponent("models"), apiKey: apiKey, parse: {
             Self.window(inModelList: $0, model: model)
         }) { return tokens }
-        // llama-server lists only the trained window and LM Studio none at
-        // all; both publish the window they run with elsewhere.
         guard InferenceEndpointPolicy.isLoopback(baseURL) else { return nil }
         let root = Self.serverRoot(baseURL)
         if let tokens = await read(root.appendingPathComponent("props"), apiKey: apiKey,
@@ -99,8 +77,6 @@ actor ServerContextWindowCatalog {
         return parse(data)
     }
 
-    /// Each listed model's smallest window, from `{"data": [...]}` or a bare
-    /// array.
     static func windows(inModelList data: Data) -> [String: Int] {
         guard let object = try? JSONSerialization.jsonObject(with: data) else { return [:] }
         let models = (object as? [String: Any])?["data"] as? [[String: Any]] ?? object as? [[String: Any]] ?? []
@@ -117,26 +93,21 @@ actor ServerContextWindowCatalog {
         windows(inModelList: data)[model.lowercased()]
     }
 
-    /// llama-server's per-slot window.
     static func window(inLlamaServerProps data: Data) -> Int? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return positive((object["default_generation_settings"] as? [String: Any])?["n_ctx"]) ?? positive(object["n_ctx"])
     }
 
-    /// The window LM Studio loaded the model with. An unloaded model has none
-    /// yet: LM Studio picks one when it loads.
     static func window(inLMStudioModel data: Data) -> Int? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return positive(object["loaded_context_length"])
     }
 
-    /// Anthropic's model object: `{"id": …, "max_input_tokens": …}`.
     static func window(inAnthropicModel data: Data) -> Int? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         return positive(object["max_input_tokens"])
     }
 
-    /// `<origin>/v1/models/<id>`. Ids with other characters are never sent.
     static func anthropicModelURL(baseURL: URL, model: String) -> URL? {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.@")
         guard !model.isEmpty, model != ".", model != "..",
@@ -144,13 +115,10 @@ actor ServerContextWindowCatalog {
         return AnthropicAPI.modelURL(baseURL, model: model)
     }
 
-    /// The server root for a base URL that ends in `/v1`.
     static func serverRoot(_ baseURL: URL) -> URL {
         baseURL.lastPathComponent == "v1" ? baseURL.deletingLastPathComponent() : baseURL
     }
 
-    /// `<root>/api/v0/models/<publisher>/<model>`. Ids with other characters
-    /// are never sent.
     static func lmStudioModelURL(root: URL, model: String) -> URL? {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.:@")
         let parts = model.split(separator: "/", omittingEmptySubsequences: false).map(String.init)

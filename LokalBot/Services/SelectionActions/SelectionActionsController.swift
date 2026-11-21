@@ -1,14 +1,9 @@
 import AppKit
 
-/// Selection actions: a system-wide shortcut reads the text selected in the
-/// frontmost app, the panel runs the Think model on it (optionally with
-/// matching work memory), and the result replaces the selection, goes in at
-/// the cursor, or is copied. Nothing here is persisted.
 @MainActor
 final class SelectionActionsController: ObservableObject {
     enum Phase: Equatable {
         case idle
-        /// Reading the selection before the panel opens.
         case capturing
         case choosing
         case generating
@@ -18,14 +13,11 @@ final class SelectionActionsController: ObservableObject {
 
     enum DeliveryOutcome: Equatable {
         case inserted
-        /// Pasted, but the app never read it; the result stays on the clipboard.
         case unconfirmed(String)
-        /// Not pasted, for this reason; the result is on the clipboard.
         case copied(String)
     }
 
     struct Dependencies {
-        /// True when LokalBot itself is the frontmost app.
         var isLokalBotFrontmost: @MainActor () -> Bool = { FocusReturn.frontmostOtherApplication() == nil }
         var capture: @MainActor () async -> SelectionCaptureResult
         var makeEngine: @MainActor () async throws -> TextEngine
@@ -43,23 +35,18 @@ final class SelectionActionsController: ObservableObject {
     @Published private(set) var output = ""
     @Published private(set) var memorySources: [SelectionMemoryContext.Source] = []
     @Published private(set) var modelName: String?
-    /// Why the last result could not be pasted back; shown above it.
     @Published private(set) var notice: String?
 
     private let dependencies: Dependencies
     private var task: Task<Void, Never>?
-    /// Bumped by every new request, so a superseded one never writes state.
     private var generation = 0
 
     init(dependencies: Dependencies) {
         self.dependencies = dependencies
     }
 
-    /// The shortcut was pressed. Reads the selection first, because opening
-    /// the panel moves focus away from it.
     func invoke() {
         guard !dependencies.isLokalBotFrontmost() else {
-            // Pressed while LokalBot is in front: keep any open panel's state.
             if phase == .idle { phase = .choosing }
             dependencies.openPanel()
             return
@@ -128,14 +115,11 @@ final class SelectionActionsController: ObservableObject {
         run(action)
     }
 
-    /// Back to the list of actions, keeping the selection.
     func chooseAgain() {
         _ = begin(keepingCapture: true)
         phase = .choosing
     }
 
-    /// Copies the result and hands focus back to the app it came from, ready
-    /// for ⌘V. The panel closes.
     func copyOutput() {
         guard !output.isEmpty else { return }
         dependencies.copy(output)
@@ -144,9 +128,6 @@ final class SelectionActionsController: ObservableObject {
         if let source { dependencies.returnFocus(source) }
     }
 
-    /// Replaces the selection with the result, or inserts it at the cursor
-    /// when nothing was selected. The panel closes; if the field changed
-    /// meanwhile, the panel comes back with the result already copied.
     func insertOutput() {
         guard phase == .finished, !output.isEmpty, capture.canInsert else { return }
         let text = output, captured = capture, chosen = action, sources = memorySources, model = modelName
@@ -159,7 +140,6 @@ final class SelectionActionsController: ObservableObject {
             case .unconfirmed(let message):
                 self.dependencies.report(message)
             case .copied(let reason):
-                // Nothing newer took the panel meanwhile.
                 guard self.phase == .idle else {
                     self.dependencies.report(reason)
                     return
@@ -176,14 +156,12 @@ final class SelectionActionsController: ObservableObject {
         }
     }
 
-    /// Closes without using a result and returns to the source app.
     func dismiss() {
         let source = capture.source
         finish()
         if let source { dependencies.returnFocus(source) }
     }
 
-    /// The panel closed: stop generating and forget the selection.
     func panelClosed() {
         guard phase != .idle else { return }
         finish()
@@ -193,9 +171,6 @@ final class SelectionActionsController: ObservableObject {
         finish()
     }
 
-    // MARK: - State
-
-    /// Cancels the running request and starts a new generation.
     private func begin(keepingCapture: Bool = false) -> Int {
         task?.cancel()
         task = nil
@@ -215,7 +190,6 @@ final class SelectionActionsController: ObservableObject {
     }
 }
 
-/// Puts a selection action's result back into the field it came from.
 @MainActor
 enum SelectionDelivery {
     private static let inserter = CotypingInserter()
@@ -227,7 +201,6 @@ enum SelectionDelivery {
               await FocusReturn.activate(application) else {
             return copied(text, reason: "LokalBot could not return to the app, so the result was copied to the clipboard.")
         }
-        // Let the app give keyboard focus back to its field before checking it.
         try? await Task.sleep(for: .milliseconds(120))
         let focus = await DictationFocusSnapshotExecutor.shared.capture(deadlineMilliseconds: 400)
         let check: DictationDeliveryCheck = focus.timedOut
@@ -249,8 +222,6 @@ enum SelectionDelivery {
         }
     }
 
-    /// Replacement requires the exact optional selection, including a range
-    /// being cleared to a caret. Dictation's app-only fallback is less strict.
     static func check(target: DictationDeliveryTarget, snapshot: DictationFocusSnapshot) -> DictationDeliveryCheck {
         let check = target.check(snapshot)
         guard check == .deliverable else { return check }

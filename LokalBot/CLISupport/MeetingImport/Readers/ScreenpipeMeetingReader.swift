@@ -1,37 +1,12 @@
 import Foundation
 import SQLite3
 
-/// Reads meetings out of Screenpipe's own database. Screenpipe has no
-/// transcript export, so LokalBot opens the database in its data folder
-/// (`~/.screenpipe`) read-only and immutable, which never disturbs a running
-/// Screenpipe.
-///
-/// - The database is `db.sqlite`, or, once Screenpipe has upgraded its
-///   history storage, the index `storage.json` names
-///   (`storage/<generation>/index.sqlite`). A `db.sqlite` left beside it is
-///   the original Screenpipe keeps as a recovery copy; it is read second, to
-///   fill in transcripts the index has compressed away.
-/// - Each closed row of `meetings` is a meeting: its title, times, attendees,
-///   and note (the person's notes and Screenpipe's `## Summary`), with the
-///   background `audio_transcriptions` inside its time and its live
-///   `meeting_transcript_segments`, combined and de-duplicated the way
-///   Screenpipe's meeting view combines them.
-/// - Audio from before Screenpipe kept meetings, or from a database without
-///   a `meetings` table, is split into conversations at five minutes of
-///   silence; fragments under a minute or 30 words are skipped.
-/// - Lines from an input device (the person's microphone) are the person's
-///   own. Screenpipe's 30-second audio chunks are not attached.
-/// - Compressed storage moves older transcript text into files LokalBot
-///   can't read. Meetings whose text moved are skipped rather than imported
-///   half, and reported with the way to export them.
 enum ScreenpipeMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.screenpipe
     static let exportHint = "No export is needed: choose Screenpipe's data folder, .screenpipe in your home folder, which holds its meetings and transcripts. Choose Quit screenpipe from its menu bar icon first so the latest meetings are included."
     static let defaultLocations = ["~/.screenpipe"]
 
-    /// Silence that ends a conversation where Screenpipe kept no meetings.
     static let conversationGap: TimeInterval = 5 * 60
-    /// Conversations shorter than this, or with fewer words, are fragments.
     static let minimumConversationLength: TimeInterval = 60
     static let minimumConversationWords = 30
 
@@ -84,8 +59,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         guard foundScreenpipe || !scan.problems.isEmpty else {
             throw ExternalImportError.unrecognized(source, url.lastPathComponent)
         }
-        // A meeting the index compressed away may still come whole from the
-        // original database; only the rest are worth a problem.
         for entry in compressed {
             let missing = entry.keys.subtracting(seen).count
             if missing > 0 { scan.problems.append(.init(path: entry.database.path, reason: compressedReason(missing))) }
@@ -98,10 +71,7 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return scan
     }
 
-    // MARK: - Finding the database
-
     private static let sqliteHeader = Data("SQLite format 3\u{0}".utf8)
-    /// What Screenpipe's vault writes at the start of every file it locks.
     private static let vaultHeader = Data("SPVAULT1".utf8)
     private static let databaseExtensions: Set<String> = ["sqlite", "sqlite3", "db"]
 
@@ -111,14 +81,10 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
             return isFile(original) ? [index, original] : [index]
         }
         if isFile(original) { return [original] }
-        // A folder holding copies: the active index before any original, so
-        // its newer meetings win over the original's older versions.
         let found = ExternalImportText.files(in: folder).filter(recognizes)
         return found.filter { $0.lastPathComponent == "index.sqlite" } + found.filter { $0.lastPathComponent != "index.sqlite" }
     }
 
-    /// The database Screenpipe's upgraded storage uses, which `storage.json`
-    /// names as a path inside the data folder.
     private static func activeIndex(in folder: URL) -> URL? {
         let descriptor = folder.appendingPathComponent("storage.json")
         guard isFile(descriptor),
@@ -151,12 +117,8 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
             + "then import that file."
     }
 
-    // MARK: - Reading one database
-
     private struct DatabaseResult {
         var meetings: [ExternalMeeting]
-        /// Import keys of meetings skipped because compressed storage holds
-        /// their transcript.
         var compressedKeys: Set<String>
     }
 
@@ -168,31 +130,22 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         var title: String
         var attendees: String
         var note: String
-        /// What never changes for this row, even when the person edits or
-        /// merges it: when Screenpipe created it.
         var identity: String
     }
 
-    /// One transcript line, with times in milliseconds since 1970.
     private struct Utterance {
         var id: Int64
         var isLive: Bool
-        /// The row's own timestamp, which meeting windows and duplicate
-        /// checks use, as Screenpipe's meeting view does.
         var time: Int64
         var start: Int64
         var end: Int64?
-        /// Empty when compressed storage holds the text.
         var text: String
         var isCompressed: Bool
         var speaker: String?
-        /// The speaker is a person's name, not a label like "speaker 1".
         var isNamed: Bool
         var isMe: Bool
         var device: String
-        /// Input when unknown, as Screenpipe's duplicate check assumes.
         var isInput: Bool
-        /// The timestamp as stored, for ids.
         var stamp: String
     }
 
@@ -230,8 +183,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
 
         let windows = MeetingWindows(try readMeetings(database, schema))
         let live = try readLiveSegments(database, schema)
-        // Audio from before Screenpipe kept meetings is grouped into
-        // conversations; after that, only meetings count.
         let cutoff = schema.hasMeetings ? meetingsBegan(database, schema) ?? windows.earliestStart : nil
         var inMeetings = [[Utterance]](repeating: [], count: windows.meetings.count)
         var loose: [Utterance] = []
@@ -309,9 +260,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return lhs.id < rhs.id
     }
 
-    /// A meeting's live lines and the background lines in its time, minus
-    /// background lines that repeat a live one from the same device within
-    /// 15 seconds, the rule Screenpipe's meeting view uses.
     private static func combine(live: [Utterance], background: [Utterance]) -> [Utterance] {
         var liveTimes: [String: [Int64]] = [:]
         for utterance in live where !utterance.isCompressed {
@@ -328,7 +276,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         [utterance.device, utterance.isInput ? "input" : "output", utterance.text].joined(separator: "\u{1F}")
     }
 
-    /// Lines split wherever more than `conversationGap` passes in silence.
     private static func conversations(_ utterances: [Utterance]) -> [[Utterance]] {
         let gap = Int64(conversationGap * 1_000)
         var groups: [[Utterance]] = []
@@ -346,8 +293,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return groups
     }
 
-    /// Attendees Screenpipe stored (comma-separated), then the speakers it
-    /// named, once each.
     private static func participants(attendees: String, utterances: [Utterance]) -> [String] {
         let candidates = attendees.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
             + utterances.filter(\.isNamed).compactMap(\.speaker)
@@ -355,18 +300,10 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return candidates.filter { !$0.isEmpty && seen.insert($0.lowercased()).inserted }
     }
 
-    /// "speaker 1" from live captions and "Unknown #4" for a voice nobody
-    /// named are labels, not people.
     private static func isLabel(_ name: String) -> Bool {
         name.range(of: #"^(speaker|unknown)[ _#-]*\d+$"#, options: [.regularExpression, .caseInsensitive]) != nil
     }
 
-    // MARK: - Queries
-
-    /// Milliseconds since 1970 from every timestamp form sqlx writes or
-    /// reads: RFC 3339 or SQLite text, unix seconds (or milliseconds) as an
-    /// integer, or a Julian day as a real. SQLite parses the text, so any
-    /// number of fractional digits and any offset work.
     private static func milliseconds(_ column: String) -> String {
         "(CASE typeof(\(column)) "
             + "WHEN 'integer' THEN (CASE WHEN abs(\(column)) > 100000000000 THEN \(column) ELSE \(column) * 1000 END) "
@@ -391,8 +328,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
             """
         var rows: [MeetingRow] = []
         try database.rows(sql) { row in
-            // A meeting still in progress has no end yet; it is imported
-            // once Screenpipe closes it.
             guard let id = row.int(0), let start = row.int(1), let end = row.int(2) else { return }
             rows.append(MeetingRow(id: id, start: start, end: max(start, end), app: row.text(3) ?? "",
                                    title: row.text(4) ?? "", attendees: row.text(5) ?? "",
@@ -401,8 +336,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return rows
     }
 
-    /// When this database began keeping meetings: the time sqlx applied the
-    /// migration that created the table.
     private static func meetingsBegan(_ database: ImmutableDatabase, _ schema: Schema) -> Int64? {
         guard schema.tables.contains("_sqlx_migrations") else { return nil }
         var began: Int64?
@@ -446,8 +379,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return segments
     }
 
-    /// Streams every background line once. `place` decides from the row's
-    /// time alone where it belongs, so lines nothing wants are never kept.
     private static func readTranscriptions(
         _ database: ImmutableDatabase, _ schema: Schema,
         place: (Int64) -> (indices: [Int], isLoose: Bool)?,
@@ -472,8 +403,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         if joinsChunks { sql += " LEFT JOIN audio_chunks ac ON ac.id = at.audio_chunk_id" }
         if joinsSpeakers { sql += " LEFT JOIN speakers s ON s.id = at.speaker_id" }
         sql += " WHERE (TRIM(at.transcription) != '' OR \(compressed))"
-        // Chunks synced from another device have no local audio; Screenpipe's
-        // meeting view leaves them out, and so does LokalBot.
         if chunkPath != "NULL" { sql += " AND (ac.file_path IS NULL OR ac.file_path NOT LIKE 'cloud://%')" }
         if joinsSpeakers, schema.speakers.contains("hallucination") {
             sql += " AND (s.id IS NULL OR COALESCE(s.hallucination, 0) = 0)"
@@ -482,17 +411,12 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
             guard let time = row.int(1) ?? row.int(2), let placement = place(time) else { return }
             var start = time
             var end: Int64?
-            // Offsets are seconds into the 30-second chunk the row's
-            // timestamp starts. A live caption copied into this table keeps
-            // its own time instead.
             if (row.text(10) ?? "").lowercased() != "live", let from = row.double(8), let to = row.double(9),
                from.isFinite, to.isFinite, from >= 0, to > from {
                 start = time + Int64((from * 1_000).rounded())
                 end = time + Int64((to * 1_000).rounded())
             }
             let device = trimmed(row.text(4)) ?? ""
-            // Rows older than the device columns carry the default "input";
-            // their chunk's file name says which device it was.
             let isInput = (device.isEmpty ? nil : row.bool(5)) ?? inputFromChunk(row.text(11))
             let name = trimmed(row.text(7))
             let isCompressed = row.bool(12) == true
@@ -505,7 +429,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// Screenpipe names chunk files `<device> (input)_<date>_<time>.mp4`.
     private static func inputFromChunk(_ path: String?) -> Bool? {
         guard let name = path.map({ ($0 as NSString).lastPathComponent.lowercased() }) else { return nil }
         if name.contains(" (input)_") { return true }
@@ -518,11 +441,8 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return value
     }
 
-    /// Closed meetings by start, ready for "which meetings contain this
-    /// moment" questions; meetings may overlap.
     private struct MeetingWindows {
         let meetings: [MeetingRow]
-        /// The latest end among `meetings[0...i]`.
         private let reach: [Int64]
 
         init(_ rows: [MeetingRow]) {
@@ -553,12 +473,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: - Action items
-
-    /// Bullets under an action-items heading of Screenpipe's note ("Action
-    /// items", "Next steps", "To-do", "Follow-ups"), whether a Markdown
-    /// heading, a bold line, or a line ending in a colon. A sub-heading or a
-    /// bold name before the item names its owner.
     static func actionItems(inNotes notes: String) -> [ExternalMeeting.ActionItem] {
         var items: [ExternalMeeting.ActionItem] = []
         var sectionLevel: Int?
@@ -621,8 +535,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return text.isEmpty ? nil : text
     }
 
-    /// "**Leo**: Send the deck", "**Leo:** Send the deck", or "@Leo Send the
-    /// deck" names Leo; otherwise the sub-heading's name, if any.
     private static func ownedItem(_ text: String, owner: String?) -> ExternalMeeting.ActionItem {
         if text.hasPrefix("**"), let close = text.range(of: "**", range: text.index(text.startIndex, offsetBy: 2)..<text.endIndex) {
             let name = text[text.index(text.startIndex, offsetBy: 2)..<close.lowerBound]
@@ -641,8 +553,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
         return .init(text: text, owner: owner)
     }
 
-    /// Reads like a person's name, not a section of the note such as
-    /// "Decisions" or "Open questions".
     private static func isName(_ text: String) -> Bool {
         let words = text.split(separator: " ")
         return !text.isEmpty && text.count <= 40 && (1...4).contains(words.count) && text.first?.isLetter == true
@@ -652,9 +562,6 @@ enum ScreenpipeMeetingReader: ExternalMeetingReader {
     }
 }
 
-/// A query-only SQLite connection opened with `mode=ro&immutable=1`:
-/// SQLite takes no locks, writes no `-wal` or `-shm` file, and never
-/// changes the database, so a running Screenpipe is never disturbed.
 private final class ImmutableDatabase {
     private let handle: OpaquePointer
 
@@ -673,7 +580,6 @@ private final class ImmutableDatabase {
         sqlite3_close(handle)
     }
 
-    /// Reasons name SQLite's result code only, never anything the file holds.
     static func failure(_ code: Int32) -> Error {
         ScreenpipeReadFailure.unreadable("SQLite couldn't read it (\(String(cString: sqlite3_errstr(code))))")
     }
@@ -725,7 +631,6 @@ private struct ImmutableRow {
         return String(cString: value)
     }
 
-    /// SQLite booleans are integers, but older writers may have left text.
     func bool(_ index: Int32) -> Bool? {
         switch sqlite3_column_type(statement, index) {
         case SQLITE_NULL: return nil
@@ -740,8 +645,6 @@ private struct ImmutableRow {
     }
 }
 
-/// Why one database gave nothing: it isn't Screenpipe's (skipped inside a
-/// folder), or it can't be read, for a reason that never quotes its content.
 private enum ScreenpipeReadFailure: Error {
     case notScreenpipe
     case unreadable(String)

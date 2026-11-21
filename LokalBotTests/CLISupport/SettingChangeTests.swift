@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Reading values typed in a terminal, mapping them to stored values, and
-/// deciding which changes need the person.
 final class SettingChangeTests: XCTestCase {
     private func spec(_ key: String) throws -> SettingSpec {
         try XCTUnwrap(SettingRegistry.spec(for: key), key)
@@ -69,14 +67,12 @@ final class SettingChangeTests: XCTestCase {
     }
 
     func testEveryConsentSettingHasADirection() throws {
-        // A consent setting with no rule would treat every change as widening,
-        // including turning it off. Check each one can be narrowed.
         let defaults = AppControlHandler.encoded(AppSettings())
         for spec in SettingRegistry.all where spec.tier == .consent {
             let narrowed: JSONValue
             switch (spec.key, spec.kind) {
             case ("retentionDays", _), ("keepOCRTextForever", _):
-                continue // both directions need review, on purpose
+                continue
             case ("requireCalendarForBrowser", _): narrowed = true
             case ("autoRecordMode", _): narrowed = "Never auto-record"
             case ("screenContextCaptureMode", _): narrowed = "Activity only"
@@ -85,7 +81,6 @@ final class SettingChangeTests: XCTestCase {
             case ("companionHistory", _): narrowed = 30
             case (_, .bool): narrowed = false
             case (_, .text(.commaSeparated)):
-                // Adding an exclusion narrows; clearing the list would widen.
                 narrowed = .string((defaults[spec.key]?.stringValue ?? "") + ", Example App")
             case (_, .text): narrowed = ""
             case (_, .textList): narrowed = []
@@ -122,7 +117,6 @@ final class SettingChangeTests: XCTestCase {
         XCTAssertEqual(plan.items.last?.stored, 18)
         XCTAssertEqual(plan.applicable.count, 3)
 
-        // `config export` shows the URL redacted; importing it back is a no-op.
         let url = try SettingsChangePlan.make(
             request: SettingsChangeRequest(changes: ["openAIBaseURL": "https://host.example/v1"]),
             current: current, defaults: defaults, redactURL: DiagnosticsSettingsSanitizer.redactURL)

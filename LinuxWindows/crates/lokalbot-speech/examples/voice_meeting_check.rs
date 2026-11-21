@@ -1,13 +1,3 @@
-//! Remembering speakers end to end on real voices: real speaker separation,
-//! voice samples, naming, then a later meeting, with no speech model.
-//!
-//! `cargo run -p lokalbot-speech --example voice_meeting_check -- <segmentation.onnx> <titanet.onnx> <dir> <library>`
-//!
-//! `<dir>` holds `<speaker>/<recording>/*.wav`. Each round builds two calls of
-//! the same three people from different recordings, plus one stranger in the
-//! second. Everyone in the first call is named as a person would, then the
-//! second call is identified. Prints what it decided about each voice.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -33,7 +23,6 @@ struct Call {
     truth: Vec<Truth>,
 }
 
-/// Turns of 8–15 s from each person in rotation, with short pauses.
 fn build_call(people: &[(String, PathBuf)]) -> Result<Call> {
     let mut audio = Vec::new();
     for (speaker, recording) in people {
@@ -77,7 +66,6 @@ fn build_call(people: &[(String, PathBuf)]) -> Result<Call> {
     })
 }
 
-/// A transcript of the separated voices, as the transcriber would make.
 fn transcript_of(duration: f64, turns: &[Turn]) -> Transcript {
     let segments = regions(duration, turns, AttributionSource::System, true)
         .into_iter()
@@ -99,7 +87,6 @@ fn transcript_of(duration: f64, turns: &[Turn]) -> Transcript {
     }
 }
 
-/// Who a label mostly is, and how much of it that is.
 fn majority(transcript: &Transcript, label: &str, truth: &[Truth]) -> (String, f64) {
     let mut seconds: BTreeMap<&str, f64> = BTreeMap::new();
     for segment in transcript.segments.iter().filter(|s| s.speaker == label) {
@@ -197,7 +184,6 @@ fn main() -> Result<()> {
     let library = Library::open(LibraryPaths::new(root.clone()))?;
     let memory = VoiceMemory::new(library.clone(), Box::new(|| Ok([5; 32])), |_| false);
 
-    // Speakers with at least two recordings, in folder order.
     let mut speakers: Vec<(String, Vec<PathBuf>)> = Vec::new();
     let mut folders: Vec<PathBuf> = std::fs::read_dir(dir)?
         .filter_map(|e| Some(e.ok()?.path()))

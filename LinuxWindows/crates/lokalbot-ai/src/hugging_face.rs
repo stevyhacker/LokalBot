@@ -1,7 +1,3 @@
-//! Browse Hugging Face (`HuggingFaceAPIClient`, `HuggingFaceSearchService`):
-//! search GGUF repositories, then list one repository's `.gguf` files with the
-//! immutable commit and LFS digest a download needs.
-
 use std::cmp::Ordering;
 use std::time::Duration;
 
@@ -26,7 +22,6 @@ pub enum ApiError {
     Transport(String),
 }
 
-/// One repository from the search, most downloaded first.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub struct ModelSummary {
     pub id: String,
@@ -36,22 +31,16 @@ pub struct ModelSummary {
     pub likes: u64,
 }
 
-/// One downloadable `.gguf` file inside a repository.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HfFile {
-    /// Repo-relative path, such as `gguf/model-Q4_K_M.gguf`.
     pub id: String,
-    /// `owner/repo`.
     pub model_id: String,
     pub size_bytes: Option<u64>,
-    /// The repository's commit.
     pub revision: String,
     pub sha256: Option<String>,
 }
 
 impl HfFile {
-    /// The `resolve` URL, percent-encoded, with the digest in its fragment the
-    /// way the Mac stores it.
     pub fn download_url(&self) -> String {
         let path: Vec<String> = self.id.split('/').map(encoded).collect();
         let mut url = format!(
@@ -67,7 +56,6 @@ impl HfFile {
         url
     }
 
-    /// Repos sometimes nest files, and downloads land flat under `models/`.
     pub fn file_name(&self) -> String {
         let leaf: String = self
             .id
@@ -89,7 +77,6 @@ impl HfFile {
         format!("hf-{}-{tail}", hex::encode(&digest[..6]))
     }
 
-    /// The `customBuiltInModels` record both apps read (`ModelCatalog.Entry`).
     pub fn catalog_record(&self) -> Value {
         let mut record = json!({
             "id": format!("hf:{}/{}", self.model_id, self.id),
@@ -133,7 +120,6 @@ fn fetch(url: &str) -> Result<Vec<u8>, ApiError> {
     }
 }
 
-/// `direction=-1` is required: `sort=downloads` alone returns least popular first.
 pub fn search_url(query: &str, limit: usize) -> String {
     format!(
         "https://huggingface.co/api/models?search={}&filter=gguf&sort=downloads&direction=-1&limit={}",
@@ -142,7 +128,6 @@ pub fn search_url(query: &str, limit: usize) -> String {
     )
 }
 
-/// Matching GGUF repositories, most downloaded first.
 pub fn search_models(query: &str) -> Result<Vec<ModelSummary>, ApiError> {
     let query = query.trim();
     if query.is_empty() {
@@ -152,8 +137,6 @@ pub fn search_models(query: &str) -> Result<Vec<ModelSummary>, ApiError> {
     serde_json::from_slice(&body).map_err(|_| ApiError::Decoding)
 }
 
-/// A repository's `.gguf` files in natural filename order, so quantization
-/// variants group sensibly.
 pub fn files(model_id: &str) -> Result<Vec<HfFile>, ApiError> {
     if !valid_model_id(model_id) {
         return Err(ApiError::InvalidUrl);
@@ -227,7 +210,6 @@ fn normalized_sha256(oid: Option<&str>) -> Option<String> {
     (oid.len() == 64 && oid.chars().all(|c| c.is_ascii_hexdigit())).then(|| oid.to_string())
 }
 
-/// `localizedStandardCompare`: ignores case, and digit runs compare as numbers.
 fn natural_order(a: &str, b: &str) -> Ordering {
     let (mut a, mut b) = (a.chars().peekable(), b.chars().peekable());
     loop {
@@ -321,7 +303,6 @@ mod tests {
         assert_eq!(files("../secrets"), Err(ApiError::InvalidUrl));
     }
 
-    /// Needs the network: `cargo test -p lokalbot-ai hugging_face -- --ignored`.
     #[test]
     #[ignore]
     fn the_live_api_lists_pinned_files() {

@@ -1,8 +1,5 @@
 import Foundation
 
-/// Reads current local sources off the UI thread. No private facts are cached
-/// or copied into a new store. FTS is only a candidate finder: prompts use the
-/// current files, so an old index row cannot resurrect edited/deleted text.
 enum CotypingMemoryContextProvider {
     struct FileStamp: Equatable, Sendable {
         var modified: Date?
@@ -37,8 +34,6 @@ enum CotypingMemoryContextProvider {
                      settings: AppSettings, now: Date = Date(), allowBodyMatch: Bool = true) -> Snapshot {
         let policy = CotypingMemoryContext.Policy(settings: settings)
         let query = CotypingMemoryContext.query(for: field, includeTitle: settings.cotypingUseAppContext)
-        // Writing that names nothing distinctive cannot match a saved topic, so
-        // it is answered without opening the library.
         guard policy.enabled, !query.all.isEmpty, !Task.isCancelled else { return .empty }
         let store = DreamStore(root: root)
         guard store.autocompleteEvidenceIsAvailable else { return .empty }
@@ -47,8 +42,6 @@ enum CotypingMemoryContextProvider {
             let url = root.appendingPathComponent(path)
             stamps[url] = FileStamp(url)
         }
-        // Saved work memory is read under the writing grants alone; scheduling
-        // new overnight reviews is a separate setting.
         var items: [CotypingMemoryContext.Item] = []
         if let memory = try? store.loadMemory() {
             items += memoryItems(memory)
@@ -68,7 +61,6 @@ enum CotypingMemoryContextProvider {
                   provenance: DreamEvidenceProvenance?) -> CotypingMemoryContext.Item? {
             guard let provenance, !provenance.includesUnattributedContext, !provenance.sources.isEmpty,
                   let updated = DreamDay.date(fromKey: day) else { return nil }
-            // A digest can mix meetings with activity/coding-agent history.
             let meetings = provenance.sources.contains { $0.kind == .meeting || $0.kind == .digest }
             let screens = provenance.sources.contains { $0.kind == .screenDay || $0.kind == .digest }
             return .init(id: id, title: title, text: text, updatedAt: updated,
@@ -85,7 +77,6 @@ enum CotypingMemoryContextProvider {
         return projects + goals
     }
 
-    /// A finished meeting recent enough to supply a fact.
     static func isEligible(_ meeting: Meeting, now: Date) -> Bool {
         meeting.isOwnWork && meeting.endedAt != nil
             && now.timeIntervalSince(meeting.startedAt) <= CotypingMemoryContext.maxAge
@@ -96,8 +87,6 @@ enum CotypingMemoryContextProvider {
                                      stamps: inout [URL: FileStamp]) -> [CotypingMemoryContext.Item] {
         let eligible = meetings.filter { isEligible($0, now: now) }.sorted { $0.startedAt > $1.startedAt }
         let databaseURL = root.appendingPathComponent("lokalbotv3.sqlite")
-        // Only distinctive words reach the index: everyday wording matches
-        // nearly every transcript and would crowd out the meeting that is named.
         let hits = !query.search.isEmpty && FileManager.default.fileExists(atPath: databaseURL.path)
             ? SearchIndex(databaseURL: databaseURL, readOnly: true).search(
                 query.search.joined(separator: " "), limit: 12, matchAll: false, dropStopWords: true,
@@ -131,11 +120,8 @@ enum CotypingMemoryContextProvider {
                     texts.append((text, stamps[folder.appendingPathComponent(path)]?.modified ?? current.startedAt))
                 }
             }
-            // Projection applies saved corrections and omits archived outcomes.
             let outcomeDate = [MeetingOutcomes.fileName, MeetingOutcomeState.fileName]
                 .compactMap { stamps[folder.appendingPathComponent($0)]?.modified }.max() ?? current.startedAt
-            // The shared projection also checks the transcript revision and
-            // loads a follow-up draft. Bound and watch those dependencies too.
             let outcomesAreBounded = [MeetingOutcomes.fileName, MeetingOutcomeState.fileName, FollowUpDraft.fileName].allSatisfy {
                 (stamps[folder.appendingPathComponent($0)]?.size ?? 0) <= 32_768
             } && (stamps[folder.appendingPathComponent("transcript.json")]?.size ?? 0) <= 2_097_152

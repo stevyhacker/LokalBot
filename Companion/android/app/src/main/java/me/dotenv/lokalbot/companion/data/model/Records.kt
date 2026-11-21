@@ -5,10 +5,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 
-// Companion records, schema version 1 (Companion/protocol/records.md).
-// Optional fields are omitted by the Mac, never null, so every optional
-// property has a default. Unknown keys and enum values are ignored.
-
 val RecordJson = Json {
     ignoreUnknownKeys = true
     coerceInputValues = true
@@ -44,7 +40,6 @@ data class Manifest(
     val dataClasses: DataClasses = DataClasses(),
     val historyDays: Int = 0,
     val askEnabled: Boolean = false,
-    /** Absent on a computer from before recordings; false while its setting is off. */
     val recordingsEnabled: Boolean? = null,
     val generatedAt: String? = null,
 )
@@ -87,10 +82,8 @@ data class Citation(
     val excerpt: String = "",
 )
 
-/** The computer's answer when it didn't make a status change sent from this device (ffi.md, `syncNote`). */
 @Serializable
 data class SyncNote(
-    /** Why, in the computer's words. */
     val message: String? = null,
 )
 
@@ -106,13 +99,10 @@ data class MeetingAction(
     val status: ActionStatus = ActionStatus.Open,
     val importance: Int = 3,
     val citations: List<Citation> = emptyList(),
-    /** Added by this device's store, in a meeting's actions: the status was changed here and the computer hasn't confirmed it. */
     val pending: Boolean = false,
-    /** Added by this device's store, in a meeting's actions: the computer didn't make the last change. */
     val syncNote: SyncNote? = null,
 )
 
-/** A decision or an open question. */
 @Serializable
 data class Outcome(
     val id: String,
@@ -227,7 +217,6 @@ data class OpenWork(
     val theirs: Boolean = false,
 )
 
-/** A decision attributed to a meeting, as listed on people and projects. */
 @Serializable
 data class MeetingNote(val meetingId: String, val text: String)
 
@@ -272,7 +261,6 @@ data class Project(
     val meetingIds: List<String> = emptyList(),
 )
 
-/** An action with its meeting, as returned by `SyncClient.actions` (ffi.md). */
 @Serializable
 data class ActionRow(
     val meetingId: String,
@@ -280,7 +268,6 @@ data class ActionRow(
     val meetingStartedAt: String,
     val action: MeetingAction,
     val pending: Boolean = false,
-    /** The computer didn't make the last status change sent from here. */
     val syncNote: SyncNote? = null,
 )
 

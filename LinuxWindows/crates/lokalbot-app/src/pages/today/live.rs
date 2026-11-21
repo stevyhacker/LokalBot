@@ -1,7 +1,3 @@
-//! The recording in progress, at the top of Today (`TodayLiveCard.swift`):
-//! what is being recorded, for how long, whether sound is arriving, and the
-//! only Stop on the page.
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::v_flex;
 use gpui_kit::prelude::FluentBuilder as _;
@@ -17,7 +13,6 @@ use crate::state::RecordingState;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, action_row};
 
-/// Bars in the system-audio meter.
 const METER_BARS: usize = 10;
 
 impl TodayPage {
@@ -42,8 +37,6 @@ impl TodayPage {
         let elapsed = started.elapsed().as_secs_f64();
         let has_system = *has_system_audio;
         let (mic_level, system_level) = (*mic_level, *system_level);
-        // The engine reports each track's state (Mac words, looked up here);
-        // levels fill in until its first report arrives.
         let (mic_status, system_status): (SharedString, SharedString) =
             match data.recording_statuses.clone() {
                 Some((mic, system)) => (
@@ -198,7 +191,6 @@ impl TodayPage {
     }
 }
 
-/// Ten small bars, lit up to the system audio's level (`TodayRecordingLevels`).
 fn meter(level: f32, on: Hsla, off: Hsla) -> impl IntoElement {
     let level = level.clamp(0., 1.);
     h_flex()

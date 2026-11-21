@@ -1,10 +1,6 @@
 import Foundation
 import Network
 
-/// A one-shot HTTP listener on 127.0.0.1 that receives an OAuth redirect.
-/// It binds to the loopback address only, answers the first request for
-/// `path` with a short page, and hands its query to the waiting sign-in.
-/// Other paths (a browser's favicon request) get a 404 and are ignored.
 final class LoopbackRedirectListener: @unchecked Sendable {
     enum ListenerError: LocalizedError {
         case couldNotListen(String)
@@ -34,7 +30,6 @@ final class LoopbackRedirectListener: @unchecked Sendable {
         self.path = path
     }
 
-    /// Listens on `preferredPort`, or on any free port when it is taken.
     static func start(preferredPort: UInt16, path: String) async throws -> LoopbackRedirectListener {
         if preferredPort != 0, let listener = try? await start(port: preferredPort, path: path) {
             return listener
@@ -62,7 +57,6 @@ final class LoopbackRedirectListener: @unchecked Sendable {
         return redirect
     }
 
-    /// The redirect's query items. Throws on timeout or cancellation.
     func waitForCallback(timeout: Duration) async throws -> [String: String] {
         let timeoutTask = Task { [weak self] in
             try? await Task.sleep(for: timeout)
@@ -123,7 +117,6 @@ final class LoopbackRedirectListener: @unchecked Sendable {
         }
     }
 
-    /// The request-target of a complete `GET` request head, or nil.
     static func requestTarget(_ buffer: Data) -> String? {
         guard let end = buffer.range(of: Data("\r\n\r\n".utf8)),
               let head = String(data: buffer[..<end.lowerBound], encoding: .utf8),
@@ -173,15 +166,11 @@ final class LoopbackRedirectListener: @unchecked Sendable {
     }
 }
 
-/// A TCP listener bound to 127.0.0.1 only, so nothing off this Mac can reach
-/// it. Shared by the sign-in redirect and Agent Mode's ChatGPT plan relay.
 enum LoopbackListener {
     struct BindError: Error {
         let detail: String
     }
 
-    /// A started listener on `port`, or on any free port when it is 0. It
-    /// refuses connections until the caller installs its own handler.
     static func bind(port: UInt16) async throws -> (listener: NWListener, port: UInt16) {
         let parameters = NWParameters.tcp
         parameters.requiredLocalEndpoint = .hostPort(
@@ -217,7 +206,6 @@ enum LoopbackListener {
     }
 }
 
-/// Resumes a continuation at most once from concurrent callbacks.
 private final class OnceFlag: @unchecked Sendable {
     private let lock = NSLock()
     private var claimed = false

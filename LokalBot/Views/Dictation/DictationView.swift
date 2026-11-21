@@ -1,22 +1,16 @@
 import SwiftUI
 
-/// Settings › Dictation, under the shared header: the shortcut, what it
-/// writes, what shows while dictating, and a row that opens the recent
-/// dictations. Trying it out is the header's "Try it…" sheet.
 struct DictationSettingsSections: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var dictation: DictationCoordinator
     @ObservedObject private var permissions = PermissionManager.shared
-    /// The page a row opened, when one is open.
     let subpage: SettingsSubpage?
     let open: (SettingsSubpage) -> Void
-    /// Opens a model picker over the page.
     let changeModel: (ModelPickerRole) -> Void
     @State private var microphones: [DictationMicrophone.Option] = []
 
     private var operation: AppSettings { dictation.presentedConfiguration }
     private var localized: (String) -> String { app.settings.appLanguage.catalog }
-    /// A recording keeps the settings it started with.
     private var busy: Bool { dictation.state != .idle || dictation.isStarting }
 
     var body: some View {
@@ -33,8 +27,6 @@ struct DictationSettingsSections: View {
     }
 
     @ViewBuilder private var mainSections: some View {
-        // The page header says which permission is missing and asks for it;
-        // only the relaunch a granted shortcut may need stays here.
         if app.settings.dictationEnabled, !app.dictation.isShortcutMonitoringActive,
            permissions.granted[.inputMonitoring] == true {
             Section {
@@ -58,8 +50,6 @@ struct DictationSettingsSections: View {
         }
     }
 
-    // MARK: - Shortcut
-
     private var shortcutSection: some View {
         Section("Shortcut") {
             LabeledContent {
@@ -76,8 +66,6 @@ struct DictationSettingsSections: View {
                     },
                     onRecordingChanged: { app.setShortcutRecording($0) })
             } label: {
-                // The page's anchor for tests and captures. On a container it
-                // would replace the identifier of every row inside.
                 Text("Shortcut").accessibilityIdentifier("dictation.form")
             }
             .settingTarget("settings.dictationShortcut", selected: app.focusedSettingID)
@@ -107,8 +95,6 @@ struct DictationSettingsSections: View {
             .onAppear { microphones = DictationMicrophone.available() }
         }
     }
-
-    // MARK: - What it writes
 
     private var writingSection: some View {
         Section("What it writes") {
@@ -157,8 +143,6 @@ struct DictationSettingsSections: View {
         }
     }
 
-    /// Where the dictated words become the text that is pasted. When that is
-    /// a service, the row says that what is dictated goes there.
     @ViewBuilder private var writerRow: some View {
         let writer = DictationWriterPresentation(settings: operation)
         LabeledContent {
@@ -177,7 +161,6 @@ struct DictationSettingsSections: View {
         }
         .padding(.leading, operation.dictationIntent == .compose ? 14 : 0)
         if operation.dictationIntent == .compose, writer.online {
-            // What else travels with the dictated words, said in full.
             InferenceDisclosure(
                 settings: operation.dictationCompositionTextEngineSettings,
                 localText: "Speech uses the meeting ASR model; final wording uses your local composition model and writing profile. Everything stays on this Mac.",
@@ -186,8 +169,6 @@ struct DictationSettingsSections: View {
                 .accessibilityIdentifier("dictation.remoteNotice")
         }
     }
-
-    // MARK: - While dictating
 
     private var whileDictatingSection: some View {
         Section("While dictating") {
@@ -202,10 +183,6 @@ struct DictationSettingsSections: View {
         }
     }
 
-    // MARK: - The pages the rows open
-
-    /// Compose takes tone, name and terminology from the writing profile it
-    /// shares with Autocomplete, so its fields are edited here too.
     private var profileSection: some View {
         Section {
             WritingProfileFields()
@@ -230,17 +207,12 @@ struct DictationSettingsSections: View {
     }
 }
 
-/// "Try it…" on Dictation: speak, and the result shows here. Nothing is
-/// pasted into another app and the clipboard is left alone.
 struct DictationTrySheet: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var dictation: DictationCoordinator
-    /// What the page header says, for what still stands in the way.
     let status: SettingsStatus
     @Environment(\.dismiss) private var dismiss
 
-    /// The header's lines that stop a try-out: the microphone and the model.
-    /// The header shows them only while the shortcut is on.
     private var blockers: [SettingsStatusLine] {
         var input = status.input
         input.settings.dictationEnabled = true
@@ -285,12 +257,9 @@ struct DictationTrySheet: View {
     }
 }
 
-/// The try-out itself: the button that starts and stops a recording, where
-/// it stands, and the last result.
 struct DictationView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var dictation: DictationCoordinator
-    /// Nil when Secure Input is off; otherwise the app holding it, if known.
     @State private var secureInputHolder: String??
     private let secureInputPoll = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
@@ -378,7 +347,6 @@ struct DictationView: View {
                     .textSelection(.enabled)
             }
             if let contextUse = app.dictation.lastContextUse {
-                // Verbatim: saved-fact titles are user text, not markdown.
                 Text(verbatim: contextUse.summary { app.settings.appLanguage.localized($0) })
                     .font(.scaled(.callout))
                     .settingsSecondary()
@@ -406,7 +374,6 @@ struct DictationView: View {
         }
     }
 
-    /// The kept dictation that the last-result section above already shows.
     private var latestShownAbove: DictationHistoryEntry? {
         guard let latest = dictation.history.entries.first,
               latest.text == (dictation.lastComposedText ?? dictation.lastTranscript) else { return nil }

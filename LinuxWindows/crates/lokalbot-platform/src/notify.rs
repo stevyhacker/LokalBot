@@ -1,42 +1,27 @@
-//! Desktop notifications (`RecordingNotifier.swift`): "Meeting detected /
-//! Record <title>?" with Record and Ignore, "Recording saved", and friends.
-//!
-//! Linux uses `org.freedesktop.Notifications` with actions; Windows shows a
-//! toast with buttons. Action callbacks run on a background thread, one per
-//! notification that has actions; forward them to the app.
-
 use std::time::Duration;
 
 use anyhow::Context as _;
 
-/// "Meeting detected" prompts are withdrawn after two minutes on macOS.
 pub const MEETING_PROMPT_LIFETIME: Duration = Duration::from_secs(120);
 
-/// Shown in the app when notifications cannot be posted
-/// (`RecordingNotifier`).
 pub fn notifications_unavailable_message(title: &str) -> String {
     format!(
         "Notifications are unavailable. Choose Record Now in the LokalBot menu to record {title}."
     )
 }
 
-/// A posted notification, to withdraw it early (for example when the meeting
-/// it asks about has ended).
 pub struct NotificationHandle {
     #[cfg(target_os = "linux")]
     id: u32,
 }
 
 impl NotificationHandle {
-    /// Removes the notification if it is still shown.
     pub fn close(&self) {
         #[cfg(target_os = "linux")]
         close_by_id(self.id);
     }
 }
 
-/// Posts a notification. `actions` are `(id, label)` pairs; `on_action`
-/// receives the chosen id, or "default" when the notification body is clicked.
 pub fn notify(
     title: &str,
     body: &str,
@@ -46,7 +31,6 @@ pub fn notify(
     notify_with_timeout(title, body, actions, on_action, None).map(|_| ())
 }
 
-/// [`notify`] that expires after `timeout` and can be withdrawn.
 pub fn notify_with_timeout(
     title: &str,
     body: &str,
@@ -63,9 +47,6 @@ pub fn notify_with_timeout(
     for (id, label) in actions {
         notification.action(id, label);
     }
-    // A click on the body reaches `on_action` only as the "default" action,
-    // which a server sends only for a notification that registered it. Most
-    // desktops never show its label.
     #[cfg(target_os = "linux")]
     if on_action.is_some() {
         notification.action("default", "LokalBot");
@@ -80,7 +61,6 @@ pub fn notify_with_timeout(
         server_available(),
         "no notification service is running on this desktop"
     );
-    // A stuck notification service must not hold up the caller.
     let (sent, received) = crossbeam_channel::bounded(1);
     std::thread::Builder::new()
         .name("lokalbot-notification-show".into())
@@ -93,13 +73,10 @@ pub fn notify_with_timeout(
         .context("the notification could not be shown")?;
     #[cfg(target_os = "linux")]
     let id = shown.id();
-    // A callback alone is worth listening for: the click on the body.
     if let Some(on_action) = on_action {
         std::thread::Builder::new()
             .name("lokalbot-notification".into())
             .spawn(move || {
-                // A toast reports its body as a response of its own, which
-                // `wait_for_action` would hand over as "closed".
                 #[cfg(windows)]
                 let _ = shown.wait_for_response(|response: &notify_rust::NotificationResponse| {
                     match response {
@@ -119,8 +96,6 @@ pub fn notify_with_timeout(
                     }
                 });
             })?;
-        // Servers that ignore the expiry (GNOME keeps it in its list) are
-        // asked to withdraw it, like the macOS prompt.
         #[cfg(target_os = "linux")]
         if let Some(timeout) = timeout {
             let _ = std::thread::Builder::new()
@@ -139,8 +114,6 @@ pub fn notify_with_timeout(
 
 const SHOW_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// Whether something owns `org.freedesktop.Notifications` or D-Bus can start
-/// it. Without this check, posting waits for D-Bus activation to time out.
 #[cfg(target_os = "linux")]
 fn server_available() -> bool {
     const NAME: &str = "org.freedesktop.Notifications";
@@ -180,9 +153,6 @@ fn close_by_id(id: u32) {
     }
 }
 
-/// Windows shows a toast under a registered app id (a Start menu shortcut
-/// carrying `System.AppUserModel.ID`, created by the installer). Without one,
-/// toasts appear under Windows PowerShell rather than not at all.
 #[cfg(windows)]
 fn windows_app_id() -> String {
     use windows::Win32::System::Registry::{
@@ -195,7 +165,6 @@ fn windows_app_id() -> String {
         crate::APP_ID
     ));
     let mut handle = HKEY::default();
-    // SAFETY: opens and closes a read-only registry key handle.
     let registered = unsafe {
         let opened = RegOpenKeyExW(HKEY_CURRENT_USER, &key, None, KEY_READ, &mut handle);
         if opened.is_ok() {
@@ -232,9 +201,6 @@ mod tests {
         );
     }
 
-    /// Needs a notification server; over SSH there is none, which must be an
-    /// error rather than a hang or a crash. Linux only: on Windows a toast
-    /// would reach the signed-in user's desktop.
     #[cfg(target_os = "linux")]
     #[test]
     fn posting_without_a_desktop_fails_cleanly() {

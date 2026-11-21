@@ -1,6 +1,3 @@
-//! The parts of `CodingAgentText.swift` that judge a title: is it a name for
-//! work, or something said to an agent?
-
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -23,9 +20,6 @@ static POLITE_OPENING: LazyLock<Regex> = LazyLock::new(|| {
     .expect("valid regex")
 });
 
-/// Text said to an agent rather than a name for work: a question, a truncated
-/// or harness-tagged request, a link, or a conversational opening such as
-/// "can you" or "we should".
 pub fn reads_as_request(text: &str) -> bool {
     let trimmed = text.trim();
     trimmed.is_empty()
@@ -36,10 +30,6 @@ pub fn reads_as_request(text: &str) -> bool {
         || CONVERSATIONAL_OPENING.is_match(trimmed)
 }
 
-/// A request that is a short instruction, as a work title: "Review all open
-/// PRs" as is, "let's commit the benchmark." as "Commit the benchmark". `None`
-/// for anything else, such as a question, a long or truncated request, a
-/// terminal command, or pasted text.
 pub fn instruction(request: &str) -> Option<String> {
     let mut clean = request.trim().to_string();
     if clean.starts_with('/')
@@ -60,7 +50,6 @@ pub fn instruction(request: &str) -> Option<String> {
     }
     let mut chars = clean.chars();
     let first = chars.next()?;
-    // "iOS …" keeps its case.
     let second_is_upper = chars.clone().next().is_some_and(char::is_uppercase);
     Some(if first.is_lowercase() && !second_is_upper {
         first.to_uppercase().chain(chars).collect()

@@ -1,23 +1,3 @@
-//! The Antigravity plan through the user's own Antigravity CLI (`agy`)
-//! (`AntigravityCLI.swift`, `AntigravityPlanEngine.swift`).
-//!
-//! The user signs in to Antigravity CLI through Google's own flow (`agy`);
-//! LokalBot never reads, stores, or forwards Antigravity or Google credentials
-//! and never offers an Antigravity login of its own. Every request runs `agy`
-//! in a fresh private temporary directory with three defense-in-depth
-//! tool-isolation layers:
-//! 1. `.agents/agents/lokalbot-think.md` restricting tools to `finish` and
-//!    carrying the system prompt.
-//! 2. `--settings settings.json` setting `toolPermission: "strict"`,
-//!    `allowNonWorkspaceAccess: false`, `disableSlashCommands: true`, and
-//!    explicit deny rules for commands, files, URLs, and MCP.
-//! 3. `.agents/hooks.json` with a `PreToolUse` RE2 matcher that denies every
-//!    tool call except `finish` (used internally by `--json-schema`).
-//!
-//! Content travels over stdin (`--input-format stream-json`), and structured
-//! schemas travel in a private temporary file (`--json-schema schema.json`),
-//! never on the command line.
-
 use std::collections::{BTreeSet, HashMap};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -48,9 +28,6 @@ const FALLBACK_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(900);
 const STATUS_TIMEOUT: Duration = Duration::from_secs(20);
 
-/// RE2 regular expression matching every non-empty tool name except `"finish"`,
-/// so `agy --json-schema`'s internal `finish` step succeeds while every other
-/// tool (including MCP and task tools) is hard-denied.
 pub const DENY_NON_FINISH_MATCHER: &str =
     "^([^f].*|f([^i].*|$)|fi([^n].*|$)|fin([^i].*|$)|fini([^s].*|$)|finis([^h].*|$)|finish.+)$";
 
@@ -151,8 +128,6 @@ pub fn locate(refresh: bool) -> Option<PathBuf> {
     found
 }
 
-/// Removes enclosing Antigravity/ACP session variables so `agy` runs as a
-/// standalone invocation.
 pub(crate) fn scrubbed_command(executable: &Path, arguments: &[String]) -> Command {
     let mut command = Launch::for_executable(executable).command(arguments);
     for (key, _) in std::env::vars_os() {
@@ -203,9 +178,6 @@ fn level_order(level: ReasoningLevel) -> u8 {
     }
 }
 
-/// Parses `agy models` stdout into grouped models. Multi-effort families
-/// (e.g. `gemini-4-neon-low`/`-medium`/`-high`/`-xhigh`) collapse to their
-/// base slug (`gemini-4-neon`).
 pub fn parse_models_output(text: &str) -> Vec<ModelEntry> {
     let clean = cli::strip_ansi(text);
     let mut raw: Vec<(String, String)> = Vec::new();
@@ -218,8 +190,6 @@ pub fn parse_models_output(text: &str) -> Vec<ModelEntry> {
         {
             continue;
         }
-        // Non-TTY `agy models` separates columns with a single tab; TTY output
-        // pads with two or more spaces.
         let bytes = line.as_bytes();
         let mut split_at = None;
         let mut i = 0;
@@ -336,8 +306,6 @@ fn run_short(executable: &Path, arguments: &[&str]) -> Result<crate::process::Ca
     })
 }
 
-/// Checks whether `agy` is signed in and returns its available models via
-/// `agy models`, without touching credentials.
 pub fn auth_status(executable: &Path) -> Result<AuthStatus> {
     let output = run_short(executable, &["models"])?;
     let combined = format!("{}\n{}", output.stdout, output.stderr).to_ascii_lowercase();
@@ -371,8 +339,6 @@ pub fn version(executable: &Path) -> Option<String> {
     let text = output.stdout.trim();
     (!text.is_empty()).then(|| text.chars().take(80).collect())
 }
-
-// ----------------------------------------------------------------- engine
 
 pub(crate) fn context_tokens(model: &str) -> u32 {
     if model.trim().to_ascii_lowercase().contains("gpt-oss") {
@@ -919,7 +885,6 @@ gpt-oss-120b-medium   GPT-OSS 120B (Medium)\n";
         assert!(args.windows(2).any(|w| w == ["--effort", "low"]));
         assert!(!args.iter().any(|a| a.contains("Secret")));
 
-        // Explicit effort suffix never adds --effort.
         let fixed = arguments("gemini-4-neon-high", ReasoningLevel::Low, &req);
         assert!(!fixed.iter().any(|a| a == "--effort"));
     }

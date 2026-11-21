@@ -1,13 +1,6 @@
-//! `CotypingDebouncePolicy`: how long to wait after a keystroke before
-//! asking for a suggestion. A model server keeps the conservative backoff,
-//! because dropping a request does not stop a prompt the server is reading.
-
 pub const MINIMUM_MS: u64 = 20;
-/// The largest backoff, however slow the last request was.
 pub const MAX_BACKOFF_MS: u64 = 600;
 
-/// The configured pause, or half the last request's latency when that is
-/// longer, minus what the caller already waited.
 pub fn milliseconds(last_latency_ms: Option<u64>, configured_ms: u64, consumed_ms: u64) -> u64 {
     let fallback = configured_ms.max(MINIMUM_MS);
     let total = match last_latency_ms {

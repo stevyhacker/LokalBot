@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Qwen on auto-detect votes the track's language on a sample of its spans,
-/// then decodes the track once, pinned, instead of twice
-/// (Benchmarks/transcribe/QwenLanguageSample).
 final class QwenLanguageSampleTests: XCTestCase {
     private let english = [
         "I dropped a question on Discord, so any time just check it out and let me know what you think.",
@@ -23,7 +20,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         "Projekat kasni dvije sedmice zbog problema sa dobavljačem.",
     ]
 
-    /// Ten-second slots whose spans vary in length, so each group has one longest span.
     private func spans(_ count: Int) -> [SpeechSpan] {
         (0..<count).map { index in
             let start = Double(index) * 10
@@ -31,8 +27,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         }
     }
 
-    /// Answers each span with `auto(index)` on auto-detect and a marker when
-    /// pinned, and records which spans every call decoded, in which language.
     private final class Decoder: @unchecked Sendable {
         private(set) var calls: [(spans: [Int], language: String?)] = []
         private let auto: (Int) -> String
@@ -56,8 +50,6 @@ final class QwenLanguageSampleTests: XCTestCase {
             decoder.decode($0, $1)
         }
     }
-
-    // MARK: - The sample
 
     func testSampleTakesTheLongestSpanOfEachStretchThroughTheEnd() {
         let spans = spans(20)
@@ -84,8 +76,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertEqual(QwenASREngine.languageSample(spans(1), count: 8), [0])
         XCTAssertEqual(QwenASREngine.languageSample([], count: 8), [])
     }
-
-    // MARK: - One pass when the sample's vote holds
 
     func testOneLanguageTrackDecodesOncePinnedAfterTheSample() async throws {
         let spans = spans(20)
@@ -114,8 +104,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertFalse(decision.needsSpeakerRegions)
     }
 
-    /// The aligner cannot time Croatian, so the track goes to speaker regions
-    /// decoded in it; decoding the rest of the track here would be thrown away.
     func testCroatianTrackForWordAttributionStopsAfterTheSample() async throws {
         let decoder = Decoder { self.croatian[$0 % self.croatian.count] }
         let decision = try await decide(spans(20), wordAttribution: true, decoder: decoder)
@@ -135,8 +123,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertFalse(decision.needsSpeakerRegions)
     }
 
-    // MARK: - The old path when the sample's vote does not hold
-
     func testMixedTrackStaysOnAutoAndIsDecodedOnce() async throws {
         let spans = spans(20)
         let decoder = Decoder { $0 % 2 == 0 ? self.english[$0 % self.english.count] : self.german[$0 % self.german.count] }
@@ -152,8 +138,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertEqual(decision.segments[3].text, german[0])
     }
 
-    /// A language change in the last stretch reaches the sample, so the track
-    /// is not pinned to the language it opened in.
     func testLateLanguageChangeKeepsTheTrackOnAuto() async throws {
         let decoder = Decoder { $0 < 14 ? self.english[$0 % self.english.count] : self.german[$0 % self.german.count] }
         let decision = try await decide(spans(20), decoder: decoder)
@@ -163,9 +147,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertEqual(decision.segments.count, 20)
     }
 
-    /// The sample can land on a track's few misdetected windows. The rest
-    /// then decodes on auto and the whole track votes, as it did before
-    /// sampling, so the track is still pinned.
     func testTrackTheSampleMisjudgedIsStillPinnedByTheWholeTrackVote() async throws {
         let spans = spans(40)
         let sample = QwenASREngine.languageSample(spans, count: 8)
@@ -180,9 +161,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertTrue(decision.decodedTwice)
     }
 
-    /// The sample pins only on a clearer vote than the whole track needs:
-    /// one other-language span in eight is too coarse a reading of a track
-    /// that may sit near 80%. The whole track then votes as before.
     func testSampleBelowItsShareFallsBackToTheWholeTrackVote() async throws {
         XCTAssertGreaterThan(QwenASREngine.sampleShare, 0.88)
         let spans = spans(40)
@@ -195,8 +173,6 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertEqual(decision.pinned, "en")
         XCTAssertTrue(decision.decodedTwice)
     }
-
-    // MARK: - Short tracks decode as before
 
     func testShortTrackVotesOnEverySpanAndDecodesAgainPinned() async throws {
         let decoder = Decoder { self.english[$0 % self.english.count] }

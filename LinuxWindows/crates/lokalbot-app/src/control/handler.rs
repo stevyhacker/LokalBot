@@ -1,6 +1,3 @@
-//! Answers control-socket requests on the UI thread, against the live settings
-//! (`AppControlHandler.swift`, `AppControlHandler+Setup.swift`).
-
 use std::time::Duration;
 
 use chrono::Utc;
@@ -28,7 +25,6 @@ use crate::pages::settings::catalog;
 use crate::pages::settings::models::{Preset, model_bytes};
 use crate::state::{AppData, AppEvent, DictationHud, SettingsCategory};
 
-/// The token an agent reads for each of the app's presets.
 fn preset_token(preset: Preset) -> &'static str {
     match preset {
         Preset::Balanced => "recommended",
@@ -47,8 +43,6 @@ fn preset_named(value: Option<&Value>) -> Result<Preset, ControlError> {
     }
 }
 
-/// The balanced models when their Think and autocomplete models, plus room for
-/// transcription, fit comfortably in memory; otherwise the lightweight ones.
 pub(crate) fn suggested_preset(memory_bytes: u64, settings: &Settings) -> (Preset, String) {
     const GIB: f64 = 1_073_741_824.0;
     let gigabytes = memory_bytes as f64 / GIB;
@@ -56,7 +50,6 @@ pub(crate) fn suggested_preset(memory_bytes: u64, settings: &Settings) -> (Prese
     let stack = model_bytes(balanced.think, settings)
         + model_bytes(balanced.autocomplete, settings)
         + 1_073_741_824;
-    // A model needs its file size plus about 30% resident, within 60% of memory.
     let comfortable = stack as f64 / GIB * 1.3 <= gigabytes * 0.6;
     let memory = format!("{} GB", gigabytes.round() as i64);
     if comfortable {
@@ -84,7 +77,6 @@ fn hello() -> Value {
     })
 }
 
-/// One model role as `models status` reports it.
 fn role_status(
     ready: bool,
     in_use: Option<&str>,
@@ -174,12 +166,10 @@ impl ControlHost {
         if request.protocol != VERSION {
             return reply(Response::failure(ControlError::unsupported_protocol()));
         }
-        // Revoking the grant takes effect even for a connection already accepted.
         if !access::settings_control_enabled(&self.paths) {
             return reply(Response::failure(ControlError::settings_access_disabled()));
         }
         let params = request.params.unwrap_or_default();
-        // These reach the credential store, which can block, so they answer later.
         match request.method.as_str() {
             protocol::METHOD_SECRET_LIST => return self.secret_list(reply, cx),
             protocol::METHOD_SECRET_SET => return self.secret_set(params, caller, reply, cx),
@@ -299,9 +289,6 @@ impl ControlHost {
         }
     }
 
-    /// Applies preference and narrowing changes, all or none. A change that
-    /// widens what LokalBot captures, reads, records, or sends waits, with the
-    /// rest of its request, until the person approves it in the app.
     fn set_settings(
         &mut self,
         params: &Map<String, Value>,
@@ -317,8 +304,6 @@ impl ControlHost {
         )?;
         let entries = plan.entries();
         let changed = plan.changed();
-        // Validate everything that would apply, even for a dry run, and before
-        // asking the person about a value LokalBot would reject.
         super::checked_apply(&changed, &settings)?;
         if request.dry_run {
             return Ok(json!({"applied": false, "dryRun": true, "changes": entries}));
@@ -388,8 +373,6 @@ impl ControlHost {
         .detach();
     }
 
-    /// A new API key always waits for the person. The key itself is held in
-    /// memory until the request is answered and never appears in a reply.
     fn secret_set(
         &mut self,
         params: Map<String, Value>,
@@ -559,8 +542,6 @@ impl ControlHost {
                     "name": need.name,
                     "title": need.title,
                     "granted": need.granted,
-                    // False where nothing can be read before the feature
-                    // first runs: then "granted" claims nothing.
                     "checked": need.checked,
                     "neededBy": need.needed_by,
                     "detail": need.detail,
@@ -574,7 +555,6 @@ impl ControlHost {
         self.approvals.expire_stale(Utc::now());
         let data = self.data.read(cx);
         let mut granted = Map::new();
-        // Null where it can't be known before the feature first runs.
         for need in permissions::needs(data, cx) {
             granted.insert(
                 need.title,
@@ -602,7 +582,6 @@ impl ControlHost {
         })
     }
 
-    /// Readiness and the next steps, for the features the person turned on.
     fn doctor(&self, cx: &Context<Self>) -> Value {
         let data = self.data.read(cx);
         let mut checks: Vec<Value> = Vec::new();
@@ -726,7 +705,6 @@ impl ControlHost {
                 "LokalBot is recording. Restart it after the recording stops.",
             ));
         }
-        // Reply first; the relaunch quits this copy.
         cx.spawn(async move |_, cx| {
             smol::Timer::after(Duration::from_millis(500)).await;
             cx.update(crate::updates::restart);
@@ -735,8 +713,6 @@ impl ControlHost {
         Ok(json!({"restarting": true}))
     }
 
-    /// Opens Settings at one setting or section, for what only the person can do
-    /// there: permissions, sign-in, or a change they want to make themselves.
     fn open_settings(
         &mut self,
         params: &Map<String, Value>,
@@ -774,7 +750,6 @@ impl ControlHost {
     }
 }
 
-/// The page that holds a registry category.
 fn settings_page_for(category: SettingCategory) -> SettingsCategory {
     match category {
         SettingCategory::General => SettingsCategory::General,

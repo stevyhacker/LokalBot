@@ -2,9 +2,6 @@ import AppKit
 import CoreAudio
 import Foundation
 
-/// Anything Core Audio knows about a running process that owns audio.
-/// Hashable / Equatable on `objectID` only so SwiftUI Pickers keep matching
-/// after a refresh that flips `isRunningOutput`.
 struct AudioProcess: Identifiable, Equatable, Hashable {
     let id: pid_t
     let name: String
@@ -58,14 +55,8 @@ enum CoreAudioError: LocalizedError {
     }
 }
 
-/// Thin wrappers over the `AudioObjectGetPropertyData` calls we need so the
-/// recorder/detector code reads like Swift instead of a thicket of pointer
-/// dances. Modeled on Seminarly's `CoreAudioUtils`, adapted for LokalBot.
 enum CoreAudioUtils {
 
-    // MARK: - Process objects
-
-    /// Every Core Audio process AudioObjectID currently known to the system.
     static func getProcessList() throws -> [AudioObjectID] {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyProcessObjectList,
@@ -124,9 +115,6 @@ enum CoreAudioUtils {
         return isProcessRunningInput(objectID: processObject)
     }
 
-    /// Core Audio returns the CFString +1 (Create Rule); take it as
-    /// `Unmanaged` so ownership is explicit — passing `&CFString` is flagged
-    /// unsafe because it forms a raw pointer to an ARC-managed reference.
     static func getProcessBundleID(objectID: AudioObjectID) -> String? {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioProcessPropertyBundleID,
@@ -139,8 +127,6 @@ enum CoreAudioUtils {
         return bundleID.takeRetainedValue() as String
     }
 
-    /// PID → process AudioObjectID. Returns nil when no Core Audio object is
-    /// associated with the PID (the process opened no audio devices).
     static func translatePIDToProcessObject(pid: pid_t) -> AudioObjectID? {
         var address = AudioObjectPropertyAddress(
             mSelector: kAudioHardwarePropertyTranslatePIDToProcessObject,

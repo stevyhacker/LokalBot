@@ -3,15 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Windows for autocomplete: a low-level keyboard hook that takes the plain
-//! accept keys and Esc only while ghost text shows (`CotypingInputMonitor`'s
-//! accept tap), `SendInput` Unicode keystrokes for an accepted chunk
-//! (`CotypingInserter`), and the ghost window's styles and placement.
-//!
-//! The hook is installed when a suggestion appears and removed when it goes;
-//! its callback only forwards the key, so Windows never waits on LokalBot.
-//! LokalBot's own keystrokes carry [`MARKER`] and pass the hook untouched.
-
 use std::cell::RefCell;
 use std::thread::JoinHandle;
 
@@ -49,11 +40,8 @@ use windows::Win32::UI::WindowsAndMessaging::{
 use super::geometry::Rect;
 use super::{AcceptKeys, Edit, FieldSnapshot, InterceptedKey, KeyHandler};
 
-/// `dwExtraInfo` of LokalBot's own keystrokes ("LOKA").
 pub(super) const MARKER: usize = 0x4C4F_4B41;
-/// Many apps take only the first 20 UTF-16 units of one burst of keys.
 const CHUNK: usize = 20;
-/// The scan code of the key left of 1, whatever it types on this layout.
 const BACKTICK_SCAN_CODE: u32 = 0x29;
 
 enum Command {
@@ -67,12 +55,10 @@ struct HookState {
     handler: KeyHandler,
     hook: Option<HHOOK>,
     keys: AcceptKeys,
-    /// Keys whose press was taken, so their release is taken too.
     taken: [bool; 4],
 }
 
 thread_local! {
-    /// The hook runs on the thread that installed it, through its message loop.
     static STATE: RefCell<Option<HookState>> = const { RefCell::new(None) };
 }
 
@@ -100,7 +86,6 @@ fn virtual_key(key: InterceptedKey) -> VIRTUAL_KEY {
         InterceptedKey::Tab => VK_TAB,
         InterceptedKey::Escape => VK_ESCAPE,
         InterceptedKey::RightArrow => VK_RIGHT,
-        // SAFETY: no pointers; maps a scan code on the current layout.
         InterceptedKey::Backtick => {
             VIRTUAL_KEY(unsafe { MapVirtualKeyW(BACKTICK_SCAN_CODE, MAPVK_VSC_TO_VK) } as u16)
         }
@@ -108,7 +93,6 @@ fn virtual_key(key: InterceptedKey) -> VIRTUAL_KEY {
 }
 
 fn is_down(vk: VIRTUAL_KEY) -> bool {
-    // SAFETY: no pointers; reads the asynchronous key state.
     (unsafe { GetAsyncKeyState(i32::from(vk.0)) } as u16 & 0x8000) != 0
 }
 
@@ -120,7 +104,6 @@ fn modifiers_down() -> bool {
 
 unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -> LRESULT {
     if code == HC_ACTION as i32 {
-        // SAFETY: for HC_ACTION, lparam points to the event's KBDLLHOOKSTRUCT.
         let info = unsafe { &*(lparam.0 as *const KBDLLHOOKSTRUCT) };
         if let Some(key) = intercepted(info)
             && info.dwExtraInfo != MARKER
@@ -153,7 +136,6 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
             }
         }
     }
-    // SAFETY: passes the event on unchanged.
     unsafe { CallNextHookEx(None, code, wparam, lparam) }
 }
 
@@ -256,8 +238,6 @@ fn set_hook(active: bool) {
         };
         match (active, state.hook) {
             (true, None) => {
-                // SAFETY: a low-level hook for this process's own procedure;
-                // it is removed below before the thread ends.
                 let installed = unsafe {
                     let module = GetModuleHandleW(None).ok();
                     SetWindowsHookExW(WH_KEYBOARD_LL, Some(hook_proc), module.map(Into::into), 0)
@@ -268,7 +248,6 @@ fn set_hook(active: bool) {
                 }
             }
             (false, Some(hook)) => {
-                // SAFETY: `hook` came from SetWindowsHookExW on this thread.
                 let _ = unsafe { UnhookWindowsHookEx(hook) };
                 state.hook = None;
                 state.taken = [false; 4];
@@ -324,7 +303,6 @@ fn send(inputs: &[INPUT]) -> anyhow::Result<()> {
     if inputs.is_empty() {
         return Ok(());
     }
-    // SAFETY: `inputs` is a valid slice of INPUT structures.
     let sent = unsafe { SendInput(inputs, size_of::<INPUT>() as i32) };
     anyhow::ensure!(
         sent as usize == inputs.len(),
@@ -336,20 +314,15 @@ fn send(inputs: &[INPUT]) -> anyhow::Result<()> {
 }
 
 fn foreground_pid() -> Option<u32> {
-    // SAFETY: no arguments; returns a possibly null window handle.
     let window = unsafe { GetForegroundWindow() };
     if window.0.is_null() {
         return None;
     }
     let mut pid = 0u32;
-    // SAFETY: `pid` outlives the call.
     unsafe { GetWindowThreadProcessId(window, Some(&mut pid)) };
     (pid != 0).then_some(pid)
 }
 
-/// Types an accepted chunk into the window in front, which must belong to
-/// the field's app: deletions first, then the text as Unicode keystrokes in
-/// bursts of at most 20 UTF-16 units.
 pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     anyhow::ensure!(
         foreground_pid() == Some(field.target.pid),
@@ -369,7 +342,6 @@ pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
         match c {
             '\r' => continue,
             '\n' => batch.extend([key_input(VK_RETURN, false), key_input(VK_RETURN, true)]),
-            // Tab would come back to our own hook as an accept.
             '\t' => batch.extend([
                 unicode_input(u16::from(b' '), false),
                 unicode_input(u16::from(b' '), true),
@@ -382,7 +354,6 @@ pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
             }
         }
         units += c.len_utf16();
-        // Never split a surrogate pair between bursts.
         if units >= CHUNK {
             send(&batch)?;
             batch.clear();
@@ -393,16 +364,6 @@ pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     send(&batch)
 }
 
-/// No frame or border, no activation on click, clicks pass through, never
-/// in the taskbar or Alt+Tab, and (when asked) left out of screenshots and
-/// recordings.
-///
-/// GPUI creates pop-up windows as overlapped windows, which Windows gives a
-/// caption and a border: the client area then sits inside the frame the
-/// ghost is placed at, so its text was shifted and clipped, and DWM drew a
-/// thin border around it. A plain `WS_POPUP` without DWM's frame, rounded
-/// corners and border is exactly the ghost's frame. Call it outside a GPUI
-/// update: the frame change reaches GPUI as a new client size.
 pub(super) fn prepare_overlay(hwnd: isize, exclude_from_capture: bool) -> anyhow::Result<()> {
     let window = HWND(hwnd as *mut core::ffi::c_void);
     let frame = WS_CAPTION
@@ -412,9 +373,6 @@ pub(super) fn prepare_overlay(hwnd: isize, exclude_from_capture: bool) -> anyhow
         | WS_SYSMENU
         | WS_MINIMIZEBOX
         | WS_MAXIMIZEBOX;
-    // SAFETY: `window` is LokalBot's own ghost window; these calls only
-    // change its styles and DWM attributes, each value passed by pointer
-    // with its size.
     unsafe {
         let style = WINDOW_STYLE(GetWindowLongPtrW(window, GWL_STYLE) as u32);
         SetWindowLongPtrW(window, GWL_STYLE, ((style & !frame) | WS_POPUP).0 as isize);
@@ -426,7 +384,6 @@ pub(super) fn prepare_overlay(hwnd: isize, exclude_from_capture: bool) -> anyhow
             | WS_EX_TOOLWINDOW
             | WS_EX_TOPMOST;
         SetWindowLongPtrW(window, GWL_EXSTYLE, style.0 as isize);
-        // Older Windows lacks some of these; the window still works.
         let policy = DWMNCRP_DISABLED;
         let _ = DwmSetWindowAttribute(
             window,
@@ -450,7 +407,6 @@ pub(super) fn prepare_overlay(hwnd: isize, exclude_from_capture: bool) -> anyhow
         );
         SetLayeredWindowAttributes(window, Default::default(), 255, LWA_ALPHA)
             .context("SetLayeredWindowAttributes")?;
-        // The new styles take effect with the next frame calculation.
         SetWindowPos(
             window,
             None,
@@ -470,14 +426,12 @@ pub(super) fn prepare_overlay(hwnd: isize, exclude_from_capture: bool) -> anyhow
     Ok(())
 }
 
-/// Device pixels per logical pixel on the monitor showing `rect`.
 pub(super) fn scale_at(rect: &Rect) -> Option<f32> {
     let point = POINT {
         x: (rect.x + rect.width / 2.0) as i32,
         y: rect.mid_y() as i32,
     };
     let (mut dpi_x, mut dpi_y) = (0u32, 0u32);
-    // SAFETY: both out-parameters outlive the call.
     unsafe {
         let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
         GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).ok()?;
@@ -487,7 +441,6 @@ pub(super) fn scale_at(rect: &Rect) -> Option<f32> {
 
 pub(super) fn place_overlay(hwnd: isize, frame: Option<Rect>) -> anyhow::Result<()> {
     let window = HWND(hwnd as *mut core::ffi::c_void);
-    // SAFETY: `window` is LokalBot's own ghost window.
     unsafe {
         match frame {
             Some(frame) => {
@@ -511,13 +464,11 @@ pub(super) fn place_overlay(hwnd: isize, frame: Option<Rect>) -> anyhow::Result<
     Ok(())
 }
 
-/// The work area of the monitor showing `rect`.
 pub(super) fn screen_containing(rect: &Rect) -> Option<Rect> {
     let point = POINT {
         x: rect.x as i32,
         y: rect.mid_y() as i32,
     };
-    // SAFETY: `info` is a valid MONITORINFO with cbSize set.
     unsafe {
         let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
         let mut info = MONITORINFO {
@@ -537,9 +488,7 @@ pub(super) fn screen_containing(rect: &Rect) -> Option<Rect> {
     }
 }
 
-/// Mean luminance of a few pixels just right of `rect`.
 pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
-    // SAFETY: the screen DC is released before returning.
     unsafe {
         let dc = GetDC(None);
         if dc.is_invalid() {
@@ -573,12 +522,10 @@ mod tests {
     #[test]
     fn keystrokes_carry_the_marker() {
         let down = key_input(VK_TAB, false);
-        // SAFETY: reading the keyboard member of an INPUT built as one.
         let ki = unsafe { down.Anonymous.ki };
         assert_eq!(ki.dwExtraInfo, MARKER);
         assert_eq!(ki.wVk, VK_TAB);
         let text = unicode_input(0x41, true);
-        // SAFETY: as above.
         let ki = unsafe { text.Anonymous.ki };
         assert_eq!(ki.dwExtraInfo, MARKER);
         assert!(ki.dwFlags.contains(KEYEVENTF_UNICODE | KEYEVENTF_KEYUP));
@@ -586,7 +533,6 @@ mod tests {
 
     #[test]
     fn the_hook_installs_and_removes_without_a_desktop() {
-        // Over SSH (session 0) installing may fail; it must not panic or hang.
         let hook = Hook::start(std::sync::Arc::new(|_| {})).unwrap();
         hook.set_active(true);
         std::thread::sleep(std::time::Duration::from_millis(100));

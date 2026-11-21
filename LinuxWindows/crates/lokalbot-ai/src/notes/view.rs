@@ -1,7 +1,3 @@
-//! The transcript as the notes pipeline reads it (`Transcript.swift`,
-//! `SpeakerAttribution.swift`): normalized text, resolved attribution, the
-//! speaker roster, stable segment IDs and the short `s#` citation IDs.
-
 use std::collections::BTreeMap;
 use std::sync::LazyLock;
 
@@ -13,8 +9,6 @@ use lokalbot_core::model::{AttributionMethod, SpeakerAttribution, SpeakerIdentit
 static CONTROL_TOKEN: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"<\|[^>]*\|>").expect("valid regex"));
 
-/// `Transcript.normalizedText`: control tokens removed, whitespace collapsed,
-/// empty when nothing alphanumeric remains.
 pub fn normalized_text(raw: &str) -> String {
     let without = CONTROL_TOKEN.replace_all(raw, " ");
     let collapsed = without.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -25,12 +19,10 @@ pub fn normalized_text(raw: &str) -> String {
     }
 }
 
-/// `Transcript.defaultSpeakerName(for:)`.
 pub fn default_speaker_name(speaker: &str) -> String {
     Transcript::default_speaker_name(speaker)
 }
 
-/// `SpeakerAttribution.legacy(speaker:).applyingMicrophoneDefault`.
 pub fn resolved_attribution(
     segment: &lokalbot_core::model::Segment,
     microphone_is_user: bool,
@@ -48,14 +40,12 @@ pub fn identity_label(identity: SpeakerIdentity) -> &'static str {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Speaker {
-    /// Canonical speaker key.
     pub id: String,
     pub name: String,
     pub identity: SpeakerIdentity,
 }
 
 impl Speaker {
-    /// "You", or the name with "(identity unconfirmed)" / "(other speaker)".
     pub fn label(&self) -> String {
         let base = if self.identity == SpeakerIdentity::User {
             "You".to_string()
@@ -110,7 +100,6 @@ impl<'a> View<'a> {
         let roster = groups
             .into_iter()
             .map(|(key, rows)| {
-                // Mixed voices and suspected echo cannot outvote the speaker.
                 let mut identities: Vec<SpeakerIdentity> = rows
                     .iter()
                     .map(|i| attributions[*i])
@@ -168,7 +157,6 @@ impl<'a> View<'a> {
         format!("s{}", index + 1)
     }
 
-    /// The segment a `s#` citation ID names.
     pub fn index_of(&self, citation: &str) -> Option<usize> {
         let n: usize = citation.strip_prefix('s')?.parse().ok()?;
         (n >= 1 && n <= self.len()).then_some(n - 1)
@@ -181,9 +169,6 @@ impl<'a> View<'a> {
         )
     }
 
-    /// One prompt turn per piece of each non-empty segment; a segment longer
-    /// than `max_characters` is split at word boundaries, each piece keeping
-    /// the segment's `s#` (`summaryPromptTurns`).
     pub fn prompt_turns(&self, max_characters: usize) -> Vec<(usize, String)> {
         let limit = max_characters.max(200);
         let mut turns = Vec::new();
@@ -228,9 +213,6 @@ fn text_parts(text: &str, max_characters: usize) -> Vec<String> {
     parts
 }
 
-/// SHA-256 over the transcript's sorted-key JSON: identifies the evidence a
-/// summary or checkpoint was made from (`Transcript.evidenceRevision`; the
-/// bytes differ from Swift's encoder, so the value is local to this port).
 pub fn evidence_revision(transcript: &Transcript) -> String {
     let value = serde_json::to_value(transcript).unwrap_or_default();
     let bytes = serde_json::to_vec(&crate::json::sort_keys(value)).unwrap_or_default();

@@ -1,11 +1,5 @@
 import Foundation
 
-/// Cotabby-style idle backoff for the focus poll timer.
-///
-/// Recent activity keeps the Accessibility poll at full cadence so suggestions
-/// react quickly after typing. Sustained no-change captures stretch the timer,
-/// reducing idle main-thread wakeups and AX reads without adding latency while
-/// the user is actively editing.
 struct CotypingFocusPollBackoff: Sendable {
     private(set) var idleCaptureCount = 0
 

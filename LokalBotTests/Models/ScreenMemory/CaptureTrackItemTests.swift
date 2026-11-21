@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The Capture day track merges activity blocks and meetings into one
-/// start-ordered stream (spec §2.2: meetings render as first-class blocks).
-/// Pure, so the interleaving and the in-progress-meeting end rule are
-/// testable without views.
 final class CaptureTrackItemTests: XCTestCase {
 
     private let base = Date(timeIntervalSince1970: 1_750_000_000)
@@ -59,7 +55,6 @@ final class CaptureTrackItemTests: XCTestCase {
     }
 
     func testLiveMeetingGetsMinimumVisibleSpan() {
-        // A meeting that just started must not produce a zero-height block.
         let m = meeting(startOffset: 0, endOffset: nil)
         XCTAssertEqual(CaptureTrackItem.meetingEnd(m, now: base),
                        base.addingTimeInterval(60))

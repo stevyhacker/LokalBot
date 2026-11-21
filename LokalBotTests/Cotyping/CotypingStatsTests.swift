@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Quality metrics
-
 final class CotypingStatsTests: XCTestCase {
     func testDefaults() {
         let stats = CotypingStats()
@@ -30,8 +28,8 @@ final class CotypingStatsTests: XCTestCase {
     func testLatencyCap() {
         var stats = CotypingStats()
         for ms in 1...55 { stats.recordGeneration(latencyMs: ms) }
-        XCTAssertEqual(stats.latenciesMs.count, CotypingStats.maxLatencies)  // 50
-        XCTAssertEqual(stats.latenciesMs.first, 6)  // first five dropped
+        XCTAssertEqual(stats.latenciesMs.count, CotypingStats.maxLatencies)
+        XCTAssertEqual(stats.latenciesMs.first, 6)
         XCTAssertEqual(stats.latenciesMs.last, 55)
     }
 
@@ -40,7 +38,7 @@ final class CotypingStatsTests: XCTestCase {
         [100, 200, 300, 400, 500].forEach { stats.recordGeneration(latencyMs: $0) }
         XCTAssertEqual(stats.avgLatencyMs, 300)
         XCTAssertEqual(stats.medianLatencyMs, 300)
-        XCTAssertEqual(stats.p95LatencyMs, 500)   // idx = round(4*0.95) = 4
+        XCTAssertEqual(stats.p95LatencyMs, 500)
         XCTAssertEqual(stats.maxLatencyMs, 500)
     }
 
@@ -73,8 +71,6 @@ final class CotypingStatsTests: XCTestCase {
     }
 }
 
-// MARK: - Live typing measurements
-
 final class CotypingLiveMeasureTests: XCTestCase {
     private func field(_ text: String, processID: pid_t = 42, role: String = "AXTextArea") -> CotypingField {
         CotypingField(appName: "Notes", bundleID: "com.apple.Notes", processID: processID, role: role,
@@ -86,7 +82,6 @@ final class CotypingLiveMeasureTests: XCTestCase {
         CotypingInsertionCheck(field: field(before), inserted: text, surface: "other", startedUptimeNanoseconds: 0)
     }
 
-    /// Counters saved before the measurements existed must keep their values.
     func testOlderSavedCountersDecodeWithoutResetting() throws {
         let saved = Data(#"{"generations":5,"errors":1,"accepts":2,"charsAccepted":20,"latenciesMs":[100,140]}"#.utf8)
         let stats = try JSONDecoder().decode(CotypingStats.self, from: saved)
@@ -153,11 +148,9 @@ final class CotypingLiveMeasureTests: XCTestCase {
         let check = insertion(" up", after: "I wanted to follow")
         XCTAssertEqual(check.outcome(live: field("I wanted to follow"), elapsedMilliseconds: 20), .pending)
         XCTAssertEqual(check.outcome(live: field("I wanted to follow up"), elapsedMilliseconds: 40), .confirmed)
-        // Typing that continued, or a browser's non-breaking space, is still the same insertion.
         XCTAssertEqual(check.outcome(live: field("I wanted to follow up on it"), elapsedMilliseconds: 900), .confirmed)
         XCTAssertEqual(insertion(" soon ", after: "See you")
             .outcome(live: field("See you soon\u{00A0}"), elapsedMilliseconds: 40), .confirmed)
-        // An empty field has no text before the caret to anchor on.
         XCTAssertEqual(insertion("Hello", after: "").outcome(live: field("Hello"), elapsedMilliseconds: 40), .confirmed)
     }
 
@@ -169,14 +162,12 @@ final class CotypingLiveMeasureTests: XCTestCase {
         XCTAssertEqual(check.outcome(live: field("I wanted to followup"), elapsedMilliseconds: late), .mismatched)
         XCTAssertEqual(check.outcome(live: field("I wanted to follow  up"), elapsedMilliseconds: late), .mismatched,
                        "a doubled space is a visible difference")
-        // Another field, or none, cannot say anything about this one.
         XCTAssertEqual(check.outcome(live: field("I wanted to follow up", processID: 7), elapsedMilliseconds: late),
                        .unconfirmed)
         XCTAssertEqual(check.outcome(live: nil, elapsedMilliseconds: 10), .pending)
         XCTAssertEqual(check.outcome(live: nil, elapsedMilliseconds: late), .unconfirmed)
     }
 
-    /// Half of a 16-character insertion used to count as confirmed.
     func testATruncatedInsertionIsNotConfirmed() {
         let check = insertion(" up on the time.", after: "I wanted to follow")
         let truncated = field("I wanted to follow up on the")
@@ -186,7 +177,6 @@ final class CotypingLiveMeasureTests: XCTestCase {
         XCTAssertEqual(check.outcome(live: truncated, elapsedMilliseconds: late), .mismatched)
         XCTAssertEqual(check.outcome(live: field("I wanted to follow up on the time."), elapsedMilliseconds: late),
                        .confirmed)
-        // Once the text that preceded the caret is gone, nothing can be said either way.
         XCTAssertEqual(check.outcome(live: field("A different line"), elapsedMilliseconds: late), .unconfirmed)
         XCTAssertEqual(insertion("Hello", after: "").outcome(live: field("Hel"), elapsedMilliseconds: late), .mismatched)
         XCTAssertEqual(insertion("Hello", after: "").outcome(live: field(""), elapsedMilliseconds: late), .unconfirmed)
@@ -236,7 +226,6 @@ final class CotypingStatsStoreTests: XCTestCase {
         store.suggestionCompleted()
         await store.flushPersistence()
 
-        // A fresh store loading the same suite sees the persisted values.
         let reloaded = CotypingStatsStore(defaults: suite)
         XCTAssertEqual(reloaded.stats.generations, 1)
         XCTAssertEqual(reloaded.stats.accepts, 1)

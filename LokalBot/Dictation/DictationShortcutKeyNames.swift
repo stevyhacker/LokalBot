@@ -2,10 +2,6 @@ import Carbon.HIToolbox
 import CoreGraphics
 import Foundation
 
-/// Names for the virtual key codes a dictation shortcut can use. Named keys
-/// (Space, arrows, function keys) come from a fixed table; character keys are
-/// read from the current keyboard layout, so a German or French layout shows
-/// the letter printed on its own key.
 enum DictationShortcutKeyNames {
     static let escape = CGKeyCode(kVK_Escape)
 
@@ -42,7 +38,6 @@ enum DictationShortcutKeyNames {
         functionKeys[keyCode] != nil
     }
 
-    /// Keys that do not type a character.
     static func isNamedKey(_ keyCode: CGKeyCode) -> Bool {
         named[keyCode] != nil || functionKeys[keyCode] != nil
     }
@@ -53,9 +48,6 @@ enum DictationShortcutKeyNames {
         return "Key \(keyCode)"
     }
 
-    /// The unmodified character the current layout prints on `keyCode`.
-    /// Input methods without a key layout (Japanese, Chinese) fall back to
-    /// the ASCII-capable layout. Text Input Sources are main-thread only.
     private static func layoutCharacter(for keyCode: CGKeyCode) -> String? {
         let sources = [
             TISCopyCurrentKeyboardLayoutInputSource()?.takeRetainedValue(),

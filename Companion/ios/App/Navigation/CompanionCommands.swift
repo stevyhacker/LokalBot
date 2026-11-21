@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Hardware keyboard shortcuts on iPad: ⌘1–⌘7 for sections in sidebar order,
-/// ⌘F to search meetings and ⌘N for a new question.
 struct CompanionCommands: Commands {
     @FocusedValue(\.navigator) private var navigator
 

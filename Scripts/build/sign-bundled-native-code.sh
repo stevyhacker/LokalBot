@@ -1,11 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Hardened-runtime apps can only load bundled dylibs that are signed by the
-# same team, unless library validation is disabled. Keep validation on and sign
-# our vendored native runtimes after Copy Bundle Resources but before the app
-# bundle itself is sealed by Xcode.
-
 if [[ "${CODE_SIGNING_ALLOWED:-}" != "YES" ]]; then
   echo "sign-bundled-native-code: code signing disabled; skipping"
   exit 0

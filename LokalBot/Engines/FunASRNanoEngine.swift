@@ -1,7 +1,5 @@
 import Foundation
 
-/// Immutable per-selection paths prevent a folder change from redirecting an
-/// already-running meeting. Only the bundled runtime is executed.
 actor FunASRNanoEngine: TranscriptionEngine {
     nonisolated let displayName = "Fun-ASR-Nano-2512"
     nonisolated let supportsStreaming = false
@@ -22,8 +20,6 @@ actor FunASRNanoEngine: TranscriptionEngine {
         defer { try? FileManager.default.removeItem(at: work) }
         let wav = work.appendingPathComponent("check.wav")
         try OnnxTranscriptionEngine.writeWav([Float](repeating: 0, count: 8_000), to: wav)
-        // Loading a short synthetic input catches incompatible/corrupt graphs
-        // before the selection replaces the current working model.
         _ = try await OnnxTranscriptionEngine.runBatch(
             runtime: runtime, arguments: model.arguments(language: nil), weights: model.weights,
             modelID: "fun-asr-nano-2512", label: displayName, wavs: [wav], requireAllResults: true)

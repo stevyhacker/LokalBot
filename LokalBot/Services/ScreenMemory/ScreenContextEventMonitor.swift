@@ -7,10 +7,6 @@ enum ScreenContextInteraction: Sendable {
     case scrollWheel
 }
 
-/// Coalesces noisy global input events away from the main actor. A key-repeat
-/// or trackpad gesture can produce hundreds of events per second; only the
-/// settled boundary is relevant to context capture, so raw events stay on this
-/// private serial queue and at most one main-actor callback is emitted.
 final class ScreenContextEventCoalescer: @unchecked Sendable {
     private let queue = DispatchQueue(
         label: "me.dotenv.LokalBot.screen-context-events",
@@ -78,9 +74,6 @@ final class ScreenContextEventCoalescer: @unchecked Sendable {
     }
 }
 
-/// Converts coarse interaction boundaries into capture hints. It never reads a
-/// key code, typed string, mouse location, or clipboard contents; only the fact
-/// that typing/scrolling/clicking/copying settled is retained as a trigger name.
 @MainActor
 final class ScreenContextEventMonitor {
     var onTrigger: ((ScreenCaptureTrigger) -> Void)?
@@ -93,12 +86,6 @@ final class ScreenContextEventMonitor {
 
     func start() {
         guard globalMonitor == nil else { return }
-        // AppState (and therefore this monitor) is built while AppKit is still
-        // inside `finishLaunching`. Registering a global event monitor that
-        // early corrupts this app's own window-server event subscription: its
-        // windows keep rendering and hit-testing, but never receive another
-        // mouse event. Defer installation until the run loop is actually
-        // pumping events (`isRunning` flips after `finishLaunching` returns).
         if NSApp?.isRunning == true {
             install()
         } else if launchObserver == nil {
@@ -107,8 +94,6 @@ final class ScreenContextEventMonitor {
                 object: nil,
                 queue: .main
             ) { _ in
-                // One more turn so `run()` has entered its event loop, then
-                // install unconditionally — the notification never fires again.
                 DispatchQueue.main.async {
                     Task { @MainActor [weak self] in
                         guard let self else { return }

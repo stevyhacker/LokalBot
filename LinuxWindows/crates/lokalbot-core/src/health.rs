@@ -1,8 +1,3 @@
-//! Library health (`LibraryHealth.swift`, `LibraryHealthLoader.swift`,
-//! `LibraryHealthReportStore.swift`): judges one day of a library the way a
-//! person would notice a problem. Reads counts and timestamps only, never window
-//! text or meeting content. Reports stay in `diagnostics/health`.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 
@@ -17,7 +12,6 @@ use crate::settings::Settings;
 use crate::time::{iso_seconds, local_day, local_day_bounds};
 
 pub const PRIVATE_APP: &str = "Private";
-/// Capture skips LokalBot's own windows and the lock screen by design.
 const UNCAPTURED_APPS: &[&str] = &[
     "LokalBot",
     "LokalBot Dev",
@@ -30,14 +24,10 @@ const PRIVATE_SHARE_BASELINE_FLOOR: f64 = 0.10;
 const DIGEST_COVERAGE_WARNING: f64 = 0.60;
 const SCHEDULER_GRACE_SECONDS: i64 = 2 * 60 * 60;
 const CLOCK_TOLERANCE_SECONDS: f64 = 60.0;
-/// Reads transcripts for finished recordings of the last week.
 const RECORDINGS_WINDOW_DAYS: i64 = 7;
 use crate::dream::CATCH_UP_DAYS as DREAM_CATCH_UP_DAYS;
-/// `DayDigestGenerationMetadataStore.maximumDegradedAttempts`.
 const MAXIMUM_DEGRADED_ATTEMPTS: u32 = 3;
-/// Shorter recordings hold no speech worth a model run.
 const MINIMUM_RECORDING_SECONDS: f64 = 5.0;
-/// A merged source shorter than this may legitimately have no segments.
 const MINIMUM_GAP_SECONDS: f64 = 30.0;
 const GAP_REPAIR_MARKER: &str = "transcript-gap-repair.json";
 
@@ -83,8 +73,6 @@ impl HealthCheck {
     }
 }
 
-/// Fields are in sorted-key order, so the JSON reads as the Mac's
-/// `.sortedKeys` encoder writes it.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct HealthFinding {
     pub check: HealthCheck,
@@ -154,7 +142,6 @@ impl HealthReport {
     }
 }
 
-/// Why a finished recording still needs transcribing (`MissingTranscription.Reason`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MissingTranscript {
     NeverTranscribed,
@@ -177,8 +164,6 @@ pub struct PastDay {
 }
 
 impl PastDay {
-    /// A past day with evidence is final once its journal was written at or
-    /// after the start of the following day (`DayDigestScheduler.needsFinalization`).
     pub fn needs_finalization(&self) -> bool {
         if self.latest_evidence_at.is_none() {
             return false;
@@ -192,15 +177,12 @@ impl PastDay {
 pub struct SchedulerHealth {
     pub automatic_inference_allowed: bool,
     pub digest_enabled: bool,
-    /// Yesterday relative to `now`, as the digest scheduler sees it.
     pub previous_day: Option<PastDay>,
     pub dreaming_enabled: bool,
     pub dreaming_hour: u32,
-    /// Undreamed eligible days in the catch-up window through yesterday.
     pub missing_dream_days: usize,
 }
 
-/// Everything the evaluator judges.
 #[derive(Clone, Debug, PartialEq)]
 pub struct HealthInput {
     pub day_start: DateTime<Utc>,
@@ -209,16 +191,13 @@ pub struct HealthInput {
     pub blocks: Vec<ActivityBlock>,
     pub screen_capture_enabled: bool,
     pub capture_counts_by_app: HashMap<String, usize>,
-    /// Private share of each earlier day in the last week that had activity.
     pub private_share_history: Vec<f64>,
     pub recordings: Vec<RecordingHealth>,
-    /// Off means the app never repairs a missing transcript on its own.
     pub automatic_transcription: bool,
     pub schedulers: SchedulerHealth,
     pub digest_coverage: Option<DigestCoverage>,
 }
 
-/// Blocks overlapping the day, cut to it and sorted by start.
 pub fn clamped_blocks(
     blocks: &[ActivityBlock],
     start: DateTime<Utc>,
@@ -240,7 +219,6 @@ pub fn clamped_blocks(
 }
 
 fn total(blocks: &[ActivityBlock]) -> f64 {
-    // Not `sum`: an empty float sum is -0.0, which would read as "-0.0 h".
     blocks
         .iter()
         .fold(0.0, |total, block| total + block.duration_seconds())
@@ -509,8 +487,6 @@ fn digest_coverage(input: &HealthInput) -> HealthFinding {
     ])
 }
 
-/// Finds a finished recording whose transcript is missing or incomplete
-/// (`MissingTranscription.reason`).
 pub fn missing_transcript(library: &Library, meeting: &Meeting) -> Option<MissingTranscript> {
     if meeting.merged_into_meeting_id.is_some() || meeting.ended_at.is_none() {
         return None;
@@ -528,8 +504,6 @@ pub fn missing_transcript(library: &Library, meeting: &Meeting) -> Option<Missin
     has_merged_source_gap(library, meeting, &folder).then_some(MissingTranscript::MergedGap)
 }
 
-/// Written before a merged-gap repair is queued, so a span that stays empty
-/// (silence, for example) isn't transcribed again on every launch.
 pub fn mark_gap_repair_requested(folder: &Path, at: DateTime<Utc>) -> anyhow::Result<()> {
     let marker = serde_json::json!({
         "requestedAt": at.to_rfc3339_opts(chrono::SecondsFormat::Secs, true),
@@ -541,8 +515,6 @@ pub fn mark_gap_repair_requested(folder: &Path, at: DateTime<Utc>) -> anyhow::Re
     Ok(())
 }
 
-/// A merged meeting's transcript has no segment at all within the span of one of
-/// its sources.
 fn has_merged_source_gap(library: &Library, meeting: &Meeting, folder: &Path) -> bool {
     if folder.join(GAP_REPAIR_MARKER).exists() {
         return false;
@@ -578,8 +550,6 @@ fn has_merged_source_gap(library: &Library, meeting: &Meeting, folder: &Path) ->
     false
 }
 
-/// `DayDigestGenerationMetadataStore.completedAt`: when the day's journal was
-/// finished, or `None` while it still needs a repair.
 fn digest_completed_at(library: &Library, day: NaiveDate) -> Option<DateTime<Utc>> {
     let modified: DateTime<Utc> = std::fs::metadata(library.journal_path(day))
         .ok()?
@@ -654,7 +624,6 @@ impl Library {
         missing
     }
 
-    /// Gathers what `evaluate` judges for one day (`LibraryHealthLoader.input`).
     pub fn health_input(
         &self,
         day: NaiveDate,
@@ -716,7 +685,6 @@ impl Library {
         })
     }
 
-    /// Writes `<dayKey>.json` and `<dayKey>.md`; returns the Markdown path.
     pub fn write_health_report(&self, report: &HealthReport) -> Result<PathBuf> {
         let directory = reports_dir(self.paths().root());
         std::fs::create_dir_all(&directory)?;
@@ -729,7 +697,6 @@ impl Library {
         Ok(markdown)
     }
 
-    /// When a health check last ran, from its reports.
     pub fn latest_health_run(&self) -> Option<DateTime<Utc>> {
         std::fs::read_dir(reports_dir(self.paths().root()))
             .ok()?
@@ -748,7 +715,6 @@ mod tests {
 
     use super::*;
 
-    /// Noon local time on `day`, for tests of "now".
     fn local_noon(day: NaiveDate) -> DateTime<Utc> {
         Local
             .from_local_datetime(&day.and_hms_opt(12, 0, 0).unwrap())
@@ -908,7 +874,6 @@ mod tests {
                 .starts_with("Tracked 0.5 h exceeds")
         );
 
-        // A block is cut to the day it's judged for.
         seen.blocks = vec![block("A", day_start - Duration::hours(2), 180)];
         seen.now = local_noon(day() + Duration::days(1));
         let report = evaluate(&seen, "k");
@@ -967,7 +932,6 @@ mod tests {
             report.finding(HealthCheck::Schedulers).unwrap().status,
             HealthStatus::Fail
         );
-        // Still inside the grace period after midnight.
         seen.now = next + Duration::minutes(30);
         assert_eq!(
             evaluate(&seen, "k")
@@ -977,7 +941,6 @@ mod tests {
             HealthStatus::Pass
         );
         seen.now = local_noon(day() + Duration::days(1));
-        // Finished after midnight: final.
         seen.schedulers.previous_day = Some(PastDay {
             day: day(),
             latest_evidence_at: Some(next - Duration::hours(1)),
@@ -990,7 +953,6 @@ mod tests {
                 .status,
             HealthStatus::Pass
         );
-        // A remote model nobody approved isn't a scheduler problem.
         seen.schedulers.previous_day = Some(PastDay {
             day: day(),
             latest_evidence_at: Some(next - Duration::hours(1)),
@@ -1087,7 +1049,6 @@ mod tests {
         assert!(written.find("\"findings\"") < written.find("\"generatedAt\""));
         assert!(library.latest_health_run().is_some());
 
-        // What the Mac writes decodes, with an absent measurements map.
         let mac: HealthReport = serde_json::from_value(serde_json::json!({
             "dayKey": "2026-10-14",
             "findings": [{"check": "schedulers", "status": "warn", "summary": "s"}],
@@ -1107,7 +1068,6 @@ mod tests {
             .unwrap();
         meeting.ended_at = Some(now - Duration::minutes(30));
         library.save_meeting(&meeting).unwrap();
-        // No audio yet: nothing to transcribe.
         assert_eq!(missing_transcript(&library, &meeting), None);
         std::fs::write(library.meeting_dir(&meeting).join("mic.wav"), b"audio").unwrap();
         assert_eq!(

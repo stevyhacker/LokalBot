@@ -1,15 +1,3 @@
-//! Word search over on-disk meeting artifacts (`LibrarySearch.swift`), so
-//! the CLI and MCP need no index. A meeting matches when it contains every
-//! query word (any order, case- and accent-insensitive); otherwise partial
-//! matches follow. Rare words weigh more, exact-phrase hits lead and ties
-//! keep recency. Words of up to three ASCII letters or digits match only
-//! whole words; a quoted query matches only its exact phrase.
-//!
-//! Each query still reads every meeting's files, but a quick byte scan
-//! ([`prefilter`]) skips the transcripts, titles, summaries and segments
-//! that cannot contain a query word, so only those that may are decoded and
-//! matched.
-
 #[cfg(test)]
 mod equivalence_tests;
 mod prefilter;
@@ -28,7 +16,6 @@ pub const MAXIMUM_SEARCH_HITS: usize = 500;
 pub const MAXIMUM_QUERY_CHARACTERS: usize = 4096;
 
 mod unicode_fold {
-    /// One character case- and accent-folded (may be empty or several chars).
     pub fn fold_char(c: char) -> String {
         lokalbot_core::ids::fold(&c.to_string())
     }
@@ -43,8 +30,6 @@ struct Candidate {
     exact: bool,
 }
 
-/// Distinct alphanumeric words in query order. A single Latin letter is
-/// dropped unless it is the whole query.
 pub fn search_terms(folded_query: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     let words: Vec<String> = folded_query
@@ -68,8 +53,6 @@ fn is_word_char(c: Option<char>) -> bool {
     c.is_some_and(char::is_alphanumeric)
 }
 
-/// Byte range of the first match of `needle` in `text`; short ASCII words
-/// must stand alone.
 pub fn word_range(needle: &str, text: &str) -> Option<std::ops::Range<usize>> {
     if needle.is_empty() {
         return None;
@@ -92,8 +75,6 @@ pub fn word_range(needle: &str, text: &str) -> Option<std::ops::Range<usize>> {
     None
 }
 
-/// The haystack's text ±40 characters around the folded `needle`, matched
-/// case- and accent-insensitively against the original text.
 pub fn snippet(haystack: &str, needle: &str) -> Option<String> {
     let chars: Vec<char> = haystack.chars().collect();
     let mut folded = String::new();
@@ -125,7 +106,6 @@ pub fn snippet(haystack: &str, needle: &str) -> Option<String> {
     Some(text)
 }
 
-/// `LibrarySearch.hits`.
 pub fn hits(
     session: &Session,
     query: &str,
@@ -232,7 +212,6 @@ pub fn hits(
         }
     }
 
-    // A word found in few meetings says more than one found in most.
     let mut meetings_with_term: HashMap<&String, usize> = HashMap::new();
     for words in coverage.values() {
         for word in words {
@@ -247,9 +226,6 @@ pub fn hits(
             })
             .sum()
     };
-    // Summed in query order. A set's order changes from run to run, and with
-    // it the last bits of the sum, so meetings that match the same words
-    // could swap places between two identical searches.
     let meeting_weights: HashMap<usize, f64> = coverage
         .iter()
         .map(|(meeting, words)| {

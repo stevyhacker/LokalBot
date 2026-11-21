@@ -37,7 +37,7 @@ final class PiProcessTests: XCTestCase {
         do {
             try await process.start()
             XCTFail("expected throw")
-        } catch PiProcessError.executableNotFound { // expected
+        } catch PiProcessError.executableNotFound {
         } catch {
             XCTFail("wrong error: \(error)")
         }
@@ -46,12 +46,11 @@ final class PiProcessTests: XCTestCase {
     func testSendAfterExitThrowsNotRunning() async throws {
         let process = PiProcess(plan: plan("/usr/bin/true"))
         try await process.start()
-        // Wait for exit by draining the (empty) stream.
         for await _ in await process.lines {}
         do {
             try await process.send(line: "hello")
             XCTFail("expected throw")
-        } catch PiProcessError.notRunning { // expected
+        } catch PiProcessError.notRunning {
         }
     }
 
@@ -59,7 +58,7 @@ final class PiProcessTests: XCTestCase {
         let process = PiProcess(plan: plan("/bin/sh", ["-c", "echo boom >&2"]))
         try await process.start()
         for await _ in await process.lines {}
-        try await Task.sleep(for: .milliseconds(200))   // stderr pipe drains async
+        try await Task.sleep(for: .milliseconds(200))
         let tail = await process.stderrTail
         XCTAssertTrue(tail.contains("boom"), "\(tail)")
         await process.stop()
@@ -75,8 +74,6 @@ final class PiProcessTests: XCTestCase {
     }
 
     func testStopIsBoundedWhenChildDoesNotDrainStdin() async throws {
-        // `sleep` deliberately never reads stdin. A full-size RPC frame fills
-        // the pipe and keeps the dedicated writer busy until stop closes it.
         let process = PiProcess(plan: plan("/bin/sh", ["-c", "exec /bin/sleep 3"]))
         try await process.start()
         let line = String(
@@ -89,7 +86,6 @@ final class PiProcessTests: XCTestCase {
             try await process.send(line: "second command")
             XCTFail("expected bounded input backpressure")
         } catch PiProcessError.inputBackpressure {
-            // expected: the first frame owns the bounded 4 MiB budget
         }
 
         let started = ContinuousClock.now
@@ -100,9 +96,7 @@ final class PiProcessTests: XCTestCase {
             try await blockedSend.value
             XCTFail("expected the blocked write to fail when stdin closes")
         } catch PiProcessError.inputClosed {
-            // expected
         } catch PiProcessError.inputWriteFailed {
-            // The kernel may report EPIPE before DispatchIO observes close.
         }
     }
 }

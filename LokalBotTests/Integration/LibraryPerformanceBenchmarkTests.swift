@@ -6,10 +6,6 @@ import SQLite3
 import XCTest
 @testable import LokalBot
 
-/// Opt-in timings on copies of a real library and real models. Each test is
-/// skipped unless its variable is set (`TEST_RUNNER_` prefix in the runner):
-/// `LOKALBOT_PERF_DB` is a copy of `lokalbotv3.sqlite`, and
-/// `LOKALBOT_NEMOTRON_MODEL_DIR` a copy of the Nemotron diarization folder.
 final class LibraryPerformanceBenchmarkTests: XCTestCase {
     private func libraryCopy() throws -> URL {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_PERF_DB"], !path.isEmpty else {
@@ -18,7 +14,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         return URL(fileURLWithPath: path)
     }
 
-    /// Stored vectors serve as queries, so no embedding model runs.
     func testSemanticRetrievalTimings() throws {
         let url = try libraryCopy()
         let database = try XCTUnwrap(SQLiteDatabase(url: url, readOnly: true))
@@ -35,7 +30,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
             screenSeconds.append(Self.seconds(since: started))
             screenHitCount += hits.count
             XCTAssertEqual(hits.first.map { $0.score > 0.99 }, true, "a stored vector finds itself first")
-            // The app runs this check on the main actor after ranking.
             let checked = DispatchTime.now().uptimeNanoseconds
             XCTAssertEqual(EmbeddingIndex.liveScreenHits(hits, in: database).count, hits.count)
             livenessSeconds.append(Self.seconds(since: checked))
@@ -52,8 +46,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         print("SEMANTIC_BENCHMARK meeting queries=\(meetingSeconds.count) \(Self.summary(meetingSeconds))")
     }
 
-    /// Ask and Quick Recall's keyword screen stage (2,000 ranked hits, grouped
-    /// into 41 sessions) and the Ask chat tool's grouped search (12 rows).
     func testKeywordScreenSearchTimings() throws {
         let store = ActivityStore(databaseURL: try libraryCopy(), readOnly: true)
         var recall: [Double] = []
@@ -75,9 +67,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         print("KEYWORD_BENCHMARK chat-tool \(Self.summary(chat))")
     }
 
-    /// The activity store and embedding index open on the main actor at
-    /// launch. "upgrade" is the first open after updating (one-time schema
-    /// work), "cold" a fresh file afterwards, "warm" the same file again.
     @MainActor
     func testLaunchDatabaseOpenTimings() throws {
         let source = try libraryCopy()
@@ -106,8 +95,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         }
     }
 
-    /// Screen capture processing for one window's frames that differ only
-    /// by a blinking caret, with real hashing and HEIC encoding.
     func testCaptureProcessingTimings() async throws {
         _ = try libraryCopy()
         let frames = [try XCTUnwrap(SyntheticWindowImage.make(caret: true)),
@@ -136,13 +123,10 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
               + Self.summary(seconds) + " contentHash " + Self.summary(hashSeconds))
     }
 
-    /// One autocomplete reread of an unchanged window: text recognition
-    /// before, the image fingerprint after.
     func testWindowTextRereadTimings() async throws {
         _ = try libraryCopy()
         let image = try XCTUnwrap(SyntheticWindowImage.rendered())
         let window = CGRect(x: 0, y: 0, width: 750, height: 500)
-        // The first recognition loads Vision's models.
         _ = await CotypingWindowTextCapture.recognizeLines(in: image, windowFrame: window)
         var recognition: [Double] = []
         var lineCount = 0
@@ -154,7 +138,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         print("WINDOW_TEXT_BENCHMARK recognition lines=\(lineCount) \(Self.summary(recognition))")
     }
 
-    /// What an unchanged reread costs now: fingerprinting the window image.
     func testWindowTextFingerprintTimings() throws {
         _ = try libraryCopy()
         let image = try XCTUnwrap(SyntheticWindowImage.rendered())
@@ -169,8 +152,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         print("WINDOW_TEXT_BENCHMARK fingerprint \(Self.summary(seconds))")
     }
 
-    /// One day of expired captures, cleared the way the daily retention pass
-    /// does on the main actor.
     func testRetentionPathClearTimings() throws {
         let source = try libraryCopy()
         let root = FileManager.default.temporaryDirectory
@@ -199,8 +180,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
               + Self.summary(seconds) + String(format: " storeOpen=%.0fms", openSeconds * 1000))
     }
 
-    /// Memory the Nemotron speaker model holds while loaded, and whether the
-    /// engine releases it once processing has been idle.
     func testDiarizationModelMemoryIsReleasedWhenIdle() async throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_NEMOTRON_MODEL_DIR"], !path.isEmpty else {
             throw XCTSkip("Set LOKALBOT_NEMOTRON_MODEL_DIR to a copy of the Nemotron diarization folder")
@@ -227,7 +206,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
                      baseline, loaded, released))
     }
 
-    /// Twenty stored vectors spread across the table.
     private static func vectors(in database: SQLiteDatabase, table: String) -> [[Float]] {
         database.query("SELECT vec FROM \(table) WHERE rowid % 97 = 0 LIMIT 20") { statement in
             guard let blob = sqlite3_column_blob(statement, 0) else { return nil }
@@ -249,7 +227,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
         try file.write(from: buffer)
     }
 
-    /// Physical footprint in MB, as Activity Monitor reports it.
     private static func footprint() -> Double {
         var info = task_vm_info_data_t()
         var count = mach_msg_type_number_t(MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
@@ -274,8 +251,6 @@ final class LibraryPerformanceBenchmarkTests: XCTestCase {
     }
 }
 
-/// A light window with dark text lines and an optional text caret, the way
-/// an editor looks between two blinks.
 enum SyntheticWindowImage {
     static func make(width: Int = 1_500, height: Int = 1_000, caret: Bool, lineCount: Int = 12) -> CGImage? {
         guard let context = CGContext(
@@ -300,7 +275,6 @@ enum SyntheticWindowImage {
         return context.makeImage()
     }
 
-    /// A 1,500 × 1,000 window of real text lines, as text recognition sees one.
     static func rendered(width: Int = 1_500, height: Int = 1_000) -> CGImage? {
         guard let context = CGContext(
             data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,

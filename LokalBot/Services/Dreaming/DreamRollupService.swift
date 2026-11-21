@@ -1,11 +1,5 @@
 import Foundation
 
-/// After the overnight review: one line for each recent finished week and
-/// month, condensed from that period's daily reviews, so the agent briefing
-/// can show older time at lower detail (recent days in full, then weeks, then
-/// months). Each line records a stamp of the reviews it came from; a deleted
-/// or regenerated review makes it stale, and stale lines are removed here and
-/// never shown. At most a few model calls a night, newest periods first.
 enum DreamRollupService {
     typealias Period = DreamRollupFormat.Period
     typealias Rollup = DreamRollupFormat.Rollup
@@ -22,7 +16,6 @@ enum DreamRollupService {
         var removed: [String] = []
     }
 
-    /// The finished weeks and months the briefing can show, newest first.
     static func periods(now: Date, calendar: Calendar) -> [Period] {
         let today = DreamRollupFormat.dayKey(now, calendar: calendar)
         var periods: [Period] = []
@@ -42,7 +35,6 @@ enum DreamRollupService {
         }
     }
 
-    /// Periods with reviews but no current line, newest first.
     static func due(reviews: [String: DayReview], rollups: [Rollup], now: Date, calendar: Calendar) -> [Period] {
         let valid = rollups.filter { DreamRollupFormat.isValid($0, reviews: reviews) }
         let current = Set(valid.map { $0.key })
@@ -51,14 +43,8 @@ enum DreamRollupService {
         }
     }
 
-    /// New lines are written at most this often. A night that rebuilds
-    /// several reviews runs this after each one; without the gap it rewrote
-    /// the same week after every rebuilt day.
     static let minimumGenerationInterval: TimeInterval = 20 * 60 * 60
 
-    /// Removes stale lines and lines for periods the briefing no longer
-    /// shows, then writes up to `limit` due lines, unless lines were written
-    /// within `minimumInterval`. The engine is made only when something is due.
     static func run(root: URL, now: Date, calendar: Calendar = .current, limit: Int = maximumPerNight,
                     minimumInterval: TimeInterval = minimumGenerationInterval,
                     makeEngine: () async throws -> TextEngine) async throws -> Outcome {
@@ -111,16 +97,12 @@ enum DreamRollupService {
         try? Data(ISO8601DateFormatter().string(from: date).utf8).write(to: url, options: .atomic)
     }
 
-    /// Removes every line covering `dayKey`, for when that day's review is
-    /// deleted or rebuilt.
     static func removeRollups(covering dayKey: String, root: URL) {
         for rollup in DreamRollupFormat.rollups(root: root)
         where rollup.firstDay <= dayKey && dayKey <= rollup.lastDay {
             try? FileManager.default.removeItem(at: DreamRollupFormat.rollupURL(root: root, key: rollup.key))
         }
     }
-
-    // MARK: - Prompt
 
     static let system = """
         You condense a person's daily work reviews into a single line that sums up a past week or month. \
@@ -162,8 +144,6 @@ enum DreamRollupService {
         let clean = PromptContextSanitizer.sanitize(line, maxCharacters: maximumLineCharacters)
         return clean.isEmpty ? nil : clean
     }
-
-    // MARK: - Storage
 
     static func write(_ rollup: Rollup, root: URL) throws {
         let url = DreamRollupFormat.rollupURL(root: root, key: rollup.key)

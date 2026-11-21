@@ -19,7 +19,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
             end: base.addingTimeInterval(end))
     }
 
-    /// Five-minute sampler blocks in one app from `start` to `end`.
     private func blocks(
         from firstID: Int64,
         app: String,
@@ -75,8 +74,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
         shares.first { $0.project == project }?.seconds ?? 0
     }
 
-    // MARK: - Attribution
-
     func testAgentAppTimeIsSharedAmongOverlappingBursts() {
         let attribution = TimelineProjectAttribution(bursts: [
             burst("bizstats", start: 0, end: 1_800),
@@ -92,7 +89,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
         let attribution = TimelineProjectAttribution(bursts: [burst("bizstats", start: 0, end: 600)])
         let shares = attribution.shares(for: block(1, app: "Claude", start: 0, end: 3_600))
 
-        // The burst plus the two-minute margin after its last event.
         XCTAssertEqual(seconds(shares, "bizstats"), 720, accuracy: 0.001)
     }
 
@@ -134,7 +130,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
             2, app: "Google Chrome",
             title: "feat(onchain): add fee-share extraction · Pull Request #12 · TokenLogic-com-au/logic-onchain",
             start: 5_000, end: 5_300)), "alpha")
-        // A page naming no project stays unattributed even while agents work.
         XCTAssertNil(attribution.dominantProject(for: block(
             3, app: "Google Chrome", title: "Home / X - Google Chrome", start: 0, end: 300)))
     }
@@ -175,8 +170,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
         XCTAssertEqual(attributed + split.unattributedSeconds, 2_400, accuracy: 0.001)
     }
 
-    // MARK: - Sessions
-
     func testSessionsEndWhereTheWorkMovesToAnotherProject() {
         let attribution = TimelineProjectAttribution(bursts: [
             burst("bizstats", title: "Rehearse the audit runbook", start: 0, end: 3_300),
@@ -186,7 +179,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
             from: blocks(from: 1, app: "Claude", start: 0, end: 6_000), attribution: attribution)
 
         XCTAssertEqual(sessions.count, 2)
-        // A project session is not cut at the 45-minute limit.
         XCTAssertEqual(sessions[0].activeDuration, 3_300)
         XCTAssertEqual(sessions[0].title, "bizstats · Rehearse the audit runbook")
         XCTAssertEqual(sessions[0].project, "bizstats")
@@ -214,7 +206,6 @@ final class TimelineProjectAttributionTests: XCTestCase {
         let sessions = TimelineWorkSession.sessions(from: day, attribution: attribution)
 
         XCTAssertEqual(sessions.map(\.project), ["bizstats", nil, nil])
-        // Sixty minutes of chat is still cut at 45 minutes, like without agents.
         XCTAssertEqual(sessions[1].activeDuration, 2_700)
         XCTAssertEqual(sessions[1].title, "#general")
     }

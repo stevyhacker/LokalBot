@@ -2,15 +2,11 @@ import Foundation
 
 struct SettingDescriptor: Identifiable {
     let id: String
-    /// The setting's name, the same as in `SettingRegistry` and the CLI.
     let title: String
     let category: AppState.SettingsTab
     let aliases: String
-    /// What its row on the page says, where that is plainer than the name.
-    /// Search shows this and finds the setting by either.
     var label: String?
 
-    /// The name search results show: the row's own words.
     var displayTitle: String { label ?? title }
 
     func currentValue(in settings: AppSettings, language: AppLanguage = .english) -> String {
@@ -31,7 +27,6 @@ struct SettingDescriptor: Identifiable {
             if CFGetTypeID(number) == CFBooleanGetTypeID() { return language.localized(number.boolValue ? "On" : "Off") }
             return number.stringValue
         }
-        // User-entered names, prompts, URLs and paths must never be translated.
         if let string = value as? String { return string.isEmpty ? language.localized("Not set") : String(string.prefix(70)) }
         if let array = value as? [Any] { return String(format: language.localized("%lld selected"), array.count) }
         return language.localized("Configured")
@@ -54,7 +49,6 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.screenshotIntervalMinutes", !settings.effectiveScreenContextCaptureMode.capturesText {
             return "settings.effectiveScreenContextCaptureMode"
         }
-        // Phones & tablets shows its other controls only while sharing is on.
         if !settings.companionSharingEnabled, id.hasPrefix("settings.companion"),
            id != "settings.companionSharingEnabled" {
             return "settings.companionSharingEnabled"
@@ -70,7 +64,6 @@ struct SettingDescriptor: Identifiable {
     static func search(_ query: String, language: AppLanguage = .system) -> [Self] {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return all.filter {
-            // A page's earlier names still find its settings.
             SettingsSearchRanker.matches(query: query, haystack: [
                 $0.title, $0.aliases, $0.category.displayName,
                 language.localized($0.title), language.localized($0.category.displayName)

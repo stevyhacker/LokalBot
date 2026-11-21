@@ -1,11 +1,3 @@
-//! The Day Digest (`DayDigestEvidence.swift`, `DailyDigestEvidence.swift`).
-//!
-//! Evidence for one local day (activity blocks, screen text, finished
-//! meetings) is cut into gap-aware segments. A first model pass per segment
-//! extracts work candidates; a second pass groups them into tasks. The
-//! journal's meetings, time allocation and full activity log are rendered
-//! from the evidence itself, so a weak or failed model never loses activity.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::LazyLock;
 
@@ -58,7 +50,6 @@ pub struct Activity {
     pub contexts: Vec<ScreenContext>,
 }
 
-/// Everything the digest reads for one local day.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DayEvidence {
     pub day: NaiveDate,
@@ -67,12 +58,9 @@ pub struct DayEvidence {
     pub activities: Vec<Activity>,
     pub standalone_contexts: Vec<ScreenContext>,
     pub meetings: Vec<MeetingEvidence>,
-    /// Settled coding-agent work. Like meetings, it arrives pre-structured and
-    /// is rendered in its own lossless journal section.
     pub coding_agent_bursts: Vec<CodingAgentBurst>,
 }
 
-/// One slice of the day that gets its own extraction pass.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Segment {
     pub start: DateTime<Utc>,
@@ -91,7 +79,6 @@ fn time(at: DateTime<Utc>) -> String {
     at.with_timezone(&Local).format("%H:%M").to_string()
 }
 
-/// `<1m`, `25m`, `2h 5m`.
 fn duration(value: f64) -> String {
     let minutes = (value.round().max(0.0) as i64) / 60;
     if minutes == 0 {
@@ -125,7 +112,6 @@ const RECURRING_CHROME: [&str; 5] = [
     "Toggle pinned summary Toggle bottom panel Toggle side panel",
 ];
 
-/// Model-facing excerpt without recurring accessibility chrome.
 fn summary_excerpt(value: &str, max_characters: usize) -> String {
     let mut result = sanitize::sanitize(value, None);
     for phrase in RECURRING_CHROME {
@@ -159,11 +145,7 @@ fn evenly_spaced(count: usize, limit: usize) -> Vec<usize> {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Source {
     Meeting,
-    /// `recorded_outcome`: the burst committed, opened or merged a pull request,
-    /// released, pushed, or ran tests.
-    AgentSession {
-        recorded_outcome: bool,
-    },
+    AgentSession { recorded_outcome: bool },
     Activity,
     ScreenContext,
 }
@@ -188,14 +170,9 @@ struct Event {
     source_ids: Vec<i64>,
     app: String,
     title: String,
-    /// The burst behind an agent-session event; several after merging.
     agent_bursts: Vec<CodingAgentBurst>,
 }
 
-/// Apps that host coding agents: their chat window, a terminal or an editor.
-/// Screen text captured there while a stored session ran is mostly that session
-/// on screen, which the session evidence already states more exactly. The first
-/// fifteen are the Mac's; the rest are Linux and Windows terminals and editors.
 const CODING_AGENT_HOST_APPS: &[&str] = &[
     "claude",
     "codex",
@@ -259,7 +236,6 @@ fn covered_duration(events: &[&Event]) -> f64 {
     total + seconds(current.0, current.1)
 }
 
-/// The summary without its title and provenance lines.
 fn summary_body(summary: &str) -> String {
     summary
         .lines()
@@ -273,8 +249,6 @@ fn is_system_only(app: &str) -> bool {
 }
 
 impl DayEvidence {
-    /// Gathers the day from the library: activity, retained screen text and
-    /// finished meetings with their corrected outcomes.
     pub fn load(library: &Library, day: NaiveDate) -> Result<Self> {
         let (start, end) = lokalbot_core::time::local_day_bounds(day);
         let blocks = library.activity_blocks(start, end)?;
@@ -353,7 +327,6 @@ impl DayEvidence {
                 .cmp(&b.captured_at)
                 .then(a.snapshot_id.cmp(&b.snapshot_id))
         });
-        // Repeated captures of the same window and text count once.
         let mut previous: Option<String> = None;
         let mut standalone = Vec::new();
         for mut context in sorted {
@@ -404,7 +377,6 @@ impl DayEvidence {
             && self.coding_agent_bursts.is_empty()
     }
 
-    /// Bursts of one session, in order, one group per session.
     pub fn coding_agent_sessions(&self) -> Vec<Vec<CodingAgentBurst>> {
         coding_agents::sessions(&self.coding_agent_bursts)
     }
@@ -455,7 +427,6 @@ impl DayEvidence {
             .collect()
     }
 
-    /// Long blocks get evidence in proportion to their duration.
     fn summary_contexts(activity: &Activity) -> Vec<&ScreenContext> {
         let duration = seconds(activity.start, activity.end).max(0.0);
         let proportional = (duration / (30.0 * 60.0)).ceil() as usize + 1;
@@ -566,7 +537,6 @@ impl DayEvidence {
                 "WORK SOURCE: MEETING".to_string(),
                 format!("Task context: {}", meeting.title),
             ];
-            // Outcomes lead: a busy segment cuts each source from the front.
             let outcomes = sanitize::sanitize(&meeting.outcomes, Some(3_000));
             if !outcomes.is_empty() {
                 lines.push(format!("Outcomes:\n{outcomes}"));
@@ -614,8 +584,6 @@ impl DayEvidence {
         events
     }
 
-    /// Gap-aware segments: an idle gap over 10 minutes always starts a new
-    /// one; a session gets one segment per hour of active time, at most 16.
     pub fn summary_segments(&self) -> Vec<Segment> {
         const MAX_CHARACTERS: usize = 12_000;
         const GAP_SECONDS: f64 = 600.0;
@@ -756,7 +724,6 @@ impl DayEvidence {
         }
     }
 
-    /// The lossless journal around the model's summary.
     pub fn render_document(&self, summary: &str) -> String {
         let clean = summary.trim();
         let body = if clean.is_empty() {
@@ -768,8 +735,6 @@ impl DayEvidence {
             format!("## Day summary\n\n{body}"),
             format!("## Meetings\n\n{}", self.meetings_section()),
         ];
-        // Only days with agent work gain the section, so journals written
-        // without the feature keep their existing shape.
         if !self.coding_agent_bursts.is_empty() {
             sections.push(format!(
                 "## Agent sessions\n\n{}",
@@ -787,8 +752,6 @@ impl DayEvidence {
         sections.join("\n\n") + "\n"
     }
 
-    /// Recorded facts only, one entry per session. The agent's own report is a
-    /// claim for the model to corroborate, so it stays out of this section.
     fn agent_sessions_section(&self) -> String {
         self.coding_agent_sessions()
             .iter()
@@ -1091,7 +1054,6 @@ impl DayEvidence {
             .collect()
     }
 
-    /// `contentSignature`: changes whenever anything the digest reads changes.
     pub fn content_signature(&self) -> String {
         let mut fields = vec![
             "digest-evidence-v1".to_string(),
@@ -1126,8 +1088,6 @@ impl DayEvidence {
             push_context(&mut fields, context);
         }
         fields.extend(self.meeting_fields());
-        // Appended only when present: journals of days without agent work keep
-        // matching the signature they were generated with.
         for burst in &self.coding_agent_bursts {
             fields.push("agent".into());
             fields.extend(burst.signature_fields());
@@ -1140,12 +1100,10 @@ impl DayEvidence {
     }
 }
 
-/// `String(Double)` of epoch seconds ("1760781234.0").
 fn epoch(at: DateTime<Utc>) -> String {
     format!("{:?}", lokalbot_core::time::to_epoch(at))
 }
 
-/// `ContentFingerprint.fields`: SHA-256 over `<byte length>:<bytes>` per field.
 fn fingerprint(fields: &[String]) -> String {
     let mut material = Vec::new();
     for field in fields {
@@ -1155,14 +1113,10 @@ fn fingerprint(fields: &[String]) -> String {
     lokalbot_core::library::sha256_hex(&material)
 }
 
-/// A Markdown link labelled `owner/repo#N`.
 fn pull_request_link(url: &str) -> String {
     pull_request_label(url).map_or_else(|| format!("<{url}>"), |label| format!("[{label}]({url})"))
 }
 
-/// A session often has several bursts in one segment. Show it once, with every
-/// burst's requests, actions and files, so parallel sessions do not crowd each
-/// other out of the detail budget.
 fn merging_agent_sessions(events: &[&Event]) -> Vec<Event> {
     let mut merged: Vec<Event> = Vec::new();
     let mut positions: HashMap<String, usize> = HashMap::new();
@@ -1195,10 +1149,6 @@ fn merging_agent_sessions(events: &[&Event]) -> Vec<Event> {
     merged
 }
 
-/// Meetings are already structured work evidence, so a busy interval must not
-/// sample around them merely because it contains many short activity events.
-/// Agent sessions that recorded an outcome get the same guarantee, up to six,
-/// ahead of those that did not. The rest of the budget covers the interval evenly.
 fn detail_indices(events: &[&Event], limit: usize) -> Vec<usize> {
     const RESERVED_AGENT_SESSIONS: usize = 6;
     if events.is_empty() || limit == 0 {
@@ -1233,7 +1183,6 @@ fn detail_indices(events: &[&Event], limit: usize) -> Vec<usize> {
     indices
 }
 
-/// "Action items:" with corrections, "Decisions:", "Open questions:".
 fn render_meeting_outcomes(library: &Library, meeting: &Meeting) -> String {
     let mut lines = Vec::new();
     let actions = library.meeting_actions(meeting).unwrap_or_default();
@@ -1291,8 +1240,6 @@ fn artifact_modified_at(library: &Library, meeting: &Meeting) -> Option<DateTime
         .map(DateTime::<Utc>::from)
         .max()
 }
-
-// ================================================================ generator
 
 const TITLE_CHARACTERS: usize = 160;
 const SUMMARY_WORDS: usize = 120;
@@ -1599,20 +1546,13 @@ fn merge_fallback_candidate(block: &FocusBlock, tasks: &mut Vec<NormalizedTask>)
     });
 }
 
-/// A session's task, with what identifies its work when matching it to the
-/// model's tasks.
 struct SessionCandidate {
     block: FocusBlock,
-    /// The work title without its project.
     name: String,
     project: Option<String>,
     pull_requests: Vec<PullRequestReference>,
 }
 
-/// One candidate per agent session that recorded an outcome, from recorded facts
-/// only. Scheduled runs are left to segment extraction: their reports often
-/// describe other days. Tasks are named by the work, not by the first request or
-/// the folder the session started in.
 fn session_candidates(evidence: &DayEvidence) -> Vec<SessionCandidate> {
     evidence
         .coding_agent_sessions()
@@ -1688,7 +1628,6 @@ fn mentions_word(word: &str, text: &str) -> bool {
 static PULL_REQUEST_NUMBER: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"(?i)(?:#|\bPRs?\s*#?)(\d+)").expect("valid regex"));
 
-/// Numbers written as `#12`, `PR 12` or `PRs #12`.
 fn pull_request_numbers(text: &str) -> HashSet<i64> {
     PULL_REQUEST_NUMBER
         .captures_iter(text)
@@ -1696,9 +1635,6 @@ fn pull_request_numbers(text: &str) -> HashSet<i64> {
         .collect()
 }
 
-/// The title names one of the session's pull requests: `owner/repo#12`, or `#12`
-/// or `PR 12` beside the repository's name. A number alone could belong to
-/// another repository's pull request.
 fn names_pull_request(title: &str, candidate: &SessionCandidate) -> bool {
     candidate.pull_requests.iter().any(|pull_request| {
         let label = format!(
@@ -1711,7 +1647,6 @@ fn names_pull_request(title: &str, candidate: &SessionCandidate) -> bool {
     })
 }
 
-/// `label` occurs and no digit follows it, so `#10` is not mentioned by `#105`.
 fn contains_label(text: &str, label: &str, case_sensitive: bool) -> bool {
     let (text, label) = if case_sensitive {
         (text.to_string(), label.to_string())
@@ -1731,8 +1666,6 @@ const IGNORED_WORK_WORDS: &[&str] = &[
     "these", "this", "those", "to", "with",
 ];
 
-/// Lowercased content words in singular form, with "pull request" as "pr", so
-/// "Review the pull requests" and "open PR review" share their words.
 fn work_words(text: &str) -> HashSet<String> {
     let folded = text.to_lowercase().replace("pull request", "pr");
     let mut words = HashSet::new();
@@ -1761,10 +1694,6 @@ fn work_words(text: &str) -> HashSet<String> {
     words
 }
 
-/// Every word of the session's name is in the task's title, the task is about
-/// the session's project, and the two name no different pull requests: "Review
-/// all open PRs" in LokalBot is "LokalBot open PR review and fixes", while
-/// "Review PR" is not "LokalBot PR #290 review".
 fn describes_same_work(task: &NormalizedTask, candidate: &SessionCandidate) -> bool {
     let mut words = work_words(&candidate.name);
     if let Some(project) = &candidate.project {
@@ -1784,9 +1713,6 @@ fn describes_same_work(task: &NormalizedTask, candidate: &SessionCandidate) -> b
     named.is_empty() || linked.is_empty() || !named.is_disjoint(&linked)
 }
 
-/// The part of a session's outcome a task does not state yet. Several sessions
-/// can merge into one task, so each adds only pull requests it has not already
-/// named.
 fn unmentioned_outcome(outcome: &str, summary: &str) -> String {
     const PREFIX: &str = "Pull requests: ";
     let Some(labels) = outcome.strip_prefix(PREFIX) else {
@@ -1808,9 +1734,6 @@ fn unmentioned_outcome(outcome: &str, summary: &str) -> String {
     }
 }
 
-/// Segment extraction keeps at most three items per segment, and a small model
-/// rarely fills them all, so parallel sessions could still vanish. Those that
-/// recorded an outcome are stated from their actions and added after aggregation.
 fn merge_session_candidate(candidate: &SessionCandidate, tasks: &mut Vec<NormalizedTask>) {
     let block = &candidate.block;
     let key = task_key(&block.task);
@@ -1846,8 +1769,6 @@ fn merge_session_candidate(candidate: &SessionCandidate, tasks: &mut Vec<Normali
             SUMMARY_WORDS,
         );
     }
-    // A recorded merge or release settles the status; nothing weaker overrides
-    // what the model concluded.
     if block.status == "completed" {
         tasks[index].status = "completed".into();
     }
@@ -1899,7 +1820,6 @@ fn normalized_digest(
         });
         covered.extend(indices);
     }
-    // Candidates the model left out are still kept.
     for (index, block) in blocks.iter().enumerate() {
         if !covered.contains(&index) {
             merge_fallback_candidate(block, &mut tasks);
@@ -2032,7 +1952,6 @@ fn markdown_section<'a>(name: &str, markdown: &'a str) -> Option<&'a str> {
     })
 }
 
-/// Conservative output when the model fails or rejects everything.
 fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock> {
     let mut blocks = Vec::new();
     for meeting in &evidence.meetings {
@@ -2063,8 +1982,6 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
             return blocks;
         }
     }
-    // Agent sessions name their work and record their actions, which says more
-    // than a window title without claiming an outcome.
     for session in evidence.coding_agent_sessions() {
         let Some(merged) = coding_agents::merging(&session) else {
             continue;
@@ -2149,7 +2066,6 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
     blocks
 }
 
-/// The summary without the model.
 pub fn fallback_summary(evidence: &DayEvidence) -> String {
     if evidence.is_empty() {
         return "### At a glance\n_No activity was recorded._".into();
@@ -2162,8 +2078,6 @@ pub fn fallback_summary(evidence: &DayEvidence) -> String {
     }
 }
 
-/// Answers already given today, keyed by the exact prompt; in memory only.
-/// Days in use order, then each day's prompt key → answer.
 type SegmentCache = (Vec<String>, HashMap<String, HashMap<String, String>>);
 
 static SEGMENT_CACHE: LazyLock<Mutex<SegmentCache>> =
@@ -2199,7 +2113,6 @@ fn store(day: &str, key: &str, output: &str) {
     }
 }
 
-/// Forgets cached answers for days whose evidence was deleted or corrected.
 pub fn purge_cache(days: &[NaiveDate]) {
     let mut guard = SEGMENT_CACHE.lock();
     for day in days {
@@ -2209,7 +2122,6 @@ pub fn purge_cache(days: &[NaiveDate]) {
     }
 }
 
-/// The generated summary (the `## Day summary` body) with its quality.
 pub struct Overview {
     pub summary: String,
     pub quality: DigestQuality,
@@ -2242,8 +2154,6 @@ fn is_truncation(err: &anyhow::Error) -> bool {
     )
 }
 
-/// The two model passes over the day's segments
-/// (`DayDigestOverviewGenerator.generateResult`).
 pub fn generate_overview(
     think: &ThinkClient,
     evidence: &DayEvidence,
@@ -2506,8 +2416,6 @@ pub fn generate_overview(
     })
 }
 
-/// The journal Markdown for `day` and its sidecar. Never fails on a model
-/// error: the evidence-only journal is written with `quality: fallback`.
 pub fn generate_day_digest(
     think: &ThinkClient,
     library: &Library,
@@ -2554,9 +2462,6 @@ pub fn generate_day_digest(
     Ok((markdown, meta))
 }
 
-/// The day's unedited generated digest and whether it still matches the day's
-/// evidence (`DailyEvidenceArtifacts.generatedDigest`). Callers use only a current
-/// one: a stale digest could disagree with newer corrections or evidence.
 pub fn generated_digest(library: &Library, day: NaiveDate) -> Option<(String, bool)> {
     let journal = library.journal_path(day);
     let text = std::fs::read_to_string(&journal).ok()?;
@@ -2572,8 +2477,6 @@ pub fn generated_digest(library: &Library, day: NaiveDate) -> Option<(String, bo
     Some((text, current == signature))
 }
 
-/// The current evidence signatures for `day`, to decide whether a stored
-/// digest is still current without generating anything.
 pub fn evidence_signatures(library: &Library, day: NaiveDate) -> Result<(String, String)> {
     let evidence = DayEvidence::load(library, day)?;
     Ok((evidence.content_signature(), evidence.meeting_signature()))

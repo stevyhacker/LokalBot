@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Ghost styling (host font/color match)
-
 final class CotypingFieldStyleTests: XCTestCase {
     func testIsEmpty() {
         XCTAssertTrue(CotypingFieldStyle().isEmpty)
@@ -26,7 +24,7 @@ final class CotypingFieldStyleTests: XCTestCase {
     func testHexParseRejectsInvalid() {
         XCTAssertNil(CotypingTextColorCodec.nsColor(fromHex: nil))
         XCTAssertNil(CotypingTextColorCodec.nsColor(fromHex: "xyz"))
-        XCTAssertNil(CotypingTextColorCodec.nsColor(fromHex: "12345"))   // 5 digits
+        XCTAssertNil(CotypingTextColorCodec.nsColor(fromHex: "12345"))
         XCTAssertNil(CotypingTextColorCodec.nsColor(fromHex: "GGGGGG"))
         XCTAssertNotNil(CotypingTextColorCodec.nsColor(fromHex: "FFFFFF"))
     }
@@ -50,16 +48,16 @@ final class CotypingFieldStyleTests: XCTestCase {
         let style = CotypingFieldStyle(colorHex: "FFFFFF", backgroundColorHex: "000000")
         let color = CotypingGhostStyle.resolvedGhostColor(from: style, isDarkEnvironment: false)
         XCTAssertEqual(color.alphaComponent, CotypingGhostStyle.ghostOpacity, accuracy: 0.001)
-        XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: color), 0.9) // stays white
+        XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: color), 0.9)
     }
 
     func testResolvedGhostColorUsesBackgroundWhenNoForeground() {
         let onDark = CotypingGhostStyle.resolvedGhostColor(
             from: CotypingFieldStyle(backgroundColorHex: "1E1E1E"), isDarkEnvironment: false)
-        XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: onDark), 0.9)  // light hint
+        XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: onDark), 0.9)
         let onLight = CotypingGhostStyle.resolvedGhostColor(
             from: CotypingFieldStyle(backgroundColorHex: "FFFFFF"), isDarkEnvironment: true)
-        XCTAssertLessThan(CotypingGhostStyle.relativeLuminance(of: onLight), 0.1)    // dark hint
+        XCTAssertLessThan(CotypingGhostStyle.relativeLuminance(of: onLight), 0.1)
     }
 
     func testResolvedGhostColorFallsBackToEnvironmentWithoutHostColors() {
@@ -70,11 +68,9 @@ final class CotypingFieldStyleTests: XCTestCase {
     }
 
     func testResolvedGhostColorOverridesForegroundIndistinguishableFromBackground() {
-        // A host fg flattened to the background color (wrong-appearance capture)
-        // must not paint invisible text — synthesize a legible hint instead.
         let style = CotypingFieldStyle(colorHex: "000000", backgroundColorHex: "000000")
         let color = CotypingGhostStyle.resolvedGhostColor(from: style, isDarkEnvironment: false)
-        XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: color), 0.9) // light, not black
+        XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: color), 0.9)
     }
 
     func testLuminanceAndContrastExtremes() {
@@ -87,12 +83,10 @@ final class CotypingFieldStyleTests: XCTestCase {
     }
 
     func testMeasuredLuminanceDrivesGhostContrast() {
-        let style = CotypingFieldStyle(colorHex: "111111")  // near-black host fg, no bg reported
-        // Measured-dark background → flip to a light hint (the reported bug).
+        let style = CotypingFieldStyle(colorHex: "111111")
         let onDark = CotypingGhostStyle.resolvedGhostColor(
             from: style, isDarkEnvironment: false, measuredLuminance: 0.03)
         XCTAssertGreaterThan(CotypingGhostStyle.relativeLuminance(of: onDark), 0.9)
-        // Measured-light background → keep the legible dark host color.
         let onLight = CotypingGhostStyle.resolvedGhostColor(
             from: style, isDarkEnvironment: true, measuredLuminance: 0.97)
         XCTAssertLessThan(CotypingGhostStyle.relativeLuminance(of: onLight), 0.2)
@@ -105,7 +99,6 @@ final class CotypingFieldStyleTests: XCTestCase {
             CotypingBackgroundSampler.averageLuminance(of: solidImage(white: 0)) ?? 1, 0.05)
     }
 
-    /// A Retina strip's worth of pixels: the far end counts as much as the caret's.
     func testAverageLuminanceCoversTheWholeStrip() {
         let rightHalf = image(width: 334, height: 42, whiteFromX: 167)
         XCTAssertEqual(CotypingBackgroundSampler.averageLuminance(of: rightHalf) ?? 0, 0.5, accuracy: 0.01)
@@ -113,8 +106,6 @@ final class CotypingFieldStyleTests: XCTestCase {
         XCTAssertEqual(CotypingBackgroundSampler.averageLuminance(of: lastColumns) ?? 0, 10.0 / 334, accuracy: 0.01)
     }
 
-    /// A 32-pixel-wide output letterboxed some strips in black (2–4 columns,
-    /// measured), darkening the background; the strip's own pixel size never does.
     func testTheBackgroundCaptureIsTheWholeStripAtItsOwnPixelSize() throws {
         let ultraWide = CGRect(x: 0, y: 0, width: 3440, height: 1440)
         let config = try XCTUnwrap(CotypingBackgroundSampler.captureConfiguration(
@@ -132,7 +123,6 @@ final class CotypingFieldStyleTests: XCTestCase {
         XCTAssertEqual(retina.height, 42)
     }
 
-    /// Off-display pixels come back black, so the strip stops at the edge.
     func testTheBackgroundCaptureStopsAtTheDisplayEdge() throws {
         let ultraWide = CGRect(x: 0, y: 0, width: 3440, height: 1440)
         let config = try XCTUnwrap(CotypingBackgroundSampler.captureConfiguration(
@@ -143,7 +133,6 @@ final class CotypingFieldStyleTests: XCTestCase {
             for: CGRect(x: 5000, y: 700, width: 2, height: 17), screenFrame: ultraWide, backingScale: 1))
     }
 
-    /// Black, then white from column `whiteFromX` to the right edge.
     private func image(width: Int, height: Int, whiteFromX: Int) -> CGImage {
         let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                             space: CGColorSpaceCreateDeviceRGB(),
@@ -165,8 +154,6 @@ final class CotypingFieldStyleTests: XCTestCase {
     }
 }
 
-// MARK: - Background behind the ghost
-
 @MainActor
 final class CotypingBackgroundSamplerTests: XCTestCase {
     private func chromeField(
@@ -184,8 +171,6 @@ final class CotypingBackgroundSamplerTests: XCTestCase {
         CotypingFieldIdentity.background(for: field)
     }
 
-    /// 2026-10-21: a reading from a light page in Chrome drew black ghosts in
-    /// a dark Reddit comment box, because readings were kept per app.
     func testReadingFromOneFieldIsNotReusedInAnotherFieldOfTheSameApp() {
         let sampler = CotypingBackgroundSampler()
         sampler.remember(0.95, forField: key(chromeField(page: "Google")))
@@ -195,8 +180,6 @@ final class CotypingBackgroundSamplerTests: XCTestCase {
             page: "Google", frame: CGRect(x: 400, y: 600, width: 640, height: 40)))))
     }
 
-    /// Chrome hands out a new element on every read; the field's reading
-    /// must outlive that, or every suggestion would sample and recolor.
     func testReadingIsReusedWhileTypingInTheSameField() {
         let sampler = CotypingBackgroundSampler()
         sampler.remember(0.1, forField: key(chromeField(page: "Reddit")))

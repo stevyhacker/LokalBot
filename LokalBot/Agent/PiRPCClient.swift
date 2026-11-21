@@ -1,14 +1,10 @@
 import Foundation
 
-/// Line-oriented transport a PiRPCClient talks through. PiProcess is the
-/// real one; tests inject fakes.
 protocol PiLineTransport: Sendable {
     func send(line: String) async throws
     var incoming: AsyncStream<String> { get }
 }
 
-// PiProcess's actor-isolated async `send(line:)` is the protocol witness;
-// only `incoming` needs adapting to expose its nonisolated line stream.
 extension PiProcess: PiLineTransport {
     nonisolated var incoming: AsyncStream<String> { lines }
 }
@@ -31,10 +27,6 @@ enum PiRPCError: LocalizedError {
     }
 }
 
-/// Correlates pi RPC commands with their `{type:"response", id:…}` acks
-/// and fans every other stdout line out as a PiEvent. One consumer loop
-/// (started by run()) owns the incoming stream; pending requests are keyed
-/// by the id we generated into the command JSON.
 actor PiRPCClient {
 
     private let transport: PiLineTransport
@@ -124,13 +116,10 @@ actor PiRPCClient {
         waiting.continuation.resume(returning: response)
     }
 
-    /// For extension_ui_response and other lines pi never acks.
     func sendResponse(_ command: PiCommand) async throws {
         if let terminalError { throw terminalError }
         try await transport.send(line: command.jsonLine)
     }
-
-    // MARK: - Private
 
     private func handle(line: String) -> Bool {
         guard let event = PiEvent.decode(line: line) else {
@@ -146,9 +135,6 @@ actor PiRPCClient {
         return emit(event)
     }
 
-    /// The queue keeps its oldest entries so an already-buffered approval can
-    /// never be evicted by a burst. Text deltas are the sole lossy event type;
-    /// dropping any structural event terminates the stream deterministically.
     private func emit(_ event: PiEvent) -> Bool {
         switch eventContinuation.yield(event) {
         case .enqueued:
@@ -196,7 +182,6 @@ private extension PiEvent {
 }
 
 extension PiCommand {
-    /// The correlation id embedded in this command's JSON, if any.
     var id: String? {
         switch self {
         case .prompt(let id, _, _), .steer(let id, _), .abort(let id),
@@ -204,7 +189,7 @@ extension PiCommand {
              .getSessionStats(let id):
             return id
         case .uiConfirmResponse, .uiCancelResponse:
-            return nil   // ui responses correlate to pi's request id, not ours
+            return nil
         }
     }
 }

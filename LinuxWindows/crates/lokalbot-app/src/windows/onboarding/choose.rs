@@ -1,6 +1,3 @@
-//! Setup, step 1 (`OnboardingChooseStep.swift`): what LokalBot does, that it
-//! stays on this computer, and the choices, each with its one real option.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
@@ -19,7 +16,6 @@ use crate::state::PrivacyLine;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
-/// The option's name in setup's "When a call starts" menu.
 fn meeting_mode_title(mode: AutoRecordMode) -> &'static str {
     match mode {
         AutoRecordMode::Automatic => lokalbot_i18n::tr("Record automatically"),
@@ -28,7 +24,6 @@ fn meeting_mode_title(mode: AutoRecordMode) -> &'static str {
     }
 }
 
-/// What the chosen option means: the menu's tooltip.
 fn meeting_mode_detail(mode: AutoRecordMode) -> &'static str {
     match mode {
         AutoRecordMode::Automatic => lokalbot_i18n::tr("Starts as soon as a call begins"),
@@ -37,7 +32,6 @@ fn meeting_mode_detail(mode: AutoRecordMode) -> &'static str {
     }
 }
 
-/// The option's name in setup's "Keeps" menu.
 fn context_mode_title(mode: ScreenContextMode) -> &'static str {
     match mode {
         ScreenContextMode::ActivityOnly => lokalbot_i18n::tr("App names only"),
@@ -46,7 +40,6 @@ fn context_mode_title(mode: ScreenContextMode) -> &'static str {
     }
 }
 
-/// What is kept, on its own line under the menu.
 fn context_mode_detail(mode: ScreenContextMode) -> &'static str {
     match mode {
         ScreenContextMode::ActivityOnly => lokalbot_i18n::tr("The app and the window title"),
@@ -57,9 +50,6 @@ fn context_mode_detail(mode: ScreenContextMode) -> &'static str {
     }
 }
 
-/// The retention sentence under the choices, for every workday choice. The
-/// port's wording, because it differs from the Mac: private windows' text
-/// and images are never captured here.
 fn retention_note(mode: ScreenContextMode, retention_days: u32) -> String {
     let retention = match retention_days {
         1 => lokalbot_i18n::tr("1 day").to_string(),
@@ -116,7 +106,6 @@ impl Onboarding {
                     ))),
             )
             .child(
-                // A server set up before setup was reopened is named for what it is.
                 h_flex()
                     .pt(px(2.))
                     .gap(px(6.))
@@ -310,8 +299,6 @@ impl Onboarding {
                             .child(coding_agents),
                     ),
             )
-            // Shown for every workday choice: it is what the person agrees to
-            // before picking more.
             .when(draft.day_memory, |this| {
                 this.child(note(
                     Ico::Lock,
@@ -322,7 +309,6 @@ impl Onboarding {
     }
 }
 
-/// A row's bold name.
 fn row_name(title: &'static str, cx: &gpui_kit::App) -> Div {
     div()
         .text_size(ty::BODY)
@@ -331,8 +317,6 @@ fn row_name(title: &'static str, cx: &gpui_kit::App) -> Div {
         .child(ui::text::paragraph(title))
 }
 
-/// The one option a choice has, on its own line under the description, with
-/// what the chosen option keeps under it when that matters.
 fn option(
     label: &'static str,
     control: gpui_kit::AnyElement,

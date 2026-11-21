@@ -1,21 +1,15 @@
 import Foundation
 import SQLite3
 
-/// One saved coding-agent note as a search returns it.
 struct AgentNoteHit: Identifiable, Hashable, Sendable {
-    /// Stable id of the note, cited as `[note:id]`.
     var id: String
-    /// `claude-code` or `codex`.
     var agent: String
     var title: String
     var summary: String?
-    /// Claude Code's own label: user, feedback, project, or reference.
     var category: String?
     var workingDirectory: String?
-    /// The agent's file the note was read from.
     var path: String
     var modified: Date
-    /// A passage around the match, the matched words between « and ».
     var snippet: String
 
     var agentName: String { AgentNotesIndex.agentName(agent) }
@@ -26,7 +20,6 @@ struct AgentNoteHit: Identifiable, Hashable, Sendable {
         return name.isEmpty || name == "/" ? nil : name
     }
 
-    /// "Claude Code · LokalBot", for a row's second line.
     var sourceLabel: String {
         [agentName, projectName].compactMap { $0 }.joined(separator: " · ")
     }
@@ -42,13 +35,8 @@ enum AgentNotesIndexError: LocalizedError {
     }
 }
 
-/// Read side of the saved coding-agent notes: `agent-notes.sqlite` in the
-/// library, written only by the app (`AgentMemoryStore`). Every call opens
-/// the file read-only and closes it, so the CLI and the app can both search
-/// while the app replaces notes.
 struct AgentNotesIndex: Sendable {
     static let fileName = "agent-notes.sqlite"
-    /// Column weights for title, summary and text.
     static let rank = "bm25(notes_fts, 10.0, 4.0, 1.0)"
     static let snippet = "snippet(notes_fts, 2, '«', '»', '…', 18)"
 
@@ -72,12 +60,8 @@ struct AgentNotesIndex: Sendable {
         }
     }
 
-    /// Notes matching every word of `query`, best first; when none has every
-    /// word, notes matching any. The last word also matches as a prefix, so
-    /// results appear while it is typed.
     func search(_ query: String, agent: String? = nil, limit: Int) throws -> [AgentNoteHit] {
         guard limit > 0, exists else { return [] }
-        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
         if CJKSearch.containsCJK(query) {
             return try substringSearch(query, agent: agent, limit: limit)
         }
@@ -92,7 +76,6 @@ struct AgentNotesIndex: Sendable {
         return try ftsSearch(match: quoted.joined(separator: " OR "), agent: agent, limit: limit)
     }
 
-    /// The note with this id, its snippet the opening of its text.
     func hit(id: String) throws -> AgentNoteHit? {
         guard exists else { return nil }
         return try connection().query(
@@ -107,7 +90,6 @@ struct AgentNotesIndex: Sendable {
         }.first
     }
 
-    /// How many notes are saved per agent.
     func counts() throws -> [String: Int] {
         guard exists else { return [:] }
         let rows = try connection().query("SELECT agent, COUNT(*) FROM notes GROUP BY agent") {
@@ -184,7 +166,6 @@ struct AgentNotesIndex: Sendable {
         case text(String)
     }
 
-    /// Query-only, so nothing here can grow a write path to the notes.
     private final class Connection {
         private let handle: OpaquePointer
         private static let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
@@ -229,9 +210,6 @@ struct AgentNotesIndex: Sendable {
     }
 }
 
-/// Cross-process truth for the Agent notes grant: a marker the app sets from
-/// Settings → External Agents. Separate from every other grant, and no Agent
-/// Mode capability satisfies it.
 struct AgentNotesAccessGate {
     static let markerName = "agent-notes-access-enabled"
 
@@ -263,13 +241,10 @@ struct AgentNotesAccessGate {
     }
 }
 
-/// The agent-facing search over saved coding-agent notes, shared by the CLI
-/// command and the MCP tool. Works without the app running.
 enum AgentNotesSearchTool {
     static let name = "search_agent_notes"
     static let defaultLimit = 8
     static let maximumLimit = 30
-    /// A note longer than this is cut, with an ellipsis.
     static let noteCharacters = 4_000
     static let agents = ["claude-code", "codex"]
 
@@ -323,8 +298,6 @@ enum AgentNotesSearchTool {
             }
         }
 
-        /// What a CLI command throws for a refusal, with its code. Nil for
-        /// bad arguments, which the command reports as a usage error.
         var commandError: CodedCommandError? {
             switch self {
             case .disabled:
@@ -342,9 +315,7 @@ enum AgentNotesSearchTool {
             var agent: String
             var title: String
             var summary: String?
-            /// Claude Code's own label: user, feedback, project, or reference.
             var type: String?
-            /// The folder the note is about, when the agent recorded it.
             var project: String?
             var path: String
             var modified: String
@@ -403,7 +374,6 @@ enum AgentNotesSearchTool {
         return String(decoding: data, as: UTF8.self)
     }
 
-    /// A plain-text table for `lokalbot-cli search-notes --table`.
     static func table(_ report: Report) -> String {
         guard !report.results.isEmpty else { return "No agent notes matched \"\(report.query)\"." }
         return report.results.map { item in

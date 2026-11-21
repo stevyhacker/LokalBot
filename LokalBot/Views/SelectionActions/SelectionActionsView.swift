@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The selection actions panel: the selected text and where it came from, the
-/// actions that fit it, and the streamed result with ways to use it.
 struct SelectionActionsView: View {
     @EnvironmentObject private var app: AppState
 
@@ -19,8 +17,6 @@ private struct SelectionActionsContent: View {
 
     @State private var query = ""
     @State private var selection = 0
-    /// Typed instructions read matching meetings and work memory unless this
-    /// is turned off.
     @State private var instructionUsesMemory = true
     @FocusState private var inputFocused: Bool
 
@@ -73,8 +69,6 @@ private struct SelectionActionsContent: View {
             return .handled
         }
     }
-
-    // MARK: - Header
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -136,7 +130,6 @@ private struct SelectionActionsContent: View {
         .padding(.vertical, 14)
     }
 
-    /// Where the text came from and what can happen to the result.
     private var sourceLine: some View {
         let capture = controller.capture
         let appName = capture.source?.appName ?? ""
@@ -174,8 +167,6 @@ private struct SelectionActionsContent: View {
                 .accessibilityIdentifier("selectionActions.source")
         }
     }
-
-    // MARK: - Content
 
     @ViewBuilder private var content: some View {
         if let issue = controller.capture.issue {
@@ -227,7 +218,6 @@ private struct SelectionActionsContent: View {
         let builtIn = SelectionAction.matching(
             trimmed, hasSelection: controller.capture.hasSelection, language: app.settings.appLanguage)
         guard !trimmed.isEmpty else { return builtIn }
-        // A typed instruction leads, unless it is just the start of an action's name.
         let custom = SelectionAction.custom(trimmed, usesMemory: instructionUsesMemory)
         return builtIn.isEmpty ? [custom] : builtIn + [custom]
     }
@@ -309,7 +299,6 @@ private struct SelectionActionsContent: View {
         return controller.modelName.map { "Writing with \($0)…" } ?? "Writing…"
     }
 
-    /// The meetings the memory lookup matched, so a claim can be checked.
     private var memorySources: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text("From your memory")
@@ -341,8 +330,6 @@ private struct SelectionActionsContent: View {
         guard let date = source.date else { return source.title }
         return "\(source.title) · \(date.formatted(.dateTime.day().month(.abbreviated)))"
     }
-
-    // MARK: - Footer
 
     @ViewBuilder private var footer: some View {
         HStack(spacing: 12) {
@@ -407,9 +394,6 @@ private struct SelectionActionsContent: View {
                 remote: "Selection actions use your configured remote model."))
     }
 
-    // MARK: - Actions
-
-    /// Built-in titles are interface text; a typed instruction is the user's.
     private func title(of action: SelectionAction) -> Text {
         action.id == SelectionAction.customID
             ? Text(verbatim: action.title)

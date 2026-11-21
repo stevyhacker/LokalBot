@@ -1,12 +1,3 @@
-//! Runs one recording through the real pipeline without the UI: transcription,
-//! speaker attribution, notes and actions, indexing, and optionally Ask.
-//!
-//! `cargo run -p lokalbot-engine --example process_meeting -- <library> <mic.wav> [system.wav] [--prepare] [--ask "question"]`
-//!
-//! `--prepare` first downloads the models `settings.json` selects, the way
-//! Settings → Models does; without it the library must already hold them.
-//! `--ask` then asks a question across the library and prints the answer.
-
 use std::time::{Duration, Instant};
 
 use anyhow::{Context as _, Result, bail};
@@ -117,7 +108,6 @@ fn next(receiver: &Receiver<EngineEvent>, clock: &Instant) -> Result<EngineEvent
         .map_err(|_| anyhow::anyhow!("timed out after {:?}", clock.elapsed()))
 }
 
-/// Downloads whatever the settings need and waits until every role is ready.
 fn prepare_models(
     engine: &Engine,
     receiver: &Receiver<EngineEvent>,
@@ -170,7 +160,6 @@ fn prepare_models(
     }
 }
 
-/// Asks across the whole library and prints the saved answer.
 fn ask(
     engine: &Engine,
     receiver: &Receiver<EngineEvent>,

@@ -1,12 +1,3 @@
-//! Agents changing settings from the terminal (`Services/AppControl/*`): the
-//! control socket, which exists only while the person allows it, the approvals
-//! that wait for them, the audit log with Undo, and the agent setup request.
-//!
-//! Every request re-checks the Privacy marker, so revoking the grant takes
-//! effect even for a connection already accepted. The socket has no method that
-//! approves anything: [`ControlHost::approve`] is called only from the approval
-//! window, by the person.
-
 mod handler;
 pub mod permissions;
 pub mod setup;
@@ -37,7 +28,6 @@ use uuid::Uuid;
 use crate::pages::settings::model_setup::ModelSetup;
 use crate::state::AppData;
 
-/// What reaches the UI thread from the socket and notifications.
 pub(crate) enum Incoming {
     Request {
         request: Request,
@@ -51,13 +41,10 @@ pub struct ControlHost {
     pub(crate) data: Entity<AppData>,
     pub(crate) paths: LibraryPaths,
     server: Option<ControlServer>,
-    /// "Allow external agents to change LokalBot settings".
     pub enabled: bool,
     pub approvals: Approvals,
     pub changes: AgentSettingsChanges,
-    /// The request an agent left with `setup start`.
     pub setup_pending: Option<SetupRequest>,
-    /// Bumped when a setup request changes read access, for Settings to reread.
     pub access_generation: u64,
     pub(crate) model_setup: ModelSetup,
     pub(crate) wake: wake::WakeState,
@@ -74,7 +61,6 @@ pub fn global(cx: &App) -> Option<Entity<ControlHost>> {
     cx.try_global::<ControlHandle>().map(|h| h.0.clone())
 }
 
-/// Starts the control host; the socket opens only if the grant is on.
 pub fn start(data: &Entity<AppData>, cx: &mut App) {
     let (sender, receiver) = smol::channel::unbounded::<Incoming>();
     let paths = data.read(cx).library.paths().clone();
@@ -92,7 +78,6 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             wake: Default::default(),
             sender,
             notifications: Default::default(),
-            // The socket goes when LokalBot quits.
             _quit: Some(cx.on_app_quit(|host: &mut ControlHost, _| {
                 host.server = None;
                 async {}
@@ -125,8 +110,6 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
         }
     })
     .detach();
-    // Setup requests, wakes and expiries have no notification to arrive by, so
-    // a once-a-second look at two files finds them.
     cx.spawn(async move |cx| {
         loop {
             smol::Timer::after(Duration::from_secs(1)).await;
@@ -136,13 +119,10 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
     .detach();
 }
 
-/// True when an agent's setup request waits, which replaces the first-run wizard.
 pub fn setup_waiting(cx: &App) -> bool {
     global(cx).is_some_and(|host| host.read(cx).setup_pending.is_some())
 }
 
-/// Settings as the app would hold them after `items`, or why not. The values go
-/// through the real decoder, and shortcuts and model ids through their checks.
 pub(crate) fn checked_apply(
     items: &[PlanItem],
     settings: &Settings,
@@ -213,7 +193,6 @@ pub(crate) fn checked_apply(
 }
 
 impl ControlHost {
-    /// Turning the grant on opens the socket; off closes it and denies what waits.
     pub fn set_enabled(&mut self, enabled: bool, cx: &mut Context<Self>) {
         if enabled {
             if let Err(err) = access::set_settings_control(&self.paths, true) {
@@ -248,7 +227,6 @@ impl ControlHost {
             }
             self.enabled = false;
             self.server = None;
-            // Requests already waiting go with the grant.
             for id in self.approvals.deny_all(Utc::now()) {
                 self.withdraw(id);
             }
@@ -284,7 +262,6 @@ impl ControlHost {
             self.withdraw(id);
             cx.notify();
         }
-        // The cards count down.
         if !self.approvals.pending.is_empty() {
             cx.notify();
         }
@@ -294,8 +271,6 @@ impl ControlHost {
         self.tick_wake(cx);
     }
 
-    /// Tells the person a request is waiting: a notification, or the approval
-    /// window when notifications are off, because only the person can answer.
     pub(crate) fn announce(&self, request: &ApprovalRequest) {
         let title = lokalbot_i18n::tr("Approve a settings change?").to_string();
         let body = lokalbot_i18n::format(
@@ -333,7 +308,6 @@ impl ControlHost {
         });
     }
 
-    /// Removes a request's notification once it is answered or expires.
     pub(crate) fn withdraw(&self, id: Uuid) {
         if let Some(handle) = self.notifications.lock().remove(&id) {
             std::thread::spawn(move || handle.close());
@@ -346,7 +320,6 @@ impl ControlHost {
         cx.notify();
     }
 
-    /// The person approved a request on its card. A problem stays on the card.
     pub fn approve(&mut self, id: Uuid, cx: &mut Context<Self>) {
         let request = match self.approvals.waiting(id, Utc::now()) {
             Ok(Some(request)) => request,
@@ -393,11 +366,6 @@ impl ControlHost {
         }
     }
 
-    /// Applies the changes an approved card showed to the settings as they are
-    /// now. Settings the request left as they were stay as the person has them
-    /// since. When approving would widen more than the card showed, or a shorter
-    /// retention policy would delete more than its review, the card gets the new
-    /// changes and keeps waiting.
     fn approve_settings(
         &mut self,
         request: &ApprovalRequest,
@@ -412,7 +380,6 @@ impl ControlHost {
             )));
         }
         let items = plan.changed();
-        // Check every value before anything is deleted.
         checked_apply(&items, &settings).map_err(ApprovalProblem::Control)?;
         let needed = self
             .retention_review(&items, &settings, cx)
@@ -512,8 +479,6 @@ impl ControlHost {
         Ok(())
     }
 
-    /// Applies checked plan items and records them for the audit log and Undo.
-    /// Returns a warning for each value that did not stick.
     pub(crate) fn apply_agent_settings(
         &mut self,
         items: &[PlanItem],
@@ -548,8 +513,6 @@ impl ControlHost {
             .collect())
     }
 
-    /// The person clicked Undo. It restores the earlier value while the setting
-    /// still holds the agent's.
     pub fn undo(&mut self, entry: &Entry, cx: &mut Context<Self>) {
         let settings = self.data.read(cx).settings.clone();
         if !audit::can_undo(entry, &settings) {
@@ -569,10 +532,6 @@ impl ControlHost {
         }
     }
 
-    /// The cleanup a change's shorter retention policy needs reviewed, or `None`
-    /// when the change deletes nothing. On the UI thread as on the Mac: it is
-    /// rare, and the card needs it. A review that can't be built refuses the
-    /// change rather than skipping the review.
     pub(crate) fn retention_review(
         &self,
         items: &[PlanItem],
@@ -610,7 +569,6 @@ impl ControlHost {
     }
 }
 
-/// Saves or, when blank, removes an API key in the system credential store.
 pub(crate) fn save_secret(secret: AppSecret, value: &str) -> anyhow::Result<()> {
     match secret {
         AppSecret::OpenAICompatible => lokalbot_engine::secrets::save_openai_api_key(value),

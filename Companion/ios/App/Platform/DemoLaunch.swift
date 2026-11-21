@@ -2,11 +2,6 @@ import Foundation
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Debug-only launch arguments that open the app on a given screen with the
-/// sample library presented as a paired Mac, for screenshots without UI
-/// automation. For example:
-///
-///     -demoPaired YES -demoSection meetings -demoMeeting <id> -demoTab transcript
 enum DemoLaunch {
     private static var defaults: UserDefaults { .standard }
 
@@ -28,7 +23,6 @@ enum DemoLaunch {
             now: { now }, keepsChangesPending: true, pairedStatus: status,
             macReachable: !defaults.bool(forKey: "demoUnreachable")))
         if defaults.bool(forKey: "demoRecordings"), let store {
-            // With -demoUnreachable the waiting ones stay as they are.
             let waiting = RecordingItem(id: "demo-waiting", title: "Site visit", state: .waiting,
                                         startedAt: now.addingTimeInterval(-3_000), durationSeconds: 1_834)
             let held = RecordingItem(id: "demo-held", state: .waiting, startedAt: now.addingTimeInterval(-9_000),
@@ -47,8 +41,6 @@ enum DemoLaunch {
         #endif
     }
 
-    /// The microphone, or with `-demoPaired` a stand-in that writes a few bytes
-    /// and shows a moving level, so screenshots never record anyone.
     @MainActor
     static func capture() -> AudioCapture {
         #if DEBUG
@@ -78,11 +70,6 @@ enum DemoLaunch {
     }
     #endif
 
-    /// Exercises the real store end to end against a test host:
-    /// `-demoPairLink <lokalbot://pair?d=…>` pairs at launch,
-    /// `-demoToggleAction <meetingID>/<actionID>` marks an action done, and
-    /// `-demoQueueRecording <path>` queues a file as if it had just been
-    /// recorded, which sends it without touching the microphone.
     @MainActor
     static func exercise(_ environment: AppEnvironment) async {
         #if DEBUG
@@ -152,13 +139,9 @@ enum DemoLaunch {
         #endif
     }
 
-    /// `-demoWidth 375` narrows the window's content and makes it compact,
-    /// approximating Split View and Slide Over widths in screenshots.
     struct Frame<Content: View>: View {
         @ViewBuilder let content: Content
 
-        /// `-demoSizeClass regular` keeps a narrow window regular, like an
-        /// unfolded foldable that reports regular width.
         private var sizeClass: UserInterfaceSizeClass? {
             switch UserDefaults.standard.string(forKey: "demoSizeClass") {
             case "regular": .regular

@@ -1,5 +1,3 @@
-//! Shared test fixtures.
-
 use std::path::{Path, PathBuf};
 
 use lokalbot_core::{Library, LibraryPaths};
@@ -21,8 +19,6 @@ pub fn fixture_root() -> PathBuf {
         .join("../../../LokalBotTests/Fixtures/upgrade/0.10.9/library")
 }
 
-/// The macOS upgrade fixture, copied so tests never write into it. `None`
-/// when the fixture is not checked out next to the workspace.
 pub fn fixture_library() -> Option<(tempfile::TempDir, Library)> {
     let source = fixture_root();
     if !source.is_dir() {

@@ -1,8 +1,3 @@
-//! Plays a meeting's two tracks together (`MeetingPlayer.swift`). Both files
-//! share one timeline, so one mixed source reproduces the meeting; the longest
-//! track decides the duration. Gains follow `MeetingAudioAsset`: system 0.85
-//! and mic 0.55 together, 1.0 for a single track.
-
 use std::num::NonZero;
 use std::path::Path;
 use std::sync::Arc;
@@ -17,18 +12,15 @@ use crate::wav::SAMPLE_RATE;
 
 pub const MIN_SPEED: f32 = 0.75;
 pub const MAX_SPEED: f32 = 2.0;
-/// Output block rendered under the lock: 20 ms.
 const BLOCK: usize = SAMPLE_RATE as usize / 50;
 
 struct Track {
     reader: TrackReader,
     gain: f32,
     frames: u64,
-    /// Frame the reader will return next.
     cursor: u64,
 }
 
-/// Mixed tracks with a sliding read cache; positions outside every track read as silence.
 struct Mix {
     tracks: Vec<Track>,
     cache: Vec<f32>,
@@ -48,7 +40,6 @@ impl Mix {
             self.cache.clear();
             self.cache_start = start;
         } else if start > self.cache_start + 4 * SAMPLE_RATE as i64 {
-            // Keep a little history for WSOLA's look-back, drop the rest.
             let drop = (start - self.cache_start - SAMPLE_RATE as i64) as usize;
             self.cache.drain(..drop.min(self.cache.len()));
             self.cache_start += drop as i64;
@@ -61,7 +52,6 @@ impl Mix {
         let need = (end - from) as usize;
         let read_len = need.max(BLOCK * 8);
         let mut mixed = vec![0.0f32; read_len];
-        // Positions before the start of the file are silence.
         let lead = if from < 0 {
             ((-from) as usize).min(read_len)
         } else {
@@ -104,7 +94,6 @@ struct State {
     mix: Mix,
     playing: bool,
     speed: f32,
-    /// Next timeline frame at 1× (unused while stretching).
     position: u64,
     stretch: Option<Wsola>,
     end_at: Option<u64>,
@@ -156,7 +145,6 @@ struct Output {
     _stop: crossbeam_channel::Sender<()>,
 }
 
-/// rodio source that pulls 20 ms blocks from the shared state; silent while paused.
 struct PlayerSource {
     state: Arc<Mutex<State>>,
     block: Vec<f32>,
@@ -172,7 +160,6 @@ impl Iterator for PlayerSource {
             state.render(&mut self.block);
             self.index = 0;
             if self.block.is_empty() {
-                // Paused or finished: keep the stream alive with silence.
                 return Some(0.0);
             }
         }
@@ -207,8 +194,6 @@ pub struct Player {
 }
 
 impl Player {
-    /// Opens the tracks (either may be missing). The output device opens on
-    /// the first [`Player::play`].
     pub fn open(mic: Option<&Path>, system: Option<&Path>) -> Result<Player> {
         let both = mic.is_some() && system.is_some();
         let mut tracks = Vec::new();
@@ -275,7 +260,6 @@ impl Player {
                         sink.log_on_drop(false);
                         sink.mixer().add(source);
                         let _ = ready_tx.send(Ok(()));
-                        // Hold the device until the player goes away.
                         let _ = stop_rx.recv();
                     }
                     Err(error) => {
@@ -296,7 +280,6 @@ impl Player {
         }
     }
 
-    /// Starts or resumes playback; at the end it starts over.
     pub fn play(&self) -> Result<()> {
         self.ensure_output()?;
         let mut state = self.state.lock();
@@ -308,7 +291,6 @@ impl Player {
         Ok(())
     }
 
-    /// Plays `start..end` seconds and stops (evidence passages).
     pub fn play_range(&self, start: f64, end: f64) -> Result<()> {
         if !(start.is_finite() && end.is_finite() && end > start) {
             bail!("invalid passage");
@@ -338,7 +320,6 @@ impl Player {
         }
     }
 
-    /// Moves the playhead; playback continues if it was playing.
     pub fn seek(&self, seconds: f64) {
         let mut state = self.state.lock();
         let frames = state.mix.frames();
@@ -350,7 +331,6 @@ impl Player {
         state.set_frame(frame);
     }
 
-    /// Playback rate, clamped to 0.75–2.0; pitch is preserved.
     pub fn set_speed(&self, speed: f32) {
         let speed = if speed.is_finite() {
             speed.clamp(MIN_SPEED, MAX_SPEED)
@@ -370,7 +350,6 @@ impl Player {
         self.state.lock().speed
     }
 
-    /// Seconds into the meeting.
     pub fn position(&self) -> f64 {
         self.state.lock().current_frame() as f64 / SAMPLE_RATE as f64
     }

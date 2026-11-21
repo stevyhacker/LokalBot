@@ -1,34 +1,19 @@
-//! Which changes the file watcher reports can alter what a pass finds
-//! (`FileChangeFilter`). Every pass walks the chosen folders again, so a change the
-//! crawl would leave out never starts one: in a place it doesn't walk, of a type it
-//! doesn't read, or inside a code project, where it keeps only screenshots.
-//!
-//! When in doubt it says yes: an extra pass costs seconds, a missed one leaves a new
-//! file out of search until something else changes.
-
 use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 
 use super::rules::{self, Classification};
 use super::{FileKind, IndexOptions};
 
-/// What the watcher knows about one change.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ChangeFacts {
-    /// The watcher lost track of what happened here: only a pass can tell.
     pub lost_track: bool,
-    /// `None` when the watcher doesn't say and the path is gone. Unlike FSEvents,
-    /// the watchers here often don't say.
     pub is_folder: Option<bool>,
-    /// It appeared, went away, or moved.
     pub came_or_went: bool,
-    /// It moved here whole: then this is all the watcher says about what it holds.
     pub arrived_whole: bool,
 }
 
 #[derive(Clone, Debug)]
 pub struct ChangeFilter {
-    /// Each chosen folder as chosen and as the file system resolves it.
     roots: Vec<PathBuf>,
     options: IndexOptions,
     home: Option<PathBuf>,
@@ -53,8 +38,6 @@ impl ChangeFilter {
         }
     }
 
-    /// Whether this change can alter what a pass finds. Nested chosen folders answer
-    /// differently: one's project can be the other's whole.
     pub fn matters(&self, path: &Path, facts: ChangeFacts, answers: &mut Answers) -> bool {
         if facts.lost_track {
             return true;
@@ -68,8 +51,6 @@ impl ChangeFilter {
                 }
             }
         }
-        // A spelling of the path that can't be placed in a chosen folder is no reason
-        // to miss a change.
         !placed
     }
 
@@ -80,12 +61,9 @@ impl ChangeFilter {
         root: &Path,
         answers: &mut Answers,
     ) -> bool {
-        // Most of what a busy computer reports is in hidden folders: no need to ask
-        // the file system.
         if is_hidden_below(path, root) {
             return false;
         }
-        // The watcher doesn't say what it is, and it's gone: only a pass can tell.
         let Some(is_folder) = facts.is_folder else {
             return true;
         };
@@ -101,16 +79,12 @@ impl ChangeFilter {
         if !walked {
             return false;
         }
-        // A project's only marker appearing or going decides what the crawl keeps
-        // around it, unless a project above it already does. Editing one changes
-        // nothing.
         if facts.came_or_went
             && rules::decides_project(path)
             && !self.in_project(parent, root, answers)
         {
             return true;
         }
-        // A folder's contents report themselves, unless it moved here.
         if is_folder && !facts.arrived_whole {
             return false;
         }
@@ -133,9 +107,6 @@ impl ChangeFilter {
         if is_folder {
             return true;
         }
-        // Only screenshots count in a code project. A file that's gone goes by its
-        // name; if that's wrong, search still hides a missing file and the next pass
-        // drops it.
         if !self.in_project(path, root, answers) {
             return true;
         }
@@ -150,9 +121,6 @@ impl ChangeFilter {
     }
 }
 
-/// Answers kept while changes arrive in a burst: a build reports thousands at a time,
-/// so what's learned about a folder or a type is asked of the file system once. Start
-/// afresh every couple of seconds, because folders and markers do change.
 #[derive(Debug, Default)]
 pub struct Answers {
     walked: HashMap<String, bool>,
@@ -307,10 +275,8 @@ mod tests {
     #[test]
     fn a_folders_only_marker_decides_what_is_kept_around_it() {
         let fixture = Fixture::new();
-        // Removed or added: the crawl now keeps something else.
         assert!(fixture.counts("Work/App/package.json", FILE));
         assert!(fixture.counts("Work/Notes/Cargo.toml", FILE));
-        // Editing it, or another beside it, changes nothing.
         assert!(!fixture.counts("Work/App/package.json", EDITED));
         assert!(
             !fixture.counts("Work/Site/package.json", FILE),
@@ -349,7 +315,6 @@ mod tests {
             ..FILE
         };
         assert!(fixture.counts("Work/Notes/server.log", unknown));
-        // Even so, nothing in a hidden folder is walked.
         assert!(!fixture.counts(".hidden/gone", unknown));
         assert!(fixture.filter(true).matters(
             Path::new("/somewhere/else/server.log"),

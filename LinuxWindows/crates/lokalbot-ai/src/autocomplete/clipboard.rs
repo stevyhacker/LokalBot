@@ -3,30 +3,20 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 24 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Clipboard context for the prompt (`CotypingClipboardContext.swift`), the
-//! pure half: sanitizing, bounding, relevance and the already-in-the-field
-//! guard. A snippet may be pinned in memory for one field and one clipboard
-//! state to keep the prompt's start stable; it is never saved or logged.
-
 use std::collections::HashSet;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
 
 use regex::Regex;
 
-/// The most the prompt ever gets (Cotabby's 1,200).
 pub const MAX_SNIPPET_CHARACTERS: usize = 1_200;
 const COMPACT_LINE_THRESHOLD: usize = 3;
 const HEAD_FALLBACK_CHARACTERS: usize = 300;
-/// A copy older than this no longer says what the user is working on.
 pub const STALE_AFTER: Duration = Duration::from_secs(300);
 
 static ANSI_ESCAPE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("\u{1B}\\[[0-?]*[ -/]*[@-~]").expect("the ANSI pattern is valid"));
 
-/// `CotypingPromptContextSanitizer.sanitize`: shell prompts, Markdown fences
-/// and punctuation-heavy output are what small models copy back, so only
-/// letters, digits, whitespace, `@` and `.` survive.
 pub fn sanitize_text(raw: &str, max_characters: Option<usize>) -> String {
     let without_ansi = ANSI_ESCAPE.replace_all(raw, " ");
     let kept: String = without_ansi
@@ -60,7 +50,6 @@ fn significant_tokens(text: &str) -> HashSet<String> {
         .collect()
 }
 
-/// Sanitized text, or `None` for empty or punctuation-only input.
 pub fn sanitize(raw: &str, max_characters: Option<usize>) -> Option<String> {
     let sanitized = sanitize_text(raw, max_characters);
     (!sanitized.is_empty() && sanitized.chars().any(char::is_alphanumeric)).then_some(sanitized)
@@ -70,15 +59,11 @@ fn collapsed(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// False when the snippet is already in the text being typed: no point in
-/// feeding back what was just pasted.
 pub fn should_include(snippet: &str, preceding: &str) -> bool {
     let normalized = collapsed(snippet);
     !normalized.is_empty() && !collapsed(&sanitize_text(preceding, None)).contains(&normalized)
 }
 
-/// Keeps the clipboard lines that share a word with the prefix. Short
-/// snippets pass through; long unrelated copies shrink to a small head sample.
 fn distill(clipboard: &str, prefix: &str) -> String {
     let lines: Vec<&str> = clipboard.split('\n').collect();
     if lines.len() <= COMPACT_LINE_THRESHOLD {
@@ -99,7 +84,6 @@ fn distill(clipboard: &str, prefix: &str) -> String {
     relevant.join("\n")
 }
 
-/// Sanitize, distill, cap, guard: the snippet to include, or `None`.
 pub fn resolve(raw: &str, preceding: &str) -> Option<String> {
     let sanitized = sanitize(raw, None)?;
     let distilled = distill(&sanitized, preceding);
@@ -107,9 +91,6 @@ pub fn resolve(raw: &str, preceding: &str) -> Option<String> {
         .filter(|snippet| should_include(snippet, preceding))
 }
 
-/// The first observation is a baseline of unknown age, not a fresh copy.
-/// Only later copies count, while fresh and related to what is being typed
-/// (`CotypingClipboardRelevanceFilter`).
 #[derive(Clone, Debug, Default)]
 pub struct RelevanceFilter {
     last_count: Option<u64>,
@@ -145,15 +126,12 @@ impl RelevanceFilter {
     }
 }
 
-/// One clipboard state as the desktop read it (`CotypingClipboardSnapshot`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Snapshot {
     pub count: u64,
     pub text: String,
 }
 
-/// One non-empty verdict pinned to a field and a clipboard state. A nil
-/// verdict is not pinned: it is looked at again as more is typed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Memo {
     identity: String,
@@ -161,7 +139,6 @@ pub struct Memo {
     value: String,
 }
 
-/// Clipboard state between requests (`pinnedClipboardContext`).
 #[derive(Clone, Debug, Default)]
 pub struct Preface {
     memo: Option<Memo>,
@@ -169,14 +146,10 @@ pub struct Preface {
 }
 
 impl Preface {
-    /// The grant is off.
     pub fn clear(&mut self) {
         *self = Self::default();
     }
 
-    /// `CotypingClipboardPrefaceResolver.resolve`. `snapshot` is `None` when
-    /// the clipboard holds nothing readable, or something concealed: the next
-    /// copy after that starts a new baseline.
     pub fn resolve(
         &mut self,
         snapshot: Option<&Snapshot>,
@@ -261,7 +234,6 @@ mod tests {
         let now = Instant::now();
         let mut filter = RelevanceFilter::default();
         assert_eq!(filter.filter("the migration", 1, "migration", now), None);
-        // Same clipboard later: its age is still unknown.
         assert_eq!(filter.filter("the migration", 1, "migration", now), None);
         assert_eq!(
             filter.filter("the migration", 2, "migration", now),
@@ -294,15 +266,12 @@ mod tests {
                 .as_deref(),
             Some("cutover on Thursday")
         );
-        // Pinned, whatever is typed next.
         assert!(
             preface
                 .resolve(Some(&copied), "unrelated", "f", now)
                 .is_some()
         );
-        // Another field looks again.
         assert_eq!(preface.resolve(Some(&copied), "unrelated", "g", now), None);
-        // A concealed copy resets: the next one is a new baseline.
         assert_eq!(preface.resolve(None, "cutover", "f", now), None);
         let after = snapshot(3, "cutover on Thursday");
         assert_eq!(preface.resolve(Some(&after), "cutover", "f", now), None);

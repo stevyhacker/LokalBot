@@ -1,10 +1,3 @@
-//! Private calendar links: an iCalendar feed (Google's "secret address in
-//! iCal format", Outlook's published calendar, iCloud's `webcal://` link) or
-//! a CalDAV collection. Credentials can ride in the link
-//! (`https://user:app-password@host/…`); the whole link is a secret, so only
-//! [`redacted`] ever reaches a log or the screen, and it is sent only over an
-//! encrypted connection or to this computer.
-
 use std::io::Read as _;
 use std::time::Duration;
 
@@ -14,28 +7,22 @@ use lokalbot_core::calendar::{CalendarEvent, provider};
 
 use super::ics::{self, ParseOptions};
 
-/// Feeds larger than this are refused (a full Google history is a few MB).
 const MAX_BYTES: u64 = 64 * 1024 * 1024;
 const TIMEOUT: Duration = Duration::from_secs(45);
 
-/// Why a link is not read.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum LinkRefused {
     #[error("calendar links start with https:// or webcal://")]
     NotACalendarLink,
-    /// `http://` to another computer. The link is fetched every few minutes,
-    /// and it and any password in it would cross the network in the clear.
     #[error(
         "this link is not encrypted (http://), so it is not opened; use its https:// or webcal:// address"
     )]
     NotEncrypted,
 }
 
-/// `scheme://host/…`: what may be shown or logged of a calendar link.
 pub fn redacted(link: &str) -> String {
     let normalized = match normalize(link) {
         Ok(normalized) => normalized,
-        // Still named by its host, so the person can tell which link it is.
         Err(LinkRefused::NotEncrypted) => link.trim().to_string(),
         Err(LinkRefused::NotACalendarLink) => return "a calendar link".to_string(),
     };
@@ -48,8 +35,6 @@ pub fn redacted(link: &str) -> String {
     }
 }
 
-/// `webcal(s)://` becomes `https://`. Plain `http://` is accepted only for
-/// a calendar server on this computer; anything else is refused.
 pub fn normalize(link: &str) -> Result<String, LinkRefused> {
     let trimmed = link.trim();
     let lower = trimmed.to_ascii_lowercase();
@@ -62,7 +47,6 @@ pub fn normalize(link: &str) -> Result<String, LinkRefused> {
         return Ok(trimmed.to_string());
     }
     if lower.starts_with("http://") {
-        // Judged on the address the request goes to, without the credentials.
         let (address, _) = split_credentials(trimmed);
         return if lokalbot_core::access::is_loopback_url(&address) {
             Ok(trimmed.to_string())
@@ -73,8 +57,6 @@ pub fn normalize(link: &str) -> Result<String, LinkRefused> {
     Err(LinkRefused::NotACalendarLink)
 }
 
-/// Events from one link overlapping `[from, to)`. A link that answers with
-/// iCalendar is a feed; otherwise it is asked as a CalDAV collection.
 pub fn fetch(link: &str, options: &ParseOptions) -> Result<Vec<CalendarEvent>> {
     let url = normalize(link)?;
     let (url, authorization) = split_credentials(&url);
@@ -108,8 +90,6 @@ pub fn fetch(link: &str, options: &ParseOptions) -> Result<Vec<CalendarEvent>> {
         .with_context(|| format!("{} is not a calendar feed", redacted(&url)))
 }
 
-/// CalDAV `calendar-query` for events overlapping the window (RFC 4791 §7.8).
-/// The server returns whole series; they are expanded here like a feed.
 fn caldav_query(
     agent: &ureq::Agent,
     url: &str,
@@ -167,7 +147,6 @@ fn caldav_query(
     Ok(events)
 }
 
-/// Every `calendar-data` text in a multistatus reply.
 pub(crate) fn calendar_data(xml: &str) -> Result<Vec<String>> {
     let document = roxmltree::Document::parse(xml).context("the CalDAV reply is not XML")?;
     Ok(document
@@ -182,8 +161,6 @@ pub(crate) fn calendar_data(xml: &str) -> Result<Vec<String>> {
         .collect())
 }
 
-/// A transport failure in words that never repeat the link: some `ureq`
-/// errors carry the whole URL, and a calendar link is a secret.
 fn describe(err: &ureq::Error) -> String {
     match err {
         ureq::Error::StatusCode(code) => format!("HTTP {code}"),
@@ -212,8 +189,6 @@ fn looks_like_icalendar(body: &str) -> bool {
         .is_some_and(|start| start.eq_ignore_ascii_case("BEGIN:VCALENDAR"))
 }
 
-/// The agent for `url`. An encrypted link never follows a redirect to an
-/// unencrypted address.
 fn agent(url: &str) -> ureq::Agent {
     let config = ureq::Agent::config_builder()
         .https_only(!url.to_ascii_lowercase().starts_with("http://"))
@@ -241,7 +216,6 @@ fn read_body(response: ureq::http::Response<ureq::Body>) -> Result<String> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-/// Moves `user:password@` out of the link into a Basic `Authorization` value.
 fn split_credentials(url: &str) -> (String, Option<String>) {
     let Some((scheme, rest)) = url.split_once("://") else {
         return (url.to_string(), None);
@@ -300,8 +274,6 @@ fn base64_encode(bytes: &[u8]) -> String {
 mod tests {
     use super::*;
 
-    /// Asks a real CalDAV server: `LOKALBOT_CALDAV_TEST_URL=https://user:pass@host/cal/`
-    /// with a "Weekly review" event today.
     #[test]
     #[ignore = "needs a CalDAV server"]
     fn live_caldav_report() {
@@ -325,7 +297,6 @@ mod tests {
                 .iter()
                 .any(|e| e.title == "Weekly review" && e.provider == "caldav")
         );
-        // The same link also works through `fetch`, as a feed or as CalDAV.
         assert!(
             fetch(&link, &options)
                 .unwrap()
@@ -363,9 +334,7 @@ mod tests {
             "http://cal.example.com/private-0123/basic.ics",
             "HTTP://cal.example.com/private-0123/basic.ics",
             "http://ana:hunter2@dav.example.com/cal/",
-            // The private network is still a network others can listen on.
             "http://ana:hunter2@192.168.1.20:5232/ana/cal/",
-            // The request would go to evil.example, whatever follows the `@`.
             "http://localhost@evil.example/cal/",
         ] {
             assert_eq!(normalize(link), Err(LinkRefused::NotEncrypted), "{link}");
@@ -377,7 +346,6 @@ mod tests {
         ] {
             assert_eq!(normalize(link).as_deref(), Ok(link), "{link}");
         }
-        // A refused link is still named by its host, and nothing else of it.
         assert_eq!(
             redacted("http://ana:hunter2@dav.example.com/private-0123/"),
             "http://dav.example.com/…"
@@ -390,7 +358,6 @@ mod tests {
             calendar_title: None,
             default_zone: None,
         };
-        // 192.0.2.0/24 is reserved for documentation: nothing is contacted.
         let error = format!(
             "{:#}",
             fetch(

@@ -1,8 +1,3 @@
-//! Attached sources (`AgentContextResolver.swift`): files, meetings and saved
-//! screen moments. Only references are stored; the text is read again, with
-//! the current permissions, each time a message is sent, and appended to the
-//! prompt as reference data the model is told not to follow as instructions.
-
 use std::io::Read as _;
 use std::path::Path;
 
@@ -44,7 +39,6 @@ pub enum ContextError {
     ScreenAccessOff,
 }
 
-/// The prompt as the user wrote it, without attached source material.
 pub fn display_prompt(text: &str) -> &str {
     match split_attachments(text) {
         Some((prompt, _)) => prompt,
@@ -52,7 +46,6 @@ pub fn display_prompt(text: &str) -> &str {
     }
 }
 
-/// The sources a sent prompt carried (from its attachment block).
 pub fn attachments_in(text: &str) -> Vec<Attachment> {
     let Some((_, sources)) = split_attachments(text) else {
         return Vec::new();
@@ -99,7 +92,6 @@ fn split_attachments(
     Some((&text[..at], sources))
 }
 
-/// Reads attachments for one library.
 #[derive(Clone)]
 pub struct ContextResolver {
     library: Library,
@@ -146,8 +138,6 @@ impl ContextResolver {
         })
     }
 
-    /// The prompt pi receives: the user's text, then the attached sources as
-    /// one JSON array with sorted keys.
     pub fn prompt(&self, prompt: &str, attachments: &[Attachment]) -> Result<String, ContextError> {
         if attachments.len() > MAX_ATTACHMENTS {
             return Err(ContextError::TooMany);
@@ -186,7 +176,6 @@ impl ContextResolver {
             .map_err(|_| ContextError::Missing)?;
         let meetings_root =
             dunce::canonicalize(paths.meetings_dir()).map_err(|_| ContextError::Missing)?;
-        // A meeting folder that resolves outside the library is not read.
         if !crate::policy::is_within(&folder, &meetings_root)
             || crate::policy::same_path(&folder, &meetings_root)
         {
@@ -219,12 +208,10 @@ impl ContextResolver {
         if let Some(note) = moment.saved_note.filter(|n| !n.trim().is_empty()) {
             text.push_str(&format!("\n\nSaved note: {note}"));
         }
-        // The grant may have been revoked while the text was being read.
         lokalbot_core::access::screen_access_scope(&paths).ok_or(ContextError::ScreenAccessOff)?;
         Ok(text)
     }
 
-    /// Saved moments inside the current screen-memory grant, newest first.
     pub fn saved_moments(&self) -> Result<Vec<lokalbot_core::ScreenMoment>, ContextError> {
         let scope = lokalbot_core::access::screen_access_scope(self.library.paths())
             .ok_or(ContextError::ScreenAccessOff)?;
@@ -256,7 +243,6 @@ pub fn screen_cutoff(scope: ScreenScope, now: DateTime<Utc>) -> DateTime<Utc> {
     }
 }
 
-/// A UTF-8 text file of at most 256 KiB without NUL bytes.
 pub fn read_document(path: &Path) -> Result<String, ContextError> {
     let metadata = std::fs::metadata(path).map_err(|_| ContextError::Missing)?;
     if !metadata.is_file() {

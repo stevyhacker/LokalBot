@@ -13,7 +13,6 @@ import me.dotenv.lokalbot.companion.data.formatOffset
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.data.parseDayOrNull
 
-/** Words that depend on the app's language, from string resources. */
 data class RelativeWords(
     val today: String = "Today",
     val yesterday: String = "Yesterday",
@@ -23,7 +22,6 @@ data class RelativeWords(
     val hoursAgo: (Long) -> String = { "$it h ago" },
 )
 
-/** Dates, times and durations the way the Mac shows them, in the person's locale. */
 class Formats(
     val locale: Locale,
     val zone: ZoneId,
@@ -44,14 +42,11 @@ class Formats(
 
     fun time(iso: String?, zone: ZoneId = this.zone): String = iso?.let(::parseInstant)?.let { time(it, zone) }.orEmpty()
 
-    /** "10:30–11:15". */
     fun timeRange(start: String, end: String): String = "${time(start)}–${time(end)}"
 
-    /** Meeting times use the Mac's offset at the time of the meeting. */
     fun meetingTime(meeting: Meeting): String =
         time(meeting.startedAt, ZoneOffset.ofTotalSeconds(meeting.timeZoneOffsetMinutes * 60))
 
-    /** "Today", "Yesterday", "Thursday, 30 October". */
     fun dayLabel(date: LocalDate, today: LocalDate): String = when (date) {
         today -> words.today
         today.minusDays(1) -> words.yesterday
@@ -60,10 +55,8 @@ class Formats(
 
     fun dayLabel(day: String, today: LocalDate): String = parseDayOrNull(day)?.let { dayLabel(it, today) } ?: day
 
-    /** "Saturday, 31 October 2026". */
     fun fullDate(date: LocalDate): String = longDayYearFormat.format(date)
 
-    /** "Thu 30 Oct". */
     fun shortDay(date: LocalDate): String = shortDayFormat.format(date)
 
     fun shortDay(day: String): String = parseDayOrNull(day)?.let(::shortDay) ?: day
@@ -74,7 +67,6 @@ class Formats(
 
     fun monthYear(date: LocalDate): String = monthYearFormat.format(date)
 
-    /** "Today", "Tomorrow" or "Thu 30 Oct". */
     fun dueDay(day: String, today: LocalDate): String {
         val date = parseDayOrNull(day) ?: return day
         return when (date) {
@@ -85,11 +77,9 @@ class Formats(
         }
     }
 
-    /** "Zoom · 10:30 · 42 min". */
     fun meetingMeta(meeting: Meeting): String =
         listOfNotNull(meeting.appName, meetingTime(meeting), meetingDuration(meeting.durationSeconds)).joinToString(" · ")
 
-    /** "Today · 10:30 · 42 min", in this device's time. */
     fun recordingMeta(startedAt: String, durationSeconds: Double?, today: LocalDate): String {
         val start = parseInstant(startedAt)?.atZone(zone)
         val date = start?.toLocalDate()
@@ -106,7 +96,6 @@ class Formats(
         ).joinToString(" · ")
     }
 
-    /** "just now", "2 min ago", "3 h ago", "Yesterday", "Thu 30 Oct". */
     fun ago(then: Instant, now: Instant): String {
         val elapsed = Duration.between(then, now)
         return when {
@@ -128,14 +117,12 @@ class Formats(
     companion object {
         fun parseInstant(iso: String): Instant? = runCatching { Instant.parse(iso) }.getOrNull()
 
-        /** The Mac's `CaptureStyle.hm`: "<1m", "42m", "1h 5m". */
         fun duration(seconds: Double): String {
             if (seconds > 0 && seconds < 60) return "<1m"
             val minutes = (seconds / 60).toLong()
             return if (minutes >= 60) "${minutes / 60}h ${minutes % 60}m" else "${minutes}m"
         }
 
-        /** Meeting rows: "42 min", "1 hr 5 min". */
         fun meetingDuration(seconds: Double): String? {
             if (seconds <= 0) return null
             val minutes = ((seconds + 30) / 60).toLong().coerceAtLeast(1)
@@ -145,7 +132,6 @@ class Formats(
             } else "$minutes min"
         }
 
-        /** "12:04" or "1:02:03" into a recording. */
         fun offset(seconds: Double): String = formatOffset(seconds)
     }
 }

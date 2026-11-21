@@ -5,8 +5,6 @@ plugins {
     alias(libs.plugins.roborazzi)
 }
 
-// The sample library ("Try it without a computer") is the protocol fixture itself;
-// it is copied into the APK's assets at build time instead of into git.
 val sampleLibrary = rootProject.layout.projectDirectory.file("../protocol/fixtures/sample-library.json")
 
 abstract class CopySampleLibrary : DefaultTask() {
@@ -31,20 +29,15 @@ val copySampleLibrary = tasks.register<CopySampleLibrary>("copySampleLibrary") {
 
 android {
     namespace = "me.dotenv.lokalbot.companion"
-    // Current AndroidX releases need the Android 17 SDK to compile; runtime
-    // behavior follows targetSdk.
     compileSdk = 37
 
     defaultConfig {
         applicationId = "me.dotenv.lokalbot.companion"
         minSdk = 29
         targetSdk = 36
-        // One tag ships every platform; Scripts/release/bump-version.py sets these.
-        // versionCode is the Mac build number, which only ever goes up.
         versionCode = 69
         versionName = "0.13.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        // The Rust sync core is built for these two ABIs only.
         ndk { abiFilters += setOf("arm64-v8a", "x86_64") }
     }
 
@@ -72,7 +65,6 @@ android {
                 it.systemProperty("lokalbot.sampleLibrary", sampleLibrary.asFile.absolutePath)
                 it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
                 it.maxHeapSize = "4g"
-                // Robolectric for Android 16 reaches into the JDK's file descriptor internals.
                 it.jvmArgs("--add-opens=java.base/jdk.internal.access=ALL-UNNAMED", "--add-opens=java.base/java.io=ALL-UNNAMED")
             }
         }
@@ -82,10 +74,7 @@ android {
         abortOnError = true
         warningsAsErrors = false
         checkDependencies = true
-        // New library releases appear weekly; version bumps are deliberate.
         disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion")
-        // Targeting 37 makes local network access a runtime permission
-        // (ACCESS_LOCAL_NETWORK); that move is planned separately.
         disable += "OldTargetApi"
     }
 

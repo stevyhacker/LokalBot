@@ -1,8 +1,6 @@
 import AppKit
 import Foundation
 
-/// Owns the cross-app permission walkthrough while `PermissionManager` remains
-/// the single source of truth for grant state.
 @MainActor
 final class PermissionGuidanceController {
     static let shared = PermissionGuidanceController(permissionManager: .shared)
@@ -35,8 +33,6 @@ final class PermissionGuidanceController {
         }
     }
 
-    /// Requests the native grant first, then adds Cotabby-style drag guidance
-    /// only for privacy panes that accept an application bundle as a file URL.
     func requestAccess(for permission: AppPermission, sourceFrameInScreen: CGRect? = nil) {
         permissionManager.refresh()
         guard permissionManager.granted[permission] != true else { return }
@@ -133,8 +129,6 @@ final class PermissionGuidanceController {
             return
         }
 
-        // Callers that are not a view (a setting changed from the command
-        // line) never dismiss, so the walkthrough has to end itself.
         if PermissionOverlayTracker.shouldEnd(
             settingsRunning: SystemSettingsWindowLocator.isRunning,
             hasPresented: hasPresentedOverlay,

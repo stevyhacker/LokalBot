@@ -2,10 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-/// A live profile on 2026-10-01 showed the meeting detector reading every
-/// running app's pid, bundle id, and name through LaunchServices twice per
-/// 2-second tick on the main thread (40–70 ms stalls, about 5% of the main
-/// thread while idle). Each app is now read once.
 final class RunningApplicationCacheTests: XCTestCase {
     private final class Reads: @unchecked Sendable {
         private let lock = NSLock()
@@ -48,8 +44,6 @@ final class RunningApplicationCacheTests: XCTestCase {
                        "an app that left the list is read again when it reappears")
     }
 
-    /// NSWorkspace returns fresh objects for processes without a bundle id on
-    /// every call, so the list itself is kept until an app launches or quits.
     func testListIsReusedUntilInvalidatedOrStale() throws {
         let reads = Reads()
         var clock: TimeInterval = 100

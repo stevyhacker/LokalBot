@@ -1,10 +1,5 @@
 import Foundation
 
-/// Removes only objectively pathological ASR output: extreme repetition,
-/// rows that merely repeat the vocabulary prompt, and precisely timed rows
-/// too fast to be speech. Normal conversational emphasis is left intact:
-/// word/phrase collapse requires a long repeated cycle plus an impossible
-/// rate or a fast, overwhelmingly repetitive burst.
 enum TranscriptSanitizer {
     struct Result {
         var transcript: Transcript
@@ -16,11 +11,6 @@ enum TranscriptSanitizer {
         var changed: Bool { changedSegments > 0 || removedSegments > 0 }
     }
 
-    /// A precisely timed row with at least this many words at this rate is
-    /// not speech: the forced aligner packs words a model made up for a
-    /// near-silent gap into a fraction of a second (8–12 words in under one).
-    /// Coarse or unknown timing never authorizes removal, and a collapsed
-    /// filler loop is judged by the words it keeps.
     static let implausibleRateMinimumWords = 8
     static let implausibleWordsPerSecond: Double = 10
 
@@ -36,8 +26,6 @@ enum TranscriptSanitizer {
         var span: Int { period * repetitions }
     }
 
-    /// `prompt` is the vocabulary prompt the transcript was made with, when
-    /// known. Rows that only repeat it are removed (`TranscriptionPromptEcho`).
     static func sanitize(_ transcript: Transcript, prompt: String? = nil) -> Result {
         let echo = TranscriptionPromptEcho(prompt: prompt)
         var kept: [Transcript.Segment] = []
@@ -70,8 +58,6 @@ enum TranscriptSanitizer {
                 let collapsed = collapseRepeatedCycles(originalWords, in: characterCleaned)
                 let removed = collapsed.removedWords
                 let impossibleRate = originalWords.count >= 80 && wordsPerSecond >= 12
-                // Timestamp-less ASR can place 135 identical filler words in
-                // a 15-second VAD window: below the old 12 words/sec gate.
                 let dominatedByLoop = Double(removed) / Double(originalWords.count) >= 0.8
                 if removed > 0, impossibleRate || dominatedByLoop {
                     finalText = collapsed.text
@@ -130,8 +116,6 @@ enum TranscriptSanitizer {
         while index < input.count {
             if let loop = longestLoop(in: input, startingAt: index) {
                 let keptWords = loop.period * 2
-                // Delete only the repeated span. Rebuilding from word tokens
-                // would also rewrite unrelated amounts, signs and decimals.
                 let removalStart = input[index + keptWords - 1].range.upperBound
                 removals.append(removalStart..<input[index + loop.span - 1].range.upperBound)
                 removedWords += loop.span - keptWords
@@ -185,8 +169,6 @@ enum TranscriptSanitizer {
         return true
     }
 
-    /// Collapse extreme verbal emphasis, but never numeric runs: repeated
-    /// digits can be an amount, identifier, or exact quoted evidence.
     private static func collapseExtremeCharacterRuns(in text: String) -> String {
         guard !text.isEmpty else { return text }
         var output = ""

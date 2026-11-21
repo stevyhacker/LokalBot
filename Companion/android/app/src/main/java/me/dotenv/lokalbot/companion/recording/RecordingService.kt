@@ -26,11 +26,6 @@ import me.dotenv.lokalbot.companion.CompanionApp
 import me.dotenv.lokalbot.companion.MainActivity
 import me.dotenv.lokalbot.companion.R
 
-/**
- * Keeps a recording alive with the screen off or the app in the background,
- * and says so in an ongoing notification. [MeetingRecorder] does the recording.
- * Not restarted if its process dies: the next launch recovers what was written.
- */
 class RecordingService : Service() {
     private val recorder get() = (application as CompanionApp).container.recorder
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -54,7 +49,6 @@ class RecordingService : Service() {
     private fun start() {
         val allowed = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         val foreground = allowed && runCatching {
-            // Android 10 has no type for this, and doesn't ask for one.
             val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE else 0
             ServiceCompat.startForeground(this, NOTIFICATION_ID, notification(), type)
         }.isSuccess
@@ -71,13 +65,11 @@ class RecordingService : Service() {
     }
 
     override fun onDestroy() {
-        // Stopped from outside: keep what's there.
         if (!finishing) recorder.stop()
         scope.cancel()
         super.onDestroy()
     }
 
-    /** Recording stopped with the screen off, and nothing else would say so. */
     private fun notifyInterrupted() {
         val open = PendingIntent.getActivity(
             this,
@@ -92,7 +84,6 @@ class RecordingService : Service() {
             .setContentIntent(open)
             .setAutoCancel(true)
             .build()
-        // Without the notifications permission this does nothing, which is the person's choice.
         runCatching { getSystemService(NotificationManager::class.java)?.notify(STOPPED_NOTIFICATION_ID, stopped) }
     }
 
@@ -132,7 +123,6 @@ class RecordingService : Service() {
     }
 
     companion object {
-        /** On the Activity intent the notification opens. */
         const val EXTRA_SHOW_RECORDER = "showRecorder"
 
         private const val ACTION_START = "me.dotenv.lokalbot.companion.recording.START"
@@ -141,7 +131,6 @@ class RecordingService : Service() {
         private const val NOTIFICATION_ID = 42
         private const val STOPPED_NOTIFICATION_ID = 43
 
-        /** Call while the app is visible: Android lets a microphone service start only then. */
         fun start(context: Context, recorder: MeetingRecorder) {
             if (!recorder.requestStart()) return
             try {

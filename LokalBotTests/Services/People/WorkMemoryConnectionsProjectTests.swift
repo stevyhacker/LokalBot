@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Projects read whole summaries and transcripts from the library folders.
-/// 2026-10-16: summaries were cut to 4,000 characters and transcripts were
-/// never read, so meetings that named a project late or only aloud dropped out.
 final class WorkMemoryConnectionsProjectTests: XCTestCase {
     private var root: URL!
 

@@ -4,8 +4,6 @@ func meetingTranscriptEngineDescription(_ engine: String) -> String {
     "Transcribed with \(engine)"
 }
 
-/// Which model wrote the transcript, in the Transcript panel's footer. A
-/// merged meeting's transcript has no single model to name.
 struct MeetingTranscriptEngineLine: View {
     let text: String
     var searchQuery = ""
@@ -27,9 +25,6 @@ struct MeetingTranscriptEngineLine: View {
     }
 }
 
-/// The transcript as speaker turns on its panel's surface: one speaker line
-/// per turn, then that turn's lines with a quiet time before each. The line
-/// being played is highlighted, and any time plays from there.
 struct MeetingTranscriptList: View {
     @Environment(\.appTextScale) private var textScale
     let transcript: Transcript?
@@ -42,10 +37,8 @@ struct MeetingTranscriptList: View {
     let evidenceSegment: Int?
     let onRenameSpeaker: (String) -> Void
 
-    /// Wide enough for "1:02:09" at the trailing edge of the time column.
     static let timeColumnWidth: CGFloat = 52
     static let columnGap: CGFloat = 12
-    /// A line's highlight reaches this far past its text on each side.
     static let lineInset: CGFloat = 6
 
     var body: some View {
@@ -66,7 +59,6 @@ struct MeetingTranscriptList: View {
                         onRenameSpeaker: { onRenameSpeaker(row.segment.speaker) })
                 }
             }
-            // What was said keeps a reading measure beside the time column.
             .frame(maxWidth: MeetingDetailLayout.proseWidth(textScale: textScale)
                    + Self.timeColumnWidth + Self.columnGap + 2 * Self.lineInset, alignment: .leading)
             .padding(.horizontal, SectionPanelMetric.inset - Self.lineInset)

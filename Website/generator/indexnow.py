@@ -66,7 +66,6 @@ def main() -> int:
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=30) as response:
-        # 200 and 202 both mean accepted; 202 means the key is still being verified.
         print(f"IndexNow answered HTTP {response.status} for {len(urls)} URLs.")
     return 0
 

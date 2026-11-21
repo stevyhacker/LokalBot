@@ -1,6 +1,3 @@
-//! Day Memory → Routines (`SettingsView.routinesSection`): fixed local renderers
-//! that write Markdown into a folder the person chooses.
-
 use chrono::{Duration, NaiveDate, Utc};
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
@@ -15,16 +12,13 @@ use crate::state::AppEvent;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::settings_row;
 
-/// The Mac's weekday numbers: 1 is Sunday.
 fn weekday_name(weekday: u32) -> String {
-    // 2023-01-01 was a Sunday.
     let sunday = NaiveDate::from_ymd_opt(2023, 1, 1).expect("valid date");
     (sunday + Duration::days(i64::from(weekday.clamp(1, 7)) - 1))
         .format_localized("%A", lokalbot_i18n::date_locale())
         .to_string()
 }
 
-/// "5 min ago", "yesterday", in the interface language where it can.
 pub(super) fn relative_time(at: chrono::DateTime<Utc>) -> String {
     let seconds = (Utc::now() - at).num_seconds().max(0);
     if seconds < 60 {

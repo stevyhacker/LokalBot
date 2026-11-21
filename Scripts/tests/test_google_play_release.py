@@ -505,12 +505,10 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
             self.assertNotIn(secret, self.android_wf)
 
     def test_google_play_workflow_isolates_secrets_and_gates_publication(self):
-        # Never reference secrets.* in any if: expression.
         for line in self.play_wf.splitlines():
             if line.strip().startswith("if:"):
                 self.assertNotIn("secrets.", line)
 
-        # Build job must never see secrets.
         bundle_job = self.play_wf.split("\n  bundle:\n", 1)[1].split("\n  publish:\n", 1)[0]
         self.assertNotIn("secrets.", bundle_job)
         self.assertIn("runs-on: ubuntu-24.04", bundle_job)
@@ -521,7 +519,6 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("Scripts/release/sign-android-bundle.sh", publish_job)
         self.assertIn("Scripts/release/publish_google_play.py", publish_job)
 
-        # Gate behavior: disabled workflow_call skips cleanly with notice; enabled without secrets fails.
         code, out, printed = run_step(
             publish_job,
             "Check tag, switch and credentials",
@@ -542,7 +539,6 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertEqual((code, out), (0, "publish=false"))
         self.assertIn("::notice::", printed)
 
-        # Enabled without secrets fails closed.
         code, out, printed = run_step(
             publish_job,
             "Check tag, switch and credentials",
@@ -563,7 +559,6 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertNotEqual(code, 0)
         self.assertIn("::error::", printed)
 
-        # Pre-release tag is refused.
         code, out, _ = run_step(
             publish_job,
             "Check tag, switch and credentials",
@@ -583,7 +578,6 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         )
         self.assertNotEqual(code, 0)
 
-        # Service account auth mode + default track/status.
         code, out, _ = run_step(
             publish_job,
             "Check tag, switch and credentials",
@@ -607,7 +601,6 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("track=production", out)
         self.assertIn("status=completed", out)
 
-        # Keyless OIDC mode + variable overrides.
         code, out, _ = run_step(
             publish_job,
             "Check tag, switch and credentials",
@@ -637,7 +630,6 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("uses: ./.github/workflows/google-play.yml", play_call)
         self.assertIn("id-token: write", play_call)
 
-        # Regression guard: skipped optional windows-sign must not skip linux-repos, aur, or winget.
         for job in ("linux-repos", "aur", "winget"):
             block = self.release_wf.split(f"\n  {job}:\n", 1)[1].split("\n\n", 1)[0]
             self.assertIn("always()", block, job)

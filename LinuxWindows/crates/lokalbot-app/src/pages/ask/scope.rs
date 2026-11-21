@@ -1,8 +1,3 @@
-//! What a question may draw on: sources and a date scope (`AskSourceScope`,
-//! `AskDateScope`). Files and Agent notes are part of "All sources" whether or
-//! not they are on, so turning one on or off never makes an earlier question
-//! look narrowed; each is offered only while it is on.
-
 use chrono::{DateTime, Datelike as _, Days, Local, NaiveDate, Utc};
 use lokalbot_core::{AskDateScope, AskSourceScope, ChatMessage, ChatRole, QuestionScope};
 use uuid::Uuid;
@@ -15,7 +10,6 @@ pub struct Sources {
     pub activity: bool,
     pub screen: bool,
     pub files: bool,
-    /// Notes the person's coding agents saved for themselves.
     pub agent_notes: bool,
 }
 
@@ -31,7 +25,6 @@ impl Default for Sources {
     }
 }
 
-/// The optional sources that are on now, and so can be chosen and searched.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Offered {
     pub files: bool,
@@ -75,8 +68,6 @@ impl Source {
         }
     }
 
-    /// The sources a person can choose now: Files and Agent notes only while
-    /// each is on.
     pub fn available(offered: Offered) -> impl Iterator<Item = Source> {
         Self::ALL.into_iter().filter(move |source| match source {
             Source::Files => offered.files,
@@ -113,7 +104,6 @@ impl Sources {
             .count()
     }
 
-    /// Toggles a source, keeping at least one selected.
     pub fn toggle(&mut self, source: Source, offered: Offered) {
         if self.contains(source) && self.count(offered) == 1 {
             return;
@@ -121,7 +111,6 @@ impl Sources {
         self.set(source, !self.contains(source));
     }
 
-    /// The sources a saved question named, or all of them on a legacy turn.
     pub fn from_saved(saved: &[AskSourceScope]) -> Self {
         if saved.is_empty() {
             return Self::default();
@@ -135,7 +124,6 @@ impl Sources {
         }
     }
 
-    /// "All sources" or "Screen".
     pub fn summary(&self, offered: Offered) -> String {
         if Source::available(offered).all(|s| self.contains(s)) {
             return lokalbot_i18n::tr("All sources").into();
@@ -148,7 +136,6 @@ impl Sources {
     }
 }
 
-/// The calendar range a question or search is limited to.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum DateScope {
     #[default]
@@ -157,8 +144,6 @@ pub enum DateScope {
     Yesterday,
     LastSevenDays,
     Day(NaiveDate),
-    /// Both ends included: a saved question's range, which keeps its days
-    /// whenever it is reopened.
     Range(NaiveDate, NaiveDate),
 }
 
@@ -206,7 +191,6 @@ impl DateScope {
         }
     }
 
-    /// The civil days this is, as a question saves them.
     fn days(self) -> Option<(NaiveDate, NaiveDate)> {
         let today = Local::now().date_naive();
         Some(match self {
@@ -222,7 +206,6 @@ impl DateScope {
         })
     }
 
-    /// `[since, until)` in UTC; `None` for any time.
     pub fn bounds(self) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
         let (first, last) = self.days()?;
         let (since, _) = lokalbot_core::time::local_day_bounds(first);
@@ -230,7 +213,6 @@ impl DateScope {
         Some((since, until))
     }
 
-    /// `AskDateScope.storageKey`: "Today" is saved as the day it was.
     pub fn storage_key(self) -> Option<String> {
         let (first_day, last_day) = self.days()?;
         Some(
@@ -242,8 +224,6 @@ impl DateScope {
         )
     }
 
-    /// The days a saved question was limited to. A key that doesn't parse names
-    /// no days, as on the Mac; such a turn was already marked ambiguous.
     pub fn from_storage_key(key: &str) -> Self {
         match AskDateScope::from_storage_key(key) {
             Some(range) if range.first_day == range.last_day => DateScope::Day(range.first_day),
@@ -253,29 +233,18 @@ impl DateScope {
     }
 }
 
-/// What a question is bound to, beyond its sources (`RecallWorkspaceState`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Evidence {
-    /// Evidence boundary from "Ask This Meeting" or from asking about results.
     pub meetings: Option<Vec<Uuid>>,
-    /// The screen moments among those results.
     pub screens: Option<Vec<i64>>,
-    /// Asked about results: Activity has no result rows to bound, so a selected
-    /// Activity source stays, or "How long was I in Figma today?" would lose the
-    /// only tool that answers it. Files stays when file rows were among them,
-    /// and Agent notes when note rows were.
     pub from_results: bool,
     pub had_file_results: bool,
     pub had_note_results: bool,
-    /// Screens the person attached to this question.
     pub pins: Vec<i64>,
-    /// The civil days of those screens, sorted, each once.
     pub pin_days: Vec<String>,
     pub screen_app: Option<String>,
 }
 
-/// What Ask goes back to when a saved question is reopened
-/// (`currentQuestionScope`, `restoreAskScope`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Restored {
     pub sources: Sources,
@@ -283,8 +252,6 @@ pub struct Restored {
     pub evidence: Evidence,
 }
 
-/// A saved scope as Ask's selection. The sources it names stay as they are:
-/// nothing that scope excluded comes back, and evidence stays bound.
 pub fn restore(saved: &QuestionScope) -> Restored {
     let sources = Sources::from_saved(&saved.sources);
     Restored {
@@ -306,14 +273,11 @@ pub fn restore(saved: &QuestionScope) -> Restored {
     }
 }
 
-/// The request for a question asked within a saved scope: a retry, or a follow-up
-/// in Quick Recall.
 pub fn scope_for(saved: &QuestionScope) -> AskScope {
     let restored = restore(saved);
     ask_scope(restored.sources, restored.date, &restored.evidence)
 }
 
-/// `AskDayScope.key` of a moment, for the days of attached screens.
 pub fn pin_days(moments: &[lokalbot_core::ScreenMoment]) -> Vec<String> {
     let days: std::collections::BTreeSet<String> = moments
         .iter()
@@ -322,10 +286,6 @@ pub fn pin_days(moments: &[lokalbot_core::ScreenMoment]) -> Vec<String> {
     days.into_iter().collect()
 }
 
-/// `questionScopeSummary`: "Meetings, Screen · Oct 1 · attached screen: Oct 1".
-/// While agent notes aren't offered, a question that names every other source
-/// reads as "All sources": that is how questions from before that source
-/// existed were saved.
 pub fn question_scope_summary(message: &ChatMessage, offered: Offered) -> Option<String> {
     if message.role != ChatRole::User
         || (message.source_scopes.is_empty() && message.day_scope_key.is_none())
@@ -378,8 +338,6 @@ pub fn question_scope_summary(message: &ChatMessage, offered: Offered) -> Option
     Some(parts.join(" · "))
 }
 
-/// The sources a session's moments leave (`selectEvidence`): its screens, or the
-/// day's meetings when it has none.
 pub fn session_sources(screen_ids: &[i64]) -> Sources {
     Sources {
         meetings: screen_ids.is_empty(),
@@ -390,8 +348,6 @@ pub fn session_sources(screen_ids: &[i64]) -> Sources {
     }
 }
 
-/// `selectEvidence` with no sources named: whichever of them the evidence holds,
-/// when the meetings are bound too. Only screens is a session.
 pub fn evidence_sources(meetings: Option<&[Uuid]>, screen_ids: &[i64]) -> Sources {
     match meetings {
         Some(meetings) if !meetings.is_empty() => Sources {
@@ -405,8 +361,6 @@ pub fn evidence_sources(meetings: Option<&[Uuid]>, screen_ids: &[i64]) -> Source
     }
 }
 
-/// The request sent to the engine for one question. Attached screens grant the
-/// screen source for that question, and never widen its dates.
 pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskScope {
     let bounds = date.bounds();
     let bound = evidence.meetings.is_some() || evidence.screens.is_some();
@@ -420,7 +374,6 @@ pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskS
     );
     let mut include_agent_notes = sources.agent_notes;
     if bound {
-        // No meeting boundary (a session's screens) leaves the source as chosen.
         include_meetings =
             sources.meetings && evidence.meetings.as_ref().is_none_or(|ids| !ids.is_empty());
         include_screen = sources.screen && !screen_ids.is_empty();
@@ -443,8 +396,6 @@ pub fn ask_scope(sources: Sources, date: DateScope, evidence: &Evidence) -> AskS
     .into_iter()
     .filter_map(|(source, on)| on.then_some(source))
     .collect();
-    // Nothing left to read within the boundary. A saved empty list would read as
-    // every source, so it names the boundary's own source, which stays empty.
     if saved_sources.is_empty() {
         saved_sources.push(if evidence.meetings.is_some() {
             AskSourceScope::Meetings
@@ -497,7 +448,6 @@ mod tests {
         assert!(!scope.include_files);
         assert_eq!(scope.screen_ids, [4, 5]);
         assert!(scope.meeting_ids.is_empty());
-        // Nothing attached: the model searches them, they aren't in the prompt.
         assert!(!scope.attached_screens);
     }
 
@@ -543,7 +493,6 @@ mod tests {
         let mut sources = Sources::default();
         sources.toggle(Source::Files, files);
         assert_eq!(sources.summary(files), "Meetings, Activity, Screen");
-        // Off, it doesn't make the question look narrowed.
         assert_eq!(sources.summary(Offered::default()), "All sources");
     }
 
@@ -577,7 +526,6 @@ mod tests {
         assert_eq!(sources.summary(Offered::default()), "All sources");
         let saved = Sources::from_saved(&[AskSourceScope::Meetings, AskSourceScope::AgentNotes]);
         assert!(saved.meetings && saved.agent_notes && !saved.screen && !saved.files);
-        // The Mac's name for the source, so a shared conversation reads the same.
         assert_eq!(
             serde_json::to_string(&AskSourceScope::AgentNotes).unwrap(),
             "\"Agent notes\""
@@ -599,9 +547,7 @@ mod tests {
         let scope = ask_scope(Sources::default(), DateScope::AnyTime, &evidence);
         assert!(scope.include_agent_notes);
         assert!(scope.saved.sources.contains(&AskSourceScope::AgentNotes));
-        // A reopened question keeps the source it named.
         assert!(scope_for(&scope.saved).include_agent_notes);
-        // Unbound, the source is as chosen.
         let unbound = ask_scope(
             Sources {
                 agent_notes: false,
@@ -660,7 +606,6 @@ mod tests {
         assert!(!scope.include_files, "no file rows");
         evidence.had_file_results = true;
         assert!(ask_scope(Sources::default(), DateScope::AnyTime, &evidence).include_files);
-        // Only files matched: no meeting or screen source widens to "all".
         let only_files = Evidence {
             meetings: Some(Vec::new()),
             screens: Some(Vec::new()),
@@ -688,7 +633,6 @@ mod tests {
         assert!(scope.since.is_some(), "the selected day still applies");
     }
 
-    /// Reopening keeps every limit, and a follow-up or retry asks within it.
     #[test]
     fn a_reopened_question_never_widens() {
         let day = NaiveDate::from_ymd_opt(2026, 10, 1).unwrap();
@@ -750,7 +694,6 @@ mod tests {
             assert_eq!(follow_up.since, asked.since, "{asked:?}");
             assert_eq!(follow_up.until, asked.until, "{asked:?}");
             assert_eq!(follow_up.meeting_ids, asked.meeting_ids, "{asked:?}");
-            // An attached moment stays the boundary, no longer in the prompt.
             assert_eq!(follow_up.screen_ids, asked.screen_ids, "{asked:?}");
             assert!(!follow_up.attached_screens);
             assert!(
@@ -803,7 +746,6 @@ mod tests {
             DateScope::Today.storage_key(),
             Some(lokalbot_core::day_key(today))
         );
-        // Last 7 days is saved as its days, and still labelled while it is that.
         let seven = DateScope::from_storage_key(&DateScope::LastSevenDays.storage_key().unwrap());
         assert_eq!(seven.label(), "Last 7 days");
         assert_eq!(seven.bounds(), DateScope::LastSevenDays.bounds());
@@ -830,8 +772,6 @@ mod tests {
             question_scope_summary(&all, notes).as_deref(),
             Some("All sources")
         );
-        // Saved before agent notes were a source: still everything, until
-        // they are offered and the question can be seen to leave them out.
         let before_notes = ChatMessage::new(ChatRole::User, "Q").with_scope(&QuestionScope {
             sources: AskSourceScope::ALL[..4].to_vec(),
             ..Default::default()
@@ -853,7 +793,6 @@ mod tests {
         let summary = question_scope_summary(&narrow, none).unwrap();
         assert!(summary.starts_with("Activity, Screen · "), "{summary}");
         assert!(summary.contains("attached screen: "), "{summary}");
-        // Legacy turns name nothing, and answers aren't questions.
         assert_eq!(
             question_scope_summary(&ChatMessage::new(ChatRole::User, "Q"), none),
             None

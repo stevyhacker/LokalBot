@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Focus capability flicker gate
-
 final class CotypingFocusCapabilityFlickerGateTests: XCTestCase {
     func testSingleBlockedFlickerOnSameElementIsSuppressed() {
         var gate = CotypingFocusCapabilityFlickerGate()

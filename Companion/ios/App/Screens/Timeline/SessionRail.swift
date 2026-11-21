@@ -1,8 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Work sessions, coding-agent sessions and meetings in order on one line,
-/// with long stretches of no activity marked, like the Mac's rail.
 struct SessionRail: View {
     let model: TimelineModel
     let selected: WorkSession?
@@ -132,7 +130,6 @@ struct SessionRail: View {
         return [session.project, apps].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    /// The one tinted row: meetings are first-class events in the day.
     private func meetingRow(_ session: WorkSession) -> some View {
         HStack(spacing: Self.spacing) {
             time(session.start, emphasis: LBTokens.Palette.accentText)
@@ -168,7 +165,6 @@ struct SessionRail: View {
         .accessibilityHint("Opens the meeting")
     }
 
-    /// Time with nothing recorded before a session, when it is long enough to mark.
     static func awayGap(before index: Int, in sessions: [WorkSession]) -> TimeInterval? {
         guard index > 0 else { return nil }
         let gap = sessions[index].start.timeIntervalSince(sessions[index - 1].end)
@@ -187,8 +183,6 @@ struct SessionRail: View {
     }
 }
 
-/// A work session's details: when, which apps for how long, and the windows
-/// (when the Mac shares window titles).
 struct SessionDetailView: View {
     let session: WorkSession
     let timeZone: TimeZone

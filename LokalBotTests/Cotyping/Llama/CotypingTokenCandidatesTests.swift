@@ -9,8 +9,6 @@ final class CotypingTokenCandidatesTests: XCTestCase {
         }
     }
 
-    /// The pre-optimization implementation is the behavioral oracle: healing
-    /// must visit exactly the same candidates, including its rank-64 cutoff.
     private func repeatedArgmax(_ logits: [Float], limit: Int) -> [Int32] {
         var scores = logits
         var result: [Int32] = []

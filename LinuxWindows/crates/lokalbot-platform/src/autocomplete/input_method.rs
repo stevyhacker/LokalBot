@@ -1,34 +1,3 @@
-//! Autocomplete in other apps on Wayland, as the desktop's input method.
-//!
-//! Wayland lets no ordinary app take a key from another app, place a window
-//! at its caret or type into it. An input method is the supported way in: the
-//! desktop tells it when a text field has focus, what kind of field it is and
-//! the text around the caret, shows its text inline in the field (preedit),
-//! and commits text without the clipboard.
-//!
-//! The field's owner is asked for separately, because the protocol does not
-//! say: the compositor names the window in front (see [`surface`]), and
-//! accessibility adds what it knows about the field where the app publishes
-//! it. Nothing is delivered until that answer is in, so an excluded app, a
-//! terminal or a password field never reaches the engine.
-//!
-//! - [`wlroots`] is the route on Sway and Hyprland (`zwp_input_method_v2`). The
-//!   keyboard is grabbed only while a suggestion shows, and every key but the
-//!   accept keys and Esc goes straight back through a virtual keyboard.
-//! - [`ibus`] is the route on GNOME: an IBus engine over D-Bus, which the user
-//!   chooses as an input source. While it is chosen the desktop asks it about
-//!   every key, and it answers without keeping them.
-//! - [`kwin`] is the route on KDE Plasma (`zwp_input_method_v1`). Plasma talks
-//!   to the input method it starts itself, so [`kwin_helper`] holds that
-//!   connection for the session and passes the field to the app. As on Sway,
-//!   the keyboard is grabbed only while a suggestion shows.
-//!
-//! [`Core`] is what the routes share: the field, the ghost and what may be read.
-//!
-//! What this route sees, what it keeps and how it treats other input methods
-//! is written down in `PRIVACY.md`. Typed text is never logged here, and never
-//! kept past the field's next state.
-
 mod ibus;
 mod kwin;
 mod kwin_helper;
@@ -50,11 +19,8 @@ use super::{
 };
 use crate::session::Desktop;
 
-/// Prefix of [`FieldSnapshot::focus_key`] on this route; the rest is the
-/// activation the field belongs to, so nothing lands in a later field.
 const KEY_PREFIX: &str = "im:";
 
-/// What `zwp_text_input_v3` calls a field: its content purpose and hints.
 mod content {
     pub const PURPOSE_ALPHA: u32 = 1;
     pub const PURPOSE_NAME: u32 = 7;
@@ -68,8 +34,6 @@ mod content {
     pub const HINT_MULTILINE: u32 = 0x200;
 }
 
-/// What an input method's content type says about a field. Only prose is
-/// suggested in.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(super) struct Content {
     pub purpose: u32,
@@ -77,7 +41,6 @@ pub(super) struct Content {
 }
 
 impl Content {
-    /// Why this kind of field gets no suggestion, judged before any text.
     fn refusal(&self) -> Option<Capability> {
         use content::*;
         if self.purpose == PURPOSE_PASSWORD
@@ -89,8 +52,6 @@ impl Content {
         match self.purpose {
             PURPOSE_NORMAL | PURPOSE_ALPHA | PURPOSE_NAME => None,
             PURPOSE_TERMINAL => Some(Capability::Unsupported(reasons::TERMINAL)),
-            // Digits, numbers, phone numbers, addresses and dates, whose Tab
-            // belongs to the field.
             _ => Some(Capability::Unsupported(reasons::NOT_PROSE)),
         }
     }
@@ -100,7 +61,6 @@ impl Content {
     }
 }
 
-/// The surrounding text as the desktop gave it; offsets are in bytes.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Surrounding {
     pub text: String,
@@ -108,15 +68,10 @@ pub(super) struct Surrounding {
     pub anchor: u32,
 }
 
-/// The longest surrounding text `zwp_input_method_v2` carries. An app clips
-/// longer text to about this, so a window this full may have been clipped.
 const SURROUNDING_LIMIT: usize = 4000;
-/// Above this a window is treated as clipped.
 const CLIPPED_AT: usize = SURROUNDING_LIMIT - 200;
 
 impl Surrounding {
-    /// The text on either side of the caret, or `None` when the offsets do
-    /// not fall on character boundaries of this text.
     fn split(&self) -> Option<(&str, &str)> {
         let cursor = usize::try_from(self.cursor).ok()?;
         self.text.split_at_checked(cursor)
@@ -126,10 +81,6 @@ impl Surrounding {
         self.cursor != self.anchor
     }
 
-    /// This text without a ghost the app counted in it. Most apps leave
-    /// preedit out of the surrounding text, as the protocol says; Firefox
-    /// reports it, with the caret at or inside it. A ghost is not the user's
-    /// text and must not read as what follows the caret.
     fn without_preedit(self, shown: &str) -> Self {
         if shown.is_empty() {
             return self;
@@ -155,8 +106,6 @@ impl Surrounding {
         }
     }
 
-    /// Characters a toolkit draws in place of a password's. A field holding
-    /// only these is a password field that gave no hint.
     fn is_masked(&self) -> bool {
         !self.text.is_empty()
             && self
@@ -166,33 +115,26 @@ impl Surrounding {
     }
 }
 
-/// Why a field's owner rules it out, decided before its text is used.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Refusal {
     Blocked(&'static str),
     Unsupported(&'static str),
 }
 
-/// Who owns the active field and what accessibility adds about it: everything
-/// the input method's own events leave out. Holds no text of the field.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Surface {
-    /// The activation this answer belongs to.
     pub activation: u64,
     pub pid: u32,
     pub app_name: String,
     pub app_id: String,
     pub window_title: String,
     pub url: Option<String>,
-    /// `None` when accessibility said nothing: the content hint decides.
     pub single_line: Option<bool>,
     pub is_integrated_terminal: bool,
     pub visible_text: Option<String>,
     pub refusal: Option<Refusal>,
 }
 
-/// The focus to report for one state of a field. The checks run in the
-/// order of what they protect, and no text is read until they have passed.
 pub(super) fn snapshot(
     policy: &ReadPolicy,
     surface: &Surface,
@@ -244,7 +186,6 @@ pub(super) fn snapshot(
         before,
         before_truncated,
         after,
-        // The field draws the ghost itself, so nothing needs the caret.
         caret: Rect::default(),
         caret_exact: false,
         field_frame: None,
@@ -268,8 +209,6 @@ pub(super) fn snapshot(
     }
 }
 
-/// The work a route's thread gets. Sending never blocks, so the app's threads
-/// never wait on the desktop.
 pub(super) enum Command {
     Policy(ReadPolicy),
     Refresh,
@@ -282,7 +221,6 @@ pub(super) enum Command {
     },
     Accept {
         field: String,
-        /// The text before the caret that goes, and after it.
         removed_before: String,
         removed_after: String,
         text: String,
@@ -294,7 +232,6 @@ pub(super) enum Command {
     Stop,
 }
 
-/// A handle to the running route.
 #[derive(Clone)]
 pub(super) struct Handle {
     commands: Sender<Command>,
@@ -334,7 +271,6 @@ impl Handle {
         self.send(Command::PassThrough(key));
     }
 
-    /// Shows `text` in `field` as the suggestion, or nothing when it's empty.
     pub(super) fn show(&self, field: &FieldSnapshot, text: &str) {
         self.send(Command::Ghost {
             field: field.focus_key.clone(),
@@ -342,9 +278,6 @@ impl Handle {
         });
     }
 
-    /// One accept, in a single commit: makes `edit` at the caret and shows
-    /// `next` as what is left. `before` and `after` are the text around the
-    /// caret it applies to.
     pub(super) fn accept(
         &self,
         field: &FieldSnapshot,
@@ -365,10 +298,8 @@ impl Handle {
     }
 }
 
-/// The running route, for the parts of the app that attach after the watcher.
 static CURRENT: LazyLock<Mutex<Option<Handle>>> = LazyLock::new(|| Mutex::new(None));
 
-/// Follows the active field until dropped.
 pub(super) struct Watcher {
     handle: Handle,
     thread: Option<std::thread::JoinHandle<()>>,
@@ -413,7 +344,6 @@ impl Drop for Watcher {
     }
 }
 
-/// Connects the accept keys to the running route; the watcher starts first.
 pub(super) fn attach_keys(handler: KeyHandler) -> anyhow::Result<Handle> {
     let handle = CURRENT
         .lock()
@@ -423,7 +353,6 @@ pub(super) fn attach_keys(handler: KeyHandler) -> anyhow::Result<Handle> {
     Ok(handle)
 }
 
-/// Types into a field through the running route, for callers with no ghost.
 pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     let handle = CURRENT
         .lock()
@@ -433,9 +362,6 @@ pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Whether this desktop has a route for autocomplete in other apps, and why
-/// not when it has none. Whether another input method is in the way can change
-/// at any moment, so the running route watches for that and says so itself.
 pub(super) fn support() -> Support {
     let desktop = crate::session::desktop();
     match desktop {
@@ -451,8 +377,6 @@ pub(super) fn support() -> Support {
                 )
             }
         }
-        // Whether LokalBot is the chosen input method can change while
-        // Settings is open, so the route says that itself.
         Desktop::Gnome | Desktop::Kde => Support::Available,
         _ => Support::Unavailable(lokalbot_i18n::format(
             "Autocomplete in other apps is not available on {desktop} yet, because LokalBot cannot take part as an input method there. It works on X11, GNOME, KDE Plasma, Sway and Hyprland. On this desktop suggestions appear only in the practice editor below.",
@@ -461,8 +385,6 @@ pub(super) fn support() -> Support {
     }
 }
 
-/// What the user does to use autocomplete on this desktop, worded for the
-/// Settings row. `None` outside a route.
 pub(super) fn input_source_steps() -> Option<InputSourceSteps> {
     match crate::session::desktop() {
         Desktop::Sway | Desktop::Hyprland => Some(InputSourceSteps {
@@ -478,15 +400,10 @@ pub(super) fn input_source_steps() -> Option<InputSourceSteps> {
     }
 }
 
-/// Runs the input method KDE Plasma starts for LokalBot once it is chosen
-/// under Virtual Keyboard (`lokalbot --kwin-input-method`), until Plasma stops
-/// it. Returns the process's exit code.
 pub fn run_kwin_helper() -> i32 {
     kwin_helper::run()
 }
 
-/// The desktop entry that lists LokalBot under Plasma's Virtual Keyboard, with
-/// this copy's path in it. Packages install the same file.
 pub fn kwin_desktop_entry() -> String {
     kwin::desktop_entry(
         &std::env::current_exe()
@@ -495,8 +412,6 @@ pub fn kwin_desktop_entry() -> String {
     )
 }
 
-/// The IBus component file, which makes LokalBot one of the desktop's input
-/// sources, with this copy's path in it. Packages install the same file.
 pub fn ibus_component() -> String {
     ibus::component_xml(
         &std::env::current_exe()
@@ -505,37 +420,21 @@ pub fn ibus_component() -> String {
     )
 }
 
-/// How long a ghost taken out of the field for a key waits for the field's
-/// next state. If the key changed nothing, the suggestion still stands.
 const GHOST_BACK_AFTER: Duration = Duration::from_millis(150);
-/// How often the owner is read again while typing, for a title or page that
-/// changed within the same field.
 const SURFACE_REFRESH: Duration = Duration::from_secs(2);
 
-/// Chromium and Electron report the text around the caret only in answer to an
-/// input method's commit, not as the user types, so a field that has gone quiet
-/// is sent an empty one now and then. Their first report after a pause comes
-/// within [`ASK_WHEN_IDLE`], and within [`ASK_WHILE_TYPING`] from then on.
 const ASK_WHILE_TYPING: Duration = Duration::from_millis(200);
 const ASK_WHEN_IDLE: Duration = Duration::from_secs(1);
-/// How long after the text last changed the user counts as typing.
 const TYPING_LASTS: Duration = Duration::from_secs(5);
-/// A change this long after the last asking was not an answer to it. A few of
-/// those mean the field reports by itself, as GTK and Firefox do, and needs no asking.
 const UNPROMPTED_AFTER: Duration = Duration::from_millis(120);
 const UNPROMPTED_CHANGES: u8 = 3;
 
-/// What a route can do to the field.
 trait Output {
-    /// Shows `text` as preedit, in front of the caret's way. Empty shows nothing.
     fn preedit(&mut self, text: &str);
-    /// One edit and the preedit that follows it, as one step.
     fn commit(&mut self, removed_before: &str, removed_after: &str, text: &str, preedit: &str);
-    /// The field is gone or nothing is on show: stop taking keys.
     fn release_keys(&mut self);
 }
 
-/// The active field and the ghost in it, the same for both routes.
 struct Core {
     policy: ReadPolicy,
     handler: FocusHandler,
@@ -544,18 +443,13 @@ struct Core {
     active: bool,
     activation: u64,
     content: Content,
-    /// Dropped as soon as a field turns out not to be ours to read.
     surrounding: Option<Surrounding>,
     surface: Option<Surface>,
     asked_at: Option<Instant>,
     last: FocusSnapshot,
-    /// The suggestion on show. Empty when none.
     ghost: String,
-    /// The one before it, which an app's next report may still count.
     previous_ghost: String,
-    /// When a key given back took the ghost out of the field for now.
     blanked_at: Option<Instant>,
-    /// When the text around the caret last changed, and the field was last asked.
     changed_at: Instant,
     asked_field_at: Instant,
     unprompted_changes: u8,
@@ -601,12 +495,10 @@ impl Core {
         });
     }
 
-    /// Text read from around a field is forgotten when focus leaves it.
     fn forget_surroundings(&self) {
         let _ = self.questions.send(surface::Request::Forget);
     }
 
-    /// Whether a field's text must not even be held.
     fn refuses_text(&self) -> bool {
         !self.policy.enabled
             || self
@@ -615,7 +507,6 @@ impl Core {
                 .is_some_and(|surface| surface.refusal.is_some())
     }
 
-    /// A text field has focus: whatever was known before is about another one.
     fn activate(&mut self, output: &mut impl Output) {
         log::debug!("autocomplete: a text field has focus");
         self.activation += 1;
@@ -640,7 +531,6 @@ impl Core {
         self.deliver_none();
     }
 
-    /// The field's next state.
     fn update(
         &mut self,
         content: Option<Content>,
@@ -700,7 +590,6 @@ impl Core {
             ));
         }
         if focus.field.is_none() {
-            // Not ours to read: nothing of its text stays.
             self.surrounding = None;
             self.drop_ghost(output);
         }
@@ -718,7 +607,6 @@ impl Core {
         }
     }
 
-    /// Applies a command both routes treat alike. The others come back.
     fn command(&mut self, command: Command, output: &mut impl Output) -> Option<Command> {
         match command {
             Command::Policy(policy) => {
@@ -763,7 +651,6 @@ impl Core {
         None
     }
 
-    /// The field a command names is the active one, and text may go to it.
     fn is_current(&self, field: &str) -> bool {
         self.active
             && field == format!("{KEY_PREFIX}{}", self.activation)
@@ -800,8 +687,6 @@ impl Core {
         output.release_keys();
     }
 
-    /// A key is going to the field. Toolkits may commit preedit when one
-    /// arrives, so the ghost leaves first and comes back if it still applies.
     fn blank_for_key(&mut self, output: &mut impl Output) {
         if !self.ghost.is_empty() && self.blanked_at.is_none() {
             self.blanked_at = Some(Instant::now());
@@ -809,8 +694,6 @@ impl Core {
         }
     }
 
-    /// When to ask a quiet field for its text next. Only a field that may be
-    /// read gets asked, and only while no ghost shows: a ghost's commits ask too.
     fn next_ask(&self) -> Option<Instant> {
         let readable = self.active
             && self.last.field.is_some()
@@ -852,8 +735,6 @@ impl Core {
     }
 }
 
-/// The session's own settings that send apps around the desktop's input
-/// method, worded for Settings. Toolkits read these when they start.
 fn module_override(read: impl Fn(&str) -> Option<String>) -> Option<String> {
     ["GTK_IM_MODULE", "QT_IM_MODULE"].iter().find_map(|name| {
         read(name)
@@ -968,12 +849,10 @@ mod tests {
             assert_eq!(focus.capability, Capability::Blocked(reasons::SECURE));
             assert!(focus.field.is_none());
         }
-        // No hint at all, but the toolkit gave us its mask.
         let masked = around("••••", "");
         let focus = snapshot(&policy(), &surface(), prose(), Some(&masked));
         assert_eq!(focus.capability, Capability::Blocked(reasons::SECURE));
         assert!(focus.field.is_none());
-        // Accessibility said so where the hints did not.
         let refused = Surface {
             refusal: Some(Refusal::Blocked(reasons::SECURE)),
             ..surface()
@@ -993,7 +872,6 @@ mod tests {
         let focus = snapshot(&policy(), &surface(), terminal, Some(&text));
         assert_eq!(focus.capability, Capability::Unsupported(reasons::TERMINAL));
         assert!(focus.field.is_none());
-        // Digits, number, phone, url, email, date, time, date and time.
         for purpose in [2, 3, 4, 5, 6, 10, 11, 12] {
             let content = Content { purpose, hint: 0 };
             let focus = snapshot(&policy(), &surface(), content, Some(&text));
@@ -1077,7 +955,6 @@ mod tests {
         assert!(!field.before_truncated);
     }
 
-    /// Records what a route would do to the field.
     #[derive(Default)]
     struct Recorder {
         calls: Vec<String>,
@@ -1165,7 +1042,6 @@ mod tests {
         core.update(None, Some(around("draft", "")), &mut output);
         answered(&mut core, &mut output);
         let key = seen.lock().last().unwrap().focus_key.clone().unwrap();
-        // Focus moves on before the ghost arrives.
         core.activate(&mut output);
         core.update(None, Some(around("other", "")), &mut output);
         answered(&mut core, &mut output);
@@ -1211,7 +1087,6 @@ mod tests {
             },
             &mut output,
         );
-        // Showing what is already on show does nothing.
         core.command(
             Command::Ghost {
                 field: key,
@@ -1246,7 +1121,6 @@ mod tests {
         let later = Instant::now() + ASK_WHEN_IDLE * 2;
         core.tick(later, &mut output);
         assert_eq!(output.calls, ["preedit "]);
-        // A ghost's own commits ask too.
         core.command(
             Command::Ghost {
                 field: key,
@@ -1255,14 +1129,12 @@ mod tests {
             &mut output,
         );
         assert_eq!(core.next_ask(), None);
-        // A secure field is never asked.
         let secure = Content {
             purpose: content::PURPOSE_PASSWORD,
             hint: 0,
         };
         core.update(Some(secure), None, &mut output);
         assert_eq!(core.next_ask(), None);
-        // Nor is anything once focus has gone.
         core.deactivate(&mut output);
         assert_eq!(core.next_ask(), None);
     }
@@ -1274,17 +1146,14 @@ mod tests {
         core.update(None, Some(around("", "")), &mut output);
         answered(&mut core, &mut output);
         assert!(core.next_ask().is_some());
-        // Answers to asking don't count.
         core.asked_field_at = Instant::now();
         core.update(None, Some(around("a", "")), &mut output);
         assert!(core.next_ask().is_some());
-        // Changes long after asking do.
         for text in ["ab", "abc", "abcd"] {
             core.asked_field_at = Instant::now() - UNPROMPTED_AFTER * 2;
             core.update(None, Some(around(text, "")), &mut output);
         }
         assert_eq!(core.next_ask(), None);
-        // The next field starts over.
         core.activate(&mut output);
         core.update(None, Some(around("", "")), &mut output);
         answered(&mut core, &mut output);
@@ -1315,15 +1184,12 @@ mod tests {
     #[test]
     fn a_ghost_counted_in_the_text_is_taken_out_and_real_text_is_not() {
         let ghost = " on the plan";
-        // Firefox: the ghost after the caret, then with the caret inside it.
         let counted = around("hello up", ghost).without_preedit(ghost);
         assert_eq!(counted, around("hello up", ""));
         let inside = around("hello up ", "on the plan").without_preedit(ghost);
         assert_eq!(inside, around("hello up", ""));
-        // The user's own text before the caret stays, however alike.
         let typed = around("hello up on the plan", "");
         assert_eq!(typed.clone().without_preedit(ghost), typed);
-        // No ghost, or a text without it: nothing changes.
         let plain = around("hello", " there");
         assert_eq!(plain.clone().without_preedit(""), plain);
         assert_eq!(plain.clone().without_preedit(ghost), plain);

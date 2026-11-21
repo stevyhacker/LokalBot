@@ -1,6 +1,3 @@
-//! Spoken summaries from the meeting menu (`MeetingWorkspaceView.readSummary`,
-//! `exportSpokenSummary`).
-
 use gpui_kit::component::menu::{PopupMenu, PopupMenuItem};
 use gpui_kit::{Context, WeakEntity};
 use lokalbot_engine::{Command, SpeechCommand};
@@ -58,14 +55,12 @@ impl MeetingsPage {
         .detach();
     }
 
-    /// The meeting being read is no longer the one shown.
     pub(super) fn stop_spoken_summary(&mut self, cx: &mut Context<Self>) {
         if self.reading_summary(cx) {
             crate::bridge::send(Command::Speech(SpeechCommand::Stop), cx);
         }
     }
 
-    /// "Read summary aloud" for the … menu and "Export spoken summary…" for Share.
     pub(super) fn spoken_menu_items(&self, cx: &gpui_kit::App) -> SpokenMenu {
         SpokenMenu {
             has_summary: self.doc.as_ref().is_some_and(|d| d.has_summary()),
@@ -75,7 +70,6 @@ impl MeetingsPage {
     }
 }
 
-/// The More menu's spoken summary state when it was built.
 #[derive(Clone, Copy)]
 pub(super) struct SpokenMenu {
     has_summary: bool,
@@ -84,7 +78,6 @@ pub(super) struct SpokenMenu {
 }
 
 impl SpokenMenu {
-    /// "Read summary aloud" (or "Stop spoken summary") in the … menu.
     pub(super) fn add_read(self, menu: PopupMenu, page: WeakEntity<MeetingsPage>) -> PopupMenu {
         menu.item(
             PopupMenuItem::new(if self.reading {
@@ -99,7 +92,6 @@ impl SpokenMenu {
         )
     }
 
-    /// "Export spoken summary" under Share, with the other exports.
     pub(super) fn add_export(self, menu: PopupMenu, page: WeakEntity<MeetingsPage>) -> PopupMenu {
         menu.item(
             PopupMenuItem::new(if self.exporting {

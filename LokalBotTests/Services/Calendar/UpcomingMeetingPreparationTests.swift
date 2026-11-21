@@ -95,7 +95,6 @@ final class UpcomingMeetingPreparationTests: XCTestCase {
     func testPresentationLabelsPastMeetingAsEnded() {
         let ended = event(id: "ended", title: "Ended", startsIn: -3_600, duration: 1_800)
 
-        // Today's list words the status; the model only says where it stands.
         XCTAssertEqual(TodayAgenda.status(of: ended, now: now), .ended)
     }
 
@@ -354,10 +353,6 @@ final class UpcomingMeetingPreparationTests: XCTestCase {
         XCTAssertTrue(UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
             settings: settings))
     }
-
-    // MARK: - Fixtures
-
-    // MARK: Email
 
     func testEarlierMeetingsMatchByAttendeeAddressWhenNamesDiffer() throws {
         let prior = try meeting(

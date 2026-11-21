@@ -2,12 +2,6 @@
 import AppKit
 import SwiftUI
 
-/// UI-test host only: with `LOKALBOT_UI_TEST_CALL=1`, Start Radar also opens
-/// a stand-in video call behind the floating Live Radar panel, so the
-/// hackathon film shows the panel over a call the way it is used. The call
-/// shows the live script's words as they arrive in the live transcript, so
-/// its captions and speaking tiles keep time with the radar. Open LokalBot in
-/// the panel closes it, which brings the LokalBot window behind it forward.
 @MainActor
 enum FilmCall {
     static var isRequested: Bool { ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_CALL"] == "1" }
@@ -30,7 +24,6 @@ enum FilmCall {
         self.window = window
     }
 
-    /// Closes the call; false when none is open.
     @discardableResult
     static func close() -> Bool {
         guard let window else { return false }
@@ -79,12 +72,9 @@ private struct FilmCallView: View {
             }
             .padding(.bottom, 16)
         }
-        // The floating panel sits over the call's right side, as it would over a meeting app.
         .padding(.leading, 22)
         .padding(.trailing, LiveRadarPanelController.width + 30)
         .background(Color(red: 0.09, green: 0.10, blue: 0.11))
-        // One element: XCUITest reads the app's whole tree a few times a
-        // second during the film, and the call's views slowed the script down.
         .accessibilityElement(children: .ignore)
         .accessibilityIdentifier("filmCall")
     }

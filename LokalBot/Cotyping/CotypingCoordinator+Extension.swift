@@ -1,10 +1,6 @@
 import Foundation
 
-/// Keeps the visible suggestion a few words ahead while it is accepted or
-/// typed through, instead of letting it run out and come back.
 extension CotypingCoordinator {
-    /// Starts a top-up when the visible suggestion is running short. Cheap and
-    /// non-blocking: the accept tap calls it from inside its event callback.
     func extendSuggestionIfNeeded() {
         guard isRunning, extensionTask == nil, generationTask == nil, let current = session else { return }
         let settings = settingsProvider()
@@ -19,8 +15,6 @@ extension CotypingCoordinator {
             }
             guard work == self.extensionGeneration else { return }
             self.extensionTask = nil
-            // More words may have been accepted while the model ran. Only a
-            // top-up that landed is followed up, so a refused one cannot loop.
             if let now = self.session, now.fullText != current.fullText {
                 self.extendSuggestionIfNeeded()
             }
@@ -33,9 +27,6 @@ extension CotypingCoordinator {
         extensionTask = nil
     }
 
-    /// Asks the model to continue from the end of `session`'s suggestion, with
-    /// the same context the suggestion was made from. Nil when nothing usable
-    /// came back.
     func suggestionExtension(for session: CotypingSession, settings: AppSettings) async -> String? {
         var field = session.field
         field.precedingText = CotypingSuggestionExtension.continuationPrefix(of: session)
@@ -52,9 +43,6 @@ extension CotypingCoordinator {
         return addition
     }
 
-    /// Appends `addition` to the visible suggestion if it is still the one the
-    /// model continued. The session and the ghost change together or not at all,
-    /// and only by the words the ghost has room to show.
     func applySuggestionExtension(
         _ addition: String,
         to original: CotypingSession,
@@ -65,8 +53,6 @@ extension CotypingCoordinator {
         var liveField: CotypingField?
         if !overlay.extendInline(
             to: extended.remainingText, emphasisLength: acceptEmphasisLength(for: extended.remainingText)) {
-            // A popup or a wrapped ghost is laid out afresh, at the live caret,
-            // and only once the app shows the words accepted so far.
             let focus = await focusTracker.refreshNow()
             guard work == extensionGeneration, !Task.isCancelled,
                   let refreshed = extendedSession(adding: addition, to: original, settings: settings),
@@ -92,8 +78,6 @@ extension CotypingCoordinator {
         }
     }
 
-    /// The session `addition` would produce, or nil when the visible
-    /// suggestion is no longer the one that was continued.
     func extendedSession(
         adding addition: String,
         to original: CotypingSession,

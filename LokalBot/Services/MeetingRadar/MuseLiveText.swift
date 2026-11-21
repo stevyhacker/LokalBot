@@ -1,25 +1,13 @@
 import AVFoundation
 import Foundation
 
-/// Fast live text: the live transcript preview streams each recorded track to
-/// Muse Voice Transcribe's realtime endpoint and gets each turn's text about
-/// 0.7 s after the speaker stops, instead of transcribing 12-second chunks on
-/// this Mac. Off by default; turning it on sends meeting audio to api.meta.ai
-/// while the preview runs. Speaker identity still comes from the track (the
-/// microphone is the person), because Muse's own speaker labels measured less
-/// accurate than local diarization. Built for the Meta Global AI Developer
-/// Hackathon (2026).
 enum MuseLiveText {
     static let url = URL(string: "wss://api.meta.ai/v1/asr/realtime")!
     static let model = "muse-voice-transcribe-1.0"
     static let displayName = "Muse Voice Transcribe 1.0"
     static let sampleRate = 16_000.0
-    /// The server rejects a stream more than 5 s ahead of real time; a fresh
-    /// session may start this far back in the recording.
     static let backlogSeconds = 3.0
 
-    /// Why fast live text can't run, or nil when it can. The preview then
-    /// uses the local model as before.
     static func unavailableReason(_ settings: AppSettings) -> String? {
         if !settings.museLiveTextEnabled { return "Fast live text is off." }
         if !settings.metaModelAPIApproved { return MetaModelAPI.ConnectionError.notApproved.errorDescription }
@@ -27,7 +15,6 @@ enum MuseLiveText {
         return nil
     }
 
-    /// The first frame of a session. The key travels here, not in a header.
     static func handshake(key: String, keywords: [String]) -> [String: Any] {
         var message: [String: Any] = [
             "authorization": ["accessToken": "Bearer " + key],
@@ -42,7 +29,6 @@ enum MuseLiveText {
     enum Event: Equatable {
         case acknowledged(sessionID: String)
         case speechStart(turn: Int, milliseconds: Int)
-        /// The turn so far, growing word by word.
         case partial(String)
         case speechComplete(turn: Int, milliseconds: Int, text: String)
         case failed(String)
@@ -55,7 +41,6 @@ enum MuseLiveText {
         let milliseconds = object["audioProcessedMs"] as? Int ?? 0
         switch object["type"] as? String {
         case nil:
-            // The handshake acknowledgement is the only frame without a type.
             return (object["sessionId"] as? String).map { .acknowledged(sessionID: $0) } ?? .ignored
         case "speechStart":
             return .speechStart(turn: object["turnId"] as? Int ?? -1, milliseconds: milliseconds)
@@ -72,7 +57,6 @@ enum MuseLiveText {
         }
     }
 
-    /// 16-bit little-endian PCM, as the endpoint expects.
     static func pcm16(_ samples: UnsafeBufferPointer<Float>) -> Data {
         var data = Data(count: samples.count * 2)
         data.withUnsafeMutableBytes { raw in
@@ -85,24 +69,15 @@ enum MuseLiveText {
     }
 }
 
-/// How much of a growing track to send on each tick. Audio goes out as it is
-/// recorded; if the file stops growing (a silent or missing source) the
-/// session is padded with silence so the server never sees below-real-time
-/// ingress, and the padded stretch of the file is skipped when it arrives.
 struct MuseLiveTextPacer: Equatable {
-    /// File frame where the session's audio starts.
     let originFrame: Int64
     private(set) var sentFrames: Int64 = 0
     var stallSeconds = 1.5
-    /// How far audio may run ahead of the session clock: a fresh session's
-    /// backlog in the app, about one frame for a replay of a finished file.
     var leadSeconds = MuseLiveText.backlogSeconds
     var cursor: Int64 { originFrame + sentFrames }
 
     init(originFrame: Int64) { self.originFrame = originFrame }
 
-    /// A session starts at most `backlogSeconds` before the end of the file,
-    /// and never before audio already sent.
     static func origin(fileLength: Int64, resumeFrom cursor: Int64?) -> Int64 {
         let recent = max(0, fileLength - Int64(MuseLiveText.backlogSeconds * MuseLiveText.sampleRate))
         return max(cursor ?? 0, recent)
@@ -121,14 +96,11 @@ struct MuseLiveTextPacer: Equatable {
         return (read, silence)
     }
 
-    /// Gives back planned frames the file couldn't deliver yet, so they are
-    /// read on a later tick instead of being skipped.
     mutating func unread(_ frames: Int64) {
         sentFrames -= max(0, min(frames, sentFrames))
     }
 }
 
-/// The socket a session talks through, so tests can replace the network.
 protocol MuseRealtimeSocket: AnyObject, Sendable {
     func send(_ message: URLSessionWebSocketTask.Message) async throws
     func receive() async throws -> URLSessionWebSocketTask.Message
@@ -150,16 +122,9 @@ final class URLSessionMuseRealtimeSocket: MuseRealtimeSocket, @unchecked Sendabl
     func close() { task.cancel(with: .normalClosure, reason: nil) }
 }
 
-/// One track's realtime session: reads the growing 16 kHz preview file from
-/// `cursor`, streams it in 100 ms frames, and reports each turn on the
-/// recording's timeline. Returns when the server ends the session (for
-/// example at its 60-minute cap); the caller reconnects from `cursor`.
 struct MuseLiveTextTrack {
     enum Output: Equatable {
-        /// The server accepted the session; its audio starts `origin` seconds
-        /// into the recording.
         case connected(origin: Double)
-        /// The turn in progress, or nil when it ended without text.
         case partial(time: Double, text: String?)
         case line(time: Double, text: String)
         case progress(cursor: Int64)
@@ -178,7 +143,6 @@ struct MuseLiveTextTrack {
 
     let source: URL
     var tick: Duration = .milliseconds(100)
-    /// Replays only: stream a finished file from this frame, in real time.
     var startFrame: Int64?
     var leadSeconds = MuseLiveText.backlogSeconds
     var handshakeTimeout: Duration = .seconds(10)
@@ -201,7 +165,7 @@ struct MuseLiveTextTrack {
                 group.addTask { MuseLiveText.parse(try await Self.text(of: socket.receive())) }
                 group.addTask {
                     try await Task.sleep(for: timeout)
-                    socket.close() // unblocks the pending receive
+                    socket.close()
                     throw SessionError.rejected("no reply to the handshake")
                 }
                 defer { group.cancelAll() }
@@ -235,7 +199,7 @@ struct MuseLiveTextTrack {
                             try await Task.sleep(for: tick)
                         }
                     } catch {
-                        socket.close() // ends the receiver too
+                        socket.close()
                         throw error
                     }
                 }
@@ -262,7 +226,6 @@ struct MuseLiveTextTrack {
                         }
                     }
                 }
-                // The receiver ends the session when the server closes it.
                 defer { group.cancelAll() }
                 try await group.next()
             }
@@ -271,7 +234,6 @@ struct MuseLiveTextTrack {
         }
     }
 
-    /// Frames in the file so far, or nil while it doesn't exist yet.
     static func length(of source: URL) throws -> Int64? {
         guard FileManager.default.fileExists(atPath: source.path) else { return nil }
         let file = try AVAudioFile(forReading: source)
@@ -282,11 +244,7 @@ struct MuseLiveTextTrack {
 
     private static let frameSize: Int64 = Int64(MuseLiveText.sampleRate / 10)
 
-    /// Returns the frames actually sent, which can be fewer than asked for
-    /// while the writer is mid-append.
     private static func send(frames: Int64, from start: Int64, of source: URL, to socket: MuseRealtimeSocket) async throws -> Int64 {
-        // A point-in-time reader, as the local preview uses: the writer keeps
-        // appending to the same file.
         let file = try AVAudioFile(forReading: source)
         file.framePosition = start
         guard let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(frames)) else { return 0 }

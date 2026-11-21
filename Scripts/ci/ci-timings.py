@@ -50,8 +50,6 @@ def summarize(run, jobs):
         eligible = start
         name = job['name']
         if name in ['XCUITest (macOS)', 'UI focused / comparison (macOS)']:
-            # The gate's own completion cannot be a dependency. Check the
-            # focused gate before the general UI consumer-name prefix.
             eligible = max((j['completed_at'] for j in jobs if j['id'] != job['id'] and j.get('completed_at')), default=start)
         elif name.startswith('UI ') and name != build:
             eligible = finished.get(build, start)

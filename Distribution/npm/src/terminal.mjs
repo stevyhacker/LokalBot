@@ -1,5 +1,3 @@
-// The card printed in the terminal.
-
 import { compact, dayLabel, duration, factLines, hours, monthNames, number, percent, plural } from './format.mjs';
 
 const TEAL = [35, 196, 174];
@@ -7,10 +5,6 @@ const AMBER = [217, 150, 20];
 const SHADES = ['░', '▒', '▓', '█'];
 const BAND_LABELS = ['12a', ' 3a', ' 6a', ' 9a', '12p', ' 3p', ' 6p', ' 9p'];
 
-/**
- * `stats`, `grid` and `calendar` come from `computeStats`. Project names are
- * the person's own and are shown here, on their own screen.
- */
 export function renderTerminal({ stats, grid, calendar, earlierDays }, { color = false } = {}) {
   const paint = painter(color);
   const out = [''];
@@ -87,10 +81,6 @@ export function renderTerminal({ stats, grid, calendar, earlierDays }, { color =
   return out.join('\n');
 }
 
-/**
- * Why the picture may start late in the year, and how to keep next year's
- * logs. Empty when the logs cover the year.
- */
 export function coverageNote(stats) {
   const { claudeLoggedFrom: loggedFrom = null, earlier } = stats.coverage;
   const usesClaude = stats.agents.some((agent) => agent.id === 'claude-code') || earlier !== null;
@@ -107,7 +97,6 @@ export function coverageNote(stats) {
   return lines;
 }
 
-/** One column per week, one row per three hours of the day. */
 function yearGrid(grid, calendar, busiest, earlierDays, paint) {
   const weeks = Math.ceil((calendar.firstWeekday + calendar.days) / 7);
   const cells = Array.from({ length: 8 }, () => new Float64Array(weeks));
@@ -150,7 +139,6 @@ function yearGrid(grid, calendar, busiest, earlierDays, paint) {
     }
     rows.push(`  ${paint.dim(BAND_LABELS[band])}  ${row}`);
   }
-  // Days an agent counted but whose logs are gone: no hours to place them by.
   if (earlierDays?.some((count) => count > 0)) {
     const marks = new Array(weeks).fill(' ');
     for (let day = 0; day < calendar.days; day += 1) {

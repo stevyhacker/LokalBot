@@ -1,7 +1,3 @@
-//! What gets indexed (`Rules`, with `Platform/Portable`'s extension sets, which
-//! stand in for macOS's type system). Only metadata and the file's name decide,
-//! except the 600-byte sniff that tells a real MPEG-TS video from TypeScript.
-
 use std::collections::{HashMap, HashSet};
 use std::io::Read as _;
 use std::path::Path;
@@ -14,14 +10,10 @@ use super::{FileKind, IndexOptions};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Classification {
     Index(FileKind),
-    /// A reason worth reporting.
     Skip(&'static str),
-    /// A type that isn't handled at all.
     Ignore,
 }
 
-/// Folders never worth walking into. Hidden folders and bundles are skipped by
-/// the walk itself.
 const SKIPPED_FOLDER_NAMES: &[&str] = &[
     "node_modules",
     "bower_components",
@@ -39,8 +31,6 @@ const SKIPPED_FOLDER_NAMES: &[&str] = &[
     "TEMP",
 ];
 
-/// Any of these in a folder makes it a code project, where only screenshots are
-/// indexed.
 const PROJECT_MARKERS: &[&str] = &[
     ".git",
     "package.json",
@@ -64,8 +54,6 @@ const DOC_EXTENSIONS: &[&str] = &[
     "pptx", "ods", "odp",
 ];
 const PROTECTED_EXTENSIONS: &[&str] = &["m4p"];
-/// Source code and data files: off, as on the Mac (`includeCode`): an editor and
-/// ripgrep search them better, and they flood an index.
 const CODE_EXTENSIONS: &[&str] = &[
     "py", "ipynb", "c", "h", "cc", "cpp", "cxx", "hpp", "hh", "m", "mm", "swift", "tsx", "cts",
     "js", "jsx", "mjs", "cjs", "go", "rs", "java", "kt", "kts", "scala", "rb", "php", "cs", "fs",
@@ -97,8 +85,6 @@ const VIDEO_EXTENSIONS: &[&str] = &[
     "mp4", "m4v", "mov", "mkv", "webm", "avi", "wmv", "flv", "3gp", "3g2", "mpg", "mpeg", "m2v",
     "ogv", "mxf",
 ];
-/// Mac bundles that may sit on a shared or copied disk: skipped whole by name,
-/// since nothing here knows them as one thing.
 const PACKAGE_EXTENSIONS: &[&str] = &[
     "app",
     "framework",
@@ -127,8 +113,6 @@ fn extension_of(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// `classify` by extension. RAW pictures, which nothing here decodes yet, are
-/// still images: they fail with a note that says so, rather than vanish.
 pub fn classify(path: &Path, options: &IndexOptions) -> Classification {
     let ext = extension_of(path);
     let is = |set: &[&str]| set.contains(&ext.as_str());
@@ -170,8 +154,6 @@ pub fn classify(path: &Path, options: &IndexOptions) -> Classification {
     Classification::Ignore
 }
 
-/// MPEG-TS packets start with 0x47 every 188 bytes (or every 192 with a 4-byte
-/// timecode, as in .m2ts).
 pub fn is_mpeg_transport_stream(path: &Path) -> bool {
     let Ok(file) = std::fs::File::open(path) else {
         return false;
@@ -184,8 +166,6 @@ pub fn is_mpeg_transport_stream(path: &Path) -> bool {
         || (bytes[4] == 0x47 && bytes[196] == 0x47 && bytes[388] == 0x47)
 }
 
-/// By name: GNOME, KDE and Windows save into a "Screenshots" folder, and a
-/// picture there is a screenshot whatever it's called.
 pub fn is_screenshot(path: &Path) -> bool {
     let name = path
         .file_name()
@@ -203,7 +183,6 @@ pub fn is_package(path: &Path) -> bool {
     PACKAGE_EXTENSIONS.contains(&extension_of(path).as_str())
 }
 
-/// Photos and other library bundles have their own reason.
 pub fn is_photos_library(path: &Path) -> bool {
     matches!(
         extension_of(path).as_str(),
@@ -228,7 +207,6 @@ pub fn skip_reason_for_folder(path: &Path, home: Option<&Path>) -> Option<&'stat
     None
 }
 
-/// The Cache Directory Tagging specification requires this exact header.
 pub fn is_cache_directory(path: &Path) -> bool {
     const SIGNATURE: &[u8] = b"Signature: 8a477f597d28d172789f06886806bc55";
     let tag = path.join("CACHEDIR.TAG");
@@ -262,8 +240,6 @@ fn is_project_marker(name: &str) -> bool {
         || PROJECT_BUNDLE_EXTENSIONS.contains(&extension_of(Path::new(name)).as_str())
 }
 
-/// Whether the crawl walks this far, from a chosen folder that is itself read whole
-/// whatever holds it.
 pub fn is_walked(path: &Path, root: &Path, home: Option<&Path>) -> bool {
     let Ok(rest) = path.strip_prefix(root) else {
         return false;
@@ -282,8 +258,6 @@ pub fn is_walked(path: &Path, root: &Path, home: Option<&Path>) -> bool {
     true
 }
 
-/// Whether a code project sits between the chosen folder and this path. The chosen
-/// folder itself doesn't count: it's read whole.
 pub fn is_inside_project(path: &Path, root: &Path) -> bool {
     let Ok(rest) = path.strip_prefix(root) else {
         return false;
@@ -299,8 +273,6 @@ pub fn is_inside_project(path: &Path, root: &Path) -> bool {
     false
 }
 
-/// A marker that is its folder's only one: its coming or going decides whether the
-/// folder is a project.
 pub fn decides_project(path: &Path) -> bool {
     let Some(name) = path.file_name().map(|n| n.to_string_lossy()) else {
         return false;
@@ -321,8 +293,6 @@ pub fn decides_project(path: &Path) -> bool {
     })
 }
 
-/// Whether a change here could be something the crawl keeps: not inside a bundle,
-/// and for a file, a type it reads.
 pub fn change_may_matter(path: &Path, is_folder: bool, options: &IndexOptions) -> bool {
     let start = if is_folder { Some(path) } else { path.parent() };
     if std::iter::successors(start, |folder| folder.parent()).any(is_package) {
@@ -354,8 +324,6 @@ static DATED_NAME: LazyLock<Regex> = LazyLock::new(|| {
         .expect("a valid pattern")
 });
 
-/// Machine-made names like "clip_000123" or "3f9a1c0e-…", but not camera names
-/// like "IMG_1234" or the dates phones write.
 pub fn looks_machine_named(stem: &str) -> bool {
     let name = stem.to_lowercase();
     if CAMERA_PREFIXES.iter().any(|p| name.starts_with(p)) || DATED_NAME.is_match(&name) {
@@ -364,8 +332,6 @@ pub fn looks_machine_named(stem: &str) -> bool {
     HEX_NAME.is_match(&name) || NUMBERED_NAME.is_match(&name)
 }
 
-/// Folders with hundreds of same-kind, machine-named media files: training data,
-/// not the person's own. Folders they picked themselves are never datasets.
 pub fn dataset_folders(
     files: &[(String, String, FileKind)],
     roots: &HashSet<String>,

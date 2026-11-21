@@ -5,9 +5,6 @@ struct MeetingMergeDraft: Identifiable {
     let meetings: [Meeting]
 }
 
-/// Reviewable merge confirmation. The copy makes the operation's data
-/// contract explicit: sources remain intact and speaker labels stay scoped to
-/// their original recording until the user confirms any identity changes.
 struct MeetingMergeSheet: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.dismiss) private var dismiss

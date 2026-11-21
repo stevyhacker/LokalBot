@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Compares the published gpui-pre crates that GPUI Kit pins against Zed's own
-# source at the commit each crate declares (`package.metadata.gpui-pre.zed-rev`).
-# Prints every file that differs. Expected differences are listed in
-# docs/dependency-provenance.md.
 set -euo pipefail
 VERSION="${1:-0.3.9}"
 WORK="${2:-$(mktemp -d)}"
@@ -27,7 +23,6 @@ if [ ! -d zed ]; then
   git clone --quiet --filter=blob:none --no-checkout https://github.com/zed-industries/zed.git zed
 fi
 cd zed
-# Most crates are crates/<name>; derive_refineable is inside crates/refineable.
 declare -A ZED_DIR
 for crate in "${CRATES[@]}"; do
   name="${ZED_CRATE[$crate]}"
@@ -43,7 +38,6 @@ status=0
 for crate in "${CRATES[@]}"; do
   upstream="zed/${ZED_DIR[$crate]}"
   published="x/$crate/$crate-$VERSION"
-  # Sources are in src, or beside the manifest (gpui_shared_string is one file).
   if [ -d "$published/src" ]; then
     differences=$(diff -rq "$upstream/src" "$published/src" 2>&1 || true)
   else

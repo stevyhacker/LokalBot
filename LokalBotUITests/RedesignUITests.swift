@@ -1,7 +1,5 @@
 import XCTest
 
-/// Hosted-only review of the integrated redesign against synthetic evidence.
-/// Screenshots remain in the test result bundle; no private library is used.
 final class RedesignUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -44,9 +42,6 @@ final class RedesignUITests: XCTestCase {
         snapshot("saved-audio-review-and-capture-warning")
     }
 
-    /// Filmed on 2026-11-05: opening Projects showed the first project with no
-    /// row highlighted, and selecting a row widened the list column to its maximum.
-    /// Also covers a project nothing names yet: one message and the names sheet.
     func testProjectsHighlightsTheOpenProjectAndSelectionKeepsTheColumnWidth() throws {
         let projects = fixture.root.appendingPathComponent("projects", isDirectory: true)
         try FileManager.default.createDirectory(at: projects, withIntermediateDirectories: true)
@@ -66,20 +61,15 @@ final class RedesignUITests: XCTestCase {
             .matching(NSPredicate(format: "selected == false"))
             .containing(NSPredicate(format: "value BEGINSWITH 'Atlas' OR value BEGINSWITH 'Borealis'")).firstMatch
         XCTAssertTrue(unselected.waitForExistence(timeout: 5))
-        // Named once: the query above stops matching a row as soon as it's selected.
         let otherName = (unselected.staticTexts.firstMatch.value as? String ?? "").hasPrefix("Atlas") ? "Atlas" : "Borealis"
         let other = list.outlineRows.containing(NSPredicate(format: "value BEGINSWITH %@", otherName)).firstMatch
         other.click()
         XCTAssertTrue(UITestHarness.waitUntil { other.isSelected && selected.count == 1 },
                       "Clicking \(otherName) must select it and only it")
-        // A re-division lands on the next layout pass, so give it one.
         usleep(800_000)
         XCTAssertEqual(list.frame.width, width, accuracy: 2, "Selecting a project must not move the divider")
         snapshot("projects-selection")
 
-        // The list is headed by its search field. Nothing in the library names
-        // these two projects, so the page is one message whose button opens
-        // the names sheet on "Other names".
         XCTAssertTrue(element("projects.search").exists, "The list column starts with the search field")
         let addNames = element("project.addOtherNames")
         XCTAssertTrue(addNames.waitForExistence(timeout: 5),
@@ -94,8 +84,6 @@ final class RedesignUITests: XCTestCase {
     }
 
     func testWorkspaceVisualMatrix() throws {
-        // Collect route assertion failures across the matrix for review. Any
-        // failed assertion still fails this test and the aggregate release gate.
         continueAfterFailure = true
         defer { continueAfterFailure = false }
         let routes: [(String, [String: String])] = [
@@ -121,9 +109,6 @@ final class RedesignUITests: XCTestCase {
         for size in sizes {
             for appearance in ["light", "dark"] {
                 for (route, state) in routes {
-                    // A complete matrix can cross midnight. Keep Today and
-                    // Timeline populated on the new civil day, while retaining
-                    // earlier attachment files until XCTest serializes them.
                     if !Calendar.current.isDateInToday(fixture.designReview.startedAt) {
                         previousVisualFixtures.append(fixture)
                         fixture = try SyntheticFixture.plant()
@@ -167,11 +152,9 @@ final class RedesignUITests: XCTestCase {
         let anchors = [
             "today": "today.dayDigest.text", "actions": "actions.search",
             "meeting": "meeting.audioPlayer", "transcript": "transcript.segment.0.text",
-            // The Review tab is gone; this route shows the sheet that names speakers.
             "review": "meeting.namingSheet",
             "timeline": "timeline.workSessions", "search": "search.hit.\(fixture.designReview.id.uuidString).segment",
             "ask": "ask.submit", "settings": "settings.overview", "models": "models.overview",
-            // Autocomplete opens on its settings; the rehearsal is its "Try it…" sheet.
             "dictation": "dictation.form", "autocomplete": "settings.header.writing", "agent": "agent.composer",
         ]
         let identifier = try XCTUnwrap(anchors[route], "No capture anchor for \(route)")
@@ -203,7 +186,6 @@ final class RedesignUITests: XCTestCase {
         let input = app.textFields["search.field"]
         input.click(); input.typeText("failover")
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
-        // ↓ moves from the field onto the first match; Return then opens it.
         input.typeKey(.downArrow, modifierFlags: [])
         input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
@@ -213,9 +195,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         XCTAssertEqual(input.value as? String, "failover")
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
-        // In the field, Return asks, even for a single word. A keyword's
-        // answer is limited to the matches that were listed, and the sources
-        // menu names them. (A full question would read the chosen sources.)
         input.click()
         input.typeKey(.return, modifierFlags: [])
         XCTAssertTrue(app.staticTexts["chat.message.user"].waitForExistence(timeout: 5))
@@ -224,8 +203,6 @@ final class RedesignUITests: XCTestCase {
             (self.element("ask.sources").value as? String) == self.fixture.designReview.title
         })
         XCTAssertFalse(element("ask.selectedEvidence").exists)
-        // The model connection is blocked here: the answer fails with the way
-        // to fix it, and the matches stay listed under it.
         XCTAssertTrue(element("chat.answer.status").waitForExistence(timeout: 10))
         XCTAssertTrue(element("chat.answer.modelSettings").exists)
         XCTAssertTrue(element("ask.inferenceStatus").exists, "A blocked model connection is named under the field")
@@ -269,14 +246,12 @@ final class RedesignUITests: XCTestCase {
         try launch(["LOKALBOT_INITIAL_SECTION": "ask", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let date = element("ask.timeScope")
         XCTAssertTrue(date.waitForExistence(timeout: 5))
-        // Dates are chosen, shown and removed in the time menu alone.
         date.click()
         XCTAssertTrue(app.menuItems["Last 7 days"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.menuItems["Choose a date…"].exists)
         app.menuItems["Last 7 days"].click()
         XCTAssertTrue(UITestHarness.waitUntil { (date.value as? String) == "Last 7 days" })
         XCTAssertFalse(element("ask.filter.date.clear").exists)
-        // Finer filters live in the sources menu, which then names them.
         let sources = element("ask.sources")
         sources.click()
         XCTAssertTrue(app.menuItems["Match type"].waitForExistence(timeout: 3))
@@ -311,8 +286,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
         XCTAssertTrue(UITestHarness.waitUntil { self.app.buttons["ask.submit"].isEnabled })
         app.buttons["ask.submit"].click()
-        // The follow-up is limited to the meeting that matched: the sources
-        // menu's button names it, and the menu offers to widen it again.
         XCTAssertTrue(UITestHarness.waitUntil {
             (sources.value as? String) == self.fixture.designReview.title
         })
@@ -344,11 +317,6 @@ final class RedesignUITests: XCTestCase {
         snapshot("recall-restored-divider")
     }
 
-    /// The removed Review tab's three jobs, in place: one sheet names the
-    /// unnamed voices, an action's owner is a menu on its row, and a refresh
-    /// of the summary is offered only once speaker names have changed. A ▶
-    /// time plays where it is, and the player leads to the transcript.
-    /// The test keeps its name so its measured duration still plans the shards.
     func testMeetingReviewConnectsSpeakersOwnersEvidenceAndRefresh() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
         let nameSpeakers = app.buttons["meeting.reviewSpeakers"]
@@ -420,11 +388,7 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(app.textFields["timeline.search"].exists, "Retained moments search was removed")
         XCTAssertFalse(element("timeline.moments").exists, "Retained moments list was removed")
         XCTAssertFalse(element("timeline.fullDigest").exists, "The digest is always shown in full")
-        // The rail stays beside the page at the narrowest captured width, so
-        // there is no drawer and nothing to toggle.
         XCTAssertFalse(app.buttons["timeline.context.toggle"].exists)
-        // A session's page is known by its title: the page's wrapper is not
-        // an accessibility element of its own.
         let page = element("timeline.sessionPreview")
         XCTAssertFalse(page.exists)
         XCTAssertTrue(element("timeline.highlights").exists, "The day's page shows until a row is selected")
@@ -440,7 +404,6 @@ final class RedesignUITests: XCTestCase {
                                     "The page keeps its readable minimum beside the rail")
         XCTAssertFalse(element("timeline.highlights").exists, "The session's page replaces the day's page")
         XCTAssertTrue(element("capture.dayOverview").exists, "The rail keeps the day's totals")
-        // "Day digest" above the session's page returns to the day.
         app.buttons["timeline.backToDigest"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !page.exists })
         XCTAssertTrue(element("timeline.highlights").waitForExistence(timeout: 3))
@@ -452,8 +415,6 @@ final class RedesignUITests: XCTestCase {
         let search = app.textFields["meeting.search.field"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         XCTAssertEqual(search.placeholderValue, "Find in transcript")
-        // Find is the trailing control of the Transcript panel's header, so
-        // it is part of the scrolling content, level with the panel's title.
         let content = app.scrollViews["meeting.content.scroll"]
         let panelTitle = element("meeting.transcript.title")
         XCTAssertTrue(panelTitle.exists, "The transcript is one panel with a titled header")
@@ -467,8 +428,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue((status.value as? String ?? status.label).contains("Transcript"))
         app.typeKey("f", modifierFlags: .command)
         XCTAssertTrue(UITestHarness.waitUntil { search.placeholderValue == "Search this meeting" })
-        // Command-F searches every tab, so its one field is pinned above the
-        // scrolling content and the panel's field makes way for it.
         XCTAssertEqual(app.textFields.matching(identifier: "meeting.search.field").count, 1)
         XCTAssertLessThanOrEqual(search.frame.maxY, content.frame.minY + 1,
                                  "Page find stays pinned under the player")
@@ -479,9 +438,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(status.exists, "Closing page find clears its query and matches")
     }
 
-    /// An owner chosen from the row's menu keeps the reader on the summary
-    /// while page search is open, and a cited time plays in place. (The name
-    /// predates the removal of the Review tab; its timing plans the shards.)
     func testMeetingCorrectionKeepsReviewWithPageSearchOpenAndClearsReturnOrigin() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
         XCTAssertTrue(element("meeting.audioPlayer").waitForExistence(timeout: 5))
@@ -502,7 +458,6 @@ final class RedesignUITests: XCTestCase {
         let text = app.staticTexts["meeting.action.text.fixture-action-design-2"]
         XCTAssertTrue(text.exists, "Refreshing search matches must not navigate away from Summary")
 
-        // Wording, owner and due date stay editable together from the row's menu.
         let options = element("meeting.action.status.fixture-action-design-2")
         UITestHarness.scrollTo(options, in: app, within: content)
         options.click()
@@ -537,9 +492,6 @@ final class RedesignUITests: XCTestCase {
         for appearance in ["light", "dark"] {
             try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0",
                         "LOKALBOT_DETAIL_TAB": "review", "LOKALBOT_CAPTURE_APPEARANCE": appearance])
-            // This launch opens the sheet that names speakers. The window
-            // behind a sheet is dimmed and cannot be used, so its contrast is
-            // audited once the sheet has closed, a few lines down.
             let namingSheet = element("meeting.namingSheet")
             XCTAssertTrue(namingSheet.waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true, contrastScope: namingSheet)
@@ -600,8 +552,6 @@ final class RedesignUITests: XCTestCase {
         snapshot("timeline-inspectable-title-evidence")
     }
 
-    /// The rail is not a split pane: its width follows the window. In a
-    /// roomy window it is its ideal width, on the trailing side of the page.
     func testTimelineRailResizesBesideThePage() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1440x900"])
         let rail = element("timeline.list")
@@ -609,11 +559,9 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(rail.waitForExistence(timeout: 5))
         XCTAssertTrue(page.waitForExistence(timeout: 5))
         XCTAssertLessThanOrEqual(page.frame.maxX, rail.frame.minX + 1, "The rail is on the trailing side of the page")
-        // 352 points at the smallest text size; the default is a step larger.
         XCTAssertGreaterThanOrEqual(rail.frame.width, 320, "The rail opens narrower than its ideal width (\(rail.frame.width))")
         XCTAssertLessThanOrEqual(rail.frame.width, 400, "The rail opens wider than its ideal width (\(rail.frame.width))")
         XCTAssertGreaterThan(page.frame.width, rail.frame.width, "The page has the larger share of the window")
-        // Choosing a session keeps the rail where it is.
         let opening = rail.frame
         openFirstTimelineSession()
         XCTAssertTrue(element("timeline.sessionPreview").waitForExistence(timeout: 3))
@@ -621,7 +569,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertEqual(rail.frame.width, opening.width, accuracy: 1, "The rail resized when a session was chosen")
         snapshot("timeline-session-beside-rail")
 
-        // The divider between them widens the rail toward the page.
         let divider = try XCTUnwrap(app.splitters.allElementsBoundByIndex.min {
             abs($0.frame.midX - rail.frame.minX) < abs($1.frame.midX - rail.frame.minX)
         }, "Timeline divider missing")
@@ -635,8 +582,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertLessThanOrEqual(page.frame.maxX, rail.frame.minX + 1, "The rail stays on the trailing side")
         snapshot("timeline-wide-rail")
 
-        // Divider positions persist in the host's defaults; leave the next
-        // launch at the opening width.
         let widened = divider.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
         widened.press(forDuration: 0.1, thenDragTo: widened.withOffset(CGVector(dx: rail.frame.width - opening.width, dy: 0)))
         XCTAssertTrue(UITestHarness.waitUntil { abs(rail.frame.width - opening.width) < 8 })
@@ -673,9 +618,6 @@ final class RedesignUITests: XCTestCase {
     func testMeetingMenusHaveAccessibleActionsAndOpen() throws {
         try launch(["LOKALBOT_INITIAL_SECTION": "meetings", "LOKALBOT_SELECT_INDEX": "0"])
         XCTAssertTrue(element("meeting.export").waitForExistence(timeout: 5))
-        // XCTest audits the exposed actions through its authorized automation
-        // service; menu interaction below separately verifies the callbacks.
-        // This is not a manual VoiceOver listening test.
         try auditWorkspaceAccessibility()
         for (identifier, item) in [("meeting.export", "Copy as Markdown"),
                                    ("toolbar.meetingActions", "Reprocess"),
@@ -777,16 +719,8 @@ final class RedesignUITests: XCTestCase {
         XCTAssertEqual(UserDefaults(suiteName: suite!)?.data(forKey: "lokalbotv3.settings"), before)
     }
 
-    /// Completing an action is covered by
-    /// `MainWindowUITests.testMultiMeetingThreadCompletionRequiresConfirmation`,
-    /// and a failed save and its retry by `ActionThreadRevisionTests`.
     func testActionSearchPreservesSelectionAndCommandClickSelectsSeveral() throws {
         let folder = fixture.folder(for: fixture.designReview)
-        // Large-list persistence belongs to RedesignContractTests, which
-        // covers 0, 40 and 400 actions without an accessibility snapshot of every row.
-        // Two distinct actions exercise filtering and selection here. The
-        // dated one lists ahead of the other, which is therefore never the
-        // row the page selects by default.
         let actions: [[String: Any]] = (0..<2).map { index in
             var action: [String: Any] = [
                 "id": "search-action-\(index)", "schemaVersion": 2, "text": "Synthetic commitment \(index)",
@@ -800,13 +734,11 @@ final class RedesignUITests: XCTestCase {
         app.buttons["outcomes.review"].click()
         let search = app.textFields["actions.search"]
         XCTAssertTrue(search.waitForExistence(timeout: 5))
-        // The details pane is open beside the list with the first row selected.
         let detailsTitle = element("actions.details.title")
         func detailsShow(_ text: String) -> Bool {
             UITestHarness.waitUntil { detailsTitle.exists && (detailsTitle.value as? String ?? detailsTitle.label) == text }
         }
         XCTAssertTrue(detailsTitle.waitForExistence(timeout: 5), "The first action should be selected when the page opens")
-        // Failure messages and the details pane repeat the action title; inspect only its list row.
         func row(_ text: String) -> XCUIElement {
             element("actions.list").staticTexts.matching(
                 NSPredicate(format: "label == %@ OR value == %@", text, text)).firstMatch
@@ -823,7 +755,6 @@ final class RedesignUITests: XCTestCase {
         search.typeKey(.delete, modifierFlags: [])
         XCTAssertTrue(action.waitForExistence(timeout: 5))
         XCTAssertTrue(detailsShow("Synthetic commitment 1"), "Clearing the search should restore the selection")
-        // ⌘-click adds a row, and the details pane offers the batch changes.
         XCTAssertFalse(element("actions.batch").exists, "The batch pane appears only for several selected rows")
         XCUIElement.perform(withKeyModifiers: .command) { row("Synthetic commitment 0").click() }
         XCTAssertTrue(element("actions.batch").waitForExistence(timeout: 3), "⌘-click should select a second action")
@@ -852,10 +783,6 @@ final class RedesignUITests: XCTestCase {
         XCTAssertFalse(rendered.contains("| --- | --- |"), "Markdown table syntax leaked into the answer")
         let deny = app.buttons["agent.approve.deny"]
         XCTAssertTrue(deny.waitForExistence(timeout: 6))
-        // The card asks a question that names the file. The fixture's file is
-        // inside the library, so the card says so and shows the full path.
-        // The question is a heading, which macOS reports with a label; plain
-        // text reports a value. Read both, as VoiceOver reads either.
         let question = app.descendants(matching: .any)["agent.approval.title"]
         XCTAssertTrue(question.waitForExistence(timeout: 4), "The approval card has no question")
         let asked = [question.label, question.value as? String ?? ""].joined(separator: " ")
@@ -889,8 +816,6 @@ final class RedesignUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: suite)
         let run: UITestHarness.Launch
         if blockedInference {
-            // Deliberately invalid destination: exercise submission and saved
-            // scope without downloading a model or contacting a server.
             run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "Redesign",
                 settingsJSON: #"{"menuBarOnly":false,"calendarDetectionEnabled":false,"semanticSearchEnabled":false,"cotypingEnabled":false,"summarizerBackend":"OpenAI-compatible server","openAIBaseURL":"invalid"}"#,
                 environment: environment)
@@ -904,7 +829,6 @@ final class RedesignUITests: XCTestCase {
         app.descendants(matching: .any).matching(identifier: id).firstMatch
     }
 
-    /// The day's sessions are rows of the rail beside the page.
     private func openFirstTimelineSession() {
         let session = app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "timeline.session.")).firstMatch
@@ -914,22 +838,14 @@ final class RedesignUITests: XCTestCase {
     }
 
     private func dismissHoverHelpBeforeAuditing() {
-        // Scrolling can leave the pointer over an evidence link. Its native
-        // help tag obscures the text being measured and has no audit label.
-        // Hovering over the titlebar preserves the current focus and menus.
         app.windows.firstMatch.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.01)).hover()
         XCTAssertTrue(app.descendants(matching: .helpTag).firstMatch.waitForNonExistence(timeout: 3),
                       "Dismiss native hover help before measuring workspace accessibility")
     }
 
-    /// `contrastScope` limits the contrast audit to that element's own
-    /// descendants, for a sheet or popover in front of dimmed content.
     private func auditWorkspaceAccessibility(includeContrast: Bool = false, contrastBounds: CGRect? = nil,
                                              contrastScope: XCUIElement? = nil) throws {
         dismissHoverHelpBeforeAuditing()
-        // Report every app issue. The hosted virtual Mac also exposes a
-        // system-generated Touch Bar and its Emoji picker outside our window;
-        // neither is an app-owned control or a usable hosted input surface.
         continueAfterFailure = true
         defer { continueAfterFailure = false }
         let hierarchy = XCTAttachment(string: app.debugDescription)
@@ -943,13 +859,8 @@ final class RedesignUITests: XCTestCase {
         try app.performAccessibilityAudit(for: types) { issue in
             guard let affected = issue.element, affected.exists else { return false }
             if issue.auditType == .contrast {
-                // The macOS audit also samples offscreen text and content
-                // behind popovers. Audit only painted, unclipped text here;
-                // each scroll region and open popover is audited separately.
                 let bounds = contrastBounds ?? self.app.windows.firstMatch.frame
                 if !bounds.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
-                // Text behind a sheet can share its bounds; tell the sheet's
-                // own text apart by its exact frame.
                 if let contrastScope,
                    !contrastScope.descendants(matching: affected.elementType).allElementsBoundByIndex
                     .contains(where: { $0.frame == affected.frame }) { return true }
@@ -958,21 +869,11 @@ final class RedesignUITests: XCTestCase {
                    content.descendants(matching: affected.elementType).matching(NSPredicate(
                     format: "identifier == %@ AND label == %@", affected.identifier, affected.label)).count > 0,
                    !content.frame.insetBy(dx: -1, dy: -1).contains(affected.frame) { return true }
-                // macOS 15's audit flags these labels even at measured 14:1
-                // contrast. Suppress only after checking their rendered pixels
-                // in this appearance; a faint or empty label still fails.
                 if verifiedText.contains(affected.label)
                     || (affected.value as? String).map(verifiedText.contains) == true { return true }
-                // WCAG 1.4.3 exempts inactive controls, such as Ask before a
-                // question is typed.
                 if !affected.isEnabled, affected.elementType == .button { return true }
-                // The audit also flags native sidebar rows and supporting copy
-                // that render well above 4.5:1. Accept a flag only when every
-                // text inside the flagged element measures at least 4.5:1 in
-                // its own rendered pixels; faint text still fails.
                 if self.renderedTextPassesContrast(affected) { return true }
             }
-            // A native menu's items carry the actions; its container has none.
             if issue.auditType == .action, affected.elementType == .menu { return true }
             if affected.elementType == .touchBar { return true }
             let systemBar = self.app.descendants(matching: .touchBar).firstMatch
@@ -985,8 +886,6 @@ final class RedesignUITests: XCTestCase {
     }
 
     private func verifyRecallExplanationContrast() throws -> Set<String> {
-        // The explanations in the sheet that names speakers, which replaced
-        // the Review tab's.
         let labels = [
             "Play a voice, then pick who it is. LokalBot learns each voice for later meetings. Voices stay encrypted on this Mac.",
             "Skip any voice you are not sure about.",
@@ -996,8 +895,6 @@ final class RedesignUITests: XCTestCase {
         for label in labels {
             let text = app.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).firstMatch
             guard text.exists, app.windows.firstMatch.frame.contains(text.frame) else { continue }
-            // Scrolled meeting content can report a frame under the pinned
-            // header; its pixels there belong to the header, not this text.
             if content.exists,
                content.staticTexts.matching(NSPredicate(format: "label == %@ OR value == %@", label, label)).count > 0,
                !content.frame.insetBy(dx: -1, dy: -1).contains(text.frame) { continue }
@@ -1015,8 +912,6 @@ final class RedesignUITests: XCTestCase {
         return verified
     }
 
-    /// Measures each static text in a flagged element, or the element itself
-    /// when it has none (combined rows). An unmeasurable capture never passes.
     private func renderedTextPassesContrast(_ element: XCUIElement) -> Bool {
         let texts = element.descendants(matching: .staticText).allElementsBoundByIndex
             .filter { $0.exists && !$0.frame.isEmpty }

@@ -13,7 +13,6 @@ spec = importlib.util.spec_from_file_location("sample_meeting", ROOT / "Scripts/
 sample_meeting = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(sample_meeting)
 
-# Spoken language → the interface language whose strings carry its Ask question.
 LANGUAGES = {"en": "en", "de": "de", "zh": "zh-Hans", "sr-Latn": "sr-Latn"}
 
 

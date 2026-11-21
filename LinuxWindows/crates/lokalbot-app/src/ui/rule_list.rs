@@ -1,6 +1,3 @@
-//! Editable exclusion lists (`ExclusionRulesEditor.swift`): apps or sites that
-//! LokalBot never captures or suggests in. Stored comma-separated in settings.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -18,17 +15,12 @@ use crate::theme::{LbThemeExt as _, ty};
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum RuleKind {
     Applications,
-    /// Capture rules: a URL with a path excludes that URL prefix.
     Domains,
-    /// Writing rules: a pasted URL applies to its whole domain.
     WritingDomains,
-    /// Folders are stored with commas between them, like the other two, so a
-    /// path can't hold one (`ExclusionRulesEditor.folders`).
     Folders,
 }
 
 pub enum RuleListEvent {
-    /// The new comma-separated value.
     Changed(String),
 }
 
@@ -88,7 +80,6 @@ impl RuleList {
         }
     }
 
-    /// Follows a change made elsewhere.
     pub fn set_value(&mut self, value: &str, cx: &mut Context<Self>) {
         let rules = lokalbot_core::settings::split_list(value);
         if rules != self.rules {
@@ -118,8 +109,6 @@ impl RuleList {
         self.commit(cx);
     }
 
-    /// "Choose App…" and "Choose Folder…": the file picker's choice goes
-    /// through the same checks as typing it, and any failure is shown.
     fn choose(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let folders = self.kind == RuleKind::Folders;
         let receiver = cx.prompt_for_paths(gpui_kit::PathPromptOptions {
@@ -178,7 +167,6 @@ impl RuleList {
     }
 }
 
-/// Why a rule cannot be added, if it cannot.
 pub fn validate(candidate: &str, kind: RuleKind, existing: &[String]) -> Option<&'static str> {
     if candidate.is_empty() || candidate.contains(',') {
         return Some(lokalbot_i18n::tr("Add one rule at a time."));
@@ -208,8 +196,6 @@ pub fn validate(candidate: &str, kind: RuleKind, existing: &[String]) -> Option<
     None
 }
 
-/// Rules saved before these checks, or typed into a settings file, stay until
-/// removed, and say so (`ExclusionRulesEditor.isValid`).
 fn is_valid_rule(rule: &str, kind: RuleKind) -> bool {
     match kind {
         RuleKind::Applications => true,
@@ -218,7 +204,6 @@ fn is_valid_rule(rule: &str, kind: RuleKind) -> bool {
     }
 }
 
-/// `~/…` for a folder under the home folder, as the Mac abbreviates it.
 fn folder_rule(path: &std::path::Path) -> String {
     let home = std::env::var_os(if cfg!(windows) { "USERPROFILE" } else { "HOME" })
         .map(std::path::PathBuf::from);
@@ -233,9 +218,6 @@ fn abbreviated(path: &std::path::Path, home: Option<&std::path::Path>) -> String
     }
 }
 
-/// What an excluded app is matched by. A window's name changes with the
-/// language, so a launcher's window class or command wins over it, and a
-/// Windows program is known by its file name.
 fn application_rule(path: &std::path::Path) -> String {
     let stem = path
         .file_stem()
@@ -255,7 +237,6 @@ fn application_rule(path: &std::path::Path) -> String {
     }
 }
 
-/// `StartupWMClass`, else the program `Exec` runs.
 fn desktop_entry_rule(text: &str) -> Option<String> {
     let mut in_entry = false;
     let mut class = None;
@@ -521,7 +502,6 @@ mod tests {
         use std::path::Path;
         let home = Path::new("/home/ana");
         let rule = |p: &Path| abbreviated(p, Some(home));
-        // Each platform's own separator: a rule reads like the paths around it.
         let inside = Path::new("~").join("Code").join("x");
         assert_eq!(
             rule(&home.join("Code").join("x")),

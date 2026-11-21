@@ -42,9 +42,6 @@ class DirectedScene:
     cursor_end: tuple[float, float]
 
 
-# Labels are exact phrases already used by the landing page's video description.
-# Focus and cursor coordinates are normalized to keep direction stable if the
-# capture resolution changes while preserving the same app layout.
 DIRECTED_SCENES = {
     "meetings-summary": DirectedScene(
         "Meeting recap", 3.15, 1.00, 1.16, 0.76, 0.31,

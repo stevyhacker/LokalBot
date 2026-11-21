@@ -1,12 +1,3 @@
-//! Windows: visible text and secure-field state through UI Automation, the
-//! counterpart of `ScreenAccessibilityReader.resolve`. The window is walked
-//! breadth-first through the control view, and every element arrives with
-//! the properties in [`CACHED_PROPERTIES`] in the same cross-process call.
-//! Text is visible text only (`ScreenVisibleTextPolicy`): the visible ranges
-//! of text controls and the names of labels that lie fully inside their
-//! viewport. Secure fields are never read, and the lines of a page that
-//! overlap one are dropped.
-
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::ffi::c_void;
 use std::time::{Duration, Instant};
@@ -50,13 +41,10 @@ use crate::meeting::browser::{
 };
 use lokalbot_core::calendar::{MeetingService, meeting_room};
 
-/// How long one call may wait on the target app (UIA waits 20 s by
-/// default), so a hung app holds a read for about this long.
 const CALL_TIMEOUT_MS: u32 = 500;
 
 const OWN_WINDOW: &str = "LokalBot's own windows are not read";
 
-/// Every element is fetched with these, in the same call.
 const CACHED_PROPERTIES: [UIA_PROPERTY_ID; 11] = [
     UIA_NamePropertyId,
     UIA_HelpTextPropertyId,
@@ -80,7 +68,6 @@ impl UiaReader {
         Self { client: None }
     }
 
-    /// The UI Automation client, created on first use.
     fn automation(&mut self) -> windows::core::Result<IUIAutomation> {
         let client = match &mut self.client {
             Some(client) => client,
@@ -97,8 +84,6 @@ impl UiaReader {
 impl TextReader for UiaReader {
     fn read(&mut self, window: &FocusedWindow, include_text: bool, deadline: Duration) -> TextRead {
         let started = Instant::now();
-        // UI Automation would answer from LokalBot's own UI thread, which may
-        // be waiting on this one; its windows are never recorded anyway.
         if window.pid == Some(std::process::id()) {
             return TextRead::Unavailable(OWN_WINDOW.into());
         }
@@ -119,8 +104,6 @@ impl TextReader for UiaReader {
     }
 }
 
-/// The UI Automation client, kept between reads. It lives in the MTA, which
-/// stays up while the client exists even when no thread is inside it.
 struct Client {
     automation: AgileReference<IUIAutomation>,
     _mta: MtaUsage,
@@ -128,8 +111,6 @@ struct Client {
 
 impl Client {
     fn create() -> windows::core::Result<Self> {
-        // SAFETY: COM bookkeeping and an in-process object; the MTA usage is
-        // returned when `MtaUsage` drops, after the client is released.
         unsafe {
             let mta = MtaUsage(CoIncrementMTAUsage()?);
             let automation: IUIAutomation =
@@ -147,30 +128,22 @@ impl Client {
     }
 }
 
-/// Keeps the MTA initialized (`CoIncrementMTAUsage`) until dropped.
 struct MtaUsage(CO_MTA_USAGE_COOKIE);
 
-// SAFETY: the cookie is an opaque token that CoDecrementMTAUsage accepts
-// from any thread.
 unsafe impl Send for MtaUsage {}
 
 impl Drop for MtaUsage {
     fn drop(&mut self) {
-        // SAFETY: returns the cookie of the matching CoIncrementMTAUsage.
         let _ = unsafe { CoDecrementMTAUsage(self.0) };
     }
 }
 
-/// Balances `CoInitializeEx` on this thread. A thread already in another
-/// apartment keeps it; the agile client works there too.
 struct ComScope {
     initialized: bool,
 }
 
 impl ComScope {
     fn enter() -> Self {
-        // SAFETY: plain COM initialization for the calling thread; balanced
-        // in `drop` when it succeeded.
         let result = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         Self {
             initialized: result.is_ok(),
@@ -181,13 +154,11 @@ impl ComScope {
 impl Drop for ComScope {
     fn drop(&mut self) {
         if self.initialized {
-            // SAFETY: matches the successful CoInitializeEx above.
             unsafe { CoUninitialize() };
         }
     }
 }
 
-/// `ScreenAccessibilityReader.resolve` for one window.
 fn read_window(
     automation: &IUIAutomation,
     window: &FocusedWindow,
@@ -199,7 +170,6 @@ fn read_window(
     let Ok(cache) = cache_request(automation) else {
         return TextRead::Unavailable("UI Automation could not prepare a request".into());
     };
-    // SAFETY: UI Automation validates the handle; a stale one fails.
     let root = match unsafe { automation.ElementFromHandleBuildCache(hwnd, &cache) } {
         Ok(root) => root,
         Err(err) if err.code() == HRESULT(UIA_E_TIMEOUT as i32) => return TextRead::TimedOut,
@@ -222,19 +192,13 @@ fn read_window(
         return TextRead::TimedOut;
     }
 
-    // The walk leaves a quarter of the deadline for the checks below (the
-    // Mac walks for 140 of its 180 ms).
     let walk_until = started + (deadline - deadline / 4);
     let mut found = walk(automation, &cache, &root, frame, include_text, walk_until);
     remove_secure_lines(&mut found);
 
-    // UI Automation answers asynchronously to the app. Never attach one
-    // window's text to a different window, title or focus.
-    // SAFETY: no arguments; returns a possibly null handle.
     if unsafe { GetForegroundWindow() } != hwnd {
         return TextRead::Changed("focused window changed during read".into());
     }
-    // SAFETY: one call that refreshes the root's cached properties.
     let Ok(current) = (unsafe { root.BuildUpdatedCache(&cache) }) else {
         return TextRead::Changed("window stopped answering during read".into());
     };
@@ -278,8 +242,6 @@ fn read_window(
     })
 }
 
-/// UI Automation refuses requests for a moment while another thread of the
-/// process is still setting it up, so this tries for a few milliseconds.
 fn cache_request(automation: &IUIAutomation) -> windows::core::Result<IUIAutomationCacheRequest> {
     cache_request_with(automation, &CACHED_PROPERTIES)
 }
@@ -301,10 +263,8 @@ fn new_cache_request(
     automation: &IUIAutomation,
     properties: &[UIA_PROPERTY_ID],
 ) -> windows::core::Result<IUIAutomationCacheRequest> {
-    // SAFETY: builds a request object in this process.
     unsafe {
         let request = automation.CreateCacheRequest()?;
-        // Every element we are handed gets its properties, whatever its view.
         request.SetTreeFilter(&automation.RawViewCondition()?)?;
         for &property in properties {
             request.AddProperty(property)?;
@@ -313,14 +273,11 @@ fn new_cache_request(
     }
 }
 
-/// Whether the focused element is secure, when it belongs to the window's
-/// process; `None` when that is unknown.
 fn focus_state(
     automation: &IUIAutomation,
     cache: &IUIAutomationCacheRequest,
     process: Option<u32>,
 ) -> Option<bool> {
-    // SAFETY: one call; the element comes back with its properties cached.
     let focused = unsafe { automation.GetFocusedElementBuildCache(cache) }.ok()?;
     let node = Node::cached(&focused);
     if process.is_none() || node.process != process {
@@ -337,7 +294,6 @@ struct Text {
 }
 
 impl Text {
-    /// [`append_text`] with CR LF line ends made LF. False once full.
     fn append(&mut self, raw: &str) -> bool {
         append_text(
             &unix_lines(raw),
@@ -369,37 +325,25 @@ fn unix_lines(text: &str) -> String {
 #[derive(Default)]
 struct Findings {
     text: Text,
-    /// Elements whose visible ranges were read, in walk order.
     sources: Vec<RangeSource>,
-    /// Web documents' addresses in walk order, outermost first.
     web_area_urls: Vec<Option<String>>,
     document_name: Option<String>,
     has_web_content: bool,
     contains_secure_field: bool,
 }
 
-/// The lines read from one element's visible ranges. A page's ranges hold
-/// the values of its inputs, so the lines stay removable until the walk
-/// knows which secure fields show inside it.
 struct RangeSource {
     pattern: IUIAutomationTextPattern,
-    /// Each line kept in [`Text::parts`]: its index there and its range.
     lines: Vec<(usize, IUIAutomationTextRange)>,
-    /// Secure text entries inside the element that are not password fields
-    /// (those show bullets), whose values may be in the lines.
     secure_fields: Vec<IUIAutomationElement>,
 }
 
 struct Pending {
     element: IUIAutomationElement,
     viewport: Option<WindowRect>,
-    /// The ancestor whose visible ranges already hold this element's text,
-    /// as an index into [`Findings::sources`].
     covered: Option<usize>,
 }
 
-/// The breadth-first walk of `resolve`, bounded by [`MAX_NODES`],
-/// [`MAX_CHARACTERS`], [`MAX_CHILDREN`] per element and `until`.
 fn walk(
     automation: &IUIAutomation,
     cache: &IUIAutomationCacheRequest,
@@ -409,7 +353,6 @@ fn walk(
     until: Instant,
 ) -> Findings {
     let mut found = Findings::default();
-    // SAFETY: returns a walker object in this process.
     let Ok(walker) = (unsafe { automation.ControlViewWalker() }) else {
         return found;
     };
@@ -441,8 +384,6 @@ fn walk(
         }
         if node.web_document {
             found.has_web_content = true;
-            // A link's address is not the page's origin; only a document's
-            // own value (its URL in Chromium and Gecko) establishes it.
             let url = node
                 .value_pattern
                 .then(|| current_string(&next.element, UIA_ValueValuePropertyId))
@@ -472,7 +413,6 @@ fn walk(
         if !node.walks_children() {
             continue;
         }
-        // Children past MAX_NODES would never be visited; do not fetch them.
         let room = MAX_NODES
             .saturating_sub(visited + queue.len())
             .min(MAX_CHILDREN);
@@ -480,14 +420,11 @@ fn walk(
             continue;
         }
         let viewport = node.child_viewport(next.viewport);
-        // SAFETY: each call returns the next element with its properties
-        // cached, or an error after the last one.
         let mut child = unsafe { walker.GetFirstChildElementBuildCache(&next.element, cache) }.ok();
         let mut taken = 0;
         while let Some(element) = child {
             taken += 1;
             child = if taken < room && Instant::now() < until {
-                // SAFETY: as for the first child.
                 unsafe { walker.GetNextSiblingElementBuildCache(&element, cache) }.ok()
             } else {
                 None
@@ -502,14 +439,11 @@ fn walk(
     found
 }
 
-/// Appends the text of the element's visible ranges (UI Automation's
-/// `AXVisibleCharacterRange`); `None` when none of it was text.
 fn visible_ranges(
     element: &IUIAutomationElement,
     text: &mut Text,
     until: Instant,
 ) -> Option<RangeSource> {
-    // SAFETY: COM calls on interfaces owned here; the strings are copied.
     unsafe {
         let pattern = element
             .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
@@ -546,15 +480,10 @@ fn visible_ranges(
     }
 }
 
-/// Removes the lines that overlap a secure field: the Mac never reads such
-/// a field, but a page's ranges hold its value. The field's own text is not
-/// read; lines whose place cannot be compared go too.
 fn remove_secure_lines(found: &mut Findings) {
     let mut removed = HashSet::new();
     for source in &found.sources {
         for field in &source.secure_fields {
-            // SAFETY: COM calls on interfaces the walk holds; they compare
-            // range ends and return no text.
             unsafe {
                 let Ok(field) = source.pattern.RangeFromChild(field) else {
                     removed.extend(source.lines.iter().map(|(index, _)| *index));
@@ -585,25 +514,20 @@ fn remove_secure_lines(found: &mut Findings) {
     found.text.remove(&removed);
 }
 
-/// What the cache request brought back for one element.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 struct Node {
     control_type: UIA_CONTROLTYPE_ID,
     rect: Option<WindowRect>,
     offscreen: bool,
-    /// `IsPassword`; `None` when the provider did not say.
     password: Option<bool>,
-    /// A password field or a field named after a secret ([`secure_status`]).
     secure: Option<bool>,
     text_pattern: bool,
     value_pattern: bool,
     scrolls: bool,
     process: Option<u32>,
-    /// A browser engine's document: a page or a frame.
     web_document: bool,
 }
 
-/// What to read from one element.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 struct Reads {
     name: bool,
@@ -612,8 +536,6 @@ struct Reads {
 
 impl Node {
     fn cached(element: &IUIAutomationElement) -> Node {
-        // SAFETY: reads properties cached with the element; none of these
-        // calls reaches the target app.
         unsafe {
             let control_type = element.CachedControlType().unwrap_or_default();
             let password = element.CachedIsPassword().ok().map(|value| value.as_bool());
@@ -646,13 +568,7 @@ impl Node {
         }
     }
 
-    /// `ScreenVisibleTextPolicy.text`: nothing unless the element is known
-    /// not to be secure, is on screen and meets the viewport; a label's name
-    /// when it lies fully inside the viewport; otherwise the visible ranges
-    /// of a text control. Whole values are never read: they can hold a
-    /// complete hidden document.
     fn reads(&self, viewport: Option<WindowRect>, covered: bool) -> Reads {
-        // A frame's document is not part of its parent document's ranges.
         let covered = covered && self.control_type != UIA_DocumentControlTypeId;
         if covered || self.offscreen || self.secure != Some(false) {
             return Reads::default();
@@ -670,8 +586,6 @@ impl Node {
         }
     }
 
-    /// Windows, documents and scrolling containers clip what they hold
-    /// (`clipsChildren`).
     fn child_viewport(&self, viewport: Option<WindowRect>) -> Option<WindowRect> {
         let clips = self.scrolls
             || self.control_type == UIA_WindowControlTypeId
@@ -682,15 +596,11 @@ impl Node {
         viewport?.intersection(&self.rect?)
     }
 
-    /// Offscreen subtrees, password fields and window furniture are skipped.
     fn walks_children(&self) -> bool {
         !self.offscreen && self.password != Some(true) && !is_furniture(self.control_type)
     }
 }
 
-/// Controls whose name is their visible text: the Mac's label roles (static
-/// text, buttons, check boxes, radio buttons, menu items, links, the window)
-/// and the items and headers UI Automation names after their text.
 fn is_label(control_type: UIA_CONTROLTYPE_ID) -> bool {
     [
         UIA_TextControlTypeId,
@@ -711,11 +621,6 @@ fn is_label(control_type: UIA_CONTROLTYPE_ID) -> bool {
     .contains(&control_type)
 }
 
-/// `secureFieldStatus`: a password field, or an element whose name or help
-/// text names a secret (`CotypingSecureFieldDetector.isSecure`). Labels such
-/// as "Password" match too, which keeps their text out; only text entries
-/// make the window count as showing a secure field. A document's name is
-/// the title of a whole page or file, not a field's label.
 fn secure_status(
     control_type: UIA_CONTROLTYPE_ID,
     password: Option<bool>,
@@ -728,7 +633,6 @@ fn secure_status(
     if named_secret { Some(true) } else { password }
 }
 
-/// `ScreenAccessibilityReader.isTextEntry`: only an input can hold a secret.
 fn is_text_entry(control_type: UIA_CONTROLTYPE_ID) -> bool {
     [
         UIA_EditControlTypeId,
@@ -738,23 +642,16 @@ fn is_text_entry(control_type: UIA_CONTROLTYPE_ID) -> bool {
     .contains(&control_type)
 }
 
-/// Title bars (caption buttons, system menu) and scroll bars: fixed names,
-/// no content.
 fn is_furniture(control_type: UIA_CONTROLTYPE_ID) -> bool {
     [UIA_TitleBarControlTypeId, UIA_ScrollBarControlTypeId].contains(&control_type)
 }
 
-/// Browser engines: Chromium (Chrome, Edge, Electron, WebView2), Gecko,
-/// Trident and EdgeHTML. Word, Notepad and other native documents are not
-/// web content and have no page address.
 fn is_web_engine(framework_id: &str) -> bool {
     ["Chrome", "Gecko", "InternetExplorer", "MicrosoftEdge"]
         .iter()
         .any(|engine| framework_id.eq_ignore_ascii_case(engine))
 }
 
-/// A UI Automation rectangle; `None` when empty or implausibly large (some
-/// providers report garbage bounds for hidden elements).
 fn window_rect(rect: RECT) -> Option<WindowRect> {
     const LIMIT: i32 = 1 << 24;
     let width = rect.right.checked_sub(rect.left)?;
@@ -772,16 +669,12 @@ fn window_rect(rect: RECT) -> Option<WindowRect> {
 }
 
 fn cached_name(element: &IUIAutomationElement) -> Option<String> {
-    // SAFETY: reads a property cached with the element.
     unsafe { element.CachedName() }
         .ok()
         .map(|name| name.to_string())
 }
 
-/// A cached boolean property; false unless the provider reported true.
 fn cached_flag(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> bool {
-    // SAFETY: the VARIANT is owned here; its union is read only as the type
-    // `vt` names, and VariantClear releases what it holds.
     unsafe {
         let Ok(mut value) = element.GetCachedPropertyValue(property) else {
             return false;
@@ -793,10 +686,7 @@ fn cached_flag(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> boo
     }
 }
 
-/// A string property read from the provider now; `None` when it has none.
 fn current_string(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> Option<String> {
-    // SAFETY: as in `cached_flag`; the BSTR is copied before VariantClear
-    // frees it.
     unsafe {
         let mut value = element.GetCurrentPropertyValue(property).ok()?;
         let inner = &value.Anonymous.Anonymous;
@@ -806,7 +696,6 @@ fn current_string(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> 
     }
 }
 
-/// Meeting documents in browser windows and in MTS Link's desktop web view.
 pub(crate) struct BrowserCallReader {
     reader: UiaReader,
     quiet: QuietWindows,
@@ -836,7 +725,6 @@ impl BrowserCallReader {
         }
     }
 
-    /// Reads windows with audio evidence and windows with a bound call.
     pub(crate) fn read(
         &mut self,
         active_families: &HashSet<&'static str>,
@@ -886,14 +774,12 @@ impl BrowserCallReader {
                 .bound
                 .get(&handle)
                 .filter(|call| call.document.host_pid == Some(pid));
-            // SAFETY: a plain query on a handle from EnumWindows; a stale one fails.
             if unsafe { IsIconic(hwnd) }.as_bool() {
                 if let Some(call) = bound {
                     documents.push(call.observation(CallState::Present));
                 }
                 continue;
             }
-            // SAFETY: UI Automation validates the handle; a stale one fails.
             let Ok(root) = (unsafe { automation.ElementFromHandleBuildCache(hwnd, &cache) }) else {
                 continue;
             };
@@ -907,8 +793,6 @@ impl BrowserCallReader {
             if bound.is_none() && self.quiet.is_quiet(&key, &title, now) {
                 continue;
             }
-            // One cross-process call returns every control the check needs.
-            // SAFETY: the condition and request are this function's own.
             let Ok(found) =
                 (unsafe { root.FindAllBuildCache(TreeScope_Subtree, &condition, &cache) })
             else {
@@ -972,7 +856,6 @@ impl BrowserCallReader {
             .collect::<HashSet<_>>();
         self.bound.retain(|handle, call| {
             let window = HWND(*handle as *mut c_void);
-            // SAFETY: queries only, and the process id guards reused handles.
             let still_exists = unsafe { IsWindow(Some(window)) }.as_bool()
                 && unsafe {
                     let mut pid = 0u32;
@@ -992,7 +875,6 @@ impl BrowserCallReader {
     }
 }
 
-/// Documents, controls and browser tabs, the only elements this check reads.
 fn call_control_condition(
     automation: &IUIAutomation,
 ) -> windows::core::Result<IUIAutomationCondition> {
@@ -1004,7 +886,6 @@ fn call_control_condition(
         UIA_TextControlTypeId,
         UIA_TabItemControlTypeId,
     ] {
-        // SAFETY: builds condition objects in this process.
         unsafe {
             let next = automation
                 .CreatePropertyCondition(UIA_ControlTypePropertyId, &VARIANT::from(control.0))?;
@@ -1017,16 +898,13 @@ fn call_control_condition(
     condition.ok_or_else(windows::core::Error::empty)
 }
 
-/// Translates UI Automation's flat list into observations about the window.
 fn call_labels(found: &IUIAutomationElementArray, mts_desktop: bool) -> Option<WindowCall> {
-    // SAFETY: reads the array's own length.
     let count = unsafe { found.Length() }.ok()? as usize;
     if count > browser::MAX_NODES {
         return None;
     }
     let mut result = WindowCall::default();
     for index in 0..count {
-        // SAFETY: each index is inside the array, and properties are cached.
         let Ok(element) = (unsafe { found.GetElement(index as i32) }) else {
             continue;
         };
@@ -1058,8 +936,6 @@ fn call_labels(found: &IUIAutomationElementArray, mts_desktop: bool) -> Option<W
 }
 
 unsafe extern "system" fn visit_top_level(window: HWND, lparam: LPARAM) -> BOOL {
-    // SAFETY: `lparam` is the list `top_level_windows` keeps alive for the
-    // whole enumeration; the rest are plain queries on a handle it supplied.
     unsafe {
         let found = &mut *(lparam.0 as *mut Vec<(HWND, u32)>);
         if IsWindowVisible(window).as_bool() {
@@ -1071,10 +947,8 @@ unsafe extern "system" fn visit_top_level(window: HWND, lparam: LPARAM) -> BOOL 
     BOOL(1)
 }
 
-/// Visible top-level windows with their processes.
 fn top_level_windows() -> Vec<(HWND, u32)> {
     let mut found: Vec<(HWND, u32)> = Vec::new();
-    // SAFETY: the callback only touches `found`, which outlives the call.
     let _ = unsafe {
         EnumWindows(
             Some(visit_top_level),
@@ -1363,11 +1237,6 @@ mod tests {
 
     #[test]
     fn works_without_a_desktop() {
-        // Over SSH (session 0) nothing is in front: the desktop window can be
-        // walked but is never the foreground window. Readers set up on
-        // several threads at once work, and keep working on another thread
-        // after the ones that created them have ended.
-        // SAFETY: no arguments.
         let desktop = unsafe { GetDesktopWindow() };
         let window = FocusedWindow {
             id: desktop.0 as usize as u64,

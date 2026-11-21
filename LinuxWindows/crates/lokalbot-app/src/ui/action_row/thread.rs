@@ -1,9 +1,3 @@
-//! The action-thread row every page draws (`ActionThreadRow` in
-//! `OutcomeOverviewViews.swift`) and what it does: status changes (asking
-//! first when a thread spans meetings), the sources dialog, the "Looks
-//! done?" and "Still open?" lines, and the hand-off menu items. Use it
-//! through `ui::action_row::thread_row`.
-
 use crate::i18n::h_flex;
 use chrono::Local;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -23,7 +17,6 @@ use crate::state::{AppData, MeetingTab};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{Ico, action_row};
 
-/// Opens a meeting, optionally at a transcript moment.
 pub(crate) fn open_meeting(
     data: &Entity<AppData>,
     meeting_id: uuid::Uuid,
@@ -38,15 +31,12 @@ pub(crate) fn open_meeting(
     data.update(cx, |data, cx| data.open_meeting(meeting_id, tab, at, cx));
 }
 
-/// "Looks done?" reads only text kept with consent, and only when asked to
-/// (`refreshActionCompletionHints`).
 pub(crate) fn suggests_completion(settings: &lokalbot_core::Settings) -> bool {
     settings.suggest_action_completion
         && settings.tracking_enabled
         && settings.screen_context_capture_mode != lokalbot_core::ScreenContextMode::ActivityOnly
 }
 
-/// "Looks done?" for `thread`, with Not Yet remembering the dismissal.
 pub(crate) fn hint_line(
     id: SharedString,
     thread: &ActionThread,
@@ -72,7 +62,6 @@ pub(crate) fn hint_line(
     )
 }
 
-/// "3 weeks ago", as `RelativeDateTimeFormatter` says it for old work.
 fn age_label(days: i64) -> String {
     let (count, one, many) = match days {
         ..=0 => return lokalbot_i18n::tr("today").to_string(),
@@ -88,9 +77,6 @@ fn age_label(days: i64) -> String {
     }
 }
 
-/// "Still open?": open work nobody has mentioned for weeks. Either answer
-/// goes through the normal status path; deferred work stops asking
-/// (`StillOpenLine`).
 pub(crate) fn still_open_line(
     id: SharedString,
     thread: &ActionThread,
@@ -168,7 +154,6 @@ pub(crate) fn still_open_line(
         .into_any_element()
 }
 
-/// "Open in Agent", then each coding agent installed on this computer.
 pub(crate) fn agent_menu_items_for_thread(
     menu: PopupMenu,
     thread: &ActionThread,
@@ -194,14 +179,10 @@ pub(crate) fn agent_menu_items_for_thread(
     menu
 }
 
-/// "Open in Claude Code".
 pub(crate) fn open_in_label(target: crate::agent_handoff::Target) -> SharedString {
     lokalbot_i18n::format("Open in {target}", &[("target", target.name().to_string())]).into()
 }
 
-/// "Looks done?": a later capture shows the action's words with a completion
-/// phrase. A suggestion only; nothing changes until Mark Done
-/// (`ActionCompletionHintLine`).
 pub(crate) fn completion_hint_line(
     id: SharedString,
     thread: &ActionThread,
@@ -299,7 +280,6 @@ pub(crate) fn completion_hint_line(
         .into_any_element()
 }
 
-/// Sets a thread's status, asking first when it spans several meetings.
 pub(crate) fn set_thread_status(
     data: Entity<AppData>,
     thread: ActionThread,
@@ -403,7 +383,6 @@ fn apply_thread_status(
     .detach();
 }
 
-/// Keeps an action out of (or back in) cross-meeting threads.
 pub(super) fn set_excluded(
     data: Entity<AppData>,
     meeting_id: uuid::Uuid,
@@ -437,30 +416,15 @@ pub(super) fn set_excluded(
     .detach();
 }
 
-/// What a row adds beyond the action (`ActionThreadRow`'s options).
 #[derive(Clone, Copy, Default)]
 pub(crate) struct ThreadRowOptions<'a> {
-    /// Projects show whose work it is when it is someone else's.
     pub show_owner: bool,
-    /// People show deferred work as deferred and ask about open work nobody
-    /// has mentioned for weeks.
     pub show_staleness: bool,
-    /// Timeline's meeting preview lists that meeting's actions, so a row
-    /// from one meeting does not name it again.
     pub hide_single_meeting_link: bool,
-    /// People show the moment as a ▶ time that opens the meeting at that
-    /// moment, like the notes beside it, instead of the quote pill.
     pub plays_evidence: bool,
-    /// A "Looks done?" suggestion for this thread.
     pub hint: Option<&'a CompletionHint>,
 }
 
-/// The shared action row (`ActionThreadRow` on Today, Timeline, People and
-/// Projects): completion circle, the action, a meta line (owner, mixed or
-/// deferred status, source meeting link or "Mentioned in N meetings", due
-/// text red when overdue and amber when due within a week, "Deadline
-/// updated", the time it was said) and the "…" menu; then a "Looks done?" or
-/// "Still open?" line. `id` must be unique on the page.
 pub(crate) fn thread_row(
     id: SharedString,
     thread: &ActionThread,
@@ -677,7 +641,6 @@ pub(crate) fn thread_row(
         .into_any_element()
 }
 
-/// "Mentioned in N meetings": a teal link opening the thread's sources.
 fn sources_link(
     id: SharedString,
     thread: &ActionThread,
@@ -702,8 +665,6 @@ fn sources_link(
         .into_any_element()
 }
 
-/// Every meeting a thread came up in (`ActionThreadSourcesView`). Each source
-/// stays attached to its meeting, and can be split off the thread.
 fn open_sources(thread: ActionThread, data: Entity<AppData>, window: &mut Window, cx: &mut App) {
     window.open_dialog(cx, move |dialog, _, cx| {
         let lb = cx.lb().clone();

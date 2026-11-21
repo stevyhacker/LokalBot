@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Emoji autocomplete + adaptive debounce
-
 final class CotypingEmojiTests: XCTestCase {
     func testOpenPrefixMatch() {
         let match = CotypingEmoji.match(trailing: "I love :roc")

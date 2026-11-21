@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Streaming SSE parsing
-
 final class CotypingStreamingTests: XCTestCase {
     func testParsesTextDelta() {
         XCTAssertEqual(cotypingParseSSEDelta(#"data: {"choices":[{"text":"eive"}]}"#), "eive")

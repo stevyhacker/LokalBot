@@ -85,9 +85,6 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
             "My notes after recovery")
     }
 
-    /// On 2026-10-07 a summary rerun started 17 s after a manual digest and
-    /// deleted it before any new notes existed. Revising or expiring a day's
-    /// sources keeps its digest; only deleting them withdraws it.
     func testOnlyDeletingSourcesWithdrawsTheDayDigest() throws {
         let root = try temporaryRoot()
         let previousRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
@@ -322,11 +319,8 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
         }
         await fulfillment(of: [started], timeout: 3)
 
-        // A block that closes during generation can start before the request
-        // and contain a context that was standalone in the original snapshot.
         blocks.append(ActivityBlock(id: 2, app: "Notes", title: "Later activity",
                                     start: day.addingTimeInterval(-60), end: day.addingTimeInterval(30)))
-        // Late capture ingestion may also add context to an original block.
         contexts.append(DayScreenContext(snapshotID: 2, capturedAt: day.addingTimeInterval(-90),
                                          app: "Xcode", windowTitle: "Later capture", text: "Later screen evidence"))
         meetings.append(Meeting(id: UUID(), title: "Newly finished meeting", appName: "Meet",

@@ -1,12 +1,10 @@
 import Foundation
 
-/// Reads the notes one coding agent keeps for itself.
 protocol AgentMemoryReader: Sendable {
     var agent: CodingAgentKind { get }
     func scan(excluding exclusions: AgentMemoryExclusions) -> AgentMemoryScan
 }
 
-/// Collects notes from every enabled agent.
 struct AgentMemoryScanner: Sendable {
     var readers: [any AgentMemoryReader]
     var exclusions = AgentMemoryExclusions()
@@ -44,18 +42,11 @@ struct AgentMemoryScanner: Sendable {
     }
 }
 
-/// Reads Claude Code's notes from `~/.claude/projects/<cwd-slug>/memory/*.md`.
-///
-/// Each note is one Markdown file with a short header (name, description,
-/// type). `MEMORY.md` is the folder's index of those files: it supplies
-/// titles and is not a note itself. Nothing else in a project folder is read
-/// except the opening of one session file, for the folder's real path.
 struct ClaudeCodeMemoryReader: AgentMemoryReader {
     var agent: CodingAgentKind { .claudeCode }
     var root: URL
 
     static let indexFileName = "MEMORY.md"
-    /// How much of a session file is read to find its working directory.
     static let sessionPeekBytes = 256 * 1_024
 
     func scan(excluding exclusions: AgentMemoryExclusions) -> AgentMemoryScan {
@@ -126,8 +117,6 @@ struct ClaudeCodeMemoryReader: AgentMemoryReader {
             text: text)
     }
 
-    /// The leading `---` block as flat fields (`name`, `metadata.type`), and
-    /// the text after it. A file without the block is all body.
     static func frontMatter(of contents: String) -> (fields: [String: String], body: String) {
         let lines = contents.replacingOccurrences(of: "\r\n", with: "\n")
             .split(separator: "\n", omittingEmptySubsequences: false)
@@ -149,8 +138,6 @@ struct ClaudeCodeMemoryReader: AgentMemoryReader {
         return (fields, lines[(end + 1)...].joined(separator: "\n"))
     }
 
-    /// File name to title, from index lines such as
-    /// `- [Release gotchas](release-gotchas.md) — per-release lessons`.
     static func indexTitles(_ index: URL) -> [String: String] {
         guard case .success(let contents) = AgentMemoryText.contents(of: index) else { return [:] }
         var titles: [String: String] = [:]
@@ -165,9 +152,6 @@ struct ClaudeCodeMemoryReader: AgentMemoryReader {
         return titles
     }
 
-    /// The folder a project's sessions ran in. The project folder's name is
-    /// that path with its separators lost, so the path is read from the
-    /// newest session file and kept only if it produces the same name.
     static func workingDirectory(ofProject project: URL) -> String? {
         let sessions = ((try? FileManager.default.contentsOfDirectory(
             at: project, includingPropertiesForKeys: [.contentModificationDateKey],
@@ -189,7 +173,6 @@ struct ClaudeCodeMemoryReader: AgentMemoryReader {
         return nil
     }
 
-    /// Decodes the JSON string whose first character is at `start`.
     private static func jsonString(startingAt start: String.Index, in text: String) -> String? {
         var index = start
         while index < text.endIndex, text[index] != "\"" {
@@ -203,14 +186,6 @@ struct ClaudeCodeMemoryReader: AgentMemoryReader {
     }
 }
 
-/// Reads Codex's memories from `~/.codex/memories`.
-///
-/// - `MEMORY.md`: one note per top-level heading (a task group).
-/// - `memory_summary.md`: one note per section.
-/// - `rollout_summaries/*.md`: one note per session summary.
-///
-/// `raw_memories.md` repeats the session summaries and is not read. The
-/// `skills` and `extensions` folders hold procedures and tools, not notes.
 struct CodexMemoryReader: AgentMemoryReader {
     var agent: CodingAgentKind { .codex }
     var root: URL
@@ -254,8 +229,6 @@ struct CodexMemoryReader: AgentMemoryReader {
         }
     }
 
-    /// `MEMORY.md`: each `# Task Group: …` with its `scope:` line as the
-    /// summary and the folder from `applies_to: cwd=…`.
     static func taskGroups(
         contents: String, file: URL, exclusions: AgentMemoryExclusions
     ) -> (notes: [AgentMemoryNote], excluded: Int) {
@@ -296,8 +269,6 @@ struct CodexMemoryReader: AgentMemoryReader {
         return (notes, excluded)
     }
 
-    /// `memory_summary.md`: one note per `##` or `###` section. A section
-    /// headed by a folder path is about that folder.
     static func summarySections(
         contents: String, file: URL, exclusions: AgentMemoryExclusions
     ) -> (notes: [AgentMemoryNote], excluded: Int) {
@@ -336,8 +307,6 @@ struct CodexMemoryReader: AgentMemoryReader {
         return (notes, excluded)
     }
 
-    /// A session summary: `key: value` header lines (`cwd`, `updated_at`),
-    /// a blank line, then the summary under its `#` title.
     static func rolloutSummary(
         contents: String, file: URL, exclusions: AgentMemoryExclusions
     ) -> (notes: [AgentMemoryNote], excluded: Int) {
@@ -374,7 +343,6 @@ struct CodexMemoryReader: AgentMemoryReader {
             text: text)], 0)
     }
 
-    /// The folder in `cwd=/path; reuse_rule=…`.
     static func cwd(in appliesTo: String) -> String? {
         guard let start = appliesTo.range(of: "cwd=") else { return nil }
         let rest = appliesTo[start.upperBound...]

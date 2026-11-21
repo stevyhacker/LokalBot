@@ -1,18 +1,3 @@
-//! Keeps the saved coding-agent notes in step with the agents' files
-//! (`AgentMemoryReaders.swift`, `AgentMemoryIngestor`).
-//!
-//! Coding agents keep notes for their own later sessions. While **Read coding
-//! agent notes** is on, the readers here collect Claude Code's notes
-//! (`~/.claude/projects/*/memory/*.md`) and Codex's memories
-//! (`~/.codex/memories`), and `lokalbot_core::agent_notes::store` makes
-//! `agent-notes.sqlite` in the library match what they found. Instruction
-//! files such as `CLAUDE.md` and `AGENTS.md` are never read.
-//!
-//! Scans run on a background thread, one at a time. Nothing under the agents'
-//! folders is opened until the person turns the feature on, and turning it off
-//! deletes what was saved. The notes are a search source only: nothing here
-//! feeds the day digest, the overnight review or Personal Context.
-
 mod claude;
 mod codex;
 mod exclusions;
@@ -35,11 +20,8 @@ use codex::CodexNotesReader;
 use exclusions::Exclusions;
 
 const REFRESH_INTERVAL: Duration = Duration::from_secs(10 * 60);
-/// Notes are small files, so the first read only waits for the app to start.
 const FIRST_REFRESH_DELAY: Duration = Duration::from_secs(5);
 
-/// Notes from every agent in `agents`, newest first, with the person's folder
-/// exclusions applied before a note leaves its reader.
 pub fn scan(home: &Path, agents: &[CodingAgentKind], excluded_folders: &[String]) -> NoteScan {
     let exclusions = Exclusions::new(excluded_folders, home.to_str());
     let mut scan = NoteScan::default();
@@ -68,7 +50,6 @@ pub fn scan(home: &Path, agents: &[CodingAgentKind], excluded_folders: &[String]
     scan
 }
 
-/// What a scan reads. No agents means nothing is read and nothing is kept.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Configuration {
     pub agents: Vec<CodingAgentKind>,
@@ -88,11 +69,8 @@ impl Configuration {
     }
 }
 
-/// How many notes are saved, or why none are, for Settings.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AgentNotesStatus {
-    /// Saved notes per agent, in `CodingAgentKind::ALL` order; agents with
-    /// none are left out.
     pub counts: Vec<(CodingAgentKind, usize)>,
     pub error: Option<String>,
 }
@@ -103,8 +81,6 @@ impl AgentNotesStatus {
     }
 }
 
-/// The refresh state: one scan or deletion runs at a time, so turning the
-/// setting off and on again cannot delete what the new read just saved.
 #[derive(Default)]
 pub struct Ingestor {
     running: Mutex<()>,
@@ -113,8 +89,6 @@ pub struct Ingestor {
 }
 
 impl Ingestor {
-    /// Reads the agents' notes now, or deletes the saved copy while the
-    /// feature is off. Returns whether the saved notes changed.
     pub fn refresh(&self, library: &Library, settings: impl Fn() -> Settings) -> bool {
         let Some(home) = std::env::home_dir() else {
             return false;
@@ -140,7 +114,6 @@ impl Ingestor {
         let _running = self.running.lock();
         let root = library.paths().root();
         let configuration = Configuration::new(&settings());
-        // Before anything opens a file: this is the consent gate.
         if !configuration.reads() {
             return self.remove_all(root);
         }
@@ -152,8 +125,6 @@ impl Ingestor {
             found.unreadable_files.len(),
             found.excluded_notes
         );
-        // Turned off or narrowed while reading: its result must not be kept.
-        // The settings change starts its own refresh, which waits for this one.
         let current = Configuration::new(&settings());
         if current != configuration {
             return !current.reads() && self.remove_all(root);
@@ -176,7 +147,6 @@ impl Ingestor {
         if !NotesIndex::new(root).exists() {
             return false;
         }
-        // On Windows a search holds the file open for a moment.
         for attempt in 0..10 {
             if store::delete_all(root) {
                 return true;
@@ -188,7 +158,6 @@ impl Ingestor {
         false
     }
 
-    /// What Settings shows now.
     pub fn status(&self, library: &Library) -> AgentNotesStatus {
         let saved = NotesIndex::new(library.paths().root())
             .counts()
@@ -205,7 +174,6 @@ impl Ingestor {
         }
     }
 
-    /// The status, when it differs from the one last reported.
     fn changed_status(&self, library: &Library) -> Option<AgentNotesStatus> {
         let status = self.status(library);
         let mut reported = self.reported.lock();
@@ -216,7 +184,6 @@ impl Ingestor {
     }
 }
 
-/// Reads at launch and every ten minutes; a setting change reads in between.
 pub(crate) fn start(shared: Arc<Shared>) {
     let spawned = std::thread::Builder::new()
         .name("lokalbot-agent-notes".into())
@@ -236,7 +203,6 @@ pub(crate) fn start(shared: Arc<Shared>) {
     }
 }
 
-/// One refresh, reporting what changed.
 pub(crate) fn refresh(shared: &Arc<Shared>) {
     let changed = shared
         .agent_notes

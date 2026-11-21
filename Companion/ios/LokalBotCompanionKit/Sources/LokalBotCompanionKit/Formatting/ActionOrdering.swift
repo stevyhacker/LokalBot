@@ -1,7 +1,5 @@
 import Foundation
 
-/// The order ffi.md gives `actions()`: overdue first, then by due date (none
-/// last), then the newest meeting first.
 public enum ActionOrdering {
     public static func isOverdue(_ action: ActionItem, today: DayKey) -> Bool {
         guard action.status == .open, let due = action.dueDate.flatMap(DayKey.init) else { return false }
@@ -24,7 +22,6 @@ public enum ActionOrdering {
         }
     }
 
-    /// Whose action it is, for the Actions filters.
     public enum Owner: String, CaseIterable, Sendable, Hashable, Identifiable {
         case mine, others, unclear
 
@@ -47,7 +44,6 @@ public enum ActionOrdering {
         }
     }
 
-    /// Groups for a list already in `sorted` order.
     public enum Group: String, Sendable, Hashable, CaseIterable {
         case overdue, today, thisWeek, later, earlier, noDate
 

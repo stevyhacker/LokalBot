@@ -1,7 +1,5 @@
 import Foundation
 
-/// One meeting as seen by every day-level consumer. Extracted outcomes stay
-/// immutable; `projection` applies the user's corrections and workflow state.
 struct DailyEvidenceMeeting: Equatable, Sendable {
     var meeting: Meeting
     var summary: String
@@ -20,9 +18,6 @@ struct DailyEvidenceMeeting: Equatable, Sendable {
         actionReferences.filter { $0.status != .done }
     }
 
-    /// Compatibility value for consumers that still render `MeetingOutcomes`.
-    /// Only the action array is projected because decisions and open questions
-    /// have no mutable overlay.
     var activeOutcomes: MeetingOutcomes {
         var result = outcomes
         result.actionItems = activeActionReferences.map(\.effectiveAction)
@@ -30,9 +25,6 @@ struct DailyEvidenceMeeting: Equatable, Sendable {
     }
 }
 
-/// Immutable primary evidence for one local calendar day. Generated prose
-/// such as the Day Digest and Dream is deliberately excluded so those derived
-/// artifacts cannot become circular inputs to their own evidence snapshot.
 struct DailyEvidenceSnapshot: Equatable, Sendable {
     struct Coverage: OptionSet, Equatable, Sendable {
         let rawValue: Int
@@ -53,12 +45,9 @@ struct DailyEvidenceSnapshot: Equatable, Sendable {
     var savedMoments: [ScreenMemorySavedMoment]
     var stats: ScreenMemoryDaySummary
     var appUsage: [ScreenMemoryAppUsage]
-    /// Settled coding-agent work, loaded alongside detailed activity.
     var codingAgentBursts: [CodingAgentBurst] = []
 
     var latestEvidenceAt: Date? {
-        // Appended one source at a time: a single chained sum of six arrays
-        // exceeds the type checker's time limit on slower build machines.
         var values: [Date] = activityBlocks.map(\.end)
         values += screenContexts.map(\.capturedAt)
         if let screenEvidenceAt { values.append(screenEvidenceAt) }
@@ -75,9 +64,6 @@ struct DailyEvidenceSnapshot: Equatable, Sendable {
             && savedMoments.isEmpty && stats.trackedSeconds <= 0 && codingAgentBursts.isEmpty
     }
 
-    /// A deterministic content signature for cache and derived-artifact
-    /// invalidation. It includes saved corrections, whose meaning can change
-    /// even when the original extraction and meeting metadata do not.
     var signature: String {
         var fields = [
             String(interval.start.timeIntervalSinceReferenceDate),
@@ -121,8 +107,6 @@ struct DailyEvidenceSnapshot: Equatable, Sendable {
             "stats|\(stats.trackedSeconds)|\(stats.appCount)|"
                 + "\(stats.activityBlockCount)|\(stats.screenshotCount)|"
                 + "\(stats.savedMomentCount)")
-        // Appended only when present, so days without agent work keep the
-        // signatures their cached artifacts were saved with.
         fields += codingAgentBursts.map { "agent|" + $0.signatureFields.joined(separator: "|") }
         return Self.fnv1a(fields.joined(separator: "\u{1f}"))
     }
@@ -141,10 +125,6 @@ protocol DailyEvidenceSource {
     func snapshot(for day: Date) throws -> DailyEvidenceSnapshot
 }
 
-/// The canonical read-only loader for daily evidence. Callers that already
-/// hold the app's in-memory meeting/activity snapshot can pass it through the
-/// overload below; background workers use the same implementation with data
-/// read from the library and SQLite store.
 struct FileDailyEvidenceSource: DailyEvidenceSource {
     var root: URL
     var screenReader: any ScreenMemoryReading
@@ -182,7 +162,6 @@ struct FileDailyEvidenceSource: DailyEvidenceSource {
         let end = calendar.date(byAdding: .day, value: 1, to: start)
             ?? start.addingTimeInterval(86_400)
         let interval = DateInterval(start: start, end: end)
-        // The sample meeting is made up: it never becomes part of the day.
         let meetings = allMeetings
             .filter { !$0.isSample && interval.contains($0.startedAt) }
             .sorted { $0.startedAt < $1.startedAt }
@@ -251,8 +230,6 @@ struct FileDailyEvidenceSource: DailyEvidenceSource {
             if includeDetailedActivity { coverage.insert(.screenContexts) }
         }
 
-        // Loaded under the same rule as activity blocks, so every consumer
-        // that proves a digest current sees the same agent evidence.
         let agentBursts: [CodingAgentBurst]
         if let suppliedBursts {
             agentBursts = suppliedBursts.filter { interval.contains($0.start) }
@@ -310,14 +287,9 @@ struct FileDailyEvidenceSource: DailyEvidenceSource {
     }
 }
 
-/// Derived daily artifacts are read only after their primary evidence
-/// snapshot exists. A stale digest is omitted rather than allowed to disagree
-/// with newer corrections, meeting artifacts, or screen evidence.
 enum DailyEvidenceArtifacts {
     struct GeneratedDigest: Equatable {
         var text: String
-        /// False once the day's evidence changed after the digest was
-        /// written: new activity, or a source deleted or corrected.
         var isCurrent: Bool
     }
 
@@ -330,9 +302,6 @@ enum DailyEvidenceArtifacts {
             .flatMap { $0.isCurrent ? $0.text : nil }
     }
 
-    /// The day's unedited generated digest and whether it still matches the
-    /// day's evidence. Callers show only a current one, but can say that an
-    /// out-of-date one exists.
     static func generatedDigest(
         for snapshot: DailyEvidenceSnapshot,
         root: URL,

@@ -13,10 +13,6 @@ enum LiveMeetingAudioPreparation: Equatable, Sendable {
     case ready(LiveMeetingPreparedAudioChunk)
 }
 
-/// Serializes the filesystem and PCM work for both live meeting tracks away
-/// from the main actor. The source CAF is append-safe, so preparation opens a
-/// point-in-time reader and seeks directly to the unprocessed suffix; it never
-/// copies the full, ever-growing meeting file.
 actor LiveMeetingAudioPreparationWorker {
     private let storageRoot: URL
 
@@ -29,7 +25,6 @@ actor LiveMeetingAudioPreparationWorker {
         try Task.checkCancellation()
         guard FileManager.default.fileExists(atPath: source.path) else { return .noWork }
 
-        // One bounded reader supplies both availability and the audio suffix.
         let reader = try AVAudioFile(forReading: source)
         let sampleRate = reader.fileFormat.sampleRate
         guard let range = LiveTranscriptChunker.nextChunk(
@@ -93,9 +88,6 @@ actor LiveMeetingAudioPreparationWorker {
         try? FileManager.default.removeItem(at: url)
     }
 
-    /// Whole voice-activity chunks recorded on a track since `frame`, at most
-    /// `maximumChunks` of them. Empty while less than one chunk is waiting or
-    /// the track has no file yet.
     func readChunks(source: URL, from frame: Int64, chunkFrames: Int, maximumChunks: Int) throws -> [Float] {
         try Task.checkCancellation()
         guard frame >= 0, chunkFrames > 0, FileManager.default.fileExists(atPath: source.path) else { return [] }
@@ -103,13 +95,10 @@ actor LiveMeetingAudioPreparationWorker {
         try Self.requireTurnFormat(reader)
         let whole = min(Int64(maximumChunks), (reader.length - frame) / Int64(chunkFrames))
         guard whole > 0 else { return [] }
-        // The recorder may be mid-append, so fewer frames can come back than the file reports.
         let samples = try Self.read(reader, from: frame, frames: whole * Int64(chunkFrames))
         return Array(samples.prefix(samples.count / chunkFrames * chunkFrames))
     }
 
-    /// Frames `start..<end` of a track as a file the model can read, or nil
-    /// when the track holds none of them.
     func prepareSpan(source: URL, start: Int64, end: Int64) throws -> URL? {
         try Task.checkCancellation()
         guard start >= 0, FileManager.default.fileExists(atPath: source.path) else { return nil }
@@ -133,14 +122,11 @@ actor LiveMeetingAudioPreparationWorker {
         var errorDescription: String? { "The live audio file isn't 16 kHz mono." }
     }
 
-    /// Turn cutting counts frames at the rate speech detection hears them.
     private static func requireTurnFormat(_ reader: AVAudioFile) throws {
         guard reader.processingFormat.sampleRate == LiveMeetingTranscriber.turnSampleRate,
               reader.processingFormat.channelCount == 1 else { throw UnsupportedTurnFormat() }
     }
 
-    /// One read may stop short of what was asked for, so this reads until it
-    /// has the frames or the file has no more.
     private static func read(_ reader: AVAudioFile, from frame: Int64, frames: Int64) throws -> [Float] {
         var samples: [Float] = []
         samples.reserveCapacity(Int(frames))
@@ -155,9 +141,6 @@ actor LiveMeetingAudioPreparationWorker {
         return samples
     }
 
-    /// Recent preview uses one shared time origin, even when one track is
-    /// shorter or temporarily missing. Lagging tracks wait for that origin so
-    /// they cannot backfill audio older than the disclosed preview start.
     func initialCursors(in folder: URL, fileNames: [String], recent: Bool) throws -> [Int64] {
         try Task.checkCancellation()
         guard recent else { return Array(repeating: 0, count: fileNames.count) }
@@ -214,8 +197,6 @@ actor LiveMeetingAudioPreparationWorker {
     }
 }
 
-/// Explicitly enabled preview. Cursors belong to a recording, rather than to
-/// a polling task, so pause/retry cannot replay already accepted chunks.
 @MainActor
 final class LiveMeetingTranscriber: ObservableObject {
     struct Line: Identifiable, Equatable {
@@ -232,31 +213,21 @@ final class LiveMeetingTranscriber: ObservableObject {
 
     enum StartPosition { case recent, beginning }
 
-    /// Where the preview's text comes from: the Transcribe model in windows
-    /// of 4 to 12 seconds, the same model one turn at a time (opt-in), or
-    /// Muse Voice Transcribe streaming turn by turn (opt-in).
     enum Engine: Equatable { case local, turns, muse }
 
     struct Timing {
         var idlePoll: Duration = .seconds(1)
         var retryBaseSeconds: Double = 1
-        /// How often turn-by-turn text looks for newly recorded audio.
         var turnPoll: Duration = .milliseconds(100)
-        /// A turn still being spoken is shown again after this much more audio.
         var interimEverySeconds = 2.0
-        /// It is shown only while the model answers this quickly, so a
-        /// finished turn never waits long behind a courtesy.
         var interimBudgetSeconds = 0.25
     }
 
     typealias SpeechDetector = @MainActor (URL) async throws -> Bool
     typealias Transcribe = @MainActor (URL, AppSettings) async throws -> Transcript
-    /// How likely the next 256 ms of a track are speech, with the model's
-    /// memory of that track handed back and forth.
     typealias VoiceActivity = @Sendable ([Float], LiveVoiceState) async throws
         -> (probability: Float, state: LiveVoiceState)
     typealias MuseTrack = (URL) -> MuseLiveTextTrack
-    /// The key and keywords for fast live text, or nil when it can't run.
     typealias MuseConnection = (AppSettings) -> (key: String, keywords: [String])?
 
     @Published private(set) var lines: [Line] = []
@@ -264,7 +235,6 @@ final class LiveMeetingTranscriber: ObservableObject {
     @Published private(set) var isWorking = false
     @Published private(set) var statusMessage: String?
     @Published private(set) var previewStartTime: TimeInterval?
-    /// Turns still being spoken, at most one per track, with fast live text.
     @Published private(set) var partials: [Line] = []
     @Published private(set) var engine: Engine = .local
 
@@ -289,17 +259,11 @@ final class LiveMeetingTranscriber: ObservableObject {
     private var initializedCursors = false
     private var resumeAfterHandoff = false
     private var tracks: [TrackState]
-    /// Turns that have closed and wait for the model, oldest first. They
-    /// belong to the recording like the cursors, so a pause loses none.
     private var pendingTurns: [PendingTurn] = []
-    /// How long the model took last time, to judge whether it is quick
-    /// enough to also show a turn that is still being spoken.
     private var lastDecodeSeconds: Double?
     private static let maxLines = 400
     private static let maxConsecutiveFailures = 3
-    /// Speech detection hears 16 kHz, the rate both live files are written at.
     nonisolated static let turnSampleRate = 16_000.0
-    /// At most 8 s of one track per look, so neither track waits on a backlog.
     private static let chunksPerLook = 32
 
     nonisolated static let scratchDirectoryName = "live-previews"
@@ -370,8 +334,6 @@ final class LiveMeetingTranscriber: ObservableObject {
         if resume { activate(from: .beginning) }
     }
 
-    /// The start choice applies only to the first activation. Retry and resume
-    /// retain their cursors even if the recording has grown in the meantime.
     func activate(from position: StartPosition = .recent) {
 #if LOKALBOT_UI_TEST_HOST
         if let script = Self.uiTestScript, !isRunning {
@@ -407,7 +369,6 @@ final class LiveMeetingTranscriber: ObservableObject {
             }
         } else {
             engine = .local
-            // Windows carry on from the cursor, past any turn left waiting.
             pendingTurns = []
             task = Task { [weak self] in
                 await self?.run(folder: folder, session: session, position: position)
@@ -421,8 +382,6 @@ final class LiveMeetingTranscriber: ObservableObject {
         state = .paused
     }
 
-    /// Only a known calendar stop/start may carry the opt-in forward. An idle
-    /// transition after a failed start or an ordinary stop clears it again.
     func stop(preservingHandoff: Bool = false) {
         let resume = preservingHandoff && isRunning
         cancelWork()
@@ -446,12 +405,6 @@ final class LiveMeetingTranscriber: ObservableObject {
     }
 
 #if LOKALBOT_UI_TEST_HOST
-    /// UI-test host only: `LOKALBOT_UI_TEST_LIVE_SCRIPT` names a JSON array of
-    /// `{time, speaker, text}`. Each line appears `time` seconds after the
-    /// preview starts, as transcribed chunks would, with no audio or model.
-    /// With fast live text on, each line is first typed out word by word as a
-    /// partial, the way Muse Voice Transcribe's turns arrive; the words are
-    /// the script's, since the runner has no meeting audio.
     private static var uiTestScript: [Line]? {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_LIVE_SCRIPT"],
               let data = FileManager.default.contents(atPath: path),
@@ -492,14 +445,8 @@ final class LiveMeetingTranscriber: ObservableObject {
         var processedFrames: Int64 = 0
         var failures = 0
         var retryAfter: ContinuousClock.Instant?
-        /// Fast live text: the file frame sent so far, and when the current
-        /// session was accepted.
         var museCursor: Int64?
         var museConnectedAt: ContinuousClock.Instant?
-        /// Turn by turn: the cutter and speech detection's memory of this
-        /// track up to `processedFrames`, the last 1.5 s heard (where a
-        /// length cut looks for quiet), and the frame the turn in progress
-        /// was last shown at.
         var cutter: LiveTurnCutter?
         var voice = LiveVoiceState()
         var tail: [Float] = []
@@ -542,8 +489,6 @@ final class LiveMeetingTranscriber: ObservableObject {
                         if fail(track: index, error: error) { return }
                     }
                 }
-                // Already-buffered audio can be processed immediately. Once
-                // caught up, poll without spinning; backoff is per track.
                 if !didWork { try await Task.sleep(for: timing.idlePoll) }
             }
         } catch {
@@ -554,23 +499,17 @@ final class LiveMeetingTranscriber: ObservableObject {
         }
     }
 
-    /// The start choice sets each track's cursor once per recording. Returns
-    /// false when the session ended meanwhile.
     private func initializeCursors(folder: URL, session: Int, position: StartPosition) async throws -> Bool {
         guard !initializedCursors else { return true }
         let cursors = try await audioPreparationWorker.initialCursors(
             in: folder, fileNames: tracks.map(\.fileName), recent: position == .recent)
         guard isCurrent(session) else { return false }
         for index in tracks.indices { tracks[index].processedFrames = cursors[index] }
-        // Both tee formats are fixed at 16 kHz. Actual chunk timestamps
-        // still use the reader's sample rate.
         previewStartTime = Double(cursors.max() ?? 0) / 16_000
         initializedCursors = true
         return true
     }
 
-    /// Counts a failed step against its track and backs off. Returns true
-    /// when the preview has given up.
     private func fail(track index: Int, error: Error) -> Bool {
         tracks[index].failures += 1
         let failures = tracks[index].failures
@@ -588,19 +527,11 @@ final class LiveMeetingTranscriber: ObservableObject {
         return false
     }
 
-    // MARK: - Turn by turn on this Mac
-
     private struct PendingTurn {
         let track: Int
         let turn: LiveTurnCutter.Turn
     }
 
-    /// Hears both tracks as they are recorded, cuts them at pauses
-    /// (`LiveTurnCutter`), and transcribes each turn once its pause is long
-    /// enough: about half a second after the speaker stops, against the
-    /// several seconds a window takes to fill. Turns are transcribed one at a
-    /// time in the order they closed. In between, a model that answers
-    /// quickly also shows the turn still being spoken.
     private func runTurns(folder: URL, session: Int, position: StartPosition) async {
         do {
             guard try await initializeCursors(folder: folder, session: session, position: position) else { return }
@@ -627,7 +558,6 @@ final class LiveMeetingTranscriber: ObservableObject {
                 dropFinishedPartials()
                 if let next = pendingTurns.first {
                     if let deadline = tracks[next.track].retryAfter, ContinuousClock.now < deadline {
-                        // Backing off after a failure; keep hearing meanwhile.
                     } else {
                         do {
                             let fresh = try await decode(next, folder: folder, session: session)
@@ -655,10 +585,6 @@ final class LiveMeetingTranscriber: ObservableObject {
         }
     }
 
-    /// Runs what one track recorded since the last look through speech
-    /// detection and the turn cutter. Returns whether there was anything.
-    /// The track's state moves only when the whole look succeeded, so a
-    /// failed one is heard again from the same frame.
     private func hear(track index: Int, folder: URL, session: Int) async throws -> Bool {
         let chunkFrames = SpeechActivity.liveChunkFrames
         let samples = try await audioPreparationWorker.readChunks(
@@ -725,15 +651,12 @@ final class LiveMeetingTranscriber: ObservableObject {
 
     private func publish(_ fresh: [Line], for pending: PendingTurn) {
         let speaker = tracks[pending.track].speaker
-        // What was shown of this turn while it was spoken gives way to its text.
         let start = Double(pending.turn.start) / Self.turnSampleRate
         partials.removeAll { $0.speaker == speaker && $0.time <= start }
         guard !fresh.isEmpty else { return }
         lines = Array(((lines + fresh).sorted { $0.time < $1.time }).suffix(Self.maxLines))
     }
 
-    /// A turn that closed without text (too short to keep) leaves nothing to
-    /// replace what was shown of it.
     private func dropFinishedPartials() {
         guard !partials.isEmpty else { return }
         for (index, track) in tracks.enumerated()
@@ -742,12 +665,6 @@ final class LiveMeetingTranscriber: ObservableObject {
         }
     }
 
-    /// With nothing waiting for the model, and a model on this Mac that has
-    /// just answered quickly, shows what the longest-running open turn says
-    /// so far. Its failure costs nothing: the turn's own text follows when
-    /// the speaker pauses. A transcription server hears each turn once, when
-    /// it is finished: showing it sooner would upload the same audio again
-    /// every two seconds.
     private func showTurnInProgress(folder: URL, session: Int) async throws -> Bool {
         guard let last = lastDecodeSeconds, last <= timing.interimBudgetSeconds,
               !settings().transcriptionModel.isRemote else { return false }
@@ -794,9 +711,6 @@ final class LiveMeetingTranscriber: ObservableObject {
         return Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
     }
 
-    // MARK: - Fast live text
-
-    /// Your name, so Muse spells it as you do.
     nonisolated static func keywords(_ settings: AppSettings) -> [String] {
         let name = settings.cotypingUserName.trimmingCharacters(in: .whitespaces)
         return name.isEmpty ? [] : [name]
@@ -812,9 +726,6 @@ final class LiveMeetingTranscriber: ObservableObject {
         }
     }
 
-    /// One track's sessions. A session the server ends after running a while
-    /// (its 60-minute cap) reconnects at once; one that fails to start or
-    /// drops early counts as a failure and backs off, as local chunks do.
     private func streamMuse(track index: Int, folder: URL, session: Int, key: String, keywords: [String]) async {
         let stream = museTrack(folder.appendingPathComponent(tracks[index].fileName))
         let speaker = tracks[index].speaker
@@ -825,7 +736,6 @@ final class LiveMeetingTranscriber: ObservableObject {
                     guard let self, self.isCurrent(session) else { return }
                     self.receive(output, track: index, speaker: speaker)
                 }
-                // The track's file doesn't exist yet (no call audio so far).
                 try await Task.sleep(for: timing.idlePoll)
                 continue
             } catch {

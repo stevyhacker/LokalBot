@@ -1,8 +1,5 @@
 import Foundation
 
-/// One visual scene in Rewind. Adjacent perceptually similar captures collapse
-/// into a single frame while retaining every underlying snapshot for counts and
-/// range deletion.
 struct ScreenRewindFrame: Identifiable, Equatable, Sendable {
     private(set) var screenshots: [ActivityStore.Screenshot]
 
@@ -20,8 +17,6 @@ struct ScreenRewindFrame: Identifiable, Equatable, Sendable {
 }
 
 enum ScreenRewindSequence {
-    /// Oldest-first visual scenes, collapsing only adjacent captures in the
-    /// same persisted similarity group.
     static func frames(from screenshots: [ActivityStore.Screenshot]) -> [ScreenRewindFrame] {
         var frames: [ScreenRewindFrame] = []
         for screenshot in screenshots.sorted(by: { $0.ts < $1.ts }) {
@@ -40,8 +35,6 @@ enum ScreenRewindSequence {
         return min(max(index, 0), count - 1)
     }
 
-    /// Half-open interval covering the selected frame range. The tiny trailing
-    /// epsilon includes the final capture in ActivityStore's `< end` queries.
     static func deletionInterval(frames: [ScreenRewindFrame],
                                  firstIndex: Int, lastIndex: Int) -> DateInterval? {
         guard !frames.isEmpty else { return nil }

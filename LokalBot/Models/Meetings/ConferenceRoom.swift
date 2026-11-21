@@ -1,6 +1,5 @@
 import Foundation
 
-/// Canonical conference addresses used by Calendar and call detection.
 struct ConferenceRoom: Sendable {
     enum Service: String, Sendable {
         case googleMeet = "meet.google.com"
@@ -19,7 +18,6 @@ struct ConferenceRoom: Sendable {
         let canonicalPath: String
         switch service {
         case .googleMeet:
-            // Meet also shows the same room under /meet/ (#372).
             let codePath = path.hasPrefix("/meet/") ? String(path.dropFirst(5)) : path
             guard codePath.range(of: #"^/[a-z]{3}-[a-z]{4}-[a-z]{3}$"#, options: .regularExpression) != nil
             else { return nil }
@@ -28,7 +26,6 @@ struct ConferenceRoom: Sendable {
             guard path.range(of: #"^/j/[0-9]+/?$"#, options: .regularExpression) != nil else { return nil }
             canonicalPath = "/" + path.split(separator: "/").joined(separator: "/")
         case .mtsLink:
-            // Invitations may have /j/; the active call adds /stream-new/<id>.
             guard path.range(of: #"^/(?:j/)?[0-9]+/[0-9]+(?:/stream-new/[0-9]+)?/?$"#,
                              options: .regularExpression) != nil else { return nil }
             let parts = path.split(separator: "/")
@@ -46,8 +43,6 @@ struct ConferenceRoom: Sendable {
         return components
     }
 
-    /// Telemost embeds its call controls in a same-room iframe. Never borrow
-    /// controls from an unrelated frame, even on the same service.
     nonisolated func acceptsFrame(_ raw: String) -> Bool {
         guard service == .telemost, let frame = Self.trustedURL(raw),
               frame.host?.lowercased() == service.rawValue,
@@ -55,7 +50,6 @@ struct ConferenceRoom: Sendable {
         return frame.percentEncodedPath == "/private-join/" + code
     }
 
-    /// These pages can only end a previously verified call in its own window.
     nonisolated func isPostCallPage(_ raw: String) -> Bool {
         guard let page = Self.trustedURL(raw) else { return false }
         let host = page.host?.lowercased()

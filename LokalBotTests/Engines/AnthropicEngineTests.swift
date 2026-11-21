@@ -47,7 +47,6 @@ final class AnthropicEngineTests: XCTestCase {
 
         let body = try body(request)
         XCTAssertEqual(body["model"] as? String, "claude-sonnet-5-5")
-        // Current Claude models reject non-default sampling.
         XCTAssertNil(body["temperature"])
         XCTAssertNil(body["thinking"])
         let system = try XCTUnwrap(body["system"] as? [[String: Any]])
@@ -103,8 +102,6 @@ final class AnthropicEngineTests: XCTestCase {
         XCTAssertNil(kind["description"])
     }
 
-    /// Anthropic's OpenAI compatibility layer rejected meeting notes with
-    /// "For 'array' type, property 'maxItems' is not supported" (2026-10-08).
     func testMeetingNotesSchemaFitsAnthropicsSubset() {
         let units = [
             MeetingNotesEvidence.Unit(source: "s1", speaker: "p1", text: "We ship the release on Friday."),
@@ -144,7 +141,6 @@ final class AnthropicEngineTests: XCTestCase {
         XCTAssertEqual(engine(level: .max).effort(for: .init(reasoningBudgetTokens: 0)), .low)
         XCTAssertEqual(engine("claude-opus-4-6", level: .xhigh).effort(for: nil), .high)
         XCTAssertNil(engine("claude-haiku-4-5", level: .high).effort(for: .init(reasoningBudgetTokens: 0)))
-        // Opus 4.8 does not think unless asked, so Automatic leaves it alone.
         XCTAssertNil(engine("claude-opus-4-8").effort(for: .init(reasoningBudgetTokens: 0)))
 
         let notes = try body(sonnet.makeRequest(system: "S", prompt: "P", context: [], schema: nil,
@@ -257,7 +253,6 @@ final class AnthropicEngineTests: XCTestCase {
         XCTAssertEqual(bodies[1]["fallbacks"] as? String, "default", "only the rejected field is dropped")
     }
 
-    /// A schema rejection is not permission to weaken structured output.
     func testOtherRejectionsAreReportedWithAnthropicsRequestID() async {
         let recorder = Recorder()
         let rejection = json(["type": "error", "error": [

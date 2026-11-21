@@ -1,13 +1,6 @@
 import Foundation
 
-/// Pure per-field gating: given the settings and the current focus, should
-/// cotyping offer a suggestion here? Mirrors the relevant subset of Cotabby's
-/// `SuggestionAvailabilityEvaluator`. Permission gating (Accessibility / Input
-/// Monitoring) is handled at subsystem start by `CotypingCoordinator`; this
-/// decides only the per-keystroke "is this field eligible" question.
 enum CotypingAvailability {
-    /// Returns a human-readable reason to suppress, or `nil` when a suggestion
-    /// may be generated for `focus`.
     static func disabledReason(
         enabled: Bool,
         excludedApps: [String],
@@ -18,7 +11,6 @@ enum CotypingAvailability {
     ) -> String? {
         guard enabled else { return "Cotyping is off." }
 
-        // Never suggest inside LokalBot itself (avoids feedback into our own UI).
         if let selfBundleID, focus.bundleID == selfBundleID {
             return "Off in LokalBot."
         }
@@ -31,10 +23,6 @@ enum CotypingAvailability {
             return "Disabled on \(focus.host ?? "this site")."
         }
 
-        // A configured site exclusion is a privacy boundary, not a best-effort
-        // hint. If AX cannot prove the current browser host, pause there rather
-        // than treating a failed URL read as permission. Non-browser apps remain
-        // usable because they do not have a meaningful tab URL to authorize.
         if CotypingBrowserDomain.hasConfiguredExclusions(excludedDomains),
            CotypingSurfaceClassifier.classify(bundleID: focus.bundleID) == .browser,
            focus.host == nil {
@@ -57,8 +45,6 @@ enum CotypingAvailability {
         }
     }
 
-    /// Case-insensitive substring match against the user's exclusion list,
-    /// checked against both the app display name and bundle identifier.
     static func isExcluded(appName: String, bundleID: String?, excluded: [String]) -> Bool {
         let needles = excluded
             .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
@@ -71,10 +57,6 @@ enum CotypingAvailability {
     }
 }
 
-/// Conservative, pure classifier for sensitive focused fields. Accessibility
-/// hosts do not always expose native password boxes as `AXSecureTextField`;
-/// some only surface a role description or label. A false positive only hides
-/// autocomplete, while a false negative could show a secret as ghost text.
 enum CotypingSecureFieldDetector {
     static func isSecure(
         role: String?,
@@ -108,12 +90,6 @@ enum CotypingSecureFieldDetector {
     ]
 }
 
-/// Fields for a verification code, PIN or one-time password stay quiet: a
-/// code is not prose to continue. Web pages often name such a field only
-/// through its placeholder, its `<label>` or its element id, which
-/// `CotypingSecureFieldDetector` does not see, so autocomplete reads those
-/// too. Matches whole words, so "pin" never matches "pinned". A false
-/// positive only hides autocomplete in one field.
 enum CotypingCodeFieldDetector {
     static func isCodeField(labels: [String?]) -> Bool {
         labels.contains { label in
@@ -131,9 +107,6 @@ enum CotypingCodeFieldDetector {
         }
     }
 
-    /// Lowercased words, split at anything that is not a letter or digit and
-    /// at camelCase humps, so the element ids `otpInput`, `SMSCode` and
-    /// `verification-code` read as words too.
     static func words(in label: String) -> [String] {
         var words: [String] = []
         var current = ""
@@ -157,11 +130,8 @@ enum CotypingCodeFieldDetector {
         return words
     }
 
-    /// "Code" alone names a code field; next to one of `codeContextWords` it
-    /// does too ("Enter the 6-digit code", "Code sent by SMS").
     static let codeWords: Set<String> = ["code", "kod", "код"]
 
-    /// Words that name a code field wherever they appear.
     static let secretWords: Set<String> = [
         "otp", "totp", "2fa", "mfa", "pin", "passcode",
         "onetimecode", "otpcode", "smscode", "verificationcode",
@@ -171,14 +141,12 @@ enum CotypingCodeFieldDetector {
         "verification", "verify", "confirmation", "confirm", "authentication",
         "authenticator", "auth", "login", "signin", "sms", "sent", "texted",
         "digit", "digits", "enter", "access", "backup", "recovery",
-        // Serbian, Croatian and Bosnian, in Latin and Cyrillic.
         "verifikacioni", "verifikacijski", "verifikaciju", "potvrdu", "potvrdni",
         "sigurnosni", "jednokratni", "unesite", "poslat", "poslan",
         "верификациони", "верификацију", "потврду", "потврдни", "сигурносни",
         "једнократни", "унесите", "послат", "смс",
     ]
 
-    /// Multi-word names, written as `words(in:)` splits them.
     static let phrases: [String] = [
         "one time code",
         "one time password",
@@ -196,8 +164,6 @@ enum CotypingCodeFieldDetector {
     ]
 }
 
-/// App exclusions authorize the Accessibility read itself, before field text is
-/// available to the prediction pipeline. Unknown app owners fail closed.
 struct CotypingAppReadPolicy: Equatable, Sendable {
     var enabled = false
     var excludedApps: [String] = []

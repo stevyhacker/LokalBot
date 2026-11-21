@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-/// The menu bar panel's status block: which state leads, what waits under
-/// it, the two recent meetings, and the status item's glyph states.
 @MainActor
 final class MenuBarStatusTests: XCTestCase {
     private var calendar: Calendar {
@@ -12,7 +10,6 @@ final class MenuBarStatusTests: XCTestCase {
         return calendar
     }
 
-    /// 18:12 on a day far from midnight in UTC.
     private var now: Date {
         calendar.date(from: DateComponents(year: 2026, month: 11, day: 10, hour: 18, minute: 12))!
     }
@@ -47,8 +44,6 @@ final class MenuBarStatusTests: XCTestCase {
             meetings: meetings, now: now, calendar: calendar)
     }
 
-    // MARK: Which state leads
-
     func testIdleWhenNothingIsGoingOn() {
         let idle = status(meetings: [meeting("Standup", startedMinutesAgo: 480)])
         XCTAssertEqual(idle.block, .idle)
@@ -56,8 +51,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertEqual(idle.tone(hasCaptureWarnings: false), .neutral)
     }
 
-    /// Recording, dictating, needs attention, a meeting soon, paused, just
-    /// stopped, idle.
     func testEachStateOutranksTheOnesAfterIt() {
         let live = meeting("Design review", startedMinutesAgo: 12, minutes: nil)
         let saved = meeting("Design review", startedMinutesAgo: 13)
@@ -80,8 +73,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertEqual(status().block, .idle)
     }
 
-    /// Stop is never hidden behind a warning: the recording keeps the block
-    /// and every waiting item is listed under it.
     func testARecordingKeepsTheBlockAndListsWhatWaitsUnderIt() {
         let live = meeting("Design review", startedMinutesAgo: 12, minutes: nil)
         let waiting: [MenuBarAttention] = [.microphoneRefused, .error("Disk is almost full."), .settingsApproval(count: 2)]
@@ -93,8 +84,6 @@ final class MenuBarStatusTests: XCTestCase {
                        "A capture warning turns the recording amber and keeps its buttons")
     }
 
-    /// A dictation is red only while it is being spoken, and keeps what
-    /// waits listed under it, as a recording does.
     func testADictationLeadsWhileItRuns() {
         let waiting: [MenuBarAttention] = [.settingsApproval(count: 1)]
         let speaking = status(dictation: .recording, attention: waiting)
@@ -118,8 +107,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertEqual(status(next: event("Roadmap", startsInMinutes: 5)).tone(hasCaptureWarnings: false), .upcoming)
     }
 
-    // MARK: What needs attention
-
     func testAttentionItemsComeMostBlockingFirst() {
         XCTAssertEqual(
             MenuBarAttention.items(
@@ -136,8 +123,6 @@ final class MenuBarStatusTests: XCTestCase {
             [], "An empty message is not an error")
     }
 
-    /// Both are the microphone switch. Once a start was refused only System
-    /// Settings can turn it on, so that fix is the one offered.
     func testARefusedMicrophoneStandsInForTheUngrantedOne() {
         XCTAssertEqual(
             MenuBarAttention.items(
@@ -149,8 +134,6 @@ final class MenuBarStatusTests: XCTestCase {
             [.microphoneNotGranted])
     }
 
-    // MARK: Just stopped
-
     func testJustStoppedLastsItsWindow() {
         let window = MenuBarStatus.justStoppedWindow
         var saved = meeting("Design review", startedMinutesAgo: 30)
@@ -160,8 +143,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertNil(MenuBarStatus.justStopped(in: [saved], now: now))
     }
 
-    /// The panel's clock is read every few seconds, so a recording saved a
-    /// moment after the last reading still counts.
     func testARecordingSavedAfterTheLastClockReadingStillCounts() {
         var saved = meeting("Design review", startedMinutesAgo: 30)
         saved.endedAt = now.addingTimeInterval(8)
@@ -183,8 +164,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertEqual(MenuBarStatus.justStopped(in: [earlier, later], now: now)?.id, later.id)
     }
 
-    // MARK: Recent meetings
-
     func testRecentMeetingsAreTheFirstTwoWithWhenTheyWere() {
         let morning = meeting("Engineering standup", startedMinutesAgo: 8 * 60)
         let yesterday = meeting("Q3 roadmap planning", startedMinutesAgo: 26 * 60)
@@ -201,7 +180,6 @@ final class MenuBarStatusTests: XCTestCase {
         let morning = meeting("Engineering standup", startedMinutesAgo: 8 * 60)
         let noon = meeting("Design sync", startedMinutesAgo: 6 * 60)
         let saved = meeting("Design review", startedMinutesAgo: 13)
-        // Even when the library has not put it first.
         let recent = status(meetings: [noon, morning, saved]).recentMeetings
         XCTAssertEqual(recent.map(\.meeting.id), [saved.id, noon.id])
         XCTAssertEqual(recent.map(\.when), [.justNow, .today(noon.startedAt)])
@@ -216,9 +194,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertEqual(recent.map(\.meeting.id), [standup.id])
     }
 
-    // MARK: The meeting about to start
-
-    /// Today's rule with the menu's shorter window.
     func testTheMenuLeadsWithAMeetingOnlyOnceItIsClose() {
         let window = MenuBarStatus.soonWindow
         XCTAssertLessThan(window, TodayAgenda.nextMeetingWindow)
@@ -241,16 +216,12 @@ final class MenuBarStatusTests: XCTestCase {
             in: [event("Earlier", startsInMinutes: -60)], now: now, window: window))
     }
 
-    // MARK: The line under "Not recording"
-
     func testTheRecordingHabitFollowsTheDetectorThenTheSetting() {
         XCTAssertEqual(MenuBarRecordingHabit.habit(detectedApp: "Zoom", mode: .manual), .appDetected("Zoom"))
         XCTAssertEqual(MenuBarRecordingHabit.habit(detectedApp: nil, mode: .automatic), .recordsAutomatically)
         XCTAssertEqual(MenuBarRecordingHabit.habit(detectedApp: "", mode: .ask), .asksFirst)
         XCTAssertEqual(MenuBarRecordingHabit.habit(detectedApp: nil, mode: .manual), .manualOnly)
     }
-
-    // MARK: Sound levels
 
     private func health(microphone: String, system: String, level: Double? = nil) -> RecordingMemoryHealthSnapshot {
         RecordingMemoryHealthSnapshot(
@@ -276,8 +247,6 @@ final class MenuBarStatusTests: XCTestCase {
         XCTAssertEqual(MenuBarAudioLine(health(microphone: "Receiving audio", system: "Silent")).callAudio?.tone, .idle)
     }
 
-    // MARK: The status item's glyph
-
     private func alpha(_ image: NSImage, x: Double, y: Double) throws -> Double {
         let scale = 4
         let rep = try XCTUnwrap(NSBitmapImageRep(
@@ -289,7 +258,6 @@ final class MenuBarStatusTests: XCTestCase {
         NSGraphicsContext.current = NSGraphicsContext(bitmapImageRep: rep)
         image.draw(in: NSRect(origin: .zero, size: image.size))
         NSGraphicsContext.restoreGraphicsState()
-        // Bitmap rows count down from the top; image points count up.
         let color = rep.colorAt(x: Int(x * Double(scale)), y: rep.pixelsHigh - 1 - Int(y * Double(scale)))
         return Double(try XCTUnwrap(color).alphaComponent)
     }
@@ -305,7 +273,6 @@ final class MenuBarStatusTests: XCTestCase {
     }
 
     func testThePausedGlyphIsFaintAndTheAttentionDotIsNot() throws {
-        // The middle of the waveform's centre bar.
         let ink = (x: 9.0, y: 6.5)
         XCTAssertGreaterThan(try alpha(MenuBarIcon.image(.init()), x: ink.x, y: ink.y), 0.9)
         let paused = try alpha(MenuBarIcon.image(.init(dimmed: true)), x: ink.x, y: ink.y)
@@ -318,10 +285,7 @@ final class MenuBarStatusTests: XCTestCase {
                           "The plain glyph has nothing in that corner")
     }
 
-    /// The head's top right corner runs under the dot; a clear ring keeps the
-    /// two apart.
     func testTheAttentionDotIsCutClearOfTheGlyph() throws {
-        // On the head's top edge, between the dot and the ring's outer rim.
         let edge = (x: 12.2, y: 12.0)
         XCTAssertGreaterThan(try alpha(MenuBarIcon.image(.init()), x: edge.x, y: edge.y), 0.5)
         XCTAssertLessThan(try alpha(MenuBarIcon.image(.init(attention: true)), x: edge.x, y: edge.y), 0.1)

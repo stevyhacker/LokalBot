@@ -1,8 +1,5 @@
 import Foundation
 
-/// Converts LokalBot's internal `Me` ownership label into grammatical prose.
-/// `Me` remains the stable owner identity; sentences about the user are written
-/// in first person instead of treating that label as a subject pronoun.
 enum OutcomeProse {
     static func hasFirstPersonSubject(_ text: String) -> Bool {
         text.trimmingCharacters(in: .whitespacesAndNewlines).range(

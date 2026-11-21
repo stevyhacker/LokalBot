@@ -4,13 +4,9 @@ import CoreImage.CIFilterBuiltins
 import dnssd
 import Foundation
 
-/// The confirmation the person answers before a device that scanned the QR
-/// code is paired. The sync host calls in from a background thread and waits;
-/// the alert runs on the main thread and gives up after `timeout`.
 enum CompanionPairingPrompt {
     static let timeout: TimeInterval = 120
 
-    /// A device chooses its own name; show a bounded, single-line version.
     static func displayName(_ raw: String) -> String {
         let line = raw.unicodeScalars.filter { !CharacterSet.controlCharacters.contains($0) }
             .map(String.init).joined()
@@ -28,7 +24,6 @@ enum CompanionPairingPrompt {
         }
     }
 
-    /// Blocks the calling thread. Never call it on the main thread.
     static func ask(deviceName: String, platform: String, language: AppLanguage) -> Bool {
         precondition(!Thread.isMainThread, "the pairing prompt waits for the main thread")
         let answer = DispatchSemaphore(value: 0)
@@ -57,7 +52,6 @@ enum CompanionPairingPrompt {
         alert.addButton(withTitle: language.localized("Allow"))
         alert.addButton(withTitle: language.localized("Don't Allow"))
         NSApp.activate(ignoringOtherApps: true)
-        // An unanswered prompt expires with the device's pairing request.
         let expiry = Timer(timeInterval: timeout, repeats: false) { _ in
             NSApp.abortModal()
         }
@@ -76,7 +70,6 @@ enum CompanionPairingPrompt {
     }
 }
 
-/// The QR code shown by "Add a device": the host's pairing payload.
 enum CompanionQRCode {
     static func image(for payload: String, size: CGFloat = 220) -> NSImage? {
         let filter = CIFilter.qrCodeGenerator()
@@ -91,10 +84,6 @@ enum CompanionQRCode {
     }
 }
 
-/// Advertises the listener as `_lokalbot._tcp` on the local network with a
-/// neutral instance name, `LokalBot-XXXX`, and the key fingerprint in its TXT
-/// record, so paired devices recognize this Mac without learning who owns it.
-/// Uses the DNS-SD API directly: the listener itself lives in the sync host.
 final class CompanionBonjourAdvertiser {
     static let serviceType = "_lokalbot._tcp"
 
@@ -106,7 +95,6 @@ final class CompanionBonjourAdvertiser {
         "LokalBot-" + String(fingerprint.prefix(4)).uppercased()
     }
 
-    /// One length-prefixed `k=<fingerprint>` entry.
     static func txtRecord(fingerprint: String) -> Data {
         let entry = Data("k=\(fingerprint.prefix(16))".utf8)
         return Data([UInt8(entry.count)]) + entry
@@ -144,7 +132,6 @@ final class CompanionBonjourAdvertiser {
     deinit { stop() }
 }
 
-/// How a paired device last reached the Mac, for the device list.
 enum CompanionNetwork {
     case tailscale, localNetwork
 
@@ -155,7 +142,6 @@ enum CompanionNetwork {
         }
     }
 
-    /// Tailscale hands out `100.64.0.0/10` and `fd7a:115c:a1e0::/48`.
     static func classify(_ address: String) -> Self? {
         var host = address.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !host.isEmpty else { return nil }

@@ -1,16 +1,3 @@
-//! Think, Autocomplete and embeddings for LokalBot on Linux and Windows.
-//!
-//! - [`catalog`]: the pinned GGUF models (same files and digests as macOS).
-//! - [`download`]: verified, resumable HTTPS downloads and archive extraction.
-//! - [`runtime`]: prebuilt llama.cpp `llama-server` subprocesses, one per role.
-//! - [`think`]: chat, embedding and raw-completion clients with the consent gate.
-//! - [`anthropic`]: Claude through Anthropic's Messages API.
-//! - [`plans`]: Think on the user's ChatGPT or Claude plan.
-//! - [`ocr`]: on-device screen text recognition (ocrs, Tesseract, Windows).
-//!
-//! Errors are `anyhow::Error`; the ones callers act on are [`AiError`] values
-//! inside it (`err.downcast_ref::<AiError>()`).
-
 pub mod anthropic;
 pub mod ask;
 pub mod ask_agent;

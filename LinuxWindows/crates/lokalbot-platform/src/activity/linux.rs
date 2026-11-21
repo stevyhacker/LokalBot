@@ -1,6 +1,3 @@
-//! Linux: one window probe for the session (X11 or the Wayland compositor)
-//! plus one idle probe, with app names from `.desktop` files.
-
 use chrono::Utc;
 use lokalbot_core::ActivitySample;
 
@@ -8,16 +5,12 @@ use super::desktop_entries::AppNames;
 use super::{ActivitySource, Unavailable, own_window_sample};
 use crate::session::Desktop;
 
-/// What a probe knows about the focused window.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct FocusedWindow {
     pub title: String,
     pub pid: Option<u32>,
-    /// X11 `WM_CLASS` class, or the Wayland app id.
     pub class: Option<String>,
-    /// X11 `WM_CLASS` instance.
     pub instance: Option<String>,
-    /// A desktop-file id the compositor reported (KDE).
     pub desktop_file: Option<String>,
 }
 
@@ -33,8 +26,6 @@ pub(super) trait IdleProbe: Send {
     fn idle_seconds(&mut self) -> Option<f64>;
 }
 
-/// A session-bus connection whose calls give up after half a second, so a
-/// stuck desktop service never stalls sampling.
 pub(super) fn session_bus() -> anyhow::Result<zbus::blocking::Connection> {
     Ok(zbus::blocking::connection::Builder::session()?
         .method_timeout(std::time::Duration::from_millis(500))
@@ -139,8 +130,6 @@ impl ActivitySource for LinuxSource {
     }
 }
 
-/// Titles of all windows, where the desktop can list them (X11, Hyprland,
-/// Sway). Elsewhere meeting detection relies on observed focus changes.
 pub(crate) struct WindowLister {
     desktop: Desktop,
     x11: super::x11::ClientList,
@@ -154,7 +143,6 @@ impl WindowLister {
         }
     }
 
-    /// `(class or app id, title)` pairs.
     pub(crate) fn list(&mut self) -> Vec<(String, String)> {
         let listed = match self.desktop {
             Desktop::X11 => Ok(self.x11.list()),
@@ -169,8 +157,6 @@ impl WindowLister {
     }
 }
 
-/// App names and ids for other features, by day memory's rules, so
-/// autocomplete's exclusions match the names Privacy shows.
 pub(crate) struct AppResolver {
     names: AppNames,
 }
@@ -182,7 +168,6 @@ impl AppResolver {
         }
     }
 
-    /// `(name, id)` of a process, with its window's `WM_CLASS` when known.
     pub(crate) fn resolve(
         &mut self,
         pid: u32,
@@ -200,7 +185,6 @@ impl AppResolver {
     }
 }
 
-/// The window in front, named by day memory's rules.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FrontWindow {
     pub title: String,
@@ -209,15 +193,12 @@ pub(crate) struct FrontWindow {
     pub id: String,
 }
 
-/// Asks the compositor which window is in front, for autocomplete's input
-/// method, which is told about a text field but not whose it is.
 pub(crate) struct FrontWindows {
     probe: Box<dyn WindowProbe>,
     names: AppNames,
 }
 
 impl FrontWindows {
-    /// `None` where the compositor has no way to say, or cannot be reached.
     pub(crate) fn connect() -> Option<Self> {
         let probe: Box<dyn WindowProbe> = match crate::session::desktop() {
             Desktop::Hyprland => Box::new(super::wayland::Hyprland::new().ok()?),

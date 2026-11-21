@@ -53,7 +53,6 @@ final class ProjectStoreTests: XCTestCase {
                        ["Larkspur platform", "Larkspur", "Larkspur pilot", "Heron vault"])
         XCTAssertNil(ProjectCuration.load(libraryRoot: root.appendingPathComponent("missing")))
 
-        // Tracking a hidden name brings it back.
         _ = reloaded.track(name: "Labs")
         XCTAssertFalse(reloaded.curation.isHidden("Labs"))
         reloaded.stopTracking(larkspur)

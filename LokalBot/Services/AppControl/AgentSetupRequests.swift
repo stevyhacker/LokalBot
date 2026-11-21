@@ -1,10 +1,5 @@
 import Foundation
 
-/// The request an agent left with `lokalbot-cli setup start`, shown to the
-/// person in the agent setup window. Allowing it turns on the settings grant,
-/// plus whichever read access the person ticks; declining leaves everything
-/// off. Each request is answered once, and the answer is written back to
-/// `control/setup-answer.json` for the CLI to read.
 @MainActor
 final class AgentSetupRequests: ObservableObject {
     @Published private(set) var pending: AgentSetup.Request?
@@ -19,8 +14,6 @@ final class AgentSetupRequests: ObservableObject {
     var requestURL: URL { AgentSetup.requestURL(controlDirectory: controlDirectory) }
     var answerURL: URL { AgentSetup.answerURL(controlDirectory: controlDirectory) }
 
-    /// Picks up a request left by the CLI and says whether one is waiting.
-    /// An unreadable or expired request is answered and removed.
     @discardableResult
     func check() -> Bool {
         guard FileManager.default.fileExists(atPath: requestURL.path) else {
@@ -43,7 +36,6 @@ final class AgentSetupRequests: ObservableObject {
         return true
     }
 
-    /// The person allowed the request, with the read access they ticked.
     func allow(meetingLibrary: Bool, screenMemory: Bool, files: Bool = false, in app: AppState) {
         guard let request = pending else { return }
         guard request.isLive(at: now()) else {
@@ -52,7 +44,6 @@ final class AgentSetupRequests: ObservableObject {
         }
         app.settingsControl.setEnabled(true)
         guard app.settingsControl.isEnabled else {
-            // The marker could not be written; the error is already shown.
             answer(request, .denied, grants: [])
             return
         }
@@ -82,7 +73,6 @@ final class AgentSetupRequests: ObservableObject {
         try? AgentSetup.write(
             AgentSetup.Answer(nonce: request.nonce, state: state, grants: grants, answeredAt: now()),
             to: answerURL)
-        // Only remove the request this answers; the CLI may have left a newer one.
         if AgentSetup.read(AgentSetup.Request.self, from: requestURL)?.nonce == request.nonce {
             try? FileManager.default.removeItem(at: requestURL)
         }

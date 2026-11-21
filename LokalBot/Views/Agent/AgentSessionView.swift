@@ -1,16 +1,12 @@
 import SwiftUI
 import AppKit
 
-/// One task: a new task's heading and composer mid-page, or the conversation
-/// with the composer docked under it. The task's title and status sit in the
-/// toolbar; an approval request docks above the composer.
 struct AgentSessionView: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var controller: AgentSessionController
     @ObservedObject var sessions: AgentSessionTabs
     let taskID: UUID
     @State private var followingOutput = true
-    /// The end of the conversation is in view, so there is nothing to jump to.
     @State private var endInView = true
     @State private var showingResults = false
     @State private var preview: AgentResultPreview?
@@ -26,13 +22,11 @@ struct AgentSessionView: View {
         let tab = sessions.selectedTab
         return tab?.record.title ?? controller.sessionTitle ?? tab?.saved?.title ?? localized("New task")
     }
-    /// A saved conversation with messages, loaded here or not yet.
     private var hasSavedConversation: Bool { sessions.selectedTab?.saved != nil }
     private var status: AgentTaskStatus { controller.status(hasSavedConversation: hasSavedConversation) }
     private var isWorking: Bool { controller.state == .running }
     private var blocks: [AgentTranscriptBlock] { AgentTranscriptLayout.make(controller.items, isWorking: isWorking) }
 
-    /// Nothing has been said yet, so the composer sits mid-page.
     private var isNewTask: Bool {
         guard controller.items.isEmpty, !hasSavedConversation else { return false }
         if case .failed = controller.state { return false }
@@ -47,9 +41,6 @@ struct AgentSessionView: View {
     }
 
     var body: some View {
-        // Resolve the reading width from the pane, rather than allowing a
-        // long response or an action row to contribute its ideal width to
-        // the native window's minimum size.
         GeometryReader { geometry in
             Group {
                 if isNewTask {
@@ -60,12 +51,9 @@ struct AgentSessionView: View {
             }
             .frame(width: geometry.size.width, height: geometry.size.height)
         }
-        // The task's own title replaces the section name in the toolbar.
         .toolbar(removing: .title)
         .toolbar {
             ToolbarItem(placement: .navigation) { titleAndStatus }
-            // Without the system title nothing pushes the actions to the
-            // trailing edge, so they sat against the task's title.
             ToolbarItem(placement: .primaryAction) { Spacer() }
             ToolbarItemGroup(placement: .primaryAction) { taskActions }
         }
@@ -94,8 +82,6 @@ struct AgentSessionView: View {
         max(0, min(WorkspaceMetric.readingMaxWidth, width - 40))
     }
 
-    // MARK: - Toolbar
-
     private var titleAndStatus: some View {
         HStack(spacing: 10) {
             Text(verbatim: title)
@@ -108,7 +94,6 @@ struct AgentSessionView: View {
         .frame(maxWidth: 420, alignment: .leading)
     }
 
-    /// A new task needs no word beside its title; the list row says "Not started".
     private var toolbarStatus: String? {
         status == .notStarted ? nil : status.title(localize: localized)
     }
@@ -122,8 +107,6 @@ struct AgentSessionView: View {
             .labelStyle(.iconOnly)
             .help("Results and sources (⌘⌥B)").accessibilityIdentifier("agent.results")
     }
-
-    // MARK: - New task
 
     private func newTask(width: CGFloat, height: CGFloat) -> some View {
         let column = min(640, max(0, width - 40))
@@ -148,7 +131,6 @@ struct AgentSessionView: View {
             }
             .frame(width: column, alignment: .leading)
             .padding(.vertical, 24)
-            // A little above the middle, where the eye lands first.
             .frame(maxWidth: .infinity, minHeight: max(0, height - 60), alignment: .center)
         }
         .scrollBounceBehavior(.basedOnSize)
@@ -168,15 +150,11 @@ struct AgentSessionView: View {
         }.buttonStyle(.bordered).accessibilityIdentifier("agent.starter.\(id)")
     }
 
-    // MARK: - Conversation
-
     private func conversation(width: CGFloat, height: CGFloat) -> some View {
         VStack(spacing: 0) {
             if findVisible { findBar.padding(.top, 10) }
             transcript
             if let request = controller.pendingApprovals.first {
-                // Keep the opened preview scrollable without consuming the
-                // conversation above it in a compact window.
                 AgentApprovalDock(controller: controller, request: request,
                                   waiting: controller.pendingApprovals.count,
                                   previewMaxHeight: min(260, max(60, height - 520)))
@@ -235,8 +213,6 @@ struct AgentSessionView: View {
                 $0.contentSize.height - $0.visibleRect.maxY < 120
             } action: { _, nearEnd in followingOutput = nearEnd; endInView = nearEnd }
             .overlay(alignment: .bottomTrailing) {
-                // Find stops following new output without scrolling a short
-                // conversation, which left this button over text already in view.
                 if !followingOutput && !endInView && !controller.items.isEmpty {
                     Button("Jump to latest", systemImage: "arrow.down") {
                         followingOutput = true; proxy.scrollTo("agent.transcript.end", anchor: .bottom)
@@ -248,7 +224,6 @@ struct AgentSessionView: View {
             }
             .onChange(of: findQuery) {
                 matchIndex = 0
-                // A match inside a folded run of steps opens that run.
                 for case .steps(let group) in blocks where !findQuery.isEmpty
                     && group.entries.contains(where: { $0.searchableText.localizedCaseInsensitiveContains(findQuery) }) {
                     expandedSteps.insert(group.id)
@@ -304,7 +279,6 @@ struct AgentSessionView: View {
         }
     }
 
-    /// What the agent says while it works, in full and without actions.
     @ViewBuilder private func said(_ item: AgentTranscriptItem) -> some View {
         if case .assistant(_, let text, let streaming) = item {
             Group {
@@ -319,8 +293,6 @@ struct AgentSessionView: View {
         }
     }
 
-    /// The answer a finished turn ends with: the focal point, then the files
-    /// that turn changed and quiet copy and retry controls.
     @ViewBuilder private func answer(_ item: AgentTranscriptItem, steps: [AgentTranscriptItem]) -> some View {
         if case .assistant(_, let text, _) = item {
             VStack(alignment: .leading, spacing: 14) {
@@ -387,8 +359,6 @@ struct AgentSessionView: View {
     }
 }
 
-/// The task's status beside its title: amber when it needs an answer, teal
-/// with a spinner while it works, a quiet word otherwise.
 struct AgentStatusPill: View {
     @Environment(\.colorSchemeContrast) private var contrast
     let status: AgentTaskStatus
@@ -432,11 +402,9 @@ struct AgentStatusPill: View {
     }
 }
 
-/// The files one turn wrote or edited, under its answer.
 struct AgentChangedFilesCard: View {
     @EnvironmentObject private var app: AppState
     let files: [AgentChangedFile]
-    /// Shows what was written, beside the conversation.
     let preview: (AgentChangedFile) -> Void
 
     var body: some View {
@@ -490,8 +458,6 @@ struct AgentChangedFilesCard: View {
     }
 }
 
-/// Message actions need label contrast, including in dark mode and Increase
-/// Contrast, rather than the brand tint used for decorative accents.
 private struct AgentMessageActionStyle: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
 

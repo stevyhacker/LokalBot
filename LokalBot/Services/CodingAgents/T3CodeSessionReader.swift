@@ -1,22 +1,8 @@
 import Foundation
 import SQLite3
 
-/// Reads T3 Code sessions from `~/.t3/userdata/statev2.sqlite` (and legacy
-/// `~/.t3/userdata/state.sqlite` when v1 threads are present).
-///
-/// Databases are opened strictly read-only so a running T3 Code process is
-/// never disturbed. Only the orchestration projection tables for projects,
-/// threads, messages, turn items, provider threads, and linked PRs are
-/// queried — never auth sessions, pairing links, secrets, or settings.
-/// Command output, file diffs, and reasoning text are never selected from
-/// SQLite.
-///
-/// Native Claude Code and Codex session IDs owned by T3 Code's provider
-/// threads (including delegated subagents) are returned in `claimedSessions`
-/// so enabled native readers do not double-count the same work.
 struct T3CodeSessionReader: CodingAgentSessionReader {
     var agent: CodingAgentKind { .t3Code }
-    /// T3 Code userdata directory, default `~/.t3/userdata`.
     var root: URL
 
     init(root: URL = FileManager.default.homeDirectoryForCurrentUser
@@ -72,8 +58,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
         return result
     }
 
-    // MARK: - V2 schema (`statev2.sqlite`)
-
     private struct ThreadHeader {
         var id: String
         var title: String?
@@ -86,8 +70,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
     private static func readV2(
         db: T3ReadOnlyDatabase, in interval: DateInterval
     ) throws -> (transcripts: [CodingAgentTranscript], claimed: Set<CodingAgentSessionKey>) {
-        // Widen ISO string bounds by 14 hours to cover any non-UTC offsets;
-        // exact `Date` checks clip every event to `interval`.
         let wideStart = isoUTC(interval.start.addingTimeInterval(-14 * 3_600))
         let wideEnd = isoUTC(interval.end.addingTimeInterval(14 * 3_600))
 
@@ -165,7 +147,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
         var eventsByThread: [String: [CodingAgentEvent]] = [:]
         var consultedByThread: Set<String> = []
 
-        // 1. Thread-level linked PRs with timestamps inside the interval.
         for (threadID, header) in threads {
             for pr in Self.linkedPullRequests(in: header.pullRequestsJSON, fallback: header.createdAt)
             where interval.contains(pr.at) {
@@ -189,7 +170,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
             }
         }
 
-        // 2. Messages (`user` and `assistant`).
         if try db.tableExists("orchestration_v2_projection_messages") {
             let msgSQL = """
                 SELECT thread_id, role, created_at, updated_at,
@@ -218,7 +198,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
                             eventsByThread[threadID, default: []].append(
                                 CodingAgentEvent(at: createdAt, kind: .prompt(prompt)))
                         } else {
-                            // Synthetic delegated-task / background-task wakeups.
                             eventsByThread[threadID, default: []].append(
                                 CodingAgentEvent(at: createdAt, kind: .activity))
                         }
@@ -241,8 +220,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
             }
         }
 
-        // 3. Turn items — `json_extract` selects only commands, file names,
-        //    tool names, and timestamps; output, diffs, and reasoning never leave SQLite.
         if try db.tableExists("orchestration_v2_projection_turn_items") {
             let itemSQL = """
                 SELECT thread_id, type, updated_at,
@@ -331,8 +308,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
                 }
             }
 
-            // Thread-wide LokalBot access check: text read from the library earlier
-            // in the thread can still be restated in today's replies.
             let checkSQL = """
                 SELECT DISTINCT thread_id, type,
                        CASE type
@@ -373,8 +348,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
         }
         return (transcripts, claimed)
     }
-
-    // MARK: - V1 schema (`state.sqlite` fallback)
 
     private static func readV1(
         db: T3ReadOnlyDatabase, in interval: DateInterval, skipping existingIDs: Set<String>
@@ -494,8 +467,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
         return (transcripts, claimed)
     }
 
-    // MARK: - Helpers
-
     private static func databaseMetadata(at url: URL) -> (modified: Date, size: Int)? {
         guard let values = try? url.resourceValues(forKeys: [
             .isRegularFileKey, .contentModificationDateKey, .fileSizeKey,
@@ -584,10 +555,6 @@ struct T3CodeSessionReader: CodingAgentSessionReader {
     }
 }
 
-/// Minimal read-only SQLite wrapper for reading T3 Code's database without
-/// ever writing or taking write locks. Opens with `?mode=ro` so WAL rows are
-/// visible, falling back to `?mode=ro&immutable=1` if a read-only folder
-/// blocks `-shm` mapping.
 private final class T3ReadOnlyDatabase {
     enum ReadError: Error {
         case open(Int32)
@@ -649,7 +616,6 @@ private final class T3ReadOnlyDatabase {
             return nil
         }
         sqlite3_busy_timeout(opened, 2_000)
-        // Probe schema readability so a corrupt or WAL-blocked database triggers fallback/failure cleanly.
         var stmt: OpaquePointer?
         let probe = sqlite3_prepare_v2(opened, "SELECT 1 FROM sqlite_master LIMIT 1", -1, &stmt, nil)
         if probe == SQLITE_OK, let stmt {

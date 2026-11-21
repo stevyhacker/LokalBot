@@ -1,7 +1,5 @@
 import Foundation
 
-/// Where a setting lives in Settings. Mirrors `AppState.SettingsTab` without
-/// depending on the app target, so the CLI can group and describe settings.
 enum SettingCategory: String, CaseIterable, Codable {
     case overview, general
     case recording, dayMemory, files, email
@@ -11,26 +9,16 @@ enum SettingCategory: String, CaseIterable, Codable {
     case privacy, advanced
 }
 
-/// How a terminal change to a setting is authorized once the person allows
-/// external agents to change settings.
 enum SettingTier: String, Codable {
-    /// Changes nothing about what is captured, read, recorded, or sent.
     case preference
-    /// Widening it (turning it on, raising it, removing an exclusion,
-    /// approving an origin) needs the person's approval in the app.
-    /// Narrowing it is a preference.
     case consent
-    /// Shown, never changed from the terminal.
     case readOnly
 }
 
-/// What a text setting holds, for `config describe` and the schema.
 enum SettingTextFormat: String, Codable {
     case plain, url, path, commaSeparated, languageCode, modelID
 }
 
-/// One allowed value: the stable token agents read and write, and the value
-/// `AppSettings` stores for it (some enums store display strings or key codes).
 struct SettingChoice: Equatable, ExpressibleByStringLiteral {
     let token: String
     let stored: JSONValue
@@ -53,7 +41,6 @@ enum SettingKind: Equatable {
     case textList
     case choice([SettingChoice])
     case choiceList([SettingChoice])
-    /// A nested value (a shortcut, a model description) reported as stored.
     case structured
 
     var typeName: String {
@@ -77,8 +64,6 @@ enum SettingKind: Equatable {
     }
 }
 
-/// One persisted `AppSettings` key as the terminal sees it. The key is the
-/// stored coding key, which Settings search already uses as `settings.<key>`.
 struct SettingSpec: Equatable {
     let key: String
     let category: SettingCategory
@@ -88,8 +73,6 @@ struct SettingSpec: Equatable {
     let aliases: String
     let summary: String
 
-    /// The stored value presented to agents: choice values become tokens.
-    /// A stored value that matches no known choice is returned unchanged.
     func presented(_ stored: JSONValue) -> JSONValue {
         switch kind {
         case .choice(let choices):
@@ -104,7 +87,6 @@ struct SettingSpec: Equatable {
         }
     }
 
-    /// What `config describe` prints.
     var descriptionJSON: JSONValue {
         var object: [String: JSONValue] = [
             "key": .string(key),
@@ -131,7 +113,6 @@ struct SettingSpec: Equatable {
         return .object(object)
     }
 
-    /// The JSON Schema property for this key.
     var schemaProperty: JSONValue {
         var object: [String: JSONValue] = [
             "title": .string(title),
@@ -178,11 +159,7 @@ struct SettingSpec: Equatable {
     }
 }
 
-/// Every persisted `AppSettings` key, for `lokalbot-cli config` and the app's
-/// control channel. `AppSettingsRegistryTests` keeps this table complete and
-/// its choices identical to the real enums.
 enum SettingRegistry {
-    /// Coding keys that are bookkeeping, not settings: never listed or changed.
     static let internalKeys: Set<String> = [
         "meetingSettingsVersion",
         "cotypingSettingsVersion",
@@ -195,8 +172,6 @@ enum SettingRegistry {
         byKey[key]
     }
 
-    /// Settings matching every word of the query in the key, title, aliases,
-    /// summary, or category, best matches first.
     static func search(_ query: String) -> [SettingSpec] {
         let normalized = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         return all
@@ -256,8 +231,6 @@ enum SettingRegistry {
         entry("appTheme", .general, "Theme", .choice(["system", "light", "dark"]),
               aliases: "appearance dark mode light mode color scheme",
               summary: "Window appearance: match the system, light, or dark."),
-        // The CLI target doesn't compile AppLanguage; SettingRegistryTests keeps
-        // this list in step with AppLanguage.allCases.
         entry("appLanguage", .general, "App language",
               .choice([
                   "system", .init("english", stored: "en"), .init("simplifiedChinese", stored: "zh-Hans"),

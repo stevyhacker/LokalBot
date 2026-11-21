@@ -1,8 +1,3 @@
-//! Reads text with the real pipeline, without the UI: downloads Kokoro if it
-//! is missing, saves the speech to a WAV file and tries the speakers.
-//!
-//! `cargo run -p lokalbot-engine --example read_aloud -- <library> <out.wav> ["text"]`
-
 use std::time::{Duration, Instant};
 
 use anyhow::{Result, bail};

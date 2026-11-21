@@ -1,15 +1,3 @@
-//! The ghost window (`CotypingOverlayController.swift`, `CotypingGhostView.swift`):
-//! one transparent, focus-less pop-up that is moved to the caret, sized to
-//! the suggestion, and hidden rather than closed between suggestions. It
-//! never takes focus or clicks, so the app being typed in keeps the keyboard.
-//!
-//! Inline, it draws the suggestion in the field's font right after the
-//! caret, the part the next Tab takes a little stronger; as a pill it draws
-//! it under the caret's line with its own background.
-//!
-//! Kept free of the rest of the app so `examples/autocomplete_probe.rs` can
-//! show the same window.
-
 use gpui_kit::component::h_flex;
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
@@ -19,51 +7,40 @@ use gpui_kit::{
 };
 use lokalbot_platform::autocomplete::{self as platform, NativeWindow, Rect};
 
-/// One line of ghost text, positioned in the window (logical pixels).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GhostLine {
     pub text: String,
-    /// Where `text` starts in the suggestion, in characters.
     pub offset: usize,
     pub x: f32,
     pub y: f32,
 }
 
-/// The pill's own background and border.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Chrome {
     pub background: Hsla,
     pub border: Hsla,
 }
 
-/// What the ghost window shows.
 #[derive(Clone, Debug, PartialEq)]
 pub struct GhostContent {
     pub lines: Vec<GhostLine>,
     pub font_family: SharedString,
-    /// Logical pixels.
     pub font_size: f32,
     pub line_height: f32,
     pub color: Hsla,
     pub emphasis_color: Hsla,
-    /// Characters from the start the next Tab takes.
     pub emphasis_chars: usize,
     pub chrome: Option<Chrome>,
 }
 
-/// The ghost window, created on first use.
 pub struct Overlay {
     window: Option<WindowHandle<GhostView>>,
     native: Option<NativeWindow>,
     visible: bool,
     exclude_from_capture: bool,
-    /// The scale factor GPUI reported for the window last time.
     scale: f32,
-    /// Windows: the newest native move asked for; an older one still
-    /// waiting is skipped (see [`Overlay::move_native`]).
     #[cfg(windows)]
     latest_move: std::rc::Rc<std::cell::Cell<u64>>,
-    /// Windows: the window has been given its styles.
     #[cfg(windows)]
     prepared: bool,
 }
@@ -87,14 +64,10 @@ impl Overlay {
         self.visible
     }
 
-    /// Device pixels per logical pixel where the window last was.
     pub fn scale(&self) -> f32 {
         self.scale
     }
 
-    /// Shows `content` in `frame` (screen pixels). Returns the window's
-    /// scale factor afterwards, which may differ on another monitor; the
-    /// caller then lays the suggestion out again.
     pub fn show(&mut self, frame: Rect, content: GhostContent, cx: &mut App) -> f32 {
         let frame = frame.integral();
         if self.window.is_none() {
@@ -110,7 +83,6 @@ impl Overlay {
             match updated {
                 Ok(scale) => self.scale = scale,
                 Err(_) => {
-                    // Closed underneath us (display change): open again.
                     self.window = None;
                     self.native = None;
                     self.open(frame, content, cx);
@@ -119,7 +91,6 @@ impl Overlay {
         }
         self.move_native(Some(frame), cx);
         self.visible = true;
-        // Windows keeps a scale per monitor: the one the ghost moves to.
         if let Some(scale) = platform::scale_at(&frame) {
             self.scale = scale;
         }
@@ -134,13 +105,11 @@ impl Overlay {
         self.move_native(None, cx);
     }
 
-    /// Closes the window, when autocomplete stops.
     pub fn close(&mut self, cx: &mut App) {
         self.visible = false;
         self.native = None;
         #[cfg(windows)]
         {
-            // A move still waiting must not touch the closing window.
             self.latest_move.set(self.latest_move.get() + 1);
             self.prepared = false;
         }
@@ -149,17 +118,6 @@ impl Overlay {
         }
     }
 
-    /// Moves and sizes the native window to `frame` and shows it, or hides
-    /// it with `None`.
-    ///
-    /// Windows answers `SetWindowPos` and style changes with messages GPUI
-    /// handles on the spot, and those handlers need the app, which is busy
-    /// with the update that called this: GPUI logged "RefCell already
-    /// borrowed" and missed the window's new size, so the ghost kept drawing
-    /// at its old size. There the native calls wait for the next turn of the
-    /// event loop, and only the newest one runs. X11 requests go out on a
-    /// connection of their own and GPUI reads the results later, so they are
-    /// made at once.
     fn move_native(&mut self, frame: Option<Rect>, cx: &mut App) {
         let Some(native) = self.native else {
             return;
@@ -207,8 +165,6 @@ impl Overlay {
             titlebar: None,
             kind: WindowKind::PopUp,
             focus: false,
-            // On Windows the first move shows it, once it has lost the frame
-            // Windows gives it (see `move_native`).
             show: !cfg!(windows),
             is_movable: false,
             is_resizable: false,
@@ -229,7 +185,6 @@ impl Overlay {
                 self.window = Some(handle);
                 self.scale = window_scale;
                 self.native = native;
-                // Windows prepares it with its first move.
                 #[cfg(windows)]
                 {
                     self.prepared = false;
@@ -278,8 +233,6 @@ impl Render for GhostView {
                 .nth(emphasized)
                 .map_or(line.text.len(), |(index, _)| index);
             let (strong, rest) = line.text.split_at(split);
-            // A text run's leading space is not drawn; the ghost's first
-            // space separates it from the word at the caret.
             let visible = |text: &str| SharedString::from(text.replace(' ', "\u{a0}"));
             h_flex()
                 .absolute()

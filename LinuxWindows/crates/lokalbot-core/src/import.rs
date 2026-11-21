@@ -1,20 +1,9 @@
-//! Turning an audio or video file into a meeting (`MeetingImportService.swift`).
-//!
-//! The file's audio becomes the meeting's system track, so it is separated
-//! into speakers like call audio. The original file is only read. Decoding
-//! happens in `lokalbot-audio`; these are the rules around it. A recording from
-//! a paired phone or tablet becomes the microphone track instead; see
-//! `import_device_recording` in `lokalbot-engine`.
-
 use std::path::Path;
 
 use chrono::{DateTime, Duration, TimeZone as _, Utc};
 
-/// Shown where a recorded meeting shows its meeting app.
 pub const IMPORTED_APP_NAME: &str = "Imported file";
 
-/// File types the import dialog offers and a drop accepts. Whether the audio
-/// in one can actually be read is only known once it is decoded.
 pub const IMPORTABLE_EXTENSIONS: &[&str] = &[
     "mp3", "m4a", "m4b", "aac", "mp4", "m4v", "mov", "wav", "wave", "aif", "aiff", "aifc", "caf",
     "flac", "ogg", "oga", "mkv", "mka",
@@ -26,7 +15,6 @@ pub fn is_importable(path: &Path) -> bool {
         .is_some_and(|e| IMPORTABLE_EXTENSIONS.contains(&e.to_ascii_lowercase().as_str()))
 }
 
-/// The file name without its extension: "Team sync.m4a" becomes "Team sync".
 pub fn title(path: &Path) -> String {
     let stem = path
         .file_stem()
@@ -39,12 +27,6 @@ pub fn title(path: &Path) -> String {
     }
 }
 
-/// Best guess at when the recording began, never so late that it would end
-/// in the future (`MeetingImportService.recordingStart`). A recorder's own
-/// creation date names the start. File dates are weaker: modification usually
-/// marks when recording stopped and survives a copy, while a copy's creation
-/// date is when it was copied, so the earlier reading wins. Dates before 2001
-/// are unset container fields, not recordings.
 pub fn recording_start(
     metadata: Option<DateTime<Utc>>,
     file_created: Option<DateTime<Utc>>,

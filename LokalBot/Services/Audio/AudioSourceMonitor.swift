@@ -2,21 +2,11 @@ import AppKit
 import AudioToolbox
 import Foundation
 
-/// Polls Core Audio's process list for new audio-producing apps and publishes
-/// them as candidates for automatic recording. A second detection signal next
-/// to `MeetingDetector`'s "is the mic in use" — catches the cases the mic
-/// signal misses (Zoom call with mic muted, a meeting in a browser tab the
-/// user opened *before* unmuting). Pattern from Seminarly's
-/// `AudioSourceMonitor`, adapted to LokalBot's coordinator.
 @MainActor
 final class AudioSourceMonitor: ObservableObject {
 
-    /// The most recently detected new audio source. `AppState` observes this
-    /// candidate and decides whether it is safe to start recording.
     @Published private(set) var detectedProcess: AudioProcess?
 
-    /// Set by `AppState` while a recording is in flight. Suppresses new
-    /// detections because the app being recorded is itself producing output.
     var isRecordingActive = false {
         didSet {
             if isRecordingActive {
@@ -27,10 +17,6 @@ final class AudioSourceMonitor: ObservableObject {
         }
     }
 
-    /// Bundle IDs of conferencing/meeting apps prioritized over generic audio
-    /// sources (so a Spotify track that started 200 ms before Zoom didn't win
-    /// the race). The native list mirrors `MeetingDetector.knownApps` plus
-    /// the browser set, augmented with a few extras from Seminarly's list.
     private static let meetingBundleIDs: Set<String> = [
         "us.zoom.xos", "us.zoom.CptHost",
         "com.microsoft.teams", "com.microsoft.teams2",
@@ -50,8 +36,6 @@ final class AudioSourceMonitor: ObservableObject {
         "com.tencent.WeWorkMac",
     ]
 
-    /// Bundle IDs whose audio is uninteresting — our own app and a few system
-    /// processes that emit short blips Core Audio still reports as "running".
     private static let ignoredBundleIDs: Set<String> = [
         AppIdentifiers.Identity.release.bundleID,
         AppIdentifiers.Identity.development.bundleID,
@@ -62,37 +46,28 @@ final class AudioSourceMonitor: ObservableObject {
         "com.apple.notificationcenterui",
     ]
 
-    /// Pure media/music players. They emit continuous output but are never
-    /// meetings, so — unlike an unknown app — they must not become recording
-    /// candidates. Browsers are intentionally absent: a Google Meet call
-    /// runs inside one, so it stays recordable.
     nonisolated static let mediaBundleIDs: Set<String> = [
-        // Streaming music
-        "com.spotify.client",          // Spotify
-        "com.apple.Music",             // Apple Music
-        "com.apple.iTunes",            // iTunes (legacy)
-        "com.amazon.music",            // Amazon Music
-        "com.tidal.desktop",           // TIDAL
-        "com.deezer.deezer-desktop",   // Deezer
-        "com.netease.163music",        // NetEase Cloud Music
-        "com.tencent.QQMusicMac",      // QQ Music
-        // Local-library / audiophile players
-        "com.swinsian.Swinsian",       // Swinsian
-        "com.audirvana.Audirvana",     // Audirvana
-        "com.foobar2000.mac",          // foobar2000
-        "com.roon.Roon",               // Roon
-        "com.coppertino.Vox",          // VOX
-        "tv.plex.plexamp",             // Plexamp
-        // Podcasts & video players (also never meetings)
-        "com.apple.podcasts",          // Apple Podcasts
-        "com.apple.TV",                // Apple TV
-        "com.apple.QuickTimePlayerX",  // QuickTime Player
-        "org.videolan.vlc",            // VLC
-        "com.colliderli.iina",         // IINA
+        "com.spotify.client",
+        "com.apple.Music",
+        "com.apple.iTunes",
+        "com.amazon.music",
+        "com.tidal.desktop",
+        "com.deezer.deezer-desktop",
+        "com.netease.163music",
+        "com.tencent.QQMusicMac",
+        "com.swinsian.Swinsian",
+        "com.audirvana.Audirvana",
+        "com.foobar2000.mac",
+        "com.roon.Roon",
+        "com.coppertino.Vox",
+        "tv.plex.plexamp",
+        "com.apple.podcasts",
+        "com.apple.TV",
+        "com.apple.QuickTimePlayerX",
+        "org.videolan.vlc",
+        "com.colliderli.iina",
     ]
 
-    /// Whether `bundleID` is a pure media player that should never become an
-    /// automatic-recording candidate. See ``mediaBundleIDs``.
     nonisolated static func isMediaPlayer(_ bundleID: String) -> Bool {
         mediaBundleIDs.contains(bundleID)
     }
@@ -102,8 +77,6 @@ final class AudioSourceMonitor: ObservableObject {
 
     private var pollTimer: Timer?
     private var pollTask: Task<Void, Never>?
-    /// AudioObjectIDs already running output the last time we polled. A new
-    /// detection fires only on a not-running → running transition.
     private var knownActiveObjectIDs: Set<AudioObjectID> = []
     private var candidateExpiryTask: Task<Void, Never>?
 
@@ -124,7 +97,6 @@ final class AudioSourceMonitor: ObservableObject {
         candidateExpiryTask = nil
     }
 
-    /// Consumes the current candidate (caller is starting a recording on it).
     @discardableResult
     func accept() -> AudioProcess? {
         candidateExpiryTask?.cancel()
@@ -134,24 +106,15 @@ final class AudioSourceMonitor: ObservableObject {
         return process
     }
 
-    /// Re-seed against the *current* audio state after a recording ends so
-    /// apps that started playing audio mid-meeting do not become fresh
-    /// automatic-recording candidates.
     func reseed() {
         seedCurrentState()
     }
-
-    // MARK: - Private
 
     private func seedCurrentState() {
         let processes = MeetingDetector.currentAudioProcesses()
         knownActiveObjectIDs = Set(processes.filter(\.isRunningOutput).map(\.objectID))
     }
 
-    /// The Core Audio query reads several properties of every audio process
-    /// from coreaudiod and LaunchServices; it ran on the main thread every
-    /// three seconds. It now runs on a utility thread and only the result is
-    /// applied here.
     private func poll() {
         guard !isRecordingActive, pollTask == nil else { return }
         pollTask = Task { [weak self] in
@@ -186,10 +149,6 @@ final class AudioSourceMonitor: ObservableObject {
         let meetingApp = candidates.first(where: Self.isMeetingApp)
 
         if let held = detectedProcess {
-            // One candidate is held for up to 20 seconds. A call that starts
-            // meanwhile must not be lost behind it: a meeting app takes the
-            // place of a held sound from some other app at once, and anything
-            // else stays unknown, so it is reported when the slot is free.
             if let meetingApp, !Self.isMeetingApp(held) {
                 detectedProcess = meetingApp
                 scheduleCandidateExpiry()

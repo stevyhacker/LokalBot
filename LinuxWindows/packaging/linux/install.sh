@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Installs LokalBot for the current user from an extracted release archive:
-# binaries into ~/.local/bin, the desktop entries and icons into ~/.local/share.
-# The second entry lists LokalBot under KDE Plasma's Virtual Keyboard settings,
-# for autocomplete; it is not in the applications menu.
-# Run with --uninstall to remove them (your library is never touched).
 set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BIN="${XDG_BIN_HOME:-$HOME/.local/bin}"
@@ -11,9 +6,6 @@ DATA="${XDG_DATA_HOME:-$HOME/.local/share}"
 APP_ID=com.lokalbot.LokalBot
 IM_ENTRY=$APP_ID.InputMethod.desktop
 if [ "${1:-}" = "--uninstall" ]; then
-  # What this copy set up outside those folders goes too, as the Windows
-  # uninstaller removes it: the coding-agent skill from Settings → AI agents →
-  # Agent CLI, and a launch-at-login entry that starts this copy.
   [ -x "$BIN/lokalbot-cli" ] && "$BIN/lokalbot-cli" install-skill --uninstall >/dev/null 2>&1 || true
   AUTOSTART="${XDG_CONFIG_HOME:-$HOME/.config}/autostart/lokalbot.desktop"
   if [ -f "$AUTOSTART" ] && grep -qF "$BIN/lokalbot" "$AUTOSTART"; then

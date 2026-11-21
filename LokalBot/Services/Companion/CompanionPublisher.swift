@@ -1,8 +1,5 @@
 import Foundation
 
-/// Where built records go: the sync host while sharing is on, an in-memory
-/// store in tests. Calls block and are made from the publisher's queue.
-/// Publishing an unchanged body is a no-op on the host.
 protocol CompanionRecordSink: AnyObject {
     @discardableResult func publish(kind: String, key: String, bodyJSON: String) throws -> Bool
     @discardableResult func remove(kind: String, key: String) throws -> Bool
@@ -10,11 +7,6 @@ protocol CompanionRecordSink: AnyObject {
     func setManifest(bodyJSON: String) throws
 }
 
-/// Keeps the host's records equal to what the library shares. A full
-/// reconcile builds every record, publishes it, and withdraws keys that no
-/// longer exist (deleted, merged, out of the history window, or a class
-/// turned off). Change hooks queue narrower rebuilds, coalesced on a serial
-/// queue, so a burst of edits costs one pass.
 final class CompanionPublisher: @unchecked Sendable {
     struct Context: Equatable, Sendable {
         var root: URL
@@ -24,7 +16,6 @@ final class CompanionPublisher: @unchecked Sendable {
         var libraryName = "LokalBot"
     }
 
-    /// What one pass changed, for logs and tests.
     struct Report: Equatable, Sendable {
         var published = 0
         var changed = 0
@@ -47,7 +38,6 @@ final class CompanionPublisher: @unchecked Sendable {
     private let debounce: DispatchTimeInterval
     private let clock: () -> Date
 
-    // Queue-owned state.
     private var context: Context
     private var pending = Pending()
     private var scheduled = false
@@ -63,10 +53,6 @@ final class CompanionPublisher: @unchecked Sendable {
         self.clock = clock
     }
 
-    // MARK: - Requests
-
-    /// Replace the settings the records depend on. A different record scope
-    /// rebuilds everything; the manifest is always refreshed.
     func update(context next: Context) {
         queue.async { [self] in
             let rebuild = next.sharing.recordScope != context.sharing.recordScope || next.root != context.root
@@ -85,9 +71,6 @@ final class CompanionPublisher: @unchecked Sendable {
         queue.async { [self] in enqueue { $0.full = true } }
     }
 
-    /// Meeting evidence changed: outcomes, notes, processing, deletion or a
-    /// merge. `days` names the days the meetings were on, which still matters
-    /// for a meeting that no longer exists.
     func meetingsChanged(_ ids: Set<UUID>, days: [Date] = []) {
         let keys = Set(days.map { CompanionJSON.day($0, calendar: calendar) })
         queue.async { [self] in
@@ -105,13 +88,10 @@ final class CompanionPublisher: @unchecked Sendable {
         queue.async { [self] in enqueue { $0.dayKeys.formUnion(keys) } }
     }
 
-    /// People or project curation, or a project's "Where it stands" note.
     func connectionsChanged() {
         queue.async { [self] in enqueue { $0.connections = true } }
     }
 
-    /// Today's Timeline grows while the person works; rebuild today's record
-    /// when anything was recorded within `window`.
     func refreshTodayIfActive(window: TimeInterval = 15 * 60) {
         queue.async { [self] in
             let now = clock()
@@ -122,8 +102,6 @@ final class CompanionPublisher: @unchecked Sendable {
         }
     }
 
-    /// Rebuild one meeting and what depends on it before returning, for ops
-    /// the device waits on. Returns false when the pass did not finish in time.
     @discardableResult
     func republishNow(meetingID: UUID, timeout: TimeInterval = 30) -> Bool {
         let done = DispatchSemaphore(value: 0)
@@ -136,13 +114,10 @@ final class CompanionPublisher: @unchecked Sendable {
         return done.wait(timeout: .now() + timeout) == .success
     }
 
-    /// Run whatever is queued now and wait for it, for tests and shutdown.
     @discardableResult
     func flush() -> Report {
         queue.sync { drain() }
     }
-
-    // MARK: - Passes (queue only)
 
     private func enqueue(_ change: (inout Pending) -> Void) {
         change(&pending)
@@ -190,8 +165,6 @@ final class CompanionPublisher: @unchecked Sendable {
     private func apply(_ work: Pending) -> Report {
         let now = clock()
         guard var current = library else { return reconcile() }
-        // The meeting list is cheap to read again; outcomes are reloaded only
-        // for the meetings that changed.
         for id in work.meetingIDs { projectionCache[id] = nil }
         current = CompanionLibrary.reloading(
             current, now: now, cachedProjections: projectionCache,
@@ -279,9 +252,6 @@ final class CompanionPublisher: @unchecked Sendable {
 }
 
 extension CompanionLibrary {
-    /// The library again after a change: meetings re-read, outcomes reused
-    /// from `cachedProjections` where present, people and projects rebuilt
-    /// only when asked.
     static func reloading(
         _ previous: CompanionLibrary, now: Date,
         cachedProjections: [UUID: MeetingOutcomeProjection],

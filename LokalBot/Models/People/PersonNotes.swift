@@ -1,37 +1,23 @@
 import Foundation
 
-/// What saved meeting notes say about one person, and the projects named
-/// around them. Deterministic line matching over summaries already on this
-/// Mac; no model reads anything here.
 enum PersonNotes {
     static let maximumPoints = 3
-    /// Newest meetings searched for notes about the person.
     static let maximumMeetingsSearched = 8
-    /// Meetings whose lines can link the person to a project.
     static let projectMeetingsSearched = 20
     static let maximumProjects = 5
 
-    /// One bullet from a summary.
     struct SummaryLine: Equatable, Sendable {
-        /// The heading it sits under, folded ("key points").
         let section: String
-        /// The speaker label as written ("Them 4", "You", "Ana").
         let speaker: String?
         let text: String
         let seek: TimeInterval?
     }
 
-    /// Sections already shown elsewhere on a person's page (actions and
-    /// decisions), or that only restate the meeting's facts.
     private static let skippedSections: Set<String> = [
         "action items", "actions", "next steps", "decisions", "follow ups", "follow up",
     ]
 
-    /// Sections that sum the meeting up, for a meeting that is only with
-    /// the person.
     private static let overviewSections: Set<String> = ["tl dr", "tldr", "summary", "overview", "key points"]
-
-    // MARK: - Summary lines
 
     static func lines(fromSummary markdown: String) -> [SummaryLine] {
         var result: [SummaryLine] = []
@@ -45,7 +31,6 @@ enum PersonNotes {
             guard !skippedSections.contains(section),
                   line.hasPrefix("- ") || line.hasPrefix("* ") else { continue }
             var body = String(line.dropFirst(2)).trimmingCharacters(in: .whitespaces)
-            // Checkbox bullets are actions.
             guard !body.hasPrefix("["), !body.isEmpty else { continue }
             let seek = trailingTimestamp(&body)
             let speaker = leadingSpeaker(&body)
@@ -59,9 +44,6 @@ enum PersonNotes {
 
     private static let stamp = #"\[\d{1,2}(?::\d{2}){1,2}\]"#
 
-    /// Removes the transcript stamps notes carry — a trailing
-    /// "— [00:01:54]", a range "([00:40:44]–[00:44:40])", or stamps inside
-    /// the line — and returns the first one as the moment to open.
     private static func trailingTimestamp(_ body: inout String) -> TimeInterval? {
         var first: TimeInterval?
         if let range = body.range(of: stamp, options: .regularExpression) {
@@ -75,7 +57,6 @@ enum PersonNotes {
         return first
     }
 
-    /// Long notes are cut at a word near this length.
     static let maximumCharacters = 280
 
     private static func shortened(_ text: String) -> String {
@@ -85,7 +66,6 @@ enum PersonNotes {
         return cut[..<end].trimmingCharacters(in: .punctuationCharacters.union(.whitespaces)) + "…"
     }
 
-    /// Removes a leading "**Them 4:**" (or a bare "Them 4:") speaker label.
     private static func leadingSpeaker(_ body: inout String) -> String? {
         if let range = body.range(of: #"^\*\*[^*]{1,48}?:\*\*\s*"#, options: .regularExpression) {
             let label = body[range].replacingOccurrences(of: "**", with: "")
@@ -107,10 +87,6 @@ enum PersonNotes {
         ["you", "me"].contains(PeopleDirectory.normalized(label))
     }
 
-    // MARK: - Lines about a person
-
-    /// A summary line said by the person or naming them, as shown on their
-    /// page; nil when the line is about someone else.
     static func point(_ line: SummaryLine, meetingID: UUID, person: PersonProfile,
                       applied: MeetingAppliedSpeakerNames?) -> PersonProfile.NotePoint? {
         let names = [person.name] + person.otherNames
@@ -128,10 +104,6 @@ enum PersonNotes {
         return .init(text: line.text, speaker: speaker, meetingID: meetingID, seek: line.seek)
     }
 
-    /// The newest meeting whose notes say something about the person, with
-    /// up to three lines. A meeting only with them (at most
-    /// `PeopleDirectory.smallMeetingSize` others) offers its overview lines
-    /// when no line names them.
     static func recentNotes(for person: PersonProfile, lines: [UUID: [SummaryLine]],
                             appliedNames: [UUID: MeetingAppliedSpeakerNames]) -> PersonProfile.RecentNotes? {
         let occasions = person.occasions
@@ -161,11 +133,6 @@ enum PersonNotes {
         return nil
     }
 
-    // MARK: - Projects
-
-    /// Projects whose names appear in the person's own lines, the lines
-    /// naming them, their open work, and decisions with them. Tracked
-    /// projects first, then by how often they come up.
     static func projects(for person: PersonProfile, lines: [UUID: [SummaryLine]],
                          appliedNames: [UUID: MeetingAppliedSpeakerNames],
                          projects: [ProjectProfile]) -> [PersonProfile.ProjectLink] {
@@ -201,8 +168,6 @@ enum PersonNotes {
         return Array(sorted.prefix(maximumProjects))
     }
 
-    // MARK: - Helpers
-
     private static func isPerson(_ speaker: String, names: [String]) -> Bool {
         let key = PeopleDirectory.normalized(PeopleDirectory.cleanedName(speaker))
         guard !key.isEmpty else { return false }
@@ -213,7 +178,6 @@ enum PersonNotes {
         }
     }
 
-    /// A cheap check before the word-by-word one.
     private static func mayName(_ name: String, _ text: String) -> Bool {
         guard let first = name.split(separator: " ").first else { return false }
         return text.range(of: first, options: [.caseInsensitive, .diacriticInsensitive]) != nil

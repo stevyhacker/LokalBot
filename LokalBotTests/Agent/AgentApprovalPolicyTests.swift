@@ -190,8 +190,6 @@ final class AgentApprovalPolicyTests: XCTestCase {
         XCTAssertFalse(AgentApprovalPolicy.isLibraryLookup(nil))
     }
 
-    /// Only the options the four lookups take pass. An output flag, or any
-    /// option a later release might add, asks.
     func testLibraryLookupsTakeOnlyTheirKnownOptions() {
         for command in ["lokalbot-cli get latest --output notes.md", "lokalbot-cli list -o notes.md",
                         "lokalbot-cli search plan --out=notes.md", "lokalbot-cli brief --save",
@@ -203,8 +201,6 @@ final class AgentApprovalPolicyTests: XCTestCase {
         }
     }
 
-    /// Commands that read LokalBot but are not one of the four lookups, or
-    /// that change it, are not lookups.
     func testOtherCLICommandsAreNotLookups() {
         for command in ["lokalbot-cli actions --owner me", "lokalbot-cli people \"Ana\"",
                         "lokalbot-cli personal-context --task plan", "lokalbot-cli search-files invoice",
@@ -233,9 +229,6 @@ final class AgentApprovalPolicyTests: XCTestCase {
                            "lokalbot-cli search \"design review\" --limit 20",
                            "lokalbot-cli get eb749eed --include transcript 2>&1 | head -200"]
 
-    /// The owner's decision: a read-only lookup of the user's own library
-    /// runs without a request at the default level, and so at every level,
-    /// when the task's model runs on this Mac.
     func testEachLibraryLookupRunsWithoutAskingAtTheDefaultLevelWithALocalModel() {
         let policy = localModelPolicy()
         XCTAssertEqual(policy.mode, .askBeforeChanges)
@@ -247,19 +240,14 @@ final class AgentApprovalPolicyTests: XCTestCase {
         }
     }
 
-    /// A lookup's output goes to the model. With a model on a server or a
-    /// subscription plan, or one whose place is not known, the same lookups
-    /// ask wherever they asked before lookups could skip approval.
     func testTheSameLookupsAskWhenTheModelIsNotOnThisMac() {
         XCTAssertFalse(AgentApprovalPolicy().modelRunsOnThisMac, "not known means not on this Mac")
         for lookup in lookups {
             for mode in [AgentApprovalMode.askBeforeChanges, .approveReads, .approveReadsAndEdits] {
                 XCTAssertEqual(command(AgentApprovalPolicy(mode: mode), lookup), .ask, "\(mode) \(lookup)")
             }
-            // Full access runs every command, as it did before.
             XCTAssertEqual(command(AgentApprovalPolicy(mode: .fullAccess), lookup), .allow, lookup)
         }
-        // Learning that the model left this Mac takes the lookup back.
         var policy = localModelPolicy()
         XCTAssertEqual(command(policy, "lokalbot-cli brief"), .allow)
         policy.modelRunsOnThisMac = false
@@ -269,9 +257,6 @@ final class AgentApprovalPolicyTests: XCTestCase {
         XCTAssertEqual(command(policy, "lokalbot-cli brief"), .allow, "a session reset does not change where the model runs")
     }
 
-    /// Unchanged from before: a task handed off from a meeting's actions runs
-    /// lookups in the read levels wherever its model runs, and asks at the
-    /// default level unless the model is on this Mac.
     func testHandedOffTasksRunLibraryLookupsInReadModes() {
         var policy = AgentApprovalPolicy(mode: .approveReads)
         XCTAssertEqual(command(policy, "lokalbot-cli brief"), .ask)
@@ -293,17 +278,13 @@ final class AgentApprovalPolicyTests: XCTestCase {
         XCTAssertEqual(command(policy, "lokalbot-cli brief"), .allow, "the hand-off belongs to the task, not the session")
     }
 
-    /// With a model on this Mac, everything that is not a proven lookup
-    /// still asks at the default level.
     func testEverythingElseStillAsksAtTheDefaultLevel() {
         let policy = localModelPolicy()
         let root = workspace.path
-        // A write, an edit, a read outside the folder, and another tool.
         XCTAssertEqual(verdict(policy, tool: "write", path: "\(root)/note.md", requestWorkspace: root), .ask)
         XCTAssertEqual(verdict(policy, tool: "edit", path: "\(root)/note.md", requestWorkspace: root), .ask)
         XCTAssertEqual(verdict(policy, tool: "read", path: "/private/notes.txt", requestWorkspace: root), .ask)
         XCTAssertEqual(verdict(policy, tool: "mcp_search", requestWorkspace: root), .ask)
-        // An arbitrary command, and commands that only look like a lookup.
         for other in ["ls -la", "cat notes.md", "curl https://example.com", "rm -rf build",
                       "lokalbot-cli list | sh", "lokalbot-cli list | tee notes.md",
                       "lokalbot-cli list > notes.md", "lokalbot-cli list >> notes.md",
@@ -317,14 +298,11 @@ final class AgentApprovalPolicyTests: XCTestCase {
             XCTAssertEqual(command(policy, other), .ask, other)
             XCTAssertEqual(command(AgentApprovalPolicy(), other), .ask, "remote model: \(other)")
         }
-        // The lookup rule is for the shell tool only, with its command present.
         XCTAssertEqual(command(policy, "lokalbot-cli brief", tool: "write"), .ask)
         XCTAssertEqual(policy.verdict(tool: "bash", path: nil, command: nil, requestWorkspace: root,
                                       selectedWorkspace: workspace), .ask)
     }
 
-    /// A request from a folder other than the task's working folder is stale
-    /// or malformed, and asks even when it is a lookup.
     func testLookupFromAnotherWorkingFolderStillAsks() {
         let policy = localModelPolicy()
         XCTAssertEqual(command(policy, "lokalbot-cli brief", requestWorkspace: "/private/other-workspace"), .ask)

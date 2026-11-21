@@ -1,7 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Every action with its details beside it; one stack in compact width.
 struct ActionsSplit: View {
     @Environment(AppNavigator.self) private var navigator
     @State private var selection: ActionRoute?
@@ -143,7 +142,6 @@ struct ActionsList: View {
     }
 }
 
-/// One action: what was said, by whom, when it's due, and the cited passage.
 struct ActionDetailScreen: View {
     let route: ActionRoute
     @Environment(CompanionSession.self) private var session
@@ -307,8 +305,6 @@ struct ActionDetailScreen: View {
     }
 }
 
-/// A quoted passage: speaker, the time on the Mac, the words, and a link to
-/// that moment in the transcript.
 struct CitedPassage: View {
     let citation: Citation
     let meetingID: String

@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.platform.LocalContext
 
-/** True under "Remove animations"; every LokalBot animation is then off. */
 val LocalReduceMotion = staticCompositionLocalOf { false }
 
 enum class MotionKind(val millis: Int, val easing: Easing) {

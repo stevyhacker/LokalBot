@@ -9,13 +9,7 @@ extension MeetingNotesGenerator {
         var repairTokenFloor: Int?
         var terminalFailure: String?
         var noProgressAttempts: Int?
-        /// Tasks (normalized text) whose ownership repairs answered in full
-        /// but could not bind them; they stay visible as owner-unclear.
         var settledOwnership: [String]?
-        /// Rows the commitment check flagged that a complete repair answered
-        /// without a task for the user. The check only matches wording ("I'll
-        /// be honest" passes it), so that answer is final: asking again gets
-        /// the same reply and would leave the part partial for good.
         var answeredCommitments: [String]?
     }
 
@@ -31,35 +25,21 @@ extension MeetingNotesGenerator {
         var number: Int
         var remainingParts: Int
         var budget: MeetingGenerationBudget
-        /// The part's size in standard parts (at least 1).
         var outputScale: Double = 1
         var retryingStopped = false
     }
 
-    /// At most three extraction pages and two repair calls per part in this
-    /// attempt, plus two for records queued behind a task whose owner the
-    /// repairs could not bind. Every call also consumes the shared job
-    /// allowance. A restart resumes the ledger and pending repairs, including
-    /// legacy checkpoints.
     static func generatePart(_ initial: Part, job: PartJob, save: (Part) throws -> Void) async throws {
         var part = initial
         var recovery = part.recovery ?? legacyRecovery(part, transcript: job.evidence.transcript)
-        // Older checkpoints retained source-less rejections forever. Start one
-        // fresh scan, preserving accepted evidence, instead of an impossible repair.
         let knownSources = Set(job.units.map(\.source))
         if recovery.pending.contains(where: { $0.sources.isEmpty }) {
             recovery.pending.removeAll { $0.sources.isEmpty }
             recovery.scanComplete = false
             recovery.nextPage = 0
             recovery.noProgressAttempts = nil
-            // Pre-recovery builds persisted this source-less state as a
-            // terminal provider failure. Clear that marker before the guard
-            // below so the fresh scan can actually run.
             recovery.terminalFailure = nil
         }
-        // The stop exists so automatic runs do not cycle on a provider that
-        // keeps failing. A person asking again may have changed the model or
-        // its reasoning; on 2026-10-07 every "Summarize again" failed in 0.2 s.
         if job.retryingStopped, recovery.terminalFailure != nil {
             recovery.terminalFailure = nil
             recovery.noProgressAttempts = nil
@@ -83,8 +63,6 @@ extension MeetingNotesGenerator {
                 OutcomeTextSimilarity.normalized(lhs.text) == OutcomeTextSimilarity.normalized(rhs.text)
                     && !Set(lhs.citations.map(\.segmentID)).isDisjoint(with: rhs.citations.map(\.segmentID))
             }
-            // Keep pending IDs stable across extraction pages. Merging their
-            // citations/text first would strand the repair's replacement ID.
             for action in incoming.actionItems {
                 let replaced = Set(held.filter { sameTask($0, action) }.map(\.id))
                 held.removeAll { replaced.contains($0.id) }
@@ -109,10 +87,6 @@ extension MeetingNotesGenerator {
             try Task.checkCancellation()
             let allowance = try await job.budget.allowance(
                 remainingParts: job.remainingParts, desired: min(16_384, Int(4_096 * job.outputScale)), minimum: minimum)
-            // Continue only from accepted records. A page cut off before any
-            // record (reasoning used the whole output) is scanned again; on
-            // 2026-10-07 "continue the unfinished work" with an empty ledger
-            // got empty answers until the part was stopped.
             let continuing = !recovery.records.isEmpty
             let stage = continuing ? "continue-\(job.number)-\(recovery.nextPage)" : "extract-\(job.number)"
             let evidenceRows = prompt(units: job.units, roster: job.evidence.roster)
@@ -139,27 +113,14 @@ extension MeetingNotesGenerator {
                 meetingID: job.meetingID, maximumNotes: maximumNotes, maximumActions: maximumActions)
             let previousCount = recovery.records.count
             accept(validated)
-            // An empty final page may finish a previously populated scan, but
-            // empty output cannot certify a substantial untouched transcript.
             if part.claims.isEmpty && part.outcomes.isEmpty,
                job.units.reduce(0, { $0 + $1.text.split(whereSeparator: \.isWhitespace).count }) > 500 {
                 validated.complete = false
             }
-            // A malformed optional record may have no usable source at all
-            // (for example an action omitted `source`). It cannot be repaired
-            // without evidence, but it must not poison otherwise valid notes
-            // or turn a provider-shape error into an evidence-ID failure. Keep
-            // the rejection in validation telemetry and only queue source-bound
-            // records for targeted repair.
             for rejection in validated.rejected
                 where rejection.actionID == nil && !rejection.sources.isEmpty && !recovery.pending.contains(rejection) {
                 recovery.pending.append(rejection)
             }
-            // Some OpenAI-compatible providers occasionally return an
-            // incomplete envelope or a source-less optional action even though
-            // the request itself succeeded. One bounded, explicit re-read can
-            // recover a useful summary; without it the no-progress guard would
-            // turn a provider shape glitch into a failed meeting.
             let hasSourceLessShapeError = validated.rejected.contains {
                 $0.sources.isEmpty && ["invalid_action", "invalid_note"].contains($0.reason)
             }
@@ -183,8 +144,6 @@ extension MeetingNotesGenerator {
                 try checkpoint()
                 throw TextEngineError.badResponse(recovery.terminalFailure!)
             }
-            // A provider repeating a full page must not spend the entire job
-            // cycling. Keep its accepted facts and resume explicitly later.
             if recovery.records.count == previousCount && !recovery.scanComplete {
                 if extractionRecoveryRetryPending {
                     try checkpoint()
@@ -209,14 +168,6 @@ extension MeetingNotesGenerator {
         queueMissingCommitments(part, job: job, recovery: &recovery)
         try checkpoint()
 
-        // Ownership repairs run first. A task whose latest repair answered in
-        // full but still could not bind it to one undertaking stays visible
-        // as owner-unclear, like a wrong-owner claim: the same evidence fails
-        // every retry, so holding the part open would fail the meeting each
-        // time. Records queued behind ownership repairs then get their own
-        // two repairs. A settled task near the user's own commitment covers
-        // it: the task stays visible, and one spoken on this Mac's microphone
-        // is marked as likely the user's.
         let ownershipReasons: Set<String> = ["missing_ownership_evidence", "ambiguous_ownership_evidence", "ownership_quote_not_found"]
         for phase in 0..<2 {
             var answeredOwnership = Set<String>()
@@ -224,7 +175,7 @@ extension MeetingNotesGenerator {
             var previousRepairTokens = 0
             for attempt in 0..<2 where !recovery.pending.isEmpty {
                 let repairable = repairBatch(recovery.pending, units: job.units)
-                guard !repairable.isEmpty else { break } // Never repair an invented source using unrelated evidence.
+                guard !repairable.isEmpty else { break }
                 let repairUnits = repairEvidence(repairable, units: job.units)
                 let noteLimit = repairable.filter { $0.kind == "notes" }.count
                 let actionLimit = repairable.filter { $0.kind == "actions" }.count
@@ -260,16 +211,12 @@ extension MeetingNotesGenerator {
                     repairedOwnership = true
                     acceptOwnershipRepairs(fixed, requested: repairable, job: job, complete: fixed.complete && !raw.truncated,
                                            part: &part, recovery: &recovery)
-                    // Ownership repairs keep each task's text fixed, so the text
-                    // identifies the task across replacement IDs.
                     let texts = repairable.compactMap { $0.text.map(OutcomeTextSimilarity.normalized) }
                     if fixed.complete && !raw.truncated { answeredOwnership.formUnion(texts) } else { answeredOwnership.subtract(texts) }
                 } else {
                     accept(fixed)
                 }
                 if fixed.complete && !raw.truncated {
-                    // Unsupported records may be omitted after a complete repair;
-                    // independently validated facts never depend on their survival.
                     if !ownershipRepair {
                         recovery.pending.removeAll { repairable.contains($0) }
                         let answered: [String] = repairable
@@ -305,16 +252,10 @@ extension MeetingNotesGenerator {
                   !recovery.pending.contains(where: { $0.actionID != nil }) else { break }
             try checkpoint()
         }
-        // A commitment still uncovered here was answered without a task, or
-        // sits beside several owner-unclear tasks that proximity cannot choose
-        // between. Neither changes on a retry, so neither holds the part open.
         part.complete = recovery.scanComplete && recovery.pending.isEmpty
         try checkpoint()
     }
 
-    /// Ownership repairs keep each existing task's text fixed so
-    /// a different promise from the same neighborhood cannot replace it. The
-    /// unresolved task remains visible on failure, and replacement is atomic.
     private static func acceptOwnershipRepairs(
         _ fixed: MeetingNotesEvidence.Validated,
         requested: [MeetingNotesEvidence.Rejection], job: PartJob, complete: Bool,
@@ -327,8 +268,6 @@ extension MeetingNotesGenerator {
             let allowed = Set(repairEvidence([request], units: job.units).compactMap { job.evidence.transcript.summaryCitationSources[$0.source] })
             let actions = fixed.outcomes.actionItems.filter { matches($0.text) && $0.citations.allSatisfy { allowed.contains($0.segmentID) } }
             guard actions.count == 1, let action = actions.first else {
-                // A grounded repair can discover that the alleged task was
-                // negated, completed, or just conversation management.
                 let terminal = fixed.rejected.contains { rejection in
                     matches(rejection.text) && !rejection.sources.isEmpty
                         && rejection.sources.allSatisfy { job.evidence.transcript.summaryCitationSources[$0].map { allowed.contains($0) } == true }
@@ -354,9 +293,6 @@ extension MeetingNotesGenerator {
         }
     }
 
-    /// Finish repairing a nearby existing task before extracting an omission
-    /// from the same exchange. Proximity only schedules a model re-read; it
-    /// never establishes ownership or merges different task descriptions.
     private static func queueMissingCommitments(_ part: Part, job: PartJob, recovery: inout Recovery) {
         guard recovery.scanComplete else { return }
         let compact = Dictionary(uniqueKeysWithValues: job.evidence.transcript.summaryCitationSources.map { ($0.value, $0.key) })
@@ -388,11 +324,6 @@ extension MeetingNotesGenerator {
             + "If nothing remains, return empty arrays and has_more=false.\nPreviously accepted records: \(ledger)"
     }
 
-    /// Parts are planned to fill the context beside a full output allowance,
-    /// so a continuation's ledger and recovery text come out of that
-    /// allowance. The ledger only discourages repeats (accepted keys are
-    /// deduplicated anyway), so a long one keeps its newest records rather
-    /// than blocking the page.
     private static func fittedPage(rows: String, suffix: String, ledger: [MeetingNotesEvidence.Record]?,
                                    system: String, allowance: Int, job: PartJob) async throws -> (prompt: String, tokens: Int) {
         var kept = ledger?.count ?? 0
@@ -406,8 +337,6 @@ extension MeetingNotesGenerator {
         }
     }
 
-    /// The output allowance that fits beside this request's input, reduced
-    /// as needed, or nil when even the structured-output minimum cannot fit.
     private static func outputRoom(system: String, prompt: String, context: [String], tokens: Int, job: PartJob) async throws -> Int? {
         let input = try await tokenCount(([system] + context + [prompt]).joined(separator: "\n\n"), engine: job.engine)
         let room = min(tokens, job.contextTokens - input - 1_536)
@@ -418,9 +347,6 @@ extension MeetingNotesGenerator {
         .badResponse("Notes continuation cannot fit the model's input allowance. Source-linked progress was saved.")
     }
 
-    /// The user's undertakings that no user task cites. A settled task citing
-    /// the same speaker near the undertaking covers it: the repairs already
-    /// tried to bind that task to the user and could not.
     private static func missingCommitments(_ part: Part, job: PartJob, recovery: Recovery) -> [String] {
         let cited = Set(part.outcomes.userActionItems.flatMap { $0.citations.map(\.segmentID) })
         let settled = Set(recovery.settledOwnership ?? [])

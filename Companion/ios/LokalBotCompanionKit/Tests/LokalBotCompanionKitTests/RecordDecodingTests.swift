@@ -5,7 +5,6 @@ import Testing
 @Suite("Records")
 struct RecordDecodingTests {
     @Test func bundledSampleLibraryMatchesTheProtocolFixture() throws {
-        // Tests/LokalBotCompanionKitTests/<file> → Companion/
         var companion = URL(filePath: #filePath)
         for _ in 0..<5 { companion.deleteLastPathComponent() }
         let fixture = companion.appending(path: "protocol/fixtures/sample-library.json")
@@ -31,7 +30,6 @@ struct RecordDecodingTests {
         #expect(meeting.title == "Design review — onboarding")
         #expect(meeting.timeZoneOffsetMinutes == 60)
         #expect(meeting.timeZone.secondsFromGMT() == 3600)
-        // `day` is the Mac-local day of `startedAt`, and the meeting ended after it began.
         var macCalendar = Calendar(identifier: .gregorian)
         macCalendar.timeZone = meeting.timeZone
         #expect(DayKey(meeting.startedAt, calendar: macCalendar).description == meeting.day)
@@ -60,7 +58,6 @@ struct RecordDecodingTests {
         #expect(transcript.segmentIndex(at: 724) == 3)
         #expect(transcript.segmentIndex(at: 1500) == 5)
 
-        // The day of the design review, which has a digest and a full timeline.
         let review = try #require(await store.meeting(id: "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01"))
         let day = try #require(await store.day(review.day))
         #expect(day.digest?.sections.blockers == ["Waiting on legal review of the pricing tiers."])
@@ -70,7 +67,6 @@ struct RecordDecodingTests {
         #expect(day.timeline?.sessions[0].windowTitles == ["OnboardingFlow.swift", "Terminal — swift test"])
         #expect(day.timeline?.byProject.last?.isOther == true)
         #expect(day.timeline?.savedMoments.first?.label == "Pricing table idea")
-        // The sample's "today" (its manifest's generatedAt) has no digest yet.
         #expect(await store.day(DayKey(SampleLibrary.referenceDate).description)?.digest == nil)
         #expect(await store.manifest()?.generatedAt == SampleLibrary.referenceDate)
 
@@ -114,7 +110,6 @@ struct RecordDecodingTests {
         """
         await store.importRecords(try CompanionJSON.decode([RecordEnvelope].self, from: tombstone))
         #expect(await store.meeting(id: "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e06") == nil)
-        // An older version never replaces a newer one.
         #expect(await store.meeting(id: "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e05") != nil)
     }
 

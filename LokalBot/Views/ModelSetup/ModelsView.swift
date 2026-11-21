@@ -2,13 +2,11 @@ import AppKit
 import SwiftUI
 
 struct ModelsView: View {
-    /// Matches the width of the grouped settings forms on the other tabs.
     static let contentWidth: CGFloat = LBTokens.Metric.readingMaxWidth
     @EnvironmentObject var app: AppState
     @SceneStorage("settings.models.page") private var pageValue = ModelsSettingsPage.active.rawValue
     @State private var sheet: ModelsSettingsSheet?
     @State private var selectedPreset = ModelStackPreset.recommended
-    /// What the shared page header says about the models.
     let status: SettingsStatus
 
     private var page: Binding<ModelsSettingsPage> {
@@ -17,8 +15,6 @@ struct ModelsView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // The page opens with the shared Settings header, which carries
-            // the download; the pages it opens keep their way back.
             Group {
                 if page.wrappedValue == .active {
                     SettingsPageHeader(page: .models, status: status) { downloadControl }
@@ -63,7 +59,6 @@ struct ModelsView: View {
                             ModelOtherModelsView(app: app, present: { sheet = $0 })
                         }
                     }
-                    // Every page shares one centered column, like other Settings tabs.
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(maxWidth: Self.contentWidth)
                     .frame(maxWidth: .infinity)
@@ -99,12 +94,9 @@ struct ModelsView: View {
         .accessibilityIdentifier("models.settings")
     }
 
-    /// The settings that are rows of the page itself, under Advanced.
     private static let settingsOnThePage = ModelStackOverviewView.advancedSettings
         .union([SettingsStatus.modelChecksFocus])
 
-    /// One button for every model that is missing, and Cancel while they
-    /// arrive. Nothing once they are all here.
     @ViewBuilder private var downloadControl: some View {
         if !status.modelsDownloading.isEmpty {
             Button("Cancel") { app.modelRoles.cancelCoreModelDownloads() }
@@ -143,7 +135,6 @@ struct ModelsView: View {
         case "settings.openAIBaseURL", "settings.openAIModel", "settings.ollamaBaseURL", "settings.openAIAPIKey":
             page.wrappedValue = .connections
         case SettingsStatus.modelChecksFocus:
-            // A check that failed: the page's line opens the sheet that says why.
             page.wrappedValue = .active
             sheet = .checks
         case _ where ModelStackOverviewView.advancedSettings.contains(id):
@@ -222,8 +213,6 @@ struct ModelSetupFeedback: View {
     }
 }
 
-/// Settings → Models and onboarding: where pinned model files download from.
-/// The explanation follows the choice, and the menu keeps its full width.
 struct ModelDownloadSourcePicker: View {
     @Binding var source: ModelDownloadSource
     let accessibilityIdentifier: String

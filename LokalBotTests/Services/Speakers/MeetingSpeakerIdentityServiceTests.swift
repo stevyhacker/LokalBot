@@ -17,12 +17,9 @@ import XCTest
     }
     override func tearDown() async throws { try? FileManager.default.removeItem(at: root) }
 
-    /// One remote voice with remote voice samples.
     private func fixture() throws -> (Meeting, URL, Transcript, [SpeakerAudioTurn], [SpeakerVoiceSample]) {
         let meeting = try storage.createMeetingFolder(title: "Staged rule fixture", appName: "Google Chrome")
         let audioURL = meeting.folderURL(in: storage).appendingPathComponent("fixture-audio.bin")
-        // Digest fixture only. No synthetic vector/byte fixture is presented as
-        // an audio-recognition accuracy test or a real provider capture.
         try Data("same audio content for digest and identity rules".utf8).write(to: audioURL)
         let turns: [SpeakerAudioTurn] = (0..<4).map { index in
             .init(speaker: "them", range: .init(start: Double(index * 20), end: Double(index * 20 + 10)))
@@ -236,8 +233,6 @@ import XCTest
         XCTAssertTrue(profiles.isEmpty)
     }
 
-    /// A merge keeps its sources on disk and out of the library list. Their
-    /// voice samples expire with the screen retention period all the same.
     func testVoiceSamplesOfAMergedSourceExpireThoughTheLibraryListLeavesItOut() async throws {
         var source = try storage.createMeetingFolder(title: "Folded source", appName: "Google Chrome")
         var parent = try storage.createMeetingFolder(title: "Merged meeting", appName: "Google Chrome")
@@ -379,7 +374,6 @@ import XCTest
         let named = try await service.choose(.init(label: "them 1", name: "Hernan"), meeting: older, transcript: processed)
         let (recent, recentAudio, recentTranscript, recentTurns, recentSamples) = try callFixture()
         let unnamed = await service.process(transcript: recentTranscript, meeting: recent, turns: recentTurns, samples: [], audioURL: recentAudio)
-        // Both were processed before call voices were kept.
         for meeting in [older, recent] {
             var saved = try await store.state(meeting: meeting)
             saved.callVoicesAnalyzed = nil
@@ -393,8 +387,6 @@ import XCTest
         await service.learnFromSavedMeetings([recent, older], recentSince: .distantPast, using: library.access)
         let profiles = try await service.profiles()
         XCTAssertEqual(profiles.map(\.name), ["Hernan"])
-        // A saved transcript keeps its names, so its notes stay current; the
-        // meeting offers the recognized name instead.
         let recentState = try await store.state(meeting: recent)
         XCTAssertNil(recentState.assignments.first { $0.label == "them 1" }?.name)
         let recognized = MeetingSpeakerIdentityService.recognizedSpeakers(in: recentState, transcript: unnamed)
@@ -447,7 +439,6 @@ import XCTest
         XCTAssertEqual(profiles.map(\.name), ["Hernan"])
     }
 
-    /// Saved transcripts and call-track analysis for `learnFromSavedMeetings`.
     @MainActor private final class SavedLibrary {
         struct Unavailable: Error {}
         let transcripts: [UUID: Transcript]
@@ -469,7 +460,6 @@ import XCTest
         }
     }
 
-    /// One diarized call voice on a real (silent) system track.
     private func callFixture() throws -> (Meeting, URL, Transcript, [SpeakerAudioTurn], [SpeakerVoiceSample]) {
         let meeting = try storage.createMeetingFolder(title: "Call voice rule fixture", appName: "Google Chrome")
         let audio = meeting.folderURL(in: storage).appendingPathComponent("system.m4a")

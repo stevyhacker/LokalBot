@@ -1,6 +1,3 @@
-//! Read queries over the phone's copy (ffi.md, reads). Bodies come back as
-//! the JSON records.md describes, with local action states applied.
-
 use std::cmp::Reverse;
 use std::collections::HashMap;
 
@@ -12,23 +9,18 @@ use crate::records::{
     DAY, MANIFEST, MANIFEST_KEY, MEETING, PERSON, PROJECT, TRANSCRIPT, str_field,
 };
 
-/// Which action items `actions` returns.
 #[derive(Clone, Debug, Default, PartialEq, Eq, uniffi::Record)]
 pub struct ActionFilter {
-    /// Only actions the person using LokalBot owns.
     #[uniffi(default = false)]
     pub mine_only: bool,
-    /// `open`, `done` or `deferred`; all when absent.
     #[uniffi(default = None)]
     pub status: Option<String>,
     #[uniffi(default = false)]
     pub owner_unclear_only: bool,
-    /// Only actions due before this day (`YYYY-MM-DD`, exclusive).
     #[uniffi(default = None)]
     pub due_before: Option<String>,
 }
 
-/// `0` means no limit.
 fn take<T>(items: Vec<T>, limit: u32) -> Vec<T> {
     if limit == 0 {
         items
@@ -41,8 +33,6 @@ fn is_merged(meeting: &Value) -> bool {
     meeting.get("mergedInto").is_some_and(|v| !v.is_null())
 }
 
-/// Applies pending statuses (`"pending": true`) and op notes (`"syncNote"`)
-/// to a meeting body's actions.
 fn apply_states(
     meeting_id: &str,
     body: &mut Value,
@@ -75,8 +65,6 @@ impl ClientStore {
             .map(|body| body.to_string()))
     }
 
-    /// Meetings newest first, merged ones hidden, optionally within days
-    /// `from_day..=to_day`.
     pub fn meetings(
         &self,
         from_day: Option<&str>,
@@ -84,8 +72,6 @@ impl ClientStore {
         limit: u32,
     ) -> Result<Vec<String>> {
         let states = self.action_states()?;
-        // In SQL, so a day or a page reads only its own rows: `is_merged`, and
-        // a day that is missing or not a string counting as "".
         const DAY: &str = "CASE json_type(body, '$.day') WHEN 'text' THEN json_extract(body, '$.day') ELSE '' END";
         let condition = format!(
             "json_extract(body, '$.mergedInto') IS NULL \
@@ -121,7 +107,6 @@ impl ClientStore {
             .map(|body| body.to_string()))
     }
 
-    /// Day keys that have a record, newest first.
     pub fn days(&self, limit: u32) -> Result<Vec<String>> {
         let days = self
             .bodies(DAY, "key DESC")?
@@ -135,8 +120,6 @@ impl ClientStore {
         Ok(self.body(DAY, date)?.map(|body| body.to_string()))
     }
 
-    /// ActionRow JSON: overdue first, then by due date (none last), then by
-    /// meeting start, newest first. `today` is `YYYY-MM-DD`.
     pub fn actions(&self, filter: &ActionFilter, today: &str) -> Result<Vec<String>> {
         let states = self.action_states()?;
         let mut rows: Vec<(bool, Option<String>, String, Value)> = Vec::new();
@@ -205,7 +188,6 @@ impl ClientStore {
         Ok(rows.into_iter().map(|(.., row)| row.to_string()).collect())
     }
 
-    /// People, most recently met first.
     pub fn people(&self) -> Result<Vec<String>> {
         let mut people: Vec<Value> = self
             .bodies(PERSON, "key")?
@@ -230,7 +212,6 @@ impl ClientStore {
         Ok(self.body(PERSON, id)?.map(|body| body.to_string()))
     }
 
-    /// Projects, the one with the most recent meeting first.
     pub fn projects(&self) -> Result<Vec<String>> {
         let started: HashMap<String, String> = self
             .bodies(MEETING, "key")?

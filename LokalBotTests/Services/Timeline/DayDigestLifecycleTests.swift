@@ -36,8 +36,6 @@ final class DayDigestLifecycleTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: lifecycle.journalURL(for: legacy).path))
     }
 
-    /// Retention clears a day's titles and screen text after its digest was
-    /// written. The digest outlives them, so expiry must not read as new work.
     func testExpiredEvidenceDoesNotMarkTheDigestOutOfDate() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("digest-expiry-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }

@@ -1,15 +1,3 @@
-//! What the Settings window says about the state of each feature
-//! (`SettingsStatus.swift`): the "Off" and "Paused" marks and count badges in
-//! its list, what needs the person on Overview, each permission's row on
-//! Privacy & permissions, and the status lines under every page's header.
-//! Derived from real state and nothing else, so each of those places says
-//! the same thing. Kept apart from drawing so it can be tested.
-//!
-//! Linux and Windows have no permission prompts like macOS. A permission here
-//! is what this desktop allows LokalBot ([`crate::control::permissions`]):
-//! its real state, which features that are on use it, and the one fix that
-//! exists, if any (Windows' microphone switch, the calendar links).
-
 use std::collections::HashMap;
 
 use lokalbot_core::Settings;
@@ -18,44 +6,28 @@ use lokalbot_core::settings::{CotypingBackend, SummarizerBackend};
 use crate::state::{DownloadProgress, ModelStatus, SettingsCategory};
 use lokalbot_i18n::fill;
 
-/// How a status line is marked.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Tone {
-    /// Something the person has to do: amber, with a warning sign.
     Need,
-    /// Working: a green dot.
     Ok,
-    /// Off, or waiting on something that is already under way: gray.
     Quiet,
-    /// Something leaves this computer: amber, with a globe.
     Online,
-    /// Under way, with how far along it is when that is known (0–1).
     Progress(Option<f32>),
 }
 
-/// What a status line's button, an Overview row and a Privacy & permissions
-/// row do, so each fix works the same way everywhere.
 #[derive(Clone, Debug, PartialEq)]
 pub enum StatusAction {
-    /// Where a permission is decided (`permissions::request`): the system's
-    /// own switch where it has one, the calendar links, or its row on
-    /// Privacy & permissions.
     Permission(&'static str),
-    /// Starts downloading the models that are missing.
     Download,
-    /// Opens another Settings page, on a setting when one is named.
     Open(SettingsCategory, Option<&'static str>),
 }
 
-/// One line under a Settings page's header: whether the feature works, and
-/// when it does not, the one control that fixes it (`SettingsStatusLine`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct StatusLine {
     pub id: &'static str,
     pub tone: Tone,
     pub text: String,
     pub action: Option<StatusAction>,
-    /// The button's title (a catalog key), when it is not the action's own.
     pub action_title: Option<&'static str>,
 }
 
@@ -80,7 +52,6 @@ impl StatusLine {
         self
     }
 
-    /// The button's title, already translated.
     pub fn button_title(&self) -> Option<&'static str> {
         let key = self.action_title.or(match self.action {
             Some(StatusAction::Download) => Some("Download"),
@@ -91,41 +62,29 @@ impl StatusLine {
         Some(lokalbot_i18n::tr(key))
     }
 
-    /// Buttons fix something; links only take you somewhere.
     pub fn is_link(&self) -> bool {
         matches!(self.action, Some(StatusAction::Open(..)))
     }
 }
 
-/// The fix a permission has on this platform.
 pub use crate::control::permissions::Fix as PermissionFix;
 
-/// One row on Privacy & permissions.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Permission {
-    /// `microphone`, `accessibility`, …, as `permissions request` takes them.
     pub name: &'static str,
     pub title: String,
     pub granted: bool,
-    /// False where nothing can be read before the feature is used, the way
-    /// setup leaves it unclaimed too (`crate::access`).
     pub checked: bool,
-    /// The features that are on and use it, already translated.
     pub needed_by: Vec<String>,
-    /// What this desktop allows, or why it does not.
     pub detail: String,
     pub fix: Option<PermissionFix>,
 }
 
-/// Where a permission stands (`SettingsStatus.Access`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Access {
     Allowed,
-    /// A feature that is on uses it, and this desktop does not allow it.
     Missing,
-    /// Not allowed, and nothing that is on uses it.
     NotNeeded,
-    /// Nothing can be read before it is used (the microphone).
     Unchecked,
 }
 
@@ -156,12 +115,10 @@ impl Permission {
         }
     }
 
-    /// The fix as a status action, when this platform has one.
     pub fn fix_action(&self) -> Option<StatusAction> {
         self.fix.map(|_| StatusAction::Permission(self.name))
     }
 
-    /// The fix's button title (a catalog key).
     pub fn fix_title(&self) -> Option<&'static str> {
         self.fix.map(|fix| match fix {
             PermissionFix::SystemSettings => "Open System Settings…",
@@ -170,14 +127,12 @@ impl Permission {
         })
     }
 
-    /// Used by a feature named with `feature` (a catalog key).
     fn used_by(&self, feature: &str) -> bool {
         let name = lokalbot_i18n::tr(feature);
         self.needed_by.iter().any(|used| used == name)
     }
 }
 
-/// One of the three models, as far as Settings needs to describe it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Role {
     Transcribe,
@@ -188,11 +143,8 @@ pub enum Role {
 #[derive(Clone, Debug, PartialEq)]
 pub enum ModelState {
     Ready,
-    /// Not downloaded, and nothing is on its way.
     Missing,
-    /// On its way, with how far along when that is known (0–1).
     Downloading(Option<f32>),
-    /// A server that can't be used yet, or a download that failed.
     Attention,
 }
 
@@ -200,15 +152,12 @@ pub enum ModelState {
 pub struct ModelInfo {
     pub role: Role,
     pub name: String,
-    /// What its download weighs, when one is needed and its size is known.
     pub bytes: Option<u64>,
-    /// False for a server: nothing downloads.
     pub downloads: bool,
     pub state: ModelState,
 }
 
 impl ModelInfo {
-    /// "Gemma 4 E2B (3.9 GB)", or the name alone when the size is unknown.
     pub fn name_and_size(&self) -> String {
         match self.bytes.filter(|bytes| self.downloads && *bytes > 0) {
             Some(bytes) => format!("{} ({})", self.name, size(bytes)),
@@ -217,12 +166,10 @@ impl ModelInfo {
     }
 }
 
-/// "3.2 GB", the way the Models page sizes downloads.
 pub fn size(bytes: u64) -> String {
     super::models::size_label(bytes)
 }
 
-/// What a role needs downloaded, and whether anything downloads at all.
 pub(super) fn role_ids(role: Role, settings: &Settings) -> (Vec<String>, bool) {
     match role {
         Role::Transcribe => {
@@ -268,7 +215,6 @@ fn role_name(role: Role, settings: &Settings) -> String {
     }
 }
 
-/// The three models from what the engine reports and what is downloading.
 pub fn models(
     settings: &Settings,
     status: &ModelStatus,
@@ -287,7 +233,6 @@ pub fn models(
                 .iter()
                 .filter(|id| !status.installed.contains(id))
                 .collect();
-            // The runtime comes with Think; another role shares it.
             let sized: Vec<&String> = missing
                 .iter()
                 .copied()
@@ -327,56 +272,41 @@ pub fn models(
         .collect()
 }
 
-/// Everything the status is derived from.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct StatusInput {
     pub settings: Settings,
     pub permissions: Vec<Permission>,
     pub models: Vec<ModelInfo>,
-    /// Free space on the drive that holds the models.
     pub free_bytes: Option<u64>,
-    /// The kinds of data external agents may read, of [`AGENT_READ_KINDS`].
     pub agent_kinds: usize,
     pub agents_can_change_settings: bool,
     pub paired_devices: usize,
-    /// Why autocomplete can't work on this desktop at all, if so.
     pub autocomplete_unavailable: Option<String>,
-    /// The roles whose last check failed (`failedChecks`).
     pub failed_checks: Vec<Role>,
 }
 
-/// The setting a failed check's line opens: the page that runs the checks
-/// (`SettingsStatus.modelChecksFocus`).
 pub const MODEL_CHECKS_FOCUS: &str = "settings.modelChecks";
 
-/// `AgentReadAccess.Kind`: meetings, screen memory, personal context, files
-/// and agent notes.
 pub const AGENT_READ_KINDS: usize = 5;
 
-/// A list row's mark (`SettingsStatus.RowState`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RowState {
     Normal,
     Off,
-    /// On, but blocked by a missing permission or model.
     Paused,
 }
 
-/// Something only the person can fix, listed on Overview.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Need {
     Permission(Permission),
-    /// Models that have to be downloaded, and what they weigh together.
     Download {
         roles: Vec<Role>,
         bytes: Option<u64>,
     },
-    /// A model that stopped or can't be used yet.
     ModelAttention(Role),
 }
 
 impl Need {
-    /// The page where it is fixed, which carries the count badge.
     pub fn page(&self) -> SettingsCategory {
         match self {
             Need::Permission(_) => SettingsCategory::Privacy,
@@ -385,7 +315,6 @@ impl Need {
     }
 }
 
-/// The features a page owns, as `permissions::needs` names them.
 fn page_features(page: SettingsCategory) -> &'static [&'static str] {
     match page {
         SettingsCategory::Meetings => &["Meetings", "Calendar detection"],
@@ -410,9 +339,6 @@ impl SettingsStatus {
         &self.input.settings
     }
 
-    // ------------------------------------------------------- permissions
-
-    /// Needed by something that is on, and not allowed.
     pub fn missing_permissions(&self) -> Vec<&Permission> {
         self.input
             .permissions
@@ -421,7 +347,6 @@ impl SettingsStatus {
             .collect()
     }
 
-    /// Missing permissions a page's features use.
     fn missing_for(&self, page: SettingsCategory) -> Vec<&Permission> {
         let features = page_features(page);
         self.missing_permissions()
@@ -430,8 +355,6 @@ impl SettingsStatus {
             .collect()
     }
 
-    /// One line for each missing permission a page uses: what this desktop
-    /// says about it, and its fix (or the way to its row).
     fn permission_lines(&self, page: SettingsCategory) -> Vec<StatusLine> {
         self.missing_for(page)
             .into_iter()
@@ -452,9 +375,6 @@ impl SettingsStatus {
         }
     }
 
-    /// What stops trying dictation in its sheet: the microphone and the
-    /// Transcribe model, said as the page's own lines say them, whether or
-    /// not the shortcut is on (`DictationTrySheet.blockers`).
     pub fn dictation_try_blockers(&self) -> Vec<StatusLine> {
         let mut input = self.input.clone();
         input.settings.dictation_enabled = true;
@@ -469,14 +389,10 @@ impl SettingsStatus {
         lines
     }
 
-    // ------------------------------------------------------------ models
-
     pub fn model(&self, role: Role) -> Option<&ModelInfo> {
         self.input.models.iter().find(|m| m.role == role)
     }
 
-    /// Transcribe and Think always; Autocomplete's model only while
-    /// Autocomplete is on.
     fn required_models(&self) -> impl Iterator<Item = &ModelInfo> {
         let autocomplete = self.settings().cotyping_enabled;
         self.input
@@ -505,8 +421,6 @@ impl SettingsStatus {
             .collect()
     }
 
-    /// 0–1 across the models that are downloading, when every size and
-    /// progress is known.
     pub fn download_fraction(&self) -> Option<f32> {
         let working = self.models_downloading();
         if working.is_empty() {
@@ -530,17 +444,11 @@ impl SettingsStatus {
         models.iter().map(|m| m.bytes).sum::<Option<u64>>()
     }
 
-    /// What every model that still has to arrive weighs together, for the
-    /// header's "Download all" button. `None` when nothing is missing or a
-    /// size is unknown.
     pub fn bytes_to_download(&self) -> Option<u64> {
         let downloads = self.models_to_download();
         Self::total_bytes(&downloads).filter(|bytes| !downloads.is_empty() && *bytes > 0)
     }
 
-    // --------------------------------------------- what leaves this computer
-
-    /// Every server the AI features send to, each named once.
     pub fn remote_hosts(&self) -> Vec<String> {
         crate::state::remote_ai_hosts(self.settings())
     }
@@ -549,12 +457,9 @@ impl SettingsStatus {
         self.settings().companion_sharing_enabled
     }
 
-    /// True while no AI server is in use and nothing is shared with phones.
     pub fn everything_stays_here(&self) -> bool {
         self.remote_hosts().is_empty() && !self.shares_with_devices()
     }
-
-    // ---------------------------------------------------------- Overview
 
     pub fn needs(&self) -> Vec<Need> {
         let mut needs: Vec<Need> = self
@@ -581,7 +486,6 @@ impl SettingsStatus {
         !self.needs().is_empty()
     }
 
-    /// The second line of the LokalBot row at the top of the list.
     pub fn summary(&self) -> String {
         let count = self.needs().len();
         if count == 1 {
@@ -598,7 +502,6 @@ impl SettingsStatus {
         }
     }
 
-    /// Overview's headline, and the line under it.
     pub fn headline(&self) -> (String, String) {
         if self.needs_attention() {
             return (
@@ -665,7 +568,6 @@ impl SettingsStatus {
         }
     }
 
-    /// The fix of a need: its button title (a catalog key) and what it does.
     pub fn need_fix(&self, need: &Need) -> (&'static str, StatusAction) {
         match need {
             Need::Permission(p) => match (p.fix_title(), p.fix_action()) {
@@ -683,9 +585,6 @@ impl SettingsStatus {
         }
     }
 
-    // ---------------------------------------------------------- the list
-
-    /// "Off" or "Paused" at the right of a feature's row.
     pub fn row_state(&self, page: SettingsCategory) -> RowState {
         let settings = self.settings();
         let not_ready = |role: Role| {
@@ -750,7 +649,6 @@ impl SettingsStatus {
         }
     }
 
-    /// How many things need the person on the page where they are fixed.
     pub fn badge(&self, page: SettingsCategory) -> usize {
         self.needs()
             .iter()
@@ -758,9 +656,6 @@ impl SettingsStatus {
             .count()
     }
 
-    // ------------------------------------------------------ page headers
-
-    /// The status lines under a page's header, most pressing first.
     pub fn lines(&self, page: SettingsCategory) -> Vec<StatusLine> {
         let settings = self.settings();
         let off = || {
@@ -837,8 +732,6 @@ impl SettingsStatus {
                 _ => None,
             };
             let texts = together.map_or_else(|| Self::missing_each(&downloads), |text| vec![text]);
-            // The header's own button downloads them all. While it shows
-            // Cancel for a running download, the first line keeps the button.
             for (index, text) in texts.into_iter().enumerate() {
                 let line = StatusLine::new(
                     if index == 0 {
@@ -870,7 +763,6 @@ impl SettingsStatus {
                 self.downloading_text(&working),
             ));
         }
-        // A model that is here and did not answer its check.
         lines.extend(self.input.failed_checks.iter().filter_map(|role| {
             let model = self.model(*role).filter(|m| m.state == ModelState::Ready)?;
             Some(
@@ -925,8 +817,6 @@ impl SettingsStatus {
         )]
     }
 
-    /// What the models that are here weigh, from the catalog sizes the
-    /// download was announced with.
     fn stored_bytes(&self, here: &[&ModelInfo]) -> Option<u64> {
         let settings = self.settings();
         let mut total = 0;
@@ -941,7 +831,6 @@ impl SettingsStatus {
         (total > 0).then_some(total)
     }
 
-    /// "Downloading · 3.7 GB of 9 GB", or which models are downloading.
     fn downloading_text(&self, working: &[&ModelInfo]) -> String {
         match (Self::total_bytes(working), self.download_fraction()) {
             (Some(total), Some(fraction)) if total > 0 => fill(
@@ -962,7 +851,6 @@ impl SettingsStatus {
         }
     }
 
-    /// Whether a role's model is missing, on its way, stopped or ready.
     fn model_line(&self, role: Role, focus: &'static str) -> Option<StatusLine> {
         let model = self.model(role)?;
         match &model.state {
@@ -1005,7 +893,6 @@ impl SettingsStatus {
             )];
         }
         let mut lines = self.permission_lines(SettingsCategory::Writing);
-        // Accessibility's row already says it when that is the reason.
         if let Some(reason) = &self.input.autocomplete_unavailable
             && !lines.iter().any(|line| &line.text == reason)
         {
@@ -1130,7 +1017,6 @@ impl SettingsStatus {
             .into_iter()
             .filter(|m| m.role != Role::Autocomplete)
             .collect();
-        // Which ones, each by name; the first line's button downloads them all.
         for (index, text) in Self::missing_each(&downloads).into_iter().enumerate() {
             let line = StatusLine::new(
                 if index == 0 {
@@ -1150,8 +1036,6 @@ impl SettingsStatus {
         lines
     }
 
-    /// "X isn’t downloaded yet." for each model: the Mac's sentence names one
-    /// model, so several are never joined into one "isn’t".
     fn missing_each(downloads: &[&ModelInfo]) -> Vec<String> {
         downloads
             .iter()
@@ -1165,9 +1049,6 @@ impl SettingsStatus {
     }
 }
 
-/// The server Think sends to, while its connection is allowed: what Compose
-/// dictation sends there too. The transcription and autocomplete servers are
-/// named on their own lines.
 fn think_host(settings: &Settings) -> Option<String> {
     let think_only = Settings {
         cotyping_enabled: false,
@@ -1183,9 +1064,6 @@ fn off_unless(on: bool) -> RowState {
     if on { RowState::Normal } else { RowState::Off }
 }
 
-/// What the library holds without the downloaded models
-/// (`SettingsLibrarySize`): a long-used library has many thousands of files,
-/// so call it off the main thread.
 pub fn library_bytes(root: &std::path::Path, models: &std::path::Path) -> u64 {
     fn walk(directory: &std::path::Path, models: &std::path::Path, total: &mut u64) {
         let Ok(entries) = std::fs::read_dir(directory) else {
@@ -1210,8 +1088,6 @@ pub fn library_bytes(root: &std::path::Path, models: &std::path::Path) -> u64 {
     total
 }
 
-/// Back and forward through the Settings pages visited in this window
-/// (`SettingsPageHistory`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct PageHistory {
     back: Vec<SettingsCategory>,
@@ -1238,8 +1114,6 @@ impl PageHistory {
         !self.forward.is_empty()
     }
 
-    /// A page chosen from the list, a search result or a link. Choosing the
-    /// page already shown changes nothing.
     pub fn visit(&mut self, page: SettingsCategory) {
         if page == self.current {
             return;
@@ -1338,7 +1212,6 @@ mod tests {
             },
             permissions: vec![
                 permission("accessibility", false, &["Screen & activity"]),
-                // Not allowed, but nothing that is on uses it.
                 permission("screen-recording", false, &[]),
             ],
             models: ready_models(),
@@ -1354,7 +1227,6 @@ mod tests {
             Access::NotNeeded,
             "only what something that is on uses counts"
         );
-        // The page's header says what this desktop says, with the way to the row.
         let lines = s.lines(Page::DayMemory);
         assert_eq!(lines.len(), 1);
         assert_eq!(lines[0].text, "accessibility detail");
@@ -1409,7 +1281,6 @@ mod tests {
             models: vec![
                 model(Role::Transcribe, ModelState::Missing, Some(2_470_000_000)),
                 model(Role::Think, ModelState::Missing, Some(2_740_000_000)),
-                // Autocomplete is off, so its model isn't required.
                 model(Role::Autocomplete, ModelState::Missing, Some(3_850_000_000)),
             ],
             free_bytes: Some(40_000_000_000),
@@ -1434,9 +1305,7 @@ mod tests {
             lines[0].text,
             "Not downloaded yet. They need 5.2 GB, and this PC has 40.0 GB free."
         );
-        // The header's "Download all" downloads them; the line has no button.
         assert_eq!(lines[0].action, None);
-        // Meetings says which ones, one sentence each, with the same download.
         let meetings = s.lines(Page::Meetings);
         let texts: Vec<&str> = meetings.iter().map(|l| l.text.as_str()).collect();
         assert_eq!(
@@ -1451,8 +1320,6 @@ mod tests {
         assert_eq!(s.bytes_to_download(), Some(5_210_000_000));
     }
 
-    /// The Mac's "%@ isn’t downloaded yet." names one model; two never share
-    /// one "isn’t", even before the free space is known.
     #[test]
     fn several_missing_models_are_never_one_isnt() {
         let two = || {
@@ -1481,7 +1348,6 @@ mod tests {
             "Transcribe model (927 MB) isn’t downloaded yet."
         );
         assert_eq!(models[1].text, "Think model (2.8 GB) isn’t downloaded yet.");
-        // One missing model keeps the sentence that names it.
         let one = status(StatusInput {
             models: vec![model(Role::Think, ModelState::Missing, Some(2_800_000_000))],
             free_bytes: None,
@@ -1557,7 +1423,6 @@ mod tests {
             ],
             ..Default::default()
         });
-        // The page says only that it is off.
         assert_eq!(s.lines(Page::Dictation)[0].id, "off");
         let blockers = s.dictation_try_blockers();
         assert_eq!(blockers.len(), 2);
@@ -1580,9 +1445,7 @@ mod tests {
             lines[0].action,
             Some(StatusAction::Open(Page::Models, Some(MODEL_CHECKS_FOCUS)))
         );
-        // A check is no need of its own: nothing is badged for it.
         assert!(s.needs().is_empty());
-        // A model that is not here has no check to fail.
         let missing = status(StatusInput {
             models: vec![model(Role::Think, ModelState::Missing, Some(1))],
             failed_checks: vec![Role::Think],

@@ -1,13 +1,3 @@
-//! Reads Antigravity sessions from `~/.gemini/antigravity/brain`,
-//! `~/.gemini/antigravity-cli/brain`, and `~/.gemini/antigravity-ide/brain`,
-//! plus sibling `annotations/<id>.pbtxt` files for conversation titles
-//! (`AntigravitySessionReader.swift`).
-//!
-//! Only `transcript.jsonl` (never `transcript_full.jsonl`), user prompts,
-//! assistant text replies, and tool call inputs for file edits, shell commands,
-//! and PR tools are read. Reasoning (`thinking`), tool output, file contents,
-//! credentials, settings, and databases are never opened or kept.
-
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
 use std::io::Read as _;
@@ -36,7 +26,6 @@ const EDIT_TOOLS: &[&str] = &[
 const SHELL_TOOLS: &[&str] = &["run_command", "bash", "shell", "Bash"];
 
 pub struct AntigravityReader {
-    /// Antigravity state folders, each holding `brain/` and `annotations/`.
     pub roots: Vec<PathBuf>,
 }
 
@@ -59,8 +48,6 @@ impl AntigravityReader {
         cache: Option<&ParseCache>,
     ) -> ReadResult {
         let mut result = ReadResult::default();
-        // Deduplicate by conversation id across antigravity / -cli / -ide: the
-        // copy written last wins so the same session is never read twice.
         let mut chosen: HashMap<String, (cache::CandidateFile, PathBuf)> = HashMap::new();
         for root in &self.roots {
             let brain = root.join("brain");
@@ -135,7 +122,6 @@ impl AntigravityReader {
 }
 
 fn conversation_id(transcript_path: &Path) -> Option<String> {
-    // .../<root>/brain/<id>/.system_generated/logs/transcript.jsonl
     let logs = transcript_path.parent()?;
     let generated = logs.parent()?;
     let conv = generated.parent()?;
@@ -143,7 +129,6 @@ fn conversation_id(transcript_path: &Path) -> Option<String> {
     (!name.is_empty()).then(|| name.into_owned())
 }
 
-/// Reads the `title: "..."` field from `<root>/annotations/<id>.pbtxt`.
 pub(crate) fn annotation_title(conversation_id: &str, root: &Path) -> Option<String> {
     let path = root
         .join("annotations")
@@ -367,7 +352,6 @@ impl AntigravitySummary {
         let index = self.append_record(at, dir);
         let mut appended = false;
 
-        // Never read `thinking`: reasoning stays private.
         if let Some(reply) = record
             .get("content")
             .and_then(Value::as_str)

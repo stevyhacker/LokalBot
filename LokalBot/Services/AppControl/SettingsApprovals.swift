@@ -1,19 +1,10 @@
 import Foundation
 
-/// Requests from the terminal that wait for the person: settings changes that
-/// widen what LokalBot captures, reads, records, or sends, new API keys, and
-/// imports of another app's meetings into the library.
-/// Each request is one card in the approval window listing every change it
-/// makes. It is answered once, expires after a few minutes, and is never
-/// approved in bulk.
 @MainActor
 final class SettingsApprovals: ObservableObject {
     enum Subject: Equatable {
         case settings(SettingsChangeRequest)
         case secret(AppSecret, value: String)
-        /// Meetings from another app's exports or files. The files are read
-        /// again when the person approves, so the card's counts describe them
-        /// as they were when it was shown.
         case meetingImport(MeetingImportRequest)
     }
 
@@ -28,16 +19,12 @@ final class SettingsApprovals: ObservableObject {
         let createdAt: Date
         let expiresAt: Date
         var subject: Subject
-        /// What the request changes, as `settings.set` reports it.
         var changes: [JSONValue]
         var items: [SettingsChangePlan.Item]
-        /// The cleanup a shorter retention policy deletes. Approving the card
-        /// applies exactly this review.
         var retention: RetentionReview?
         var state: SettingsRequestState = .pending
         var answeredAt: Date?
         var result: JSONValue?
-        /// Why the last Approve did not go through, shown on the card.
         var problem: String?
 
         var json: JSONValue {
@@ -63,7 +50,6 @@ final class SettingsApprovals: ObservableObject {
             return .object(object)
         }
 
-        /// What the request asks for, for the error message and notification.
         var headline: String {
             switch subject {
             case .secret(let secret, _):
@@ -83,25 +69,19 @@ final class SettingsApprovals: ObservableObject {
 
     static let lifetime: TimeInterval = 5 * 60
     static let maximumPending = 5
-    /// Answers stay readable for `config request` this long.
     static let answeredLifetime: TimeInterval = 30 * 60
 
     @Published private(set) var pending: [Request] = []
     private var answered: [Request] = []
     private let now: () -> Date
 
-    /// Tells the person a request is waiting: a notification, or the approval
-    /// window when notifications are off. Set on the interactive launch path.
     var announce: (Request) -> Void = { _ in }
-    /// Removes a request's notification once it is answered or expires.
     var withdraw: (Request) -> Void = { _ in }
 
     init(now: @escaping () -> Date = Date.init) {
         self.now = now
     }
 
-    /// Queues a request. An identical settings request from the same caller
-    /// that is still waiting is returned instead of asking twice.
     func submit(_ subject: Subject, caller: String, items: [SettingsChangePlan.Item],
                 changes: [JSONValue], retention: RetentionReview? = nil) throws -> Request {
         expireStale()
@@ -126,8 +106,6 @@ final class SettingsApprovals: ObservableObject {
         return pending.first { $0.id == id } ?? answered.first { $0.id == id }
     }
 
-    /// Applies a request through `apply`, which throws to keep it waiting,
-    /// for example when the retention cleanup changed and needs a new look.
     func approve(_ id: UUID, apply: (Request) throws -> JSONValue) throws {
         expireStale()
         guard let index = pending.firstIndex(where: { $0.id == id }) else {
@@ -156,12 +134,10 @@ final class SettingsApprovals: ObservableObject {
         finish(at: index, as: .denied, result: nil)
     }
 
-    /// Turning the settings grant off answers everything still waiting.
     func denyAll() {
         while !pending.isEmpty { finish(at: 0, as: .denied, result: nil) }
     }
 
-    /// Lets the approval path refresh a card it could not apply as shown.
     func update(_ id: UUID, _ change: (inout Request) -> Void) {
         guard let index = pending.firstIndex(where: { $0.id == id }) else { return }
         change(&pending[index])
@@ -181,7 +157,6 @@ final class SettingsApprovals: ObservableObject {
         request.answeredAt = now()
         request.result = result
         request.problem = nil
-        // An API key is kept only until the request is answered.
         if case .secret(let secret, _) = request.subject { request.subject = .secret(secret, value: "") }
         answered.append(request)
         answered = Array(answered.suffix(50))
@@ -197,8 +172,6 @@ final class SettingsApprovals: ObservableObject {
 }
 
 extension SettingsApprovals.Subject {
-    /// An API key is never matched against another request or kept after
-    /// it is answered.
     var holdsSecret: Bool {
         if case .secret = self { return true }
         return false
@@ -206,8 +179,6 @@ extension SettingsApprovals.Subject {
 }
 
 enum SettingsApprovalError: LocalizedError {
-    /// Approving would widen more than the card showed; it now shows the
-    /// changes as they would apply.
     case changedWhileWaiting
 
     var errorDescription: String? {

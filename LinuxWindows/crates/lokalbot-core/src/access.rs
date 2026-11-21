@@ -1,10 +1,3 @@
-//! Consent boundaries shared by the app, engine and CLI.
-//!
-//! External agents get read access only through marker files under
-//! `<root>/control/`, exactly as on macOS (`AgentAccessGate.swift`,
-//! `ScreenMemoryAccessGate.swift`). Remote model servers need an approved
-//! origin (`RemoteInferenceGate.swift`).
-
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 use std::path::Path;
 
@@ -17,13 +10,11 @@ pub const SCREEN_MARKER: &str = "screen-memory-access-enabled";
 
 pub const PERSONAL_MARKER: &str = "personal-context-access-enabled";
 pub const PERSONAL_PROJECTION: &str = "personal-context.json";
-/// Environment variable carrying an Agent Mode capability token.
 pub const CAPABILITY_ENV: &str = "LOKALBOT_AGENT_CAPABILITY";
 const CAPABILITY_DIR: &str = "agent-capabilities";
 const WAKE_FILE: &str = "agent-wake";
 const WAKE_ERROR_FILE: &str = "agent-wake-error";
 
-/// "Allow external agents to change LokalBot settings" (`SettingsControlGate.swift`).
 pub const SETTINGS_CONTROL_MARKER: &str = "settings-control-enabled";
 
 pub const MEETINGS_DISABLED_MESSAGE: &str = "External agent access is off. Enable it in LokalBot → Settings → AI agents → \"Allow external agents to read your meeting library\".";
@@ -71,9 +62,6 @@ pub fn set_meetings_access(paths: &LibraryPaths, enabled: bool) -> std::io::Resu
     }
 }
 
-/// Like the other grants this is deliberately separate: meeting or screen access
-/// never grants settings access, and this grant never grants either of them.
-/// Only the app writes it, from its Privacy switch or an allowed setup request.
 pub fn settings_control_enabled(paths: &LibraryPaths) -> bool {
     paths.control_dir().join(SETTINGS_CONTROL_MARKER).is_file()
 }
@@ -90,9 +78,6 @@ pub fn set_settings_control(paths: &LibraryPaths, enabled: bool) -> std::io::Res
     }
 }
 
-/// The grant behind meeting access: the marker's content, or a valid
-/// capability token from `LOKALBOT_AGENT_CAPABILITY`. A long read keeps the
-/// same grant identity from start to answer (`authorizationID`).
 pub fn meetings_authorization(paths: &LibraryPaths, token: Option<&str>) -> Option<String> {
     use sha2::Digest as _;
     if let Ok(marker) = std::fs::read(paths.control_dir().join(MEETINGS_MARKER)) {
@@ -107,7 +92,6 @@ pub fn meetings_authorization(paths: &LibraryPaths, token: Option<&str>) -> Opti
     })
 }
 
-/// Meeting access for this process (marker or inherited capability).
 pub fn meetings_access_authorized(paths: &LibraryPaths) -> bool {
     let token = std::env::var(CAPABILITY_ENV).ok();
     meetings_authorization(paths, token.as_deref()).is_some()
@@ -121,8 +105,6 @@ struct CapabilityRecord {
     expires_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Issues a bearer capability (`<uuid>.<64 hex>`) for one embedded agent
-/// process; only the secret's SHA-256 is stored.
 pub fn issue_agent_capability(
     paths: &LibraryPaths,
     lifetime: chrono::Duration,
@@ -184,13 +166,11 @@ fn validate_capability(paths: &LibraryPaths, token: &str) -> bool {
         && record.digest == hex::encode(sha2::Sha256::digest(secret.as_bytes()))
 }
 
-/// Asks the app to start its model server (`ask_library` wake protocol).
 pub fn touch_wake(paths: &LibraryPaths) -> std::io::Result<()> {
     std::fs::create_dir_all(paths.control_dir())?;
     std::fs::write(paths.control_dir().join(WAKE_FILE), b"")
 }
 
-/// True once when a wake request is pending; removes it.
 pub fn consume_wake(paths: &LibraryPaths) -> bool {
     let path = paths.control_dir().join(WAKE_FILE);
     path.exists() && std::fs::remove_file(path).is_ok()
@@ -218,14 +198,10 @@ pub fn clear_wake_error(paths: &LibraryPaths) {
     let _ = remove_if_exists(&paths.control_dir().join(WAKE_ERROR_FILE));
 }
 
-/// Whether the personal-context grant is on.
 pub fn personal_context_enabled(paths: &LibraryPaths) -> bool {
     paths.control_dir().join(PERSONAL_MARKER).is_file()
 }
 
-/// `None` when screen access is off or the marker cannot be read. An empty
-/// (legacy) marker means all retained history; one that does not parse,
-/// including whitespace, means the last 7 days (`ScreenMemoryAccessGate.profile`).
 pub fn screen_access_scope(paths: &LibraryPaths) -> Option<ScreenScope> {
     let marker = paths.control_dir().join(SCREEN_MARKER);
     let bytes = std::fs::read(marker).ok()?;
@@ -281,12 +257,6 @@ pub(crate) fn restrict_file(path: &Path) {
     let _ = path;
 }
 
-/// `scheme://host[:port]` of a URL, lowercased; `None` if it does not parse.
-///
-/// An authority with credentials, a backslash, whitespace or a control
-/// character is rejected: WHATWG parsers (the Agent runtime's `new URL`) end
-/// the host at `\`, so `https://evil.example\@localhost` would pass here as
-/// loopback while the request went to `evil.example`.
 pub fn origin_of(url: &str) -> Option<String> {
     let (scheme, rest) = url.trim().split_once("://")?;
     let authority = rest.split(['/', '?', '#']).next()?;
@@ -325,7 +295,6 @@ pub fn host_of(url: &str) -> Option<String> {
     )
 }
 
-/// `localhost`, `*.localhost`, `::1` and `127.0.0.0/8`. `0.0.0.0` is not loopback.
 pub fn is_loopback_url(url: &str) -> bool {
     let Some(host) = host_of(url) else {
         return false;
@@ -340,10 +309,6 @@ pub fn is_loopback_url(url: &str) -> bool {
     }
 }
 
-/// A host on the user's own network, judged from the URL alone
-/// (`InferenceEndpointPolicy.isPrivateNetwork`): RFC 1918, link-local, Tailscale
-/// (100.64.0.0/10), unique-local IPv6, `.local`, `.home.arpa`, `.ts.net` and
-/// single-label names. Loopback has its own rule and doesn't count.
 pub fn is_private_network_url(url: &str) -> bool {
     let Some(host) = host_of(url) else {
         return false;
@@ -351,7 +316,6 @@ pub fn is_private_network_url(url: &str) -> bool {
     if host.is_empty() || is_loopback_url(url) {
         return false;
     }
-    // An IPv6 zone ("fe80::1%en0") names the interface, not the host.
     let host = host.split('%').next().unwrap_or_default();
     if host.contains(':') {
         return host.parse::<Ipv6Addr>().is_ok_and(|v6| {
@@ -371,11 +335,6 @@ pub fn is_private_network_url(url: &str) -> bool {
             || name.ends_with(".ts.net"))
 }
 
-/// Why Think, Agent Mode or Dream can't send context to a server yet, or `None`
-/// if they may (`InferenceEndpointPolicy.validate` with its default). Only
-/// loopback may use plain HTTP: an approved server on the user's own network
-/// still needs HTTPS, unlike autocomplete and transcription, which opt in to
-/// private-network HTTP with their own checks.
 pub fn remote_block_reason(url: &str, approved: &[String]) -> Option<String> {
     let Some(origin) =
         origin_of(url).filter(|o| o.starts_with("http://") || o.starts_with("https://"))
@@ -453,9 +412,6 @@ mod tests {
         }
     }
 
-    /// `InferenceEndpointPolicy.validate` without `allowsPrivateNetworkHTTP`:
-    /// approving a server on the LAN or a tailnet never lets transcripts travel
-    /// unencrypted.
     #[test]
     fn think_refuses_plain_http_off_this_computer_even_when_approved() {
         for (url, origin) in [
@@ -475,7 +431,6 @@ mod tests {
                 "{url}: {reason:?}"
             );
         }
-        // HTTPS on the same hosts works once approved, and only then.
         for (url, origin) in [
             ("https://192.168.1.20:8080/v1", "https://192.168.1.20:8080"),
             (
@@ -486,7 +441,6 @@ mod tests {
             assert_eq!(remote_block_reason(url, &[origin.to_string()]), None);
             assert!(remote_block_reason(url, &[]).is_some());
         }
-        // Loopback needs neither, and other schemes never pass.
         assert_eq!(remote_block_reason("http://127.0.0.1:11434", &[]), None);
         assert!(remote_block_reason("ftp://localhost/v1", &[]).is_some());
         assert!(remote_block_reason("file://localhost/etc", &[]).is_some());
@@ -494,7 +448,6 @@ mod tests {
 
     #[test]
     fn ambiguous_authorities_are_not_origins() {
-        // WHATWG URL parsing sends these to evil.example, not localhost.
         for url in [
             "https://evil.example\\@localhost/v1",
             "https://evil.example:443\\@127.0.0.1/v1",
@@ -512,7 +465,6 @@ mod tests {
                 "{url}"
             );
         }
-        // Separators after the host stay fine.
         assert_eq!(
             origin_of("https://openrouter.ai/api/v1?x=a@b\\c#@localhost").as_deref(),
             Some("https://openrouter.ai")
@@ -557,13 +509,11 @@ mod tests {
         let paths = LibraryPaths::new(dir.path());
         let marker = paths.control_dir().join(SCREEN_MARKER);
         std::fs::create_dir_all(paths.control_dir()).unwrap();
-        // The earlier binary gate wrote an empty marker: all retained history.
         std::fs::write(&marker, b"").unwrap();
         assert_eq!(
             screen_access_scope(&paths),
             Some(ScreenScope::RetainedHistory)
         );
-        // Anything that does not decode falls back to the safe default.
         for content in [&b"\n"[..], &b"{"[..], &br#"{"scope":"forever"}"#[..]] {
             std::fs::write(&marker, content).unwrap();
             assert_eq!(screen_access_scope(&paths), Some(ScreenScope::RecentWeek));

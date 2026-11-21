@@ -20,7 +20,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.vector.ImageVector
 import me.dotenv.lokalbot.companion.R
 
-/** Top-level destinations, in the Mac sidebar's order, with Actions promoted for phones. */
 enum class Destination(@param:StringRes val label: Int, val icon: ImageVector, val primary: Boolean) {
     Today(R.string.nav_today, Icons.Outlined.WbSunny, primary = true),
     Meetings(R.string.nav_meetings, Icons.Outlined.GraphicEq, primary = true),
@@ -32,10 +31,8 @@ enum class Destination(@param:StringRes val label: Int, val icon: ImageVector, v
     Settings(R.string.nav_settings, Icons.Outlined.Settings, primary = false),
 }
 
-/** A meeting to open, optionally at a moment in its transcript. */
 data class MeetingLink(val meetingId: String, val at: Double? = null)
 
-/** An action to open, by meeting and action id. */
 data class ActionLink(val meetingId: String, val actionId: String) {
     val key: String get() = "$meetingId/$actionId"
 
@@ -44,11 +41,6 @@ data class ActionLink(val meetingId: String, val actionId: String) {
     }
 }
 
-/**
- * The selected destination plus one-shot links between screens (a citation
- * opening a meeting, a person opening Ask). The destination survives
- * rotation and folding; pane selections are saved by each scaffold.
- */
 @Stable
 class AppNavigator(initial: Destination) {
     var destination by mutableStateOf(initial)

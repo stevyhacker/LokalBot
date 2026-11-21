@@ -1,15 +1,3 @@
-//! Autocomplete on a server (`CotypingServerRoute.swift`): Think's Ollama or
-//! OpenAI-compatible server, or another one the user names. The route is
-//! built from settings for every request, so a change applies to the next
-//! keystroke. Typing goes to a server only after its origin is approved for
-//! autocomplete (`approved_remote_autocomplete_origins`); Think's approval
-//! does not cover it. A loopback server needs no approval, since nothing
-//! leaves the computer.
-//!
-//! Raw text completion where the server offers it, chat continuation
-//! otherwise. A failed request is never replayed: a newer keystroke supersedes
-//! it anyway. There is no prefill: a server keeps its own cache.
-
 use std::collections::HashSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -32,16 +20,12 @@ use crate::prompts;
 use crate::remote_gate::{self, Blocked, Priority, Wait};
 use crate::think::{self, ChatRequest, CompletionClient, CompletionRequest, Dialect};
 
-/// A completion slower than this is no longer worth showing.
 pub const DEADLINE: Duration = Duration::from_secs(15);
-/// Room for reasoning a model cannot turn off, on top of the phrase.
 const REASONING_ROOM_TOKENS: u32 = 2_048;
 const MINIMUM_CHAT_TOKENS: u32 = 32;
 
-/// The credential store account for "Another server"'s key.
 pub const API_KEY_ACCOUNT: &str = "autocomplete-server-api-key";
 
-/// One resolved autocomplete server.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Endpoint {
     pub base_url: String,
@@ -54,25 +38,18 @@ pub struct Endpoint {
 }
 
 impl Endpoint {
-    /// Loopback: the prompt never leaves this computer.
     pub fn is_on_this_computer(&self) -> bool {
         is_loopback_url(&self.base_url)
     }
 
-    /// A server the user runs themselves, which takes llama.cpp's sampling
-    /// fields. Hosted APIs may reject unknown fields.
     pub fn is_self_hosted(&self) -> bool {
         self.is_on_this_computer() || is_private_network_url(&self.base_url)
     }
 
-    /// Whether the first request goes through chat rather than raw completion.
     pub fn starts_with_chat(&self) -> bool {
         match self.request_style {
             CotypingServerRequestStyle::Chat => true,
             CotypingServerRequestStyle::TextCompletion => false,
-            // OpenAI and Anthropic offer no raw completions for current
-            // models, and OpenRouter's raw route continues text as gibberish
-            // on many hosts. Servers people run themselves offer them.
             CotypingServerRequestStyle::Automatic => {
                 anthropic::is_anthropic(&self.base_url)
                     || matches!(self.dialect, Dialect::OpenAi | Dialect::OpenRouter)
@@ -80,7 +57,6 @@ impl Endpoint {
         }
     }
 
-    /// The server and model, without the key.
     pub fn identity(&self) -> String {
         let path = self
             .base_url
@@ -91,25 +67,18 @@ impl Endpoint {
     }
 }
 
-/// What to change before a selected server can be used.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Problem {
-    /// Think runs on the built-in model or a plan, not a server.
     ThinkHasNoServer,
     MissingUrl,
     BadUrl,
-    Unencrypted {
-        origin: String,
-    },
-    NeedsApproval {
-        origin: String,
-    },
+    Unencrypted { origin: String },
+    NeedsApproval { origin: String },
     MissingOllamaModel,
     MissingThinkModel,
     MissingModel,
 }
 
-/// Where the next completion goes (`CotypingRoute`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Route {
     OnDevice,
@@ -117,16 +86,11 @@ pub enum Route {
     Unavailable(Problem),
 }
 
-/// The API keys a route may need, read from the credential store only when
-/// asked. `None` for presentation and decisions about context.
 pub struct Keys<'a> {
-    /// Think's OpenAI-compatible key.
     pub think: &'a dyn Fn() -> Option<String>,
     pub server: &'a dyn Fn() -> Option<String>,
 }
 
-/// The selected server's URL as configured, before approval checks. `None`
-/// on-device and for a server that is not set up.
 pub fn configured_url(settings: &Settings) -> Option<String> {
     let url = match settings.cotyping_backend {
         CotypingBackend::OnDevice => return None,
@@ -147,7 +111,6 @@ pub fn configured_url(settings: &Settings) -> Option<String> {
     (!trimmed.is_empty()).then(|| trimmed.to_string())
 }
 
-/// `cotypingRoute(includingCredentials:)`.
 pub fn route(settings: &Settings, keys: Option<&Keys>) -> Route {
     let url = configured_url(settings);
     let override_model = settings.cotyping_think_server_model.trim();
@@ -189,8 +152,6 @@ pub fn route(settings: &Settings, keys: Option<&Keys>) -> Route {
     }
 }
 
-/// `InferenceEndpointPolicy.validate(allowsPrivateNetworkHTTP: true)`: the
-/// reason `url` may not get typing yet, or `None`.
 pub fn validate(url: &str, approved: &[String]) -> Option<Problem> {
     let Some(origin) =
         origin_of(url).filter(|o| o.starts_with("http://") || o.starts_with("https://"))
@@ -242,8 +203,6 @@ fn server_route(
     })
 }
 
-/// True unless the prompt stays on this computer. A server that is not set up
-/// yet counts as off it.
 pub fn leaves_this_computer(settings: &Settings) -> bool {
     if settings.cotyping_backend == CotypingBackend::OnDevice {
         return false;
@@ -251,13 +210,11 @@ pub fn leaves_this_computer(settings: &Settings) -> bool {
     configured_url(settings).is_none_or(|url| !is_loopback_url(&url))
 }
 
-/// Host of the selected server, for "sent to {host}".
 pub fn configured_host(settings: &Settings) -> Option<String> {
     let url = configured_url(settings)?;
     lokalbot_core::access::host_of(&url)
 }
 
-/// The model id recorded with statistics (`cotypingStatisticsModelID`).
 pub fn statistics_model_id(settings: &Settings) -> String {
     match settings.cotyping_backend {
         CotypingBackend::OnDevice => settings.cotyping_built_in_model_id.clone(),
@@ -271,8 +228,6 @@ pub fn statistics_model_id(settings: &Settings) -> String {
     }
 }
 
-/// Everything about the route that changes what a completion can be, for
-/// caches. The key is left out (`cotypingRouteFingerprint`).
 pub fn fingerprint(settings: &Settings) -> String {
     match route(settings, None) {
         Route::OnDevice => "on-device".to_string(),
@@ -286,40 +241,28 @@ pub fn fingerprint(settings: &Settings) -> String {
     }
 }
 
-/// Why the last request to a server brought no suggestion. Writing shows it,
-/// since typing elsewhere shows no error. Holds no server message: a request
-/// error can quote the prompt.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Failure {
     Status(u16),
     Unreachable,
     BadReply,
-    /// The model spent its whole reply reasoning.
     Reasoned,
-    /// `{model} answered with no text.`
     EmptyReply,
 }
 
-/// The last problem with one server.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ServerProblem {
-    /// [`Endpoint::identity`].
     pub identity: String,
     pub model: String,
     pub failure: Failure,
 }
 
-/// What a server taught this run, kept until LokalBot quits.
 #[derive(Default)]
 pub struct ServerMemory {
-    /// Servers whose raw route answered as unsupported.
     chat_only: Mutex<HashSet<String>>,
-    /// Models that spent a whole short reply on reasoning.
     reasoning: Mutex<HashSet<String>>,
 }
 
-/// One suggestion from `endpoint`. Blocking; `cancel` is checked between
-/// streamed tokens and while waiting out a rate limit.
 pub fn complete(
     endpoint: &Endpoint,
     request: &Request,
@@ -327,8 +270,6 @@ pub fn complete(
     memory: &ServerMemory,
 ) -> Result<(Completion, Option<Failure>)> {
     let started = Instant::now();
-    // A slot on the origin's gate, shared with Think, so autocomplete can't pile
-    // onto a server it's using for something else (`RemoteCotypingEngine`).
     let ticket = remote_gate::shared()
         .acquire(
             &endpoint.origin,
@@ -372,7 +313,6 @@ pub fn complete(
     ))
 }
 
-/// The UI's view of a failed request. A cancelled one is no problem.
 pub fn failure_of(err: &anyhow::Error) -> Option<Failure> {
     if err.downcast_ref::<Cancelled>().is_some() {
         return None;
@@ -410,8 +350,6 @@ fn suggest(
     }
 }
 
-/// A server without a raw completion route, or a model it serves through chat
-/// only (`rejectsTextCompletion`).
 pub fn rejects_text_completion(err: &anyhow::Error) -> bool {
     let Some(AiError::HttpStatus { code, detail, .. }) = err.downcast_ref::<AiError>() else {
         return false;
@@ -428,9 +366,6 @@ pub fn rejects_text_completion(err: &anyhow::Error) -> bool {
     }
 }
 
-/// Raw `/v1/completions`. The prompt goes cut back to the word boundary, and
-/// only output that re-types the cut text counts: a server cannot be held to
-/// that prefix, so other output is suppressed.
 fn raw(
     endpoint: &Endpoint,
     request: &Request,
@@ -441,7 +376,6 @@ fn raw(
         &request.word_prefix,
         request.preceding_ends_with_whitespace(),
     );
-    // A space joins the first word's token; a cut fragment needs a few more.
     let healing_tokens = if healed.required_prefix.chars().all(char::is_whitespace) {
         0
     } else {
@@ -456,7 +390,6 @@ fn raw(
         min_p: request.sampling.min_p as f32,
         repeat_penalty: request.sampling.repeat_penalty as f32,
         seed: u64::from(request.sampling.seed),
-        // The normalizer still collapses defensively.
         stop: if request.multi_line {
             Vec::new()
         } else {
@@ -481,7 +414,6 @@ fn raw(
     ))
 }
 
-/// `CotypingEngine.normalize`.
 pub fn normalize_healed(raw: &str, required_prefix: &str, request: &Request) -> Normalized {
     if required_prefix.is_empty() {
         return normalize::normalize_detailed(raw, request);
@@ -499,10 +431,6 @@ pub fn normalize_healed(raw: &str, required_prefix: &str, request: &Request) -> 
     }
 }
 
-/// `ChatContinuationEngine`: the autocomplete instruction as the system
-/// message and the rendered prompt as the user message, with thinking off. A
-/// reply cut off at the budget keeps the text it has; an empty reply means the
-/// model had nothing to add.
 fn chat(
     endpoint: &Endpoint,
     request: &Request,
@@ -541,8 +469,6 @@ fn chat_reply(
     max_tokens: u32,
     cancel: &AtomicBool,
 ) -> Result<String> {
-    // Anthropic serves chat completions under /v1 whichever form of its URL
-    // was entered.
     let base = if anthropic::is_anthropic(&endpoint.base_url) {
         anthropic::versioned_root(&endpoint.base_url)
     } else {
@@ -590,12 +516,6 @@ fn chat_reply(
     Ok(completion.text)
 }
 
-/// Chat models often leave out the space before a new word: "at a" + "higher
-/// level" would show as "ahigher level". After a whole word, a reply that
-/// starts with a letter or digit starts a new word, so it gets the space
-/// back. Inside a word, after a fragment the spell checker does not know, when
-/// the reply restates the word at the caret, and in scripts written without
-/// spaces, the reply is left as it is.
 pub fn restoring_word_space(reply: &str, request: &Request) -> String {
     let (Some(last), Some(first)) = (request.prefix.chars().next_back(), reply.chars().next())
     else {
@@ -615,8 +535,6 @@ pub fn restoring_word_space(reply: &str, request: &Request) -> String {
     format!(" {reply}")
 }
 
-/// A letter or digit of a script that puts spaces between words: not Han,
-/// kana, Hangul, Thai, Lao, Myanmar or Khmer.
 fn is_spaced_word_character(c: char) -> bool {
     if !c.is_alphanumeric() {
         return false;
@@ -666,7 +584,6 @@ mod tests {
 
         let mut other = approved.clone();
         other.approved_remote_autocomplete_origins.clear();
-        // Think's approval never counts.
         other.approved_remote_inference_origins = vec!["https://example.com".into()];
         assert_eq!(
             route(&other, None),
@@ -685,7 +602,6 @@ mod tests {
             })
         );
 
-        // A private network may use plain HTTP, once approved.
         let mut private = approved.clone();
         private.cotyping_server_base_url = "http://192.168.1.20:8080/v1".into();
         private.approved_remote_autocomplete_origins.clear();
@@ -696,7 +612,6 @@ mod tests {
         private.approved_remote_autocomplete_origins = vec!["http://192.168.1.20:8080".into()];
         assert!(endpoint(&private).is_self_hosted());
 
-        // Loopback needs no approval: nothing leaves the computer.
         let mut local = approved.clone();
         local.cotyping_server_base_url = "http://127.0.0.1:8080/v1".into();
         local.approved_remote_autocomplete_origins.clear();
@@ -736,7 +651,6 @@ mod tests {
             route(&think, None),
             Route::Unavailable(Problem::ThinkHasNoServer)
         );
-        // A server not set up counts as off this computer.
         assert!(leaves_this_computer(&think));
         think.summarizer_backend = SummarizerBackend::Ollama;
         think.ollama_base_url = "http://localhost:11434/".into();
@@ -818,10 +732,8 @@ mod tests {
     fn the_space_a_chat_model_leaves_out_comes_back() {
         let at_a = request("at a");
         assert_eq!(restoring_word_space("higher level", &at_a), " higher level");
-        // The reply restates the word at the caret: the normalizer drops it.
         let word = request("hello wor");
         assert_eq!(restoring_word_space("world", &word), "world");
-        // Scripts without spaces, and punctuation, stay.
         assert_eq!(restoring_word_space("世界", &at_a), "世界");
         assert_eq!(restoring_word_space(", then", &at_a), ", then");
         let mut fragment = request("I want to follo");
@@ -908,7 +820,6 @@ mod tests {
         )
         .unwrap();
         assert_eq!(done.result.text, " up on it");
-        // The origin's two-second pause held autocomplete back too.
         assert!(started.elapsed() >= Duration::from_millis(1800));
     }
 
@@ -930,7 +841,6 @@ mod tests {
         assert_eq!(failure, None);
         let asked = server.requests().len();
         complete(&endpoint, &request("I wanted to follow"), &cancel, &memory).unwrap();
-        // Chat from then on, without asking the raw route again.
         assert_eq!(server.requests().len(), asked + 1);
     }
 

@@ -2,11 +2,6 @@ import Darwin
 import XCTest
 @testable import LokalBot
 
-/// Each LokalBot copy runs its llama-servers on its own ports, and a helper a
-/// dead copy left behind does not block the next start. 2026-10-09 to 10-12:
-/// an orphaned UI Test Host embedder held 127.0.0.1:17873, the installed app's
-/// embedder could not start, and meeting and screen embeddings silently
-/// stopped; the unit-test host also wrote the installed app's PID marker.
 final class LlamaServerIsolationTests: XCTestCase {
 
     func testReleasePortsNeverMove() {
@@ -27,7 +22,6 @@ final class LlamaServerIsolationTests: XCTestCase {
         XCTAssertEqual(LocalRuntimeOwner.resolve(identity: .release, isUnitTesting: false), .release)
         XCTAssertEqual(LocalRuntimeOwner.resolve(identity: .development, isUnitTesting: false), .development)
         XCTAssertEqual(LocalRuntimeOwner.resolve(identity: .uiTestHost, isUnitTesting: false), .uiTestHost)
-        // The unit-test host carries the release bundle id.
         XCTAssertEqual(LocalRuntimeOwner.resolve(identity: .release, isUnitTesting: true), .unitTests)
     }
 
@@ -72,8 +66,6 @@ final class LlamaServerIsolationTests: XCTestCase {
             installedApp)
     }
 
-    // MARK: - Orphaned helpers
-
     func testRuntimeFolderAcceptsOnlyLokalBotLlamaCppRuntimes() {
         let support = URL(fileURLWithPath: "/Users/me/Library/Application Support", isDirectory: true)
         func folder(_ relativePath: String) -> String? {
@@ -108,7 +100,6 @@ final class LlamaServerIsolationTests: XCTestCase {
         }
 
         XCTAssertTrue(protects(marker, ownerExists: true, liveOwnerStartTime: 100))
-        // An owner whose start time cannot be read may still be the owner.
         XCTAssertTrue(protects(marker, ownerExists: true, liveOwnerStartTime: nil))
         XCTAssertFalse(protects(marker, ownerExists: false, liveOwnerStartTime: nil))
         XCTAssertFalse(protects(marker, ownerExists: true, liveOwnerStartTime: 999),
@@ -121,7 +112,6 @@ final class LlamaServerIsolationTests: XCTestCase {
     }
 }
 
-/// Real processes: a copy of `nc` named llama-server stands in for a helper.
 final class OrphanedLlamaServerReclaimTests: XCTestCase {
     private var root: URL!
     private var helpers: [pid_t] = []
@@ -140,7 +130,6 @@ final class OrphanedLlamaServerReclaimTests: XCTestCase {
     func testStopsAHelperLeftBehindByAnotherAppCopy() async throws {
         let port = try unusedPort()
         let helper = try startHelper(in: "me.dotenv.LokalBot.uitesthost", port: port, reparented: true)
-        // The incident's marker: its owner, the UI Test Host, has exited.
         try writeMarker(in: "me.dotenv.LokalBot.uitesthost", helper: helper, port: port,
                         ownerPID: try exitedProcessIdentifier(), ownerStartTime: 1)
 
@@ -193,17 +182,12 @@ final class OrphanedLlamaServerReclaimTests: XCTestCase {
         XCTAssertEqual(LlamaServer.listeningPIDs(onPort: port), [helper])
     }
 
-    // MARK: - Helpers
-
-    /// Listens on 127.0.0.1:`port` from `<root>/<folder>/llama-cpp/test/llama-server`.
-    /// `reparented` makes launchd its parent, as when the owning app dies.
     private func startHelper(in folder: String, port: Int, reparented: Bool) throws -> pid_t {
         let directory = root.appendingPathComponent(folder, isDirectory: true)
             .appendingPathComponent("llama-cpp/test", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let executable = directory.appendingPathComponent("llama-server")
         try FileManager.default.copyItem(at: URL(fileURLWithPath: "/usr/bin/nc"), to: executable)
-        // A copied platform binary is killed at launch until it is re-signed.
         guard try run("/usr/bin/codesign", ["--force", "--sign", "-", executable.path]).status == 0 else {
             throw XCTSkip("Could not sign the stand-in helper.")
         }
@@ -235,8 +219,6 @@ final class OrphanedLlamaServerReclaimTests: XCTestCase {
             }
             usleep(20_000)
         }
-        // Not a skip: `listeningPIDs` is the code under test, and every test
-        // here would go quiet if it stopped seeing a listener.
         throw HelperFailure(description: "listeningPIDs(onPort: \(port)) never reported the stand-in helper (pid \(pid))")
     }
 

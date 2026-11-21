@@ -7,9 +7,6 @@ import UniformTypeIdentifiers
 import XCTest
 @testable import LokalBot
 
-/// The index size the add-folder sheet projects (`FileIndexSize`) against
-/// the index DigUp really writes for a folder of documents, pictures,
-/// screenshots, a PDF and a recording, with real-sized vectors.
 @MainActor
 final class FileIndexSizeTests: XCTestCase {
     private var root: URL!
@@ -24,7 +21,6 @@ final class FileIndexSizeTests: XCTestCase {
     }
 
     func testTheProjectedIndexSizeIsCloseToTheRealIndex() async throws {
-        // About 60 KB of LokalBot's developer notes: real prose, as keyword search sees it.
         let prose = Array(try String(contentsOf: try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "prose", withExtension: "txt", subdirectory: "Fixtures/IndexSize")), encoding: .utf8))
         func slice(_ index: Int, _ length: Int) -> String {
@@ -56,7 +52,6 @@ final class FileIndexSizeTests: XCTestCase {
                        "projected \(Int(projected)) bytes, the index took \(Int(written))")
     }
 
-    /// The index file's size once `fill`'s folder is read and the log checkpointed.
     private func indexSize(of name: String, fill: (URL) throws -> Void) async throws -> Int64 {
         let folder = root.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -145,7 +140,6 @@ final class FileIndexSizeTests: XCTestCase {
     }
 }
 
-/// Vectors that don't repeat, as the model's don't.
 private final class NoiseEmbedder: Embedder {
     static let workerInfo = WorkerInfo(model: "test/noise", revision: "0000000", runtime: "fake", dtype: "f32",
                                        dim: 768, textOnly: false, loadSeconds: nil)

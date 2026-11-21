@@ -28,7 +28,6 @@ fn meeting(library: &Library) -> Meeting {
     meeting
 }
 
-/// A unit vector mostly along `axis`, nudged by `seed` so samples differ.
 fn voice(axis: usize, seed: usize) -> Vec<f32> {
     let mut vector = vec![0f32; VOICE_DIMENSION];
     vector[axis] = 1.0;
@@ -135,8 +134,6 @@ fn process(
 
 #[test]
 fn reads_the_macs_state_and_profile_json() {
-    // Derived from the Swift `Codable` types: dates are seconds since 2001,
-    // UUIDs are uppercase and sets are arrays.
     let state: IdentityState = serde_json::from_str(
         r#"{"schemaVersion":1,"meetingID":"6F9619FF-8B86-D011-B42D-00C04FC964FF","revision":3,
         "evidenceRevision":1,"audioRevision":"mic:aa|system:bb","transcriptSignature":"ff",
@@ -177,7 +174,6 @@ fn reads_the_macs_state_and_profile_json() {
         "AF9619FF-8B86-D011-B42D-00C04FC964FF"
     );
     assert_eq!(json["profiles"][0]["confirmedNames"][0], "Ana");
-    // Keys the Mac's decoder requires are always written.
     let written = serde_json::to_value(IdentityState::new(uuid::Uuid::nil())).unwrap();
     for key in [
         "schemaVersion",
@@ -222,7 +218,6 @@ fn sealed_files_use_the_macs_layout_and_a_foreign_key_is_never_overwritten() {
         .join(IDENTITY_FILE);
     let sealed = std::fs::read(&path).unwrap();
 
-    // nonce ‖ ciphertext ‖ tag, with the file's path under the root as AAD.
     use aes_gcm::aead::{Aead as _, KeyInit as _, Payload};
     let cipher = aes_gcm::Aes256Gcm::new(aes_gcm::Key::<aes_gcm::Aes256Gcm>::from_slice(&KEY));
     let (nonce, body) = sealed.split_at(12);
@@ -242,7 +237,6 @@ fn sealed_files_use_the_macs_layout_and_a_foreign_key_is_never_overwritten() {
     let json: serde_json::Value = serde_json::from_slice(&clear).unwrap();
     assert_eq!(json["revision"], 1);
 
-    // Files sealed with another install's key read as an error and stay as they are.
     let foreign = Store::new(dir.path().to_path_buf(), [9; 32], |_| false);
     assert!(matches!(foreign.state(&meeting), Err(Failure::Corrupt)));
     let before = std::fs::read(&path).unwrap();
@@ -251,7 +245,6 @@ fn sealed_files_use_the_macs_layout_and_a_foreign_key_is_never_overwritten() {
     assert!(foreign.commit(proposed, &meeting, 1, None, None).is_err());
     assert_eq!(std::fs::read(&path).unwrap(), before);
 
-    // A database from another key blocks every profile change the same way.
     let profiles = dir.path().join(PROFILES_FILE);
     store.forget_profile(None).unwrap();
     let before = std::fs::read(&profiles).unwrap();
@@ -319,7 +312,6 @@ fn naming_teaches_a_voice_and_a_later_meeting_is_named_with_undo() {
     );
     assert!(people[0].contributions[0].voiceprint.is_some());
 
-    // The same voice in a later meeting is named automatically.
     let second = meeting(&library);
     let later = call_transcript("them 2");
     let named_later = process(&memory, &second, &later, call_samples("them 2", 3));
@@ -335,7 +327,6 @@ fn naming_teaches_a_voice_and_a_later_meeting_is_named_with_undo() {
         "automatic names never train"
     );
 
-    // Undo clears it and keeps automatic naming away from this speaker.
     let undone = memory
         .choose(
             &Choice::new("them 2", Some("Ana Petrović".into()), DecisionAction::Undo),
@@ -432,7 +423,6 @@ fn profiles_of_another_voice_model_are_never_compared_or_added_to() {
     let ours = call_samples("them 1", 3);
     assert!(matches(&ours, std::slice::from_ref(&mac)).is_empty());
     assert_eq!(same_person("Ana", &ours, std::slice::from_ref(&mac)), None);
-    // Samples the Mac made are not ours to use, whatever their length.
     assert!(eligible(&[mac_sample], &[], "them 1").is_empty());
 }
 
@@ -808,7 +798,6 @@ fn a_removed_meetings_voice_leaves_when_it_can_be_opened_again() {
             .unwrap();
     }
     assert_eq!(memory.profiles().unwrap().len(), 2);
-    // `first` is gone from the library, but `second` stays remembered.
     memory.revoke_removed_meetings(std::slice::from_ref(&second));
     let people = memory.profiles().unwrap();
     assert_eq!(people.len(), 1);
@@ -852,7 +841,6 @@ fn suggesting_only_leaves_names_to_a_person_and_a_strong_match_is_recognized() {
             &saved,
         )
         .unwrap();
-    // A new meeting is processed the way these platforms do.
     let second = meeting(&library);
     let transcript = call_transcript("them 1");
     let turns: Vec<AudioTurn> = transcript
@@ -886,7 +874,6 @@ fn suggesting_only_leaves_names_to_a_person_and_a_strong_match_is_recognized() {
     assert_eq!(assignment.origin, Origin::CalendarAutomatic);
     let recognized = recognized_speakers(Some(&state), &named);
     assert_eq!(recognized[0].1.name, "Ana");
-    // Applying it is a person's confirmation, and teaches the voice.
     let applied = memory
         .choose(
             &Choice::new("them 1", Some("Ana".into()), DecisionAction::Assign),

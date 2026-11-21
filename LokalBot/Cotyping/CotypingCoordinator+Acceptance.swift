@@ -1,9 +1,6 @@
 import Foundation
 
-/// Acceptance, session presentation, insertion bookkeeping, and teardown.
 extension CotypingCoordinator {
-    // MARK: - Acceptance (called synchronously from the accept tap)
-
     func acceptFromTap(_ scope: CotypingAcceptScope) -> Bool {
         guard isRunning, !discardRevokedMemoryContext() else { return false }
         if let activeVisibleContext,
@@ -16,8 +13,6 @@ extension CotypingCoordinator {
                   overlayIsVisible: overlay.isVisible,
                   hasSession: session != nil),
               var current = session else { return false }
-        // The visible ghost must match the session tail — a mismatch means the
-        // overlay is showing stale text and accepting would insert the wrong thing.
         guard overlay.acceptanceText == current.remainingText else {
             clearSuggestion()
             state = .idle
@@ -35,10 +30,7 @@ extension CotypingCoordinator {
             return false
         }
 
-        // Replacements delete existing host text, so they share one exact-field
-        // and exact-trigger validation path. A same-PID match is not sufficient.
         if case .continuation = current.kind {
-            // Continue through the normal append-only acceptance path below.
         } else {
             guard let plan = CotypingReplacementAcceptancePlanner.plan(
                 for: current,
@@ -59,7 +51,6 @@ extension CotypingCoordinator {
             return true
         }
 
-        // Continuation: never insert into the wrong field (mouse-moved focus).
         guard CotypingSessionReconciler.isAcceptanceContinuation(
             of: current,
             liveField: live.field,
@@ -77,8 +68,6 @@ extension CotypingCoordinator {
 
         let settings = settingsProvider()
         let liveField = live.field ?? current.field
-        // Shared with the Settings rehearsal: one plan decides how much a
-        // keypress takes and how it is spaced.
         guard let acceptance = CotypingContinuationAcceptance.plan(
             session: current,
             scope: scope,
@@ -97,10 +86,6 @@ extension CotypingCoordinator {
                     deletingCharacters: forwardDeleteCount,
                     with: insertionText)
         } else {
-            // The consuming event tap must remain constant-time and must never
-            // touch the pasteboard or walk an app's AX menu tree. Composing
-            // input sources fail open above; direct-input continuations use one
-            // synthetic Unicode event pair regardless of text length or lines.
             inserted = inserter.insert(insertionText)
         }
         guard inserted else {
@@ -126,7 +111,6 @@ extension CotypingCoordinator {
             state = .idle
             scheduleGenerationAfterHostPublishDelay(baseline: liveField)
         } else {
-            // Re-anchor the ghost after the host commits the insert (AX lag).
             pendingInsertionConsumedCount = current.consumedCount
             let remainingText = current.remainingText
             let advanced = overlay.advanceInline(
@@ -135,10 +119,6 @@ extension CotypingCoordinator {
                 isRightToLeft: CotypingTextDirectionDetector.isRightToLeft(liveField.precedingText),
                 emphasisLength: acceptEmphasisLength(for: remainingText))
             if !advanced, overlay.isShowingInline {
-                // Where the accepted text ends is known only once the app
-                // shows it. Drawn at the caret read before the accept, the
-                // rest would cover that text; it comes back from the anchor
-                // cache at the new caret instead.
                 clearSuggestion()
                 state = .idle
                 scheduleGenerationAfterHostPublishDelay(baseline: liveField)
@@ -154,12 +134,6 @@ extension CotypingCoordinator {
         return true
     }
 
-    /// Reads the field shortly, and once more if the app has not shown the
-    /// text yet. The focus change a read publishes moves the ghost to the
-    /// app's own caret (`reanchorVisibleSuggestion`), which corrects what the
-    /// ghost's font measured, such as a page zoom it does not know about. A
-    /// caret found on screen is measured again once typing has moved it a
-    /// fair way along its line.
     func refreshCaretSoon() {
         caretRefreshTask?.cancel()
         caretRefreshTask = Task { [weak self] in
@@ -175,13 +149,8 @@ extension CotypingCoordinator {
         }
     }
 
-    /// Escape while a suggestion is showing. The suggestion goes away and,
-    /// unless the user chose otherwise, the key stops here, so it does not
-    /// also close a dialog or leave a mode in the app, and the field stays
-    /// quiet for a few seconds. Called synchronously from the accept tap.
     func dismissFromTap() -> Bool {
         guard isRunning, let current = session, overlay.isVisible else { return false }
-        // A composing input method needs its own Escape.
         let takesKey = settingsProvider().cotypingEscapeBehavior == .pause
             && !inputSourceMonitor.isComposingIMEActive
         cancelPendingGenerationWork()
@@ -195,8 +164,6 @@ extension CotypingCoordinator {
         return takesKey
     }
 
-    /// Whether Escape put this field on hold. The hold ends on its own, and it
-    /// never follows the user to another field.
     func isPausedByEscape(in field: CotypingField, now: Date = Date()) -> Bool {
         guard let pause = escapePause else { return false }
         guard now < pause.until else {
@@ -213,10 +180,6 @@ extension CotypingCoordinator {
                 && activeVisibleContext == nil)
     }
 
-    /// Atomically presents a suggestion. The invariant *session exists ⟺
-    /// overlay visible ⟺ state == .ready ⟺ accept tap armed* is established
-    /// here (and torn down in `clearSuggestion`) — never by hand at call sites.
-    /// A suggestion with no place on screen that covers no text is dropped.
     func present(
         _ newSession: CotypingSession,
         overlayText: String,
@@ -235,8 +198,6 @@ extension CotypingCoordinator {
         noteSuggestionShown(newSession)
     }
 
-    /// Shows the rest of the live session at `field`'s caret, keeping the
-    /// session to what is drawn. With nowhere to draw it, the suggestion goes.
     func showSuggestion(
         _ text: String,
         on field: CotypingField,
@@ -252,9 +213,6 @@ extension CotypingCoordinator {
         markReady(session?.remainingText ?? text)
     }
 
-    /// The session keeps only what the ghost shows, so an accept never
-    /// inserts words the user could not see. The rest may come back as a
-    /// top-up once there is room.
     func keepSessionToShownText() {
         guard let current = session, case .continuation = current.kind,
               let shown = overlay.acceptanceText, !shown.isEmpty,
@@ -266,8 +224,6 @@ extension CotypingCoordinator {
         session = trimmed
     }
 
-    /// The published tail of `present` — also used by the advance paths, which
-    /// keep the existing overlay window and only re-arm interception + state.
     func markReady(_ text: String) {
         syncAcceptInterception()
         lastSuggestion = text
@@ -275,9 +231,6 @@ extension CotypingCoordinator {
         noteSuggestionActivity()
     }
 
-    /// Restarts the idle clock of the suggestion on screen. Every key either
-    /// advances the suggestion or clears it, so a minute without a call means
-    /// a minute without typing in the field.
     func noteSuggestionActivity() {
         lastSuggestionActivity = .now
         guard suggestionExpiryTask == nil else { return }
@@ -295,7 +248,6 @@ extension CotypingCoordinator {
                 if case .ready = state { state = .idle }
                 return
             }
-            // The continuous clock keeps counting while the Mac sleeps.
             try? await Task.sleep(until: deadline, clock: .continuous)
             guard !Task.isCancelled else { return }
         }

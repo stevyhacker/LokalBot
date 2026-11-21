@@ -1,7 +1,6 @@
 import Foundation
 
 enum LibraryHealthReportStore {
-    /// Writes `<dayKey>.json` and `<dayKey>.md`; returns the Markdown URL.
     @discardableResult
     static func write(_ report: LibraryHealthReport, root: URL) throws -> URL {
         let directory = DiagnosticsPaths.healthReports(root: root)

@@ -1,8 +1,3 @@
-//! The deterministic half of the overnight learning pass (`PersonalLearning`):
-//! which of the person's own lines from a day may be read. The model call and
-//! the grounding checks are in `lokalbot-ai`. Lines without a first-person word
-//! are never sent; other speakers' lines are never included.
-
 use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
@@ -24,7 +19,6 @@ use crate::time::{local_day, local_day_bounds};
 
 pub const MAX_PER_NIGHT: usize = 3;
 pub const MAX_UTTERANCES: usize = 40;
-/// Typed lines share the budget but never crowd meetings out.
 pub const MAX_TYPED_UTTERANCES: usize = 15;
 pub const UTTERANCE_CHARACTER_BUDGET: usize = 6_000;
 pub const MAX_TURN_CHARACTERS: usize = 400;
@@ -32,17 +26,14 @@ pub const MINIMUM_WORDS: usize = 5;
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum UtteranceSource {
-    /// Consecutive microphone segments of one meeting, joined.
     Meeting(Uuid),
     Typed(TypedSource),
 }
 
-/// One line of the person's own words. `handle` is what the model cites.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Utterance {
     pub handle: String,
     pub source: UtteranceSource,
-    /// The meeting title or "typed to Claude Code", shown to the model.
     pub label: String,
     pub day_key: String,
     pub text: String,
@@ -54,7 +45,6 @@ impl Utterance {
     }
 }
 
-/// Something the person typed or dictated that day.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TypedLine {
     pub source: TypedSource,
@@ -72,7 +62,6 @@ impl TypedLine {
     }
 }
 
-/// How many first-person words a line has (English and Serbian).
 pub fn self_reference_score(text: &str) -> usize {
     const WORDS: &[&str] = &[
         "i",
@@ -129,13 +118,11 @@ fn is_own_speech(segment: &Segment, key: &str) -> bool {
         return false;
     }
     match segment.attribution {
-        // Older transcripts follow "My microphone is me".
         None => SpeakerAttribution::microphone_is_user(),
         Some(_) => Transcript::resolved_attribution(segment).identity == SpeakerIdentity::User,
     }
 }
 
-/// "local 1", "source2:local 3": one voice diarization told apart.
 fn is_numbered_voice(key: &str) -> bool {
     let local = key.rsplit(':').next().unwrap_or(key);
     local
@@ -143,11 +130,6 @@ fn is_numbered_voice(key: &str) -> bool {
         .is_some_and(|n| !n.is_empty() && n.chars().all(|c| c.is_ascii_digit()))
 }
 
-/// Joins consecutive segments of the person's own speech into turns. A voice they
-/// confirmed as theirs wins. Otherwise, when diarization found several voices on
-/// the microphone, the meeting counts only if one dominates (four times the next),
-/// and then only that voice is used; with no clear winner the microphone was
-/// shared and the meeting is skipped.
 pub fn own_turns(segments: &[Segment]) -> Vec<String> {
     let keys: Vec<String> = segments
         .iter()
@@ -219,8 +201,6 @@ pub fn own_turns(segments: &[Segment]) -> Vec<String> {
     turns
 }
 
-/// Letters and digits only, case- and accent-folded, so a dictation and the
-/// request it was pasted into compare equal despite punctuation.
 fn folded_for_duplicate(text: &str) -> String {
     ids::fold(text)
         .chars()
@@ -228,10 +208,6 @@ fn folded_for_duplicate(text: &str) -> String {
         .collect()
 }
 
-/// The day's typed lines: requests sent to coding agents (scheduled runs
-/// excluded), questions asked in Ask, and dictation kept for learning. A
-/// "Remember …" message is already saved, so it is skipped, and a dictation that
-/// became one of those requests is read once, from the request.
 pub fn typed_lines(
     bursts: &[CodingAgentBurst],
     conversations: &[Conversation],
@@ -300,8 +276,6 @@ pub fn typed_lines(
     lines
 }
 
-/// The person's turns from `day`'s meetings and what they typed, most
-/// self-descriptive first within the budget, then put back in order with handles.
 pub fn utterances(
     library: &Library,
     day: NaiveDate,
@@ -386,7 +360,6 @@ pub fn utterances(
         .collect())
 }
 
-/// "lines=meeting:4,typed:2,dictated:0" for the log.
 pub fn line_counts(lines: &[Utterance]) -> String {
     let (mut meeting, mut typed, mut dictated) = (0, 0, 0);
     for line in lines {
@@ -399,9 +372,6 @@ pub fn line_counts(lines: &[Utterance]) -> String {
     format!("lines=meeting:{meeting},typed:{typed},dictated:{dictated}")
 }
 
-/// What the pass read for a day, independent of order and handles. Dictated lines
-/// are left out: they are deleted once read, so a later review of the same day
-/// would otherwise always look changed.
 pub fn fingerprint(lines: &[Utterance]) -> String {
     let mut material: Vec<String> = lines
         .iter()
@@ -417,8 +387,6 @@ pub fn fingerprint(lines: &[Utterance]) -> String {
     sha256_hex(material.join("\u{1e}").as_bytes())
 }
 
-/// Whether `lines` still contain the line a learned claim quotes, ignoring case,
-/// accents, punctuation and where a long line was cut off.
 pub fn quote_still_said(quote: Option<&str>, lines: &[String]) -> bool {
     let Some(quote) = quote else {
         return false;

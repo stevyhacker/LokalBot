@@ -61,17 +61,16 @@ final class MeetingTests: XCTestCase {
     }
 
     func testDurationLabelPrefersRecordedAudioLength() {
-        // Wall-clock span is 40 min, but only ~16 min of audio was captured.
         var meeting = Meeting(
             id: UUID(),
             title: "Coding Principles",
             appName: "Google Chrome",
             startedAt: Date(timeIntervalSince1970: 0),
-            endedAt: Date(timeIntervalSince1970: 2_400),  // 40 min wall-clock
+            endedAt: Date(timeIntervalSince1970: 2_400),
             relativePath: "meetings/2026/06/25-coding-principles"
         )
-        XCTAssertEqual(meeting.durationLabel, "40 min")    // falls back to wall-clock
-        meeting.recordedDuration = 977                      // 16:17 of actual audio
-        XCTAssertEqual(meeting.durationLabel, "16 min")    // reports the playable length
+        XCTAssertEqual(meeting.durationLabel, "40 min")
+        meeting.recordedDuration = 977
+        XCTAssertEqual(meeting.durationLabel, "16 min")
     }
 }

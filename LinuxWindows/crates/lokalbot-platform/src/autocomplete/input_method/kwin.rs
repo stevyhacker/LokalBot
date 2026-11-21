@@ -1,15 +1,3 @@
-//! The route on KDE Plasma, the app's side of the KWin input method.
-//!
-//! Plasma runs one input method at a time, the one chosen under System Settings
-//! → Keyboard → Virtual Keyboard, and talks to it over `zwp_input_method_v1`.
-//! Choosing LokalBot there starts [`super::kwin_helper`], which holds that
-//! connection for the session. This route connects to the helper and runs
-//! [`Core`] here, like the other routes; the compositor names the window in
-//! front through a KWin script (see [`super::surface`]). Until the helper is
-//! running, Settings says how to choose it.
-//!
-//! This thread does no blocking work beyond a local socket's.
-
 use std::os::fd::AsRawFd as _;
 use std::os::unix::net::UnixStream;
 use std::path::{Path, PathBuf};
@@ -25,10 +13,7 @@ use super::kwin_wire::{self, Event, Inbox, Outbox, Request, VERSION};
 use super::surface::{self, Request as Question};
 use super::{Command, Content, Core, Handle, Output, Surrounding};
 
-/// How soon to look for the helper again while it isn't there.
 const RETRY_EVERY: Duration = Duration::from_secs(3);
-/// After a helper from another release answered: one that matches arrives
-/// only with the next session.
 const RETRY_MISMATCHED: Duration = Duration::from_secs(30);
 
 pub(super) const ENTRY_FILE: &str = "com.lokalbot.LokalBot.InputMethod.desktop";
@@ -42,7 +27,6 @@ pub(super) fn start(
 ) -> anyhow::Result<JoinHandle<()>> {
     let (requests, questions) = crossbeam_channel::unbounded();
     let answers = handle.clone();
-    // KWin enforces one input method itself, so there is nothing to look out for.
     std::thread::Builder::new()
         .name("lokalbot-input-method-surface".into())
         .spawn(move || surface::run(questions, answers, false))
@@ -93,7 +77,6 @@ fn run(mut route: Route, commands: Receiver<Command>, mut wake: UnixStream) {
                 revents: 0,
             });
         }
-        // SAFETY: `fds` is a valid array for its length, for the whole call.
         let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, timeout) };
         if ready < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
             log::warn!("autocomplete: could not wait for the input method");
@@ -110,7 +93,6 @@ fn run(mut route: Route, commands: Receiver<Command>, mut wake: UnixStream) {
     route.core.deliver_none();
 }
 
-/// The socket to the helper and what is in flight on it.
 #[derive(Default)]
 struct Link {
     stream: Option<UnixStream>,
@@ -150,15 +132,12 @@ struct Route {
     link: Link,
     handle: Handle,
     requests: Sender<Question>,
-    /// Autocomplete is on, so text around the caret may come.
     reading: bool,
     accept_keys: AcceptKeys,
-    /// When to look for the helper, while not connected.
     retry_at: Option<Instant>,
 }
 
 impl Route {
-    /// False to stop.
     fn command(&mut self, command: Command) -> bool {
         if let Command::Policy(policy) = &command {
             self.reading = policy.enabled;
@@ -237,8 +216,6 @@ impl Route {
         self.core.deactivate(&mut self.link);
     }
 
-    /// The helper went away: say so, and look for it again soon. KWin starts it
-    /// again if it crashed.
     fn lost(&mut self, retry_after: Duration, why: String) {
         log::info!("autocomplete: the KWin input method went away");
         self.disconnect();
@@ -292,7 +269,6 @@ impl Route {
                 surrounding,
             } => {
                 let content = content.map(|(purpose, hint)| Content { purpose, hint });
-                // A field already ruled out: its text is not even held.
                 let surrounding =
                     surrounding
                         .filter(|_| !self.core.refuses_text())
@@ -328,7 +304,6 @@ fn mismatched_text() -> String {
     .into()
 }
 
-/// What the user does on KDE Plasma, worded for the Settings row.
 pub(super) fn steps() -> InputSourceSteps {
     let steps = lokalbot_i18n::tr(
         "On KDE Plasma, LokalBot reaches your text fields as the desktop's input method, the way language input tools do. Open System Settings, then Keyboard, Virtual Keyboard, choose LokalBot and click Apply. Plasma then starts it with your session. It sees your key presses only while a suggestion shows, and keeps none of them. Plasma runs one input method at a time, so choosing LokalBot replaces Fcitx or IBus if one was chosen there.",
@@ -353,7 +328,6 @@ pub(super) fn steps() -> InputSourceSteps {
     }
 }
 
-/// Where KDE looks for applications, the user's own folder first.
 fn entry_dirs() -> Vec<PathBuf> {
     let home = std::env::var_os("HOME").map(PathBuf::from);
     let data_home = std::env::var_os("XDG_DATA_HOME")
@@ -382,8 +356,6 @@ fn setup_command(exe: &str) -> String {
     )
 }
 
-/// The entry that lists LokalBot under Virtual Keyboard, with `exe` as what
-/// Plasma starts. Packages install the same file.
 pub(super) fn desktop_entry(exe: &str) -> String {
     format!(
         "[Desktop Entry]\nType=Application\nName=LokalBot\nComment=Autocomplete in other apps\nExec={} --kwin-input-method\nIcon=com.lokalbot.LokalBot\nNoDisplay=true\nX-KDE-Wayland-VirtualKeyboard=true\n",
@@ -391,7 +363,6 @@ pub(super) fn desktop_entry(exe: &str) -> String {
     )
 }
 
-/// `exe` as the program of a desktop entry's `Exec`, quoted when it needs it.
 fn exec_program(exe: &str) -> String {
     if !exe
         .chars()
@@ -424,7 +395,6 @@ mod tests {
         assert!(entry.starts_with("[Desktop Entry]\n"));
         assert!(entry.contains("\nExec=/usr/bin/lokalbot --kwin-input-method\n"));
         assert!(entry.contains("\nX-KDE-Wayland-VirtualKeyboard=true\n"));
-        // Not in the applications menu: started alone it would do nothing.
         assert!(entry.contains("\nNoDisplay=true\n"));
     }
 

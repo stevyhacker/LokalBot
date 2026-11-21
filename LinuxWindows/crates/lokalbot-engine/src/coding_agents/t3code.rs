@@ -1,14 +1,3 @@
-//! Reads T3 Code sessions from `~/.t3/userdata/statev2.sqlite` (and legacy
-//! `~/.t3/userdata/state.sqlite` when v1 threads are present)
-//! (`T3CodeSessionReader.swift`).
-//!
-//! Databases are opened strictly read-only so a running T3 Code process is
-//! never disturbed. Only the orchestration projection tables for projects,
-//! threads, messages, turn items, provider threads, and linked pull requests
-//! are queried — never auth sessions, pairing links, secrets, or settings.
-//! Command output, file diffs, and reasoning text are never selected from
-//! SQLite.
-
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration as StdDuration, SystemTime};
@@ -23,7 +12,6 @@ use super::scanner::{ReadResult, SessionKey};
 use super::text;
 
 pub struct T3CodeReader {
-    /// T3 Code userdata directory, default `~/.t3/userdata`.
     pub root: PathBuf,
 }
 
@@ -238,7 +226,6 @@ fn read_v2(
     let mut events_by_thread: HashMap<String, Vec<Event>> = HashMap::new();
     let mut consulted_by_thread: HashSet<String> = HashSet::new();
 
-    // 1. Thread-level linked PRs with timestamps inside the window.
     for (thread_id, header) in &threads {
         for (url, at) in
             linked_pull_requests(header.pull_requests_json.as_deref(), header.created_at)
@@ -283,7 +270,6 @@ fn read_v2(
         }
     }
 
-    // 2. Messages (`user` and `assistant`).
     if table_exists(db, "orchestration_v2_projection_messages")? {
         let mut stmt = db.prepare(
             "SELECT thread_id, role, created_at, updated_at, \
@@ -359,8 +345,6 @@ fn read_v2(
         }
     }
 
-    // 3. Turn items — `json_extract` selects only commands, file names, tool
-    //    names, and timestamps; output, diffs, and reasoning never leave SQLite.
     if table_exists(db, "orchestration_v2_projection_turn_items")? {
         let mut stmt = db.prepare(
             "SELECT thread_id, type, updated_at, \
@@ -503,8 +487,6 @@ fn read_v2(
             }
         }
 
-        // Thread-wide LokalBot access check so replies are withheld even when
-        // LokalBot was read on an earlier day of the same thread.
         let mut check = db.prepare(
             "SELECT DISTINCT thread_id, type, \
                     CASE type \
@@ -783,13 +765,18 @@ fn open_read_only(path: &Path) -> rusqlite::Result<Connection> {
             return Ok(conn);
         }
     }
-    let normalized = path
-        .to_string_lossy()
+    let raw = path.to_string_lossy();
+    let stripped = raw.strip_prefix(r"\\?\").unwrap_or(&raw);
+    let normalized = stripped
         .replace('\\', "/")
         .replace('%', "%25")
         .replace('?', "%3F")
         .replace('#', "%23");
-    let uri = format!("file:{normalized}?mode=ro&immutable=1");
+    let uri = if normalized.starts_with('/') {
+        format!("file:{normalized}?mode=ro&immutable=1")
+    } else {
+        format!("file:///{normalized}?mode=ro&immutable=1")
+    };
     let conn = Connection::open_with_flags(
         uri,
         OpenFlags::SQLITE_OPEN_READ_ONLY

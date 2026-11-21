@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-# Builds the companion sync core (LinuxWindows/crates/lokalbot-sync) for
-# Android and generates its Kotlin bindings, for the app's :sync module:
-#
-#   Companion/android/sync/build/rust/jniLibs/<abi>/liblokalbot_sync.so   arm64-v8a, x86_64
-#   Companion/android/sync/build/rust/kotlin/me/dotenv/lokalbot/sync/lokalbot_sync.kt
-#
-# Uses the NDK in ANDROID_NDK_HOME, or the newest one under $ANDROID_HOME/ndk,
-# $ANDROID_SDK_ROOT/ndk, ~/Library/Android/sdk/ndk or ~/android-sdk/ndk.
-# Installs cargo-ndk and the Rust Android targets when they are missing.
-# Nothing is rebuilt while Cargo.lock, the crate's sources, uniffi.toml and
-# this script are unchanged.
-#
-#   Scripts/build/build-sync-android.sh          build when the inputs changed
-#   Scripts/build/build-sync-android.sh --force  build anyway
 set -euo pipefail
 
 if ! command -v cargo >/dev/null; then
@@ -28,7 +14,6 @@ TARGET_DIR="${CARGO_TARGET_DIR:-$WORKSPACE/target}"
 STAMP="$OUT/.inputs.sha256"
 LIB=liblokalbot_sync.so
 KOTLIN=me/dotenv/lokalbot/sync/lokalbot_sync.kt
-# The app's minSdk.
 MIN_SDK=29
 ABIS=(arm64-v8a x86_64)
 RUST_TARGETS=(aarch64-linux-android x86_64-linux-android)
@@ -55,7 +40,6 @@ inputs_hash() {
   (
     cd "$ROOT"
     {
-      # The library's sources; its tests don't change what ships.
       find "$CRATE/src" -type f -not -path "$CRATE/src/tests/*"
       printf '%s\n' "$CRATE/Cargo.toml" "$CRATE/uniffi.toml" LinuxWindows/Cargo.toml \
         LinuxWindows/Cargo.lock LinuxWindows/rust-toolchain.toml Scripts/build/build-sync-android.sh
@@ -142,8 +126,6 @@ done
 
 log "generating the Kotlin bindings"
 cargo build --locked -p lokalbot-sync --features bindgen --bin uniffi-bindgen
-# Release libraries are stripped of the symbols UniFFI reads its metadata
-# from; the static archive of the same build keeps them.
 "$TARGET_DIR/debug/uniffi-bindgen" generate --no-format --language kotlin \
   --out-dir "$work/kotlin" "$TARGET_DIR/${RUST_TARGETS[0]}/release/liblokalbot_sync.a"
 if [ ! -s "$work/kotlin/$KOTLIN" ]; then

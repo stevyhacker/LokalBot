@@ -24,7 +24,6 @@ enum DiarizationModel: String, Codable, CaseIterable, Identifiable, Sendable {
 
     private static let alignerNote = " With Qwen3-ASR, or a transcription server that does not time words itself, it also downloads a word aligner (about 1.1 GB) that matches each word to a voice."
 
-    /// Invalidate partial transcripts when the model, weights, or turn policy changes.
     var checkpointIdentity: String {
         switch self {
         case .community1: "community1-tuned-fluidaudio-0.17.1-v1"

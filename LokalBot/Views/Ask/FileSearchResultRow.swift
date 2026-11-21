@@ -4,15 +4,9 @@ import AVKit
 import PDFKit
 import SwiftUI
 
-/// Opens a file found by search. A PDF opens in a LokalBot window at the
-/// matched page with the query's words marked; a recording or video plays in
-/// a LokalBot window from the matched moment (no QuickTime scripting, so no
-/// Automation permission); anything else opens in its default app.
 @MainActor
 enum FileSearchOpener {
     private static var windows: [ObjectIdentifier: NSWindow] = [:]
-    /// Each window's close observer. Its block holds the player, so it is
-    /// removed with the window.
     private static var closeObservers: [ObjectIdentifier: NSObjectProtocol] = [:]
 
     static func open(_ hit: FileSearchHit, query: String?) {
@@ -38,8 +32,6 @@ enum FileSearchOpener {
                 size: NSSize(width: 780, height: 920))
     }
 
-    /// Plays from the matched moment: the start of its 30-second sound
-    /// window, or the frame's time.
     private static func play(_ hit: FileSearchHit) {
         let player = AVPlayer(url: hit.url)
         let view = AVPlayerView()
@@ -83,7 +75,6 @@ enum FileSearchOpener {
         NSApp.activate()
     }
 
-    /// The query's words (three letters or more) wherever they occur on the page.
     static func highlights(of query: String?, in document: PDFDocument, on page: PDFPage) -> [PDFSelection] {
         let terms = Set((query ?? "").lowercased()
             .split(whereSeparator: { !$0.isLetter && !$0.isNumber })

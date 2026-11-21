@@ -9,9 +9,6 @@ private final class ScreenThumbnailCacheEntry {
     }
 }
 
-/// Session-local cache for bounded, downsampled screen-memory pixels. The
-/// encrypted file stays the source of truth and NSCache can evict under memory
-/// pressure instead of retaining every full-resolution capture indefinitely.
 private enum ScreenThumbnailCache {
     static let shared: NSCache<NSString, ScreenThumbnailCacheEntry> = {
         let cache = NSCache<NSString, ScreenThumbnailCacheEntry>()
@@ -37,8 +34,6 @@ enum ScreenThumbnailSizing {
     }
 }
 
-/// A reusable private screenshot thumbnail. Pixel loading goes through
-/// `ScreenshotService`, so views never learn or expose an encrypted file path.
 struct ScreenThumbnailView: View {
     @EnvironmentObject private var app: AppState
 
@@ -106,10 +101,6 @@ struct ScreenThumbnailView: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: height)
-        // The pixels render in an overlay: a `.fill` crop wider than the
-        // proposed width must never inflate this view's layout size, or the
-        // centered overflow paints over horizontal neighbors. Out-of-bounds
-        // paint ends at the clip shape instead.
         .overlay {
             if let image {
                 Image(

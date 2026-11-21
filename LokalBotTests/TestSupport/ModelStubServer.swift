@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Runs `Fixtures/stub-openai.ts` under Bun for one test. CI (`CI=true`)
-/// requires Bun (`LOKALBOT_TEST_BUN`); locally a missing Bun skips the test.
 final class ModelStubServer {
     let port: Int
     var baseURL: URL { URL(string: "http://127.0.0.1:\(port)/v1")! }
@@ -76,7 +74,6 @@ final class ModelStubServer {
 struct StubRequest {
     let index: Int
     let body: [String: Any]
-    /// Milliseconds since 1970, as the stub received the request.
     let receivedAt: Double
 
     private func message(_ role: String) -> String {
@@ -89,7 +86,6 @@ struct StubRequest {
     var maxTokens: Int? { (body["max_tokens"] ?? body["max_completion_tokens"]) as? Int }
 }
 
-/// Builders for stub rules; `system` matches a substring of the system prompt.
 enum StubRule {
     private static func rule(_ behaviour: [String: Any], system: String?, nth: Int?, times: Int?) -> [String: Any] {
         var match: [String: Any] = [:]

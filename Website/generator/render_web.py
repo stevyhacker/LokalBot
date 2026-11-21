@@ -39,11 +39,8 @@ CHECK_ICON = '<i class="ph ph-check" aria-hidden="true"></i>'
 SITE = "https://www.lokalbot.com"
 OG_IMAGE = f"{SITE}/assets/og-image.png"
 BLOG_ID = f"{SITE}/blog#blog"
-# Publish date of the original guides; a guide added later sets "published".
 GUIDES_PUBLISHED = "2026-07-13"
 
-# Defined in full by the home page's structured data; other pages reference
-# the same @id so search engines merge them into one entity.
 ORGANIZATION = {
     "@type": "Organization",
     "@id": f"{SITE}/#organization",
@@ -51,8 +48,6 @@ ORGANIZATION = {
     "url": f"{SITE}/",
 }
 
-# Hand-written pages outside the generator, with the date each last changed.
-# Bump a date when you edit that page so the sitemap's lastmod stays honest.
 STATIC_PAGES = {
     "": "2026-11-21",
     "wrapped": "2026-11-20",
@@ -98,7 +93,6 @@ def plain_text(fragment: str) -> str:
 
 def json_ld(graph: list[dict]) -> str:
     data = {"@context": "https://schema.org", "@graph": graph}
-    # A literal "</" would close the surrounding <script> element early.
     return json.dumps(data, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
 
 
@@ -142,7 +136,6 @@ def fill_template(template: str, replacements: dict[str, str], label: str) -> st
 def render_footer(partial: str) -> str:
     """The shared footer, with a Compare link for every comparison page."""
 
-    # Root-relative, because blog posts are served one level down at /blog/<slug>.
     roundups = [
         f'      <a href="/{guide["slug"]}">Best open-source AI assistants</a>'
         for guide in GUIDES
@@ -318,7 +311,6 @@ def guides_index_updated() -> str:
 
 def guides_index_structured_data() -> str:
     url = f"{SITE}/guides"
-    # Same order as the page: Questions, Guides, Compare, Reference.
     listed = (
         [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind") == "question"]
         + [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind", "guide") == "guide"]

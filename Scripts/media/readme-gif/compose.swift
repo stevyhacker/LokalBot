@@ -1,11 +1,3 @@
-// Lays recorded takes out as GIF frames: one flat canvas in the takes' own
-// fill colour, a caption per shot, the take's pixels (only cropped or scaled),
-// and a ring where each recorded click landed. Writes numbered PNGs for ffmpeg.
-//
-//   compose <edit.json> <light|dark> <takes-dir> <out-frames-dir>
-//
-// Takes are read from <takes-dir>/<appearance>/<take>/ as written by rig.
-// Build: swiftc -O -swift-version 5 compose.swift -o compose
 import AppKit
 import ImageIO
 import UniformTypeIdentifiers
@@ -18,24 +10,24 @@ func die(_ message: String) -> Never {
 struct Edit: Decodable {
     struct Theme: Decodable { var text, muted, ring: String }
     struct Shot: Decodable {
-        var take: String           // take name, e.g. "recall"
-        var from: Double           // seconds into the take
+        var take: String
+        var from: Double
         var to: Double
-        var hold: Double?          // extra seconds the frame at `to` stays up
+        var hold: Double?
         var caption: String
-        var crop: [Double]?        // capture points x, y, w, h
-        var radius: Double?        // corner radius in points to restore after a crop
-        var scale: Double?         // overrides the edit's scale for this shot
+        var crop: [Double]?
+        var radius: Double?
+        var scale: Double?
     }
     var canvas: [Int]
     var fps: Double
-    var scale: Double              // canvas pixels per capture pixel
+    var scale: Double
     var themes: [String: Theme]
     var captionSize: Double
-    var captionTop: Double         // canvas pixels from the top to the caption's first line
-    var stageTop: Double           // top of the area takes are centred in
+    var captionTop: Double
+    var stageTop: Double
     var footer: String
-    var start: Double?             // seconds into the cut where the loop begins
+    var start: Double?
     var shots: [Shot]
 }
 
@@ -43,7 +35,7 @@ struct Take {
     let dir: URL
     let stamps: [(index: Int, t: Double)]
     let scale: Double
-    let fill: [UInt8]          // the capture's own fill, sampled outside the window corner
+    let fill: [UInt8]
     let clicks: [(t: Double, x: Double, y: Double)]
 
     init(_ dir: URL) {
@@ -63,7 +55,6 @@ struct Take {
         fill = Self.corner(Self.load(dir, first.index))
     }
 
-    /// The top-left pixel, which lies outside the window's rounded corner.
     static func corner(_ image: CGImage) -> [UInt8] {
         var pixel = [UInt8](repeating: 0, count: 4)
         let ctx = CGContext(data: &pixel, width: 1, height: 1, bitsPerComponent: 8, bytesPerRow: 4,
@@ -74,7 +65,6 @@ struct Take {
         return Array(pixel[0..<3])
     }
 
-    /// The frame on screen at time t: the last one delivered at or before it.
     func frame(at t: Double) -> Int {
         var lo = 0, hi = stamps.count - 1
         while lo < hi {
@@ -128,7 +118,6 @@ let fill = takes[edit.shots[0].take]!.fill
 if takes.values.contains(where: { $0.fill != fill }) { die("takes were filmed on different fills") }
 let canvasFill = CGColor(srgbRed: CGFloat(fill[0]) / 255, green: CGFloat(fill[1]) / 255, blue: CGFloat(fill[2]) / 255, alpha: 1)
 
-// Each shot plays from..to at recorded speed, then holds its last frame.
 var starts: [Double] = []
 var total = 0.0
 for shot in edit.shots {
@@ -167,7 +156,6 @@ for n in 0..<count {
     ctx.setFillColor(canvasFill)
     ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
 
-    // The take, optionally cropped, centred in the stage below the caption.
     let px = CGFloat(take.scale)
     let scale = CGFloat(shot.scale ?? edit.scale)
     let crop = shot.crop.map { CGRect(x: $0[0], y: $0[1], width: $0[2], height: $0[3]) }
@@ -180,7 +168,6 @@ for n in 0..<count {
     let stageHeight = h - CGFloat(edit.stageTop) - footerBand
     let origin = CGPoint(x: ((w - size.width) / 2).rounded(),
                          y: (CGFloat(edit.stageTop) + (stageHeight - size.height) / 2).rounded())
-    // CG's origin is bottom-left; the layout above is top-left.
     let placed = CGRect(x: origin.x, y: h - origin.y - size.height, width: size.width, height: size.height)
     ctx.saveGState()
     if let radius = shot.radius {
@@ -192,7 +179,6 @@ for n in 0..<count {
     ctx.draw(source, in: placed)
     ctx.restoreGState()
 
-    // Click rings: expand and fade over 0.5 s from the press.
     for click in take.clicks where local >= click.t && local - click.t < 0.5 {
         let progress = CGFloat((local - click.t) / 0.5)
         let radius = (10 + 22 * progress) * px * scale

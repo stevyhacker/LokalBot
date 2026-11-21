@@ -45,15 +45,11 @@ final class MeetingScreenContextTests: XCTestCase {
         XCTAssertEqual(context.materialTitles, ["Q3 pricing.key (Keynote)", "Pricing sheet (Google Sheets)"])
     }
 
-    /// Shaped like a real Google Meet call whose Chrome captures carried no
-    /// URL: the list showed URL fragments ("#inbox", a Gmail message id, the
-    /// Meet code) and the call's own tab, five times.
     func testBrowserCapturesWithoutURLsReadAsPagesAndHideTheCallTab() {
         var meeting = meeting
         meeting.appName = "Google Chrome"
         meeting.endedAt = start.addingTimeInterval(3_000)
         meeting.recordedDuration = 3_000
-        // A stale link from an earlier call must not matter.
         meeting.meetingURL = URL(string: "https://meet.google.com/old-call-xyz")
         let suffix = " - Google Chrome - Alex"
         let context = MeetingScreenContext.build(meeting: meeting, screenshots: [
@@ -110,7 +106,6 @@ final class MeetingScreenContextTests: XCTestCase {
     }
 
     func testLongCallsKeepTheWindowsInFrontLongestInFirstAppearanceOrder() {
-        // Every third window stays in front for five minutes; the rest are glances.
         var shots: [ActivityStore.Screenshot] = []
         var at: TimeInterval = 0
         for index in 0..<15 {
@@ -128,7 +123,6 @@ final class MeetingScreenContextTests: XCTestCase {
     func testOnlyAddressesThatIdentifyThePageCanBeReopened() {
         XCTAssertNotNil(MeetingScreenContext.reopenableURL("https://github.com/acme/app/pull/193/changes"))
         XCTAssertNotNil(MeetingScreenContext.reopenableURL("https://www.notion.so/acme/Roadmap-4f2a"))
-        // Captures keep no query or fragment, so these would open the wrong page.
         XCTAssertNil(MeetingScreenContext.reopenableURL("https://mail.google.com/mail/u/0/"))
         XCTAssertNil(MeetingScreenContext.reopenableURL("https://www.youtube.com/watch"))
         XCTAssertNil(MeetingScreenContext.reopenableURL("https://github.com/search"))

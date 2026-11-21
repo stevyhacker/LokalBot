@@ -2,8 +2,6 @@ import CoreGraphics
 import XCTest
 @testable import LokalBot
 
-/// Hand off reads the focused window once, writes a brief, and packages
-/// both for the agent the person picks.
 @MainActor
 final class WindowHandoffCaptureTests: XCTestCase {
     private let source = SelectionSource(processID: 42, bundleID: "com.example.editor", appName: "Editor")
@@ -314,7 +312,6 @@ final class WindowHandoffPackageTests: XCTestCase {
     }
 }
 
-/// Answers with partial and final text, or waits until cancelled.
 private final class HandoffBriefEngine: TextEngine {
     var reply: String
     var error: Error?

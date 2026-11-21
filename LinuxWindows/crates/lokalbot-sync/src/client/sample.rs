@@ -1,6 +1,3 @@
-//! Extractive answers from the unpaired sample library. Real questions are
-//! answered by the paired computer; this never invokes an engine or a network.
-
 use serde_json::{Value, json};
 
 use super::store::ClientStore;

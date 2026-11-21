@@ -4,13 +4,10 @@ import Foundation
 struct AskNavigationHandoff: Equatable, Sendable {
     let query: String?
     let dayScope: Date?
-    /// Nil is unrestricted; an empty collection deliberately permits no screens.
     let screenSnapshotIDs: [Int64]?
     let submit: Bool
     var meetingIDs: Set<Meeting.ID>?
     var mode: AskMode = .ask
-    /// The sources to search, when the handoff narrows them (Quick Recall's
-    /// "Show all" for one kind). Nil leaves the chosen sources as they are.
     var sources: Set<AskSourceScope>?
 }
 
@@ -29,7 +26,6 @@ struct AgentLaunchContext: Equatable, Sendable {
     let actionID: String?
 }
 
-/// The Agent task that plans the open action threads, offered on Actions.
 enum ActionThreadPlan {
     static let maximumThreads = 8
 
@@ -49,9 +45,6 @@ enum ActionThreadPlan {
     }
 }
 
-/// Owns the short-lived payloads passed between navigation destinations.
-/// Each destination consumes its complete payload at once, so SwiftUI view
-/// mounting and coalesced state updates cannot split or misroute a handoff.
 @MainActor
 final class NavigationHandoff: ObservableObject {
     @Published private(set) var revision: UInt = 0
@@ -86,8 +79,6 @@ final class NavigationHandoff: ObservableObject {
         return pendingAsk
     }
 
-    /// Every meeting navigation replaces the previous seek request. Opening a
-    /// meeting without a timestamp therefore cannot inherit an older seek.
     func stageMeeting(_ meetingID: Meeting.ID, seek seconds: TimeInterval?, intent: EvidenceIntent = .reveal) {
         pendingMeetingSeek = seconds.map {
             MeetingSeekHandoff(meetingID: meetingID, seconds: max(0, $0), intent: intent)

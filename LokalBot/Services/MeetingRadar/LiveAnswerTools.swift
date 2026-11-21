@@ -1,18 +1,13 @@
 import Foundation
 import PDFKit
 
-/// A folder the person lets live answers read: documents anywhere in it, and
-/// code, commits, pull requests, and issues when it is a git repository.
 struct LiveAnswerPlace: Equatable, Sendable {
     var name: String
     var url: URL
     var isRepository: Bool
-    /// `owner/repo` when the `origin` remote is on GitHub.
     var gitHub: String?
-    /// The checked-out commit, for links that keep pointing at what was read.
     var head: String?
 
-    /// Reads each folder's git details. Missing folders are left out.
     static func load(_ paths: [String]) async -> [LiveAnswerPlace] {
         var places: [LiveAnswerPlace] = []
         var names = Set<String>()
@@ -36,7 +31,6 @@ struct LiveAnswerPlace: Equatable, Sendable {
         return places
     }
 
-    /// `owner/repo` from an https or ssh GitHub remote.
     static func gitHubRepository(fromRemote remote: String) -> String? {
         var text = remote.trimmingCharacters(in: .whitespacesAndNewlines)
         for prefix in ["https://github.com/", "http://github.com/", "git@github.com:", "ssh://git@github.com/"]
@@ -57,16 +51,12 @@ struct LiveAnswerPlace: Equatable, Sendable {
     }
 }
 
-/// One line of a tool's output that names something on its own (a file
-/// line, a commit, a pull request), so a quote found in that line cites it.
 struct LiveAnswerLine: Sendable {
     var text: String
     var title: String
     var link: String?
 }
 
-/// What a tool returned: the text the model reads, and what the answer may
-/// cite from it.
 struct LiveAnswerToolOutput: Sendable {
     var text: String
     var kind: RadarAnswer.Source.Kind?
@@ -81,18 +71,9 @@ struct LiveAnswerToolOutput: Sendable {
     }
 }
 
-/// The read-only tools over the person's folders and repositories. Every path
-/// stays inside an approved folder; hidden and secret-looking files are never
-/// read; in a repository only files git tracks are. Commands run with a short
-/// timeout and their output is capped.
 enum LiveAnswerTools {
     static let outputCharacters = 4_000
-    /// Short, because an answer during a call can't wait for a slow command.
-    /// Unit tests get more room: on a loaded CI runner, starting git alone
-    /// took longer than 8 s (Build run 44300644348, 2026-11-18).
     static let commandTimeout: Duration = UITestRuntime.isUnitTesting ? .seconds(60) : .seconds(8)
-
-    // MARK: - Definitions
 
     static func definitions(places: [LiveAnswerPlace]) -> [[String: Any]] {
         var tools: [[String: Any]] = []
@@ -147,8 +128,6 @@ enum LiveAnswerTools {
 
     static let names: Set<String> = ["search_documents", "read_document", "search_code", "read_file", "recent_commits", "github"]
 
-    // MARK: - Running
-
     static func run(_ name: String, _ arguments: [String: Any], places: [LiveAnswerPlace]) async -> LiveAnswerToolOutput {
         func text(_ key: String) -> String { (arguments[key] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines) }
         func int(_ key: String) -> Int? { (arguments[key] as? Int) ?? (arguments[key] as? String).flatMap(Int.init) }
@@ -183,8 +162,6 @@ enum LiveAnswerTools {
         }
     }
 
-    // MARK: - Documents
-
     static let readableExtensions: Set<String> = [
         "pdf", "docx", "doc", "rtf", "rtfd", "odt", "html", "htm", "webarchive", "xlsx", "csv", "tsv",
         "md", "markdown", "txt", "text", "json", "yaml", "yml", "xml", "log",
@@ -194,14 +171,11 @@ enum LiveAnswerTools {
         guard !query.isEmpty else { return .message("Give a query.") }
         var found: [URL] = []
         for place in places {
-            // Spotlight's content index, limited to this folder.
             let output = (try? await run("/usr/bin/mdfind", ["-onlyin", place.url.path, query], in: nil)) ?? ""
             found += output.split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
                 .filter { isReadable($0, places: places) }
         }
         if found.isEmpty {
-            // Spotlight can be off, still indexing, or skip the folder (it
-            // doesn't index ~/Library): rank file names by the query's words.
             let words = PersonalContextSelection.contentWords(query)
             var ranked: [(url: URL, score: Int)] = []
             for place in places {
@@ -222,8 +196,6 @@ enum LiveAnswerTools {
         return .message(lines.joined(separator: "\n"))
     }
 
-    /// How many of the query's words a file name holds: the same word, or one
-    /// with the same first four letters, so "price" finds "pricing".
     static func nameScore(_ name: String, words: Set<String>) -> Int {
         let nameWords = PersonalContextSelection.contentWords(name)
         var score = 0
@@ -266,7 +238,6 @@ enum LiveAnswerTools {
         }
     }
 
-    /// Each sheet's cells, one row per line, from the workbook's XML.
     static func spreadsheetText(_ url: URL) async throws -> String {
         let entries = try await run("/usr/bin/unzip", ["-Z1", url.path], in: nil).split(separator: "\n").map(String.init)
         let shared = entries.contains("xl/sharedStrings.xml")
@@ -283,8 +254,6 @@ enum LiveAnswerTools {
         return sheets.joined(separator: "\n\n")
     }
 
-    /// Windows of text around the query's words, most matches first, or the
-    /// start when nothing matches.
     static func excerpt(of text: String, query: String, limit: Int = outputCharacters) -> String {
         let clean = text.replacingOccurrences(of: "\r", with: "")
         let words = PersonalContextSelection.contentWords(query)
@@ -312,13 +281,8 @@ enum LiveAnswerTools {
         return String(out.prefix(limit))
     }
 
-    // MARK: - Code
-
     static func searchCode(_ query: String, in place: LiveAnswerPlace) async throws -> LiveAnswerToolOutput {
         guard !query.isEmpty else { return .message("Give a query.") }
-        // Tracked is not enough: hidden files and folders, `node_modules` and
-        // secret-looking files stay unread here as in the document tools. Git
-        // skips the first two; the name rule drops the rest before the cap.
         let output = try await git(["grep", "-n", "-I", "-i", "-F", "--max-count=4", "-e", query, "--", "."]
                                    + withheldPathspecs, in: place.url, allowFailure: true)
         let hits = output.split(separator: "\n")
@@ -341,8 +305,6 @@ enum LiveAnswerTools {
         let clean = path.trimmingCharacters(in: CharacterSet(charactersIn: "/ "))
         let tracked = (try? await git(["ls-files", "--error-unmatch", "--", clean], in: place.url)) != nil
         let url = place.url.appendingPathComponent(clean).standardizedFileURL
-        // A tracked symlink is read through, so where it leads is held to the
-        // same rules as the path that was asked for.
         let root = place.url.resolvingSymlinksInPath().path
         let target = url.resolvingSymlinksInPath().path
         guard tracked, url.path.hasPrefix(place.url.path + "/"), target.hasPrefix(root + "/"),
@@ -376,8 +338,6 @@ enum LiveAnswerTools {
         return LiveAnswerToolOutput(text: lines.map(\.text).joined(separator: "\n"), kind: .commit,
                                     title: "\(place.name) commits", lines: lines)
     }
-
-    // MARK: - GitHub
 
     static func searchGitHub(_ query: String, issues: Bool, in place: LiveAnswerPlace) async throws -> LiveAnswerToolOutput {
         let noun = issues ? "issues" : "pull requests"
@@ -428,29 +388,21 @@ enum LiveAnswerTools {
                                     title: "#\(number)", link: object["url"] as? String)
     }
 
-    // MARK: - Paths
-
     static func isSecret(_ url: URL) -> Bool {
         let name = url.lastPathComponent.lowercased()
         let secrets = [".env", ".pem", ".key", ".p12", ".pfx", ".keychain", "id_rsa", "id_ed25519", ".netrc", "credentials"]
         return secrets.contains { name == $0 || name.hasSuffix($0) || name.hasPrefix(".env") }
     }
 
-    /// A path inside an approved folder that no tool reads: a hidden file or
-    /// folder, anything under `node_modules`, or a secret-looking name.
     static func isWithheld(relativePath: some StringProtocol) -> Bool {
         let components = relativePath.split(separator: "/")
         if components.contains(where: { $0.hasPrefix(".") || $0 == "node_modules" }) { return true }
         return components.last.map { isSecret(URL(fileURLWithPath: String($0))) } ?? false
     }
 
-    /// The hidden and `node_modules` part of `isWithheld`, as pathspecs git
-    /// applies itself, so `git grep` never opens those files.
     static let withheldPathspecs = [":(exclude,glob)**/.*", ":(exclude,glob)**/.*/**",
                                     ":(exclude,glob)**/node_modules/**"]
 
-    /// Inside an approved folder, no hidden component, not secret-looking,
-    /// and a type `read_document` can read.
     static func isReadable(_ url: URL, places: [LiveAnswerPlace]) -> Bool {
         let path = url.standardizedFileURL.resolvingSymlinksInPath().path
         guard let place = places.first(where: { path.hasPrefix($0.url.resolvingSymlinksInPath().path + "/") }) else { return false }
@@ -466,8 +418,6 @@ enum LiveAnswerTools {
             return URL(fileURLWithPath: (trimmed as NSString).expandingTildeInPath).standardizedFileURL
         }
         for place in places {
-            // "Folder/sub/file.pdf" names the folder first; a bare path is
-            // looked up in each folder.
             let relative = trimmed.hasPrefix(place.name + "/") ? String(trimmed.dropFirst(place.name.count + 1)) : trimmed
             let url = place.url.appendingPathComponent(relative).standardizedFileURL
             if FileManager.default.fileExists(atPath: url.path) { return url }
@@ -493,8 +443,6 @@ enum LiveAnswerTools {
         }
         return found
     }
-
-    // MARK: - Commands
 
     enum CommandError: LocalizedError {
         case failed(String)
@@ -547,8 +495,6 @@ enum LiveAnswerTools {
     }
 }
 
-/// Just enough of the .xlsx format to read cell values: shared strings,
-/// inline strings, and numbers, by row.
 enum XLSX {
     static func sharedStrings(_ xml: String) -> [String] {
         matches(of: #"<si>(.*?)</si>"#, in: xml).map { item in

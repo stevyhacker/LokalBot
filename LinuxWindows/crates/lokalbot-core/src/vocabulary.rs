@@ -1,11 +1,3 @@
-//! Names and terms LokalBot already knows, offered to speech models that take a
-//! vocabulary prompt (`TranscriptionVocabulary.swift`). Every source is local
-//! and already part of the library: calendar attendee display names (never
-//! addresses or names derived from addresses), speaker names the user applied
-//! in related meetings, pinned overnight-review projects, tracked project names
-//! and distinctive meeting-title terms. Speaker evidence, suggestions and voice
-//! profile links are not read.
-
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::sync::LazyLock;
@@ -27,7 +19,6 @@ pub const FILE_NAME: &str = "transcription-vocabulary.json";
 pub const MAXIMUM_TERMS: usize = 40;
 pub const MAXIMUM_CHARACTERS: usize = 480;
 pub const MAXIMUM_RELATED_MEETINGS: usize = 8;
-/// How far back dictation looks for names (`recentSources`).
 pub const RECENT_DAYS: i64 = 45;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -38,8 +29,6 @@ pub struct Sources {
     pub title_terms: Vec<String>,
 }
 
-/// Per-meeting record, so a crash resume uses the same prompt even if the
-/// library changed in between.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Record {
@@ -54,9 +43,6 @@ fn first_version() -> u32 {
     1
 }
 
-/// Priority order: attendees, names the user applied before, projects, then
-/// title terms. Deduplicated ignoring case and accents, and bounded so the
-/// prompt never crowds out the audio context.
 pub fn terms(sources: &Sources) -> Vec<String> {
     let mut seen = HashSet::new();
     let mut result: Vec<String> = Vec::new();
@@ -85,7 +71,6 @@ pub fn terms(sources: &Sources) -> Vec<String> {
     result
 }
 
-/// The user's own vocabulary stays first and verbatim; known terms follow.
 pub fn prompt(manual: &str, terms: &[String]) -> String {
     let manual = manual.trim();
     if terms.is_empty() {
@@ -99,9 +84,6 @@ pub fn prompt(manual: &str, terms: &[String]) -> String {
     }
 }
 
-/// What is known for one meeting: its attendees, names applied in up to eight
-/// earlier related meetings (the same series, or a shared attendee), projects
-/// and its title's distinctive words.
 pub fn sources(meeting: &Meeting, meetings: &[Meeting], library: &Library) -> Sources {
     let attendees = attendee_names(meeting);
     let attendee_keys: HashSet<String> = attendees.iter().map(|n| normalized_key(n)).collect();
@@ -142,7 +124,6 @@ pub fn sources(meeting: &Meeting, meetings: &[Meeting], library: &Library) -> So
         applied_speaker_names.extend(names);
     }
     let mut project_names = endorsed_project_names(library.paths());
-    // Names the person tracks in Projects are confirmed spellings too.
     if let Ok(curation) = library.project_curation() {
         for project in curation.tracked {
             project_names.push(project.name);
@@ -157,8 +138,6 @@ pub fn sources(meeting: &Meeting, meetings: &[Meeting], library: &Library) -> So
     }
 }
 
-/// Recent attendee names and projects for dictation, which has no meeting of
-/// its own. The most frequently met people come first.
 pub fn recent_sources(meetings: &[Meeting], paths: &LibraryPaths, now: DateTime<Utc>) -> Sources {
     let cutoff = now - chrono::Duration::days(RECENT_DAYS);
     let mut counts: HashMap<String, (String, u32, DateTime<Utc>)> = HashMap::new();
@@ -186,9 +165,6 @@ pub fn recent_sources(meetings: &[Meeting], paths: &LibraryPaths, now: DateTime<
     }
 }
 
-/// Only projects the person pinned in `memory/memory.json`. Unpinned ones are
-/// model labels, often built from earlier mishearings; as vocabulary they
-/// biased the next transcript toward the same errors.
 fn endorsed_project_names(paths: &LibraryPaths) -> Vec<String> {
     #[derive(Deserialize)]
     #[serde(rename_all = "camelCase")]
@@ -204,7 +180,6 @@ fn endorsed_project_names(paths: &LibraryPaths) -> Vec<String> {
         pinned: bool,
     }
     let root = paths.root();
-    // A retraction in progress (`DreamStore.evidenceIsAvailable`) fails closed.
     if root.join(".dream-revocation-pending.json").exists() {
         return Vec::new();
     }
@@ -232,16 +207,11 @@ pub fn save(record: &Record, folder: &Path) -> Result<()> {
     write_json(&folder.join(FILE_NAME), record)
 }
 
-/// The prompt a finished meeting was transcribed with, for cleanup that runs
-/// after transcription: the manual vocabulary plus the saved terms.
 pub fn saved_prompt(manual: &str, folder: &Path) -> String {
     let terms = load(folder).map(|record| record.terms).unwrap_or_default();
     prompt(manual, &terms)
 }
 
-/// The manual vocabulary plus names LokalBot already knows, for speech models
-/// that read a prompt (`ProcessingPipeline.transcriptionPrompt`). A resume
-/// reuses the terms saved with the meeting.
 pub fn transcription_prompt(
     meeting: &Meeting,
     library: &Library,
@@ -249,8 +219,6 @@ pub fn transcription_prompt(
     accepts_prompt: bool,
     reuse_saved: bool,
 ) -> String {
-    // The sample transcribes the same way in every library, so names from the
-    // user's own meetings never steer it.
     if !settings.auto_transcription_vocabulary || meeting.is_sample() || !accepts_prompt {
         return settings.transcription_prompt.clone();
     }
@@ -308,9 +276,6 @@ const GENERIC_TITLE_WORDS: &[&str] = &[
     "update",
 ];
 
-/// Department and format words name a series ("Product standup", so they still
-/// relate its meetings) but are ordinary words a speech model spells on its
-/// own; as vocabulary, "Product" came back in prompt-echo rows.
 const COMMON_TITLE_WORDS: &[&str] = &[
     "product",
     "design",
@@ -394,8 +359,6 @@ const COMMON_TITLE_WORDS: &[&str] = &[
     "tomorrow",
 ];
 
-/// Capitalized or mixed-case words and acronyms from a title ("Acme", "iOS",
-/// "SDK") are likely names worth spelling; generic words are not.
 pub fn title_terms(title: &str) -> Vec<String> {
     title
         .split(|c: char| !c.is_alphanumeric() && c != '-' && c != '\'')
@@ -421,8 +384,6 @@ fn is_generic_title(normalized_title: &str) -> bool {
         .all(|word| GENERIC_TITLE_WORDS.contains(&word))
 }
 
-/// `Meeting.resolvedCalendarParticipantIdentities`: structured identities when
-/// there are any, else the legacy name list. Only display names.
 fn attendee_names(meeting: &Meeting) -> Vec<String> {
     let structured = CalendarParticipantIdentity::normalized(
         meeting
@@ -446,9 +407,6 @@ fn attendee_names(meeting: &Meeting) -> Vec<String> {
         .collect()
 }
 
-/// Placeholder labels ("Them 6", "Speaker unclear", "Local speaker") and
-/// collective words carry no spelling value; fed to a recognizer, a label came
-/// back as transcript rows on silent spans.
 fn is_placeholder_name(name: &str) -> bool {
     static SPEAKER: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(r"(?i)^(?:Them(?: \d+)?|Speaker(?: \d+| unclear)?|Local speaker)$")
@@ -457,8 +415,6 @@ fn is_placeholder_name(name: &str) -> bool {
     SPEAKER.is_match(name) || crate::people::is_placeholder(name)
 }
 
-/// Merges suffix applied names with "· source 2", which names a recording
-/// rather than a person; whitespace and edge punctuation go too.
 fn cleaned_term(raw: &str) -> String {
     static EDGES: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"^[\s\p{P}]+|[\s\p{P}]+$").expect("valid regex"));
@@ -467,7 +423,6 @@ fn cleaned_term(raw: &str) -> String {
     EDGES.replace_all(&collapsed, "").into_owned()
 }
 
-/// Case- and accent-insensitive form (`folding(.caseInsensitive, .diacriticInsensitive)`).
 fn folded(value: &str) -> String {
     value
         .nfd()
@@ -522,7 +477,6 @@ mod tests {
             attendee_names: long,
             ..Default::default()
         };
-        // 60 characters plus the separator's 2, up to 480.
         assert_eq!(terms(&sources).len(), 7);
     }
 
@@ -548,7 +502,6 @@ mod tests {
     #[test]
     fn a_mac_record_reads_back() {
         let dir = tempfile::tempdir().unwrap();
-        // As `JSONEncoder` writes it: pretty-printed, sorted keys, ISO 8601.
         std::fs::write(
             dir.path().join(FILE_NAME),
             "{\n  \"createdAt\" : \"2026-10-03T08:15:00Z\",\n  \"terms\" : [\n    \"Ana\"\n  ],\n  \"version\" : 1\n}",
@@ -635,7 +588,6 @@ mod tests {
         let saved = load(&folder).unwrap();
         assert_eq!(saved.terms, strings(&["Ana Marić", "Acme"]));
 
-        // A resume ignores what changed since; a fresh run sees it.
         target.participant_name_hints = Some(strings(&["Bo Lind"]));
         assert_eq!(
             transcription_prompt(&target, &library, &settings, true, true),
@@ -646,7 +598,6 @@ mod tests {
             "Kubernetes\nBo Lind, Acme."
         );
 
-        // A model that takes no prompt, the setting off, or the sample.
         assert_eq!(
             transcription_prompt(&target, &library, &settings, false, false),
             "Kubernetes"

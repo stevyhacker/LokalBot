@@ -1,16 +1,8 @@
 import Foundation
 
-/// Think on the user's ChatGPT plan: OpenAI's public Responses API with the
-/// Sign in with ChatGPT access token. The token-sharing route requires
-/// `store: false` and `stream: true` on every request and rejects sampling
-/// and output-cap fields, so neither temperature nor `max_output_tokens` is
-/// ever sent. Plan errors stop the request; nothing falls back to another
-/// provider or billing path.
 struct ChatGPTPlanEngine: TextEngine {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
-    /// Request fields a model or account may not accept. A 400 naming one
-    /// retries once without it; generation never started.
     enum OptionalField: String, Hashable, Sendable {
         case reasoning, textFormat
     }
@@ -20,13 +12,11 @@ struct ChatGPTPlanEngine: TextEngine {
     var model: String
     var account: ChatGPTPlanAccount = .shared
     var reasoningLevel: ThinkReasoningLevel = .automatic
-    /// Tests replace the network with a whole SSE body; nil streams live.
     var transport: Transport?
 
     var displayName: String { "ChatGPT plan — \(model)" }
     var checkpointIdentity: String { "\(displayName)|chatgpt-plan|responses" }
     var accountsForGenerationRequests: Bool { true }
-    /// OpenAI documents 1,000 enum values for strict structured outputs.
     var structuredOutputEnumLimit: Int? { 1_000 }
     var minimumStructuredOutputTokens: Int {
         let support = reasoningSupport
@@ -68,8 +58,6 @@ struct ChatGPTPlanEngine: TextEngine {
         return result
     }
 
-    // MARK: Request
-
     func effort(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         reasoningSupport.requestLevel(reasoningLevel, taskBudget: options?.reasoningBudgetTokens)
     }
@@ -81,7 +69,6 @@ struct ChatGPTPlanEngine: TextEngine {
         return fields
     }
 
-    /// Pure request construction, covered offline without a sign-in.
     func makeRequest(system: String, prompt: String, context: [String],
                      schema: [String: Any]?, options: TextGenerationOptions?,
                      accessToken: String,
@@ -109,8 +96,6 @@ struct ChatGPTPlanEngine: TextEngine {
             "store": false,
             "stream": true,
         ]
-        // System messages are rejected on this route; `instructions` is the
-        // documented replacement.
         if !system.isEmpty { body["instructions"] = system }
         if let schema, !omitted.contains(.textFormat) {
             body["text"] = ["format": [
@@ -124,11 +109,6 @@ struct ChatGPTPlanEngine: TextEngine {
         return request
     }
 
-    // MARK: Errors
-
-    /// Maps a rejected request to the documented recovery: plan limits and
-    /// eligibility stop without retrying, temporary unavailability retries
-    /// with backoff through the request gate, anything else keeps its status.
     static func planError(status: Int, data: Data, response: HTTPURLResponse?) -> Error {
         let error = errorObject(data)
         if let mapped = planError(code: error.code, message: error.message, param: error.param) {
@@ -169,7 +149,6 @@ struct ChatGPTPlanEngine: TextEngine {
                 error["param"] as? String)
     }
 
-    /// The optional fields a 400 names, limited to those the request sent.
     static func rejectedFields(in error: Error, sent: Set<OptionalField>) -> Set<OptionalField> {
         guard case .unsupportedRequest(let detail)? = error as? ChatGPTPlanError else { return [] }
         var rejected: Set<OptionalField> = []
@@ -179,8 +158,6 @@ struct ChatGPTPlanEngine: TextEngine {
         }
         return rejected.intersection(sent)
     }
-
-    // MARK: Stream
 
     struct Usage: Equatable, Sendable {
         var inputTokens: Int?
@@ -196,8 +173,6 @@ struct ChatGPTPlanEngine: TextEngine {
         }
     }
 
-    /// Accumulates one Responses stream. Success requires
-    /// `response.completed`; an incomplete, failed, or cut-off stream throws.
     struct StreamAccumulator {
         enum Outcome: Equatable {
             case completed
@@ -209,7 +184,6 @@ struct ChatGPTPlanEngine: TextEngine {
         private(set) var usage: Usage?
         private(set) var outcome: Outcome?
 
-        /// Feeds one SSE line. Returns true when the text grew.
         mutating func consume(_ line: String) throws -> Bool {
             guard line.hasPrefix("data:") else { return false }
             let payload = line.dropFirst(5).trimmingCharacters(in: .whitespaces)
@@ -283,8 +257,6 @@ struct ChatGPTPlanEngine: TextEngine {
             ?? TextEngineError.badResponse("ChatGPT request failed: \((message ?? code ?? "unknown error").prefix(600))")
     }
 
-    // MARK: Transport
-
     private func respond(system: String, prompt: String, context: [String],
                          schema: [String: Any]?, options: TextGenerationOptions?,
                          onPartial: (@MainActor (String) -> Void)?) async throws -> String {
@@ -298,7 +270,6 @@ struct ChatGPTPlanEngine: TextEngine {
             do {
                 return try await complete(request, options: options, onPartial: onPartial)
             } catch ChatGPTPlanError.signInRequired where !refreshedAfterRejection {
-                // A revoked or early-rotated token: one refresh, then stop.
                 refreshedAfterRejection = true
                 token = try await account.accessTokenAfterRejection(of: token)
             } catch {

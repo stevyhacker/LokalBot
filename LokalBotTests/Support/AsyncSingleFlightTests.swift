@@ -37,7 +37,6 @@ final class AsyncSingleFlightTests: XCTestCase {
             try await flight.run { throw ExpectedFailure.failed }
             XCTFail("Expected first attempt to fail")
         } catch ExpectedFailure.failed {
-            // Expected.
         }
 
         let counter = Counter()

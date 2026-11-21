@@ -1,9 +1,3 @@
-//! The overnight learning pass's model call (`PersonalLearning`). After the day's
-//! review it reads only the person's own words from that day and asks the Think
-//! model for at most three durable things about them. Every result must point at
-//! one of those lines and be grounded in it; anything else is dropped. Which lines
-//! may be read is decided in `lokalbot_core::personal::learning`.
-
 use std::collections::HashMap;
 
 use anyhow::Result;
@@ -22,12 +16,6 @@ use crate::sanitize::sanitize;
 use crate::think::{ChatRequest, ThinkClient, dot};
 
 const MAX_OUTPUT_TOKENS: u32 = 1_024;
-/// EmbeddingGemma 2 with the sentence-similarity prompt, measured on Serbian lines
-/// against English items (2026-10-14): correct translations 0.83–0.95, unrelated
-/// claims 0.73–0.79, and a wrong detail 0.80–0.90. Below the floor an item is
-/// dropped. Above it, a fact or goal is saved only with a shared word root or a
-/// very high score; otherwise it waits for review. Recalibrate whenever the
-/// embedding model changes.
 pub const CROSS_LANGUAGE_FLOOR: f32 = 0.82;
 pub const CONFIDENT_SIMILARITY: f32 = 0.90;
 
@@ -92,7 +80,6 @@ struct Reply {
     items: Vec<ReplyItem>,
 }
 
-/// An item the model proposed, tied to the line it cites.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Proposal {
     pub kind: ClaimKind,
@@ -100,7 +87,6 @@ pub struct Proposal {
     pub utterance: Utterance,
 }
 
-/// Every item that cites a real line with a learnable kind, in reply order.
 pub fn proposals(output: &str, utterances: &[Utterance]) -> Vec<Proposal> {
     let visible = strip_reasoning(output);
     let Some(reply) =
@@ -123,7 +109,6 @@ pub fn proposals(output: &str, utterances: &[Utterance]) -> Vec<Proposal> {
                 "fact" => ClaimKind::Fact,
                 "goal" => ClaimKind::Goal,
                 "preference" => ClaimKind::Preference,
-                // Principles are never learned.
                 _ => return None,
             };
             Some(Proposal {
@@ -135,7 +120,6 @@ pub fn proposals(output: &str, utterances: &[Utterance]) -> Vec<Proposal> {
         .collect()
 }
 
-/// Word overlap: at least a third of the item's content words are in the line.
 pub fn is_grounded(claim: &str, line: &str) -> bool {
     let claim_words = content_words(claim);
     if claim_words.is_empty() {
@@ -162,8 +146,6 @@ pub fn cross_language_verdict(similarity: f32, claim: &str, line: &str) -> Groun
     Grounding::NeedsReview
 }
 
-/// The two texts' dominant languages differ, so word overlap can't apply. Unknown
-/// counts as the same language: the stricter path.
 pub fn is_cross_language(claim: &str, line: &str) -> bool {
     match (whatlang::detect_lang(claim), whatlang::detect_lang(line)) {
         (Some(a), Some(b)) => a != b,
@@ -171,7 +153,6 @@ pub fn is_cross_language(claim: &str, line: &str) -> bool {
     }
 }
 
-/// Serbian Cyrillic to Latin, enough for the word-root check.
 fn latin(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for c in text.chars() {
@@ -217,8 +198,6 @@ fn latin(text: &str) -> String {
     out
 }
 
-/// A content word of the item and of the line (Cyrillic transliterated) start the
-/// same way: "platform" in "platformu", "marathon" in "maraton".
 pub fn shares_word_root(claim: &str, line: &str) -> bool {
     let line_words = content_words(&latin(line));
     for word in content_words(claim) {
@@ -237,8 +216,6 @@ pub fn shares_word_root(claim: &str, line: &str) -> bool {
     false
 }
 
-/// What a learned item depends on: its meeting, or the day's activity evidence for
-/// a coding-agent request. An Ask question or dictation has none.
 pub fn provenance(utterance: &Utterance, revision: u64) -> Option<Provenance> {
     let source = match &utterance.source {
         UtteranceSource::Meeting(id) => Source {
@@ -282,12 +259,8 @@ fn candidate(proposal: &Proposal, needs_review: bool, revision: u64) -> Learning
     }
 }
 
-/// Vectors for texts, L2-normalized, or `None` when no embedder is available.
 pub type Embed<'a> = &'a dyn Fn(&[String]) -> Option<Vec<Vec<f32>>>;
 
-/// Word overlap for items in the line's language. An item the model translated
-/// can't share words, so it is compared by meaning instead, when the embedder is
-/// available. Without it those items are dropped. At most three.
 pub fn grounded_candidates(
     output: &str,
     utterances: &[Utterance],
@@ -341,8 +314,6 @@ pub fn grounded_candidates(
     result
 }
 
-/// The pass over lines already gathered, so the caller can first check whether the
-/// day's lines were read before. No lines, no model call.
 pub fn run(
     think: &ThinkClient,
     lines: &[Utterance],
@@ -437,7 +408,6 @@ mod tests {
             "I live in Belgrade with my family and I work on the platform.",
             serbian
         ));
-        // Without the local embedder such an item is dropped.
         assert!(grounded_candidates(output, &lines, None, 1).is_empty());
 
         let confident = |texts: &[String]| Some(vec![vec![1.0_f32, 0.0]; texts.len()]);
@@ -445,7 +415,6 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert!(!found[0].needs_review);
 
-        // Below the floor it is dropped.
         let unrelated = |texts: &[String]| {
             Some(
                 (0..texts.len())

@@ -1,15 +1,9 @@
 #!/usr/bin/env bash
-# Record a scripted capture session on this Mac and add its scrubbed trace to
-# the test fixtures. Needs the installed Debug LokalBot with Accessibility and
-# Screen Recording granted. Launches a browser (GUI) — ask before running.
-#   Scripts/test/record-capture/run.sh chrome 60
 set -euo pipefail
 BROWSER="${1:?chrome or safari}"
 SECONDS_TO_RECORD="${2:-60}"
 ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 APP_BIN="${LOKALBOT_APP:-/Applications/LokalBot.app}/Contents/MacOS/LokalBot"
-# --record-capture exists only in Debug builds. A Release app would ignore it
-# and open normally, so refuse any binary that lacks the flag.
 if ! grep -aqr -- '--record-capture' "$(dirname "$APP_BIN")"; then
   echo "$APP_BIN is not a Debug build; set LOKALBOT_APP to a Debug LokalBot.app" >&2
   exit 2

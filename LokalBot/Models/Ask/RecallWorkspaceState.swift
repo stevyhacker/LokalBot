@@ -1,16 +1,11 @@
 import Foundation
 
-/// Ask's query and retrieval state for the session. Only Ask observes it:
-/// AppState does not relay its changes, so a keystroke in the query field
-/// re-renders Ask rather than every AppState observer.
 @MainActor
 final class RecallWorkspace: ObservableObject {
     @Published var query = ""
     @Published var state = RecallWorkspaceState()
 }
 
-/// Shared, session-lived navigation state. Opening evidence does not discard
-/// the selected filters, attachments, result or unfinished question.
 struct RecallWorkspaceState {
     var meetingIDs: Set<UUID>?
     var screenIDs: Set<Int64>?
@@ -47,13 +42,6 @@ struct RecallWorkspaceState {
         }
     }
 
-    /// "Ask about results" bounds meetings and screen moments to the displayed
-    /// rows. Activity has no result rows to bound, so a selected Activity
-    /// source stays; otherwise "How long was I in Figma today?" lost the only
-    /// tool that answers it whenever the question also matched a result.
-    /// Files has no per-row bound yet either, so a selected Files source stays
-    /// when file rows were among the results.
-    /// Agent notes follow the same rule as Files.
     mutating func selectResultEvidence(meetingIDs: Set<UUID>, screenIDs: Set<Int64>, hadFiles: Bool = false,
                                        hadAgentNotes: Bool = false) {
         let keepsActivity = sources.contains(.today)
@@ -65,7 +53,6 @@ struct RecallWorkspaceState {
         if keepsNotes { sources.insert(.agentNotes) }
     }
 
-    /// An explicit source choice supersedes any earlier temporary narrowing.
     mutating func chooseSources(_ selection: Set<AskSourceScope>) {
         sources = selection
         scopeBeforePins?.screenWasEnabled = selection.contains(.screen)
@@ -121,15 +108,10 @@ extension RecallSearch {
         var meetings: [MeetingRecallGroup] = []
         var screens: [ScreenRecallGroup] = []
         var files: [FileSearchHit] = []
-        /// Notes the person's coding agents saved, matched by their words.
         var agentNotes: [AgentNoteHit] = []
-        /// More meetings, screen sources, files or notes matched than are listed.
         var isTruncated = false
-        /// The share of the query's words each keyword screen hit holds, for
-        /// ranking it with meaning matches (`ScreenSearch`).
         var screenCoverage: [Int64: Double] = [:]
 
-        /// Pass one group more than `displayLimit` so a cut list is detected.
         mutating func setMeetings(_ groups: [MeetingRecallGroup]) {
             isTruncated = isTruncated || groups.count > displayLimit
             meetings = Array(groups.prefix(displayLimit))
@@ -151,18 +133,12 @@ extension RecallSearch {
         }
     }
 
-    /// Keyword screen matches as source sessions, and what ranking them with
-    /// meaning matches needs (`ScreenSearch.coverage`): whether every word of
-    /// the query matched, and which hits are saved moments.
     struct KeywordScreens: Sendable {
         var groups: [ScreenRecallGroup]
         var matchedAll: Bool
         var saved: Set<Int64>
     }
 
-    /// Keyword screen matches (relaxed when the strict query finds nothing)
-    /// and saved moments whose note or title matches, as source sessions.
-    /// One group more than `displayLimit` is returned so a cut list shows.
     static func keywordScreenGroups(in store: ActivityStore, query: String,
                                     filter: ScreenSearchFilter) -> [ScreenRecallGroup] {
         keywordScreens(in: store, query: query, filter: filter).groups
@@ -191,11 +167,6 @@ extension RecallSearch {
             matchedAll: matchedAll, saved: Set(saved.map(\.snapshotID)))
     }
 
-    /// `screenGroups(readableScreens(fill(hits), query:), limit:)`, filling
-    /// only the hits that can reach the first `limit` groups. Dropping an
-    /// unreadable hit can only split a session, never merge two, so sessions
-    /// are settled in order of their best hit until no later one can rank
-    /// above the `limit`th group. Typically 5–20% of 2,000 hits get snippets.
     static func readableScreenGroups(
         _ hits: [ActivityStore.OCRHit], query: String, limit: Int = displayLimit,
         fill: ([ActivityStore.OCRHit]) -> [ActivityStore.OCRHit]
@@ -209,10 +180,8 @@ extension RecallSearch {
                 let firsts = settled.map(\.first).sorted()
                 if firsts[limit - 1] < candidates[next][0] { break }
             }
-            // At least as many sessions as groups are still missing, in one fill.
             let batch = candidates[next..<min(candidates.count, next + max(1, limit - settled.count))]
             next += batch.count
-            // `fill` keeps order, so the filled hits follow the batch's offsets.
             var filled = fill(batch.flatMap { $0 }.map { hits[$0] }).makeIterator()
             for session in batch {
                 var readableOffsets: [Int] = []
@@ -243,8 +212,6 @@ extension RecallSearch {
         }
     }
 
-    /// Group adjacent moments per source/day, then restore relevance order.
-    /// Each timestamp is classified once; long sessions avoid quadratic scans.
     static func screenGroups(_ hits: [ActivityStore.OCRHit], limit: Int = displayLimit) -> [ScreenRecallGroup] {
         guard limit > 0 else { return [] }
         return sessions(hits).prefix(limit).map { group in
@@ -252,8 +219,6 @@ extension RecallSearch {
         }
     }
 
-    /// Hit offsets per source session (same app, window and day, no gap over
-    /// five minutes), each in relevance order, sessions by their best hit.
     private static func sessions(_ hits: [ActivityStore.OCRHit]) -> [[Int]] {
         struct Source: Hashable { let app: String; let window: String; let day: Date }
         let calendar = Calendar.current
@@ -301,8 +266,6 @@ extension RecallSearch {
         let searchScreens = state.sources.contains(.screen) && (facet == .all || facet == .screen)
         let searchFiles = state.sources.contains(.files) && (facet == .all || facet == .files)
             && app.settings.fileSearchEnabled && app.fileSearch.isAvailable
-        // Files match words first; the query vector (shared with meeting and
-        // screen search) adds meaning below.
         let fileWords = searchFiles
             ? await app.fileSearch.search(query, queryVector: nil, interval: interval, limit: displayLimit + 1)
             : []
@@ -314,13 +277,11 @@ extension RecallSearch {
                 result.setMeetings(groups(readable(hits, query: query), limit: displayLimit + 1))
             }
             if searchNotes {
-                // A date scope keeps the notes last changed inside it.
                 let found = (try? notesIndex.search(query, limit: interval == nil ? displayLimit + 1 : 400)) ?? []
                 result.setAgentNotes(found.filter { hit in interval.map { $0.contains(hit.modified) } ?? true })
             }
             guard !Task.isCancelled, searchScreens else { return result }
             let keyword = keywordScreens(in: store, query: query, filter: screenFilter)
-            // Counted on the hits that made the list, whose snippets are filled.
             var coverage = ScreenSearch.coverage(query: query, hits: keyword.groups.flatMap(\.matches),
                                                  matchedAll: keyword.matchedAll) {
                 store.ocrText(snapshotID: $0)
@@ -356,13 +317,9 @@ extension RecallSearch {
                                              limit: displayLimit + 1))
         }
         if searchScreens {
-            // Text and picture vectors on one scale, ranked with the keyword
-            // hits (`ScreenSearch`). With no vectors yet the keyword results stay.
             let meanings = await app.embeddingIndex.screenMeanings(query, filter: filter, priority: .interactive)
             guard !Task.isCancelled else { return Result() }
             if !meanings.isEmpty {
-                // Up to 2,000 captures' records and passages: read and ranked
-                // off the main actor, which keystrokes and drawing need.
                 let keyword = result.screens.flatMap(\.matches)
                 let coverage = result.screenCoverage
                 let groups = await ActivityStore.readInBackground(at: url) { store in

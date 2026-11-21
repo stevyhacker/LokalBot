@@ -1,7 +1,3 @@
-//! Resolves a brief's citations against the current library without rewriting
-//! what was saved (`DreamBriefPresentation`). An id the library no longer has
-//! reads as unavailable rather than a raw handle.
-
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -33,8 +29,6 @@ fn natural_ownership(text: &str) -> String {
     OWNER.replace_all(&first, "assigned to you").into_owned()
 }
 
-/// The text with each cited id as a meeting. Older briefs sometimes say "Demo Day
-/// `12345678`": the title already there becomes the link instead of repeating.
 pub fn brief_pieces(text: &str, meetings: &[Meeting]) -> Vec<BriefPiece> {
     let source = natural_ownership(text);
     let mut pieces = Vec::new();
@@ -84,7 +78,6 @@ pub fn brief_pieces(text: &str, meetings: &[Meeting]) -> Vec<BriefPiece> {
     pieces
 }
 
-/// The same text on one line, with titles in place of ids.
 pub fn brief_plain(text: &str, meetings: &[Meeting]) -> String {
     brief_pieces(text, meetings)
         .into_iter()

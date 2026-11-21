@@ -1,13 +1,3 @@
-//! Autocomplete's counters and timings (`CotypingStats.swift`,
-//! `CotypingUsageHistory.swift`, `CotypingLiveMeasure.swift`).
-//!
-//! The Mac keeps these in `UserDefaults` (`lokalbotv3.cotypingStats`,
-//! `lokalbotv3.cotypingUsage`), so there is no Mac file to match. Here they
-//! are `<root>/cotyping-stats.json` and `<root>/cotyping-usage.json` in the
-//! Mac's JSON encoding, the way `settings.json` stands in for its blob. A
-//! damaged file reads as empty, as on the Mac. Counts and timings only: no
-//! text, app name or window title.
-
 use std::collections::BTreeMap;
 use std::path::Path;
 
@@ -19,24 +9,15 @@ use crate::library::write_atomic;
 pub const STATS_FILE: &str = "cotyping-stats.json";
 pub const USAGE_FILE: &str = "cotyping-usage.json";
 
-/// Rolling latency windows keep this many samples.
 pub const MAX_LATENCIES: usize = 50;
-/// How long an accept may wait to be read back.
 pub const INSERTION_TIMEOUT_MS: i64 = 1_500;
-/// Characters of the text before the caret an insertion check compares.
 const INSERTION_TAIL: usize = 48;
 
-/// Daily rows are kept this long; months keep the totals.
 pub const RETAINED_DAYS: i64 = 92;
-/// A longer gap between typed characters is a pause, not typing speed.
 pub const MAX_TYPING_GAP_MS: i64 = 1_000;
-/// Typing speed is shown once this many gaps are measured.
 pub const MINIMUM_TYPING_GAPS: i64 = 200;
-/// 40 words a minute at five characters a word.
 pub const FALLBACK_MS_PER_KEYSTROKE: f64 = 300.0;
 
-/// The Mac's surface raw values with their titles, in display order
-/// (`CotypingSurfaceClass.measured`, `measureTitle`).
 pub const SURFACES: [(&str, &str); 6] = [
     ("other", "Native apps"),
     ("browser", "Browsers"),
@@ -68,22 +49,14 @@ fn push_latency(window: &mut Vec<i64>, latency: i64) {
     }
 }
 
-// ------------------------------------------------------------- live measure
-
-/// `CotypingInsertionCheck.Outcome`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InsertionOutcome {
-    /// The app has not shown the change yet.
     Pending,
-    /// The field holds the text before the caret followed by the insertion.
     Confirmed,
-    /// The field changed, but not to the inserted text.
     Mismatched,
-    /// The field never showed a change, or focus left before it did.
     Unconfirmed,
 }
 
-/// How autocomplete behaved while typing in one kind of app (`CotypingLiveMeasure`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct LiveMeasure {
@@ -109,7 +82,6 @@ impl LiveMeasure {
         percentile(&self.visible_latencies_ms, 0.95)
     }
 
-    /// Insertions with a known outcome.
     pub fn insertions_checked(&self) -> i64 {
         self.insertions_confirmed + self.insertions_mismatched
     }
@@ -126,7 +98,6 @@ impl LiveMeasure {
     }
 }
 
-/// `CotypingStats`: usage and latency counters, shown under "Usage and timing".
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct CotypingStats {
@@ -135,7 +106,6 @@ pub struct CotypingStats {
     pub accepts: i64,
     pub chars_accepted: i64,
     pub latencies_ms: Vec<i64>,
-    /// By surface raw value.
     pub live: BTreeMap<String, LiveMeasure>,
 }
 
@@ -188,7 +158,6 @@ impl CotypingStats {
             .accepts_corrected += 1;
     }
 
-    /// The recorded surfaces in display order, with their titles.
     pub fn live_rows(&self) -> Vec<(&'static str, &LiveMeasure)> {
         SURFACES
             .iter()
@@ -201,9 +170,6 @@ impl CotypingStats {
             .collect()
     }
 
-    /// `report(model:)`: a plain-text table for comparing runs. Counts and
-    /// timings only. Unlike the Mac's, it says the numbers come from field
-    /// reads: this port has no keyboard monitor.
     pub fn report(&self, model: &str) -> String {
         let mut lines = vec![format!("Autocomplete typing measurements ({model})")];
         let generation = self
@@ -261,14 +227,10 @@ impl CotypingStats {
     }
 }
 
-/// Whether an accepted suggestion really arrived in the field
-/// (`CotypingInsertionCheck`): what the app shows afterwards against what was
-/// sent. Holds a little text only until it is resolved.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InsertionCheck {
     tail: String,
     inserted: String,
-    /// Accepts this check stands for.
     pub count: i64,
     pub surface: String,
     pub pid: u32,
@@ -303,15 +265,12 @@ impl InsertionCheck {
         }
     }
 
-    /// An accept sent while this one is still unread is checked with it.
     pub fn extend(&mut self, inserted: &str, at_ms: i64) {
         self.inserted.push_str(&normalized(inserted));
         self.count += 1;
         self.started_ms = at_ms;
     }
 
-    /// `live` is the focused field's identity and text, or `None` when
-    /// nothing editable has focus.
     pub fn outcome(&self, live: Option<(u32, u64, &str)>, now_ms: i64) -> InsertionOutcome {
         let timed_out = now_ms - self.started_ms >= INSERTION_TIMEOUT_MS;
         let silent = if timed_out {
@@ -350,15 +309,10 @@ impl InsertionCheck {
     }
 }
 
-/// Browsers publish a trailing space as a non-breaking space.
 fn normalized(text: &str) -> String {
     text.replace('\u{00A0}', " ")
 }
 
-// ------------------------------------------------------------ usage history
-
-/// What autocomplete did for one period (`CotypingUsageCounts`). Zero counts
-/// are left out of the file.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct UsageCounts {
@@ -381,8 +335,6 @@ impl UsageCounts {
         *self == Self::default()
     }
 
-    /// Share of shown suggestions used; `used` is capped at `shown`, since an
-    /// accept just after midnight can land on a later day than its suggestion.
     pub fn acceptance_rate(&self) -> Option<f64> {
         (self.shown > 0).then(|| self.used.min(self.shown) as f64 / self.shown as f64)
     }
@@ -391,7 +343,6 @@ impl UsageCounts {
         (self.used > 0).then(|| self.words as f64 / self.used as f64)
     }
 
-    /// Key presses not made: every inserted character, less the accept presses.
     pub fn keystrokes_saved(&self) -> i64 {
         (self.characters - self.accepts).max(0)
     }
@@ -410,7 +361,6 @@ fn counts_empty(counts: &UsageCounts) -> bool {
     counts.is_empty()
 }
 
-/// One day or month (`CotypingUsageBucket`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct UsageBucket {
@@ -435,13 +385,11 @@ impl UsageBucket {
         *self == Self::default()
     }
 
-    /// Share of the text written where autocomplete works that came from it.
     pub fn share_of_text(&self) -> Option<f64> {
         let total = self.suggestions.characters + self.typed_characters;
         (total > 0).then(|| self.suggestions.characters as f64 / total as f64)
     }
 
-    /// Average time per typed character, once there are enough gaps to say.
     pub fn milliseconds_per_keystroke(&self) -> Option<f64> {
         (self.typing_gaps >= MINIMUM_TYPING_GAPS)
             .then(|| self.typing_milliseconds as f64 / self.typing_gaps as f64)
@@ -468,7 +416,6 @@ impl UsageBucket {
     }
 }
 
-/// `CotypingUsageRange`.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum UsageRange {
     Week,
@@ -478,23 +425,18 @@ pub enum UsageRange {
     AllTime,
 }
 
-/// One bar of a chart: a day or month with its counts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct UsageBar {
     pub start: NaiveDate,
     pub bucket: UsageBucket,
 }
 
-/// One range, ready to show (`CotypingUsageSummary`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct UsageSummary {
     pub range: UsageRange,
     pub total: UsageBucket,
     pub bars: Vec<UsageBar>,
-    /// Bars are months, not days.
     pub monthly: bool,
-    /// Measured from everything recorded: typing speed is a habit, not a
-    /// property of the range.
     pub milliseconds_per_keystroke: Option<f64>,
 }
 
@@ -519,8 +461,6 @@ impl UsageSummary {
             .count()
     }
 
-    /// Headroom above the tallest bar, with a floor so a quiet week is not
-    /// drawn full height.
     pub fn word_ceiling(&self) -> i64 {
         let tallest = self
             .bars
@@ -532,7 +472,6 @@ impl UsageSummary {
     }
 }
 
-/// Autocomplete use by local calendar day and month (`CotypingUsageHistory`).
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct UsageHistory {
@@ -551,7 +490,6 @@ impl UsageHistory {
         });
     }
 
-    /// One accept press. `first_of_suggestion` marks the suggestion as used.
     pub fn record_accept(
         &mut self,
         words: i64,
@@ -579,10 +517,6 @@ impl UsageHistory {
         });
     }
 
-    /// Characters typed in one read of the field. There is no key tap here,
-    /// so `elapsed_ms` since the previous read stands in for the gaps between
-    /// them: a read up to `MAX_TYPING_GAP_MS` after the last counts each
-    /// character as one gap, and a longer one counts none.
     pub fn record_typed(&mut self, characters: i64, elapsed_ms: Option<i64>, day: NaiveDate) {
         if characters <= 0 {
             return;
@@ -609,13 +543,11 @@ impl UsageHistory {
         change(self.months.entry(month_key(day)).or_default());
     }
 
-    /// Zero-padded keys sort in date order.
     fn prune(&mut self, today: NaiveDate) {
         let oldest = day_key(today - Duration::days(RETAINED_DAYS - 1));
         self.days.retain(|key, _| key.as_str() >= oldest.as_str());
     }
 
-    /// `summary(_:now:calendar:)`.
     pub fn summary(&self, range: UsageRange, today: NaiveDate) -> UsageSummary {
         let mut bars = Vec::new();
         let monthly = matches!(range, UsageRange::Year | UsageRange::AllTime);
@@ -634,7 +566,6 @@ impl UsageHistory {
                 let this_month = first_of_month(today);
                 let mut count = 12;
                 if range == UsageRange::AllTime {
-                    // From the first recorded month, never fewer than one bar.
                     let first = self
                         .months
                         .iter()
@@ -677,7 +608,6 @@ impl UsageHistory {
     }
 }
 
-/// Local calendar day.
 pub fn local_day(now: DateTime<chrono::Utc>) -> NaiveDate {
     Local.from_utc_datetime(&now.naive_utc()).date_naive()
 }
@@ -714,9 +644,6 @@ fn months_back(month: NaiveDate, offset: i64) -> NaiveDate {
     .unwrap_or(month)
 }
 
-// -------------------------------------------------------------------- files
-
-/// Reads both files; a missing or damaged one reads as empty.
 pub fn load(root: &Path) -> (CotypingStats, UsageHistory) {
     fn read<T: serde::de::DeserializeOwned + Default>(path: &Path) -> T {
         std::fs::read(path)
@@ -760,7 +687,6 @@ mod tests {
         NaiveDate::parse_from_str(text, "%Y-%m-%d").unwrap()
     }
 
-    /// Derived from the Swift `Codable` types; no capture from a Mac exists.
     const USAGE: &str = r#"{"days":{"2026-10-14":{"suggestions":{"shown":4,"used":2,"accepts":3,"words":5,"characters":27,"takenBack":1},"surfaces":{"browser":{"shown":4,"used":2,"accepts":3,"words":5,"characters":27,"takenBack":1}},"models":{"gemma-4-e2b":{"shown":4,"used":2,"accepts":3,"words":5,"characters":27,"takenBack":1}},"typedCharacters":120,"typingMilliseconds":21000,"typingGaps":100,"typosFixed":1}},"months":{"2026-09":{},"2026-10":{"suggestions":{"shown":4,"used":2,"accepts":3,"words":5,"characters":27,"takenBack":1},"typedCharacters":120,"typingMilliseconds":21000,"typingGaps":100,"typosFixed":1}}}"#;
     const STATS: &str = r#"{"generations":12,"errors":1,"accepts":3,"charsAccepted":27,"latenciesMs":[180,240],"live":{"chat":{"shown":2,"visibleLatenciesMs":[300,350],"accepts":1,"insertionsConfirmed":1,"insertionsMismatched":0,"insertionsUnconfirmed":0,"acceptsCorrected":0}}}"#;
 
@@ -900,7 +826,6 @@ mod tests {
             check.outcome(live("Hi there you"), 10),
             InsertionOutcome::Confirmed
         );
-        // Typing may already have gone on, and a browser's space may be NBSP.
         assert_eq!(
             check.outcome(live("Hi there\u{a0}you and"), 10),
             InsertionOutcome::Confirmed
@@ -919,7 +844,6 @@ mod tests {
         );
         assert_eq!(check.outcome(None, 10), InsertionOutcome::Pending);
         assert_eq!(check.outcome(None, 1_500), InsertionOutcome::Unconfirmed);
-        // Another field or app says nothing.
         assert_eq!(
             check.outcome(Some((8, 1, "Hi there you")), 1_500),
             InsertionOutcome::Unconfirmed

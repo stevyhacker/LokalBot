@@ -1,11 +1,3 @@
-//! Splits pi's stdout into JSONL records (`PiJSONLFrameSplitter.swift`).
-//!
-//! pi's RPC framing (docs/rpc.md): LF (0x0A) is the only record delimiter;
-//! one trailing CR is stripped; U+2028/U+2029 inside JSON strings must not
-//! split records. That is why this works on raw bytes and why the process
-//! reader never uses a string-based line reader.
-
-/// The largest record (and the largest command written to stdin).
 pub const MAX_FRAME_BYTES: usize = 4 * 1024 * 1024;
 
 const OVERSIZED: &str =
@@ -35,7 +27,6 @@ impl FrameSplitter {
         }
     }
 
-    /// Feeds a chunk; returns every complete record it terminates.
     pub fn append(&mut self, chunk: &[u8]) -> Vec<String> {
         self.buffer.extend_from_slice(chunk);
         let mut lines = Vec::new();
@@ -73,7 +64,6 @@ impl FrameSplitter {
         lines
     }
 
-    /// Drains an unterminated final record (call on EOF).
     pub fn flush(&mut self) -> Option<String> {
         let buffer = std::mem::take(&mut self.buffer);
         if std::mem::take(&mut self.discarding_oversized) {
@@ -124,7 +114,6 @@ mod tests {
     #[test]
     fn reassembles_records_across_chunks() {
         let mut splitter = FrameSplitter::default();
-        // Split mid-record and mid-UTF-8 sequence (é is two bytes).
         let full = "{\"text\":\"café\"}\n".as_bytes();
         let mut collected = Vec::new();
         collected.extend(splitter.append(&full[..5]));

@@ -2,12 +2,6 @@ import AppKit
 import Combine
 import SwiftUI
 
-/// Shows the dictation HUD in a floating panel near the bottom of the screen.
-///
-/// The SwiftUI canvas has one fixed size and stays put on screen; the panel
-/// is a window onto the canvas's bottom-center. A capsule that grows makes
-/// the panel grow first, and a capsule that shrinks shrinks inside the panel
-/// before the panel follows, so resizing never shifts or clips what is drawn.
 @MainActor
 final class DictationOverlayController {
     private let settingsStore: SettingsStore
@@ -19,16 +13,12 @@ final class DictationOverlayController {
     private var allowsDisplay = false
     private var syncScheduled = false
     private var revealScheduled = false
-    /// The capsule's bottom-center while the HUD is up. Fixed until it hides,
-    /// so a focus change cannot move it to another screen mid-dictation.
     private var anchor: CGPoint?
     private var panelContentSize: CGSize = .zero
     private var shrinkTask: Task<Void, Never>?
     private var orderOutTask: Task<Void, Never>?
 
-    /// Long enough for the capsule's resize to settle before the panel shrinks.
     private static let shrinkDelay: Duration = .milliseconds(450)
-    /// Long enough for the exit transition before the panel leaves the screen.
     private static let orderOutDelay: Duration = .milliseconds(220)
 
     init(settingsStore: SettingsStore) {
@@ -41,8 +31,6 @@ final class DictationOverlayController {
         sync()
     }
 
-    /// Some changes reshape the HUD without a call to `update`, such as a
-    /// model check that ends. Follow every published change, once per turn.
     private func observe(_ dictation: DictationCoordinator) {
         guard self.dictation !== dictation else { return }
         self.dictation = dictation
@@ -96,8 +84,6 @@ final class DictationOverlayController {
             panel.orderFrontRegardless()
         }
         guard !model.isShown, !revealScheduled else { return }
-        // Insert the capsule on the next turn, once the empty canvas has
-        // drawn, so its entrance transition runs.
         revealScheduled = true
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -172,7 +158,6 @@ final class DictationOverlayController {
     }
 }
 
-/// What the HUD shows, and whether its capsule is on screen.
 @MainActor
 final class DictationOverlayModel: ObservableObject {
     @Published var content: DictationOverlayContent?
@@ -199,8 +184,6 @@ extension DictationOverlayActions {
     }
 }
 
-/// The fixed-size canvas: the capsule sits at its bottom-center and enters
-/// with a short rise, the HUD being summoned many times a day.
 struct DictationOverlayRoot: View {
     @ObservedObject var model: DictationOverlayModel
     let meter: AudioLevelMeter
@@ -220,8 +203,6 @@ struct DictationOverlayRoot: View {
             top: margins.top, leading: margins.left, bottom: margins.bottom, trailing: margins.right))
         .frame(width: canvas.width, height: canvas.height, alignment: .bottom)
         .brandTinted()
-        // On the canvas rather than the capsule, so the capsule's position
-        // springs together with its size and its bottom edge stays put.
         .animation(reduceMotion ? nil : Self.resize, value: model.content?.layout)
         .animation(model.isShown ? Self.entrance : Self.exit, value: model.isShown)
     }
@@ -240,9 +221,6 @@ struct DictationOverlayRoot: View {
     }
 }
 
-/// The capsule. Each kind of content is laid out at its own final size and
-/// cross-fades, while the surface springs between sizes and clips whatever
-/// does not fit yet.
 struct DictationOverlayView: View {
     let content: DictationOverlayContent
     let meter: AudioLevelMeter
@@ -277,11 +255,6 @@ struct DictationOverlayView: View {
         }
     }
 
-    // MARK: Pill
-
-    /// The bars move only while audio arrives, and a microphone problem
-    /// replaces them with words: the HUD once animated a fixed wave while the
-    /// microphone reconnected, so recording looked fine when it was not.
     private func pill(_ activity: DictationOverlayContent.Activity) -> some View {
         HStack(spacing: 0) {
             leadingIndicator(activity)
@@ -328,8 +301,6 @@ struct DictationOverlayView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.8)
     }
-
-    // MARK: Live transcript
 
     private func transcriptPanel(_ activity: DictationOverlayContent.Activity) -> some View {
         VStack(spacing: 0) {
@@ -406,7 +377,6 @@ struct DictationOverlayView: View {
                 }
                 .scrollIndicators(.never)
                 .mask {
-                    // Earlier lines fade out under the header as text scrolls.
                     LinearGradient(
                         stops: [.init(color: .clear, location: 0), .init(color: .black, location: 0.14)],
                         startPoint: .top,
@@ -444,8 +414,6 @@ struct DictationOverlayView: View {
         return committedText + Text(" ") + tentativeText
     }
 
-    // MARK: Model preparation
-
     private func preparationPanel(_ presentation: ModelPreparationPresentation, canRetry: Bool) -> some View {
         HStack(spacing: 10) {
             ModelPreparationView(
@@ -459,9 +427,6 @@ struct DictationOverlayView: View {
         .padding(.trailing, Self.inset)
     }
 
-    // MARK: Delivery notice
-
-    /// Pasted text the field did not show: offer it again instead of losing it.
     private func noticeRow(_ notice: DictationDeliveryNotice) -> some View {
         HStack(spacing: 0) {
             Image(systemName: notice.copied ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
@@ -488,10 +453,6 @@ struct DictationOverlayView: View {
         .animation(.easeOut(duration: 0.16), value: notice.copied)
     }
 
-    // MARK: Problem notice
-
-    /// Why a dictation ended without its text, or why a model on this Mac
-    /// transcribed it. The reason is shown as written: it can quote a server.
     private func problemRow(_ problem: DictationProblemNotice) -> some View {
         HStack(alignment: .center, spacing: 0) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -521,8 +482,6 @@ struct DictationOverlayView: View {
         .padding(.horizontal, Self.inset)
     }
 
-    /// Square cell for the leading indicator and the close button, the same
-    /// in every shape so they stay put when the capsule changes.
     private static let slot: CGFloat = 30
     private static let inset: CGFloat = 4
 }
@@ -536,8 +495,6 @@ private extension Text {
 }
 
 extension DictationOverlayContent {
-    /// What cross-fades. The transcript panel keeps one face across its
-    /// activities, so its text does not blink when recording ends.
     enum Face: Hashable {
         case pill(Activity)
         case transcript
@@ -557,12 +514,7 @@ extension DictationOverlayContent {
     }
 }
 
-// MARK: - Surface and controls
-
 private extension View {
-    /// The app's floating surface (glass on macOS 26, material before it, an
-    /// opaque fill under Reduce Transparency), clipped to the capsule, with a
-    /// soft shadow so it lifts off the app underneath.
     func dictationHUDSurface() -> some View {
         clipShape(RoundedRectangle(
             cornerRadius: DictationOverlayContent.Layout.cornerRadius, style: .continuous))
@@ -571,8 +523,6 @@ private extension View {
     }
 }
 
-/// A shadow drawn only outside the capsule: glass and material sample what
-/// lies behind them, and a shadow shape underneath would darken the surface.
 private struct HUDShadow: View {
     let cornerRadius: CGFloat
     @Environment(\.colorScheme) private var colorScheme
@@ -642,8 +592,6 @@ private struct HUDPressStyle: ButtonStyle {
     }
 }
 
-/// Grey and still until the microphone delivers audio (a Bluetooth headset
-/// can take a second to switch), then the pulsing recording dot.
 private struct DictationRecordingDot: View {
     var live: Bool
 
@@ -654,13 +602,6 @@ private struct DictationRecordingDot: View {
     }
 }
 
-// MARK: - Level bars
-
-/// Bars drawn from the microphone's measured loudness: the newest reading in
-/// the middle, older ones rippling outward. Flat and dim while nothing
-/// arrives, so a silent or reconnecting microphone is visible instead of
-/// hidden behind a decorative animation. Drawn in a Canvas, so the 30 fps
-/// redraw causes no layout.
 struct AudioLevelBars: View {
     let meter: AudioLevelMeter
     var live = true
@@ -700,12 +641,10 @@ struct AudioLevelBars: View {
         minHeight + CGFloat(min(max(level, 0), 1)) * (maxHeight - minHeight)
     }
 
-    /// Recent levels, oldest first, laid out newest-in-the-middle.
     static func mirrored(_ recent: [Float]) -> [Float] {
         recent + recent.reversed().dropFirst()
     }
 
-    /// Outer bars stand a little shorter, so the shape reads as a voice.
     static func envelope(index: Int, count: Int) -> Float {
         guard count > 1 else { return 1 }
         let center = Float(count - 1) / 2
@@ -714,8 +653,6 @@ struct AudioLevelBars: View {
     }
 }
 
-/// Eases the bars toward the measured levels, quick to rise and slower to
-/// fall like a level meter, so a dozen readings a second move smoothly.
 final class AudioLevelFollower {
     private var levels: [Float] = []
     private var lastTime: Date?

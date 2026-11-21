@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Sticky sidebar summary of long-running model work. It shows the most
-/// important activity and lists the rest in a popover; each row opens the
-/// screen that owns its work.
 struct BackgroundActivityCard: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var monitor: BackgroundActivityMonitor

@@ -1,12 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// What the person dictated into other apps, kept only for the overnight
-/// learning pass (Personal Context → Learn from my dictation, off by default).
-/// Raw spoken words only, never Compose's drafts, with card numbers and IBANs
-/// redacted. Sealed with the `chat-key` like the personal model, 0600. Each
-/// entry goes once the pass has read its day, and never lasts more than two
-/// days; turning the setting off deletes the file.
 @MainActor
 struct DictationLearningLog {
     struct Entry: Codable, Equatable, Sendable {
@@ -54,7 +48,6 @@ struct DictationLearningLog {
         return decoder
     }()
 
-    /// Adds one dictation, dropping expired entries and the oldest beyond the cap.
     func append(_ text: String, appName: String) throws {
         let redacted = ScreenContextPrivacy.redact(text).text
         let clean = PromptContextSanitizer.sanitize(redacted, maxCharacters: Self.maximumEntryCharacters)
@@ -64,20 +57,16 @@ struct DictationLearningLog {
         try save(Array(entries.suffix(Self.maximumEntries)))
     }
 
-    /// Unexpired entries dictated on `day`, oldest first.
     func entries(on day: Date, calendar: Calendar = .current) -> [Entry] {
         current().filter { calendar.isDate($0.dictatedAt, inSameDayAs: day) }
     }
 
-    /// After the learning pass for `day`: drops that day and everything
-    /// before it, and anything expired.
     func removeEntries(through day: Date, calendar: Calendar = .current) throws {
         let start = calendar.startOfDay(for: day)
         let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start.addingTimeInterval(86_400)
         try save(current().filter { $0.dictatedAt >= end })
     }
 
-    /// Drops expired entries; deletes the file when none remain.
     func prune() throws {
         guard FileManager.default.fileExists(atPath: url.path) else { return }
         try save(current())
@@ -89,8 +78,6 @@ struct DictationLearningLog {
         }
     }
 
-    /// Unexpired entries. An unreadable file reads as empty: it is a
-    /// short-lived buffer, and the next save replaces it.
     private func current() -> [Entry] {
         guard let sealed = try? Data(contentsOf: url),
               let key = try? encryptionKey(),
@@ -114,17 +101,11 @@ struct DictationLearningLog {
     }
 }
 
-/// The window and page a dictation was pasted into, read once right after the
-/// paste and only while Learn from my dictation is on. Held in memory to
-/// decide whether to keep the words, then dropped.
 struct DictationLearningSurface: Equatable, Sendable {
     var windowTitle: String?
     var pageURL: String?
 }
 
-/// Which dictations may be kept for learning: the same app, website, and
-/// private-window exclusions as nearby-text context, plus never LokalBot itself
-/// (Ask questions are read from the conversation).
 enum DictationLearningPolicy {
     static func permits(appName: String, bundleID: String?, surface: DictationLearningSurface,
                         excludedApps: [String], excludedDomains: [String],
@@ -133,8 +114,6 @@ enum DictationLearningPolicy {
         let observation = ScreenContextPrivacy.Observation(
             appName: appName, bundleIdentifier: bundleID, windowTitle: surface.windowTitle,
             sourceURL: surface.pageURL, focusedSecureField: false, hasWebContent: surface.pageURL != nil)
-        // A browser whose page address can't be read can't be checked against
-        // the website exclusions, so its dictation is not kept.
         if ScreenContextPrivacy.isBrowser(observation) {
             guard ScreenContextPrivacy.sanitizedURL(surface.pageURL) != nil else { return false }
         }

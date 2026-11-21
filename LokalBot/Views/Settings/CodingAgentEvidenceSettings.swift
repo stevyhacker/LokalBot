@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Settings → Screen & Activity → Coding agent sessions. Sessions are on by
-/// default and their saved records can be deleted here. Notes are off until
-/// turned on after a notice. The agents' own files stay untouched either way.
 struct CodingAgentEvidenceSettings: View {
     @EnvironmentObject private var app: AppState
     @State private var confirmingDeletion = false
@@ -93,7 +90,6 @@ struct CodingAgentEvidenceSettings: View {
     }
 }
 
-/// How many notes are saved, or why none are.
 private struct AgentNotesStatusRow: View {
     @ObservedObject var notes: AgentMemoryIngestor
 

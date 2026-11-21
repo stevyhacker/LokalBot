@@ -1,9 +1,3 @@
-//! The Day Digest journal read back for display (`DayDigestPresentation.swift`)
-//! and its freshness (`DayDigestLifecycle.swift`).
-//!
-//! The journal stays the lossless format; this only gives the UI a
-//! scannable hierarchy for both new and legacy journals.
-
 use std::sync::LazyLock;
 
 use anyhow::Result;
@@ -78,7 +72,6 @@ fn preamble(markdown: &str, prefix: &str) -> Option<String> {
     meaningful(Some(&lines.join("\n")))
 }
 
-/// `None` for empty sections and sentinels like "_None._".
 fn meaningful(value: Option<&str>) -> Option<String> {
     let clean = value?.trim();
     if clean.is_empty() {
@@ -111,7 +104,6 @@ fn join_nonempty(values: &[Option<&str>]) -> String {
         .join("\n\n")
 }
 
-/// Top-level `- `/`* ` items, each with its continuation lines.
 fn top_level_items(markdown: &str) -> Vec<String> {
     let mut items = Vec::new();
     let mut current: Vec<&str> = Vec::new();
@@ -138,7 +130,6 @@ fn strip_list_marker(line: &str) -> &str {
         .unwrap_or(line)
 }
 
-/// "The user did X" → "Did X", keeping the journal's facts in the user's voice.
 fn direct_voice(value: &str) -> String {
     let clean = value.trim();
     let first_name = crate::people::user_full_name(None)
@@ -173,7 +164,6 @@ fn meaningful_words(value: &str) -> Vec<String> {
         .collect()
 }
 
-/// `DayDigestTextSimilarity.isSimilar`.
 pub fn is_similar(lhs: &str, rhs: &str) -> bool {
     let left_words = meaningful_words(lhs);
     let right_words = meaningful_words(rhs);
@@ -312,7 +302,6 @@ fn removing_label(label: &Regex, text: &str) -> Option<String> {
     (!rest.is_empty()).then(|| rest.to_string())
 }
 
-/// `Next — <task>: <step>`; the longest matching task title wins.
 fn next_step(text: &str, tasks: &[DigestTask]) -> Option<(Option<usize>, String, String)> {
     let lead = NEXT_LEAD.find(text)?;
     let rest = &text[lead.end()..];
@@ -498,8 +487,6 @@ fn activity_groups(markdown: &str) -> Vec<DigestActivityGroup> {
     groups
 }
 
-/// Parses a journal (`DayDigestPresentation(markdown:)`), accepting legacy
-/// layouts such as `## Today at a glance` + `## Next`.
 pub fn parse_digest(markdown: &str) -> DayDigest {
     let document = sections(markdown, "## ");
     let summary_body = document
@@ -625,7 +612,6 @@ pub fn parse_digest(markdown: &str) -> DayDigest {
     }
 }
 
-/// Timeline's task sections in order: open work first, finished work last.
 pub const TASK_GROUP_ORDER: [TaskStatus; 4] = [
     TaskStatus::Blocked,
     TaskStatus::InProgress,
@@ -633,33 +619,25 @@ pub const TASK_GROUP_ORDER: [TaskStatus; 4] = [
     TaskStatus::Completed,
 ];
 
-/// One-line rows a section shows before "Show N more".
 pub const BRIEF_ROW_LIMIT: usize = 8;
 
-/// A status section of the task list: its tasks' indices in
-/// `DayDigest::tasks`, in journal order.
 #[derive(Clone, Debug, PartialEq)]
 pub struct TaskGroup {
     pub status: TaskStatus,
     pub tasks: Vec<usize>,
 }
 
-/// How Timeline shows a section's tasks (`DayDigestPresentation.timelineRows`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TimelineRows {
-    /// Shown in full, with the title, next step and summary.
     pub full: Vec<usize>,
-    /// Shown as one-line rows whose summary opens on demand.
     pub brief: Vec<usize>,
 }
 
 impl DayDigest {
-    /// Task-first journals give their tasks a status; older journals never do.
     pub fn is_task_first(&self) -> bool {
         self.tasks.iter().any(|t| t.status != TaskStatus::Unknown)
     }
 
-    /// The non-empty status sections, in `TASK_GROUP_ORDER`.
     pub fn task_groups(&self) -> Vec<TaskGroup> {
         TASK_GROUP_ORDER
             .iter()
@@ -673,10 +651,6 @@ impl DayDigest {
             .collect()
     }
 
-    /// Timeline shows a section's tasks that carry a next step, and every
-    /// blocked task, in full; the rest become one-line rows, as does all of
-    /// Done. Older journals have neither statuses nor next steps, and their
-    /// summary is the only description, so all of their tasks stay in full.
     pub fn timeline_rows(&self, group: &TaskGroup) -> TimelineRows {
         if !self.is_task_first() || group.status == TaskStatus::Blocked {
             return TimelineRows {
@@ -698,19 +672,10 @@ impl DayDigest {
     }
 }
 
-/// Whether `count` one-line rows show only the first `BRIEF_ROW_LIMIT` until
-/// asked for the rest. Hiding a single row would cost as much room as
-/// showing it.
 pub fn folds_brief_rows(count: usize) -> bool {
     count > BRIEF_ROW_LIMIT + 1
 }
 
-/// Splits a trailing parenthetical off a task title, such as the project in
-/// "Review all open PRs (LokalBot)" or the pull request in "Staging
-/// deployment (PR #487)", so it can show as a tag
-/// (`DayDigestPresentation.titleAndTag`). Nested parentheses stay inside the
-/// tag; a title that is only a parenthetical, or one over 32 characters, has
-/// no tag.
 pub fn title_and_tag(title: &str) -> (&str, Option<&str>) {
     let trimmed = title.trim();
     if !trimmed.ends_with(')') {
@@ -758,9 +723,6 @@ fn modified(path: &std::path::Path) -> Option<DateTime<Utc>> {
 }
 
 impl Library {
-    /// The journal for `day` parsed for display, with its sidecar and whether
-    /// newer activity, screen text or finished meetings exist than the
-    /// journal file covers (`DayDigestFreshness`).
     pub fn day_digest(&self, day: NaiveDate) -> Result<Option<DayDigest>> {
         let Some(markdown) = self.journal_markdown(day)? else {
             return Ok(None);
@@ -800,9 +762,6 @@ impl Library {
         Ok(Some(digest))
     }
 
-    /// The newest evidence for `day`: activity (clamped to the day), screen
-    /// text, coding-agent work, finished meetings' ends and their artifacts'
-    /// modification times.
     pub fn latest_evidence_at(&self, day: NaiveDate) -> Result<Option<DateTime<Utc>>> {
         let (start, end) = crate::time::local_day_bounds(day);
         let (start_epoch, end_epoch) = (crate::time::to_epoch(start), crate::time::to_epoch(end));
@@ -904,8 +863,6 @@ mod tests {
         assert_eq!(digest.meetings_markdown, None);
     }
 
-    /// Timeline gives full rows to open tasks with a next step and to blocked
-    /// tasks; the rest of a section, and all of Done, become one-line rows.
     #[test]
     fn timeline_rows_keep_next_steps_and_blockers_in_full() {
         let digest = parse_digest(

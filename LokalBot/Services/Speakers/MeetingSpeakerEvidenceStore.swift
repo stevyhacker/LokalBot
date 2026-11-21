@@ -1,8 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// One serial authority for evidence, assignment journals and profile mutations.
-/// A durable decision is committed before its public transcript projection.
 actor MeetingSpeakerEvidenceStore {
     enum Failure: LocalizedError {
         case stale, deleted, corrupt, tooLarge, evidenceExpired
@@ -36,8 +34,6 @@ actor MeetingSpeakerEvidenceStore {
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         let size = try url.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size <= 16 * 1_024 * 1_024 else { throw Failure.tooLarge }
-        // A locked/protected file is unavailable, not corrupt ciphertext.
-        // Preserve the I/O failure so diagnostics distinguish it from a bad key.
         let data = try Data(contentsOf: url)
         do {
             let box = try AES.GCM.SealedBox(combined: data)
@@ -49,10 +45,6 @@ actor MeetingSpeakerEvidenceStore {
         let clear = try JSONEncoder().encode(value)
         guard let data = try AES.GCM.seal(clear, using: key, authenticating: aad(url)).combined else { throw Failure.corrupt }
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
-        // The payload is already authenticated AES-GCM ciphertext. Foundation's
-        // file-protection option can create unreadable files on macOS when the
-        // process has no Data Protection entitlement, so keep the atomic write
-        // and enforce a user-only POSIX boundary instead.
         try data.write(to: url, options: .atomic)
         try FileManager.default.setAttributes(
             [.posixPermissions: 0o600], ofItemAtPath: url.path)
@@ -80,14 +72,11 @@ actor MeetingSpeakerEvidenceStore {
         if let expectedProfileRevision, try profiles().revision != expectedProfileRevision { throw Failure.stale }
         var next = proposed
         next.revision = current.revision + 1
-        // Retain only bounded recent event metadata; assignments hold durable authority.
         next.decisions = Array(next.decisions.suffix(512))
         try write(next, at: evidenceFolder(meeting).appendingPathComponent("identity.sealed"))
         return next
     }
 
-    /// Everything beside the identity journal is retired Google Meet speaker
-    /// observation (participant names and speaking intervals).
     private func removeRetiredObservations(_ meeting: Meeting) throws {
         let folder = evidenceFolder(meeting)
         guard FileManager.default.fileExists(atPath: folder.path) else { return }
@@ -107,7 +96,6 @@ actor MeetingSpeakerEvidenceStore {
         saved.microphoneSampleDiagnostics = nil
         saved.timeline = []
         saved.acousticTimeline = []
-        // Durable applied names retain minimal turns, not the underlying matches.
         for index in saved.assignments.indices {
             saved.assignments[index].match = nil
             saved.assignments[index].supportingMatches = nil
@@ -115,8 +103,6 @@ actor MeetingSpeakerEvidenceStore {
         _ = try commit(saved, meeting: meeting, expectedRevision: saved.revision)
     }
 
-    /// Whether erasing would remove anything. An erased journal stays on disk
-    /// for its names, so the hourly pass meets it again on every run.
     private func holdsExpirableEvidence(_ meeting: Meeting) throws -> Bool {
         let files = try FileManager.default.contentsOfDirectory(atPath: evidenceFolder(meeting).path)
         if files.contains(where: { $0 != "identity.sealed" }) { return true }
@@ -133,12 +119,9 @@ actor MeetingSpeakerEvidenceStore {
             let folder = evidenceFolder(meeting)
             guard FileManager.default.fileExists(atPath: folder.path) else { continue }
             if meeting.startedAt < cutoff {
-                // Erasing rewrites the journal and advances its revisions,
-                // which would fail a correction made at the same moment.
                 guard try holdsExpirableEvidence(meeting) else { continue }
                 try eraseEvidence(meeting: meeting)
             } else {
-                // Recent voice samples stay available for remembering.
                 try removeRetiredObservations(meeting)
             }
         }
@@ -170,9 +153,6 @@ actor MeetingSpeakerEvidenceStore {
             name: name, isLocalUser: assignment.isLocalUser, profileID: profileID, to: &database)
     }
 
-    /// A name the user gave before call voices were remembered. Legacy names
-    /// have no decision, so the assignment ID stands in for one: a later
-    /// correction revokes it like any other contribution.
     func enrollSavedName(meeting: Meeting, assignmentID: UUID, samples: [SpeakerVoiceSample],
                          profileID: UUID?, expectedDatabaseRevision: Int) throws -> UUID {
         try checkMeeting(meeting)
@@ -195,8 +175,6 @@ actor MeetingSpeakerEvidenceStore {
             name: name, isLocalUser: assignment.isLocalUser, profileID: profileID, to: &database)
     }
 
-    /// Call voices store their average and one chunk for provenance, which
-    /// keeps a busy team's profiles well inside the file limit.
     private static func contribution(meeting: Meeting, assignment: SpeakerIdentityAssignment, decisionID: UUID,
                                      confirmedAt: Date, samples: [SpeakerVoiceSample]) -> SpeakerVoiceProfile.Contribution {
         let call = (samples.first?.source ?? .system) == .system
@@ -225,7 +203,6 @@ actor MeetingSpeakerEvidenceStore {
             database.profiles[index].revision += 1
         } else {
             guard profileID == nil else { throw Failure.deleted }
-            // Every named call participant is remembered, so leave room for a whole company.
             guard database.profiles.count < 250 else { throw Failure.tooLarge }
             database.profiles.append(SpeakerVoiceProfile(id: targetID, name: name,
                 isLocalUser: isLocalUser, confirmedNames: [name], contributions: [contribution]))

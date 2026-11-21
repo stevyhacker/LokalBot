@@ -1,12 +1,5 @@
 import Foundation
 
-/// `LokalBot --follow-through-replay <fixture.json> [--model <id>]`
-///
-/// Runs Follow-through's real loop and Meta Model API client against a
-/// fixture meeting: read tools answer from the fixture, and every proposal is
-/// recorded and approved without being carried out. Prints one JSON line per
-/// step and a summary. For synthetic fixtures only: the key is read from
-/// `META_API_KEY`, and no library, Keychain, mail, or calendar is touched.
 enum FollowThroughReplay {
     struct Fixture: Decodable {
         struct Action: Decodable {

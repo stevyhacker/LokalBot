@@ -1,18 +1,4 @@
 #!/bin/bash
-# Records the autocomplete and dictation takes with the filming copy.
-#
-#   FILMING_APP=<work>/LokalBot.app Scripts/media/readme-gif/film_live.sh <takes-dir> [take...]
-#
-# Takes: autocomplete dictation (default: both). APPEARANCES="light dark" (default).
-# The installed LokalBot is quit first (both copies would share model ports and
-# keyboard shortcuts) and reopened at the end, also on failure. The filming copy
-# runs on a fresh fictional library with its own settings suite; TextEdit
-# documents are plain text, created in a temporary folder and closed without
-# saving. Plain text keeps TextEdit's format bar, whose labels autocomplete
-# would read as context, out of the window. Documents keep TextEdit's
-# plain-text font; the GIF scales the window up. TextEdit's preferences are not changed.
-# Dictation plays its line through the speakers with a macOS voice, so the
-# MacBook's own microphone must be the input and the room fairly quiet.
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 : "${FILMING_APP:?set FILMING_APP to the copy built by build_filming_app.sh}"
@@ -29,7 +15,7 @@ LIB="$WORK/library"
 reopen_installed=0
 if pgrep -f "$INSTALLED/Contents/MacOS/LokalBot" >/dev/null; then reopen_installed=1; fi
 
-quit_app() {  # quit_app <bundle path>; waits up to 20 s
+quit_app() {
   local bin="$1/Contents/MacOS/LokalBot"
   pgrep -f "$bin" >/dev/null || return 0
   osascript -e "tell application \"$1\" to quit" >/dev/null 2>&1 || true
@@ -40,7 +26,6 @@ cleanup() {
   osascript -e 'tell application "TextEdit" to close every document saving no' >/dev/null 2>&1 || true
   osascript -e 'tell application "TextEdit" to quit' >/dev/null 2>&1 || true
   quit_app "$FILMING_APP"
-  # The filming copy's own log, kept beside the takes for checking what it did.
   cp "$LIB/debug.log" "$OUT/filming-app.log" 2>/dev/null || true
   defaults delete "$SUITE" >/dev/null 2>&1 || true
   rm -f "$HOME/Library/Preferences/$SUITE.plist"
@@ -56,16 +41,16 @@ quit_app "$INSTALLED"
 open -n -g "$FILMING_APP" --args -ApplePersistenceIgnoreState YES -AppleLanguages "(en)" -AppleLocale en_US \
   --lokalbot-storage-root "$LIB" --lokalbot-defaults-suite "$SUITE"
 for _ in $(seq 60); do pgrep -f "$FILMING_APP/Contents/MacOS/LokalBot" >/dev/null && break; sleep 0.5; done
-sleep 8   # models load and the autocomplete and dictation shortcuts register
+sleep 8
 
 background() { [ "$1" = dark ] && echo "#161B22" || echo "#EAEEF2"; }
-document() {  # document <take>: the file each take types into
+document() {
   case $1 in
     autocomplete) printf 'launch-email' ;;
     dictation) printf 'team-update' ;;
   esac
 }
-opening() {  # opening <take>: what the document holds before the take types into it
+opening() {
   case $1 in
     autocomplete) printf 'Hi all,\n\n' ;;
     dictation) printf '' ;;

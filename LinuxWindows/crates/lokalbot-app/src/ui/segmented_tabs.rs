@@ -1,6 +1,3 @@
-//! The meeting workspace tab switcher (`ToolbarTabs` on macOS): equal-width
-//! segments in a capsule, with a teal pill behind the selected one.
-
 use std::rc::Rc;
 
 use crate::i18n::h_flex;
@@ -12,10 +9,8 @@ use gpui_kit::{
 
 use crate::theme::{LbThemeExt as _, ty};
 
-/// Height of the whole control, including the 3px track inset.
 pub const HEIGHT: Pixels = px(32.);
 
-/// Total width for `count` segments of `segment_width`.
 pub fn width(count: usize, segment_width: Pixels) -> Pixels {
     segment_width * count as f32 + px(2.) * count.saturating_sub(1) as f32 + px(8.)
 }

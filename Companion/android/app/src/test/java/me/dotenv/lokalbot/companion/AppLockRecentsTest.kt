@@ -9,7 +9,6 @@ import org.junit.runner.RunWith
 import org.robolectric.Robolectric
 import org.robolectric.annotation.Config
 
-/** What the recents screen may show of the library while the app lock is on. */
 @RunWith(AndroidJUnit4::class)
 class AppLockRecentsTest {
     class Probe : Activity() {

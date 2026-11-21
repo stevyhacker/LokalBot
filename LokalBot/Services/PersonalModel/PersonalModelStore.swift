@@ -1,15 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// Persists the personal model as `memory/personal-model.json.enc`, sealed
-/// with AES-GCM under the same per-install `chat-key` as saved conversations:
-/// these claims are as sensitive as the questions they came from.
-///
-/// A plaintext `memory/personal-model.json` (demo seeds, upgrade fixtures) is
-/// accepted and re-encrypted on the next save. Writes are atomic and 0600.
-/// Only the app writes; headless `--chat` reads. Evidence-backed claims
-/// (RFC Phase 3) move this under `DreamStore`'s lock so retraction updates
-/// them in the same critical section as Dream memory.
 @MainActor
 struct PersonalModelStore {
     enum LoadError: Error, Equatable {
@@ -46,9 +37,6 @@ struct PersonalModelStore {
         return decoder
     }()
 
-    /// The saved model; empty when nothing was ever saved. An encrypted copy
-    /// wins over a leftover plaintext one. Throws instead of returning empty
-    /// for anything unreadable, so a caller never saves over it.
     func load() throws -> PersonalModel {
         let fileManager = FileManager.default
         let data: Data
@@ -73,7 +61,6 @@ struct PersonalModelStore {
         return model
     }
 
-    /// Seal → atomic write → 0600, then drop any plaintext copy.
     func save(_ model: PersonalModel) throws {
         let key = try encryptionKey()
         let data = try Self.encoder.encode(model)
@@ -89,7 +76,6 @@ struct PersonalModelStore {
         }
     }
 
-    /// "Forget everything about me": removes both copies.
     func deleteAll() throws {
         let fileManager = FileManager.default
         for url in [encryptedURL, plaintextURL] where fileManager.fileExists(atPath: url.path) {

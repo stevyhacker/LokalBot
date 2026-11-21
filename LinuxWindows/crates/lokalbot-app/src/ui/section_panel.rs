@@ -1,33 +1,3 @@
-//! Section panels (`SectionPanel.swift`): one section of a page on its own
-//! raised surface. Today, a meeting's Summary, Transcript and Notes, and
-//! Timeline's day are made of these.
-//!
-//! A panel has a header bar (the section's icon, its title, a count pill, an
-//! optional red alert pill or status pill, and one trailing link),
-//! a hairline, a body, and an optional footer strip on a faint fill for the
-//! one extra line a section has.
-//!
-//! ```ignore
-//! use crate::ui::section_panel::{SectionPanel, Pill, footer_text};
-//!
-//! SectionPanel::new("today-attention", lokalbot_i18n::tr("Needs attention"))
-//!     .section(Section::Actions) // the sidebar destination's icon
-//!     .count(open)
-//!     .when(overdue > 0, |p| p.alert(overdue_label))
-//!     .trailing_link("today-all-actions", lokalbot_i18n::tr("All actions"), |_, cx| {
-//!         AppData::global(cx).update(cx, |data, cx| data.open_actions(cx))
-//!     })
-//!     .rows(threads.iter().enumerate().map(|(ix, thread)| {
-//!         action_row::thread_row(format!("today-thread-{ix}").into(), thread,
-//!             Default::default(), &data, cx)
-//!     }))
-//!     .footer(footer_text(showing))
-//!     .footer(panel_link("today-more-actions", more, |_, cx| { /* open Actions */ }, cx))
-//! ```
-//!
-//! Put panels on [`page_surface`] (the grey page behind them) so they read
-//! as raised, and stack them in a [`panel_column`].
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Sizable as _, v_flex};
@@ -41,18 +11,13 @@ use super::{Ico, icon};
 use crate::state::Section;
 use crate::theme::{LbThemeExt as _, metric, ty};
 
-/// What a pill beside a panel's title says (`SectionPanelPill.Tone`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PillTone {
-    /// The count beside the title: quiet fill, supporting text.
     Count,
-    /// A red badge, such as "1 overdue".
     Overdue,
-    /// The accent badge that says a section is finished ("All done").
     Done,
 }
 
-/// A count, overdue or done pill. Use [`count_pill`] for a number.
 pub fn pill(text: impl Into<SharedString>, tone: PillTone, cx: &App) -> Div {
     let lb = cx.lb();
     let (fill, color) = match tone {
@@ -76,13 +41,10 @@ pub fn pill(text: impl Into<SharedString>, tone: PillTone, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// The count beside a panel's title, in the interface's digits.
 pub fn count_pill(count: usize, cx: &App) -> Div {
     pill(lokalbot_i18n::number(count), PillTone::Count, cx)
 }
 
-/// A small bold label over a group inside a panel ("Highlights",
-/// "Priorities for today") (`SectionPanelLabel`).
 pub fn panel_label(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .w_full()
@@ -92,10 +54,6 @@ pub fn panel_label(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// A labelled band across a panel's body over a group of its rows ("For you
-/// · 2") (`SectionPanelBand`). It carries the footer's fill with a hairline
-/// under it; `follows_rows` also draws the hairline above, for a band after
-/// rows.
 pub fn panel_band(text: impl Into<SharedString>, follows_rows: bool, cx: &App) -> Div {
     let lb = cx.lb();
     v_flex()
@@ -121,8 +79,6 @@ pub fn panel_band(text: impl Into<SharedString>, follows_rows: bool, cx: &App) -
         .child(super::divider(cx))
 }
 
-/// The words of a footer strip: they take the strip's width and wrap, and a
-/// link after them keeps to the trailing edge (`sectionPanelFooterText`).
 pub fn footer_text(text: impl Into<SharedString>) -> Div {
     div()
         .flex_1()
@@ -130,19 +86,14 @@ pub fn footer_text(text: impl Into<SharedString>) -> Div {
         .child(super::text::paragraph(text.into()))
 }
 
-/// The grey page behind panels, so each panel reads as a raised surface.
-/// Pages that are made of panels fill their scroll area with it.
 pub fn page_surface(cx: &App) -> Div {
     div().bg(cx.lb().page)
 }
 
-/// A column of panels with the space the Mac leaves between them.
 pub fn panel_column() -> Div {
     v_flex().w_full().gap(metric::PANEL_SPACING)
 }
 
-/// The raised surface every panel and lead uses: the panel fill, a faint
-/// edge and a soft shadow (`todayCardSurface`).
 pub fn panel_surface(cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -160,8 +111,6 @@ pub fn panel_surface(cx: &App) -> Div {
         }])
 }
 
-/// Makes the header the control that opens and closes the body: a chevron
-/// takes the icon's place and the whole bar is one button.
 struct Disclosure {
     expanded: bool,
     on_toggle: Handler,
@@ -169,19 +118,6 @@ struct Disclosure {
 
 type Handler = Box<dyn Fn(&mut Window, &mut App) + 'static>;
 
-/// One section of a page on its own raised surface. Build it with the
-/// methods below; it draws when added as a child.
-///
-/// - Header: [`icon`](Self::icon) or [`section`](Self::section), the title,
-///   [`count`](Self::count), [`alert`](Self::alert) (red) or
-///   [`status`](Self::status), then one [`trailing_link`](Self::trailing_link).
-/// - Body, in the order added: [`rows`](Self::rows) (inset rows divided by
-///   inset hairlines, like Needs attention), [`band`](Self::band) and free
-///   [`child`](Self::child) content.
-/// - [`footer`](Self::footer): each call adds to the strip; use
-///   [`footer_text`] for its words.
-/// - [`disclosure`](Self::disclosure): a collapsed panel whose header opens
-///   it in place (Full summary).
 #[derive(IntoElement)]
 pub struct SectionPanel {
     id: ElementId,
@@ -204,7 +140,6 @@ enum BodyPart {
 }
 
 impl SectionPanel {
-    /// `id` names the panel; its header and disclosure use ids derived from it.
     pub fn new(id: impl Into<ElementId>, title: impl Into<SharedString>) -> Self {
         Self {
             id: id.into(),
@@ -221,38 +156,30 @@ impl SectionPanel {
         }
     }
 
-    /// The icon beside the title.
     pub fn icon(mut self, icon: Ico) -> Self {
         self.icon = Some(icon);
         self
     }
 
-    /// The icon of the sidebar destination this section leads to, as the
-    /// Mac takes it from `NavSection.symbol`.
     pub fn section(self, section: Section) -> Self {
         self.icon(section.icon())
     }
 
-    /// The count pill beside the title.
     pub fn count(mut self, count: usize) -> Self {
         self.count = Some(count);
         self
     }
 
-    /// A red badge beside the count, such as "1 overdue".
     pub fn alert(mut self, text: impl Into<SharedString>) -> Self {
         self.alert = Some(text.into());
         self
     }
 
-    /// A badge that says where the section stands, such as "2 open"
-    /// (`PillTone::Count`) or "All done" (`PillTone::Done`).
     pub fn status(mut self, text: impl Into<SharedString>, tone: PillTone) -> Self {
         self.status = Some((text.into(), tone));
         self
     }
 
-    /// A link at the header's trailing edge ("All actions", "Open Timeline").
     pub fn trailing_link(
         mut self,
         id: impl Into<ElementId>,
@@ -263,15 +190,11 @@ impl SectionPanel {
         self
     }
 
-    /// A long title may take this many lines in a narrow panel instead of
-    /// being cut short.
     pub fn title_lines(mut self, lines: usize) -> Self {
         self.title_lines = lines.max(1);
         self
     }
 
-    /// A collapsed panel: the header is one button with a chevron, and the
-    /// body and footer show only while `expanded`.
     pub fn disclosure(
         mut self,
         expanded: bool,
@@ -284,7 +207,6 @@ impl SectionPanel {
         self
     }
 
-    /// Rows inset from the panel's edges, divided by inset hairlines.
     pub fn rows(mut self, rows: impl IntoIterator<Item = impl IntoElement>) -> Self {
         let rows: Vec<AnyElement> = rows.into_iter().map(|r| r.into_any_element()).collect();
         if !rows.is_empty() {
@@ -293,22 +215,16 @@ impl SectionPanel {
         self
     }
 
-    /// A labelled band over the rows that follow ("For you · 2"). Pass
-    /// `follows_rows` for a band that comes after other rows.
     pub fn band(mut self, text: impl Into<SharedString>, follows_rows: bool) -> Self {
         self.body.push(BodyPart::Band(text.into(), follows_rows));
         self
     }
 
-    /// Free body content, edge to edge: pad it with `metric::PANEL_INSET`.
     pub fn child(mut self, element: impl IntoElement) -> Self {
         self.body.push(BodyPart::Child(element.into_any_element()));
         self
     }
 
-    /// Adds to the footer strip, in order: words first
-    /// ([`footer_text`]), then a [`panel_link`] that keeps to the trailing
-    /// edge.
     pub fn footer(mut self, element: impl IntoElement) -> Self {
         self.footer.push(element.into_any_element());
         self
@@ -328,9 +244,6 @@ impl SectionPanel {
     }
 }
 
-/// A teal link in a panel's header or footer ("All actions", "2 more in
-/// Actions", "Update") (`.workspaceLink`). A button, so the keyboard reaches
-/// it.
 pub fn panel_link(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,
@@ -480,15 +393,6 @@ fn render_part(part: BodyPart, cx: &App) -> AnyElement {
     }
 }
 
-/// A panel with no header bar: what a page leads with, such as a meeting's
-/// recap or a session's title (`SectionPanelLead`). The content is padded;
-/// [`below`](Self::below) runs edge to edge under a hairline.
-///
-/// ```ignore
-/// SectionPanelLead::new("meeting-recap")
-///     .child(recap_text)
-///     .below(player_bar)
-/// ```
 #[derive(IntoElement)]
 pub struct SectionPanelLead {
     id: ElementId,
@@ -510,8 +414,6 @@ impl SectionPanelLead {
         self
     }
 
-    /// A body under a hairline that runs edge to edge, for a lead that also
-    /// holds what it names.
     pub fn below(mut self, element: impl IntoElement) -> Self {
         self.below = Some(element.into_any_element());
         self

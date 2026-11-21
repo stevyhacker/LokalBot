@@ -1,8 +1,5 @@
 import Foundation
 
-/// A search snippet split into plain text and matched words. The sync core's
-/// full-text search marks matches with `«` and `»`; without markers the
-/// searched terms themselves are matched.
 public enum SearchSnippet {
     public struct Part: Equatable, Sendable {
         public var text: String

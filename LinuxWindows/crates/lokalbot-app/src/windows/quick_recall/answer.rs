@@ -1,15 +1,3 @@
-//! The answer inside the Quick Recall window (`ChatTranscriptView` in its
-//! compact style, `QuickRecallAnswerSources`): each question under "You" and
-//! its time, the answer, and its sources as numbered rows laid out like the
-//! window's results, with the passage quoted and the question's words marked.
-//! Opening a source shows it in the main window, or in its own app for a file
-//! or an agent note. It reads the conversation the engine saves and the
-//! answer being written; it never asks anything itself.
-//!
-//! Built on its own rather than on the Ask page, so the window keeps working
-//! while Ask changes; what it shares with Ask is the citation parser, the
-//! answer renderer, the question scope and the sources menu's words for it.
-
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash as _, Hasher as _};
@@ -38,18 +26,13 @@ use crate::ui::answer_text::{self, Answer, AnswerStyle};
 use crate::ui::citations::{self, CitationSource, ScreenCitations};
 use crate::ui::{self, Ico};
 
-/// Id of the answer being written before the engine saves it.
 const STREAM_ID: Uuid = Uuid::from_u128(0x5a5a_0000_0000_4000_8000_0000_0000_0002);
-/// Characters of a source's quoted line.
 const QUOTE_LIMIT: usize = 200;
 
-/// A source was opened from the answer: the window closes, bringing the main
-/// window forward when that is where the source shows.
 pub enum AnswerEvent {
     Opened { in_main_window: bool },
 }
 
-/// One turn as the window shows it.
 enum Turn {
     Question {
         text: String,
@@ -59,7 +42,6 @@ enum Turn {
     Answer {
         id: Uuid,
         text: String,
-        /// The step under way, while the answer is being prepared.
         step: Option<String>,
         pending: bool,
         status: Option<SharedString>,
@@ -73,10 +55,7 @@ enum Turn {
 pub struct QuickRecallAnswer {
     data: Entity<AppData>,
     conversation_id: Uuid,
-    /// The conversation as saved, once the engine has written it.
     conversation: Option<Conversation>,
-    /// What the question asked from this window was limited to, until the
-    /// saved conversation says it.
     asked_scope: Option<QuestionScope>,
     loaded_revision: Option<u64>,
     reloads_started: u64,
@@ -85,7 +64,6 @@ pub struct QuickRecallAnswer {
     loading_screens: HashSet<i64>,
     loading_files: HashSet<i64>,
     loading_notes: HashSet<String>,
-    /// Cited meetings' transcripts, for the quoted line; `None` while loading.
     transcripts: HashMap<Uuid, Option<Rc<TranscriptLines>>>,
     answers: HashMap<Uuid, (u64, Rc<Answer>)>,
     scroll: ScrollHandle,
@@ -93,15 +71,12 @@ pub struct QuickRecallAnswer {
     _subscriptions: Vec<Subscription>,
 }
 
-/// A transcript's lines with the speakers' display names.
 pub struct TranscriptLines {
     segments: Vec<Segment>,
     names: HashMap<String, String>,
 }
 
 impl TranscriptLines {
-    /// The line said at `seconds`: the last one that started by then
-    /// (`CitationPassage.line(at:)`).
     fn line_at(&self, seconds: f64) -> Option<(String, String)> {
         let segment = self
             .segments
@@ -172,7 +147,6 @@ impl QuickRecallAnswer {
         if self.loaded_revision != Some(revision) {
             self.reload(cx);
         }
-        // The answer keeps its end in view while it is written.
         if stream_len != self.last_stream_len {
             self.scroll.scroll_to_bottom();
         }
@@ -180,8 +154,6 @@ impl QuickRecallAnswer {
         cx.notify();
     }
 
-    /// Reads the saved conversation off the UI thread. A read that started
-    /// earlier and finished later is out of date.
     fn reload(&mut self, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
         self.loaded_revision = Some(self.data.read(cx).revision);
@@ -215,9 +187,6 @@ impl QuickRecallAnswer {
         .detach();
     }
 
-    /// What a follow-up asks within: the latest question's scope
-    /// (`currentQuestionScope`). `None` until it is known, rather than a wider
-    /// guess.
     pub fn follow_up_scope(&self) -> Option<AskScope> {
         self.current_scope().map(|saved| scope::scope_for(&saved))
     }
@@ -229,15 +198,12 @@ impl QuickRecallAnswer {
             .or_else(|| self.asked_scope.clone())
     }
 
-    /// A follow-up was sent within `scope`.
     pub fn asked(&mut self, scope: QuestionScope, cx: &mut Context<Self>) {
         self.asked_scope = Some(scope);
         self.scroll.scroll_to_bottom();
         cx.notify();
     }
 
-    /// The text of the answer that ends the conversation, once it is written
-    /// (`QuickRecallAnswerFoot.latestAnswer`).
     pub fn latest_answer(&self, cx: &App) -> Option<String> {
         if self
             .data
@@ -259,8 +225,6 @@ impl QuickRecallAnswer {
         (!text.is_empty() && !is_stopped(&text)).then_some(text)
     }
 
-    /// A "Remember …" receipt was saved without any model, so the foot names
-    /// no place.
     pub fn ends_with_receipt(&self) -> bool {
         self.conversation
             .as_ref()
@@ -268,8 +232,6 @@ impl QuickRecallAnswer {
             .is_some_and(|m| m.remember_receipt.is_some())
     }
 
-    /// What the last question was limited to: "All sources", one meeting's
-    /// title, or how many meetings and screen moments.
     pub fn scope_label(&self, cx: &App) -> Option<String> {
         let data = self.data.read(cx);
         let saved = self.current_scope()?;
@@ -368,11 +330,6 @@ impl QuickRecallAnswer {
         answer
     }
 
-    // -------------------------------------------------------------- sources
-
-    /// Reads what the citations point at and is not known yet, off the UI
-    /// thread. Files and agent notes resolve only while their own settings
-    /// are on, as on the Ask screen.
     fn load_sources(&mut self, sources: &[CitationSource], cx: &mut Context<Self>) {
         let (library, root, files_on, notes_on, meetings) = {
             let data = self.data.read(cx);
@@ -481,7 +438,6 @@ impl QuickRecallAnswer {
                     this.screens.insert(id, moment);
                 }
                 for (id, lines) in lines {
-                    // A transcript that can't be read leaves the line empty.
                     this.transcripts.insert(
                         id,
                         Some(Rc::new(lines.unwrap_or(TranscriptLines {
@@ -496,7 +452,6 @@ impl QuickRecallAnswer {
         .detach();
     }
 
-    /// What a source row shows, and whether it can be opened.
     fn source(&self, citation: &CitationSource, question: &str, cx: &App) -> Source {
         let data = self.data.read(cx);
         let quote = |text: Option<&str>| {
@@ -623,8 +578,6 @@ impl QuickRecallAnswer {
         });
     }
 
-    // -------------------------------------------------------------- drawing
-
     fn render_question(
         &self,
         text: String,
@@ -681,7 +634,6 @@ impl QuickRecallAnswer {
         let lb = cx.lb().clone();
         let column = v_flex().gap(px(12.)).w_full();
         if receipt {
-            // A "Remember …" statement saved as said, without any model.
             return column.child(
                 div()
                     .text_size(ty::BODY)
@@ -763,8 +715,6 @@ impl QuickRecallAnswer {
         column
     }
 
-    /// The sources under an answer: a row per citation, numbered as in the
-    /// answer (`QuickRecallAnswerSources`).
     fn render_sources(
         &self,
         answer_id: Uuid,
@@ -850,12 +800,10 @@ impl QuickRecallAnswer {
     }
 }
 
-/// What a source row shows.
 struct Source {
     title: String,
     qualifier: Option<String>,
     when: Option<DateTime<Utc>>,
-    /// A meeting citation's moment.
     at: Option<f64>,
     speaker: Option<String>,
     line: Option<String>,
@@ -863,8 +811,6 @@ struct Source {
 }
 
 impl Source {
-    /// A source still loading, gone from this computer, or not read now: its
-    /// kind's name, and nothing to open (`placeholderTitle`).
     fn missing(kind: &'static str) -> Self {
         Self {
             title: lokalbot_i18n::tr(kind).to_string(),
@@ -878,24 +824,20 @@ impl Source {
     }
 }
 
-/// A number for element ids made from a turn's id.
 fn element_key(id: Uuid) -> u64 {
     let (high, low) = id.as_u64_pair();
     high ^ low
 }
 
-/// A stopped turn's text (`isStoppedTurn`).
 fn is_stopped(text: &str) -> bool {
     let normalized = text.trim().to_lowercase();
     normalized == "stopped." || normalized.starts_with("response stopped")
 }
 
-/// A search excerpt's «» marks, so the quote marks the question's words instead.
 fn strip_marks(text: &str) -> String {
     text.replace(['«', '»'], "")
 }
 
-/// A short notice in place of an answer.
 fn status_card(
     title: &str,
     detail: Option<String>,

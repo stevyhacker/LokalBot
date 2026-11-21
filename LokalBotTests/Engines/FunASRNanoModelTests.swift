@@ -21,7 +21,6 @@ final class FunASRNanoModelTests: XCTestCase {
         var saved = try checkpoint(root)
         for name in ["llm.int8.onnx", "Qwen3-0.6B/tokenizer.json", "Qwen3-0.6B/vocab.json", "Qwen3-0.6B/merges.txt"] {
             let file = root.appendingPathComponent(name)
-            // Same-size in-place replacement: size and folder alone are insufficient.
             try Data([2]).write(to: file)
             try FileManager.default.setAttributes([.modificationDate: Date(timeIntervalSince1970: 42)], ofItemAtPath: file.path)
             let changed = try checkpoint(root)

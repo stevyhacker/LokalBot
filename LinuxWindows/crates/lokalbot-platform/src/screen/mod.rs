@@ -1,20 +1,3 @@
-//! Screen context: the focused window's pixels and its visible text, the
-//! Linux and Windows counterparts of ScreenCaptureKit and the Accessibility
-//! reader in `ScreenshotService.swift` and `ScreenAccessibilityReader.swift`.
-//!
-//! - [`window_capture`] reads the pixels of the window in front: X11
-//!   `GetImage`, `grim` on wlroots compositors, the xdg-desktop-portal
-//!   Screenshot API elsewhere on Wayland (cropped to the focused window when
-//!   the compositor reports where it is), and GDI on Windows.
-//! - [`text_reader`] reads the window's visible text and secure-field state
-//!   through accessibility: AT-SPI on Linux, UI Automation on Windows.
-//! - [`InteractionMonitor`] turns idle-time and clipboard changes into capture
-//!   hints without reading keys, pointer positions or clipboard contents.
-//! - [`privacy`] holds the rules that decide whether a window may be kept.
-//!
-//! Only the focused window is ever captured, never the whole display or a
-//! window behind it. The engine decides when to capture and what to keep.
-
 use std::time::Duration;
 
 pub mod privacy;
@@ -40,7 +23,6 @@ mod x11;
 pub(crate) use events::ClipboardWatch;
 pub use events::{Interaction, InteractionMonitor};
 
-/// RGBA pixels, 8 bits per channel, rows top to bottom.
 #[derive(Clone, PartialEq, Eq)]
 pub struct CapturedImage {
     pub width: u32,
@@ -55,8 +37,6 @@ impl std::fmt::Debug for CapturedImage {
 }
 
 impl CapturedImage {
-    /// The image scaled down (box filter) so neither side exceeds `max`,
-    /// keeping its aspect ratio (`ScreenshotCaptureDimensions.bounded`).
     pub fn bounded(&self, max: u32) -> CapturedImage {
         let (width, height) = bounded_dimensions(self.width, self.height, max);
         if (width, height) == (self.width, self.height) {
@@ -93,7 +73,6 @@ impl CapturedImage {
         }
     }
 
-    /// True when every pixel has the same color (a blank or black frame).
     pub fn is_uniform(&self) -> bool {
         let mut pixels = self.rgba.as_chunks::<4>().0.iter();
         let Some(first) = pixels.next() else {
@@ -103,7 +82,6 @@ impl CapturedImage {
     }
 }
 
-/// `ScreenshotCaptureDimensions.bounded`: the longest side at most `max`.
 pub fn bounded_dimensions(width: u32, height: u32, max: u32) -> (u32, u32) {
     let (width, height, max) = (width.max(1), height.max(1), max.max(1));
     let longest = width.max(height);
@@ -117,7 +95,6 @@ pub fn bounded_dimensions(width: u32, height: u32, max: u32) -> (u32, u32) {
     )
 }
 
-/// Where a window is, in physical screen pixels.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct WindowRect {
     pub x: i32,
@@ -152,9 +129,6 @@ impl WindowRect {
     }
 }
 
-/// The window in front as the capture backend sees it. `id` is the X11
-/// window, the `HWND`, or the compositor's window id; it only has meaning to
-/// the backend that produced it.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct FocusedWindow {
     pub id: u64,
@@ -163,22 +137,13 @@ pub struct FocusedWindow {
     pub rect: Option<WindowRect>,
 }
 
-/// Reads the pixels of the focused window. Calls are bounded by short
-/// timeouts; none of them prompts the user except the Wayland portal, which
-/// may ask once whether LokalBot may take screenshots.
 pub trait WindowCapture: Send {
-    /// What this desktop cannot capture, worded for Settings, or `None`.
     fn limitation(&self) -> Option<String>;
-    /// The window in front now, or `None` (the desktop, a lock screen, no session).
     fn focused(&mut self) -> anyhow::Result<Option<FocusedWindow>>;
-    /// The pixels of `window`, which must still be in front. Fails rather
-    /// than return any other window or the whole display.
     fn capture(&mut self, window: &FocusedWindow) -> anyhow::Result<CapturedImage>;
-    /// Short name for logs: `x11`, `grim`, `portal`, `gdi`, `unavailable`.
     fn name(&self) -> &'static str;
 }
 
-/// The best capture backend for this session.
 pub fn window_capture() -> Box<dyn WindowCapture> {
     #[cfg(windows)]
     {
@@ -196,54 +161,32 @@ pub fn window_capture() -> Box<dyn WindowCapture> {
     }
 }
 
-/// What accessibility reports about the focused window
-/// (`ScreenAccessibilitySnapshot`). Text is visible text only: visible
-/// character ranges of text views and labels that are fully on screen.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AccessibleWindow {
-    /// Visible text, one element per line, at most about 24 000 characters.
     pub text: String,
-    /// The page address of a browser window (its outermost web document).
     pub source_url: Option<String>,
-    /// File name of the open document, when the app reports one.
     pub document_name: Option<String>,
-    /// Whether the focused element is a password field; `None` when unknown.
     pub focused_secure_field: Option<bool>,
     pub window_title: Option<String>,
     pub has_web_content: bool,
-    /// Some inspected text input is a password field.
     pub contains_secure_field: bool,
-    /// Other sites' pages framed inside the window, sanitized.
     pub framed_urls: Vec<String>,
-    /// Some web content's address could not be read.
     pub has_unattributed_web_content: bool,
 }
 
-/// The result of one accessibility read.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TextRead {
     Read(AccessibleWindow),
-    /// Accessibility is off, the app exposes nothing, or the window could
-    /// not be matched. The capture proceeds with OCR and unknown focus.
     Unavailable(String),
-    /// The window, its title or its focus changed while it was read (a tab
-    /// switch, a page load); reading again a moment later can succeed.
     Changed(String),
-    /// The read ran past its deadline.
     TimedOut,
 }
 
-/// Reads the focused window through accessibility. LokalBot's own windows
-/// are never read.
 pub trait TextReader: Send {
-    /// Reads `window` within `deadline`. With `include_text` false only the
-    /// privacy metadata (title, address, secure fields) is read.
     fn read(&mut self, window: &FocusedWindow, include_text: bool, deadline: Duration) -> TextRead;
-    /// Short name for logs: `uia`, `atspi`, `unavailable`.
     fn name(&self) -> &'static str;
 }
 
-/// The accessibility reader for this system.
 pub fn text_reader() -> Box<dyn TextReader> {
     #[cfg(windows)]
     {
@@ -259,8 +202,6 @@ pub fn text_reader() -> Box<dyn TextReader> {
     }
 }
 
-/// Whether the session is locked (the lock screen is up), when the system
-/// can tell. Captures pause while it is.
 pub fn session_locked() -> bool {
     #[cfg(windows)]
     {
@@ -276,7 +217,6 @@ pub fn session_locked() -> bool {
     }
 }
 
-/// A backend that never captures, with the reason why.
 pub struct Unavailable(pub String);
 
 impl WindowCapture for Unavailable {
@@ -307,9 +247,6 @@ impl TextReader for Unavailable {
     }
 }
 
-/// Appends a visible string the way `ScreenAccessibilityReader.append` does:
-/// NULs removed, trimmed, at most 8 000 characters per element, each string
-/// once, and no more than `max_chars` in total. Returns false once full.
 pub(crate) fn append_text(
     raw: &str,
     parts: &mut Vec<String>,
@@ -331,7 +268,6 @@ pub(crate) fn append_text(
     *total < max_chars
 }
 
-/// Bounds shared by the accessibility readers (`ScreenAccessibilityReader.resolve`).
 pub(crate) const MAX_NODES: usize = 320;
 pub(crate) const MAX_CHARACTERS: usize = 24_000;
 pub(crate) const MAX_CHILDREN: usize = 80;

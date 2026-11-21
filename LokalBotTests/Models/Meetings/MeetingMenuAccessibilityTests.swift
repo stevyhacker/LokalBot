@@ -3,8 +3,6 @@ import SwiftUI
 import XCTest
 @testable import LokalBot
 
-/// What assistive tools and clicks meet on the meeting page's menus and
-/// speaker names. Each view is hosted in a window that stays off screen.
 @MainActor
 final class MeetingMenuAccessibilityTests: XCTestCase {
     private func host<Content: View>(_ content: Content, size: CGSize = CGSize(width: 600, height: 300)) -> NSWindow {
@@ -25,8 +23,6 @@ final class MeetingMenuAccessibilityTests: XCTestCase {
         return found
     }
 
-    /// The accessibility audit flagged the owner chip as having no press
-    /// action while it was a SwiftUI `Menu`.
     func testOwnerChipIsTheNativePullDownLaidUndrawnOverItsLabel() throws {
         var chosen: [String] = []
         let options: [MeetingDetailPresentation.OwnerOption] = [
@@ -44,8 +40,6 @@ final class MeetingMenuAccessibilityTests: XCTestCase {
         let button = try XCTUnwrap(descendants(of: WorkspaceMenu.PopUpButton.self, in: window.contentView).first,
                                    "the chip must be the menu type that has Press and Show Menu")
         XCTAssertTrue(button.drawsNothing, "the chip's own label is the only thing drawn")
-        // In every other respect it is the menu the "…" buttons use, which
-        // assistive tools can already open.
         XCTAssertFalse(button.isTransparent)
         XCTAssertFalse(button.isHidden)
         XCTAssertEqual(button.alphaValue, 1)
@@ -66,8 +60,6 @@ final class MeetingMenuAccessibilityTests: XCTestCase {
         XCTAssertEqual(chosen, ["Daniel Ortiz", "name", ""])
     }
 
-    /// Measured by CI: a turn's speaker button ran 61 pt past the text below
-    /// it, because it took the whole line and not just its name.
     func testTranscriptSpeakerButtonIsNoWiderThanItsName() throws {
         let window = host(VStack(alignment: .leading) {
             HStack(spacing: 6) {
@@ -92,7 +84,6 @@ final class MeetingMenuAccessibilityTests: XCTestCase {
         XCTAssertLessThanOrEqual(long.frame.width, 600, "a long name truncates inside the line")
     }
 
-    /// The audit flagged the sheet's hosting view as a group with no name.
     func testNamingSheetNamesTheViewThatHostsIt() throws {
         let window = host(MeetingSpeakerNamingSheet(
             voices: [.init(id: "them", label: "Other speaker", colorIndex: 1, sample: nil, speechSeconds: 30,

@@ -1,18 +1,3 @@
-//! The input method on GNOME: an IBus engine, spoken to over IBus's own D-Bus.
-//!
-//! GNOME has no input method protocol for ordinary apps. GNOME Shell runs IBus
-//! itself and hands it every text field, so LokalBot takes part as one of its
-//! engines, which the user chooses as an input source next to their layouts.
-//! Their other input sources keep working, and nothing reaches this engine
-//! unless it is the chosen one.
-//!
-//! While it is chosen the desktop asks it about every key press in a text field.
-//! All it does with one is compare it to the accept keys while a suggestion
-//! shows, and answer whether it was taken. Keys are neither kept nor logged.
-//!
-//! IBus finds engines through a component file read when it starts: packages
-//! install one, and `lokalbot --ibus-component` prints it for other installs.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -35,16 +20,11 @@ use super::{Command, Content, Core, Handle, Output, Surrounding, content, wlroot
 const COMPONENT: &str = "com.lokalbot.LokalBot.IBus";
 const ENGINE: &str = "lokalbot";
 const FACTORY_PATH: &str = "/org/freedesktop/IBus/Factory";
-/// How often to look for IBus, and check it is still there.
 const CHECK_EVERY: Duration = Duration::from_secs(3);
 const CALL_TIMEOUT: Duration = Duration::from_secs(1);
 
-/// `IBusModifierType`: the bit on a release.
 const RELEASE_MASK: u32 = 1 << 30;
-/// Shift, Control, Alt, Super, AltGr and the virtual Super, Hyper and Meta. Caps
-/// Lock and Num Lock leave a key plain.
 const HELD_MODIFIERS: u32 = 1 | (1 << 2) | (1 << 3) | (1 << 6) | (1 << 7) | (0b111 << 26);
-/// `IBUS_ENGINE_PREEDIT_CLEAR`: focus leaving drops the ghost, never types it.
 const PREEDIT_CLEAR: u32 = 0;
 
 mod keysym {
@@ -58,21 +38,14 @@ mod keysym {
     pub const NUM_LOCK: u32 = 0xff7f;
 }
 
-/// What IBus tells the engine, for the route's thread.
 pub(in super::super) enum EngineEvent {
     FocusIn,
     FocusOut,
     Surrounding(Surrounding),
-    ContentType {
-        purpose: u32,
-        hint: u32,
-    },
-    /// A key went on to the field while a ghost showed.
+    ContentType { purpose: u32, hint: u32 },
     KeyGivenBack,
 }
 
-/// The IBus content purposes that differ from `zwp_text_input_v3`'s, which
-/// [`Content`] speaks, and its private hint.
 fn content_from_ibus(purpose: u32, hint: u32) -> Content {
     const IBUS_PURPOSE_TERMINAL: u32 = 10;
     const IBUS_HINT_PRIVATE: u32 = 1 << 11;
@@ -90,7 +63,6 @@ fn content_from_ibus(purpose: u32, hint: u32) -> Content {
     }
 }
 
-/// IBus counts in characters, and an accept deletes around the caret.
 fn surrounding_from_ibus(text: String, cursor: u32, anchor: u32) -> Surrounding {
     let byte_at = |chars: u32| -> u32 {
         text.char_indices()
@@ -105,12 +77,10 @@ fn surrounding_from_ibus(text: String, cursor: u32, anchor: u32) -> Surrounding 
     }
 }
 
-/// What the key handler needs without waiting on the route's thread.
 #[derive(Default)]
 struct Keys {
     wanted: bool,
     accept: AcceptKeys,
-    /// Keys taken and still down, by keycode, with what passing one on needs.
     taken: HashMap<u32, TakenKey>,
     latest: Option<TakenKey>,
 }
@@ -123,8 +93,6 @@ struct TakenKey {
     state: u32,
 }
 
-/// The key a press means, by the rules the other routes follow: what the
-/// keymap makes of it, except the physical key left of 1.
 fn intercepted(keyval: u32, keycode: u32) -> Option<InterceptedKey> {
     match keyval {
         keysym::TAB => Some(InterceptedKey::Tab),
@@ -142,8 +110,6 @@ fn is_modifier_key(keyval: u32) -> bool {
         || keyval == keysym::NUM_LOCK
 }
 
-/// One press or release, answered from `keys` alone. `true` keeps it from the
-/// field.
 fn decide(keys: &mut Keys, keyval: u32, keycode: u32, state: u32) -> Decision {
     if state & RELEASE_MASK != 0 {
         return if keys.taken.remove(&keycode).is_some() {
@@ -174,18 +140,12 @@ fn decide(keys: &mut Keys, keyval: u32, keycode: u32, state: u32) -> Decision {
 
 #[derive(Debug, PartialEq, Eq)]
 enum Decision {
-    /// It goes to the field.
     Pass,
-    /// It goes to the field, and the ghost steps out of the way first.
     PassBlanking,
-    /// An accept key or Esc: the app decides.
     Take(InterceptedKey),
-    /// The release of a key that was taken.
     Keep,
 }
 
-/// One engine. IBus makes one per input context; GNOME Shell keeps a single
-/// context for the whole desktop.
 struct Engine {
     path: String,
     active: Arc<Mutex<Option<String>>>,
@@ -198,8 +158,6 @@ impl Engine {
         self.handle.send(Command::Engine(event));
     }
 
-    /// GNOME Shell swaps the engine around password fields, so an old engine
-    /// can hear this after a new one has focus.
     fn lost_focus(&self) {
         let mut active = self.active.lock();
         if active.as_deref() == Some(self.path.as_str()) {
@@ -224,8 +182,6 @@ impl Engine {
             Decision::Pass => false,
             Decision::Keep => true,
             Decision::PassBlanking => {
-                // Before the answer, so the field never gets the key with the
-                // ghost still in it.
                 let _ =
                     Self::update_preedit_text(&emitter, text_value(""), 0, false, PREEDIT_CLEAR)
                         .await;
@@ -350,7 +306,6 @@ impl Engine {
     ) -> zbus::Result<()>;
 }
 
-/// `org.freedesktop.IBus.Service`: IBus ends an engine with this.
 struct Service;
 
 #[zbus::interface(name = "org.freedesktop.IBus.Service")]
@@ -358,7 +313,6 @@ impl Service {
     fn destroy(&self) {}
 }
 
-/// IBus asks this for an engine when the input source is chosen.
 struct Factory {
     keys: Arc<Mutex<Keys>>,
     handle: Handle,
@@ -396,8 +350,6 @@ impl Factory {
     }
 }
 
-/// An `IBusText` as IBus sends it: type name, attachments, the string and an
-/// attribute list.
 fn text_value(text: &str) -> Value<'static> {
     let attachments = HashMap::<String, Value<'static>>::new();
     let attributes = Vec::<Value<'static>>::new();
@@ -424,7 +376,6 @@ fn text_from_value(value: &Value<'_>) -> Option<String> {
     }
 }
 
-/// The address of the session's IBus, as its clients find it.
 fn bus_address() -> Option<String> {
     if let Some(address) = std::env::var("IBUS_ADDRESS").ok().filter(|a| !a.is_empty()) {
         return Some(address);
@@ -465,7 +416,6 @@ fn parse_address(file: &str) -> Option<String> {
         .map(str::to_string)
 }
 
-/// Joins IBus and offers the engine.
 fn connect(
     address: &str,
     keys: Arc<Mutex<Keys>>,
@@ -486,13 +436,10 @@ fn connect(
         .context("could not join IBus")
 }
 
-/// The field, through whichever engine IBus has focused.
 struct Emitter {
     connection: Option<Connection>,
     active: Arc<Mutex<Option<String>>>,
     keys: Arc<Mutex<Keys>>,
-    /// IBus says a field's kind only when it differs from the last one, and
-    /// may say it before the focus event, so it outlives each field.
     content: Content,
 }
 
@@ -605,8 +552,6 @@ fn on_engine(event: EngineEvent, core: &mut Core, output: &mut Emitter) {
         EngineEvent::FocusIn => {
             core.activate(output);
             core.set_limitation(None);
-            // An empty field reports nothing, and neither does one whose text
-            // is what was last reported. Text comes with the next change.
             let content = output.content;
             core.update(Some(content), Some(Surrounding::default()), output);
         }
@@ -643,7 +588,6 @@ fn pass_through(keys: &Mutex<Keys>, key: InterceptedKey, output: &Emitter) {
     );
 }
 
-/// Joins IBus when it appears and again after it restarts.
 fn keep_connected(output: &mut Emitter, handle: &Handle, core: &mut Core) {
     if let Some(connection) = &output.connection {
         let alive = connection
@@ -680,7 +624,6 @@ fn keep_connected(output: &mut Emitter, handle: &Handle, core: &mut Core) {
     }
 }
 
-/// Where IBus reads component files from, in the order it reads them.
 fn component_dirs() -> Vec<PathBuf> {
     match std::env::var("IBUS_COMPONENT_PATH") {
         Ok(path) if !path.is_empty() => path.split(':').map(PathBuf::from).collect(),
@@ -695,7 +638,6 @@ fn component_installed(dirs: &[PathBuf]) -> bool {
         .any(|dir| Path::new(dir).join(COMPONENT_FILE).exists())
 }
 
-/// What the user does on GNOME, worded for the Settings row.
 pub(super) fn steps() -> InputSourceSteps {
     let steps = lokalbot_i18n::tr(
         "On GNOME, LokalBot reaches your text fields as an input source you choose, next to your keyboard layouts. After turning on autocomplete, open GNOME Settings, then Keyboard, Input Sources, the plus button and Other, and add LokalBot. Then choose it in the input menu on the top bar, or with Super+Space. While it is chosen, the desktop shows LokalBot your key presses in text fields, and it keeps none of them. To type Chinese, Japanese or Korean, switch to that input source the same way.",
@@ -726,8 +668,6 @@ fn setup_command(exe: &str) -> String {
     )
 }
 
-/// The component file with `exe` as what IBus starts when the source is chosen
-/// and LokalBot is not running.
 pub(super) fn component_xml(exe: &str) -> String {
     let exe = exe
         .replace('&', "&amp;")
@@ -796,17 +736,14 @@ mod tests {
             decide(&mut keys, keysym::TAB, 15, RELEASE_MASK),
             Decision::Keep
         );
-        // Locks leave a key plain.
         assert_eq!(
             decide(&mut keys, keysym::ESCAPE, 1, LOCK | NUM_LOCK),
             Decision::Take(InterceptedKey::Escape)
         );
-        // The physical key left of 1, whatever it types.
         assert_eq!(
             decide(&mut keys, 0xfe52, EVDEV_GRAVE, 0),
             Decision::Take(InterceptedKey::Backtick)
         );
-        // Right Arrow is not bound by default.
         assert_eq!(
             decide(&mut keys, keysym::RIGHT, 106, 0),
             Decision::PassBlanking
@@ -844,7 +781,6 @@ mod tests {
 
     #[test]
     fn the_content_type_maps_onto_the_common_checks() {
-        // IBus: password, then terminal, then a private field.
         assert_eq!(content_from_ibus(8, 0).purpose, content::PURPOSE_PASSWORD);
         assert_eq!(content_from_ibus(10, 0).purpose, content::PURPOSE_TERMINAL);
         assert_eq!(

@@ -20,7 +20,6 @@ def case(identifier, result='Passed', message=None):
 
 
 def tree(*cases):
-    # The shape `xcresulttool get test-results tests` prints: plan, bundle, suite, cases.
     return dict(testNodes=[dict(nodeType='Test Plan', children=[dict(nodeType='Unit test bundle', children=[
         dict(nodeType='Test Suite', children=list(cases))])])])
 

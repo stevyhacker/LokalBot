@@ -106,11 +106,6 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
 private val DayMaxWidth = 820.dp
 
-/**
- * The Timeline: a day pane (strip, overview bar, digest, meetings, saved
- * moments) beside the work-session rail. Narrow windows show the rail on
- * demand, like the Mac's drawer below 820 pt.
- */
 @Composable
 fun TimelineScreen(repository: CompanionRepository) {
     val viewModel = viewModel(key = "timeline-${repository.id}") { TimelineViewModel(repository) }
@@ -378,7 +373,6 @@ private fun DayPickerDialog(state: TimelineState, onDismiss: () -> Unit, onPick:
     }
 }
 
-/** The work-session rail: time, a dot in the project's colour, title, apps and window titles. */
 @Composable
 private fun SessionRail(state: TimelineState, onOpenMeeting: (String) -> Unit, onBack: (() -> Unit)?) {
     val sessions = state.record?.timeline?.sessions.orEmpty()
@@ -462,4 +456,3 @@ private fun SessionRow(session: WorkSession, onOpenMeeting: (String) -> Unit) {
         )
     }
 }
-

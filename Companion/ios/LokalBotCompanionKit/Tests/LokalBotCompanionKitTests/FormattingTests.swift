@@ -11,7 +11,6 @@ struct FormattingTests {
         return LBFormat(locale: Locale(identifier: "en_US"), calendar: calendar)
     }()
 
-    /// ICU puts a narrow no-break space before AM/PM.
     static func plain(_ text: String) -> String { text.replacingOccurrences(of: "\u{202F}", with: " ") }
 
     @Test func transcriptTimestamps() {
@@ -34,7 +33,6 @@ struct FormattingTests {
     @Test func meetingTimesUseTheMacsOffset() async throws {
         let store = try FixtureStore.sampleLibrary()
         let meeting = try #require(await store.meeting(id: "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01"))
-        // 09:30Z at +60 min is 10:30 on the Mac, whatever this device's zone.
         #expect(Self.plain(Self.format.time(meeting.startedAt, in: meeting.timeZone)) == "10:30 AM")
         #expect(Self.plain(Self.format.time(in: meeting, at: 724)) == "10:42 AM")
         var tokyo = Self.format

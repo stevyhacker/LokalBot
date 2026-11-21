@@ -43,10 +43,6 @@ import me.dotenv.lokalbot.companion.ui.format.Formats
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/**
- * A Day Digest in the Mac's order: Blockers on an amber surface, then
- * Highlights, Decisions, Tasks and Follow-ups.
- */
 @Composable
 fun DigestView(digest: Digest, modifier: Modifier = Modifier) {
     val palette = LokalBotTheme.palette
@@ -97,10 +93,6 @@ private fun DigestBullet(text: String) {
     }
 }
 
-/**
- * "Day so far": tracked time, the overview bar by project and its legend
- * (`DayActivityOverview`).
- */
 @Composable
 fun DayOverview(timeline: DayTimeline, meetingCount: Int, modifier: Modifier = Modifier, showLegend: Boolean = true) {
     val segments = rememberSegments(timeline.byProject.ifEmpty { timeline.byApp })

@@ -33,7 +33,6 @@ final class ProjectLinksTests: XCTestCase {
                      followUp: FollowUpDraft.seeded(for: meeting, outcomes: outcomes))
     }
 
-    /// Three meetings that name Vireo mid-sentence, for topic suggestions.
     private func vireoMeetings() -> (meetings: [Meeting], summaries: [UUID: String]) {
         let meetings = (1...3).map { meeting("Google Chrome meeting", daysAgo: Double($0)) }
         var summaries: [UUID: String] = [:]
@@ -125,7 +124,6 @@ final class ProjectLinksTests: XCTestCase {
         XCTAssertEqual(vireo.myActions.map(\.text), ["Ship the Vireo synthetic oracle"])
         XCTAssertEqual(vireo.decisions.map(\.text), ["Keep Vireo on the synthetic testnet"])
 
-        // A review project covering the same name is offered instead.
         let reviewed = ProjectLinks.build(.init(
             memory: memory(["Vireo pool"]), meetings: meetings, summaries: summaries, projections: [outcomes],
             excludedTopicWords: ["mila"]), now: now)
@@ -156,8 +154,6 @@ final class ProjectLinksTests: XCTestCase {
         XCTAssertTrue(projects.isEmpty)
     }
 
-    /// 2026-10-16: a project's newest standup was missing because its only
-    /// mention followed a speaker label and counted as a sentence start.
     func testSpeakerLabelledMentionKeepsTheNewestMeeting() throws {
         let older = (2...4).map { meeting("Product Standup", daysAgo: Double($0)) }
         let newest = meeting("Product Standup", daysAgo: 1)
@@ -183,8 +179,6 @@ final class ProjectLinksTests: XCTestCase {
         XCTAssertEqual(larkspur.lastActive, newest.startedAt)
     }
 
-    /// Long summaries name a project late, and summary-less meetings only
-    /// in the transcript; both still link.
     func testWholeSummariesAndTranscriptsLinkATrackedProject() throws {
         let long = meeting("Demo Day", daysAgo: 3)
         let spoken = meeting("Product Standup", daysAgo: 2)
@@ -277,8 +271,6 @@ final class ProjectLinksTests: XCTestCase {
         let meetings = (1...4).map { meeting("Weekly sync", daysAgo: Double($0)) }
         var summaries: [UUID: String] = [:]
         for (index, meeting) in meetings.enumerated() {
-            // "Launch" starts sentences but is mostly lowercase; "Kestrel"
-            // appears in only two meetings.
             summaries[meeting.id] = "The Launch timing was discussed. We agreed the launch waits for the launch checklist."
                 + (index < 2 ? " Then Kestrel came up briefly." : "")
         }

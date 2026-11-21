@@ -3,10 +3,6 @@
 
   const SITE = 'https://www.lokalbot.com';
 
-  // Model catalog grounded in LokalBot's shipped macOS (ModelCatalog.swift,
-  // LlamaServer.swift, TranscriptionEngine.swift) and Windows/Linux
-  // (LinuxWindows/crates/lokalbot-ai/src/catalog.rs, lokalbot-speech/src/models.rs)
-  // registries, with measured speeds from Website/public/benchmarks.json.
   const MODELS = {
     stt: [
       {
@@ -15,7 +11,7 @@
         format: 'llama.cpp / MLX',
         platforms: ['mac'],
         diskGb: { mac: 2.52 },
-        activeGb: { mac: 3.27 }, // 2.52 GB weights + 768 MiB runtime allowance
+        activeGb: { mac: 3.27 },
         minRamGb: 16,
         tier: 'balanced',
         metric: '17.6% WER · 44× RT (M4 Max)',
@@ -110,8 +106,6 @@
         format: 'GGUF Q4_K_M',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 0.53, windows: 0.53, linux: 0.53 },
-        // Short-context fallback fits comfortably under an 8 GB Mac's 4 GB budget;
-        // full 32K KV cache adds up to 3.0 GiB in LlamaServer.shared.
         activeGb: { mac: 1.80, windows: 1.80, linux: 1.80 },
         fullKvGb: 3.53,
         minRamGb: 8,
@@ -140,7 +134,7 @@
         format: 'GGUF Q4_K_M (32K ctx)',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 2.74, windows: 2.74, linux: 2.74 },
-        activeGb: { mac: 5.74, windows: 5.74, linux: 5.74 }, // 2.74 GB + 3.0 GiB LlamaServer.shared allowance
+        activeGb: { mac: 5.74, windows: 5.74, linux: 5.74 },
         fullKvGb: 5.74,
         minRamGb: 16,
         tier: 'balanced',
@@ -212,7 +206,7 @@
         format: 'GGUF Q4_K_M (4K ctx)',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 0.73, windows: 0.73, linux: 0.73 },
-        activeGb: { mac: 1.48, windows: 1.48, linux: 1.48 }, // 0.73 GB + 768 MiB cotyping allowance
+        activeGb: { mac: 1.48, windows: 1.48, linux: 1.48 },
         minRamGb: 8,
         tier: 'lightweight',
         metric: '26 ms median · Lightweight preset',
@@ -238,7 +232,7 @@
         format: 'GGUF i1-Q6_K (4K ctx)',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 3.85, windows: 3.85, linux: 3.85 },
-        activeGb: { mac: 4.60, windows: 4.60, linux: 4.60 }, // 3.85 GB + 768 MiB
+        activeGb: { mac: 4.60, windows: 4.60, linux: 4.60 },
         minRamGb: 16,
         tier: 'balanced',
         metric: '56 ms median · 50.1% precision · 0/140 unsafe',
@@ -266,7 +260,7 @@
         format: 'GGUF Q8_0 (2K ctx)',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 0.31, windows: 0.31, linux: 0.31 },
-        activeGb: { mac: 0.50, windows: 0.50, linux: 0.50 }, // Measured 496 MB server peak in QMSum benchmark
+        activeGb: { mac: 0.50, windows: 0.50, linux: 0.50 },
         minRamGb: 8,
         tier: 'balanced',
         metric: '39 ms p50 · 0.280 R@1 · 496 MB server peak',
@@ -352,7 +346,6 @@
 
     const picks = {};
 
-    // Transcription
     if (os === 'mac') {
       if (effectiveProfile === 'lightweight') {
         picks.stt = 'qwen3-asr-0.6b';
@@ -363,10 +356,8 @@
       picks.stt = 'qwen3-asr-0.6b';
     }
 
-    // Diarization
     picks.diar = os === 'mac' ? 'nemotron-3' : 'pyannote-titanet';
 
-    // Summarizer / Main LLM
     if (effectiveProfile === 'lightweight') {
       picks.llm = ramGb <= 8 ? 'qwen3.5-0.8b' : 'qwen3.5-2b';
     } else if (effectiveProfile === 'quality') {
@@ -378,11 +369,9 @@
         picks.llm = 'qwen3.5-4b';
       }
     } else {
-      // balanced
       picks.llm = ramGb <= 8 ? 'qwen3.5-0.8b' : 'qwen3.5-4b';
     }
 
-    // Autocomplete
     if (effectiveProfile === 'lightweight' || ramGb <= 8) {
       picks.auto = 'lfm2.5-1.2b';
     } else if (effectiveProfile === 'quality' && ramGb >= 32 && (os === 'mac' || vramGb >= 12)) {
@@ -420,15 +409,10 @@
     const { picks: recommended, effectiveProfile } = recommendSelections({ os, ramGb, vramGb, profile });
     const overrides = config.overrides || {};
 
-    const budgetGb = round1(ramGb / 2); // Matches ModelResidency.swift (physicalMemory / 2)
+    const budgetGb = round1(ramGb / 2);
     const rows = [];
     let diskTotalGb = 0;
 
-    // Track memory buckets accurately:
-    // - warmGb: resident models kept warm (autocomplete + search embedder)
-    // - captureBurstGb: post-meeting transcription + diarization phase
-    // - llmBurstGb: Main LLM summarization / Q&A phase
-    // - optionalBurstGb: optional on-demand tools (files mmproj, TTS)
     let warmGb = 0;
     let captureBurstGb = 0;
     let llmBurstGb = 0;
@@ -474,8 +458,6 @@
 
     const peakOnDemandGb = Math.max(captureBurstGb, llmBurstGb, optionalBurstGb);
     const allWarmPeakGb = round2(warmGb + peakOnDemandGb);
-    // With ModelResidency LRU eviction, LokalBot keeps unpinned models inside budgetGb
-    // unless a single pinned burst alone exceeds budgetGb.
     const lruManagedPeakGb = round2(Math.min(allWarmPeakGb, Math.max(warmGb, peakOnDemandGb)));
     const criticalPeakGb = round2(Math.max(largestSingleGb, peakOnDemandGb));
 
@@ -505,7 +487,6 @@
       detail = `${largestSingleName || 'The selected model'} needs ~${criticalPeakGb.toFixed(1)} GB active memory, which will heavily swap or fail on ${ramGb} GB RAM. Switch to a compact model or apply the recommended profile.`;
     }
 
-    // GPU VRAM analysis for Windows/Linux
     let gpuSummary = null;
     if (os !== 'mac') {
       const largestGguf = Math.max(
@@ -630,7 +611,6 @@
     return lines.join('\n');
   }
 
-  // Export pure helpers for Node unit tests
   const api = {
     MODELS,
     ROLE_META,
@@ -714,14 +694,12 @@
     }
 
     function renderSelectors() {
-      // OS buttons
       osGroup.querySelectorAll('[data-os]').forEach((btn) => {
         const active = btn.getAttribute('data-os') === state.os;
         btn.classList.toggle('is-active', active);
         btn.setAttribute('aria-pressed', active ? 'true' : 'false');
       });
 
-      // Chip row vs VRAM row
       const isMac = state.os === 'mac';
       chipRow.hidden = !isMac;
       vramRow.hidden = isMac;
@@ -729,7 +707,6 @@
         chipSelect.value = state.chip;
       }
 
-      // RAM pills
       const ramChoices = isMac ? MAC_RAM_OPTIONS : PC_RAM_OPTIONS;
       if (!ramChoices.includes(state.ramGb)) {
         state.ramGb = ramChoices.reduce((best, cur) =>
@@ -741,7 +718,6 @@
         return `<button type="button" class="hw-pill${active ? ' is-active' : ''}" data-ram="${gb}" aria-pressed="${active}">${gb} GB</button>`;
       }).join('');
 
-      // VRAM pills
       if (!isMac) {
         vramGroup.innerHTML = VRAM_OPTIONS.map((gb) => {
           const active = gb === state.vramGb;
@@ -750,14 +726,12 @@
         }).join('');
       }
 
-      // Profile buttons
       profileGroup.querySelectorAll('[data-profile]').forEach((btn) => {
         const active = btn.getAttribute('data-profile') === state.profile;
         btn.classList.toggle('is-active', active);
         btn.setAttribute('aria-pressed', active ? 'true' : 'false');
       });
 
-      // Workloads
       workloadWrap.innerHTML = ROLE_META.map((role) => {
         const checked = Boolean(state.workloads[role.key]);
         return `
@@ -774,7 +748,6 @@
     function renderResult() {
       const res = evaluateStack(state);
 
-      // Verdict banner
       verdictEl.className = `hw-verdict hw-verdict--${res.status}`;
       const badgeLabel = {
         comfortable: 'All-warm fit',
@@ -788,13 +761,11 @@
       verdictEl.querySelector('.hw-verdict__detail').textContent = res.detail;
       applyLightBtn.hidden = !(res.status === 'tight' || res.status === 'exceeds');
 
-      // KPIs
       kpiDisk.textContent = `${res.diskTotalGb.toFixed(1)} GB`;
       kpiWarm.textContent = `${res.warmGb.toFixed(1)} GB`;
       kpiPeak.textContent = `${res.allWarmPeakGb.toFixed(1)} GB`;
       kpiCap.textContent = `${res.budgetGb.toFixed(0)} / ${res.ramGb} GB`;
 
-      // Memory bar (proportional to total physical RAM)
       const scaleMax = Math.max(res.ramGb, res.allWarmPeakGb * 1.08);
       const warmPct = Math.min(100, (res.warmGb / scaleMax) * 100);
       const burstPct = Math.min(100 - warmPct, (res.peakOnDemandGb / scaleMax) * 100);
@@ -821,7 +792,6 @@
         <p class="hw-meter__foot">LokalBot's <code>ModelResidency</code> governor budgets half of physical RAM for local models so the other half stays free for macOS/OS, browsers, IDEs, and video calls. Transcription and diarization run sequentially before summarization, and idle models unload automatically if needed.</p>
       `;
 
-      // Chip & GPU callouts
       chipNoteEl.textContent = CHIP_NOTES[state.os === 'mac' ? state.chip : 'x64'] || '';
       if (res.gpuSummary) {
         gpuCallout.hidden = false;
@@ -831,7 +801,6 @@
         gpuCallout.hidden = true;
       }
 
-      // Stack table
       const hasOverrides = Object.keys(state.overrides).length > 0;
       resetBtn.hidden = !hasOverrides;
 
@@ -870,7 +839,6 @@
       renderResult();
     }
 
-    // Event delegation
     presetWrap.addEventListener('click', (e) => {
       const btn = e.target.closest('[data-preset]');
       if (!btn) return;

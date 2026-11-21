@@ -112,13 +112,11 @@ class SampleLibraryTest {
         assertThat(pending()).isEmpty()
         repository.setActionStatus(TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c", ActionStatus.Done)
         assertThat(pending()).containsExactly("act-1f2e3d4c")
-        // A row carries the flag itself, as the sync core's rows do.
         assertThat(repository.actions(ActionFilter(status = null)).single { it.pending }.action.pending).isFalse()
     }
 
     @Test
     fun `what the sync core adds to an action decodes`() {
-        // The store adds these to a meeting's actions (Companion/protocol/ffi.md).
         val action = RecordJson.decodeFromString(
             MeetingAction.serializer(),
             """{"id":"a1","text":"Send the deck","status":"done","pending":true}""",
@@ -153,7 +151,6 @@ class SampleLibraryTest {
     fun `the sync core's hit kinds map onto the same ones`() {
         assertThat(SearchHitKind.fromCore("meeting")).isEqualTo(SearchHitKind.Meeting)
         assertThat(SearchHitKind.fromCore("transcript")).isEqualTo(SearchHitKind.Transcript)
-        // The core's name for a Day Digest.
         assertThat(SearchHitKind.fromCore("day")).isEqualTo(SearchHitKind.Digest)
         assertThat(SearchHitKind.fromCore("something newer")).isEqualTo(SearchHitKind.Meeting)
     }

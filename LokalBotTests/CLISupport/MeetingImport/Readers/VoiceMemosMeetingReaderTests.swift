@@ -13,8 +13,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         return url
     }
 
-    // MARK: The library folder
-
     func testLibraryFolderRoundTrip() throws {
         let folder = try VoiceMemoFixture.libraryFolder(in: temporaryDirectory("vm-library"))
 
@@ -41,8 +39,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertEqual(standup.audioURL?.lastPathComponent, "20260305 090000-2C5F39CB.m4a",
                        "an absolute ZPATH is found by its name in the folder")
 
-        // Its row is still only in the write-ahead log, which an immutable
-        // read skips, so it comes from the file.
         let unlisted = try XCTUnwrap(scan.meetings.first { $0.sourceID == VoiceMemoFixture.unlistedID })
         XCTAssertEqual(unlisted.title, VoiceMemosMeetingReader.untitled)
         XCTAssertEqual(unlisted.startedAt, VoiceMemoFixture.localDate(2026, 3, 7, 8, 15, 0), "the file name is the local start")
@@ -80,8 +76,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertEqual(Set(scan.meetings.map(\.sourceID)), [VoiceMemoFixture.pricingID, VoiceMemoFixture.standupID])
     }
 
-    // MARK: Files dragged out of Voice Memos
-
     func testDraggedOutCopyIsTheSameMeetingAsItsLibraryRow() throws {
         let root = try temporaryDirectory("vm-copy")
         let folder = try VoiceMemoFixture.libraryFolder(in: root)
@@ -95,7 +89,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
 
         XCTAssertEqual(dragged.sourceID, VoiceMemoFixture.pricingID, "voice-memo-uuid is the row's ZUNIQUEID")
         XCTAssertEqual(dragged.title, "Pricing call with Ana", "Voice Memos names the copy after the title")
-        // mvhd marks the end in whole seconds; the start is the end minus the length.
         let start = try XCTUnwrap(dragged.startedAt)
         XCTAssertEqual(start.timeIntervalSinceReferenceDate, VoiceMemoFixture.pricingDate, accuracy: 1)
         XCTAssertEqual(dragged.lines, VoiceMemoFixture.pricingLines)
@@ -157,8 +150,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertEqual(try reader.read(plain).meetings.first?.sourceID, plainID)
     }
 
-    // MARK: Recognizing files
-
     func testRecognizesVoiceMemosFilesByNameAndHeader() throws {
         let root = try temporaryDirectory("vm-recognize")
         func write(_ name: String, _ data: Data) throws -> URL {
@@ -174,8 +165,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertFalse(reader.recognizes(try write("clip.wav", Data("RIFF0000WAVE".utf8))))
         XCTAssertFalse(reader.recognizes(try write("CloudRecordings.db-wal", Data("x".utf8))))
     }
-
-    // MARK: Problems
 
     func testFolderWithUnreadableFilesKeepsReadingTheRest() throws {
         let root = try temporaryDirectory("vm-problems")
@@ -225,8 +214,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertThrowsError(try reader.read(root))
     }
 
-    // MARK: Older libraries
-
     func testOlderLibraryTakesItsTitleFromTheCompositionManifest() throws {
         let root = try temporaryDirectory("vm-composition")
         try VoiceMemoFixture.Recording(encoder: nil).data().write(to: root.appendingPathComponent("20190101 120000.m4a"))
@@ -248,8 +235,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertEqual(scan.meetings.first?.startedAt, Date(timeIntervalSince1970: 1_546_340_400))
         XCTAssertEqual(scan.meetings.first?.sourceID, "7BAE8E10-9F18-48D9-AEA5-6672C9CC0A8D")
     }
-
-    // MARK: Transcripts
 
     func testTranscriptCodingsAndDamage() {
         func lines(_ json: String) -> [ExternalMeeting.Line] { reader.transcriptLines(from: Data(json.utf8)) }
@@ -277,8 +262,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
         XCTAssertEqual(long.map(\.start), [0, 30], "speech without a pause or a sentence end still breaks")
         XCTAssertEqual(long.map(\.end), [30, 40])
     }
-
-    // MARK: Archives
 
     func testZippedCopiesGoThroughTheSharedScan() throws {
         let root = try temporaryDirectory("vm-zip")
@@ -308,10 +291,6 @@ final class VoiceMemosMeetingReaderTests: XCTestCase {
     }
 }
 
-// MARK: - Synthetic fixtures
-
-/// Builds Voice Memos-shaped files from scratch: MPEG-4 and QuickTime atoms
-/// and a Core Data-shaped SQLite library. Every value is made up.
 private enum VoiceMemoFixture {
     struct SQLiteFailure: Error {}
 
@@ -326,7 +305,6 @@ private enum VoiceMemoFixture {
         be32(UInt32(8 + payload.count)) + code + payload
     }
 
-    /// A box with a 64-bit size, as a long recording's `mdat` has.
     static func extendedBox(_ type: String, _ payload: Data) -> Data {
         be32(1) + Data(type.utf8) + be64(UInt64(16 + payload.count)) + payload
     }
@@ -342,7 +320,6 @@ private enum VoiceMemoFixture {
             + dataAtom(Data(value.utf8)))
     }
 
-    /// QuickTime metadata: names in `keys`, values in `ilst` items typed by index.
     static func quickTimeMeta(_ items: [(String, Data)]) -> Data {
         var keys = be32(0) + be32(UInt32(items.count))
         var list = Data()
@@ -367,12 +344,9 @@ private enum VoiceMemoFixture {
         var memoID: String?
         var dateTag: String?
         var transcript: String?
-        /// `trak/mdia/udta` instead of `trak/udta`.
         var transcriptInMedia = false
-        /// A `.qta`: QuickTime brand, the transcript in `trak/meta`.
         var quickTime = false
         var quickTimeItems: [(String, String)] = []
-        /// `ftyp`, `mdat`, `moov`, as Voice Memos writes; else `moov` first.
         var movieLast = true
         var extendedMediaData = false
 
@@ -419,8 +393,6 @@ private enum VoiceMemoFixture {
         var evicted: Double?
     }
 
-    /// A library database shaped like Voice Memos' Core Data store, in WAL
-    /// mode as the real one is.
     static func library(at url: URL, rows: [Row]) throws {
         var handle: OpaquePointer?
         guard sqlite3_open(url.path, &handle) == SQLITE_OK else { throw SQLiteFailure() }
@@ -450,8 +422,6 @@ private enum VoiceMemoFixture {
     static let pricingDate = 794_312_100.0
     static let standupDate = 794_394_000.0
 
-    /// The separated coding: runs index an attribute table. The comma has an
-    /// attribute without a time, and a pause starts the last line.
     static let pricingTranscript = """
         {"attributedString":{"runs":["Let's",0," keep",1," the",2," Team",3," plan.",4," Fifteen",5," per",6,\
         " seat",7,",",8," billed",9," annually.",10," Agreed.",11],"attributeTable":[{"timeRange":[0.5,0.9]},\
@@ -460,7 +430,6 @@ private enum VoiceMemoFixture {
         {"timeRange":[6.6,7.4]},{"timeRange":[12.0,12.6]}]},"locale":{"identifier":"en_US","current":0}}
         """
 
-    /// The interleaved coding: each run followed by its attributes.
     static let errandTranscript = """
         {"attributedString":["Call Leo",{"timeRange":[0,1.2]}," about the invoice.",{"timeRange":[1.2,2.5]}],\
         "locale":{"identifier":"en_GB","current":0}}
@@ -472,10 +441,6 @@ private enum VoiceMemoFixture {
         .init(start: 12.0, end: 12.6, text: "Agreed."),
     ]
 
-    /// A `Recordings` folder: a database with a titled recording, an older
-    /// one titled by its label under an absolute path, one in Recently
-    /// Deleted, and one only in iCloud; a recording whose row is still only in
-    /// the write-ahead log; and that log, which an immutable read ignores.
     static func libraryFolder(in root: URL) throws -> URL {
         let folder = root.appendingPathComponent("Group Containers/group.test/Recordings", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)

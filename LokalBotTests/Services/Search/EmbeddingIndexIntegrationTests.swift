@@ -4,8 +4,6 @@ import SQLite3
 
 @MainActor
 final class EmbeddingIndexIntegrationTests: XCTestCase {
-    /// Opt-in, non-UI proof using a copied library and already downloaded model.
-    /// No fixture path means no downloads, server launches, or library reads.
     func testEmbeddingRebuildAndRetrievalWhenFixtureProvided() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let path = environment["LOKALBOT_EMBEDDING_FIXTURE"] else {
@@ -27,8 +25,6 @@ final class EmbeddingIndexIntegrationTests: XCTestCase {
         let fixture = try decoder.decode(Fixture.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
         let root = URL(fileURLWithPath: fixture.libraryRoot).standardizedFileURL.resolvingSymlinksInPath()
         let temporary = FileManager.default.temporaryDirectory.standardizedFileURL.resolvingSymlinksInPath()
-        // Reject live-library roots even if a fixture was accidentally pointed
-        // at one. The test writes vectors and StorageManager may repair metadata.
         let sharedTemporary = URL(fileURLWithPath: "/private/tmp")
             .standardizedFileURL.resolvingSymlinksInPath()
         guard root.path.hasPrefix(sharedTemporary.path + "/") || root.path.hasPrefix(temporary.path + "/") else {
@@ -67,8 +63,6 @@ final class EmbeddingIndexIntegrationTests: XCTestCase {
                     firstRelevant,
                     "\(query.id) returned no relevant meeting in its top 10 results")
             }
-            // Running the backfill again must reuse the same model version,
-            // not duplicate rows or silently erase freshly rebuilt vectors.
             for meeting in meetings { try await index.index(meeting) }
             XCTAssertEqual(database.firstDouble("SELECT COUNT(*) FROM embeddings"), vectorCount)
             if let report = environment["LOKALBOT_EMBEDDING_REPORT"] {

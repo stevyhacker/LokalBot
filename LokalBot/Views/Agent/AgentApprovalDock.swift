@@ -1,17 +1,11 @@
 import SwiftUI
 
-/// One approval request as a card above the composer: a question that names
-/// its target, what will happen and where, the text to review, and the
-/// answers the policy allows for this kind of request. Deny sits apart from
-/// the answers that allow.
 struct AgentApprovalDock: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.colorSchemeContrast) private var contrast
     @ObservedObject var controller: AgentSessionController
     let request: AgentApprovalRequest
-    /// Requests waiting for an answer, this one included.
     var waiting = 1
-    /// Room for the whole preview once it is opened.
     var previewMaxHeight: CGFloat = 220
     @State private var showingAll = false
     @State private var previewHeight: CGFloat = 0
@@ -22,7 +16,6 @@ struct AgentApprovalDock: View {
         let model = controller.modelContext ?? .init(settings: app.settings)
         var remoteHost: String?
         if case .remote(let host) = model.destination { remoteHost = host }
-        // A command runs in the folder its request came from.
         let isCommand = ["bash", "shell"].contains(request.tool.lowercased())
         let folder = isCommand
             ? request.workspace.map { controller.workspaceDisplayName(for: URL(fileURLWithPath: $0)) }
@@ -45,8 +38,6 @@ struct AgentApprovalDock: View {
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .firstTextBaseline) {
-                    // A plain heading: a selectable one reached accessibility with no
-                    // words on the hosted macOS runner, so the question went unread.
                     Text(verbatim: presentation.title)
                         .font(.scaled(.headline))
                         .fixedSize(horizontal: false, vertical: true)
@@ -100,7 +91,6 @@ struct AgentApprovalDock: View {
         .onChange(of: request.id) { showingAll = false }
     }
 
-    /// The first lines of what will be written or run; the rest on request.
     private func preview(_ presentation: AgentApprovalPresentation) -> some View {
         let lines = presentation.previewLines
         let isLong = lines.count > AgentApprovalPresentation.collapsedPreviewLines
@@ -113,7 +103,6 @@ struct AgentApprovalDock: View {
             .fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
         return VStack(alignment: .leading, spacing: 6) {
-            // The box is as tall as its text, up to a limit; beyond it the text scrolls in place.
             ScrollView(.vertical) {
                 text.onGeometryChange(for: CGFloat.self) { $0.size.height } action: { previewHeight = $0 }
             }
@@ -165,7 +154,6 @@ struct AgentApprovalDock: View {
     }
 }
 
-/// The confirmation shown before the access level is raised.
 extension AgentApprovalMode {
     var confirmationTitle: String {
         switch self {

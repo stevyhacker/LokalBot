@@ -1,14 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// Structured-outcomes extraction: the tolerant parse of the model's reply,
-/// the schema fed to grammar-constrained backends, the on-disk round trip,
-/// the chat observation formatter, and the `get_action_items` tool against a
-/// planted library.
 @MainActor
 final class MeetingOutcomesTests: XCTestCase {
-
-    // MARK: - Parsing
 
     func testParseCleanJSON() throws {
         let outcomes = try XCTUnwrap(OutcomesExtractor.parse("""
@@ -37,7 +31,6 @@ final class MeetingOutcomesTests: XCTestCase {
         let outcomes = try XCTUnwrap(OutcomesExtractor.parse(raw))
         XCTAssertEqual(outcomes.actionItems.count, 1)
         XCTAssertEqual(outcomes.actionItems.first?.text, "Ship the fix")
-        // Empty owner/due (the schema's "not stated" convention) collapse to nil.
         XCTAssertNil(outcomes.actionItems.first?.owner)
         XCTAssertNil(outcomes.actionItems.first?.due)
         XCTAssertTrue(outcomes.decisions.isEmpty)
@@ -134,8 +127,6 @@ final class MeetingOutcomesTests: XCTestCase {
         ])
     }
 
-    // MARK: - Schema and prompt
-
     func testSchemaSerializesAsJSON() throws {
         let data = try JSONSerialization.data(withJSONObject: OutcomesExtractor.schema)
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
@@ -184,8 +175,6 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertTrue(prompt.contains("segment-0001"), prompt)
         XCTAssertTrue(prompt.contains("Only cite segment IDs that appear below"), prompt)
     }
-
-    // MARK: - Disk round trip
 
     func testWriteAndLoadRoundTrip() throws {
         let folder = FileManager.default.temporaryDirectory
@@ -498,8 +487,6 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertNil(reconciled.actions[priorAction.id])
     }
 
-    /// The same task extracted twice with a different basis is not merged
-    /// and has one content-derived ID. Summarizing again must not stop on it.
     func testReprocessingKeepsEditedStateWhenTheSameActionIsExtractedTwice() {
         let citation = OutcomeSourceCitation(
             segmentID: "segment-0000-0000001000-0000002000",
@@ -522,8 +509,6 @@ final class MeetingOutcomesTests: XCTestCase {
 
         XCTAssertEqual(reconciled.actions[asRequest.id]?.status, .done)
     }
-
-    // MARK: - Formatting
 
     func testFormatOutcomesListsSectionsWithIDs() {
         let meeting = Meeting(
@@ -604,8 +589,6 @@ final class MeetingOutcomesTests: XCTestCase {
         XCTAssertTrue(text.contains("Keep the rollout staged"), text)
     }
 
-    // MARK: - get_action_items tool (planted library)
-
     func testArchivedActionsCanBeCorrectedWithoutReenteringCurrentIndex() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         defer { try? FileManager.default.removeItem(at: root) }
@@ -655,7 +638,6 @@ final class MeetingOutcomesTests: XCTestCase {
         try FileManager.default.removeItem(at: folder.appendingPathComponent(MeetingAttributionArtifacts.refreshMarker))
         XCTAssertNil(reopened.projectionForReview(of: meeting), "Old archives are not a fallback for unrelated missing data")
 
-        // An empty cache is not archived evidence: current on-disk outcomes still notify.
         try original.write(to: folder)
         XCTAssertTrue(index.correctAction(actionID: "review-action", meetingID: meeting.id,
                                           text: nil, owner: "Me", due: nil, reviewing: meeting))
@@ -673,8 +655,6 @@ final class MeetingOutcomesTests: XCTestCase {
         }
 
         let storage = StorageManager()
-        // A recent meeting with outcomes, and an old one whose outcomes should
-        // fall outside the default 7-day scan.
         let recent = Meeting(
             id: UUID(uuidString: "11111111-2222-4333-8444-555555555555")!,
             title: "Caching strategy", appName: "Zoom",

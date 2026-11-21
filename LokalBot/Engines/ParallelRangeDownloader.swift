@@ -1,34 +1,8 @@
 import CryptoKit
 import Foundation
 
-/// Downloads large static files through parallel HTTP byte ranges, falling
-/// back to a single streamed GET when the server can't do ranges (or the file
-/// is small enough that ranges don't pay off).
-///
-/// Hugging Face's CDN supports `Accept-Ranges: bytes` for the GGUF files in the
-/// model catalog. A single `URLSessionDownloadTask` can sit well below the
-/// user's available bandwidth on fast links, while a small number of ranged
-/// requests usually keeps the pipe busier. Callers still validate the final
-/// bytes before installing the model. Either way the caller gets one temp-file
-/// URL back with progress reported throughout — there is exactly one download
-/// path to reason about.
-///
-/// Each range streams straight into the partial file at its own offset, so
-/// every model byte is written to disk once. Landing a range in a download
-/// task's temp file and copying it into place wrote every byte twice: half of
-/// the 137 GB a 0.10.8 build wrote on 2026-10-14 was that copy.
-///
-/// Ranged downloads are resumable: the partially assembled file and a small
-/// manifest of completed parts live at a stable per-URL path, so a failed,
-/// cancelled, or app-quit download picks up where it stopped instead of
-/// re-fetching 17 GB from byte zero. Pass `stashDirectory` to keep that state
-/// somewhere durable (the temp default can be reaped by macOS between runs).
 enum ParallelRangeDownloader {
 
-    /// Completed-part bookkeeping persisted next to the partial file. The
-    /// stored URL/size/partSize must match the current request exactly or the
-    /// stash is discarded — a changed upstream file must never be stitched
-    /// together from two different versions.
     struct ResumeState: Codable, Equatable {
         let url: String
         let totalBytes: Int64
@@ -111,9 +85,6 @@ enum ParallelRangeDownloader {
         return out
     }
 
-    /// Downloads `url` to a temp file, ranged when the server supports it and
-    /// the file is large enough, else via one streamed GET. Returns the temp
-    /// URL; the caller validates and installs it.
     static func download(
         from url: URL,
         session: URLSession,
@@ -134,25 +105,15 @@ enum ParallelRangeDownloader {
         }
     }
 
-    /// Stable per-URL name for resume state, so a retried download finds its
-    /// earlier partial file no matter how it was initiated.
     static func stashName(for url: URL) -> String {
         let digest = SHA256.hash(data: Data(url.absoluteString.utf8))
         return digest.prefix(8).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Where the resumable partial for `url` lives inside `stashDirectory`.
     static func stashPartialURL(for url: URL, in stashDirectory: URL) -> URL {
         stashDirectory.appendingPathComponent("LokalBot-resume-\(stashName(for: url)).partial")
     }
 
-    /// Disk bytes already held by the resume stash for `url` (0 when none).
-    /// The disk-space precheck credits these against the expected size: a
-    /// valid stash resumes and only the remainder is fetched, and an
-    /// invalidated one is deleted before parts move — freeing the same bytes
-    /// on the same volume — so either way the extra space a retry needs is
-    /// expected − stashed. Allocated size, not logical size: parts write at
-    /// their offsets, so the partial is sparse until the tail parts land.
     static func stashedByteCount(for url: URL, stashDirectory: URL) -> Int64 {
         let values = try? stashPartialURL(for: url, in: stashDirectory)
             .resourceValues(forKeys: [.totalFileAllocatedSizeKey])
@@ -184,9 +145,6 @@ enum ParallelRangeDownloader {
         let byteRanges = ranges(totalBytes: probe.totalBytes, partSize: partSize)
         guard !byteRanges.isEmpty else { throw DownloadError.invalidContentLength }
 
-        // On success the assembled file is handed to the caller and the
-        // manifest deleted; on any failure (including cancellation) both stay
-        // behind so the next attempt resumes instead of starting over.
         var completed: Set<Int> = []
         if let data = try? Data(contentsOf: manifestURL),
            let state = try? JSONDecoder().decode(ResumeState.self, from: data),
@@ -228,8 +186,6 @@ enum ParallelRangeDownloader {
 
         let actual = fileSize(assembled)
         guard actual == probe.totalBytes else {
-            // Corrupt stash (e.g. the partial file was truncated behind our
-            // back) — throw it away so the next attempt starts clean.
             try? fileManager.removeItem(at: assembled)
             try? fileManager.removeItem(at: manifestURL)
             throw DownloadError.assemblySizeMismatch(expected: probe.totalBytes, actual: actual)
@@ -240,9 +196,6 @@ enum ParallelRangeDownloader {
         return assembled
     }
 
-    /// Single download-task GET for servers without byte-range support (or
-    /// files below the acceleration threshold). URLSession streams directly
-    /// to disk instead of iterating every byte in Swift.
     private static func downloadWhole(
         from url: URL,
         session: URLSession,
@@ -386,8 +339,6 @@ enum ParallelRangeDownloader {
         }
     }
 
-    /// Fetches one byte range and writes it at its offset in the partial
-    /// file as it arrives. Returns once every byte of the range is written.
     private static func downloadPart(
         _ range: ByteRange,
         totalBytes: Int64,
@@ -413,8 +364,6 @@ enum ParallelRangeDownloader {
         }
     }
 
-    /// Why a ranged response must not be written, or nil when it is exactly
-    /// the requested range of the probed file.
     private static func rangeResponseError(
         _ response: URLResponse, range: ByteRange, totalBytes: Int64
     ) -> Error? {
@@ -440,8 +389,6 @@ enum ParallelRangeDownloader {
         return header.lowercased() == "bytes \(range.start)-\(range.end)/\(totalBytes)"
     }
 
-    /// `pwrite` at an absolute offset: concurrent parts share one descriptor
-    /// and never move a shared file position.
     private static func writeFully(
         _ bytes: UnsafeRawBufferPointer, to fileDescriptor: Int32, at offset: Int64
     ) throws {
@@ -461,10 +408,6 @@ enum ParallelRangeDownloader {
         }
     }
 
-    /// Delegate for one ranged data task. It checks the response before any
-    /// byte lands, then writes each chunk at its final offset. URLSession
-    /// serializes a task's callbacks on the session's delegate queue; the
-    /// lock covers the hand-off to the task awaiting `run`.
     private final class RangeWriter: NSObject, URLSessionDataDelegate, @unchecked Sendable {
         private let range: ByteRange
         private let totalBytes: Int64
@@ -473,8 +416,6 @@ enum ParallelRangeDownloader {
         private var received: Int64 = 0
         private var failure: Error?
         private var continuation: CheckedContinuation<Void, Error>?
-        /// Held when the task completes before `run` is waiting, e.g. one
-        /// cancelled before it was resumed.
         private var outcome: Result<Void, Error>?
 
         init(range: ByteRange, totalBytes: Int64, fileDescriptor: Int32) {
@@ -505,8 +446,6 @@ enum ParallelRangeDownloader {
             didReceive response: URLResponse,
             completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
         ) {
-            // A server that ignores Range answers 200 with the whole file;
-            // writing that at this part's offset would corrupt the partial.
             if let error = ParallelRangeDownloader.rangeResponseError(
                 response, range: range, totalBytes: totalBytes) {
                 record(error)
@@ -542,7 +481,6 @@ enum ParallelRangeDownloader {
             }
         }
 
-        /// Never copy a part into URLCache: that would be a second disk write.
         func urlSession(
             _ session: URLSession,
             dataTask: URLSessionDataTask,

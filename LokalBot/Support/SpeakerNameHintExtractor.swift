@@ -1,8 +1,5 @@
 import Foundation
 
-/// Conservative extraction for speaker rename suggestions. Calendar attendee
-/// names are trusted directly; OCR text is noisy, so names are accepted only
-/// from likely participant/people roster regions or lines with role markers.
 enum SpeakerNameHintExtractor {
     private static let rosterHeadings = [
         "participants", "people", "members", "in this meeting", "meeting participants",

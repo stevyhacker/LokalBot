@@ -16,9 +16,6 @@ final class TranscriptSanitizerTests: XCTestCase {
         XCTAssertEqual(result.transcript.segments[0].text, "Start the the ship tomorrow.")
     }
 
-    /// llama.cpp decodes Qwen3-ASR without speech-swift's repetition block.
-    /// On the 0.6B benchmark one 8.3 s window looped "hey," until the token
-    /// cap (Benchmarks/transcribe/QwenLlamaCpp/results/2026-11-16-0.6b).
     func testCollapsesAQwenLoopThatRanToTheTokenCap() {
         let loop = Array(repeating: "hey,", count: 70).joined(separator: " ")
         let transcript = makeTranscript(text: "Hello, I'm here, \(loop)", duration: 8.3)
@@ -175,8 +172,6 @@ final class TranscriptSanitizerTests: XCTestCase {
         XCTAssertEqual(result.removedWords, 62)
     }
 
-    /// Microphone rows like the ones a prompt echo produced: speaker "local",
-    /// identity user, one row every ten seconds.
     private func makeTranscript(rows: [(text: String, duration: TimeInterval)]) -> Transcript {
         let segments = rows.enumerated().map { index, row in
             Transcript.Segment(

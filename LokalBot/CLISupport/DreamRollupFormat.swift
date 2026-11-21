@@ -1,13 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// One line per past week and month, condensed from the overnight reviews.
-/// The app writes them (`DreamRollupService`); the CLI reads them for the
-/// agent briefing. A rollup is a cache over the daily reviews: it records a
-/// stamp of the reviews it was made from, and anyone reading it recomputes
-/// that stamp, so a deleted, retracted, or regenerated review makes it stale
-/// at once. Stale rollups are never shown and are rebuilt the next night.
-/// Clear work memory removes them with the reviews (they live in `dreams/`).
 enum DreamRollupFormat {
     enum Kind: String, Codable, Sendable {
         case week
@@ -16,7 +9,6 @@ enum DreamRollupFormat {
 
     struct Rollup: Codable, Equatable, Sendable {
         var kind: Kind
-        /// "2026-W41" or "2026-09".
         var key: String
         var firstDay: String
         var lastDay: String
@@ -25,7 +17,6 @@ enum DreamRollupFormat {
         var generatedAt: Date
     }
 
-    /// The fields of a stored overnight review the briefing and rollups use.
     struct DayReview: Decodable, Equatable, Sendable {
         var day: String
         var generatedAt: Date
@@ -58,8 +49,6 @@ enum DreamRollupFormat {
         return decoder
     }()
 
-    /// Every readable review, keyed by day. A file whose embedded day does
-    /// not match its name is ignored, as the app's store does.
     static func reviews(root: URL) -> [String: DayReview] {
         let folder = dreamsDirectory(root: root)
         guard let files = try? FileManager.default.contentsOfDirectory(
@@ -85,15 +74,12 @@ enum DreamRollupFormat {
         }
     }
 
-    /// Reviews whose day falls inside the period, oldest first.
     static func reviews(in period: Period, from reviews: [String: DayReview]) -> [DayReview] {
         reviews.values
             .filter { $0.day >= period.firstDay && $0.day <= period.lastDay }
             .sorted { $0.day < $1.day }
     }
 
-    /// Changes whenever a review in the period appears, disappears, or is
-    /// regenerated.
     static func stamp(of reviews: [DayReview]) -> String {
         let formatter = ISO8601DateFormatter()
         let material = reviews.sorted { $0.day < $1.day }
@@ -108,8 +94,6 @@ enum DreamRollupFormat {
         let inside = self.reviews(in: period, from: reviews)
         return !inside.isEmpty && stamp(of: inside) == rollup.stamp
     }
-
-    // MARK: - Calendar
 
     static func dayKey(_ date: Date, calendar: Calendar) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
@@ -126,7 +110,6 @@ enum DreamRollupFormat {
         text.count == 10 && text.range(of: #"^\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) != nil
     }
 
-    /// The Monday-to-Sunday week containing `date`.
     static func week(containing date: Date, calendar: Calendar) -> Period {
         var iso = Calendar(identifier: .iso8601)
         iso.timeZone = calendar.timeZone
@@ -143,7 +126,6 @@ enum DreamRollupFormat {
                       label: "Week of \(formatter.string(from: start))")
     }
 
-    /// The calendar month containing `date`.
     static func month(containing date: Date, calendar: Calendar) -> Period {
         let start = calendar.dateInterval(of: .month, for: date)?.start ?? calendar.startOfDay(for: date)
         let next = calendar.date(byAdding: .month, value: 1, to: start) ?? start
@@ -158,9 +140,6 @@ enum DreamRollupFormat {
                       label: formatter.string(from: start))
     }
 
-    // MARK: - Text
-
-    /// The first `count` sentences of a review's narrative, on one line.
     static func sentences(_ text: String, count: Int, maxCharacters: Int) -> String {
         let flat = text.split(whereSeparator: \.isNewline).joined(separator: " ")
             .split(whereSeparator: \.isWhitespace).joined(separator: " ")

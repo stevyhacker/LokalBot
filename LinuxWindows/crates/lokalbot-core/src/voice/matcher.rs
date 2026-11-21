@@ -1,13 +1,3 @@
-//! Voice comparison and enrollment rules (`SpeakerVoiceMatcher.swift`).
-//!
-//! The scores are the Mac's, measured there on pyannote vectors from real
-//! calls. On TitaNet they were checked with `voice_calibration` and
-//! `voice_meeting_check` (LibriSpeech dev-clean, 40 speakers, through Opus and
-//! varied channels): no wrong automatic decision, but different people reached
-//! 0.72 through one narrow noisy channel, and no real call has been measured.
-//! So the engine shows strong matches for a person to apply; see
-//! `NAME_SPEAKERS_AUTOMATICALLY` in `lokalbot-engine`.
-
 use crate::model::AttributionSource;
 
 use super::{
@@ -15,15 +5,11 @@ use super::{
     VoiceSample, merged_turns, name_key,
 };
 
-/// Call audio arrives codec-compressed, so a single 3–10 s chunk varies too
-/// much to compare on its own; a speaker's average over many turns is stable.
 pub mod call {
     pub const SAMPLE_LIMIT: usize = 16;
-    /// Median sample-to-average similarity. A label that mixes voices falls below it.
     pub const MINIMUM_CONSISTENCY: f64 = 0.75;
     pub const SUGGESTED_SCORE: f64 = 0.60;
     pub const AUTOMATIC_SCORE: f64 = 0.70;
-    /// Over the best remembered person with a different name.
     pub const AUTOMATIC_MARGIN: f64 = 0.15;
     pub const POLICY_VERSION: &str = "call-voiceprint-1";
 }
@@ -34,7 +20,6 @@ pub struct Voiceprint {
     pub consistency: f64,
 }
 
-/// A unit vector of this model's length, or `None`.
 pub fn normalized(vector: &[f32]) -> Option<Vec<f32>> {
     if vector.len() != VOICE_DIMENSION || vector.iter().any(|v| !v.is_finite()) {
         return None;
@@ -65,7 +50,6 @@ pub fn cosine(lhs: &[f32], rhs: &[f32]) -> f64 {
         .sum()
 }
 
-/// The normalized average of `vectors` and how closely they agree with it.
 pub fn voiceprint(vectors: &[&[f32]]) -> Option<Voiceprint> {
     let unit: Vec<Vec<f32>> = vectors.iter().filter_map(|v| normalized(v)).collect();
     if unit.is_empty() || unit.len() != vectors.len() {
@@ -104,7 +88,6 @@ pub(crate) fn sample_voiceprint(samples: &[VoiceSample]) -> Option<Voiceprint> {
     )
 }
 
-/// A remembered person's call voice: each confirmed meeting counts once.
 fn call_voiceprint(profile: &VoiceProfile) -> Option<Voiceprint> {
     if profile.model != VOICE_MODEL {
         return None;
@@ -131,8 +114,6 @@ fn call_voiceprint(profile: &VoiceProfile) -> Option<Voiceprint> {
     voiceprint(&meetings.iter().map(Vec::as_slice).collect::<Vec<_>>())
 }
 
-/// At most one disjoint chunk from each independent, uncontaminated speaking
-/// turn. Overlapping diarizer windows are never extra votes.
 pub fn eligible(samples: &[VoiceSample], turns: &[AudioTurn], speaker: &str) -> Vec<VoiceSample> {
     if turns
         .iter()
@@ -178,7 +159,6 @@ pub fn eligible(samples: &[VoiceSample], turns: &[AudioTurn], speaker: &str) -> 
             break;
         }
     }
-    // A mixed cluster is unsafe to enroll, even if some of its samples agree.
     let consistent = selected.iter().all(|a| {
         selected
             .iter()
@@ -187,9 +167,6 @@ pub fn eligible(samples: &[VoiceSample], turns: &[AudioTurn], speaker: &str) -> 
     if consistent { selected } else { Vec::new() }
 }
 
-/// Call speakers: the longest disjoint chunks no other speaker overlaps,
-/// wherever they fall. Their average is checked for a mixed voice instead of
-/// every pair.
 fn call_eligible(samples: &[VoiceSample], turns: &[AudioTurn], speaker: &str) -> Vec<VoiceSample> {
     let others: Vec<&AudioTurn> = turns
         .iter()
@@ -229,7 +206,6 @@ fn call_eligible(samples: &[VoiceSample], turns: &[AudioTurn], speaker: &str) ->
     selected
 }
 
-/// Three separate turns of clear speech totaling 15 seconds, from one voice.
 pub fn can_enroll(samples: &[VoiceSample]) -> bool {
     let Some(first) = samples.first() else {
         return false;
@@ -261,7 +237,6 @@ pub fn can_enroll(samples: &[VoiceSample]) -> bool {
         || sample_voiceprint(samples).is_some_and(|p| p.consistency >= call::MINIMUM_CONSISTENCY)
 }
 
-/// Remembered people these samples sound like, best first.
 pub fn matches(samples: &[VoiceSample], profiles: &[VoiceProfile]) -> Vec<NameMatch> {
     if samples.is_empty()
         || samples.iter().any(|s| {
@@ -311,15 +286,12 @@ pub fn matches(samples: &[VoiceSample], profiles: &[VoiceProfile]) -> Vec<NameMa
         .into_iter()
         .take(3)
         .filter(|(_, mean, minimum)| *mean >= 0.72 && *minimum >= 0.65)
-        // Microphone recognition requires its own held-out calibration.
         .map(|(profile, mean, _)| {
             name_match(profile, samples, MatchTier::Suggested, seconds, mean, None)
         })
         .collect()
 }
 
-/// One average per call speaker against each remembered person's average.
-/// Remembered people who share a name never block each other.
 fn call_matches(samples: &[VoiceSample], profiles: &[VoiceProfile]) -> Vec<NameMatch> {
     if samples.len() < 2 {
         return Vec::new();

@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// What a scope on a question keeps the real library tools from reading. A
-/// scope that holds nothing (a phone that shares no finished meeting yet) once
-/// read as no scope at all, and every tool answered from the whole library.
 @MainActor
 final class ScopedToolScopeTests: XCTestCase {
     private var root: URL!
@@ -14,7 +11,6 @@ final class ScopedToolScopeTests: XCTestCase {
     private var screens: [Int64] = []
 
     private let titles = ["Roadmap review", "Sample walkthrough", "Live call"]
-    /// Words only the meetings hold; the query word alone can be echoed back.
     private let contents = ["shared orchard", "sample orchard", "live orchard"]
     private var outsideTheScope: [String] { ["Sample walkthrough", "Live call", "sample orchard", "live orchard"] }
 
@@ -25,7 +21,6 @@ final class ScopedToolScopeTests: XCTestCase {
         let storage = StorageManager(rootURL: root)
         let sqlite = root.appendingPathComponent("lokalbotv3.sqlite")
         let searchIndex = SearchIndex(databaseURL: sqlite)
-        // Noon, so "today" holds everything whenever the test runs.
         let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(12 * 3_600)
 
         func meeting(_ title: String, path: String, started: TimeInterval, ended: TimeInterval?,
@@ -84,7 +79,6 @@ final class ScopedToolScopeTests: XCTestCase {
         try? FileManager.default.removeItem(at: root)
     }
 
-    /// Every meeting tool the phone's Ask can reach, with the arguments a model would give.
     private let meetingCalls: [(name: String, arguments: [String: String])] = [
         ("list_meetings", [:]),
         ("get_meeting", ["id": "latest", "include": "all"]),
@@ -119,8 +113,6 @@ final class ScopedToolScopeTests: XCTestCase {
                 XCTAssertFalse(text.localizedCaseInsensitiveContains(hidden), "\(call.name) read \(hidden): \(text)")
             }
         }
-        // The Timeline is its own source: an empty meeting scope hides the
-        // day's meetings, not the day's apps.
         let today = await run(runner, meetingCalls[4])
         XCTAssertTrue(today.contains("Xcode"), today)
     }

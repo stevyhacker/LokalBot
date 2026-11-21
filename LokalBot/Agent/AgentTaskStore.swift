@@ -1,7 +1,5 @@
 import Foundation
 
-/// UI metadata is independent of Pi's append-only conversation. Archiving never
-/// deletes history, and browsing a task never requires a running subprocess.
 struct AgentTaskRecord: Codable, Equatable, Identifiable {
     var id: UUID
     var title: String?
@@ -14,8 +12,6 @@ struct AgentTaskRecord: Codable, Equatable, Identifiable {
     var isPinned = false
     var isArchived = false
     var modifiedAt = Date()
-    /// Set when LokalBot handed this task off, so the same action never gets
-    /// a second task.
     var handoff: AgentHandoffSource?
 
     enum CodingKeys: String, CodingKey {
@@ -24,16 +20,11 @@ struct AgentTaskRecord: Codable, Equatable, Identifiable {
     }
 }
 
-/// The meeting action a handed-off task works on.
 struct AgentHandoffSource: Codable, Equatable, Hashable {
     var meetingID: UUID
     var actionID: String
 }
 
-/// One task to hand to Agent Mode: its title, the prompt for its composer,
-/// the sources attached to that prompt, and a folder in the workspace made
-/// for what the agent produces. A handoff with no source, such as a window
-/// handed off by hand, is never matched against earlier tasks.
 struct AgentHandoff: Equatable {
     var source: AgentHandoffSource?
     var title: String
@@ -100,7 +91,6 @@ struct AgentAttachment: Codable, Equatable, Identifiable {
     let id: String
     let kind: Kind
     let title: String
-    /// References only. Source text is re-read with current permissions at send.
     let reference: String
 
     static func file(_ url: URL) -> Self {

@@ -1,10 +1,3 @@
-//! Substring matching for Chinese, Japanese and Korean text (`CJKSearch.swift`).
-//!
-//! SQLite's `unicode61` tokenizer indexes an unbroken run of CJK text as one
-//! token, so FTS5 finds a word only at the start of that run. A query that
-//! contains CJK text therefore matches by substring on the stored text.
-
-/// Whether `text` has at least one Han, kana, Hangul or Bopomofo character.
 pub fn contains_cjk(text: &str) -> bool {
     text.chars().any(is_cjk)
 }
@@ -12,29 +5,25 @@ pub fn contains_cjk(text: &str) -> bool {
 fn is_cjk(c: char) -> bool {
     matches!(
         u32::from(c),
-        0x1100..=0x11FF       // Hangul Jamo
-            | 0x3040..=0x309F // Hiragana
-            | 0x30A0..=0x30FF // Katakana
-            | 0x3100..=0x312F // Bopomofo
-            | 0x3130..=0x318F // Hangul Compatibility Jamo
-            | 0x31A0..=0x31BF // Bopomofo Extended
-            | 0x31F0..=0x31FF // Katakana Phonetic Extensions
-            | 0x3400..=0x4DBF // CJK Unified Ideographs Extension A
-            | 0x4E00..=0x9FFF // CJK Unified Ideographs
-            | 0xAC00..=0xD7AF // Hangul Syllables
-            | 0xF900..=0xFAFF // CJK Compatibility Ideographs
-            | 0xFF66..=0xFF9F // Halfwidth Katakana
-            | 0x20000..=0x3134F // CJK Unified Ideographs Extensions B–G
+        0x1100..=0x11FF
+            | 0x3040..=0x309F
+            | 0x30A0..=0x30FF
+            | 0x3100..=0x312F
+            | 0x3130..=0x318F
+            | 0x31A0..=0x31BF
+            | 0x31F0..=0x31FF
+            | 0x3400..=0x4DBF
+            | 0x4E00..=0x9FFF
+            | 0xAC00..=0xD7AF
+            | 0xF900..=0xFAFF
+            | 0xFF66..=0xFF9F
+            | 0x20000..=0x3134F
     )
 }
 
-/// Separators between search terms: whitespace, sentence punctuation and
-/// brackets in ASCII and full-width forms. Dots, hyphens, apostrophes and
-/// underscores stay inside a term.
 const SEPARATORS: &str =
     ",;:!?()[]{}<>\"“”‘’「」『』（）《》〈〉【】〔〕［］｛｝，。、；：！？…—～·";
 
-/// Distinct terms of `query`, in order. Every term must occur for a match.
 pub fn terms(query: &str) -> Vec<String> {
     let mut seen = std::collections::HashSet::new();
     query
@@ -44,8 +33,6 @@ pub fn terms(query: &str) -> Vec<String> {
         .collect()
 }
 
-/// A `LIKE` pattern that matches `term` anywhere, escaping `%`, `_` and `\`.
-/// Use it with `ESCAPE '\'`.
 pub fn like_pattern(term: &str) -> String {
     let mut pattern = String::with_capacity(term.len() + 2);
     pattern.push('%');
@@ -65,8 +52,6 @@ fn folded(text: &str) -> Vec<char> {
         .collect()
 }
 
-/// Every occurrence of every term as character ranges, sorted, with
-/// overlapping and touching matches merged.
 fn match_ranges(text: &[char], terms: &[String]) -> Vec<(usize, usize)> {
     let mut found: Vec<(usize, usize)> = Vec::new();
     for term in terms {
@@ -95,8 +80,6 @@ fn match_ranges(text: &[char], terms: &[String]) -> Vec<(usize, usize)> {
     merged
 }
 
-/// An excerpt around the first match, with « » around every match inside it
-/// and … where text was cut. `None` when no term occurs.
 pub fn snippet(text: &str, terms: &[String]) -> Option<String> {
     const BEFORE: usize = 18;
     const AFTER: usize = 54;

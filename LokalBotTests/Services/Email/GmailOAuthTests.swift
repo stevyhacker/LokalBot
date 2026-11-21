@@ -4,8 +4,6 @@ import XCTest
 final class GmailOAuthTests: XCTestCase {
     private typealias Fixtures = GmailFixtures
 
-    // MARK: Requests
-
     func testAuthorizationAsksOnlyForReadOnlyGmailWithPKCE() throws {
         let pkce = ChatGPTPlanOAuth.PKCE(verifier: "verifier")
         let request = GmailOAuth.AuthorizationRequest(
@@ -23,7 +21,6 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertEqual(items["prompt"], ["consent"])
         XCTAssertEqual(items["state"], ["state-1"])
         XCTAssertEqual(items["login_hint"], ["me+work@example.com"])
-        // "+" must arrive as itself, not as a space.
         XCTAssertTrue(request.url.absoluteString.contains("login_hint=me%2Bwork%40example.com"))
         XCTAssertFalse(items.keys.contains("client_secret"))
     }
@@ -47,8 +44,6 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertEqual(Fixtures.form(revoke), ["token": "refresh-1"])
     }
 
-    // MARK: Callback
-
     func testCallbackChecksStateBeforeAnythingElse() {
         XCTAssertThrowsError(try GmailOAuth.parseCallback(["state": "forged", "error": "access_denied"],
                                                           expectedState: "state-1"))
@@ -64,7 +59,6 @@ final class GmailOAuthTests: XCTestCase {
             ["state": "s", "code": "code-1", "scope": "openid+\(GmailOAuth.scope)"], expectedState: "s"),
                        .code("code-1"))
         XCTAssertThrowsError(try GmailOAuth.parseCallback(["state": "s", "code": ""], expectedState: "s"))
-        // Google's consent screen lets the person untick Gmail and still returns a code.
         XCTAssertThrowsError(try GmailOAuth.parseCallback(
             ["state": "s", "code": "code-1", "scope": "openid email"], expectedState: "s")) { error in
             XCTAssertEqual(error as? GmailError, .readAccessNotGranted)
@@ -82,8 +76,6 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertNil(other.refreshToken)
         XCTAssertThrowsError(try GmailOAuth.TokenResponse(json: Fixtures.json(["error": "invalid_grant"])))
     }
-
-    // MARK: LokalBot's own client
 
     static let builtIn = GoogleOAuthClient.builtIn(id: "123456789-lokalbot.apps.googleusercontent.com")!
 
@@ -215,8 +207,6 @@ final class GmailOAuthTests: XCTestCase {
         }
     }
 
-    // MARK: Client file
-
     func testClientFileMustBeADesktopClient() throws {
         let desktop = try GoogleOAuthClient(json: Fixtures.json(["installed": [
             "client_id": " 123-abc.apps.googleusercontent.com ", "client_secret": "GOCSPX-test",
@@ -232,8 +222,6 @@ final class GmailOAuthTests: XCTestCase {
         ]])))
         XCTAssertThrowsError(try GoogleOAuthClient(json: Data("not json".utf8)))
     }
-
-    // MARK: Tokens
 
     func testFreshTokenIsReusedAndConcurrentCallersShareOneRefresh() async throws {
         let accountID = UUID()
@@ -254,7 +242,6 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertEqual(tokens, ["new", "new"])
         let refreshCount = await refreshes.value
         XCTAssertEqual(refreshCount, 1)
-        // Google doesn't rotate the refresh token; the old one stays.
         XCTAssertEqual(try secrets.credentials(for: accountID)?.refreshToken, "refresh-1")
         let reused = try await authorizer.accessToken(for: accountID, address: Fixtures.me)
         XCTAssertEqual(reused, "new")
@@ -386,7 +373,6 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertEqual(refreshed, "refreshed")
         XCTAssertEqual(seen.requests.count, 1)
 
-        // The pending revocations survive serialization and a fresh authorizer.
         let saved = try XCTUnwrap(secrets.credentials(for: accountID))
         let restored = try JSONDecoder().decode(EmailCredentials.self, from: JSONEncoder().encode(saved))
         let restarted = GmailAuthorizer(secrets: MemoryEmailSecrets(credentials: [accountID: restored]))
@@ -421,8 +407,6 @@ final class GmailOAuthTests: XCTestCase {
         XCTAssertNil(try JSONDecoder().decode(EmailCredentials.self, from: data).pendingRevocationTokens)
     }
 
-    // MARK: Sign-in
-
     func testSignInCompletesThroughLoopbackRedirect() async throws {
         let secrets = MemoryEmailSecrets()
         let redirect = Box<String>()
@@ -449,7 +433,6 @@ final class GmailOAuthTests: XCTestCase {
                   let callback = URL(string: "\(redirectURI)?state=\(state)&code=code-1&scope="
                                      + ChatGPTPlanOAuth.formEscaped(GmailOAuth.scope)) else { return false }
             Task.detached {
-                // A stray request first, as a browser's favicon fetch would be.
                 if let favicon = URL(string: redirectURI + "favicon.ico") {
                     _ = try? await URLSession.shared.data(from: favicon)
                 }
@@ -477,8 +460,6 @@ final class GmailOAuthTests: XCTestCase {
             XCTAssertEqual(error as? GmailError, .noClient)
         }
     }
-
-    // MARK: Helpers
 
     actor Counter {
         private(set) var value = 0

@@ -1,9 +1,3 @@
-//! Whose task an action is, from the speech it cites (`SpokenUndertaking.swift`,
-//! `OutcomeEvidencePolicy.swift`, `ActionOwnership.swift`).
-//!
-//! Identity comes from the voice: the cited row's speaker as the transcript
-//! attributes it. The model's owner, basis and quote are claims to check.
-
 use std::collections::{BTreeSet, HashSet};
 use std::ops::Range;
 use std::sync::LazyLock;
@@ -15,14 +9,10 @@ use lokalbot_core::model::{AttributionBasis, OwnerResolution, SpeakerIdentity};
 
 use super::view::{Speaker, View};
 
-// ===================================================================== words
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Word {
-    /// Lowercased, straight apostrophes, no surrounding punctuation.
     pub text: String,
     pub row: usize,
-    /// Byte range in the row's own text.
     pub range: Range<usize>,
     pub ends_sentence: bool,
     pub ends_question: bool,
@@ -71,8 +61,6 @@ fn is_adverb(word: &str) -> bool {
     ADVERBS.contains(&word)
 }
 
-/// Words of one speaker's consecutive rows. Fillers and immediately repeated
-/// words are dropped, so "I I have to" reads as "I have to".
 pub fn words(rows: &[&str]) -> Vec<Word> {
     let mut result: Vec<Word> = Vec::new();
     for (row, text) in rows.iter().enumerate() {
@@ -102,7 +90,6 @@ pub fn words(rows: &[&str]) -> Vec<Word> {
                 .find(|(_, c)| c.is_alphanumeric())
                 .map(|(i, c)| i + c.len_utf8());
             let (Some(first), Some(last)) = (first, last) else {
-                // Free-standing punctuation still closes the sentence before it.
                 if chunk.chars().any(|c| ".!?;".contains(c))
                     && let Some(previous) = result.last_mut()
                     && previous.row == row
@@ -148,8 +135,6 @@ pub fn words(rows: &[&str]) -> Vec<Word> {
     result
 }
 
-// ====================================================================== cues
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Grade {
     Commitment,
@@ -169,11 +154,9 @@ pub enum Refusal {
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct Cue {
-    /// The subject and its undertaking verb ("i", "have", "to").
     pub words: Range<usize>,
     pub grade: Grade,
     pub refusal: Option<Refusal>,
-    /// "I can do that", "Will do": the task is whatever was asked before.
     pub names_no_task: bool,
 }
 
@@ -249,13 +232,11 @@ const OTHER_SUBJECTS: [&str; 11] = [
     "anybody",
 ];
 
-/// What a speaker says about the conversation itself, after "I'll".
 pub const CONVERSATION_REMARK: &str = r"(?:be (?:a little (?:bit )?|completely |totally |very |really |quite |perfectly |brutally )?(?:more specific|more clear|clearer|brief|honest|frank|candid|upfront|blunt)\b|share (?:my|the) screen\b|say\b|admit\b|confess\b)";
 
 static CONVERSATION_START: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(&format!("^{CONVERSATION_REMARK}")).expect("valid regex"));
 
-/// Every first-person undertaking in `words`, refused or not.
 pub fn cues(words: &[Word]) -> Vec<Cue> {
     if words.is_empty() {
         return Vec::new();
@@ -291,7 +272,6 @@ pub fn cues(words: &[Word]) -> Vec<Cue> {
             });
         }
     }
-    // A dropped subject at a sentence start: "Still have to go through it", "Will do".
     for start in 0..words.len() {
         if !(start == 0 || words[start - 1].ends_sentence) {
             continue;
@@ -409,7 +389,6 @@ fn judged(mut cue: Cue, words: &[Word]) -> Cue {
     cue
 }
 
-/// "…do that", "…take it, but after lunch"; "…handle that migration" names its task.
 fn points_at_an_earlier_task(tail: &[&Word]) -> bool {
     if tail.len() < 2 || !["that", "it", "this", "those", "them"].contains(&tail[1].text.as_str()) {
         return false;
@@ -432,7 +411,6 @@ fn ends_in_question(cue: &Cue, words: &[Word]) -> bool {
     if !words[end].ends_question {
         return false;
     }
-    // "I'll send it tomorrow, okay?" still commits.
     !(TAG_ENDINGS.contains(&words[end].text.as_str()) && end >= cue.words.end)
 }
 
@@ -461,7 +439,6 @@ fn is_reported(before: &[&str]) -> bool {
     words.len() >= 2 && ["told", "tell"].contains(&words[words.len() - 2])
 }
 
-/// "I'll need you to send it" hands the work to someone else.
 fn is_delegation(tail: &[&Word]) -> bool {
     if tail.len() < 3
         || !["need", "want", "like", "expect", "require"].contains(&tail[0].text.as_str())
@@ -508,9 +485,6 @@ fn is_conversation(phrase: &[&str], tail: &[&str]) -> bool {
     CONVERSATION_START.is_match(&tail.join(" "))
 }
 
-// ==================================================================== actors
-
-/// Another party's task in the same speech: "you will send it", "Alice will review".
 #[derive(Clone, Debug, PartialEq)]
 pub struct Actor {
     pub start: usize,
@@ -579,7 +553,6 @@ fn is_not_actor(word: &str) -> bool {
     NOT_ACTORS.contains(&word) || NOT_ACTORS_MORE.contains(&word)
 }
 
-/// Length of an obligation or plan at `index` ("will", "needs to", "is going to").
 fn modal_length(words: &[Word], index: usize) -> Option<usize> {
     let mut index = index;
     let mut skipped = 0;
@@ -607,7 +580,6 @@ fn modal_length(words: &[Word], index: usize) -> Option<usize> {
     if index + length >= words.len() {
         return Some(length + skipped);
     }
-    // A passive ("can be simplified") names no actor.
     (words[index + length].text != "be").then_some(length + skipped)
 }
 
@@ -719,8 +691,6 @@ pub fn other_actors(words: &[Word]) -> Vec<Actor> {
     actors
 }
 
-// ================================================================= alignment
-
 const STOPWORDS: [&str; 66] = [
     "the", "a", "an", "to", "of", "in", "on", "for", "with", "and", "or", "but", "if", "is", "are",
     "be", "it", "that", "this", "i", "you", "we", "they", "he", "she", "will", "can", "should",
@@ -732,7 +702,6 @@ const STOPWORDS: [&str; 66] = [
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Alignment {
     pub matches: usize,
-    /// The clause carries the task's leading verb.
     pub leads: bool,
 }
 
@@ -795,7 +764,6 @@ pub fn alignment<'w>(task: &str, clause: impl IntoIterator<Item = &'w Word>) -> 
     result
 }
 
-/// Where a model's quote occurs in `words`, tolerating casing and punctuation.
 pub fn occurrences(quote: &str, words_in: &[Word]) -> Vec<Range<usize>> {
     let wanted: Vec<String> = words(&[quote]).into_iter().map(|w| w.text).collect();
     if wanted.is_empty() || wanted.len() > words_in.len() {
@@ -811,8 +779,6 @@ pub fn occurrences(quote: &str, words_in: &[Word]) -> Vec<Range<usize>> {
         .map(|start| start..start + wanted.len())
         .collect()
 }
-
-// ============================================================ evidence policy
 
 const COMMITMENT_PREAMBLE: &str = r"^(?:(?:yes|yeah|yep|okay|ok|sure|right|well|so|and|then|absolutely|after this|next|also|um|uh|(?:on|from) my (?:side|end)|for my part|as for me)[,!.: ]+)*";
 const FIRST_PERSON_UNDERTAKING: &str = r"(?:i (?:will|shall|am going to|am gonna|commit to|agree to|(?:do )?(?:plan|intend) to|am (?:planning|intending) to)|i['’]m (?:going to|gonna|planning to|intending to)|i['’]ll|my next step is|(?:i think )?i (?:still )?(?:have to|need to|must))";
@@ -867,12 +833,10 @@ fn normalized(text: &str) -> String {
         .to_lowercase()
 }
 
-/// "I can do that" names no task of its own.
 pub fn is_bare_acceptance(raw: &str) -> bool {
     BARE_ACCEPTANCE.is_match(&normalized(raw))
 }
 
-/// The whole row is a remark about the conversation ("I'll be brief").
 pub fn is_conversation_management(raw: &str) -> bool {
     CONVERSATION_MANAGEMENT.is_match(&normalized(raw))
 }
@@ -889,7 +853,6 @@ pub fn is_negated_or_questioned(raw: &str) -> bool {
     NEGATED_OR_QUESTIONED.is_match(&normalized(raw))
 }
 
-/// Every forward-looking sentence of the row is a question or a negation.
 pub fn undertaking_is_negated_or_questioned(raw: &str) -> bool {
     let sentences: Vec<String> = canonical_clauses(raw)
         .into_iter()
@@ -902,7 +865,6 @@ pub fn expresses_undertaking(raw: &str) -> bool {
     UNDERTAKING.is_match(&normalized(raw))
 }
 
-/// A direct second-person request to one listener.
 pub fn is_second_person_request(raw: &str) -> bool {
     let text = POLITE_IF
         .replace_all(&normalized(raw), "could you")
@@ -915,7 +877,6 @@ pub fn is_second_person_request(raw: &str) -> bool {
         .any(|p| p.is_match(&text).unwrap_or(false))
 }
 
-/// A first-person undertaking anywhere in the text.
 pub fn is_commitment(raw: &str) -> bool {
     cues(&words(&[raw])).iter().any(Cue::is_accepted)
 }
@@ -1006,9 +967,6 @@ fn has_explicit_target(name: &str, quote: &str, basis: AttributionBasis) -> bool
     })
 }
 
-// =============================================================== attribution
-
-/// Why an ownership claim was not accepted (`OutcomeAttribution.RejectionReason`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RejectionReason {
     MissingSpeaker,
@@ -1041,7 +999,6 @@ impl RejectionReason {
         }
     }
 
-    /// The repair a rejection queues, if any.
     pub fn repair_reason(self) -> Option<&'static str> {
         match self {
             Self::MissingQuote => Some("missing_ownership_evidence"),
@@ -1113,7 +1070,6 @@ fn basis_from(raw: &str) -> Option<AttributionBasis> {
     }
 }
 
-/// `OutcomeEvidencePolicy.resolve` for one source row.
 fn resolve_policy(
     view: &View,
     speaker_id: Option<&str>,
@@ -1207,7 +1163,6 @@ fn resolve_policy(
     Attribution::resolved(person, basis, Some(quote.to_string()))
 }
 
-/// `OutcomeEvidencePolicy.resolveTarget`: a request or assignment read from its row.
 fn resolve_target(
     view: &View,
     speaker_id: Option<&str>,
@@ -1259,7 +1214,6 @@ fn resolve_target(
     accepted.into_iter().next().unwrap_or(failure)
 }
 
-/// The sentence the quote sits in carries the speaker's own undertaking.
 fn undertakes(quote: &str, source: &str) -> bool {
     let source_words = words(&[source]);
     let Some(hit) = occurrences(quote, &source_words).into_iter().next() else {
@@ -1280,11 +1234,7 @@ fn undertakes(quote: &str, source: &str) -> bool {
         .any(|c| c.is_accepted() && (start..end).contains(&c.words.start))
 }
 
-// ================================================================= ownership
-
-/// The model's ownership claim for one action.
 pub struct Claim<'a> {
-    /// Speaker key the model named, `None` for "source"/"unknown".
     pub owner: Option<&'a str>,
     pub names_source: bool,
     pub basis: &'a str,
@@ -1295,7 +1245,6 @@ pub struct Claim<'a> {
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub attribution: Attribution,
-    /// Transcript index of the cited row the ownership evidence belongs to.
     pub anchor: usize,
     pub cites_undertaking: bool,
     pub cites_only_refused_undertakings: bool,
@@ -1423,11 +1372,9 @@ struct Candidate<'t> {
     quoted: bool,
 }
 
-/// `ActionOwnership`: decides whose task an extracted action is.
 pub struct Ownership<'v, 'a> {
     pub view: &'v View<'a>,
     pub is_english: bool,
-    /// Text a row offers as evidence; `None` when outside this evidence.
     pub text: Box<dyn Fn(usize) -> Option<String> + 'v>,
 }
 
@@ -1514,7 +1461,6 @@ impl Ownership<'_, '_> {
         }
     }
 
-    /// The speaker's own unrefused commitment starts in this row.
     pub fn states_commitment(&self, index: usize) -> bool {
         if !self.view.is_own_voice(index) || (self.text)(index).is_none() {
             return false;
@@ -1812,7 +1758,6 @@ impl Ownership<'_, '_> {
                 );
             }
         }
-        // "I'll prepare the policy, and you will send the measurements".
         let in_turn = turn.rows.contains(&primary);
         let last = turn
             .reach(&chosen.cue)
@@ -1860,7 +1805,6 @@ impl Ownership<'_, '_> {
         )
     }
 
-    /// "Could you send the draft?" / "Yeah, I can do that".
     fn answers_primary(&self, chosen: &Candidate, primary: usize) -> bool {
         if !chosen.cue.names_no_task || chosen.row <= primary {
             return false;
@@ -1887,8 +1831,6 @@ impl Ownership<'_, '_> {
         segments[chosen.row].start - end <= REPLY_SECONDS
     }
 
-    /// The nearest undertaking earlier in the same turn, when the cited row
-    /// is a fragment of that speech.
     fn carried_undertaking(
         &self,
         anchor: usize,
@@ -2089,7 +2031,6 @@ mod tests {
         assert!(ownership.states_commitment(1));
         assert!(!ownership.states_commitment(0));
 
-        // A row with no undertaking: the model's claim cannot stand alone.
         let claim = Claim {
             owner: None,
             names_source: true,

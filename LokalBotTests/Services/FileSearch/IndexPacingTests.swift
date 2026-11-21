@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// How big reads share the Mac with the person using it.
 final class IndexPacingTests: XCTestCase {
     func testWhileThePersonIsAtTheMacReadingRestsTwiceAsLongAsItWorked() {
         let pacing = IndexPacing(secondsSinceInput: { 5 })
@@ -24,11 +23,11 @@ final class IndexPacingTests: XCTestCase {
         pacer.restBetweenJobs { false }
         XCTAssertEqual(pacer.rested, 0, "nothing to rest after before the first job")
 
-        clock.advance(2)   // the first job
+        clock.advance(2)
         pacer.restBetweenJobs { false }
         XCTAssertEqual(pacer.rested, 4, accuracy: 0.001)
 
-        clock.advance(0.5)   // the second job; the rest above doesn't count as work
+        clock.advance(0.5)
         pacer.restBetweenJobs { false }
         XCTAssertEqual(pacer.rested, 5, accuracy: 0.001)
     }

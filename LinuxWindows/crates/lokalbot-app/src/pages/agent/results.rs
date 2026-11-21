@@ -1,7 +1,3 @@
-//! Results (`AgentResultsPanel.swift`): beside the conversation, the files
-//! the task changed, its steps, the sources it was given, and a preview of
-//! whichever one is chosen. Opening a preview never runs a tool.
-
 use std::path::PathBuf;
 
 use crate::i18n::h_flex;
@@ -57,7 +53,6 @@ impl AgentPage {
             .as_ref()
             .is_some_and(|s| s.state == SessionState::Running);
         let results: Vec<ResultPreview> = steps.iter().filter_map(ResultPreview::tool).collect();
-        // Follow the live result (a running tool keeps updating its output).
         let selected = match &self.preview {
             Some(preview) => results
                 .iter()
@@ -231,7 +226,6 @@ impl AgentPage {
                     })),
             );
 
-        // A step's preview is headed by its plain label; other previews keep their own title.
         let body: AnyElement = match selected {
             Some(preview) => {
                 let step = steps.iter().find(|s| s.id() == preview.id);
@@ -393,7 +387,6 @@ impl AgentPage {
             )
     }
 
-    /// Saves the previewed text where the user chooses (`fileExporter`).
     fn export(&mut self, text: String, cx: &mut Context<Self>) {
         let directory = directories::UserDirs::new()
             .and_then(|dirs| dirs.document_dir().map(|d| d.to_path_buf()))

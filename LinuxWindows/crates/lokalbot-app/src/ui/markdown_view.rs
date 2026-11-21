@@ -1,6 +1,3 @@
-//! Markdown for summaries and digests, with headings scaled to sit under
-//! LokalBot's section titles instead of dwarfing them.
-
 use gpui_kit::component::text::{TextView, TextViewStyle};
 use gpui_kit::{ElementId, SharedString, px, rems};
 

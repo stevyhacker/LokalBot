@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Clipboard context
-
 final class CotypingClipboardContextTests: XCTestCase {
     func testSanitizeCollapsesAndTrims() {
         XCTAssertEqual(CotypingClipboardContext.sanitize("  hello   world  "), "hello world")
@@ -43,8 +41,8 @@ final class CotypingClipboardContextTests: XCTestCase {
 
     func testResolveCombinesSanitizeAndGuard() {
         XCTAssertEqual(CotypingClipboardContext.resolve(rawClipboard: "plans", precedingText: "meeting about"), "plans")
-        XCTAssertNil(CotypingClipboardContext.resolve(rawClipboard: "plans", precedingText: "the plans are set"))  // already there
-        XCTAssertNil(CotypingClipboardContext.resolve(rawClipboard: "   ", precedingText: "x"))                    // empty after sanitize
+        XCTAssertNil(CotypingClipboardContext.resolve(rawClipboard: "plans", precedingText: "the plans are set"))
+        XCTAssertNil(CotypingClipboardContext.resolve(rawClipboard: "   ", precedingText: "x"))
     }
 
     func testResolveDistillsLongClipboardToLinesOverlappingThePrefix() {
@@ -65,7 +63,7 @@ final class CotypingClipboardContextTests: XCTestCase {
     func testPromptIncludesClipboardLine() {
         let prompt = CotypingPromptRenderer.prompt(prefixText: "hello", clipboardContext: "secret plans")
         XCTAssertTrue(prompt.contains("On the clipboard: secret plans"))
-        XCTAssertTrue(prompt.contains("hello"))  // prefix still present
+        XCTAssertTrue(prompt.contains("hello"))
     }
 
     func testPromptOmitsClipboardWhenAbsent() {
@@ -76,7 +74,6 @@ final class CotypingClipboardContextTests: XCTestCase {
     func testPromptCapsClipboardLine() {
         let huge = String(repeating: "z", count: 600)
         let prompt = CotypingPromptRenderer.prompt(prefixText: "hi", clipboardContext: huge)
-        // The clipboard line itself is capped at maxClipboardLineCharacters.
         let line = prompt.components(separatedBy: "\n").first(where: { $0.contains("On the clipboard") }) ?? ""
         XCTAssertLessThanOrEqual(line.count, "On the clipboard: ".count + CotypingPromptRenderer.maxClipboardLineCharacters)
     }

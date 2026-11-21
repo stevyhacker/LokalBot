@@ -320,7 +320,6 @@ final class AgentSessionTabsTests: XCTestCase {
         let added = sessions.handOff(makeHandoffs(count: 5), start: true)
 
         XCTAssertEqual(added.count, 5)
-        // Controllers are made when tasks are added: the first transport is the initial task's.
         for number in 1...4 {
             let transport = factory.transports[number]
             try await waitUntil { transport.sentLines.contains { $0.contains("Work on action \(number)") } }
@@ -361,7 +360,6 @@ final class AgentSessionTabsTests: XCTestCase {
 
         await sessions.tabs.first { $0.controller.state == .running }?.controller.shutdown()
 
-        // The second handoff's controller is the last one made.
         let transport = try XCTUnwrap(factory.transports.last)
         try await waitUntil { transport.sentLines.contains { $0.contains("Work on action 2") } }
         transport.inject(#"{"type":"response","id":"p1","command":"prompt","success":true}"#)
@@ -371,9 +369,6 @@ final class AgentSessionTabsTests: XCTestCase {
         await sessions.shutdownAll()
     }
 
-    /// A window handoff copies its package into the task's folder before the
-    /// task may start. When the task was queued to start first and the copy
-    /// then failed, the agent was sent a prompt naming files that were not there.
     func testAHandoffLeftUnstartedIsSentOnlyWhenStarted() async throws {
         let factory = Factory(root: root)
         let sessions = AgentSessionTabs { factory.makeController() }

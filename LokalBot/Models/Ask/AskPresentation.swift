@@ -1,13 +1,5 @@
 import Foundation
 
-// Display-only values for the Ask page: which matches are listed, where the
-// keyboard is among them, what the sources menu says, how an answer's
-// citations group into sources, and which questions an empty page suggests.
-// Nothing here changes what a question may read or what is sent to a model.
-
-/// What one search lists under (or above) the Ask field. A keyword asked
-/// while these show is answered from them; a full question reads the chosen
-/// sources whether or not anything is listed (`AskAnswerScope`).
 struct AskMatches {
     enum Row {
         case meeting(MeetingRecallGroup)
@@ -19,9 +11,7 @@ struct AskMatches {
     var meetings: [MeetingRecallGroup] = []
     var screens: [ScreenRecallGroup] = []
     var files: [FileSearchHit] = []
-    /// Notes the person's coding agents saved, while that source is on.
     var agentNotes: [AgentNoteHit] = []
-    /// More matched than the list holds.
     var isTruncated = false
 
     init() {}
@@ -34,12 +24,9 @@ struct AskMatches {
         isTruncated = result.isTruncated
     }
 
-    /// Rows in list order: meetings, screen moments, files, agent notes.
     var count: Int { meetings.count + screens.count + files.count + agentNotes.count }
     var isEmpty: Bool { count == 0 }
-    /// Matching lines across the listed meetings.
     var meetingPassageCount: Int { meetings.reduce(0) { $0 + $1.matches.count } }
-    /// Every screen moment in the listed sessions, shown or folded.
     var screenIDs: Set<Int64> { Set(screens.flatMap(\.matches).map(\.snapshotID)) }
 
     func row(at index: Int) -> Row? {
@@ -52,8 +39,6 @@ struct AskMatches {
         return agentNotes.indices.contains(noteIndex) ? .agentNote(agentNotes[noteIndex]) : nil
     }
 
-    /// "3 in 1 meeting" when only meetings matched, else the number of
-    /// sources. A list that was cut says "40+" instead of a total.
     func countLabel(localize: (String) -> String = { $0 }) -> String {
         if isTruncated { return "\(count.formatted())+" }
         guard screens.isEmpty, files.isEmpty, agentNotes.isEmpty, !meetings.isEmpty else {
@@ -66,8 +51,6 @@ struct AskMatches {
     }
 }
 
-/// Where the keyboard is on the Ask page: in the field (`index == nil`), where
-/// Return asks, or on one of the matches, where Return opens it.
 struct AskMatchCursor: Equatable {
     enum Direction { case up, down }
 
@@ -77,9 +60,6 @@ struct AskMatchCursor: Equatable {
 
     var isInMatches: Bool { index != nil }
 
-    /// Down moves from the field into the matches and then along them; Up
-    /// from the first match returns to the field. False when the key is not
-    /// this cursor's to handle, so the field keeps it.
     @discardableResult
     mutating func move(_ direction: Direction, count: Int) -> Bool {
         guard count > 0 else {
@@ -95,7 +75,6 @@ struct AskMatchCursor: Equatable {
         return true
     }
 
-    /// Matches that arrive or leave never strand the cursor past the list.
     mutating func clamp(count: Int) {
         guard let current = index else { return }
         index = count > 0 ? min(current, count - 1) : nil
@@ -104,20 +83,11 @@ struct AskMatchCursor: Equatable {
     mutating func returnToField() { index = nil }
 }
 
-/// The sources menu's button and its first rows. Scope is shown only here:
-/// the chosen sources, the finer filters, and, when a question is limited to
-/// earlier matches or to evidence another page handed over, what that is.
 struct AskScopeSummary: Equatable {
-    /// The menu button's text.
     var title: String
-    /// Limited to particular meetings or screen moments.
     var isNarrowed: Bool
-    /// A match-type or screen-app filter is on.
     var hasFilters: Bool
-    /// What the question is limited to, for the checked "Only …" row.
     var narrowedTo: String?
-    /// The row that widens it again: "All sources", or the sources that were
-    /// chosen before the limit.
     var widenTitle: String?
 
     static let maximumTitleLength = 34
@@ -154,16 +124,12 @@ struct AskScopeSummary: Equatable {
                 : nil)
     }
 
-    /// "All sources", or the chosen ones by name.
     static func sourcesLabel(_ sources: Set<AskSourceScope>, available: [AskSourceScope],
                              localize: (String) -> String = { $0 }) -> String {
         if sources.isSuperset(of: available) { return localize("All sources") }
         return available.filter(sources.contains).map { localize($0.displayName) }.joined(separator: ", ")
     }
 
-    /// One meeting by its title; otherwise how many meetings and screen
-    /// moments. Nil when the limit holds neither (files only, say), so the
-    /// caller names the sources that remain.
     private static func narrowedLabel(_ input: Input, meetingTitle: (UUID) -> String?,
                                       localize: (String) -> String) -> String? {
         let meetings = input.meetingIDs ?? []
@@ -186,8 +152,6 @@ struct AskScopeSummary: Equatable {
         return parts.isEmpty ? nil : parts.joined(separator: ", ")
     }
 
-    /// A limit that holds no meeting and no screen moment (only files
-    /// matched, say) leaves the sources it does not empty.
     private static func remainingSourcesLabel(_ input: Input, localize: (String) -> String) -> String {
         var remaining = input.sources
         if input.meetingIDs?.isEmpty == true { remaining.remove(.meetings) }
@@ -202,8 +166,6 @@ struct AskScopeSummary: Equatable {
     }
 }
 
-/// One source an answer cited, with the numbers that point at it. The numbers
-/// are the ones in the answer; grouping never renumbers them.
 struct AnswerSourceGroup: Identifiable, Equatable {
     struct Entry: Identifiable, Equatable {
         let number: Int
@@ -212,7 +174,6 @@ struct AnswerSourceGroup: Identifiable, Equatable {
     }
 
     let kind: ChatCitation.Kind
-    /// The meeting, the screen moment, or the file.
     let key: String
     var entries: [Entry]
 
@@ -221,10 +182,6 @@ struct AnswerSourceGroup: Identifiable, Equatable {
 }
 
 enum AnswerSources {
-    /// A row per meeting, screen moment or file, in the order the answer
-    /// first cites them. `fileKey` names the file a cited passage belongs to
-    /// (its path), so two passages of one file share a row; without it each
-    /// passage stays its own row.
     static func groups(_ citations: [ChatCitation],
                        fileKey: (Int64) -> String? = { _ in nil }) -> [AnswerSourceGroup] {
         var order: [String] = []
@@ -250,8 +207,6 @@ enum AnswerSources {
     }
 }
 
-/// The words a citation points at, read from what is already stored on this
-/// Mac: a transcript line, a screen moment's text, a file's excerpt.
 struct CitationPassage: Equatable {
     struct Line: Equatable {
         var start: TimeInterval
@@ -262,9 +217,6 @@ struct CitationPassage: Equatable {
 
     static let maximumLength = 420
 
-    /// The transcript line a meeting citation names. Citations carry whole
-    /// seconds, so the line that starts in that second wins; otherwise the
-    /// line being said then, otherwise the last one before it.
     static func line(at seconds: TimeInterval, in lines: [Line]) -> Line? {
         guard seconds.isFinite, seconds >= 0 else { return nil }
         let second = seconds.rounded(.towardZero)
@@ -277,8 +229,6 @@ struct CitationPassage: Equatable {
         return lines.last(where: { $0.start <= seconds })
     }
 
-    /// Stored text as a short quote: search markers and line breaks removed,
-    /// cut at a word once it runs long.
     static func quote(_ text: String?, limit: Int = maximumLength) -> String? {
         guard let text else { return nil }
         let plain = text
@@ -297,7 +247,6 @@ struct CitationPassage: Equatable {
 }
 
 extension CitationPassage {
-    /// A meeting's transcript as quotable lines, read from its folder.
     static func transcriptLines(in folder: URL) -> [Line] {
         guard let data = try? Data(contentsOf: folder.appendingPathComponent("transcript.json")),
               let transcript = try? JSONDecoder().decode(Transcript.self, from: data) else { return [] }
@@ -312,7 +261,6 @@ extension CitationPassage {
     }
 }
 
-/// A question, or a single word, offered on an empty Ask page.
 struct AskSuggestion: Identifiable, Equatable {
     enum Kind: Equatable { case project, meeting, person, general, keyword }
 
@@ -334,15 +282,11 @@ struct AskSuggestion: Identifiable, Equatable {
 
 enum AskSuggestions {
     struct Input {
-        /// The newest finished meeting of the person's own.
         var latestMeetingTitle: String?
         var personName: String?
         var projectName: String?
     }
 
-    /// Questions about the person's own project, latest meeting and a
-    /// colleague, then one word to search for. With none of those to name,
-    /// the app's general suggestions stand in and no word is offered.
     static func build(_ input: Input, fallback: [String],
                       localize: (String) -> String = { $0 }) -> [AskSuggestion] {
         let project = named(input.projectName)
@@ -372,8 +316,6 @@ enum AskSuggestions {
         "untitled", "notes", "recording", "project", "team", "with", "about", "from", "and", "the",
     ]
 
-    /// One word worth searching for: the first name that is a single word,
-    /// else the longest distinctive word in the names.
     static func keyword(from names: [String]) -> String? {
         let candidates = names.map { name in
             name.components(separatedBy: CharacterSet.alphanumerics.inverted)
@@ -389,8 +331,6 @@ enum AskSuggestions {
     }
 }
 
-/// Short dates beside Ask's matches and sources: "Nov 10, 11:00 AM", with
-/// the year only once it is not this year.
 enum AskDateLabel {
     static func moment(_ date: Date, now: Date = Date(), calendar: Calendar = .current,
                        locale: Locale = .current) -> String {

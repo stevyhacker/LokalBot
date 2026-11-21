@@ -1,11 +1,3 @@
-//! Preparation for the next meeting on Today (`UpcomingMeetingPreparationModel`).
-//!
-//! The evidence is gathered on every request; a brief written by the local
-//! Think model is cached in memory by the evidence's signature and never
-//! saved. Automatic briefs never download a model: they run only when the
-//! Think model is on this computer and already installed. "Generate brief"
-//! may prepare it.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -32,7 +24,6 @@ pub(crate) struct Preparation {
 #[derive(Default)]
 struct Briefs {
     written: HashMap<String, String>,
-    /// Signatures whose automatic brief failed; only an explicit request retries.
     failed: std::collections::HashSet<String>,
 }
 
@@ -54,7 +45,6 @@ impl Preparation {
 fn run(shared: Arc<Shared>, models: Models, jobs: Receiver<Job>) {
     let briefs = Mutex::new(Briefs::default());
     while let Ok(mut job) = jobs.recv() {
-        // Only the newest request for the same event matters.
         while let Ok(next) = jobs.try_recv() {
             let generate = job.generate || next.generate;
             job = Job { generate, ..next };

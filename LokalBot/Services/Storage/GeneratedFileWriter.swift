@@ -1,7 +1,5 @@
 import Foundation
 
-/// Shared ownership contract for exports and routines. A marker identifies a
-/// generated file; only the recorded hash grants permission to replace it.
 enum GeneratedFileWriter {
     enum WriteError: Error {
         case collision, modified, unsafeDestination
@@ -13,8 +11,6 @@ enum GeneratedFileWriter {
         url.deletingLastPathComponent().appendingPathComponent(".\(url.lastPathComponent)\(sidecarSuffix)")
     }
 
-    /// Returns false when identical bytes were already present. Legacy files
-    /// can be adopted only in that case, without replacing their content.
     static func write(_ data: Data, to url: URL, marker: String) throws -> Bool {
         let manager = FileManager.default
         let sidecar = sidecarURL(for: url)
@@ -42,8 +38,6 @@ enum GeneratedFileWriter {
         }
         try Task.checkCancellation()
         try data.write(to: url, options: .atomic)
-        // Complete permissions/ownership after committing bytes, even if the
-        // calling task was cancelled immediately after the write.
         try setPrivatePermissions(url)
         try record(newDigest, at: sidecar)
         return true

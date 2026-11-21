@@ -24,7 +24,7 @@ LokalBot uses [SignPath.io](https://signpath.io) with a free open-source certifi
 3. **Create the SignPath project** with slug `lokalbot` bound to repository `stevyhacker/LokalBot`.
 4. **Upload the two artifact configurations** from `LinuxWindows/packaging/windows/signpath/`:
    - `windows-binaries.xml` → slug `windows-binaries` (signs `lokalbot.exe` and `lokalbot-cli.exe` with `product-name="LokalBot"`)
-   - `windows-installer.xml` → slug `windows-installer` (signs `LokalBot-*-windows-x86_64-setup.exe` with `product-name="LokalBot"`)
+   - `windows-installer.xml` → slug `windows-installer` (signs `LokalBot-*-windows-x86_64-setup.exe`; omits `product-name` because Inno Setup 6 space-pads `VersionInfoProductName` in its stub)
 5. **Create two signing policies under project `lokalbot`:**
    - `test-signing` → linked to SignPath's provided **self-signed test certificate**, bound to GitHub Actions origin `stevyhacker/LokalBot`.
    - `release-signing` → linked to the **SignPath Foundation production certificate** once imported, requiring manual approval by project Approvers (`@stevyhacker`).

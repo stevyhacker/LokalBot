@@ -1,11 +1,3 @@
-//! Reads Claude Code's notes from `~/.claude/projects/<cwd-slug>/memory/*.md`
-//! (`ClaudeCodeMemoryReader`).
-//!
-//! Each note is one Markdown file with a short header (name, description,
-//! type). `MEMORY.md` is the folder's index of those files: it supplies titles
-//! and is not a note itself. Nothing else in a project folder is read except
-//! the opening of one session file, for the folder's real path.
-
 use std::collections::HashMap;
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
@@ -17,12 +9,10 @@ use super::exclusions::{Exclusions, claude_project_slug};
 use super::text::{self, ReadFailure};
 
 pub const INDEX_FILE_NAME: &str = "MEMORY.md";
-/// How much of a session file is read to find its working directory.
 const SESSION_PEEK_BYTES: u64 = 256 * 1_024;
 const CATEGORIES: [&str; 4] = ["user", "feedback", "project", "reference"];
 
 pub struct ClaudeNotesReader {
-    /// `~/.claude/projects`.
     pub root: PathBuf,
 }
 
@@ -32,8 +22,6 @@ fn name_of(path: &Path) -> String {
         .unwrap_or_default()
 }
 
-/// A folder's visible entries, sorted by name, with whether each is a regular
-/// file (a link is not).
 fn listed(directory: &Path) -> Vec<(PathBuf, bool)> {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return Vec::new();
@@ -153,8 +141,6 @@ fn note(
     })
 }
 
-/// The leading `---` block as flat fields (`name`, `metadata.type`), and the
-/// text after it. A file without the block is all body.
 pub(super) fn front_matter(contents: &str) -> (HashMap<String, String>, String) {
     let lines: Vec<&str> = contents.split('\n').collect();
     let end = (lines.first().map(|line| line.trim()) == Some("---"))
@@ -188,8 +174,6 @@ pub(super) fn front_matter(contents: &str) -> (HashMap<String, String>, String) 
     (fields, lines[end + 1..].join("\n"))
 }
 
-/// File name to title, from index lines such as
-/// `- [Release gotchas](release-gotchas.md) — per-release lessons`.
 fn index_titles(index: &Path) -> HashMap<String, String> {
     let Ok(contents) = text::contents(index) else {
         return HashMap::new();
@@ -214,9 +198,6 @@ fn index_titles(index: &Path) -> HashMap<String, String> {
     titles
 }
 
-/// The folder a project's sessions ran in. The project folder's name is that
-/// path with its separators lost, so the path is read from the newest session
-/// files and kept only if it produces the same name.
 pub(super) fn working_directory(project: &Path) -> Option<String> {
     let slug = name_of(project);
     let mut sessions: Vec<PathBuf> = listed(project)
@@ -252,7 +233,6 @@ pub(super) fn working_directory(project: &Path) -> Option<String> {
     None
 }
 
-/// Decodes the JSON string whose first character opens `text`.
 fn json_string(text: &str) -> Option<String> {
     let mut escaped = false;
     for (index, c) in text.char_indices() {

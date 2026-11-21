@@ -8,8 +8,6 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-/// Resolves caret geometry and AX-to-Cocoa coordinate conversion independently
-/// from focus, privacy, and text-capture policy.
 enum CotypingAXGeometryResolver {
     private static func copyAttribute(_ element: AXUIElement, _ attribute: String) -> CFTypeRef? {
         var value: CFTypeRef?
@@ -23,10 +21,6 @@ enum CotypingAXGeometryResolver {
         copyAttribute(element, attribute) as? String
     }
 
-    // MARK: - Caret geometry
-
-    /// Returns the caret rect in global Cocoa coordinates and whether it is
-    /// exact (from a range query) vs an element-frame estimate.
     static func caretRect(
         _ element: AXUIElement,
         caretLocation: Int,
@@ -43,17 +37,9 @@ enum CotypingAXGeometryResolver {
                 return (cocoaRect(fromAX: caret), true)
             }
         }
-        // Web engines (Chromium / WebKit / Electron) ignore NSRange-based
-        // BoundsForRange and expose caret geometry only via opaque AX text
-        // markers. This is what fixes ghost placement in Chrome/Slack/VS Code-web.
         if let rect = textMarkerCaretRect(element), CotypingCaretGeometry.isCollapsedCaret(rect) {
             return (cocoaRect(fromAX: rect), true)
         }
-        // Chromium/Electron return zero-size rects from both queries above for
-        // a collapsed caret (measured in Chrome and Discord), but Blink still
-        // exposes each text run as an AXStaticText child with a tight frame:
-        // with the caret at the end of the text, the last run's trailing edge
-        // is the caret. This is what fixes inline ghost placement in Discord.
         if CotypingTextLeafCaret.caretIsAtTextEnd(fieldText: fieldText, caretLocation: caretLocation),
            let frame = elementFrame(element),
            let rect = CotypingTextLeafCaret.caretRect(
@@ -64,7 +50,6 @@ enum CotypingAXGeometryResolver {
                isRightToLeft: isRightToLeft) {
             return (cocoaRect(fromAX: rect), true)
         }
-        // Fallback: estimate a thin caret at the element's leading edge.
         if let frame = elementFrame(element) {
             let estimate = CGRect(x: frame.minX + 4, y: frame.minY,
                                   width: 1, height: min(max(frame.height, 8), 22))
@@ -73,9 +58,6 @@ enum CotypingAXGeometryResolver {
         return (.zero, false)
     }
 
-    /// AXStaticText descendants of an editable in tree order — Blink's
-    /// text-run boxes. Bounded walk: web composers keep this subtree tiny,
-    /// and it only runs after both precise caret queries have failed.
     private static func staticTextLeaves(
         _ element: AXUIElement,
         maxNodes: Int = 200,
@@ -103,8 +85,6 @@ enum CotypingAXGeometryResolver {
         return leaves
     }
 
-    /// Bounds of the character just before the caret, in AX coordinates, or
-    /// nil at the start of the text or of a line.
     private static func previousCharacterRect(
         _ element: AXUIElement, caretLocation: Int, fieldText: String
     ) -> CGRect? {
@@ -130,9 +110,6 @@ enum CotypingAXGeometryResolver {
         return rect
     }
 
-    /// Caret rect for web engines that vend geometry via opaque AX text markers
-    /// (`AXSelectedTextMarkerRange` → `AXBoundsForTextMarkerRange`) rather than
-    /// NSRange-based `AXBoundsForRange`. Ported from Cotabby's AXHelper.
     private static func textMarkerCaretRect(_ element: AXUIElement) -> CGRect? {
         var markerRangeValue: CFTypeRef?
         guard AXUIElementCopyAttributeValue(
@@ -159,9 +136,6 @@ enum CotypingAXGeometryResolver {
         return CGRect(origin: origin, size: size)
     }
 
-    /// Accessibility rects are top-left-origin display coordinates. Flip through
-    /// the actual display/screen pair containing the caret so external displays do
-    /// not inherit the primary display's height.
     static func cocoaRect(fromAX axRect: CGRect) -> CGRect {
         let midpoint = CGPoint(x: axRect.midX, y: axRect.midY)
         if let displayID = displayID(containingAXPoint: midpoint),
@@ -201,35 +175,14 @@ enum CotypingAXGeometryResolver {
     }
 }
 
-/// Picks the caret from what a text field reports for the empty range at the
-/// caret and for the character before it. TextEdit and Telegram on macOS 26
-/// report the empty range one line above where it is drawn (measured
-/// 2026-10-04: TextEdit at y 190 for a line at y 204, above the field's own
-/// top edge), with the right x. Chrome reports it with no size at all, so a
-/// GitHub review box fell back to a guess at the field's top-left corner
-/// (2026-10-05). In all three the character before the caret is reported
-/// where it is drawn, and its trailing edge is the caret, so the ghost sits on
-/// the line being typed.
 nonisolated enum CotypingCaretGeometry {
-    /// Slack for a character inside its field (borders, subpixel rounding).
     private static let containmentTolerance: CGFloat = 4
 
-    /// Whether a rect reported for the collapsed selection is a caret. Chromium
-    /// sometimes answers the text-marker query with the whole line's or the
-    /// field's box instead (measured 2026-10-05: 788×23, the field, for a
-    /// one-character message in the Claude app; 548×26 at the start of a
-    /// Chrome text box), and its trailing edge put the ghost on the line below.
     static func isCollapsedCaret(_ rect: CGRect) -> Bool {
         rect.width.isFinite && rect.height.isFinite && rect.height > 0
             && rect.width <= max(2, rect.height / 4)
     }
 
-    /// All rects in AX coordinates (top-left origin). Nil when neither range
-    /// gives a usable caret.
-    ///
-    /// - Parameter elementFrame: the field's frame, read only when there is
-    ///   no usable empty range. The character is then trusted only when it
-    ///   lies inside the field.
     static func caret(
         emptyRangeRect: CGRect?,
         previousCharacterRect: CGRect?,
@@ -242,7 +195,6 @@ nonisolated enum CotypingCaretGeometry {
         if let character = previousCharacterRect,
            character.width.isFinite, character.height.isFinite,
            character.width > 0, character.height > 0,
-           // One glyph, not a whole line or a stale frame.
            character.width <= character.height * 3,
            emptyRange != nil || elementFrame().map({
                $0.insetBy(dx: -containmentTolerance, dy: -containmentTolerance).contains(character)

@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// A result, a recent item or a command: a leading tile, the title with a
-/// grey qualifier and when, and the matching line under it.
 struct QuickRecallRow: View {
     @EnvironmentObject private var app: AppState
 
@@ -21,7 +19,6 @@ struct QuickRecallRow: View {
         .onHover { hovered = $0 }
     }
 
-    /// A command's shortcut, or when a result happened.
     private var trailing: String? {
         if let shortcut = row.shortcut { return shortcut }
         let language = app.settings.appLanguage
@@ -31,11 +28,8 @@ struct QuickRecallRow: View {
     }
 }
 
-/// The quiet row pinned under the results. ⌘Return asks from anywhere;
-/// Return asks once the arrow keys are on this row.
 struct QuickRecallAskRow: View {
     let query: String
-    /// What the answer will read and where it is written.
     let detail: String
     let selected: Bool
     @State private var hovered = false
@@ -73,7 +67,6 @@ struct QuickRecallAskRow: View {
     }
 }
 
-/// A group's heading, with "Show all N" when more were found than are shown.
 struct QuickRecallGroupHeader: View {
     let group: QuickRecallGroup
     let showAll: () -> Void
@@ -96,15 +89,12 @@ struct QuickRecallGroupHeader: View {
             }
         }
         .padding(.leading, 20)
-        // Ends where a row's "when" ends.
         .padding(.trailing, 44)
         .padding(.top, 8)
         .padding(.bottom, 3)
     }
 }
 
-/// The two text lines of a row. An answer's sources use the same lines, with
-/// a meeting's time after the title.
 struct QuickRecallRowText<Accessory: View>: View {
     let title: String
     var qualifier: String?
@@ -153,7 +143,6 @@ struct QuickRecallRowText<Accessory: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Who said it, then the line with the matched words in bold.
     private func matchingLine(_ snippet: String) -> Text {
         let lead = speaker.map { Text(verbatim: "\($0): ").foregroundStyle(strong) } ?? Text(verbatim: "")
         return SnippetHighlighter.segments(snippet).reduce(lead) { text, segment in
@@ -172,8 +161,6 @@ extension QuickRecallRowText where Accessory == EmptyView {
     }
 }
 
-/// What leads a row: a screen moment's thumbnail (with a badge when it is
-/// saved), a file's own icon, or a tile.
 struct QuickRecallLeadView: View {
     static let size = CGSize(width: 44, height: 30)
 
@@ -234,8 +221,6 @@ struct QuickRecallLeadView: View {
     }
 }
 
-/// The Return mark at the end of the selected row. Its slot is always
-/// reserved, so selection never reflows a line.
 struct QuickRecallReturnHint: View {
     let visible: Bool
 
@@ -250,7 +235,6 @@ struct QuickRecallReturnHint: View {
 }
 
 extension View {
-    /// A row's padding, and its fill when it is selected or under the pointer.
     func quickRecallRowChrome(selected: Bool, hovered: Bool) -> some View {
         modifier(QuickRecallRowChrome(selected: selected, hovered: hovered))
     }

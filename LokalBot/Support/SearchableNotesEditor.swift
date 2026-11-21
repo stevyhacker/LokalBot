@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Native text selection makes cross-tab Find land in the editable notes.
 struct SearchableNotesEditor: NSViewRepresentable {
     @Binding var text: String
     let query: String

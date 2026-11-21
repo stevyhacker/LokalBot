@@ -4,7 +4,6 @@ import XCTest
 final class AgentRuntimeTests: XCTestCase {
 
     func testSHA256HexDigestOfKnownData() throws {
-        // shasum -a 256 <<< "hello" (with trailing newline stripped): sha256("hello")
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("sha-test-\(UUID().uuidString).txt")
         try Data("hello".utf8).write(to: url)
@@ -90,8 +89,6 @@ final class AgentRuntimeTests: XCTestCase {
         try JSONEncoder().encode(marker).write(
             to: AgentRuntimeLayout.versionMarker(under: root))
 
-        // The cheap receipt intentionally avoids walking node_modules. An
-        // explicit deep audit still covers imported/runtime dependency code.
         try Data("// tampered imported code".utf8).write(to: importedModule)
         XCTAssertTrue(AgentRuntimeLayout.isInstalled(under: root, manifest: manifest))
         XCTAssertFalse(AgentRuntimeLayout.isIntegrityValid(under: root, manifest: manifest))
@@ -144,9 +141,6 @@ final class AgentRuntimeTests: XCTestCase {
         XCTAssertNotEqual(manifest.piRuntimeTreeSHA256, String(repeating: "0", count: 64))
     }
 
-    /// Maintainers can point this at a fresh frozen-lockfile install when
-    /// updating the pinned pi runtime. It deliberately skips in ordinary CI,
-    /// which must not depend on npm or a preinstalled package tree.
     func testCurrentManifestMatchesProvidedPinnedRuntimeTree() throws {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_PINNED_RUNTIME_TREE"],
               !path.isEmpty else {

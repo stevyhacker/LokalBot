@@ -1,12 +1,7 @@
 import AppKit
 import ApplicationServices
 
-/// Call lifecycle evidence is independent of audio. Only a supported meeting
-/// document and its call controls count.
 enum BrowserMeetingSession {
-    /// `present`: the verified window still holds the call's tab, but its call
-    /// controls cannot be read (a large page, a slow tree, another tab in front).
-    /// `gone`: that window was closed or no longer holds the call's tab.
     enum State: String, Codable, Equatable, Sendable {
         case inCall, minimized, present, ended, gone, unavailable, waitingRoom
     }
@@ -17,8 +12,6 @@ enum BrowserMeetingSession {
 
     typealias Service = ConferenceRoom.Service
 
-    // The MTS Link desktop app also plays chat notifications and voice messages.
-    // Verify its conference web view instead of treating audio as a meeting.
     nonisolated static let nativeWebClients: [String: Service] = ["ru.weteams.desktop": .mtsLink]
 
     nonisolated static func roomURL(_ raw: String) -> String? { ConferenceRoom(raw)?.url }
@@ -44,11 +37,9 @@ enum BrowserMeetingSession {
     struct Window {
         var element: AXUIElement
         var snapshot: Snapshot
-        /// The window title when its call was verified, i.e. the call tab's title.
         var title = ""
     }
 
-    /// What a complete AX read proved about the expected room and its windows.
     private struct WindowRead {
         var windows: [AXUIElement]?
         var inspected: [AXUIElement] = []
@@ -66,20 +57,15 @@ enum BrowserMeetingSession {
         boundWindowOnLanding && tabHoldsRoom == false ? .ended : nil
     }
 
-    /// A Join screen ends the bound call only in the call's own window. The
-    /// same room's lobby elsewhere, such as a reopened invite link, is not it.
     static func waitingRoomState(inBoundWindow: Bool) -> State? {
         inBoundWindow ? .ended : nil
     }
 
-    /// Why the last lifecycle read of a browser found no call document.
     enum ReadIssue: String, Codable, Sendable {
         case accessibilityUntrusted, windowListUnavailable, tooManyWindows, deadline
         case pageTooLarge, accessibilityTimeout, noMeetingDocument, ambiguousWindows
     }
 
-    /// Only a previously verified window can suspend lifecycle observations.
-    /// Another browser window or unrelated audio cannot acquire this binding.
     private final class WindowBindings: @unchecked Sendable {
         private let lock = NSLock()
         private var windows: [pid_t: Window] = [:]
@@ -116,12 +102,8 @@ enum BrowserMeetingSession {
     }
     private static let readIssues = ReadIssues()
 
-    /// Diagnostics only: why the latest read of this browser found no call.
     static func lastReadIssue(processID: pid_t) -> ReadIssue? { readIssues.get(processID) }
 
-    /// AX is a best-effort source. A pathological background page must be
-    /// isolated to its own window so it cannot consume the budget for the
-    /// meeting document we are trying to verify.
     struct TraversalBudget {
         static let duration: TimeInterval = 0.25
         static let maximumNodes = 3_000
@@ -163,9 +145,6 @@ enum BrowserMeetingSession {
         }
     }
 
-    /// Lifecycle observations are allowed to be temporarily unavailable. A
-    /// missing Accessibility snapshot is not the same evidence as a call that
-    /// explicitly ended or a browser process that disappeared.
     enum LifecycleDecision: Equatable {
         case inCall
         case visibilitySuspended
@@ -181,20 +160,11 @@ enum BrowserMeetingSession {
         now: Date,
         grace: TimeInterval
     ) -> LifecycleDecision {
-        // A missing host/document or unreadable controls cannot prove an end.
-        // Keep the authorized capture and its binding alive until positive end
-        // evidence or the user's Stop action, however long observation takes.
         guard hostPresent || snapshotState == .ended else { return .waitForObservation }
         switch snapshotState {
         case .some(.inCall):
             return .inCall
         case .some(.minimized), .some(.present):
-            // A minimized window, or a call tab whose controls are unreadable,
-            // cannot expose call controls, so it is not fresh call evidence. It
-            // is, however, positive evidence that the exact previously verified
-            // window still holds the call. Keep that recording until the
-            // controls return, the tab/window/host disappears, or an explicit
-            // ended state is seen. Neither can pass StartGate and begin a session.
             return .visibilitySuspended
         case .some(.ended):
             return .endImmediately
@@ -211,8 +181,6 @@ enum BrowserMeetingSession {
         }
     }
 
-    /// One bound call's lifecycle. Uncertainty never expires the authorization
-    /// to keep recording. Only continuously verified closure starts end grace.
     struct LifecycleTracker: Equatable {
         enum Event: Equatable {
             case none
@@ -225,7 +193,6 @@ enum BrowserMeetingSession {
         private(set) var lostAt: Date?
         private(set) var suspension: State?
         private var suspendedAt: Date?
-        /// In-call controls, or the verified window still holding the call.
         private(set) var lastEvidenceAt: Date?
         private var closedAt: Date?
 
@@ -245,8 +212,6 @@ enum BrowserMeetingSession {
                 self = Self(verifiedAt: now)
                 return since.map { .recovered(after: now.timeIntervalSince($0)) } ?? .none
             case .visibilitySuspended:
-                // The window still holds the call, so the grace clock restarts
-                // and a later uncertain period gets its full grace.
                 let changed = suspension != state
                 if suspendedAt == nil { suspendedAt = lostAt ?? now }
                 lostAt = nil
@@ -289,15 +254,12 @@ enum BrowserMeetingSession {
         if service != .googleMeet {
             let mic = ["включить микрофон", "выключить микрофон",
                        "turn on microphone", "turn off microphone", "mute microphone", "unmute microphone"]
-            // Match the actual toggles, not menu labels such as "Включить микрофон Меню".
             let hasMic = mic.contains(where: buttons.contains)
             switch service {
             case .telemost:
                 let leave = ["выйти из встречи", "завершить звонок", "leave meeting", "end call"]
                 return hasMic && leave.contains(where: buttons.contains) ? .inCall : .unavailable
             case .mtsLink:
-                // Its device preview renders behind a dialog, with the room's
-                // own Leave button. The Join action is a veto, even in that tree.
                 let join = ["присоединиться к встрече", "join the meeting", "join meeting"]
                 let leave = ["покинуть встречу", "leave the meeting", "leave meeting"]
                 let roomControls = ["участники", "participants", "поднять руку", "raise hand"]
@@ -312,9 +274,6 @@ enum BrowserMeetingSession {
         let leave = ["leave call", "leave meeting", "hang up"].contains(where: offers)
         let microphone = buttons.contains { $0.hasPrefix("turn off microphone") || $0.hasPrefix("turn on microphone") }
         if leave && microphone { return .inCall }
-        // Meet's page after a call offers to rejoin it or go home, whatever its
-        // heading says (left, removed, ended by the host). With the call
-        // controls gone, that pair is end evidence where the wording is not.
         return !leave && offers("rejoin") && offers("return to home screen") ? .ended : .unavailable
     }
 
@@ -348,8 +307,6 @@ enum BrowserMeetingSession {
                 state = nativeWindowState(roomSeen: read.expectedRoomSeen,
                     allWindowsInspected: read.windows?.count == read.inspected.count, minimized: minimized)
             } else {
-                // The same room's lobby in another window is not the call's
-                // document, so the bound window and its tabs still decide.
                 state = boundWindowState(bound: bound, read: read, documentReadable: observed != nil && !lobby)
             }
             if let state {
@@ -360,12 +317,7 @@ enum BrowserMeetingSession {
         return observed?.snapshot
     }
 
-    /// What the exact verified window shows when its call controls were not
-    /// read. Nil keeps today's uncertainty: the window list or tab strip could
-    /// not be read, or the call document itself was readable without controls.
     private static func boundWindowState(bound: Window, read: WindowRead, documentReadable: Bool) -> State? {
-        // A moved tab can replace its original window. Inspect every window
-        // before calling the bound call closed; unreadable strips abstain.
         guard let windows = read.windows else { return nil }
         guard windows.contains(where: { CFEqual($0, bound.element) }) else {
             return closureState(in: windows, bound: bound)
@@ -387,14 +339,11 @@ enum BrowserMeetingSession {
         if namesRoom { return .present }
         guard let tabHoldsCall else { return nil }
         if tabHoldsCall { return .present }
-        // Only call a tab closed when its title was recognisable to begin with.
         return closureState(in: windows, bound: bound)
     }
 
     private static func closureState(in windows: [AXUIElement], bound: Window) -> State? {
         let url = bound.snapshot.url
-        // Meet has a room code in its tab title. The other services can show
-        // just the call title, so use the exact title we verified in the room.
         let fallbackTitle = url.host == Service.googleMeet.rawValue ? "" : bound.title
         guard titleNamesCall(bound.title, url: url, verifiedTitle: fallbackTitle) else { return nil }
         for window in windows {
@@ -409,9 +358,6 @@ enum BrowserMeetingSession {
         return .gone
     }
 
-    /// Whether a window or tab title still names the verified call. Meet puts
-    /// the room code in its title; the title seen at verification also counts,
-    /// including Chrome's appended tab states such as "- Audio playing".
     static func titleNamesCall(_ title: String, url: URL, verifiedTitle: String) -> Bool {
         let candidate = title.lowercased()
         let code = url.lastPathComponent.lowercased()
@@ -421,14 +367,9 @@ enum BrowserMeetingSession {
                        "мтс линк", "мтс линк встречи", "mts link"]
         guard !generic.contains(verified) else { return false }
         if url.host == Service.googleMeet.rawValue { return candidate.hasPrefix(verified) }
-        // Chrome can prefix the localized tab label and quote the title,
-        // then append a group name or a microphone/audio indicator. This
-        // comparison only keeps an existing binding; it cannot start one.
         return candidate.contains(verified)
     }
 
-    /// Searches the window's tab strip (the first tab group outside page
-    /// content). Nil when the strip is not found or not read completely.
     private static func tabStripContains(in window: AXUIElement, where matches: (String) -> Bool) -> Bool? {
         let deadline = ProcessInfo.processInfo.systemUptime + 0.3
         func children(_ fields: [String: AnyObject]) -> [AXUIElement] {
@@ -450,7 +391,6 @@ enum BrowserMeetingSession {
             }
         }
         guard let strip else { return nil }
-        // Tabs may sit inside named tab groups, so scan a few levels down.
         var stack: [(element: AXUIElement, depth: Int)] = [(strip, 0)]
         var visited = 0
         while let (element, depth) = stack.popLast() {
@@ -466,9 +406,6 @@ enum BrowserMeetingSession {
         return false
     }
 
-    /// Enumerate browser windows, never just the focused window. Background
-    /// documents unavailable through Accessibility safely abstain. No pixels,
-    /// participant names, or page text are retained by lifecycle detection.
     static func window(processID: pid_t, expectedURL: URL?, preferFocused: Bool = false) -> Window? {
         var read = WindowRead()
         return observeWindow(processID: processID, expectedURL: expectedURL, preferFocused: preferFocused,
@@ -518,9 +455,6 @@ enum BrowserMeetingSession {
             let title = value(window, kAXTitleAttribute) as? String ?? ""
             let checksNativeClosure = bound != nil && nativeService != nil
             let isBoundWindow = bound.map { CFEqual($0.element, window) } == true
-            // A native client's closure check must read its other windows even
-            // when minimized, or one minimized chat window keeps the call open.
-            // The bound window's own minimized state is reported separately.
             let skipsMinimized = !checksNativeClosure || isBoundWindow
             if ScreenContextPrivacy.isPrivateWindow(title: title)
                 || (skipsMinimized && value(window, kAXMinimizedAttribute) as? Bool == true) { continue }
@@ -570,8 +504,6 @@ enum BrowserMeetingSession {
                         }
                         inDocument = true
                     } else if nativeService == nil {
-                        // Never look for a conferencing iframe on an unrelated
-                        // browser site. A known desktop client may embed its own web view.
                         continue
                     }
                 }
@@ -579,7 +511,6 @@ enum BrowserMeetingSession {
                     let labels = [kAXTitleAttribute, kAXDescriptionAttribute, kAXValueAttribute]
                         .compactMap { fields[$0] as? String }.filter { $0.count <= 160 }
                     if room?.service == .googleMeet {
-                        // Meet's post-call actions may be links rather than buttons.
                         if role == "AXButton" || role == "AXLink" { buttons += labels } else { messages += labels }
                     } else if role == "AXButton" {
                         if fields[kAXEnabledAttribute] as? Bool == false { disabledButtons += labels } else { buttons += labels }
@@ -589,7 +520,6 @@ enum BrowserMeetingSession {
                 guard budget.allowsChildren(children.count) else { issue = .pageTooLarge; continue windowLoop }
                 stack += children.reversed().map { ($0, depth + 1, inDocument) }
             }
-            // Only a complete read without any meeting document is remembered.
             quietWindows.record(window, title: title, quiet: !sawMeetingDocument,
                                 processID: processID, now: started)
             read.inspected.append(window)
@@ -599,10 +529,6 @@ enum BrowserMeetingSession {
                 let match = Window(element: window, snapshot: Snapshot(url: parsed, state: callState),
                                    title: room.service == .googleMeet ? title : roomTitle ?? title)
                 matches.append(match)
-                // An expected URL is already the caller's binding. Return a
-                // positive call-control match immediately so unrelated heavy
-                // windows later in the AX list cannot add latency or fail the
-                // bound meeting lookup.
                 if expected != nil, match.snapshot.state == .inCall, !preferFocused { return match }
             }
         }
@@ -612,7 +538,6 @@ enum BrowserMeetingSession {
             if let focused, let match = calls.first(where: { CFEqual($0.element, focused) }) { return match }
             return calls.count == 1 ? calls.first : nil
         }
-        // Multiple unrelated meeting windows cannot silently pick the first call.
         if expected == nil {
             let calls = matches.filter { $0.snapshot.state == .inCall }
             return calls.count == 1 ? calls.first : nil
@@ -620,9 +545,6 @@ enum BrowserMeetingSession {
         return matches.count == 1 ? matches.first : nil
     }
 
-    /// Telemost keeps the entire chat application in the meeting page. Find
-    /// the call toolbar before walking deep chat lists; those lists can use
-    /// the full window budget even when the call controls are easy to reach.
     private static func readTelemostCall(in children: [AXUIElement], room: ConferenceRoom, depth: Int,
                                          budget: inout TraversalBudget) -> State {
         guard budget.allowsChildren(children.count) else { return .unavailable }
@@ -654,12 +576,6 @@ enum BrowserMeetingSession {
         return .unavailable
     }
 
-    /// Browser windows whose last complete read found no meeting document. A meeting
-    /// tab coming to the front or loading replaces the window's title, so a
-    /// window keeping its title is not walked again until `maximumAge` passes.
-    /// Each walk visits the browser's own toolbar, tab strip, and bookmarks
-    /// with one cross-process call per node, which every 2-second detector
-    /// tick used to repeat for every window, in LokalBot and in the browser.
     final class QuietWindowCache: @unchecked Sendable {
         static let maximumAge: TimeInterval = 30
 
@@ -688,7 +604,6 @@ enum BrowserMeetingSession {
             }
         }
 
-        /// Forgets windows that closed.
         func keep(only windows: [AXUIElement], processID: pid_t) {
             lock.withLock {
                 guard let list = entries[processID] else { return }
@@ -712,13 +627,6 @@ enum BrowserMeetingSession {
     }
     private static let primedProcesses = PrimedProcesses()
 
-    /// Chromium and Firefox expose page content to accessibility clients only
-    /// once asked. Ask once per browser process. Chromium honours
-    /// `AXManualAccessibility`, the switch meant for assistive tools that are
-    /// not screen readers (cotyping already uses it). `AXEnhancedUserInterface`
-    /// also puts the whole app into VoiceOver mode, which slows Chrome and
-    /// breaks window-manager animations, and it used to be set on every
-    /// 2-second poll; only Firefox still needs it. Safari exposes its pages.
     static func webAccessibilityPrimingAttribute(bundleID: String?) -> String? {
         switch bundleID {
         case "org.mozilla.firefox": "AXEnhancedUserInterface"
@@ -737,7 +645,6 @@ enum BrowserMeetingSession {
         case .success, .attributeUnsupported:
             primedProcesses.insert(processID)
         default:
-            // A busy browser timed out; ask again on the next poll.
             break
         }
     }

@@ -1,8 +1,4 @@
 #!/usr/bin/env bash
-# Builds the ZIP for the OpenAI plugin directory (ChatGPT and Codex) from
-# Distribution/openai-plugin: plugin.json, skills/ and assets/ at the ZIP root.
-# Upload it at https://platform.openai.com/plugins. See
-# Distribution/openai-plugin/README.md.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"

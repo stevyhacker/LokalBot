@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// FTS5 snippets mark matches with «»; the highlighter splits them into
-/// runs so ResultRow can bold the matched text. The old SearchHitRow parser
-/// had these exact behaviors — locked here before the move.
 final class SnippetHighlighterTests: XCTestCase {
 
     func testPlainTextIsOneUnmatchedRun() {

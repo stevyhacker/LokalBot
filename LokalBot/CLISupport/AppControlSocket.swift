@@ -1,13 +1,8 @@
 import Foundation
 
-/// Unix-domain socket plumbing shared by the app's control server and the
-/// CLI. The socket lives in the library's 0700 `control/` folder; a root
-/// whose path is too long for `sun_path` uses a per-user name in /tmp that
-/// both sides derive the same way.
 enum AppControlSocket {
     static let fileName = "app.sock"
 
-    /// `sun_path` holds 104 bytes on macOS, including the terminating NUL.
     static let maximumPathBytes = 103
 
     static func path(controlDirectory: URL, userID: uid_t = getuid()) -> String {
@@ -28,7 +23,6 @@ enum AppControlSocket {
         return address
     }
 
-    /// Opens a connected client socket, refusing a socket another user owns.
     static func connect(path: String, timeout: TimeInterval) throws -> Int32 {
         var info = stat()
         guard lstat(path, &info) == 0 else { throw lastError }
@@ -52,7 +46,6 @@ enum AppControlSocket {
         return descriptor
     }
 
-    /// Blocking I/O with a deadline, and no SIGPIPE when the peer is gone.
     static func configure(_ descriptor: Int32, timeout: TimeInterval) {
         var noSignal: Int32 = 1
         setsockopt(descriptor, SOL_SOCKET, SO_NOSIGPIPE, &noSignal, socklen_t(MemoryLayout<Int32>.size))
@@ -64,14 +57,12 @@ enum AppControlSocket {
         setsockopt(descriptor, SOL_SOCKET, SO_SNDTIMEO, &interval, socklen_t(MemoryLayout<timeval>.size))
     }
 
-    /// True when the connected peer runs as this process's user.
     static func peerIsCurrentUser(_ descriptor: Int32) -> Bool {
         var userID: uid_t = 0
         var groupID: gid_t = 0
         return getpeereid(descriptor, &userID, &groupID) == 0 && userID == getuid()
     }
 
-    /// Reads one newline-terminated record, without the newline.
     static func readLine(_ descriptor: Int32, limit: Int = AppControlProtocol.maximumMessageBytes) throws -> Data {
         var record = Data()
         var buffer = [UInt8](repeating: 0, count: 16 * 1_024)

@@ -204,8 +204,6 @@ final class CotypingVisibleContextTests: XCTestCase {
         XCTAssertNil(result)
     }
 
-    /// The text above a field is read once per field and then refreshed in
-    /// the background: a keystroke gets the previous read instead of waiting.
     func testAStaleFieldContextIsServedWhileItRefreshesInTheBackground() {
         let now = LockedValue<TimeInterval>(0)
         let cache = CotypingFieldContextCache<String>(label: "test", maxAge: 3, clock: { now.value })
@@ -225,8 +223,6 @@ final class CotypingVisibleContextTests: XCTestCase {
         XCTAssertEqual(reads.value, 2)
     }
 
-    /// An empty field has no font to read yet; the first typed character's
-    /// font must be read then, not hidden behind a remembered failure.
     func testAFontThatCouldNotBeReadIsNotRemembered() {
         let now = LockedValue<TimeInterval>(0)
         let cache = CotypingFieldContextCache<String>(label: "test", maxAge: 5, clock: { now.value })
@@ -310,15 +306,11 @@ final class CotypingVisibleContextTests: XCTestCase {
                                                text: "The Mistral export format is JSON.", updatedAt: now,
                                                requiresMeetings: true)]
         let policy = CotypingMemoryContext.Policy(meetings: true, screenDerived: false)
-        // The visible conversation names Willow. Its incidental words ("export",
-        // "format") must not admit Mistral: nearby text can name a saved source
-        // but never counts as the user's own wording.
         let query = CotypingMemoryContext.query(for: field, includeTitle: false)
         XCTAssertTrue(query.all.isSuperset(of: ["willow", "export", "format"]))
         XCTAssertFalse(query.own.contains("format"))
         XCTAssertTrue(CotypingMemoryContext.select(items: facts, for: field, includeTitle: false,
                                                    policy: policy, now: now).items.isEmpty)
-        // Two ordinary words of the user's own draft name no project either.
         field.visibleContext = nil
         field.precedingText = "The export format is "
         XCTAssertTrue(CotypingMemoryContext.select(items: facts, for: field, includeTitle: false,
@@ -341,8 +333,6 @@ final class CotypingVisibleContextTests: XCTestCase {
         XCTAssertFalse(settings.cotypingUseScreenMemory)
     }
 
-    /// On for new installs only: settings saved by an earlier version keep
-    /// what they had, and a missing key there means off.
     func testVisibleTextIsOnForNewInstallsOnly() throws {
         XCTAssertTrue(AppSettings().cotypingUseVisibleContext)
         let decoder = JSONDecoder()
@@ -356,7 +346,6 @@ final class CotypingVisibleContextTests: XCTestCase {
         }
     }
 
-    /// PRIVACY.md promises nearby text never comes from a private window.
     func testPrivateWindowsAreNeverRead() {
         var settings = AppSettings()
         settings.cotypingEnabled = true
@@ -372,7 +361,6 @@ final class CotypingVisibleContextTests: XCTestCase {
     }
 }
 
-/// A value shared with a cache's clock or background reads.
 private final class LockedValue<Value>: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Value

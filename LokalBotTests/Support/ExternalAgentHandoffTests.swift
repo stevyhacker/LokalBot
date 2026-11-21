@@ -9,8 +9,6 @@ final class ExternalAgentHandoffTests: XCTestCase {
         XCTAssertEqual(codex.absoluteString, "codex://new?prompt=Hi")
     }
 
-    /// URLSearchParams reads a bare `+` as a space and `&` as a new
-    /// parameter, so both must arrive percent-encoded.
     func testPromptSurvivesQueryParsing() throws {
         let prompt = "C++ & Q&A = 100% #1?\nДоговор: Ana's \"plan\" 🚀"
         for target in ExternalAgentHandoff.allCases {

@@ -1,30 +1,8 @@
 import Foundation
 
-/// Reads what Granola lets a person take out of it. Granola keeps its own
-/// data on this Mac encrypted (`cache-v6.json.enc`, `granola.db`), so
-/// LokalBot never opens those; it reads the files Granola hands over:
-///
-/// - **The historical data export.** Settings → Profile → Export historical
-///   data → Generate CSV, emailed as a `.csv` or a `.zip` of them. One row
-///   per note: `document_id`, `user_email`, `document_title`,
-///   `workspace_name`, `document_created`, `summary` (the AI-enhanced notes,
-///   Markdown), `notes` (what the person typed), and `transcript`.
-/// - **A copied note.** "Copy notes" puts Markdown on the clipboard: `# Title`,
-///   a "Tue, 03 Nov 26 · Ana, Leo" line, the notes, and a closing "Chat with
-///   meeting transcript:" link. Saved by the person as `.md` or `.txt`.
-/// - **A copied transcript.** The transcript panel's copy button gives
-///   "Meeting Title:", "Date:", and "Meeting participants:" lines, then
-///   "Transcript:" and one "Speaker: text" line per turn.
-///
-/// Transcript lines carry Granola's own labels: "Me" for the person's
-/// microphone, "Them" for system audio, a display name from speaker tags,
-/// or "Speaker A" from diarization. Granola keeps no audio and no line times,
-/// so these meetings have neither.
 enum GranolaMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.granola
     static let exportHint = "In Granola, click your workspace name, open Settings → Profile, click Generate CSV under Export historical data, choose your workspaces, then pick the CSV or ZIP from the email Granola sends. A note copied with Copy notes, or a transcript copied from the transcript panel, also works once pasted into a .md or .txt file."
-    /// Granola's own files on this Mac are encrypted, so there is nothing to
-    /// read without an export.
     static let defaultLocations: [String] = []
 
     static func recognizes(_ url: URL) -> Bool {
@@ -78,13 +56,10 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return ExternalImportScan(meetings: mergeCopies(found), problems: problems)
     }
 
-    // MARK: - Telling files apart
-
     private enum FileKind: Equatable {
         case export
         case copiedNotes
         case copiedTranscript
-        /// Looks like part of an export but can't be opened.
         case unreadable(String)
         case other
     }
@@ -93,7 +68,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
     private static let transcriptHeaderPrefixes = ["Meeting Title:", "Date:", "Meeting participants:"]
     private static let contentColumns: Set<String> = ["summary", "notes", "transcript"]
 
-    /// Reads at most the first and last few kilobytes, never the whole file.
     private static func kind(of url: URL) -> FileKind {
         switch url.pathExtension.lowercased() {
         case "csv":
@@ -114,7 +88,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
             if tail.contains(footerMarker) || head.contains("notes.granola.ai/") || tail.contains("notes.granola.ai/") {
                 return .copiedNotes
             }
-            // A copy without the link still opens with `# Title` and Granola's date line.
             let opening = headLines.filter { !$0.isEmpty }.prefix(2)
             if opening.count == 2, opening.first?.hasPrefix("# ") == true, let dateLine = opening.last,
                notesDateLine(dateLine) != nil {
@@ -142,7 +115,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return Set(firstLine.split(separator: ",").map { columnName(String($0).replacingOccurrences(of: "\"", with: "")) })
     }
 
-    /// Granola's own column names; other tools' CSVs don't use `document_*`.
     private static func isExportHeader(_ columns: Set<String>) -> Bool {
         columns.contains("document_title")
             && (columns.contains("document_id") || columns.contains("document_created"))
@@ -159,10 +131,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return text
     }
 
-    // MARK: - Reading files
-
-    /// A meeting, and for copies the key that pairs a copied note with the
-    /// copied transcript of the same meeting.
     private struct Found {
         enum Copy { case notes, transcript }
         var meeting: ExternalMeeting
@@ -229,8 +197,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
 
     private static let untitled = "\(ExternalMeetingSource.granola.title) meeting"
 
-    /// "Copy notes": `# Title`, a "Tue, 03 Nov 26 · Ana, Leo" line, the notes,
-    /// then a rule and the "Chat with meeting transcript:" link.
     private static func readCopiedNotes(_ text: String, url: URL) -> Found {
         let (body, link) = strippingFooter(text)
         var lines = body.components(separatedBy: "\n")
@@ -257,7 +223,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return Found(meeting: meeting, copy: .notes, pairKey: pairKey(title: title, date: startedAt))
     }
 
-    /// The transcript panel's copy: header lines, "Transcript:", then turns.
     private static func readCopiedTranscript(_ text: String, url: URL) -> Found {
         let rows = text.components(separatedBy: "\n")
         var title = ExternalImportText.title(fromFileName: url)
@@ -300,8 +265,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return line.dropFirst(prefix.count).trimmingCharacters(in: .whitespaces)
     }
 
-    /// A copied note and a copied transcript of the same meeting (same title
-    /// and day) become one meeting, kept under the note's id.
     private static func mergeCopies(_ found: [Found]) -> [ExternalMeeting] {
         var meetings = found.map(\.meeting)
         var noteByKey: [String: Int] = [:]
@@ -325,26 +288,18 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return "\(title.lowercased())|\(dayKey(date))"
     }
 
-    // MARK: - Ids and dates
-
-    /// The source's id; a UUID is lowercased so the same note matches
-    /// whichever file it came from.
     private static func documentID(_ raw: String) -> String? {
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         return UUID(uuidString: trimmed) == nil ? trimmed : trimmed.lowercased()
     }
 
-    /// A note link of the form `…granola.ai/d/<document id>`. Shared `/t/`
-    /// links carry a slug, not the id.
     private static func documentID(inLink link: String) -> String? {
         guard let range = link.range(of: #"/d/[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}"#,
                                      options: .regularExpression) else { return nil }
         return documentID(String(link[range].dropFirst(3)))
     }
 
-    /// `document_created` is ISO 8601 ("2026-10-24T14:34:40.866Z"); a
-    /// database-style "2026-10-24 14:34:40.866+00" or epoch number is read too.
     private static func exportDate(_ raw: String) -> Date? {
         let value = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !value.isEmpty else { return nil }
@@ -359,9 +314,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return ExternalImportText.date(iso)
     }
 
-    /// "Tue, 03 Nov 26 · Ana Petrović, Leo" — Granola writes the date in
-    /// British English and joins the parts with non-breaking spaces. The
-    /// date has no time, so the meeting is placed at local noon.
     private static func notesDateLine(_ line: String) -> (date: Date, attendees: [String])? {
         let parts = line.components(separatedBy: "\u{00B7}")
         let datePart = parts[0].trimmingCharacters(in: .whitespaces)
@@ -389,8 +341,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return (noon, attendees)
     }
 
-    /// "Nov 3", as a copied transcript dates itself: no year, so the latest
-    /// such day not after the file was saved, at local noon.
     private static func monthDay(_ text: String, before reference: Date) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -415,10 +365,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
-    // MARK: - Notes and action items
-
-    /// The AI-enhanced notes, then what the person typed under "My notes"
-    /// (Granola's own name for them) unless the summary already holds it.
     private static func composeNotes(summary: String, typed: String) -> String? {
         let enhanced = strippingFooter(summary).text.trimmingCharacters(in: .whitespacesAndNewlines)
         let mine = typed.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -427,8 +373,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return enhanced + "\n\n## My notes\n\n" + mine
     }
 
-    /// Granola ends enhanced notes with a rule and "Chat with meeting
-    /// transcript: <link>", which points back at its cloud copy.
     private static func strippingFooter(_ text: String) -> (text: String, link: String?) {
         guard let marker = text.range(of: footerMarker, options: .backwards) else { return (text, nil) }
         let link = text[marker.upperBound...].trimmingCharacters(in: .whitespacesAndNewlines)
@@ -444,15 +388,10 @@ enum GranolaMeetingReader: ExternalMeetingReader {
     private struct ListEntry {
         var indent: Int
         var text: String
-        /// Nil for a plain bullet, false for "[ ]", true for "[x]".
         var checked: Bool?
         var inActionSection: Bool
     }
 
-    /// Unchecked "- [ ]" items anywhere, and every bullet under a heading
-    /// such as "Next Steps" or "Action Items". A bullet that is only a name
-    /// with tasks under it ("- Ana" / "  - Send the deck") names their owner,
-    /// as does "Ana: send the deck".
     private static func actionItems(in markdown: String?) -> [ExternalMeeting.ActionItem] {
         guard let markdown, !markdown.isEmpty else { return [] }
         var blocks: [[ListEntry]] = [[]]
@@ -499,7 +438,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return items
     }
 
-    /// "### Next Steps" or a line that is only bold, "**Action Items:**".
     private static func headingText(_ line: String) -> String? {
         let hashes = line.prefix { $0 == "#" }.count
         if (1...6).contains(hashes) {
@@ -521,7 +459,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
                       options: .regularExpression) != nil
     }
 
-    /// "- text", "* text", "1. text", with "[ ]" or "[x]" when it's a task.
     private static func listEntry(_ line: String) -> ListEntry? {
         let indent = line.prefix { $0 == " " }.count
         let rest = line.dropFirst(indent)
@@ -546,7 +483,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return ListEntry(indent: indent, text: text, checked: checked, inActionSection: false)
     }
 
-    /// A bullet that is only a person's name: one to four capitalized words.
     private static func ownerName(_ text: String) -> String? {
         var name = plainText(text)
         if name.hasSuffix(":") { name.removeLast() }
@@ -559,7 +495,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return name
     }
 
-    /// "Ana: send the deck" or "**Ana**: send the deck".
     private static func ownerPrefix(_ text: String) -> (owner: String, text: String)? {
         let split = ExternalImportText.splitSpeaker(plainText(text))
         guard let name = split.speaker, name.split(separator: " ").count <= 3, let owner = ownerName(name) else {
@@ -568,8 +503,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return (owner, split.text)
     }
 
-    /// The item without emphasis or escapes when the notes still contain it
-    /// that way, so LokalBot doesn't list it twice; otherwise as written.
     private static func displayText(_ text: String, in markdown: String) -> String {
         let plain = plainText(text)
         return !plain.isEmpty && markdown.localizedCaseInsensitiveContains(plain) ? plain : text
@@ -582,27 +515,14 @@ enum GranolaMeetingReader: ExternalMeetingReader {
             .trimmingCharacters(in: .whitespaces)
     }
 
-    // MARK: - Transcripts
-
     private enum Speaker {
-        /// "Me": the person's own microphone.
         case me
-        /// "Them" or an unnamed source: other people, not told apart.
         case unnamed
-        /// "Speaker A", "Speaker 2", or "[Room] Board room": a voice, not a known person.
         case voice(String)
-        /// A display name from speaker tags.
         case person(String)
     }
 
-    /// Granola writes one turn per line as "Label: text". Labels it always
-    /// uses ("Me", "Them", "Speaker A", "[Room] …") are taken wherever they
-    /// appear; a name is taken only when most lines are labeled, so a line
-    /// such as "and then she said: we ship" stays text. Lines without a
-    /// label continue the turn before them, or are unattributed when the
-    /// transcript has no labels at all.
     private static func parseTranscript(_ text: String) -> (lines: [ExternalMeeting.Line], names: [String]) {
-        // Granola's own copy starts a new line at each mid-line "Speaker A: ".
         let split = text.replacingOccurrences(of: #"[ \t]+(Speaker [A-Z]: )"#, with: "\n$1", options: .regularExpression)
         let rows = split.components(separatedBy: "\n")
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -682,9 +602,6 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return isDisplayName(name) && !text.isEmpty ? (.person(name), text) : nil
     }
 
-    /// A display name as meeting apps show them: "Ana Petrović", "Ana P.",
-    /// "Ana (Acme)", "Leo Marić (he/him)". Not a sentence: it doesn't start
-    /// lowercase, has at most six words, and no sentence punctuation.
     private static func isDisplayName(_ name: String) -> Bool {
         guard let first = name.first, first.isLetter, !first.isLowercase,
               name.split(separator: " ").count <= 6,
@@ -692,17 +609,11 @@ enum GranolaMeetingReader: ExternalMeetingReader {
         return true
     }
 
-    // MARK: - CSV
-
     private struct CSVTable {
         var rows: [[String]]
-        /// The text ended inside a quoted field: the export was cut off.
-        /// The unfinished row is left out.
         var endsInsideQuotes: Bool
     }
 
-    /// RFC 4180: quoted fields may hold commas, quotes (doubled), and line
-    /// breaks; transcripts in Granola's export do all three.
     private static func parseCSV(_ text: String) -> CSVTable {
         let quote = UInt8(ascii: "\"")
         let comma = UInt8(ascii: ",")

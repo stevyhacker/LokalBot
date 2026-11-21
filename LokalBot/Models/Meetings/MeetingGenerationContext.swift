@@ -1,8 +1,5 @@
 import Foundation
 
-/// The agenda part of a calendar invitation, with joining instructions,
-/// links, phone numbers, email addresses, and markup removed. Only kept
-/// when the user turns on agenda use; otherwise it is never persisted.
 enum CalendarAgenda {
     static let maximumCharacters = 1_200
 
@@ -40,17 +37,12 @@ enum CalendarAgenda {
             "you are receiving this", "forwarding this invitation", "view all guest info",
         ]
         if markers.contains(where: { lower.contains($0) }) { return true }
-        // Separator rules and bare phone numbers.
         if line.allSatisfy({ "-_=~─━.:*#".contains($0) || $0.isWhitespace }) { return true }
         let digits = line.filter(\.isNumber).count
         return digits >= 7 && Double(digits) / Double(max(1, line.count)) > 0.35
     }
 }
 
-/// Secondary, source-labeled context for meeting notes: the calendar title,
-/// invited participants by name, the optional agenda, and titles of
-/// documents on screen during the call. The transcript stays the only
-/// evidence for claims, decisions, actions, and ownership.
 enum MeetingGenerationContext {
     static let maximumCharacters = 2_400
 

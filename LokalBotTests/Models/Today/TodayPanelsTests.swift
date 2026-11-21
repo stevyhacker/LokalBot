@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The small rules behind Today's panels: one column or two, where each
-/// panel goes, the app bars, and what Needs attention says about itself.
 final class TodayPanelsTests: XCTestCase {
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -12,18 +10,14 @@ final class TodayPanelsTests: XCTestCase {
 
     private var standardScale: CGFloat { AppTextSize.standard.scale }
 
-    // MARK: Columns
-
     func testTwoColumnsNeedAReadableLeadingColumnBesideTheTrailingOne() {
         XCTAssertEqual(TodayColumns.trailingWidth(textScale: standardScale), 336)
         XCTAssertEqual(TodayColumns.twoColumnMinimumWidth(textScale: standardScale), 480 + 16 + 336)
         XCTAssertEqual(TodayColumns.count(width: 832, textScale: standardScale), 2)
         XCTAssertEqual(TodayColumns.count(width: 831, textScale: standardScale), 1)
         XCTAssertEqual(TodayColumns.count(width: 0, textScale: standardScale), 1)
-        // The page at its widest, inside its side padding, shows two.
         let widest = WorkspaceMetric.todayMaxWidth - 2 * LBTokens.Metric.detailPadding
         XCTAssertEqual(TodayColumns.count(width: widest, textScale: standardScale), 2)
-        // The page as it was before panels, and the smallest window, show one.
         let reading = WorkspaceMetric.todayReadingMaxWidth - 2 * LBTokens.Metric.detailPadding
         XCTAssertEqual(TodayColumns.count(width: reading, textScale: standardScale), 1)
         XCTAssertEqual(TodayColumns.count(
@@ -38,8 +32,6 @@ final class TodayPanelsTests: XCTestCase {
         XCTAssertLessThan(standard, largest)
         XCTAssertLessThan(TodayColumns.trailingWidth(textScale: AppTextSize.small.scale), 336)
         XCTAssertGreaterThan(TodayColumns.trailingWidth(textScale: AppTextSize.largest.scale), 336)
-        // A width that holds two columns at the default size holds one when
-        // the text is at its largest.
         XCTAssertEqual(TodayColumns.count(width: 900, textScale: standardScale), 2)
         XCTAssertEqual(TodayColumns.count(width: 900, textScale: AppTextSize.largest.scale), 1)
     }
@@ -48,8 +40,6 @@ final class TodayPanelsTests: XCTestCase {
         XCTAssertEqual(TodayColumns.count(width: 1_008, textScale: standardScale, hasLeading: true, hasTrailing: false), 1)
         XCTAssertEqual(TodayColumns.count(width: 1_008, textScale: standardScale, hasLeading: false, hasTrailing: true), 1)
         XCTAssertEqual(TodayColumns.count(width: 1_008, textScale: standardScale, hasLeading: false, hasTrailing: false), 1)
-        // One-sided panels keep the reading width; both sides, or cards
-        // alone, get the wide page.
         func maximum(_ leading: Bool, _ trailing: Bool) -> CGFloat {
             TodayColumns.pageMaximumWidth(hasLeading: leading, hasTrailing: trailing, wide: 1_064, reading: 780)
         }
@@ -60,7 +50,6 @@ final class TodayPanelsTests: XCTestCase {
     }
 
     func testTwoColumnsPlacePanelsBetweenTheCardsThatSpanThePage() {
-        // A top card, two leading panels, two trailing panels, Get started.
         let slots: [TodayColumnsLayout.Slot] = [.full, .leading, .leading, .trailing, .trailing, .full]
         let heights: [CGFloat] = [100, 200, 300, 150, 50, 80]
         let result = TodayColumnsLayout.frames(
@@ -71,7 +60,6 @@ final class TodayPanelsTests: XCTestCase {
             CGRect(x: 0, y: 332, width: 656, height: 300),
             CGRect(x: 672, y: 116, width: 336, height: 150),
             CGRect(x: 672, y: 282, width: 336, height: 50),
-            // Under the taller column.
             CGRect(x: 0, y: 648, width: 1_008, height: 80),
         ])
         XCTAssertEqual(result.height, 728)
@@ -90,7 +78,6 @@ final class TodayPanelsTests: XCTestCase {
         XCTAssertEqual(Set(asked), [700], "each panel is measured at the width it gets")
         XCTAssertEqual(narrow.height, 448)
 
-        // Only trailing panels in a wide page: one column, no gutter.
         let oneSided = TodayColumnsLayout.frames(
             slots: [.full, .trailing, .trailing], width: 1_008, textScale: standardScale, spacing: 16) { _, _ in 100 }
         XCTAssertEqual(oneSided.frames.map(\.minX), [0, 0, 0])
@@ -100,8 +87,6 @@ final class TodayPanelsTests: XCTestCase {
             slots: [], width: 1_008, textScale: standardScale, spacing: 16) { _, _ in 100 }
         XCTAssertEqual(empty.height, 0)
     }
-
-    // MARK: So far today
 
     func testAppBarsAreSharesOfTheLongestRow() {
         let bars = TodayAppBars.bars(
@@ -117,7 +102,6 @@ final class TodayPanelsTests: XCTestCase {
     }
 
     func testTheFoldedTailNeverRunsPastTheTrack() {
-        // Many short apps fold into Other, which can outweigh the top app.
         let perApp: [(label: String, seconds: TimeInterval)] =
             [("Xcode", 600)] + (0..<6).map { ("App \($0)", 300) }
         let bars = TodayAppBars.bars(perApp: perApp, cap: 2)
@@ -128,12 +112,9 @@ final class TodayPanelsTests: XCTestCase {
         XCTAssertEqual(other?.fraction, 1)
         XCTAssertEqual(bars[0].fraction, 0.4, accuracy: 0.0001)
         XCTAssertEqual(Set(bars.map(\.id)).count, bars.count)
-        // An app that is itself called Other keeps its own identity.
         let named = TodayAppBars.bars(perApp: [("Other", 600), ("A", 30), ("B", 30)], cap: 4)
         XCTAssertEqual(Set(named.map(\.id)).count, named.count)
     }
-
-    // MARK: Needs attention
 
     func testAttentionSummaryCountsOverdueAndWhatActionsStillHolds() throws {
         let tuesday = try XCTUnwrap(calendar.date(from: DateComponents(
@@ -166,14 +147,12 @@ final class TodayPanelsTests: XCTestCase {
         XCTAssertEqual(summary.remainder, NeedsAttentionSection.remainder(total: 5, limit: 3))
         XCTAssertTrue(summary.showsFooter)
 
-        // Everything fits: no footer, and the count is the rows themselves.
         let few = TodayAttentionSummary(
             threads: Array(threads.filter { !$0.isOverdue(now: tuesday, calendar: calendar) }.suffix(2)),
             limit: 3, now: tuesday, calendar: calendar)
         XCTAssertEqual([few.open, few.overdue, few.shown, few.remainder], [2, 0, 2, 0])
         XCTAssertFalse(few.showsFooter)
 
-        // The same actions a week earlier were not overdue yet.
         let earlier = TodayAttentionSummary(threads: threads, limit: 3, now: lastWeek, calendar: calendar)
         XCTAssertEqual(earlier.overdue, 0)
 
@@ -182,8 +161,6 @@ final class TodayPanelsTests: XCTestCase {
         let noRows = TodayAttentionSummary(threads: threads, limit: -1, now: tuesday, calendar: calendar)
         XCTAssertEqual([noRows.shown, noRows.remainder], [0, 5])
     }
-
-    // MARK: Meetings today
 
     func testTheNowLineReplacesTheHairlineBeforeIt() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
@@ -202,8 +179,6 @@ final class TodayPanelsTests: XCTestCase {
         XCTAssertTrue(TodayMeetingsSection.hasHairline(after: 3, in: rows))
         XCTAssertFalse(TodayMeetingsSection.hasHairline(after: 4, in: rows), "the last row ends at the panel")
     }
-
-    // MARK: Page and symbols
 
     func testPanelsAreOnThePageOnlyInTheSectionsLayout() {
         XCTAssertTrue(TodayPageLayout.sections(gettingStartedBelow: true).showsSections)

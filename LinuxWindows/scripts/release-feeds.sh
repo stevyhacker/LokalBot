@@ -1,19 +1,4 @@
 #!/usr/bin/env bash
-# Signs the Linux and Windows release archives in DIST with Sparkle's Ed25519
-# key and writes the update feeds linux-x86_64.json and windows-x86_64.json
-# next to them, then checks each feed against the archive.
-#
-#   scripts/release-feeds.sh DIST TAG KEY_FILE [EXPECTED_PUBLIC_KEY]
-#
-# KEY_FILE holds Sparkle's base64 private key: the SPARKLE_PRIVATE_KEY secret
-# for a release, or a throwaway key for a dry run. With EXPECTED_PUBLIC_KEY
-# (the app's SUPublicEDKey) a key that does not belong to it is refused before
-# anything is signed. The key is never printed.
-#
-# FEED_TOOL: an already built lokalbot-update-feed (the release builds it
-# before the key exists). DOWNLOAD_BASE: where the feeds point instead of the
-# tag's release assets (a dry run serves them locally). MINIMUM_VERSION: the
-# oldest installed version that may install the update itself (default: any).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 DIST="$(cd "$1" && pwd)"

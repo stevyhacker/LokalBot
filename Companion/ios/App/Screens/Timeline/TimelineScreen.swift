@@ -1,10 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Any day's activity: the day strip and calendar, the activity overview, the
-/// digest, meetings and the work-session rail. From 820 pt the rail sits
-/// beside the day and a session opens in place of the day; below that the
-/// sessions follow the day and a session opens in a drawer, as on the Mac.
 struct TimelineScreen: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppNavigator.self) private var navigator
@@ -100,7 +96,6 @@ struct TimelineScreen: View {
         await model.select(day, session: session)
     }
 
-    /// Swipe across the day to move a day; follows reading direction.
     private var daySwipe: some Gesture {
         DragGesture(minimumDistance: 30)
             .onEnded { value in
@@ -112,7 +107,6 @@ struct TimelineScreen: View {
     }
 }
 
-/// A day pushed from a search hit or Today's digest.
 struct DayDigestScreen: View {
     let day: DayKey
     @Environment(CompanionSession.self) private var session
@@ -145,10 +139,6 @@ struct DayDigestScreen: View {
     }
 }
 
-// MARK: - Day strip
-
-/// The week around the chosen day. Tap a day, swipe for another week, or
-/// open the calendar to jump to any earlier day.
 struct DayStrip: View {
     @Environment(CompanionSession.self) private var session
     @Environment(\.layoutDirection) private var layoutDirection
@@ -274,8 +264,6 @@ struct DayStrip: View {
         Task { await model.move(by: weeks * 7, session: session) }
     }
 }
-
-// MARK: - Day pane
 
 struct TimelineDayPane: View {
     @Environment(CompanionSession.self) private var session

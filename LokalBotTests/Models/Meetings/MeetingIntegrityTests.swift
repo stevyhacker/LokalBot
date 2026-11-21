@@ -25,7 +25,6 @@ final class MeetingIntegrityTests: XCTestCase {
     func testOnlyExactMeetRoomURLsIdentifyACallDocument() {
         XCTAssertEqual(BrowserMeetingSession.roomURL("https://meet.google.com/abc-defg-hij?authuser=0"),
                        "https://meet.google.com/abc-defg-hij")
-        // #372: Meet also shows the room under /meet/; it is the same room.
         XCTAssertEqual(BrowserMeetingSession.roomURL("https://meet.google.com/meet/abc-defg-hij?authuser=0"),
                        "https://meet.google.com/abc-defg-hij")
         for bad in ["http://meet.google.com/abc-defg-hij", "https://meet.google.com.evil.test/abc-defg-hij",
@@ -115,8 +114,6 @@ final class MeetingIntegrityTests: XCTestCase {
 
     func testJoinScreenEndsOnlyTheCallInItsOwnWindow() {
         XCTAssertEqual(BrowserMeetingSession.waitingRoomState(inBoundWindow: true), .ended)
-        // A reopened invite link shows the same room's lobby in another window
-        // while the user is still in the call.
         XCTAssertNil(BrowserMeetingSession.waitingRoomState(inBoundWindow: false))
     }
 
@@ -136,7 +133,6 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call", "Turn on microphone (⌘D)"], messages: []), .inCall)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call (⌘⇧H)", "Turn on microphone"], messages: []), .inCall)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Leave call", "Turn on microphone"], messages: ["You left the meeting"]), .ended)
-        // Meet's post-call page ends the call by its actions, whatever its heading says.
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Rejoin", "Return to home screen"], messages: ["You left the call"]), .ended)
         XCTAssertEqual(BrowserMeetingSession.state(buttons: ["Rejoin"], messages: []), .unavailable)
         XCTAssertEqual(BrowserMeetingSession.state(
@@ -363,8 +359,6 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertTrue(result.acousticCandidateIndices.isEmpty)
     }
 
-    /// Optional replay reads local recordings without modifying them or calling
-    /// an inference provider. CI uses only the synthetic regression cases.
     func testLocalSavedTranscriptReplay() throws {
         guard let manifest = ProcessInfo.processInfo.environment["LOKALBOT_INTEGRITY_REPLAY"] else {
             throw XCTSkip("Set LOKALBOT_INTEGRITY_REPLAY to a JSON list of local transcript paths.")
@@ -437,7 +431,6 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: url), original)
     }
 
-    /// Behaves like Parakeet: audio shorter than 0.3 s is an error.
     private struct ShortAudioRejectingASR: TranscriptionEngine {
         var displayName: String { "Short-audio fixture" }
         var supportsStreaming: Bool { false }

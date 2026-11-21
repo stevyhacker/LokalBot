@@ -1,7 +1,3 @@
-//! A coherent, revision-checked snapshot for the meeting page
-//! (`MeetingNotesPartial.swift`). Partial work never enters the completed
-//! outcome index or replaces final notes.
-
 use std::path::Path;
 use std::time::SystemTime;
 
@@ -32,8 +28,6 @@ fn modified(path: &Path) -> Option<SystemTime> {
 }
 
 impl MeetingNotesPartial {
-    /// The snapshot for this exact transcript, unless final notes supersede
-    /// it, including when cleanup was interrupted after the final write.
     pub fn load(folder: &Path, transcript: &Transcript) -> Option<Self> {
         let path = folder.join(PARTIAL_FILE);
         let snapshot: Self = serde_json::from_slice(&std::fs::read(&path).ok()?).ok()?;

@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The list in Timeline's rail for one day: order, parts of the day, gaps, a
-/// call folded into its meeting, each row's two lines, and the arrow keys.
 final class TimelineDayListTests: XCTestCase {
     private var calendar: Calendar = {
         var calendar = Calendar(identifier: .gregorian)
@@ -10,7 +8,6 @@ final class TimelineDayListTests: XCTestCase {
         return calendar
     }()
 
-    /// Midnight of a fixed day in the test calendar.
     private var day: Date {
         calendar.date(from: DateComponents(year: 2026, month: 11, day: 9))!
     }
@@ -65,8 +62,6 @@ final class TimelineDayListTests: XCTestCase {
         }
     }
 
-    // MARK: - Order and parts of the day
-
     func testRowsRunInTimeOrderUnderMorningAfternoonAndEvening() {
         let standup = meeting("Standup", app: "Slack", from: at(9, 30), to: at(9, 45))
         let day = list(
@@ -78,7 +73,6 @@ final class TimelineDayListTests: XCTestCase {
 
         XCTAssertEqual(day.sections.map(\.part), [.morning, .afternoon, .evening])
         XCTAssertEqual(day.rows.map(\.title), ["Sync.swift", "Standup", "Docs", "Migration plan", "Upload.swift"])
-        // 11:59 belongs to the morning it started in; 17:40 to the evening.
         XCTAssertEqual(titles(in: day.sections[0]), ["Sync.swift", "Standup", "Docs"])
         XCTAssertEqual(titles(in: day.sections[2]), ["Upload.swift"])
         XCTAssertEqual(TimelineDayList.Part.part(of: at(12), calendar: calendar), .afternoon)
@@ -101,8 +95,6 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertTrue(list([]).rows.isEmpty)
     }
 
-    // MARK: - Gaps
-
     func testALongStretchWithNothingRecordedIsKeptAsAGapInThePartItBegan() {
         let day = list([
             session(1, app: "Slack", title: "#design-crit", from: at(11, 50), to: at(12, 2)),
@@ -116,12 +108,9 @@ final class TimelineDayListTests: XCTestCase {
         }
         XCTAssertEqual(start, at(12, 2))
         XCTAssertEqual(end, at(13))
-        // Fifteen minutes is not a gap.
         XCTAssertEqual(day.sections[1].entries.count, 2)
     }
 
-    /// A meeting that runs past the next session must not open a gap that
-    /// never happened: a gap starts at the latest end seen so far.
     func testAGapStartsAtTheLatestEndSoFar() {
         let planning = meeting("Planning", from: at(10), to: at(12))
         let day = list(
@@ -131,18 +120,13 @@ final class TimelineDayListTests: XCTestCase {
              session(4, app: "Xcode", title: "D.swift", from: at(12, 20), to: at(12, 30))],
             [planning])
 
-        // 8:10 → 9:00 is 50 minutes away. 9:05 → 10:00 is 55. The meeting
-        // covers C.swift and ends 20 minutes before D.swift.
         XCTAssertEqual(gaps(in: day).map(\.start), [at(8, 10), at(9, 5)])
     }
-
-    // MARK: - A call folds into its meeting
 
     func testACallAppSessionFoldsIntoTheMeetingThatCoversIt() {
         let review = meeting("Design review", app: "Zoom", from: at(11), to: at(11, 45))
         let day = list(
             [session(1, app: "Xcode", title: "Sync.swift", from: at(9), to: at(10)),
-             // Zoom's own name in the activity sampler is "zoom.us".
              session(2, app: "zoom.us", title: "Zoom Meeting", from: at(10, 58), to: at(11, 46))],
             [review])
 
@@ -150,16 +134,12 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertEqual(day.rows[1].foldedSessionIDs, [2])
         XCTAssertEqual(day.rowID(showing: 2), TimelineDayList.Row.id(meeting: review.id))
         XCTAssertEqual(day.rowID(showing: 1), TimelineDayList.Row.id(session: 1))
-        // The gap ends where the call's app came forward, two minutes
-        // before the recording began.
         XCTAssertEqual(gaps(in: day), [DateInterval(start: at(10), end: at(10, 58))])
     }
 
     func testOtherWorkDuringAMeetingStaysListed() {
         let standup = meeting("Standup", app: "Slack", from: at(10), to: at(10, 15))
         let day = list(
-            // Another app during the call, and the call's app for a morning
-            // of which the call was a small part.
             [session(1, app: "Xcode", title: "Sync.swift", from: at(10), to: at(10, 15)),
              session(2, app: "Slack", title: "#engineering", from: at(10, 20), to: at(12))],
             [standup])
@@ -184,12 +164,9 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertTrue(TimelineDayList.isSameApp("Microsoft Teams", "Teams"))
         XCTAssertTrue(TimelineDayList.isSameApp("Google Chrome", "Google Chrome"))
         XCTAssertFalse(TimelineDayList.isSameApp("Xcode", "Zoom"))
-        // A manual recording names no app; nothing folds into it.
         XCTAssertFalse(TimelineDayList.isSameApp("Zoom", ""))
         XCTAssertFalse(TimelineDayList.isSameApp("QQ", "QQ"))
     }
-
-    // MARK: - Row text
 
     func testAProjectSessionShowsItsTaskThenProjectAndWhatWasProduced() {
         let work = [burst("Atlas", title: "Fix the sync retry loop", from: at(9, 10), to: at(10),
@@ -203,7 +180,6 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertEqual(sessions[0].projectLabel, "Atlas")
         XCTAssertEqual(sessions[0].taskTitle, "Fix the sync retry loop")
         XCTAssertEqual(day.rows[0].title, "Fix the sync retry loop")
-        // Commits are named only when no pull request moved.
         XCTAssertEqual(day.rows[0].detail, "Atlas · 1 PR opened")
         XCTAssertEqual(day.rows[0].colorKey, "Atlas")
         XCTAssertEqual(day.rows[0].duration, 65 * 60)
@@ -222,7 +198,6 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertTrue(subtitle.contains(" · aktivno 50m · "), subtitle)
         XCTAssertTrue(subtitle.hasSuffix(" · Claude, Terminal"), subtitle)
 
-        // Without a project the line starts with the time range.
         let plain = session(3, app: "Xcode", title: "TimelineView.swift", from: at(9), to: at(10, 30))
         let plainSubtitle = TimelineSessionWording.subtitle(for: plain)
         XCTAssertFalse(plainSubtitle.contains("Atlas"))
@@ -287,8 +262,6 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertEqual(list([chat]).rows[0].colorKey, "Slack")
     }
 
-    // MARK: - Finding rows and moving through the list
-
     func testAnOlderDigestsTimeRangeFindsTheSessionItCoversMost() {
         let review = meeting("Design review", from: at(9, 30), to: at(10))
         let day = list(
@@ -303,14 +276,10 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertNil(day.workRow(inTimeRange: "14:00–15:00", day: self.day, calendar: calendar))
         XCTAssertNil(day.workRow(inTimeRange: "morning", day: self.day, calendar: calendar))
         XCTAssertNil(TimelineDayList.interval(fromTimeRange: "25:00–26:00", day: self.day, calendar: calendar))
-        // A range that ends past midnight is clipped to the day.
         XCTAssertEqual(
             TimelineDayList.interval(fromTimeRange: "23:30–00:15", day: self.day, calendar: calendar)?.duration, 1_800)
     }
 
-    /// The list is under Morning, Afternoon and Evening, so a 12-hour clock
-    /// shows "9:10" and "1:05": no AM or PM, and no leading zero (the hosted
-    /// runs on macOS 15 and 26 showed "09:10" from `Date.FormatStyle`).
     func testListTimesDropTheDayPeriodAndTheLeadingZeroOnATwelveHourClock() {
         let zone = calendar.timeZone
         func time(_ date: Date, _ locale: String) -> String {
@@ -319,18 +288,14 @@ final class TimelineDayListTests: XCTestCase {
         XCTAssertEqual(time(at(9, 10), "en_US"), "9:10")
         XCTAssertEqual(time(at(13, 5), "en_US"), "1:05")
         XCTAssertEqual(time(at(0, 30), "en_US"), "12:30")
-        // The day period goes wherever the language puts it.
         XCTAssertEqual(time(at(13, 5), "ko_KR"), "1:05")
         XCTAssertEqual(time(at(13, 5), "ar_SA@numbers=latn"), "1:05")
-        // A 24-hour clock keeps its own form.
         XCTAssertEqual(time(at(9, 10), "de_DE"), "09:10")
         XCTAssertEqual(time(at(13, 5), "de_DE"), "13:05")
         XCTAssertEqual(time(at(9, 10), "fr_FR"), "09:10")
         XCTAssertEqual(time(at(9, 10), "sr_Latn_ME"), "09:10")
     }
 
-    /// The pattern is the locale's own with the day period taken out, so it
-    /// does not depend on how a macOS release formats an hour without one.
     func testListTimePatternHasNoDayPeriod() {
         XCTAssertEqual(TimelineListClock.pattern(locale: Locale(identifier: "en_US")), "h:mm")
         XCTAssertEqual(TimelineListClock.pattern(locale: Locale(identifier: "de_DE")), "HH:mm")
@@ -341,9 +306,6 @@ final class TimelineDayListTests: XCTestCase {
         }
     }
 
-    /// The rail lists sessions and meetings, with All captured activity as
-    /// its bottom row. The day's page has no row: it is what shows while no
-    /// row is chosen, and it stands before the first one for the arrow keys.
     func testArrowKeysWalkTheSessionsBetweenTheDaysPageAndAllCapturedActivity() {
         let day = list([
             session(1, app: "Xcode", title: "A.swift", from: at(9), to: at(9, 30)),
@@ -353,16 +315,12 @@ final class TimelineDayListTests: XCTestCase {
         let second = TimelineListSelection.row(TimelineDayList.Row.id(session: 2))
 
         XCTAssertEqual(TimelineListSelection.order(of: day), [.digest, first, second, .raw])
-        // Down from the day's page chooses the first session, and goes on
-        // through the sessions to All captured activity.
         XCTAssertEqual(TimelineListSelection.digest.moved(by: 1, in: day), first)
         XCTAssertEqual(first.moved(by: 1, in: day), second)
         XCTAssertEqual(second.moved(by: 1, in: day), .raw)
-        // Up walks back; from the first session it returns to the day's page.
         XCTAssertEqual(TimelineListSelection.raw.moved(by: -1, in: day), second)
         XCTAssertEqual(second.moved(by: -1, in: day), first)
         XCTAssertEqual(first.moved(by: -1, in: day), .digest)
-        // The ends hold, and a moment opened from another page steps onto the day's page.
         XCTAssertEqual(TimelineListSelection.raw.moved(by: 1, in: day), .raw)
         XCTAssertEqual(TimelineListSelection.digest.moved(by: -1, in: day), .digest)
         XCTAssertEqual(TimelineListSelection.none.moved(by: 1, in: day), .digest)

@@ -1,15 +1,5 @@
-//! Sizes a picture for EmbeddingGemma 2's vision encoder the way the model's
-//! reference processor does (`FileImageSizing`, from DigUp's `ImageSizing`, MIT),
-//! so the media embedder sees the pixels the reference vectors were made from.
-//!
-//! The media embedder runs with `--image-min-tokens 1 --image-max-tokens 1120`,
-//! so llama.cpp never rescales an image that already has its final size: each
-//! image's token budget is set here.
-
-/// Soft-token budgets the encoder accepts.
 pub const BUDGETS: [u32; 5] = [70, 140, 280, 560, 1120];
 
-/// Packed 8-bit RGB in memory.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rgb {
     pub width: usize,
@@ -17,9 +7,6 @@ pub struct Rgb {
     pub pixels: Vec<u8>,
 }
 
-/// transformers' Gemma 4 image processor: scale to fill `budget` soft tokens
-/// (each 3 × 3 patches of 16 px) keeping the aspect ratio, each side rounded
-/// down to a multiple of 48 px. `None` for an image with no area.
 pub fn target_size(height: usize, width: usize, budget: u32) -> Option<(usize, usize)> {
     if height == 0 || width == 0 {
         return None;
@@ -45,8 +32,6 @@ pub fn target_size(height: usize, width: usize, budget: u32) -> Option<(usize, u
     Some((target_height, target_width))
 }
 
-/// The picture resized for `budget`, encoded as a PNG. Nothing is written to
-/// disk, so a decrypted screen capture stays in memory.
 pub fn png(image: &Rgb, budget: u32) -> Result<Vec<u8>, String> {
     if !BUDGETS.contains(&budget) {
         return Err(format!("unsupported budget {budget}"));
@@ -91,8 +76,6 @@ fn filter(value: f64) -> f64 {
     }
 }
 
-/// For each output pixel: the first contributing input pixel, how many
-/// contribute, and their weights.
 fn coefficients(in_size: usize, out_size: usize) -> (Vec<usize>, Vec<i32>, usize) {
     let scale = in_size as f64 / out_size as f64;
     let filter_scale = scale.max(1.0);
@@ -133,8 +116,6 @@ fn clip(value: i32) -> u8 {
     (value >> PRECISION).clamp(0, 255) as u8
 }
 
-/// Pillow's bicubic resampling of packed RGB (a = −0.5, the kernel widened when
-/// shrinking, 22-bit fixed point): what the reference gets from `Image.resize`.
 pub fn resize_bicubic(
     source: &[u8],
     width: usize,
@@ -215,14 +196,10 @@ mod tests {
         assert_eq!(target_size(900, 1440, 70), Some((288, 480)));
         assert_eq!(target_size(768, 768, 280), Some((768, 768)));
         assert_eq!(target_size(768, 768, 140), Some((528, 528)));
-        // Small images grow to fill the budget, as in the reference.
         assert_eq!(target_size(300, 300, 140), Some((528, 528)));
-        // One side rounds to zero: one 48 px row, the other capped at the budget.
         assert_eq!(target_size(10, 4000, 140), Some((48, 6720)));
     }
 
-    /// A 7×5 image resized by PIL (`Image.resize`, BICUBIC). The fixtures are
-    /// DigUp's, as `FileImageSizingTests` uses them.
     const SOURCE: [u8; 105] = [
         0, 115, 230, 3, 118, 233, 6, 121, 236, 9, 124, 239, 12, 127, 242, 15, 130, 245, 18, 133,
         248, 77, 192, 51, 80, 195, 54, 83, 198, 57, 86, 201, 60, 89, 204, 63, 92, 207, 66, 95, 210,

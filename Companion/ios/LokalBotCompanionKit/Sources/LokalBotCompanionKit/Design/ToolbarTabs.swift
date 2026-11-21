@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Equal-width tabs with a sliding teal capsule, the Mac's meeting tabs.
 public struct ToolbarTabs<Tab: Hashable & Identifiable>: View {
     let label: String
     let tabs: [Tab]
@@ -17,7 +16,6 @@ public struct ToolbarTabs<Tab: Hashable & Identifiable>: View {
         self.title = title
     }
 
-    /// The capsule tabs where they fit; a menu at large text sizes.
     public var body: some View {
         ViewThatFits(in: .horizontal) {
             capsules
@@ -47,8 +45,6 @@ public struct ToolbarTabs<Tab: Hashable & Identifiable>: View {
     private func segment(_ tab: Tab) -> some View {
         let selected = tab == selection
         return Button { selection = tab } label: {
-            // The hidden semibold copy reserves the selected width, so the
-            // control never changes size as the selection moves.
             ZStack {
                 Text(title(tab)).font(LBTokens.Typography.secondary.weight(.semibold)).hidden()
                 Text(title(tab))
@@ -67,7 +63,6 @@ public struct ToolbarTabs<Tab: Hashable & Identifiable>: View {
         .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
     }
 
-    /// White on the deep accent (4.7:1).
     private var knob: some View {
         GeometryReader { proxy in
             let width = proxy.size.width / CGFloat(max(tabs.count, 1))
@@ -80,8 +75,6 @@ public struct ToolbarTabs<Tab: Hashable & Identifiable>: View {
     }
 }
 
-/// Places children side by side at the widest child's width, or shares the
-/// offered width equally when that is smaller.
 struct EqualWidthHStack: Layout {
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let sizes = subviews.map { $0.sizeThatFits(.unspecified) }

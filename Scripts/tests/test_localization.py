@@ -9,14 +9,9 @@ import unittest
 APP = Path(__file__).resolve().parents[2] / "LokalBot"
 RESOURCES = APP / "Resources"
 LANGUAGES = sorted(path.parent.stem for path in RESOURCES.glob("*.lproj/Localizable.strings"))
-# Literals in these views that predate the view-literal check and still have
-# no catalog entry. Translating one means deleting its line here.
 UNTRANSLATED_VIEW_LITERALS = Path(__file__).with_name("untranslated_view_literals.json")
-# SwiftUI looks these first arguments up in the catalog; StatTile passes its
-# label on as a LocalizedStringKey.
 CATALOG_CALLS = re.compile(r"(?<![\w.])(Text|Button|Label|StatTile)\(|\.(navigationTitle)\(")
 CATALOG_ARGUMENT = {"Text": None, "Button": None, "Label": None, "navigationTitle": None, "StatTile": "label"}
-# Proper names and symbols that read the same in every language.
 INTENTIONAL_VIEW_LITERALS = {
     "Anthropic API", "Apple Intelligence", "EmbeddingGemma 2", "Kokoro 82M", "LokalBot ", "Ollama", "⌘K",
 }
@@ -192,8 +187,6 @@ def scan_view_literals(sources, keys):
                         verbatim.add((name, shown))
                     elif previous in "(?:" and following in "),:" and not has_key(parts):
                         missing.add((name, shown))
-        # A String property shown through LocalizedStringKey(property) needs
-        # its default in the catalog too, like `var title = "Needs Attention"`.
         for property_name in set(KEYED_PROPERTY.findall(source)):
             declaration = re.compile(r"\b(?:var|let)\s+" + property_name + r"\s*(?::\s*String\s*)?=\s*(?=\")")
             for match in declaration.finditer(source):
@@ -205,7 +198,6 @@ def scan_view_literals(sources, keys):
 
 
 def view_literal_problems():
-    # Keyed by file name, so moving a view between feature folders keeps its entries.
     paths = sorted((APP / "Views").rglob("*.swift"))
     names = [path.name for path in paths]
     assert len(names) == len(set(names)), "view file names must be unique"
@@ -229,7 +221,6 @@ class LocalizationTests(unittest.TestCase):
                 self.assertEqual(english.keys(), translated.keys())
                 self.assertTrue(all(value.strip() for value in translated.values()))
         self.assertEqual(read_strings("zh-Hans")["App language"], "界面语言")
-        # English must be available even when the Mac uses another language.
         self.assertEqual(english["Settings"], "Settings")
 
     def test_format_arguments_survive_translation(self):
@@ -242,8 +233,6 @@ class LocalizationTests(unittest.TestCase):
                     self.assertEqual(placeholders.findall(source), placeholders.findall(translated[key]))
 
     def test_view_literals_have_catalog_entries(self):
-        # Catalog checks above only compare keys that already exist; new view
-        # copy without a key ships in English to every other language.
         missing, verbatim = view_literal_problems()
         recorded = json.loads(UNTRANSLATED_VIEW_LITERALS.read_text())
         for kind, found, advice in [
@@ -280,14 +269,11 @@ class LocalizationTests(unittest.TestCase):
         self.assertEqual({literal for _, literal in missing},
                          {"Needs Attention", "Update Digest", "Write Digest", "Away \\(…)", "tracked"})
         self.assertEqual({literal for _, literal in verbatim}, {"Updated ", "Owner unclear"})
-        # An interpolation matches whichever format specifier the key uses.
         self.assertEqual(scan_view_literals({"Sample.swift": 'Text("Away \\(duration)")'}, {"Away %@"}),
                          (set(), set()))
 
     def test_line_breaks_and_direction_controls(self):
         english = read_strings("en")
-        # Direction belongs to the view environment, never hidden overrides or
-        # marks in copy. Machine translation most often inserts LRM, RLM and ALM.
         overrides = re.compile("[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]")
         for language in LANGUAGES:
             for key, value in read_strings(language).items():

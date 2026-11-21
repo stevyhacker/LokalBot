@@ -1,49 +1,25 @@
 import AppKit
 import SwiftUI
 
-// Tokens for the macOS-native UI refresh. See DESIGN-SPEC.md, section 3.
-//
-// Prefer system semantic colors (.primary, .secondary, .separator) and text
-// styles (.body, .headline); these tokens cover only what the system does not
-// provide. Shared by all app surfaces in both system appearances.
-
 enum LBTokens {
 
-    // MARK: - Color
-
     enum Palette {
-        /// Set the AccentColor asset to this value in both appearances. White
-        /// text on it meets 4.5:1, so it is safe for selected rows in a focused
-        /// list, prominent buttons, switches and checkboxes.
         static let accentFill = Color(hex: 0x0C8275)
 
-        /// Accent for links, timestamps, sidebar symbols and evidence chips.
-        /// The bright teal only appears on dark backgrounds.
         static let accentText = Brand.teal
 
-        /// Needs attention (speakers banner, remote dot, approvals): fills,
-        /// tints and dots. Use `attentionText` for words.
         static let attention = Color.orange
-        /// "Owner unclear", "Download required". The system orange is too
-        /// light for text on white, so light appearance uses a darker orange.
         static let attentionText = Color(light: 0x984C00, dark: 0xFFB84D)
         static let success = Color.green
         static let successText = Color(light: 0x176F2C, dark: 0x4BDC71)
-        /// Recording, destructive actions and overdue dates.
         static let recording = Color.red
         static let recordingText = Color(light: 0xB60012, dark: 0xFF9C95)
 
-        /// Fill and stroke for grouped sections (10 pt rounded rectangles):
-        /// a light gray well on white, a faint white lift on dark.
         static let statusFillOpacity = 0.10
         static let groupFill = Color(nsColor: .adaptive(light: NSColor(white: 0, alpha: 0.035), dark: NSColor(white: 1, alpha: 0.05)))
         static let groupStroke = Color(nsColor: .adaptive(light: NSColor(white: 0, alpha: 0.07), dark: NSColor(white: 1, alpha: 0.06)))
-        /// Count pills and the empty part of a bar on a raised card: quiet,
-        /// and still a visible shape in both appearances.
         static let quietFill = Color(nsColor: .adaptive(light: NSColor(white: 0, alpha: 0.06), dark: NSColor(white: 1, alpha: 0.10)))
 
-        /// Speakers in order of first appearance. Index 0 is always "You".
-        /// Always show the name next to the color.
         static let speakers: [Color] = [accentText, .blue, .purple, .pink, Color(light: 0xD9A400, dark: 0xFFD60A), .indigo, .brown, .cyan]
 
         static func speaker(at index: Int) -> Color {
@@ -51,28 +27,23 @@ enum LBTokens {
         }
     }
 
-    // MARK: - Typography (macOS default sizes in comments)
-
     enum Typography {
-        static var pageTitle: AppFont { AppFont.scaled(.largeTitle).bold() }           // 26 bold
-        static var question: AppFont { AppFont.scaled(.title2).weight(.semibold) }     // 17 semibold, Ask
-        static var columnTitle: AppFont { AppFont.scaled(.title3).bold() }             // 15 bold, toolbar column titles
-        static var section: AppFont { AppFont.scaled(.headline) }                      // 13 bold
-        static var body: AppFont { AppFont.scaled(.body) }                             // 13
-        static var reading: AppFont { AppFont.scaledSystem(size: 14) }              // transcript lines
-        static var secondary: AppFont { AppFont.scaled(.callout) }                     // 12
-        static var caption: AppFont { AppFont.scaled(.subheadline) }                   // 11
+        static var pageTitle: AppFont { AppFont.scaled(.largeTitle).bold() }
+        static var question: AppFont { AppFont.scaled(.title2).weight(.semibold) }
+        static var columnTitle: AppFont { AppFont.scaled(.title3).bold() }
+        static var section: AppFont { AppFont.scaled(.headline) }
+        static var body: AppFont { AppFont.scaled(.body) }
+        static var reading: AppFont { AppFont.scaledSystem(size: 14) }
+        static var secondary: AppFont { AppFont.scaled(.callout) }
+        static var caption: AppFont { AppFont.scaled(.subheadline) }
         static var timestamp: AppFont { AppFont.scaled(.callout).monospacedDigit() }
         static var path: AppFont { AppFont.scaled(.callout, design: .monospaced) }
     }
-
-    // MARK: - Metrics
 
     enum Metric {
         static let sidebarWidth: CGFloat = 216
         static let sidebarMinWidth: CGFloat = 200
         static let contentColumnWidth: CGFloat = 272
-        /// Minimums of a list-and-detail split (Meetings, Ask, People, Projects).
         static let contentColumnMinWidth: CGFloat = 240
         static let contentDetailMinWidth: CGFloat = 420
         static let settingsCategoriesWidth: CGFloat = 240
@@ -89,21 +60,15 @@ enum LBTokens {
     }
 }
 
-// MARK: - Surfaces
-
 extension View {
-    /// The grouped section surface behind Recap, Action Items, Decisions,
-    /// Evidence and details panes.
     func lbGroupedSurface() -> some View {
         modifier(LBGroupedSurface())
     }
 
-    /// Glass on macOS 26, with an opaque fallback for Reduce Transparency.
     func lbFloatingComposer() -> some View {
         modifier(LBFloatingComposer())
     }
 
-    /// Status surfaces retain a visible boundary with Increase Contrast.
     func lbStatusSurface(_ color: Color) -> some View {
         modifier(LBGroupedSurface(tint: color))
     }
@@ -153,17 +118,12 @@ private struct LBFloatingComposer: ViewModifier {
 
 }
 
-// MARK: - Action item toggle
-
-/// Native switches keep the filled accent even when nearby bordered buttons
-/// use the brighter text accent in dark appearance.
 struct LBAccentSwitchStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         Toggle(configuration).toggleStyle(.switch).tint(LBTokens.Palette.accentFill)
     }
 }
 
-/// Round Reminders-style toggle used for action items everywhere they appear.
 struct ActionItemToggleStyle: ToggleStyle {
     func makeBody(configuration: Configuration) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 10) {
@@ -180,8 +140,6 @@ struct ActionItemToggleStyle: ToggleStyle {
         }
     }
 }
-
-// MARK: - Helpers
 
 private extension Color {
     init(hex: UInt32) {

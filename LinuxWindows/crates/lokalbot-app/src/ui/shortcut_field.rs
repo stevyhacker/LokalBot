@@ -1,6 +1,3 @@
-//! A shortcut recorder (`ShortcutRecorder.swift`): click, then press the
-//! shortcut. Escape cancels. Values read like "Ctrl+Shift+Space".
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Icon, Sizable as _, v_flex};
@@ -15,21 +12,16 @@ use super::Ico;
 use crate::theme::{LbThemeExt as _, ty};
 
 pub enum ShortcutEvent {
-    /// A new, valid shortcut.
     Changed(String),
-    /// Recording started or stopped, so global shortcuts can pause meanwhile.
     Recording(bool),
 }
 
-/// Returns a problem with a candidate ("Dictation already uses this shortcut…").
 type Validator = Box<dyn Fn(&str, &App) -> Option<String>>;
 
 pub struct ShortcutField {
     value: String,
     default_value: String,
     recording: bool,
-    /// Modifiers held since recording began, with no key yet: a chord when they
-    /// are all let go (`ShortcutRecorder.handleModifiers`).
     chord: Modifiers,
     error: Option<SharedString>,
     focus: FocusHandle,
@@ -49,7 +41,6 @@ impl ShortcutField {
         cx: &mut Context<Self>,
     ) -> Self {
         let focus = cx.focus_handle();
-        // Clicking elsewhere ends recording, like the macOS recorder.
         let blur = cx.on_blur(&focus, window, |this, _, cx| {
             if this.recording {
                 this.stop(cx);
@@ -103,7 +94,6 @@ impl ShortcutField {
         cx.notify();
     }
 
-    /// A key ends the chord: Ctrl+Alt then D records Ctrl+Alt+D, not Ctrl+Alt.
     fn modifiers_changed(&mut self, modifiers: Modifiers, cx: &mut Context<Self>) {
         if !self.recording {
             return;
@@ -252,7 +242,6 @@ fn has_command_modifier(keystroke: &Keystroke) -> bool {
     m.control || m.alt || m.platform
 }
 
-/// "Ctrl+Shift+Space"; `None` without Ctrl, Alt or Super.
 pub fn format_keystroke(keystroke: &Keystroke) -> Option<String> {
     if !has_command_modifier(keystroke) {
         return None;

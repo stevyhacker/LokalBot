@@ -1,22 +1,11 @@
 import Foundation
 
-/// Whisper answers audio it cannot make out (a pause, a breath, a faint
-/// voice leaking from the other side of a call) with an English stock phrase
-/// from its subtitle-heavy training data, whatever language it was set to:
-/// on Serbian speech set to Bosnian it still writes "Thank you." where
-/// Qwen3-ASR writes nothing. In a track that is not in English such a row is
-/// not speech, so it is dropped. English tracks keep theirs: there it can be
-/// what someone said.
 enum WhisperStockPhrases {
-    /// Whole rows, lowercased with punctuation removed.
     static let phrases: Set<String> = [
         "thank you", "thank you very much", "thank you so much", "thank you guys",
         "thanks for watching", "thank you for watching",
     ]
 
-    /// `transcript` without stock-phrase rows when its language is known and
-    /// not English: `language` as set, or on auto-detect, a vote of at least
-    /// 80% for another language.
     static func removing(from transcript: Transcript,
                          language: String?) -> (transcript: Transcript, removedSegments: Int) {
         guard transcript.segments.contains(where: { isStockPhrase($0.text) }),

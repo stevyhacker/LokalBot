@@ -1,7 +1,6 @@
 import AVFoundation
 import Foundation
 
-/// Synthetic process-kill probe; never opens capture devices or the library.
 @main
 struct AudioRecoveryCrashProbe {
     static func main() throws {
@@ -23,7 +22,6 @@ struct AudioRecoveryCrashProbe {
                 try primary.write(from: buffer)
             }
             try Data("ready".utf8).write(to: folder.appendingPathComponent("ready"))
-            // Retain unclosed writers until the parent sends SIGKILL.
             withExtendedLifetime((tee, primary)) {
                 while true { Thread.sleep(forTimeInterval: 1) }
             }

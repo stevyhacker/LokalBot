@@ -1,8 +1,3 @@
-//! Applies `action.setStatus` ops from paired devices
-//! (`CompanionOpApplier.swift`) through the same library path as the action
-//! rows, so the outcome state and every derived surface update exactly as for
-//! a click here.
-
 use lokalbot_core::Library;
 use lokalbot_core::model::{ActionReference, ActionStatus};
 use lokalbot_sync::OpOutcome;
@@ -10,7 +5,6 @@ use uuid::Uuid;
 
 use super::records::{SET_STATUS, SetStatusOp};
 
-/// The op's meeting when it parsed, for the republish that follows.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Outcome {
     pub result: OpOutcome,
@@ -40,10 +34,6 @@ fn outcome(status: &str, message: Option<String>) -> OpOutcome {
     }
 }
 
-/// Finds the action a phone's op names. Action ids are content hashes, so
-/// reprocessing a meeting can change them while the phone still holds the old
-/// one; the op's text snapshot then finds the action when exactly one matches.
-/// Anything else is reported back as unmatched, never guessed.
 pub fn match_action(
     action_id: &str,
     action_text: Option<&str>,

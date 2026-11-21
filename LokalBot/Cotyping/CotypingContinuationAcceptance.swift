@@ -1,11 +1,6 @@
 import Foundation
 
-/// What one accept keypress does to a continuation: how much of the suggestion
-/// it consumes and the exact text to put at the caret. The live accept tap and
-/// the Settings rehearsal both plan here, so a rehearsed Tab takes the same
-/// word or phrase, with the same spacing and punctuation, as Tab in another app.
 struct CotypingContinuationAcceptance: Equatable, Sendable {
-    /// The acceptance settings that shape a keypress.
     struct Options: Equatable, Sendable {
         var granularity: CotypingAcceptGranularity = .word
         var autoAcceptTrailingPunctuation = false
@@ -26,16 +21,10 @@ struct CotypingContinuationAcceptance: Equatable, Sendable {
         }
     }
 
-    /// Characters of the suggestion this keypress consumes.
     let acceptedChunk: String
-    /// Text to insert: the chunk with duplicate whitespace removed, a sentence
-    /// space added, and the optional trailing space applied.
     let insertionText: String
-    /// Characters after the caret that the insertion replaces when the
-    /// suggestion completes a word the user is in the middle of.
     let forwardDeleteCount: Int
 
-    /// Returns nil when the keypress would accept nothing.
     static func plan(
         session: CotypingSession,
         scope: CotypingAcceptScope,
@@ -86,29 +75,18 @@ struct CotypingContinuationAcceptance: Equatable, Sendable {
     }
 }
 
-/// The rehearsal editor's suggestion, advanced by the same rules as a live
-/// field: an accept takes the configured amount and keeps the rest, typing the
-/// suggested characters walks through it, and any other edit discards it.
 struct CotypingRehearsal: Equatable, Sendable {
     enum Change: Equatable, Sendable {
-        /// The edit was the accept itself; the remaining ghost still applies.
         case unchanged
-        /// The user typed the next suggested characters; the ghost shortened.
         case advanced
-        /// The text moved away from the suggestion; a new one is needed.
         case stale
     }
 
     private(set) var session: CotypingSession?
-    /// Editor text the remaining ghost continues from.
     private(set) var anchor = ""
 
-    /// The part of the suggestion still offered after the caret.
     var ghost: String { session?.remainingText ?? "" }
 
-    /// `wordLimit` is the length limit the suggestion was generated under.
-    /// With it, a suggestion the limit cut short can be topped up as it is
-    /// accepted, as in a live field.
     mutating func present(_ suggestion: String, after text: String, wordLimit: Int? = nil) {
         guard !suggestion.isEmpty else {
             dismiss()
@@ -122,15 +100,11 @@ struct CotypingRehearsal: Equatable, Sendable {
         anchor = text
     }
 
-    /// The text a top-up continues from, once the remaining ghost is running
-    /// short; nil while there is enough left or the thought is finished.
     func topUpPrefix(wordLimit: Int) -> String? {
         guard let session, CotypingSuggestionExtension.shouldExtend(session, wordLimit: wordLimit) else { return nil }
         return CotypingSuggestionExtension.continuationPrefix(of: session)
     }
 
-    /// Appends model output to the ghost when it still continues the same
-    /// suggestion. Returns whether the ghost grew.
     mutating func topUp(with output: String, continuing prefix: String, wordLimit: Int) -> Bool {
         guard let current = session,
               CotypingSuggestionExtension.continuationPrefix(of: current) == prefix,
@@ -151,8 +125,6 @@ struct CotypingRehearsal: Equatable, Sendable {
         anchor = ""
     }
 
-    /// One accept keypress with the caret at the end of `text`. Returns the
-    /// text the editor should hold afterwards, or nil when nothing was accepted.
     mutating func accept(
         _ scope: CotypingAcceptScope,
         text: String,
@@ -173,8 +145,6 @@ struct CotypingRehearsal: Equatable, Sendable {
         return updated
     }
 
-    /// The editor text changed. Call for every change, including the one an
-    /// accept produces.
     mutating func textChanged(to text: String) -> Change {
         guard let current = session else { return .stale }
         if text == anchor { return .unchanged }

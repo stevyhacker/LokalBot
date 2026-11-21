@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Per-domain disable
-
 final class CotypingBrowserDomainTests: XCTestCase {
     func testHostStripsWWWAndPath() {
         XCTAssertEqual(CotypingBrowserDomain.host(fromURLString: "https://www.bank.com/login?x=1"), "bank.com")

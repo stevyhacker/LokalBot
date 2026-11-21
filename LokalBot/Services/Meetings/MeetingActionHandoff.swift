@@ -1,18 +1,10 @@
 import Foundation
 
-/// Hands a meeting's open actions that are the person's to Agent Mode: one
-/// task per action, with its prompt in the composer and the meeting's notes
-/// attached, so an agent can work on each one on its own.
 enum MeetingActionHandoff {
-    /// More actions than this from one meeting is more likely a noisy
-    /// extraction than a list worth a task each.
     static let maximumActions = 8
 
-    /// Automatic handoffs only follow meetings from the last day, so
-    /// importing or summarizing old recordings again never fills Agent Mode.
     static let automaticWindow: TimeInterval = 24 * 60 * 60
 
-    /// Open actions that are the person's, in the order the meeting lists them.
     static func actions(in projection: MeetingOutcomeProjection) -> [OutcomeActionReference] {
         guard projection.meeting.isOwnWork, !projection.isArchived else { return [] }
         return Array(projection.actionReferences
@@ -40,8 +32,6 @@ enum MeetingActionHandoff {
             folder: folder)
     }
 
-    /// The task's composer text. The meeting's notes travel as an attachment
-    /// that Agent Mode reads again when the prompt is sent.
     static func prompt(for reference: OutcomeActionReference, folder: String,
                        timeZone: TimeZone = .current) -> String {
         let time = formatter("EEE yyyy-MM-dd HH:mm", timeZone: timeZone)
@@ -72,7 +62,6 @@ enum MeetingActionHandoff {
             "",
             "Get as far as you can on your own: look things up, and write the drafts, plans, or code it needs. "
                 + "Save what you make in `\(folder)/` in this workspace.",
-            // Only a lone lookup runs without a card (AgentApprovalPolicy.isLibraryLookup).
             "Run each lokalbot-cli lookup as a command of its own, with no loops or chained commands, "
                 + "so it runs without waiting for me.",
             "Don't send, post, publish, buy, or delete anything. Draft it for me instead.",
@@ -83,7 +72,6 @@ enum MeetingActionHandoff {
         return lines.joined(separator: "\n")
     }
 
-    /// `handoffs/<day>-<meeting>/<number>-<action>`, relative to the workspace.
     static func folder(for reference: OutcomeActionReference, number: Int,
                        timeZone: TimeZone = .current) -> String {
         let day = formatter("yyyy-MM-dd", timeZone: timeZone).string(from: reference.meetingStartedAt)
@@ -92,7 +80,6 @@ enum MeetingActionHandoff {
         return "handoffs/\(day)\(meeting.isEmpty ? "" : "-\(meeting)")/\(number)\(action.isEmpty ? "" : "-\(action)")"
     }
 
-    /// Lowercased letters and digits joined by single dashes.
     static func slug(_ text: String, limit: Int) -> String {
         var result = ""
         var needsDash = false
@@ -119,11 +106,6 @@ enum MeetingActionHandoff {
 }
 
 extension AppState {
-    /// Gives each open action of the person's from `meeting` its own Agent
-    /// Mode task. With "Start handoffs automatically" on, the tasks run as
-    /// agents free up; otherwise each prompt waits in its composer. Asked
-    /// for by hand, an action whose task was archived gets a new one.
-    /// Returns the new tasks' IDs, empty when every action already has a task.
     @discardableResult
     func handOffActions(of meeting: Meeting, automatic: Bool = false) -> [UUID] {
         guard let projection = outcomeIndex.projection(for: meeting.id) else { return [] }
@@ -138,7 +120,6 @@ extension AppState {
         return added
     }
 
-    /// Called once a meeting's summary is written.
     func handOffActionsAfterSummary(_ meeting: Meeting, now: Date = Date()) {
         guard settings.handOffActionsAfterSummary,
               now.timeIntervalSince(meeting.endedAt ?? meeting.startedAt) < MeetingActionHandoff.automaticWindow
@@ -146,8 +127,6 @@ extension AppState {
         handOffActions(of: meeting, automatic: true)
     }
 
-    /// The meeting page's "Hand off my actions to Agent Mode": hands them off
-    /// and shows the first new task.
     func handOffActionsAndOpenAgent(of meeting: Meeting) {
         let added = handOffActions(of: meeting)
         if let first = added.first { agentSessions.select(first) }

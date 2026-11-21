@@ -1,15 +1,3 @@
-//! Delivering dictated text to the focused app (`CotypingInserter.insertViaPaste`,
-//! `DictationModels.swift`).
-//!
-//! [`InsertMethod::Paste`] puts the text on the clipboard, presses Ctrl+V
-//! (Shift+Insert in terminals), and puts the previous clipboard back 300 ms
-//! later if nothing else changed it. [`InsertMethod::Type`] types Unicode
-//! keystrokes. On Wayland keystrokes need `wtype` (wlroots compositors) or
-//! `ydotool`; without them the text is left on the clipboard and the call
-//! returns [`InsertOutcome::CopiedToClipboard`] so the UI can say so.
-//!
-//! Call from a background thread: a paste blocks for about 300 ms.
-
 use std::sync::LazyLock;
 use std::time::Duration;
 
@@ -24,19 +12,13 @@ pub enum InsertMethod {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InsertOutcome {
-    /// Keystrokes were sent to the focused app.
     Inserted,
-    /// The text is on the clipboard instead ("Copied to the clipboard").
     CopiedToClipboard,
 }
 
-/// How long the app gets to read the clipboard before it is restored.
 const RESTORE_AFTER: Duration = Duration::from_millis(300);
-/// How long to wait for the user to let go of the shortcut's modifiers.
 const MODIFIER_WAIT: Duration = Duration::from_millis(600);
 
-/// One clipboard for the process. On X11 the owner serves pastes, so the
-/// copied text survives only while this stays alive.
 static CLIPBOARD: LazyLock<Mutex<Option<arboard::Clipboard>>> = LazyLock::new(|| Mutex::new(None));
 
 fn with_clipboard<T>(
@@ -50,7 +32,6 @@ fn with_clipboard<T>(
     Ok(action(clipboard)?)
 }
 
-/// What was on the clipboard before a paste.
 enum Saved {
     Text(String),
     Image(arboard::ImageData<'static>),
@@ -67,7 +48,6 @@ fn save_clipboard() -> Saved {
     }
 }
 
-/// The clipboard as it was, to put back after a copy keystroke.
 pub(crate) struct ClipboardSnapshot(Saved);
 
 impl ClipboardSnapshot {
@@ -83,7 +63,6 @@ pub(crate) fn snapshot_clipboard() -> ClipboardSnapshot {
     ClipboardSnapshot(save_clipboard())
 }
 
-/// Puts the clipboard back, marked as generated so clipboard managers skip it.
 pub(crate) fn restore_clipboard(saved: ClipboardSnapshot) {
     let restored = match saved.0 {
         Saved::Text(text) => set_generated_text(text),
@@ -122,8 +101,6 @@ pub(crate) fn clipboard_text() -> Option<String> {
     with_clipboard(|c| c.get_text()).ok()
 }
 
-/// Sends the copy keystroke to the focused app. Refuses terminals, where
-/// Ctrl+C interrupts whatever is running. `Ok(false)` when it was not sent.
 pub(crate) fn send_copy(app_name: &str, app_id: &str) -> anyhow::Result<bool> {
     if crate::autocomplete::policy::is_terminal_app(app_name, app_id)
         || paste_combo(crate::activity::focused_app_hint().as_deref()) == PasteCombo::ShiftInsert
@@ -133,13 +110,10 @@ pub(crate) fn send_copy(app_name: &str, app_id: &str) -> anyhow::Result<bool> {
     keys::send_copy()
 }
 
-/// Puts `text` on the system clipboard.
 pub fn copy_to_clipboard(text: &str) -> anyhow::Result<()> {
     with_clipboard(|c| c.set_text(text))
 }
 
-/// Inserts `text` into the focused app. Errors only when even the clipboard
-/// fallback failed.
 pub fn insert_text(text: &str, method: InsertMethod) -> anyhow::Result<InsertOutcome> {
     if text.is_empty() {
         return Ok(InsertOutcome::Inserted);
@@ -157,8 +131,6 @@ pub fn insert_text(text: &str, method: InsertMethod) -> anyhow::Result<InsertOut
     }
 }
 
-/// Types `text` as keystrokes, never through the clipboard (autocomplete).
-/// `Ok(false)` when this session cannot type into other apps.
 #[cfg(target_os = "linux")]
 pub(crate) fn type_keystrokes(text: &str) -> anyhow::Result<bool> {
     keys::type_text(text)
@@ -172,8 +144,6 @@ fn fallback(text: &str) -> anyhow::Result<InsertOutcome> {
 fn paste(text: &str) -> anyhow::Result<InsertOutcome> {
     let combo = paste_combo(crate::activity::focused_app_hint().as_deref());
     let saved = save_clipboard();
-    // The text only passes through the clipboard, so it is marked as
-    // generated, as on macOS: clipboard history and cloud sync skip it.
     set_generated_text(text.to_string())?;
     #[cfg(target_os = "linux")]
     let saved_primary = (combo == PasteCombo::ShiftInsert).then(|| primary::replace(text));
@@ -185,15 +155,12 @@ fn paste(text: &str) -> anyhow::Result<InsertOutcome> {
         }
     };
     if !sent {
-        // Left there for the user to paste: an ordinary copy from here on.
         if let Err(err) = copy_to_clipboard(text) {
             log::debug!("copying the text again failed: {err:#}");
         }
         return Ok(InsertOutcome::CopiedToClipboard);
     }
     std::thread::sleep(RESTORE_AFTER);
-    // Restore only when the clipboard still holds our text: if the user or
-    // the app copied something meanwhile, that wins.
     if with_clipboard(|c| c.get_text()).ok().as_deref() == Some(text) {
         let restored = match saved {
             Saved::Text(previous) => set_generated_text(previous),
@@ -211,21 +178,15 @@ fn paste(text: &str) -> anyhow::Result<InsertOutcome> {
     Ok(InsertOutcome::Inserted)
 }
 
-/// One paste at a time across dictation and selection actions.
 static PASTE_QUEUE: Mutex<()> = Mutex::new(());
 
-/// What a checked paste did.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PasteOutcome {
     Pasted,
-    /// The keystroke could not be sent; the text is on the clipboard.
     LeftOnClipboard,
-    /// `still_valid` said no after waiting its turn; nothing changed.
     Skipped,
 }
 
-/// Pastes `text` after `still_valid` confirms the destination, which runs
-/// once an earlier paste has finished (`insertViaPaste(revalidateAfterWaiting:)`).
 pub fn paste_checked(
     text: &str,
     still_valid: impl FnOnce() -> bool,
@@ -243,11 +204,9 @@ pub fn paste_checked(
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum PasteCombo {
     CtrlV,
-    /// Terminals: Ctrl+V is a control character there.
     ShiftInsert,
 }
 
-/// Terminal emulators by executable, `WM_CLASS` or app id (lowercase).
 pub(crate) const TERMINALS: &[&str] = &[
     "gnome-terminal",
     "gnome-terminal-server",
@@ -309,27 +268,22 @@ pub(crate) fn paste_combo(app: Option<&str>) -> PasteCombo {
     }
 }
 
-/// Why inserting into other apps cannot work here, worded for Settings.
 pub fn insertion_limitation() -> Option<String> {
     keys::limitation()
 }
 
-/// The primary selection's text. The caller checks who owns it.
 #[cfg(target_os = "linux")]
 pub(crate) fn primary_text() -> Option<String> {
     use arboard::{GetExtLinux, LinuxClipboardKind};
     with_clipboard(|c| c.get().clipboard(LinuxClipboardKind::Primary).text()).ok()
 }
 
-/// Most Linux terminals paste the primary selection on Shift+Insert, so it
-/// carries the text too while pasting.
 #[cfg(target_os = "linux")]
 mod primary {
     use arboard::{GetExtLinux, LinuxClipboardKind, SetExtLinux};
 
     use super::with_clipboard;
 
-    /// Sets the primary selection, returning what it held.
     pub(super) fn replace(text: &str) -> Option<String> {
         let previous =
             with_clipboard(|c| c.get().clipboard(LinuxClipboardKind::Primary).text()).ok();
@@ -356,9 +310,6 @@ mod primary {
 
 #[cfg(windows)]
 mod keys {
-    //! `SendInput`: virtual keys for the paste shortcut, `KEYEVENTF_UNICODE`
-    //! for typing, in chunks of at most 20 UTF-16 units like macOS.
-
     use std::time::{Duration, Instant};
 
     use windows::Win32::UI::Input::KeyboardAndMouse::{
@@ -370,8 +321,6 @@ mod keys {
     use super::{MODIFIER_WAIT, PasteCombo};
 
     const CHUNK: usize = 20;
-    /// An unassigned key, tapped before releasing Alt or Win so the release
-    /// does not open a menu or the Start menu.
     const MASK_KEY: VIRTUAL_KEY = VIRTUAL_KEY(0xE8);
 
     fn key(vk: VIRTUAL_KEY, up: bool) -> INPUT {
@@ -417,7 +366,6 @@ mod keys {
     }
 
     fn send(inputs: &[INPUT]) -> anyhow::Result<()> {
-        // SAFETY: `inputs` is a valid slice of INPUT structures.
         let sent = unsafe { SendInput(inputs, size_of::<INPUT>() as i32) };
         if sent as usize != inputs.len() {
             anyhow::bail!(
@@ -430,14 +378,11 @@ mod keys {
     }
 
     fn is_down(vk: VIRTUAL_KEY) -> bool {
-        // SAFETY: no pointers; reads the asynchronous key state.
         (unsafe { GetAsyncKeyState(i32::from(vk.0)) } as u16 & 0x8000) != 0
     }
 
     const MODIFIERS: [VIRTUAL_KEY; 5] = [VK_SHIFT, VK_CONTROL, VK_MENU, VK_LWIN, VK_RWIN];
 
-    /// Waits for the dictation shortcut's modifiers to come up, then lifts
-    /// any still held so they do not change the keystrokes.
     fn release_modifiers() -> anyhow::Result<()> {
         let deadline = Instant::now() + MODIFIER_WAIT;
         while MODIFIERS.iter().any(|&vk| is_down(vk)) && Instant::now() < deadline {
@@ -503,7 +448,6 @@ mod keys {
                 }
             }
             units_in_batch += c.len_utf16();
-            // Never split a surrogate pair across batches.
             if units_in_batch >= CHUNK {
                 flush(&mut batch)?;
                 units_in_batch = 0;
@@ -520,9 +464,6 @@ mod keys {
 
 #[cfg(target_os = "linux")]
 mod keys {
-    //! X11: XTest for the paste shortcut and `enigo` for Unicode typing.
-    //! Wayland: `wtype`, then `ydotool`.
-
     use std::process::Command;
     use std::time::{Duration, Instant};
 
@@ -540,7 +481,6 @@ mod keys {
     const XK_INSERT: u32 = 0xff63;
     const XK_V: u32 = 0x0076;
     const XK_C: u32 = 0x0063;
-    /// The shortcut's modifiers may still be held; Ctrl+Alt+C is not Copy.
     const COPY_MODIFIER_WAIT: Duration = Duration::from_millis(400);
 
     pub(super) fn send_paste(combo: PasteCombo) -> anyhow::Result<bool> {
@@ -557,7 +497,6 @@ mod keys {
 
     pub(super) fn send_copy() -> anyhow::Result<bool> {
         if crate::session::is_wayland() {
-            // Wayland does not say which keys are held.
             std::thread::sleep(COPY_MODIFIER_WAIT);
             return Ok(wayland_copy());
         }
@@ -568,7 +507,6 @@ mod keys {
             .get(screen)
             .context("no X11 screen")?
             .root;
-        // Sent with other modifiers held, this would be some other shortcut.
         let deadline = Instant::now() + COPY_MODIFIER_WAIT;
         loop {
             let pointer = conn.query_pointer(root)?.reply()?;
@@ -677,8 +615,6 @@ mod keys {
         }
     }
 
-    /// wtype creates a new virtual keyboard each run; without a short pause
-    /// the compositor can drop the first key while it applies the keymap.
     const WTYPE_SETTLE_MS: &str = "50";
 
     fn wayland_paste(combo: PasteCombo) -> bool {
@@ -702,8 +638,6 @@ mod keys {
             }
         }
         if let Some(ydotool) = find_program("ydotool") {
-            // ydotool 1.x takes Linux input event codes (Ctrl 29, V 47,
-            // Shift 42, Insert 110); 0.1.x, as in Ubuntu 24.04, key names.
             let (codes, names): (&[&str], &[&str]) = match combo {
                 PasteCombo::CtrlV => (&["key", "29:1", "47:1", "47:0", "29:0"], &["key", "ctrl+v"]),
                 PasteCombo::ShiftInsert => (
@@ -730,7 +664,6 @@ mod keys {
             return true;
         }
         if let Some(ydotool) = find_program("ydotool") {
-            // Ctrl is 29 and C is 46 in Linux input event codes.
             return run(&ydotool, &["key", "29:1", "46:1", "46:0", "29:0"], timeout)
                 || run(&ydotool, &["key", "ctrl+c"], timeout);
         }

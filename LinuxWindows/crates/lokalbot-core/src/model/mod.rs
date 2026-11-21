@@ -1,6 +1,3 @@
-//! Serializable records of the library. Field names follow the macOS JSON so
-//! files round-trip between both apps.
-
 pub mod activity;
 pub mod ask_scope;
 pub mod chat;

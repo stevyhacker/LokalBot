@@ -1,17 +1,10 @@
-// Public list API rates (USD per million tokens), used to estimate what the
-// year's logged tokens would cost at pay-as-you-go API pricing. Flat-rate
-// subscriptions (Claude Pro/Max, ChatGPT Plus/Pro) cost less; the figure is
-// an API-equivalent estimate, never a bill.
-
 const RATES = [
-  // Anthropic Claude
   { match: /opus[-._]?4[-._]?[5-9]|opus[-._]?[5-9]/i, rate: { input: 5, cacheRead: 0.5, cacheWrite: 6.25, output: 25 } },
   { match: /opus/i, rate: { input: 15, cacheRead: 1.5, cacheWrite: 18.75, output: 75 } },
   { match: /sonnet/i, rate: { input: 3, cacheRead: 0.3, cacheWrite: 3.75, output: 15 } },
   { match: /haiku[-._]?(?:3[-._]?5|[4-9])/i, rate: { input: 1, cacheRead: 0.1, cacheWrite: 1.25, output: 5 } },
   { match: /haiku/i, rate: { input: 0.25, cacheRead: 0.03, cacheWrite: 0.3, output: 1.25 } },
 
-  // OpenAI GPT / Codex / o-series
   { match: /gpt[-._]?5[-._]?[2-9].*pro/i, rate: { input: 15, cacheRead: 1.5, cacheWrite: 15, output: 120 } },
   { match: /(?:gpt[-._]?5|codex).*mini/i, rate: { input: 0.25, cacheRead: 0.025, cacheWrite: 0.25, output: 2 } },
   { match: /gpt[-._]?5[-._]?[2-9]|gpt[-._]?[6-9]/i, rate: { input: 1.75, cacheRead: 0.175, cacheWrite: 1.75, output: 14 } },
@@ -23,13 +16,11 @@ const RATES = [
   { match: /gpt[-._]?4o[-._]?mini/i, rate: { input: 0.15, cacheRead: 0.075, cacheWrite: 0.15, output: 0.6 } },
   { match: /gpt[-._]?4o/i, rate: { input: 2.5, cacheRead: 1.25, cacheWrite: 2.5, output: 10 } },
 
-  // Google Gemini
   { match: /gemini.*flash[-._]?lite/i, rate: { input: 0.1, cacheRead: 0.01, cacheWrite: 0.1, output: 0.4 } },
   { match: /gemini.*flash/i, rate: { input: 0.3, cacheRead: 0.03, cacheWrite: 0.3, output: 2.5 } },
   { match: /gemini[-._]?[3-9]|gemini.*carbon/i, rate: { input: 2, cacheRead: 0.2, cacheWrite: 2, output: 12 } },
   { match: /gemini/i, rate: { input: 1.25, cacheRead: 0.125, cacheWrite: 1.25, output: 10 } },
 
-  // Other coding models (Cursor, xAI, Moonshot, DeepSeek, Qwen)
   { match: /composer/i, rate: { input: 1.25, cacheRead: 0.125, cacheWrite: 1.25, output: 10 } },
   { match: /grok/i, rate: { input: 3, cacheRead: 0.75, cacheWrite: 3, output: 15 } },
   { match: /kimi/i, rate: { input: 0.6, cacheRead: 0.15, cacheWrite: 0.6, output: 2.5 } },
@@ -59,10 +50,6 @@ export function rateForModel(model, agentId) {
   return AGENT_FALLBACK[agentId] ?? DEFAULT_RATE;
 }
 
-/**
- * Estimates USD list API value for `{ input, cached, cacheWrite, output }`,
- * where `input` includes both `cached` and `cacheWrite`.
- */
 export function tokenCostUsd({ input = 0, cached = 0, cacheWrite = 0, output = 0 }, model, agentId) {
   const rate = rateForModel(model, agentId);
   const uncached = Math.max(0, input - cached - cacheWrite);
@@ -74,7 +61,6 @@ export function tokenCostUsd({ input = 0, cached = 0, cacheWrite = 0, output = 0
   ) / 1_000_000;
 }
 
-/** Estimates USD list API value for one collected session. */
 export function sessionApiUsd(session) {
   if (session.modelTokens && session.modelTokens.size > 0) {
     let total = 0;

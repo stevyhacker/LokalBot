@@ -2,9 +2,6 @@ import Combine
 import Foundation
 import CryptoKit
 
-/// One line in the chat transcript. `activity` holds the tool steps the
-/// assistant ran for this turn (shown as chips above its answer). Codable so
-/// conversations persist; `isPending` is transient and never written.
 struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
     struct Activity: Identifiable, Equatable, Codable, Sendable {
         let id: UUID
@@ -21,38 +18,21 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
     let id: UUID
     let role: ChatRole
     var text: String
-    /// When this turn entered the conversation. Legacy messages retain the
-    /// conversation date for ordering but are marked estimated in the UI.
     var createdAt: Date
     var createdAtIsEstimated: Bool
     var activity: [Activity]
-    /// Sources enabled for this specific question. Empty on legacy turns.
     var sourceScopes: [AskSourceScope]
-    /// Optional civil-day or date-range constraint applied to this turn. Kept separate
-    /// from source scopes so a date filter never silently grants a source.
     var dayScopeKey: String?
-    /// Civil days represented by screen moments explicitly attached to the
-    /// prompt. OCR itself remains ephemeral; these keys preserve provenance.
     var attachedScreenDayKeys: [String]
     var meetingIDs: Set<UUID>?
     var screenSnapshotIDs: Set<Int64>?
-    /// Version-1 turns did not persist enough source/day/attachment provenance
-    /// to replay or retry them safely under a narrower modern scope.
     fileprivate var legacyScopeIsAmbiguous: Bool
-    /// The assistant turn is still being generated. Transient — never persisted.
     var isPending: Bool
-    /// The turn failed (engine unreachable, no model, …) — rendered as an error.
     var isError: Bool
-    /// Set on the assistant turn that answers a "Remember …" message: the
-    /// statement was saved (or refused) without calling a model. These pairs
-    /// stay out of model history; the personal-context block carries them.
     var rememberReceipt: RememberReceipt?
-    /// Personal claims supplied to the model for this answer, so the answer
-    /// can show what it was given. Nil on older turns and when none were used.
     var usedClaimIDs: [UUID]?
 
     struct RememberReceipt: Equatable, Codable, Sendable {
-        /// The saved claim, or nil when the statement was refused.
         var claimID: UUID?
     }
 
@@ -103,10 +83,6 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
         let rawDayScope = try? c.decode(String.self, forKey: .dayScope)
         dayScopeKey = rawDayScope.flatMap { AskDateScope(storageKey: $0) != nil ? $0 : nil }
         if c.contains(.dayScope), dayScopeKey == nil {
-            // Older builds persisted an absolute Date. Its originating time
-            // zone was never saved, so converting it to a civil day after the
-            // user travels can move the retrieval boundary. Drop the unknown
-            // day and prevent a retry from silently widening the old request.
             legacyScopeIsAmbiguous = true
         }
         attachedScreenDayKeys = try c.decodeIfPresent(
@@ -149,7 +125,6 @@ struct ChatMessage: Identifiable, Equatable, Codable, Sendable {
     }
 }
 
-/// A saved chat conversation — the unit of history persisted to disk.
 struct Conversation: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var title: String
@@ -185,22 +160,9 @@ struct Conversation: Identifiable, Codable, Equatable, Sendable {
                 migrated.createdAtIsEstimated = true
             }
             if migrated.sourceScopeSchemaVersion < 2 {
-                // Version 1 also omitted pinned-screen provenance. Even a
-                // Meetings-only label could have hidden OCR in its prompt, so
-                // every old turn is unsafe to retry or reuse in a narrower
-                // source/day request.
                 migrated.legacyScopeIsAmbiguous = true
-                // Version 1 overloaded Today as a source and, when selected
-                // alone, as a one-day grant to every source. Mixed selections
-                // had asymmetric rules, handled conservatively below.
                 let legacyScopes = Set(migrated.sourceScopes)
                 if legacyScopes.contains(.today) {
-                    // Old messages did not record a per-turn date, while mixed
-                    // version-1 scopes also date-limited sources asymmetrically.
-                    // Even an exact timestamp cannot recover the originating
-                    // time zone, so restore source types without fabricating a
-                    // civil day or retrying under semantics the turn never had.
-                    // Its existing answer remains safe history for full scope.
                     if legacyScopes != AskSourceScope.defaults {
                         migrated.sourceScopes = AskSourceScope.allCases
                     }
@@ -223,10 +185,6 @@ struct Conversation: Identifiable, Codable, Equatable, Sendable {
     }
 }
 
-/// Persists chat conversations as one JSON file per conversation under
-/// `<root>/chats/`, mirroring the file-per-document layout used for meetings
-/// and journals. Personal scale: the whole set loads into memory and each
-/// save rewrites a single small file atomically.
 @MainActor
 final class ChatStore {
     enum LoadFailure: Equatable, Sendable {
@@ -332,7 +290,6 @@ final class ChatStore {
         if !encryptedFiles.isEmpty, key == nil {
             result.failures.append(.keyUnavailable)
         }
-        // Encrypted copies win if an earlier migration left both files.
         for file in files.sorted(by: { $0.pathExtension == "json" && $1.pathExtension != "json" }) {
             guard ["enc", "json"].contains(file.pathExtension) else { continue }
             guard let data = try? Data(contentsOf: file) else {
@@ -367,8 +324,6 @@ final class ChatStore {
 
     private func finalize(_ decoded: DecodedFiles) -> LoadReport {
         var failures = decoded.failures
-        // Legacy writes remain on the store owner so they cannot race save/delete.
-        // Verify the plaintext still exists: deletion during hydration wins.
         for (id, file) in decoded.legacyFiles where FileManager.default.fileExists(atPath: file.path) {
             guard let conversation = decoded.conversations[id], save(conversation) else {
                 failures.append(.plaintextMigrationFailed(file.lastPathComponent))
@@ -385,9 +340,6 @@ final class ChatStore {
             failures: failures)
     }
 
-    /// Encode → AES-GCM seal (per-install Keychain key) → atomic write. Returns
-    /// whether the sealed file landed, so the migration above never discards
-    /// plaintext before its encrypted replacement exists.
     @discardableResult
     func save(_ conversation: Conversation) -> Bool {
         guard let key = try? encryptionKey(),
@@ -403,8 +355,6 @@ final class ChatStore {
 
     @discardableResult
     func delete(_ id: UUID) -> Bool {
-        // Remove the legacy copy first. A failure keeps the encrypted copy
-        // available and the caller retains the conversation for retry.
         let files = [dir.appendingPathComponent("\(id.uuidString).json"), fileURL(id)]
         do {
             for file in files where FileManager.default.fileExists(atPath: file.path) {
@@ -417,10 +367,6 @@ final class ChatStore {
     }
 }
 
-/// Drives the Chat section: owns the message list and runs `ChatAgent` against
-/// the same `TextEngine` the summariser uses (resolved lazily per send via
-/// `ThinkExecution.makeTextEngine`, so it always reflects the current
-/// Settings → Models choice and boots the built-in server on first use).
 @MainActor
 final class ChatViewModel: ObservableObject {
     struct QuestionScope: Equatable {
@@ -438,11 +384,8 @@ final class ChatViewModel: ObservableObject {
     @Published var draft = ""
     @Published private(set) var isResponding = false
     @Published private(set) var responsePhase: ResponsePhase?
-    /// All saved conversations, most-recently-updated first (drives the list).
     @Published private(set) var conversations: [Conversation] = []
-    /// The conversation currently shown in the transcript.
     @Published private(set) var currentID: UUID
-    /// Explicit navigation also fires when selecting the current or empty question.
     @Published private(set) var navigationRevision = 0
     @Published private(set) var isLoadingHistory = false
     @Published private(set) var persistenceError: String?
@@ -467,7 +410,6 @@ final class ChatViewModel: ObservableObject {
 
     nonisolated static let newChatTitle = "New conversation"
 
-    /// Prompt chips shown on the empty state.
     let suggestions = [
         "What did we decide in my last meeting?",
         "List my recent meetings",
@@ -477,13 +419,8 @@ final class ChatViewModel: ObservableObject {
     private let makeEngine: () async throws -> TextEngine
     private let tools: ChatToolRunner
     private let store: ChatStore
-    /// Re-read per send so an overnight dream lands in the next question
-    /// without restarting the app. Empty when dreaming is off or has nothing.
     private let workMemory: () -> String
-    /// What the person told LokalBot about themselves. Nil in contexts that
-    /// don't offer it (tests, previews).
     let personalModel: PersonalModelController?
-    /// Settings → Personal Context → "Remember what I tell Ask".
     private let askMemoryEnabled: () -> Bool
     private var task: Task<Void, Never>?
     private struct RetryPayload {
@@ -500,7 +437,6 @@ final class ChatViewModel: ObservableObject {
     private var activeAssistantID: UUID?
 
 #if DEBUG
-    /// Exposes identifiers, never hidden prompt contents, for lifecycle tests.
     var retainedRetryPayloadIDs: Set<UUID> { Set(retryPayloads.keys) }
 #endif
 
@@ -537,9 +473,6 @@ final class ChatViewModel: ObservableObject {
     func waitForHistory() async { await historyTask?.value }
     func preserveSelectionDuringHistoryLoad() { historyTouched = true }
 
-    /// Send the current draft (or an explicit `prompt`, e.g. a suggestion chip).
-    /// `displayText` keeps model-only context such as attached OCR excerpts out
-    /// of the visible transcript while still sending it in the current turn.
     func send(_ prompt: String? = nil, displayText: String? = nil,
               sourceScopes: Set<AskSourceScope> = AskSourceScope.defaults,
               dayScope: Date? = nil, dateScope: AskDateScope? = nil,
@@ -573,9 +506,6 @@ final class ChatViewModel: ObservableObject {
         let visibleText = trimmedDisplay.flatMap { $0.isEmpty ? nil : $0 } ?? text
         draft = ""
 
-        // "Remember …" is saved locally without a model call. The visible
-        // text is what the person typed (a date scope may prefix the hidden
-        // prompt); with an attached screen it stays a question about it.
         if attachedScreenIDs.isEmpty, askMemoryEnabled(), let personalModel,
            let statement = RememberIntent.parse(visibleText) {
             discardRetryPayloads(for: messages)
@@ -586,14 +516,8 @@ final class ChatViewModel: ObservableObject {
             return
         }
 
-        // A new question supersedes any failed turn in this conversation.
-        // Discard its transient hidden prompt (which may contain attached OCR)
-        // before retaining the new turn's retry payload.
         discardRetryPayloads(for: messages)
 
-        // Only complete question/answer pairs belong in model history. A
-        // failed or stopped answer must not leave its unanswered question as
-        // implicit context for the next request.
         let history = Self.finalizedHistoryForKey(
             from: messages.filter { message in
                 (meetingIDs == nil || (message.meetingIDs.map { $0.isSubset(of: meetingIDs ?? []) } ?? false))
@@ -680,14 +604,11 @@ final class ChatViewModel: ObservableObject {
         persist()
     }
 
-    /// Cancel an in-flight response.
     func stop() {
         guard isResponding, let assistantID = activeAssistantID else { return }
         task?.cancel()
         task = nil
         if finalizeInterruptedTurn(assistantID) {
-            // Persist immediately: app termination or a conversation switch may
-            // happen before a provider or tool cooperatively unwinds.
             persist()
         }
         activeAssistantID = nil
@@ -708,10 +629,6 @@ final class ChatViewModel: ObservableObject {
         return true
     }
 
-    /// Retry an errored assistant turn without duplicating the visible user
-    /// message. In-session retries preserve hidden screen/day context; a
-    /// persisted error safely falls back to the preceding visible question when
-    /// the original turn had no ephemeral screen attachment.
     func retry(_ assistantID: UUID) {
         guard canRetry(assistantID),
               let assistantIndex = messages.firstIndex(where: { $0.id == assistantID }),
@@ -741,16 +658,11 @@ final class ChatViewModel: ObservableObject {
             meetingIDs: payload.meetingIDs, screenSnapshotIDs: payload.screenSnapshotIDs)
     }
 
-    /// Whether a finished answer's question can be asked again as it was. A
-    /// question that carried an attached screen cannot: that text was never
-    /// stored, so asking again would not be the same question.
     func canAskAgain(_ assistantID: UUID) -> Bool {
         guard !isResponding, askAgainQuestion(for: assistantID) != nil else { return false }
         return true
     }
 
-    /// Ask a finished answer's question again as a new turn, under the
-    /// sources, dates and evidence limits recorded with that question.
     func askAgain(_ assistantID: UUID) {
         guard canAskAgain(assistantID), let question = askAgainQuestion(for: assistantID) else { return }
         sendResolved(
@@ -775,19 +687,16 @@ final class ChatViewModel: ObservableObject {
         return question
     }
 
-    /// The question an answer replied to.
     func question(before assistantID: UUID) -> ChatMessage? {
         guard let index = messages.firstIndex(where: { $0.id == assistantID }) else { return nil }
         return messages[..<index].last(where: { $0.role == .user })
     }
 
-    /// Start a new, empty conversation (persisting the current one first).
     func newConversation() {
         navigationRevision &+= 1
         historyTouched = true
         stop()
         persist(touchUpdatedAt: false)
-        // Already on an empty conversation? Stay put rather than pile up blanks.
         if messages.isEmpty { return }
         let fresh = Conversation()
         conversations.insert(fresh, at: 0)
@@ -795,7 +704,6 @@ final class ChatViewModel: ObservableObject {
         messages = []
     }
 
-    /// Switch the transcript to a previously-saved conversation.
     func select(_ id: UUID) {
         navigationRevision &+= 1
         historyTouched = true
@@ -806,7 +714,6 @@ final class ChatViewModel: ObservableObject {
         messages = conversations.first { $0.id == id }?.messages ?? []
     }
 
-    /// Delete a conversation from disk and the list.
     func delete(_ id: UUID) {
         historyTouched = true
         let deletingCurrent = id == currentID
@@ -843,9 +750,6 @@ final class ChatViewModel: ObservableObject {
         retryPayloads = retryPayloads.filter { !messageIDs.contains($0.key) }
     }
 
-    /// Fold the live transcript back into its conversation and persist it.
-    /// In-flight / empty assistant placeholders are dropped so a half-finished
-    /// turn never lands on disk.
     private func persist(touchUpdatedAt: Bool = true) {
         guard let index = conversations.firstIndex(where: { $0.id == currentID }) else { return }
         let clean = messages
@@ -1000,8 +904,6 @@ final class ChatViewModel: ObservableObject {
         }
     }
 
-    /// A short, stable history label derived locally from the first question.
-    /// This deliberately avoids another inference request for a cosmetic title.
     static func compactTitle(from text: String) -> String {
         let line = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? text
         var candidate = line.split(whereSeparator: \.isWhitespace).joined(separator: " ")
@@ -1059,8 +961,6 @@ final class ChatViewModel: ObservableObject {
         compactTitle(from: text)
     }
 
-    // MARK: - Run
-
     private func run(latest: String, history: [ChatAgent.Turn], assistantID: UUID,
                      conversationID: UUID, scopes: Set<AskSourceScope>,
                      dayScopeKey: String?, attachedScreenIDs: Set<Int64>, meetingIDs: Set<UUID>?,
@@ -1073,9 +973,6 @@ final class ChatViewModel: ObservableObject {
                 activeAssistantID = nil
                 task = nil
             }
-            // Conversation switches persist the interrupted terminal turn
-            // before replacing `messages`; do not reorder or rewrite the newly
-            // selected conversation when the cancelled task finally unwinds.
             if currentID == conversationID {
                 persist(touchUpdatedAt: stillOwnsGeneration)
             }
@@ -1094,16 +991,9 @@ final class ChatViewModel: ObservableObject {
             var agent = ChatAgent(engine: engine, runner: scopedTools)
             agent.adaptLimits(to: engine)
             agent.initialEvidence = scopedTools.attachedScreenEvidence(ids: attachedScreenIDs, dayScopeKey: dayScopeKey)
-            // Dream memory is distilled from meetings, activity, and screen
-            // context. Including it in a restricted question would bypass the
-            // per-turn source/day boundary even though no tool could do so.
             if scopes == AskSourceScope.defaults, dayScopeKey == nil, meetingIDs == nil, screenSnapshotIDs == nil {
                 agent.workMemory = workMemory()
             }
-            // The person's own statements carry no source evidence, so unlike
-            // work memory they apply to scoped questions too. Learned claims,
-            // from meetings or from what the person typed and dictated,
-            // follow the work-memory boundary.
             var usedClaimIDs: [UUID] = []
             if askMemoryEnabled(), let personalModel {
                 let unscoped = scopes == AskSourceScope.defaults && dayScopeKey == nil
@@ -1200,9 +1090,6 @@ final class ChatViewModel: ObservableObject {
         mutate(&messages[index])
     }
 
-    /// Convert an in-flight assistant placeholder into a durable, retryable
-    /// terminal turn. This is deliberately idempotent because `stop()` updates
-    /// immediately and the cancelled task reaches the same path later.
     @discardableResult
     private func finalizeInterruptedTurn(_ assistantID: UUID) -> Bool {
         guard let index = messages.firstIndex(where: { $0.id == assistantID }),
@@ -1223,8 +1110,6 @@ final class ChatViewModel: ObservableObject {
         }
         return true
     }
-
-    // MARK: - Activity presentation
 
     static func icon(for tool: String) -> String {
         switch tool {

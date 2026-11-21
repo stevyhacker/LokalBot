@@ -4,8 +4,6 @@ import Testing
 
 @Suite("Design")
 struct DesignTests {
-    /// The Mac's `CaptureStyle.color(for:)` hash, copied verbatim
-    /// (LokalBot/Views/ScreenMemory/CaptureView.swift).
     static func macHue(_ app: String) -> UInt64 {
         var hash: UInt64 = 5381
         for byte in app.utf8 { hash = hash &* 33 &+ UInt64(byte) }
@@ -21,7 +19,6 @@ struct DesignTests {
     @Test func djb2KnownValues() {
         #expect(NameColor.djb2("") == 5381)
         #expect(NameColor.djb2("a") == 5381 * 33 + 97)
-        // Long names wrap in 64 bits, as on the Mac.
         #expect(NameColor.djb2(String(repeating: "x", count: 64)) == {
             var hash: UInt64 = 5381
             for _ in 0..<64 { hash = hash &* 33 &+ 120 }
@@ -30,8 +27,6 @@ struct DesignTests {
         #expect(NameColor.hueDegrees(for: "Xcode") == Int(NameColor.djb2("Xcode") % 360))
     }
 
-    /// The Mac's `InitialsAvatar.color(for:)` index, with
-    /// `PeopleDirectory.normalized` (LokalBot/Views/People/PeopleWorkspaceView.swift).
     @Test(arguments: ["Maya Chen", "Ben Ortiz", "Priya Nair", "Alex Romero", "Zoë  O'Brien", ""])
     func avatarColorMatchesTheMac(_ name: String) {
         let normalized = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)

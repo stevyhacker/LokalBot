@@ -1,7 +1,3 @@
-//! Settings → Daily review → Overnight review (`SettingsView.dreamingSection`):
-//! the switch and hour, Review now, the projects and goals it keeps, Clear work
-//! memory, and what the review uses.
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Disableable as _, Sizable as _, v_flex};
@@ -18,7 +14,6 @@ use crate::state::AppEvent;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::settings_row;
 
-/// What the page read about saved reviews, off the main thread.
 #[derive(Default)]
 pub(super) struct OvernightState {
     loaded_revision: Option<u64>,
@@ -106,7 +101,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// One row per kept project and goal, with its pin.
     fn memory_rows(&self, memory: &DreamMemory, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let heading = |text: &'static str| {
@@ -351,8 +345,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Reviews start again from today, so the week before the clear isn't
-    /// reviewed straight back into memory.
     fn clear_work_memory(&mut self, cx: &mut Context<Self>) {
         self.overnight.confirming_clear = false;
         self.overnight.memory = None;

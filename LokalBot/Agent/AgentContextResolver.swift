@@ -25,7 +25,6 @@ struct AgentContextResolver {
     static let maximumAttachments = 10
     static let maximumContextCharacters = 60_000
 
-    /// `meetings` is the library when the caller has already read it.
     func resolve(_ attachment: AgentAttachment, now: Date = Date(),
                  meetings: [Meeting]? = nil) throws -> AgentResultPreview {
         let text: String
@@ -59,7 +58,6 @@ struct AgentContextResolver {
     func prompt(_ prompt: String, attachments: [AgentAttachment]) throws -> String {
         guard attachments.count <= Self.maximumAttachments else { throw ContextError.tooMany }
         guard !attachments.isEmpty else { return prompt }
-        // One read of the library serves every attached meeting.
         let meetings = attachments.contains { $0.kind == .meeting }
             ? try SessionLookup.loadAllMeetings(root: root) : nil
         let resolved = try attachments.map { try resolve($0, meetings: meetings) }

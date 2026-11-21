@@ -79,7 +79,6 @@ final class AgentSessionControllerTests: XCTestCase {
     }
 
     private func pump() async throws {
-        // Let the event-consumption task drain injected lines.
         try await Task.sleep(for: .milliseconds(150))
     }
 
@@ -311,12 +310,10 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(controller.approvalPlace(request("new.md")), .workingFolder)
         XCTAssertEqual(controller.approvalPlace(request(folder.appendingPathComponent("sub/new.md").path)), .workingFolder)
         XCTAssertEqual(controller.approvalPlace(request(fixtureRoot.appendingPathComponent("outside.md").path)), .outside)
-        // LokalBot's library, its saved tasks and its runtime are its own data.
         XCTAssertEqual(controller.approvalPlace(request(fixtureStorage.rootURL.appendingPathComponent("meta.json").path)),
                        .lokalbotData)
         XCTAssertEqual(controller.approvalPlace(request(fixtureRoot.appendingPathComponent("sessions/tasks.json").path)),
                        .lokalbotData)
-        // A relative path from a request made in another folder is judged where it really is.
         XCTAssertEqual(controller.approvalPlace(request("note.md", workspace: fixtureRoot.path)), .outside)
         var command = request("x")
         command = .init(id: "c", tool: "bash", workspace: folder.path, path: nil, command: "ls", content: nil,
@@ -326,8 +323,6 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
-    /// A lookup's output goes to the model, so with a model on a server the
-    /// same lookup shows its card, at the default level and in the read levels.
     func testLibraryLookupAsksWhenTheModelIsNotOnThisMac() async throws {
         let box = SettingsBox()
         box.settings.summarizerBackend = .openAICompatible
@@ -352,7 +347,6 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(controller.pendingApprovals.map(\.id), ["look"])
         XCTAssertFalse(fake.sentLines.contains { $0.contains(#""id":"look""#) && $0.contains(#""confirmed":true"#) })
 
-        // The read levels do not let it through either, as before.
         await controller.setApprovalMode(.approveReadsAndEdits)
         XCTAssertEqual(controller.pendingApprovals.map(\.id), ["look"])
         fake.inject(try approvalEvent(id: "look2", tool: "bash", workspace: folder, path: nil, content: "",
@@ -360,7 +354,6 @@ final class AgentSessionControllerTests: XCTestCase {
         try await pump()
         XCTAssertEqual(controller.pendingApprovals.map(\.id), ["look", "look2"])
 
-        // A task handed off from a meeting's actions keeps what it had in the read levels.
         controller.allowsLibraryLookups = true
         fake.inject(try approvalEvent(id: "look3", tool: "bash", workspace: folder, path: nil, content: "",
                                       command: "lokalbot-cli brief"))
@@ -381,7 +374,6 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertTrue(controller.pendingApprovals.isEmpty, "a read-only lookup shows no card")
         XCTAssertTrue(transport.sentLines.contains { $0.contains(#""id":"look""#) && $0.contains(#""confirmed":true"#) })
 
-        // The same lookup with a redirect, a write, and another command still ask.
         transport.inject(try approvalEvent(id: "redirect", tool: "bash", workspace: folder, path: nil, content: "",
                                            command: "lokalbot-cli list > notes.md"))
         transport.inject(try approvalEvent(id: "write", tool: "write", workspace: folder,
@@ -463,8 +455,6 @@ final class AgentSessionControllerTests: XCTestCase {
         try await pump()
         XCTAssertTrue(controller.pendingApprovals.isEmpty)
         XCTAssertTrue(transport.sentLines.contains { $0.contains(#""cancelled":true"#) })
-        // The RPC acknowledgement and settled event are consumed separately.
-        // Await the published state instead of racing the event-consumption task.
         let settled = expectation(description: "Controller consumes the settled event")
         let observation = controller.$state.filter { $0 == .ready }.first().sink { _ in settled.fulfill() }
         defer { observation.cancel() }
@@ -674,9 +664,6 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
-    /// During a turn the agent talks to its server at every model step
-    /// without going through `send`, so revoking the server must end the
-    /// turn itself, not only refuse the next prompt.
     func testRevokingTheServerStopsARunningTurn() async throws {
         let box = SettingsBox()
         box.settings.summarizerBackend = .openAICompatible
@@ -694,7 +681,6 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.start()
         XCTAssertEqual(controller.state, .ready)
 
-        // Still approved: nothing happens, running or not.
         await controller.remoteApprovalsDidChange()
         XCTAssertEqual(controller.state, .ready)
 
@@ -815,9 +801,6 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(transportCalls, 0, "a closed tab must not spawn pi after ensure returns")
     }
 
-    /// An open task on the built-in model used to keep the model server for
-    /// as long as its tab stayed open, so work on any other model (a changed
-    /// Think model, a separate dictation model) waited until the tab closed.
     func testBuiltInModelIsHeldOnlyWhileATurnRuns() async throws {
         let root = fixtureRoot.appendingPathComponent("lease-library")
         try FileManager.default.createDirectory(
@@ -858,9 +841,6 @@ final class AgentSessionControllerTests: XCTestCase {
         let idleAfterStart = try await leases(become: 0)
         XCTAssertTrue(idleAfterStart, "a task that is open but waiting must not hold the model")
 
-        // Work on another model gets the server at once while the task waits.
-        // Behind a held lease this request would wait until the tab closed,
-        // so it is given a few seconds, not awaited outright.
         let other = Task {
             try await broker.lease(.mainLLM, model: otherModel, priority: .background, purpose: "other model")
         }
@@ -897,9 +877,6 @@ final class AgentSessionControllerTests: XCTestCase {
         await controller.shutdown()
     }
 
-    /// A turn the agent starts by itself and a send that arrives while the
-    /// model is still being fetched each ask for the model. Exactly one lease
-    /// is kept for the turn, and it goes back when the turn settles.
     func testATurnTheAgentStartedAndASendKeepOneLeaseBetweenThem() async throws {
         let root = fixtureRoot.appendingPathComponent("two-callers-library")
         try FileManager.default.createDirectory(
@@ -919,7 +896,6 @@ final class AgentSessionControllerTests: XCTestCase {
         for role in InferenceRole.allCases {
             hooks[role] = .init(
                 ensure: { _ in
-                    // The first ensure is the start-up; hold the ones a turn asks for.
                     if role == .mainLLM, await ensures.next() > 1 { await gate.block() }
                 },
                 stop: {})
@@ -970,8 +946,6 @@ final class AgentSessionControllerTests: XCTestCase {
     func testSendFoldsUserAndStreamsAssistant() async throws {
         let controller = makeController()
         await controller.start()
-        // send() awaits pi's response ack, so run it concurrently and ack it
-        // once the prompt line is on the wire (first request id is "p1").
         let send = Task { await controller.send(prompt: "hello") }
         try await pump()
         XCTAssertTrue(transport.sentLines.contains { $0.contains(#""type":"prompt""#) && $0.contains("hello") })
@@ -1261,8 +1235,6 @@ final class AgentSessionControllerTests: XCTestCase {
             $0.contains(#""id":"bash1""#) && $0.contains(#""confirmed":true"#)
         })
 
-        // A caller cannot persist shell permission even if it requests session
-        // scope; the next command must surface independently.
         await controller.respondToApproval(id: "bash1", approved: true, scope: .session)
         transport.inject(#"{"type":"extension_ui_request","id":"bash2","method":"confirm","title":"lokalbot_tool_approval","message":"{\"tool\":\"bash\",\"workspace\":\"/tmp/project\",\"command\":\"env\"}"}"#)
         try await pump()
@@ -1356,8 +1328,6 @@ final class AgentSessionControllerTests: XCTestCase {
             $0.contains(#""id":"read1""#) && $0.contains(#""confirmed":true"#)
         })
 
-        // Even if a caller attempts session scope, reads outside the selected
-        // workspace remain one-request capabilities.
         await controller.respondToApproval(id: "read1", approved: true, scope: .session)
         transport.inject(#"{"type":"extension_ui_request","id":"read2","method":"confirm","title":"lokalbot_tool_approval","message":"{\"tool\":\"read\",\"workspace\":\"/tmp/project\",\"path\":\"/private/other.txt\"}"}"#)
         try await pump()
@@ -1425,8 +1395,6 @@ final class AgentSessionControllerTests: XCTestCase {
         XCTAssertEqual(controller.state, .ready)
         XCTAssertEqual(transports.count, 2)
 
-        // The first stream is deliberately still open. A late event from it
-        // must not mutate the replacement session.
         first.inject(#"{"type":"agent_start"}"#)
         try await pump()
         XCTAssertEqual(controller.state, .ready)

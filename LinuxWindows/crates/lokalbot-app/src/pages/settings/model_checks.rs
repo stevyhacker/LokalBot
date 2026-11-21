@@ -1,6 +1,3 @@
-//! Check model setup (`ModelChecksSheet`), and what a failed connection check
-//! says (`GenerationTestFailurePresentation`).
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Disableable as _, Sizable as _, v_flex};
@@ -50,7 +47,6 @@ fn role_is_ready(role: ModelRole, settings: &Settings, status: &ModelStatus) -> 
     }
 }
 
-/// "Check passed · 15:41", or "Check failed: …".
 pub(super) fn result_label(result: &ModelCheckResult) -> String {
     match &result.failure {
         Some(failure) => lokalbot_i18n::format("Check failed: {0}", &[("0", failure.clone())]),
@@ -61,7 +57,6 @@ pub(super) fn result_label(result: &ModelCheckResult) -> String {
     }
 }
 
-/// What the checks send where. Text only ever names sample content.
 fn disclosure(settings: &Settings) -> String {
     let think_remote = !settings.think_is_local();
     match (audio_destination(settings), think_remote) {
@@ -237,8 +232,6 @@ impl SettingsPage {
         ]
     }
 
-    /// "Check connection", its status and what a failure means, below the
-    /// connection form. Checks use the saved values, so unsaved edits disable it.
     pub(super) fn connection_check_row(
         &mut self,
         backend: SummarizerBackend,
@@ -351,7 +344,6 @@ fn failure_details(failure: &GenerationFailure, cx: &App) -> gpui_kit::Div {
         )
 }
 
-/// What a failed check tells the user (`GenerationTestFailurePresentation`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct GenerationFailure {
     pub title: String,
@@ -513,7 +505,6 @@ mod tests {
             ..Default::default()
         };
         assert!(disclosure(&remote).contains("audio.example"));
-        // A server on this computer keeps the sample here.
         let loopback = Settings {
             transcription_model: lokalbot_core::remote_transcription::MODEL_ID.into(),
             remote_transcription_base_url: "http://127.0.0.1:9000/v1".into(),

@@ -1,17 +1,11 @@
 import SwiftUI
 
-/// Lays Today out as cards that span the page with the panels between them,
-/// side by side when `TodayColumns` finds room and stacked in reading order
-/// otherwise. One layout for both, so a panel keeps its state when the window
-/// crosses the width where the page changes.
 struct TodayColumnsLayout: Layout {
     enum Slot: Equatable { case full, leading, trailing }
 
     var textScale: CGFloat
     var spacing: CGFloat = TodayColumns.gap
 
-    /// Where each subview goes in a page `width` wide. `height` measures the
-    /// subview at an index for a width.
     static func frames(slots: [Slot], width: CGFloat, textScale: CGFloat, spacing: CGFloat,
                        height: (Int, CGFloat) -> CGFloat) -> (frames: [CGRect], height: CGFloat) {
         let columns = TodayColumns.count(
@@ -20,8 +14,6 @@ struct TodayColumnsLayout: Layout {
         let trailingWidth = TodayColumns.trailingWidth(textScale: textScale)
         let leadingWidth = max(0, width - spacing - trailingWidth)
         var frames: [CGRect] = []
-        // The next free position below everything placed so far, and inside
-        // a run of panels the next free position of each column.
         var bottom: CGFloat = 0
         var leadingY: CGFloat?
         var trailingY: CGFloat?
@@ -84,8 +76,6 @@ private struct TodayColumnSlotKey: LayoutValueKey {
 }
 
 extension View {
-    /// The column a panel belongs to when Today shows two. Cards without one
-    /// span the page.
     func todayColumn(_ slot: TodayColumnsLayout.Slot) -> some View {
         layoutValue(key: TodayColumnSlotKey.self, value: slot)
     }

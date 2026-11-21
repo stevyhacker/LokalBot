@@ -26,8 +26,6 @@ struct RetentionReview: Identifiable {
             return dates
         }
     }
-    /// A stored coding-agent burst. Its requests and reports are text, so
-    /// they expire with screen text.
     struct CodingAgentBurst: Equatable, Hashable, Identifiable {
         let id: String
         let start: Date
@@ -52,10 +50,6 @@ struct RetentionReview: Identifiable {
     var oldest: Date? { evidenceDates.min() }
     var newest: Date? { evidenceDates.max() }
 
-    /// `evidenceDates` (plus `extra`) reduced to one date per distinct pair of
-    /// local day and UTC day, sorted. Evidence consumers key only on those
-    /// days: Dream invalidation by UTC day, digests and exports by local day.
-    /// A pass after a long gap would otherwise hand them a date per row.
     func distinctEvidenceDays(adding extra: [Date] = [], calendar: Calendar = .current) -> [Date] {
         struct Day: Hashable { let utc: Int; let local: Int }
         func localDay(_ date: Date) -> Int {
@@ -70,7 +64,6 @@ struct RetentionReview: Identifiable {
         }
         candidates.forEach { add($0.timestamp) }
         for title in activityTitles {
-            // A title within one local day crosses no midnight to add.
             if localDay(title.start) == localDay(title.end) {
                 add(title.start)
                 add(title.end)
@@ -83,8 +76,6 @@ struct RetentionReview: Identifiable {
         return dates.sorted()
     }
 
-    /// A disappearing file or newly saved moment may shrink a review safely.
-    /// Additional data, changed paths or new text require a fresh review.
     func covers(_ current: RetentionReview) -> Bool {
         let approved = Dictionary(uniqueKeysWithValues: candidates.map { ($0.id, $0) })
         let approvedActivity = Set(activityTitles)

@@ -2,24 +2,17 @@ import CoreAudio
 import XCTest
 @testable import LokalBot
 
-/// `AudioSourceMonitor` detects when an app newly starts producing audio.
-/// Pure media/music players (Spotify, Apple Music, …) must be excluded so
-/// playing music never becomes a recording candidate, while meeting apps and
-/// the browsers that host web meetings stay eligible.
 final class AudioSourceMonitorTests: XCTestCase {
 
     func testMusicAndMediaPlayersAreExcluded() {
-        // Streaming music
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.spotify.client"), "Spotify")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.apple.Music"), "Apple Music")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.amazon.music"), "Amazon Music")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.tidal.desktop"), "TIDAL")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.deezer.deezer-desktop"), "Deezer")
-        // Local-library / audiophile players
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.swinsian.Swinsian"), "Swinsian")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.foobar2000.mac"), "foobar2000")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.coppertino.Vox"), "VOX")
-        // Podcasts & video players
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("com.apple.podcasts"), "Podcasts")
         XCTAssertTrue(AudioSourceMonitor.isMediaPlayer("org.videolan.vlc"), "VLC")
     }
@@ -30,8 +23,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         XCTAssertFalse(AudioSourceMonitor.isMediaPlayer("com.apple.FaceTime"), "FaceTime")
     }
 
-    /// Browsers host web meetings (Meet/Jitsi/Whereby), so they must NEVER be
-    /// treated as media — otherwise a browser meeting would stop being detected.
     func testBrowsersAreNotExcluded() {
         XCTAssertFalse(AudioSourceMonitor.isMediaPlayer("com.google.Chrome"), "Chrome")
         XCTAssertFalse(AudioSourceMonitor.isMediaPlayer("com.apple.Safari"), "Safari")
@@ -105,13 +96,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             helper.id)
     }
 
-    /// Electron meeting apps (Teams, Slack, Webex) emit call audio from a
-    /// helper process exactly as Chromium browsers do, and ``audioBundleID``
-    /// already models that `<host>.helper` relationship for every host — not
-    /// just the browser/Zoom special cases. The capture lookup must honour it
-    /// outside those branches too: when it does not, `hasOutputAudio` is false,
-    /// the detector never surfaces the app, and `RecordingController` skips the
-    /// process tap entirely — the meeting silently records mic-only.
     func testNativeAppCaptureFallsBackToHelperProcess() {
         let host = AudioProcess(id: 100,
                                 name: "Microsoft Teams",
@@ -133,8 +117,6 @@ final class AudioSourceMonitorTests: XCTestCase {
                        helper.id)
     }
 
-    /// Teams' modulehost keeps its stream open even while Teams is idle. That
-    /// makes it a useful tap target but unusable as evidence that a call exists.
     func testAlwaysOpenNamespaceProcessIsCaptureOnly() {
         MeetingDetector.resetCaptureTargetMemory()
         XCTAssertTrue(MeetingDetector.audioBundleID(
@@ -161,12 +143,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             for: app, in: [host, moduleHost])?.id, moduleHost.id)
     }
 
-    /// Measured on a real Teams call: `translatePIDToProcessObject` fails for
-    /// the Teams host PID because that process owns no Core Audio object. When
-    /// the meeting is momentarily quiet no sibling is `isRunningOutput` either,
-    /// so a capture lookup that requires current output resolves to nothing and
-    /// the tap is refused. Capture must therefore accept a silent-but-present
-    /// process in the namespace — the tap records once audio starts.
     func testCaptureTargetFallsBackToASilentProcessInTheNamespace() {
         let host = AudioProcess(id: 100,
                                 name: "Microsoft Teams",
@@ -182,17 +158,13 @@ final class AudioSourceMonitorTests: XCTestCase {
                                               bundleID: "com.microsoft.teams2",
                                               pid: host.id)
 
-        // Detection correctly reports "not producing output right now"...
         XCTAssertNil(MeetingDetector.bestOutputAudioProcess(
             for: app, in: [host, quietModuleHost]))
-        // ...but capture still has somewhere to attach.
         XCTAssertEqual(
             MeetingDetector.captureTargetProcess(for: app, in: [host, quietModuleHost])?.id,
             quietModuleHost.id)
     }
 
-    /// A process carrying a real meeting signal still wins over an always-open
-    /// sibling that is valid for capture but ignored by detection.
     func testCaptureTargetPrefersTheProcessThatIsActuallyEmitting() {
         let alwaysOpen = AudioProcess(id: 300,
                                       name: "Microsoft Teams ModuleHost",
@@ -213,8 +185,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             emitting.id)
     }
 
-    /// Capture must not attach to an unrelated app just because nothing of the
-    /// meeting app is running.
     func testCaptureTargetIgnoresUnrelatedProcesses() {
         let unrelated = AudioProcess(id: 500,
                                      name: "Music",
@@ -228,8 +198,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         XCTAssertNil(MeetingDetector.captureTargetProcess(for: app, in: [unrelated]))
     }
 
-    /// A tap that delivered zero buffers must not be selected again on the
-    /// recovery pass; another process in the namespace gets a chance instead.
     func testCaptureTargetCanExcludeADeadCurrentProcessForRecovery() {
         MeetingDetector.resetCaptureTargetMemory()
         let dead = AudioProcess(id: 200,
@@ -259,8 +227,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         XCTAssertEqual(MeetingDetector.captureTargetProcess(
             for: app, in: [dead])?.id, dead.id)
 
-        // More than one process can be ruled out within a single recording:
-        // every tap that delivered nothing stays excluded, not just the last.
         let third = AudioProcess(id: 400,
                                  name: "Microsoft Teams WebView",
                                  bundleID: "com.microsoft.teams2.helper",
@@ -276,8 +242,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             excluding: [dead.id, replacement.id, third.id]))
     }
 
-    /// The namespace rule must not swallow a *different* app whose bundle id
-    /// merely starts with the same characters.
     func testNamespaceMatchDoesNotSpanUnrelatedBundles() {
         XCTAssertFalse(MeetingDetector.audioBundleID(
             "com.microsoft.teams2evil", belongsTo: "com.microsoft.teams2"))
@@ -285,12 +249,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             "com.microsoft.teamsother", belongsTo: "com.microsoft.teams2"))
     }
 
-    // MARK: - Chinese meeting apps
-
-    /// Feishu is `com.electron.lark` but its Electron helpers keep ByteDance's
-    /// `com.bytedance.lark.helper`, and DingTalk's helper is
-    /// `com.alibaba.DingTalk-Helper`. Neither sits in its host's namespace, so
-    /// without an explicit mapping a call carried by the helper is never seen.
     func testForeignHelpersBelongToTheirOwnHostsOnly() {
         XCTAssertTrue(MeetingDetector.audioBundleID(
             "com.bytedance.lark.helper", belongsTo: "com.electron.lark"))
@@ -309,10 +267,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             "com.bytedance.lark.helperx", belongsTo: "com.electron.lark"))
     }
 
-    /// Webex renders call audio in `WebexHelper`, which Core Audio lists as
-    /// `Cisco-Systems.SparkHelper` — outside the host's `Cisco-Systems.Spark.`
-    /// namespace. Without the mapping the tap lands on the silent main process
-    /// and the "Them" track records nothing.
     func testWebexCallOnItsMediaHelperIsTheCaptureTarget() {
         MeetingDetector.resetCaptureTargetMemory()
         let host = AudioProcess(id: 896, name: "Webex", bundleID: "Cisco-Systems.Spark",
@@ -353,9 +307,6 @@ final class AudioSourceMonitorTests: XCTestCase {
                        helper.id)
     }
 
-    /// WeChat stays out: its voice messages and videos play long enough to
-    /// pass the sustained-audio gate and would start meetings that are not
-    /// calls.
     func testChineseMeetingAppsAreCandidatesButWeChatIsNot() {
         let candidates = MeetingDetector.meetingAppCandidates(bundleIDs: [
             (bundleID: "com.tencent.meeting", pid: 10),
@@ -371,9 +322,6 @@ final class AudioSourceMonitorTests: XCTestCase {
                        ["Tencent Meeting", "VooV Meeting", "Feishu", "Lark", "DingTalk", "WeCom"])
     }
 
-    /// The helper fallback must stay a *fallback*: when the host process itself
-    /// is producing output it remains the capture target, so apps that work
-    /// today are unaffected.
     func testNativeAppCapturePrefersHostWhenItIsProducingOutput() {
         let host = AudioProcess(id: 100,
                                 name: "Microsoft Teams",
@@ -393,14 +341,10 @@ final class AudioSourceMonitorTests: XCTestCase {
                        host.id)
     }
 
-    /// Unknown apps stay eligible so a genuinely-new meeting tool is still
-    /// surfaced via the monitor's fallback candidate path.
     func testUnknownAppIsNotExcluded() {
         XCTAssertFalse(AudioSourceMonitor.isMediaPlayer("com.example.SomeNewMeetingApp"))
     }
 
-    /// A development build playing a meeting back was its own candidate:
-    /// only the release bundle ID was on the ignore list.
     @MainActor
     func testPlaybackFromAnyLokalBotBuildIsNeverARecordingCandidate() {
         let builds: [AppIdentifiers.Identity] = [.release, .development, .uiTestHost]
@@ -413,9 +357,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         }
     }
 
-    /// A candidate is held for up to 20 seconds. A muted-microphone call that
-    /// started in that time went into the "already playing" set and was never
-    /// reported, so it was not recorded.
     @MainActor
     func testACallThatStartsWhileAnotherSoundIsHeldIsStillReported() {
         func process(_ id: Int, _ bundleID: String) -> AudioProcess {
@@ -430,24 +371,19 @@ final class AudioSourceMonitorTests: XCTestCase {
 
         monitor.apply([chime])
         XCTAssertEqual(monitor.detectedProcess?.objectID, chime.objectID)
-        // A meeting app takes the place of a held sound from another app.
         monitor.apply([chime, zoom])
         XCTAssertEqual(monitor.detectedProcess?.objectID, zoom.objectID)
 
-        // A second call behind a held meeting app waits for the slot.
         monitor.apply([chime, zoom, meet])
         XCTAssertEqual(monitor.detectedProcess?.objectID, zoom.objectID)
         monitor.accept()
         monitor.apply([chime, zoom, meet])
         XCTAssertEqual(monitor.detectedProcess?.objectID, meet.objectID, "it was not swallowed while the slot was busy")
 
-        // Audio that was already playing is never a fresh candidate.
         monitor.accept()
         monitor.apply([chime, zoom, meet])
         XCTAssertNil(monitor.detectedProcess)
     }
-
-    // MARK: - Choosing a target when nothing is emitting
 
     private func teamsApp(pid: pid_t = 100) -> MeetingDetector.DetectedApp {
         MeetingDetector.DetectedApp(name: "Teams", bundleID: "com.microsoft.teams2", pid: pid)
@@ -459,9 +395,6 @@ final class AudioSourceMonitorTests: XCTestCase {
                      objectID: AudioObjectID(id), isRunningOutput: false)
     }
 
-    /// The moment a process emits is the only time we learn which sibling
-    /// actually carries call audio, so that choice must survive the quiet
-    /// stretch that follows rather than being re-guessed from list order.
     func testCaptureTargetRemembersTheProcessLastSeenEmitting() {
         MeetingDetector.resetCaptureTargetMemory()
         let app = teamsApp()
@@ -474,15 +407,12 @@ final class AudioSourceMonitorTests: XCTestCase {
             MeetingDetector.captureTargetProcess(for: app, in: [otherHelper, emitting])?.id,
             emitting.id)
 
-        // Same processes, none of them emitting any more.
         let quiet = teamsHelper(400)
         XCTAssertEqual(
             MeetingDetector.captureTargetProcess(for: app, in: [otherHelper, quiet])?.id,
             quiet.id)
     }
 
-    /// With nothing emitting and nothing remembered, the choice must not
-    /// depend on the order Core Audio happened to return the processes in.
     func testCaptureTargetIsStableAcrossProcessListOrder() {
         MeetingDetector.resetCaptureTargetMemory()
         let app = teamsApp()
@@ -497,10 +427,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         XCTAssertEqual(forward, second.id)
     }
 
-    // MARK: - Capture target for a recording started by hand
-
-    /// A hand-started recording has no detected app, but the tap still needs a
-    /// target; a running meeting app qualifies even while it is silent.
     func testMeetingAppCandidatesIgnoreAudioAndUnknownBundles() {
         let candidates = MeetingDetector.meetingAppCandidates(bundleIDs: [
             (bundleID: "com.apple.Music", pid: 10),
@@ -516,10 +442,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         ]).isEmpty)
     }
 
-    // MARK: - Continuing a meeting that is already under way
-
-    /// Teams' modulehost is useful context during a call, but it remains open
-    /// while Teams is idle and therefore cannot be reliable evidence itself.
     func testAlwaysOpenStreamIsClassifiedSeparatelyFromReliableAudio() {
         let host = AudioProcess(id: 100,
                                 name: "Microsoft Teams",
@@ -542,8 +464,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             moduleHost.id)
     }
 
-    /// Once reliable call audio has been seen, the always-open stream bridges an
-    /// ordinary speech pause without starting the stop debounce.
     func testRecentReliableAudioLetsAlwaysOpenStreamBridgeAPause() {
         let start = Date(timeIntervalSince1970: 1_000)
         var lease = MeetingContinuationLease()
@@ -560,9 +480,6 @@ final class AudioSourceMonitorTests: XCTestCase {
             grace: MeetingDetector.alwaysOpenAudioContinuationGrace))
     }
 
-    /// The same idle modulehost must not keep a finished call alive forever.
-    /// Once recent reliable evidence expires, the detector can begin its normal
-    /// stop debounce even though modulehost still reports running output.
     func testAlwaysOpenStreamExpiresAfterFiniteContinuationGrace() {
         let start = Date(timeIntervalSince1970: 1_000)
         let grace = MeetingDetector.alwaysOpenAudioContinuationGrace
@@ -622,9 +539,6 @@ final class AudioSourceMonitorTests: XCTestCase {
         XCTAssertNil(MeetingDetector.bestAlwaysOpenAudioProcess(for: app, in: [impostor]))
     }
 
-    /// Capture health can prove the current tap silent while Core Audio still
-    /// reports its stream open. Recovery must be able to exclude that current
-    /// PID and discover a different helper that is actively emitting.
     func testReliableOutputLookupCanExcludeTheSilentCurrentTap() {
         let current = AudioProcess(id: 200,
                                    name: "Current Teams WebView",

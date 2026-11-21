@@ -1,52 +1,31 @@
 import SwiftUI
 
-/// Sizes the panels share, in points at the unscaled text size.
 enum SectionPanelMetric {
-    /// Space between a panel's edge and its text.
     static let inset: CGFloat = 16
     static let headerHeight: CGFloat = 44
     static let footerHeight: CGFloat = 36
     static let bandHeight: CGFloat = 28
-    /// Panel titles sit one step above the 13 pt headline.
     static var titleFont: AppFont { AppFont.scaledSystem(size: 14, weight: .bold) }
 }
 
-/// Makes a panel's header the control that opens and closes its body: the
-/// chevron takes the symbol's place and the whole bar is one button.
 struct SectionPanelDisclosure {
     let isExpanded: Bool
-    /// Names the header button.
     let identifier: String
     let toggle: () -> Void
 }
 
-/// One section of a page on its own raised surface: a header bar with the
-/// section's symbol, name, count and one link; rows under a hairline; and a
-/// footer strip for the one extra line a section has. Today, and a meeting's
-/// Summary, Transcript and Notes, are made of these.
 struct SectionPanel<Link: View, Content: View, Footer: View>: View {
     @Environment(\.appTextScale) private var textScale
     let title: Text
-    /// The symbol beside the title; for a section with a sidebar destination,
-    /// that destination's symbol.
     let systemImage: String
     var count: Int?
-    /// A red badge beside the count, such as "1 overdue".
     var alert: Text?
-    /// A badge that says where the section stands, such as "2 open" or
-    /// "All done".
     var status: SectionPanelPill?
-    /// Names the panel; its title is `<identifier>.title`.
     let identifier: String
     var showsContent = true
     var showsFooter = true
-    /// Where a scroll to the section's heading lands.
     var titleID: AnyHashable?
-    /// The trailing control is a field: it takes the room the title leaves,
-    /// up to its own maximum, where a link keeps its own width.
     var trailingFills = false
-    /// A long title may take a second line in a narrow panel instead of
-    /// being cut short.
     var titleLineLimit = 1
     var disclosure: SectionPanelDisclosure?
     @ViewBuilder var link: Link
@@ -82,8 +61,6 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
                 .foregroundStyle(Brand.teal)
                 .frame(width: 18 * textScale)
                 .accessibilityHidden(true)
-            // Plain text: selectable text with the header trait loses its
-            // words for assistive tools.
             titleText
                 .accessibilityAddTraits(.isHeader)
                 .accessibilityIdentifier(identifier + ".title")
@@ -110,8 +87,6 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
         .frame(minHeight: SectionPanelMetric.headerHeight * textScale)
     }
 
-    /// The header as one button. It keeps the button's role, so it is named
-    /// by its title and says whether the body is open.
     private func disclosureHeader(_ disclosure: SectionPanelDisclosure) -> some View {
         Button(action: disclosure.toggle) {
             HStack(alignment: .center, spacing: 8) {
@@ -138,7 +113,6 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
             .font(SectionPanelMetric.titleFont)
             .lineLimit(titleLineLimit)
             .fixedSize(horizontal: false, vertical: titleLineLimit > 1)
-            // Before the spacer, which would otherwise take half the bar.
             .layoutPriority(1)
         if let titleID {
             styled.id(titleID)
@@ -152,7 +126,6 @@ struct SectionPanel<Link: View, Content: View, Footer: View>: View {
         return HStack(alignment: .firstTextBaseline, spacing: 8) { footer }
             .buttonStyle(.workspaceLink)
             .font(AppFont.scaled(.callout))
-            // The supporting colour stays above 4.5:1 on the strip's fill.
             .workspaceSupportingForeground()
             .padding(.horizontal, SectionPanelMetric.inset)
             .padding(.vertical, 9)
@@ -179,7 +152,6 @@ extension SectionPanel where Footer == EmptyView {
 }
 
 extension SectionPanel where Footer == EmptyView, Link == EmptyView {
-    /// A panel with nothing at the header's trailing edge and no footer.
     init(title: Text, systemImage: String, count: Int? = nil, identifier: String,
          showsContent: Bool = true, titleID: AnyHashable? = nil, disclosure: SectionPanelDisclosure? = nil,
          @ViewBuilder content: () -> Content) {
@@ -189,9 +161,6 @@ extension SectionPanel where Footer == EmptyView, Link == EmptyView {
     }
 }
 
-/// A panel with no header bar: what a page leads with, such as a meeting's
-/// recap or the title of a session. `below` is a body under a hairline that
-/// runs edge to edge, for a lead that also holds what it names.
 struct SectionPanelLead<Content: View, Below: View>: View {
     @ViewBuilder var content: Content
     @ViewBuilder var below: Below
@@ -206,7 +175,6 @@ struct SectionPanelLead<Content: View, Below: View>: View {
             if Below.self != EmptyView.self {
                 Divider()
                 below
-                    // A body that scrolls stays inside the rounded corners.
                     .clipShape(UnevenRoundedRectangle(
                         cornerRadii: .init(bottomLeading: Brand.Radius.panel, bottomTrailing: Brand.Radius.panel),
                         style: .continuous))
@@ -223,8 +191,6 @@ extension SectionPanelLead where Below == EmptyView {
     }
 }
 
-/// The count beside a panel's title, its red "overdue" badge, or the accent
-/// one that says the section is finished.
 struct SectionPanelPill: View {
     enum Tone { case count, overdue, done }
 
@@ -268,16 +234,12 @@ struct SectionPanelPill: View {
 }
 
 extension View {
-    /// The words of a panel's footer: they take the strip's width and wrap,
-    /// and the link after them keeps to the trailing edge.
     func sectionPanelFooterText() -> some View {
         fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// A small label over a group inside a panel ("Highlights", "Priorities for
-/// today").
 struct SectionPanelLabel: View {
     let text: Text
 
@@ -289,9 +251,6 @@ struct SectionPanelLabel: View {
     }
 }
 
-/// A labelled band across a panel's body, over a group of its rows ("For
-/// you · 2"). It carries the footer strip's fill and a hairline under it; a
-/// band after rows also draws the hairline above.
 struct SectionPanelBand: View {
     @Environment(\.appTextScale) private var textScale
     let text: Text
@@ -302,7 +261,6 @@ struct SectionPanelBand: View {
             if followsRows { Divider() }
             text
                 .font(AppFont.scaledSystem(size: 11, weight: .bold))
-                // The supporting colour stays above 4.5:1 on the band's fill.
                 .workspaceSupportingForeground()
                 .lineLimit(1)
                 .padding(.horizontal, SectionPanelMetric.inset)

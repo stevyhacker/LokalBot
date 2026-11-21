@@ -1,13 +1,6 @@
 import AppKit
 import XCTest
 
-/// End-to-end UI tests that drive the dedicated `LokalBot UI Test Host`
-/// against a synthetic meetings library planted on disk before launch.
-///
-/// The app sees `LOKALBOT_UI_TEST=1` and skips every side-effectful
-/// startup path (Core Audio polling, accessibility-trusted detector,
-/// Sparkle, screenshots), so the suite needs no TCC permissions and
-/// never touches the user's real library.
 final class MainWindowUITests: XCTestCase {
 
     private var fixture: SyntheticFixture.Library!
@@ -23,10 +16,6 @@ final class MainWindowUITests: XCTestCase {
             environment: ["LOKALBOT_UI_TEST_DIAGNOSTICS": "1"])
         app = launch.app
         defaultsSuiteName = launch.defaultsSuiteName
-        // Wait until the main window has rendered Today's header —
-        // every test starts from a known surface, otherwise XCUITest races
-        // the initial `loadMeetings()` + reindex sweep. (Today is the
-        // default section, so the meeting list is NOT on screen yet.)
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
             .waitForExistence(timeout: 10), "today header never rendered")
     }
@@ -37,12 +26,6 @@ final class MainWindowUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    // MARK: - Today
-
-    /// Today's sections are panels. So far today shows the digest's
-    /// highlights and, in its footer, one line about when it was written.
-    /// Tasks, sessions, digest export and the activity log stay on Timeline,
-    /// and Record is in the toolbar instead of a bar on the page.
     func testTodayUsesCompactDigestHierarchy() {
         XCTAssertTrue(identified("today.dayDigest.text").waitForExistence(timeout: 6))
         UITestHarness.scrollTo(identified("today.dayDigest.text"), in: app)
@@ -54,12 +37,10 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertFalse(identified("today.dayDigest.actions").exists)
         XCTAssertFalse(identified("today.sessions").exists, "work sessions belong to Timeline")
         XCTAssertFalse(identified("dayDigest.fullActivityLog").exists)
-        // Both of the day's recordings are listed once, in one list.
         for meeting in [fixture.designReview, fixture.standup] {
             XCTAssertTrue(identified("today.meeting.recording-\(meeting.id.uuidString)").exists)
         }
         XCTAssertTrue(app.buttons["outcomes.review"].exists)
-        // Each panel's header has the one link to the section behind it.
         XCTAssertTrue(app.buttons["today.meetings.all"].exists, "Meetings today links to Meetings")
         XCTAssertTrue(app.buttons["today.openTimeline"].exists, "So far today links to Timeline")
         XCTAssertTrue(identified("today.tracked").exists, "tracked time and its bars are in So far today")
@@ -74,9 +55,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertFalse(identified("today.live").exists, "no card leads while nothing is recording")
     }
 
-    // MARK: - Library
-
-    /// The native split view supplies exactly one sidebar toggle in both states.
     func testToolbarShowsOneSidebarToggle() {
         XCTAssertTrue(toolbarSidebarButtons.firstMatch.waitForExistence(timeout: 4),
                       "native sidebar toolbar control missing")
@@ -95,16 +73,11 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 5), "sidebar did not return")
     }
 
-    /// ⌘K opens Quick Recall, which took over the command palette. Its field
-    /// uses one AppKit field-editor path, as the palette's did: a printable
-    /// key must update the query exactly once rather than also travelling
-    /// through the list's navigation-key handler.
     func testCommandPaletteDoesNotDuplicateTypedCharacters() {
         app.typeKey("k", modifierFlags: .command)
         let field = app.textFields["quickRecall.input"]
         XCTAssertTrue(field.waitForExistence(timeout: 4), "⌘K did not open Quick Recall")
         XCTAssertFalse(app.textFields["palette.input"].exists, "the separate palette window is gone")
-        // Before typing, the window lists the commands the palette ran.
         XCTAssertTrue(app.buttons["quickRecall.row.command.record"].waitForExistence(timeout: 4))
 
         field.click()
@@ -114,9 +87,6 @@ final class MainWindowUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// The native toolbar item must do real work in both directions. This
-    /// guards the recent split-view stabilization against a control that is
-    /// present but detached from NavigationSplitView's column visibility.
     func testToolbarToggleHidesAndRestoresSidebar() {
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(identified("timeline.dayPicker").waitForExistence(timeout: 5),
@@ -135,8 +105,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(timeline.waitForExistence(timeout: 5), "sidebar did not return")
 
         let window = app.windows.firstMatch
-        // A restored split must keep the footer's inset without adding an
-        // empty column.
         let privacyFooter = identified("sidebar.localPrivacy")
         XCTAssertTrue(privacyFooter.waitForExistence(timeout: 3),
                       "sidebar footer did not return")
@@ -166,10 +134,6 @@ final class MainWindowUITests: XCTestCase {
                                   "three-column sidebar restored with an empty leading column")
     }
 
-    /// The sidebar content must stay attached to the window edge even when
-    /// AppKit restores or accepts an oversized first split column. A fixed-
-    /// width child centered in that column creates the blank gutters this
-    /// test is intended to prevent.
     func testSidebarStaysAtLeadingEdgeAfterColumnResizeAndToggle() {
         clickSidebar("sidebar.meetings")
         XCTAssertTrue(app.outlines["meeting.list"].waitForExistence(timeout: 6),
@@ -204,10 +168,6 @@ final class MainWindowUITests: XCTestCase {
                                   "restored resized sidebar detached from the window edge")
     }
 
-    /// The sidebar footer's inset from the window edge: 10 pt on macOS 15,
-    /// 18 pt on macOS 26.6, whose floating sidebar sits 8 pt further in. An
-    /// empty leading column, or a sidebar centered in an oversized one, moves
-    /// it by roughly the sidebar's width or more.
     private func assertFooterAtLeadingEdge(_ footer: XCUIElement, in window: XCUIElement, _ message: String,
                                            file: StaticString = #filePath, line: UInt = #line) {
         let inset = footer.frame.minX - window.frame.minX
@@ -215,24 +175,16 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertLessThanOrEqual(inset, 24, message, file: file, line: line)
     }
 
-    /// Query the native sidebar control among direct toolbar children so nested
-    /// accessibility wrappers cannot inflate the count.
     private var toolbarSidebarButtons: XCUIElementQuery {
         app.toolbars.firstMatch.children(matching: .button).matching(NSPredicate(
             format: "label CONTAINS[c] 'sidebar'"))
     }
 
-    /// Any sidebar toggle among direct toolbar children, app-owned or
-    /// system-generated (the generated item has no app identifier, only a
-    /// "Hide/Show Sidebar" label).
     private var anySidebarToggleButtons: XCUIElementQuery {
         app.toolbars.firstMatch.children(matching: .button).matching(NSPredicate(
             format: "identifier == 'toolbar.sidebarToggle' OR label CONTAINS[c] 'sidebar'"))
     }
 
-    /// Every planted fixture surfaces in the sidebar, grouped by day with
-    /// the right headers — confirms `StorageManager.loadMeetings()` reads
-    /// our on-disk shape, not just a happy-path single meeting.
     func testMeetingListRendersAllSyntheticMeetings() {
         openLibrary()
         let list = app.outlines["meeting.list"]
@@ -246,8 +198,6 @@ final class MainWindowUITests: XCTestCase {
                       "TODAY day header missing")
         XCTAssertTrue(hasDayHeader(in: list, prefix: "YESTERDAY"),
                       "YESTERDAY day header missing")
-        // The Record toolbar button is always present; assert it exists but
-        // never click it — recording reaches for real audio devices.
         XCTAssertTrue(app.buttons["toolbar.record"].exists,
                       "record toolbar button missing")
     }
@@ -266,9 +216,6 @@ final class MainWindowUITests: XCTestCase {
         search.typeKey(.delete, modifierFlags: [])
     }
 
-    /// Sidebar selection swaps the content column. Settings is the exception:
-    /// its row opens the Settings window, and the main window stays on what
-    /// it was showing, ready to go to another destination.
     func testSidebarNavigationSwitchesSections() {
         clickSidebar("sidebar.settings")
         let settings = UITestHarness.settingsWindow(in: app)
@@ -280,7 +227,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertEqual(app.windows.count, 2, "Settings must open beside the main window, not replace it")
         XCTAssertTrue(identified("today.header").exists, "The main window must stay on Today behind Settings")
         XCTAssertTrue(identified("sidebar.timeline").exists)
-        // The row opens no second Settings window.
         app.typeKey(",", modifierFlags: .command)
         XCTAssertEqual(app.windows.count, 2, "⌘, must bring the open Settings window forward")
         clickSidebar("sidebar.timeline")
@@ -297,7 +243,6 @@ final class MainWindowUITests: XCTestCase {
                        "Remember must be a header, not a destination")
         XCTAssertFalse(app.buttons["sidebar.section.assistant"].exists,
                        "Assistant must be a header, not a destination")
-        // Today and Actions lead, Settings sits in the footer under the list.
         let ordered = ["sidebar.today", "sidebar.actions", "sidebar.meetings", "sidebar.timeline",
                        "sidebar.people", "sidebar.projects", "sidebar.ask", "sidebar.agent",
                        "sidebar.settings", "sidebar.localPrivacy"]
@@ -310,14 +255,10 @@ final class MainWindowUITests: XCTestCase {
                               "approved sidebar order changed")
         }
         XCTAssertFalse(identified("sidebar.type").exists)
-        // With every model local, storage and AI share one line. A remote
-        // server splits them again and names its host.
         XCTAssertTrue(textWithContent("On this Mac").firstMatch.exists)
         XCTAssertFalse(textWithContent("AI: local + remote").firstMatch.exists)
     }
 
-    /// Actions is a destination of its own: it opens from the sidebar, is the
-    /// selected row while open, and needs no Back button to leave.
     func testActionsOpensFromTheSidebar() {
         clickSidebar("sidebar.actions")
         XCTAssertTrue(app.textFields["actions.search"].waitForExistence(timeout: 6),
@@ -327,16 +268,12 @@ final class MainWindowUITests: XCTestCase {
                       "Today did not replace Actions")
     }
 
-    /// The Models category says what each of the three models does, with
-    /// focused editors; the rest is behind More rows and a folded Advanced.
     func testModelsSectionRendersRoleCards() {
         clickSidebar("sidebar.settings")
         UITestHarness.selectSettingsCategory("Models", in: app)
         let content = app.scrollViews["models.content"]
         XCTAssertTrue(app.descendants(matching: .any)["models.overview"]
             .waitForExistence(timeout: 6), "core readiness overview missing")
-        // A heading's words reach XCUITest as its label, and a static-text
-        // query did not match it on the hosted runner; its identifier does.
         let heading = app.descendants(matching: .any)["models.heading.roles"]
         XCTAssertTrue(heading.waitForExistence(timeout: 4), "the role rows have no heading")
         XCTAssertTrue([heading.label, heading.value as? String ?? ""].joined(separator: " ")
@@ -351,7 +288,6 @@ final class MainWindowUITests: XCTestCase {
                           "\(role) has no status chip")
         }
 
-        // Advanced is folded: storage and the checks are inside it.
         let advanced = app.buttons["models.advanced"]
         UITestHarness.scrollTo(advanced, in: app, within: content)
         XCTAssertTrue(advanced.exists, "Advanced group missing")
@@ -367,7 +303,6 @@ final class MainWindowUITests: XCTestCase {
                       "model storage summary missing")
         advanced.click()
 
-        // The other models are a page of their own.
         let other = app.buttons["models.more.other"]
         UITestHarness.scrollTo(other, in: app, within: content)
         other.click()
@@ -420,7 +355,6 @@ final class MainWindowUITests: XCTestCase {
         clickSidebar("sidebar.settings")
         UITestHarness.selectSettingsCategory("Models", in: app)
 
-        // The model set is a menu; choosing a set opens its review.
         let preset = app.descendants(matching: .any)["models.choosePreset"].firstMatch
         XCTAssertTrue(preset.waitForExistence(timeout: 5), "Model set menu missing")
         UITestHarness.scrollTo(preset, in: app)
@@ -438,11 +372,6 @@ final class MainWindowUITests: XCTestCase {
         reviewSheet.buttons["Cancel"].firstMatch.click()
     }
 
-    // MARK: - Timeline
-
-    /// Timeline is one day: the day's page as panels on the leading side, and
-    /// a rail on the trailing side with the tracked time, the hour strip and
-    /// the day's sessions and meetings. The date is in the toolbar.
     func testTimelineRendersTrackAndOverview() {
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
@@ -453,8 +382,6 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 6), "the day's sessions should be listed immediately")
         XCTAssertFalse(identified("timeline.sessionPreview").exists,
                        "the day digest shows until something is selected")
-        // The day's page has no row in the rail and no way back to itself:
-        // it is what shows until a row is chosen.
         XCTAssertFalse(app.buttons["timeline.dayDigest.row"].exists,
                        "the rail lists sessions; Day digest is not a row")
         XCTAssertFalse(app.buttons["timeline.backToDigest"].exists,
@@ -463,8 +390,6 @@ final class MainWindowUITests: XCTestCase {
             identified("timeline.evidencePane").frame.maxX,
             identified("timeline.list").frame.minX + 1,
             "the day's page sits before the rail")
-        // Needs Attention no longer leads the page: the day's actions have
-        // their own panel, as the shared action rows, shown without a click.
         XCTAssertFalse(textWithContent("Needs Attention").firstMatch.exists,
                        "Needs Attention moved to Today and Actions")
         let dayActions = identified("timeline.dayActions")
@@ -476,8 +401,6 @@ final class MainWindowUITests: XCTestCase {
                       "the day's open actions should be listed in their panel")
         XCTAssertTrue(app.buttons["timeline.dayActions.all"].exists,
                       "the actions panel should lead to Actions")
-        // Writing, copying and exporting the digest, pausing day memory and
-        // reloading share the toolbar's one menu.
         let dayMenu = identified("timeline.dayDigest.actions")
         XCTAssertTrue(dayMenu.waitForExistence(timeout: 5),
                       "Timeline should expose its digest and day-memory menu")
@@ -521,8 +444,6 @@ final class MainWindowUITests: XCTestCase {
                       "human-facing focus summary is missing")
         XCTAssertFalse(textWithContent("User updated the Timeline UI").firstMatch.exists,
                        "model bookkeeping subject leaked into the focus summary")
-        // The fixture's digest cites a screen moment that was never kept. A
-        // source link appears only when there is a source.
         XCTAssertFalse(textWithContent("Source moment unavailable").firstMatch.exists,
                        "a missing source should leave no line behind")
         XCTAssertTrue(textWithContent("Xcode").firstMatch.waitForExistence(timeout: 4),
@@ -531,15 +452,12 @@ final class MainWindowUITests: XCTestCase {
                        "private evidence identifier leaked into the collapsed overview")
         XCTAssertFalse(textWithContent("Nothing recorded").firstMatch.exists,
                        "empty state shown despite seeded activity blocks")
-        // The grounded block title becomes the human-scale session title.
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] %@", "TimelineView.swift"))
             .firstMatch.exists,
                       "seeded work-session title missing")
-        // Meetings remain first-class chronological rows.
         XCTAssertTrue(app.descendants(matching: .any)["capture.meeting.\(fixture.designReview.id.uuidString)"].exists,
                       "seeded meeting missing from the day's list")
-        // All captured activity, the rail's bottom row, opens the hour track.
         let rawCapture = app.buttons["timeline.rawCapture"]
         XCTAssertTrue(rawCapture.exists,
                       "All captured activity is missing from the rail's foot")
@@ -559,7 +477,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(app.buttons.matching(
             NSPredicate(format: "identifier BEGINSWITH %@", "capture.activity."))
             .firstMatch.exists, "raw activity blocks are no longer inspectable")
-        // The four-tab inspector is gone.
         XCTAssertFalse(app.descendants(matching: .any)["timeline.inspector"].exists,
                        "legacy inspector segmented control should be removed")
     }
@@ -581,26 +498,20 @@ final class MainWindowUITests: XCTestCase {
                       "session selection replaced the date in the toolbar")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.workSessions"].exists,
                       "session selection replaced the session list")
-        // "What was open" is a heading, which a static-text query does not
-        // match on the runner; the list under it carries the same name.
         let whatWasOpen = identified("timeline.session.titleEvidence")
         XCTAssertTrue(whatWasOpen.waitForExistence(timeout: 4),
                       "the session's page does not list what was open")
         XCTAssertEqual(whatWasOpen.label, "What was open")
 
-        // Returning to Timeline should restore the selected session and its
-        // page, including on the narrow hosted desktop.
         clickSidebar("sidebar.ask")
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.sessionPreview"]
             .waitForExistence(timeout: 4), "navigation discarded the selected work session")
 
-        // The rail keeps its totals while a session's page is showing.
         XCTAssertTrue(identified("capture.dayOverview").exists,
                       "session selection replaced the rail's tracked time")
         XCTAssertFalse(identified("timeline.highlights").exists,
                        "the session's page replaces the day's page")
-        // "Day digest" above the session's page is the way back to the day.
         XCTAssertFalse(app.buttons["Back to day"].exists,
                        "a row's page has one way back, Day digest")
         let digestLink = app.buttons["timeline.backToDigest"]
@@ -626,9 +537,6 @@ final class MainWindowUITests: XCTestCase {
                       "meeting selection replaced the day's list")
     }
 
-    /// A date change is one state transition for the whole day workspace: it
-    /// clears an old meeting preview and swaps the cached track, brief, and
-    /// persisted digest to the newly selected local calendar day.
     func testTimelineDateChangeRefreshesOverviewAndDigest() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -639,8 +547,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
             .waitForExistence(timeout: 6), "Timeline did not render")
 
-        // A toolbar button is exposed twice, as the toolbar's item and as
-        // the button inside it, both with the identifier.
         let previousDay = app.buttons.matching(identifier: "timeline.previousDay").firstMatch
         XCTAssertTrue(previousDay.waitForExistence(timeout: 4),
                       "previous-day control is missing")
@@ -654,8 +560,6 @@ final class MainWindowUITests: XCTestCase {
                        "today's activity totals remained in the previous-day overview")
     }
 
-    /// The sidebar swaps the content column between Timeline (work sessions)
-    /// and Meetings (grouped meeting list) both ways.
     func testSidebarTogglesBetweenTimelineAndMeetings() {
         clickSidebar("sidebar.timeline")
         XCTAssertTrue(app.descendants(matching: .any)["timeline.dayPicker"]
@@ -670,8 +574,6 @@ final class MainWindowUITests: XCTestCase {
             .waitForExistence(timeout: 4), "Timeline did not come back")
     }
 
-    // MARK: - Detail tabs
-
     func testMeetingWaveformExposesSliderAndSupportsKeyboardSeeking() {
         openLibrary()
         let row = meetingRow(for: fixture.designReview)
@@ -681,8 +583,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(position.waitForExistence(timeout: 5),
                       "waveform must retain native slider accessibility")
         func assertPosition(_ seconds: Double, displayedTime: String) {
-            // macOS exposes a native slider's AXValue as a number. The
-            // formatted accessibility description is not its numeric value.
             XCTAssertEqual((position.value as? NSNumber)?.doubleValue, seconds,
                            "Unexpected slider value: \(String(describing: position.value))")
             XCTAssertTrue(app.staticTexts["\(displayedTime) / 1:00"].exists,
@@ -741,8 +641,6 @@ final class MainWindowUITests: XCTestCase {
         UITestHarness.scrollTo(toggle, in: app)
         XCTAssertTrue(toggle.waitForExistence(timeout: 5), "Thread toggle missing: \(app.debugDescription)")
         toggle.click()
-        // App-wide queries also include Touch Bar controls, which cannot be
-        // clicked through the normal macOS event path.
         let confirm = app.windows.buttons["Mark all done"].firstMatch
         XCTAssertTrue(confirm.waitForExistence(timeout: 4), "Multi-meeting completion needs explicit approval")
         let cancel = app.windows.buttons["Cancel"].firstMatch
@@ -756,7 +654,6 @@ final class MainWindowUITests: XCTestCase {
         let review = app.buttons["outcomes.review"]
         UITestHarness.scrollTo(review, in: app)
         review.click()
-        // Actions always lists threads: the action said in two meetings is one row.
         XCTAssertTrue(identified("actions.list").waitForExistence(timeout: 5))
         XCTAssertTrue(UITestHarness.staticText(containing: "In 2 meetings", in: app).waitForExistence(timeout: 5),
                       "A thread's row should say how many meetings it was said in")
@@ -833,9 +730,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(identified("today.header").waitForExistence(timeout: 10))
     }
 
-    /// Full detail leads with actions and keeps the full summary and transcript
-    /// in their own tabs. Each part of a tab is a panel, and the panels fill
-    /// the pane beside the pinned player instead of a centred reading column.
     func testMeetingDetailLeadsWithActionsAndHasFullSummaryTab() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -843,12 +737,9 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(textWithContent("Adopt Redis").firstMatch.waitForExistence(timeout: 4))
         XCTAssertTrue(identified("meeting.audioPlayer").exists)
         XCTAssertTrue(textWithContent("Draft the eviction policy document").firstMatch.waitForExistence(timeout: 4))
-        // Decisions, Actions and Open questions each have a titled panel.
         for panel in ["meeting.decisions", "meeting.actions", "meeting.questions"] {
             XCTAssertTrue(identified(panel + ".title").exists, "\(panel) has no panel header")
         }
-        // The pinned player and the scrolling panels share both edges, 24
-        // points from the pane's leading edge, whatever the scroll bar takes.
         let player = identified("meeting.audioPlayer").frame
         let actions = identified("meeting.actions").frame
         let content = app.scrollViews["meeting.content.scroll"].frame
@@ -895,8 +786,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(textWithContent("Redis was selected for the caching layer").firstMatch.exists)
     }
 
-    /// Calendar attendees are explicit choices for remote diarization labels;
-    /// email disambiguates the local choice but never becomes the alias.
     func testSpeakerRenameOffersCalendarAttendeeIdentities() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -933,8 +822,6 @@ final class MainWindowUITests: XCTestCase {
         }, "calendar attendee was not saved as the speaker alias")
     }
 
-    /// The name field also searches the suggestions: Return fills in the top
-    /// match, and a second Return saves it.
     func testSpeakerRenameReturnFillsInTopSuggestion() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -977,7 +864,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { speaker.label == longName })
         let text = app.staticTexts["transcript.segment.1.text"]
         XCTAssertTrue(text.waitForExistence(timeout: 3))
-        // A turn's speaker sits on its own line above what was said.
         XCTAssertLessThanOrEqual(speaker.frame.maxY, text.frame.minY + 1)
         XCTAssertGreaterThanOrEqual(speaker.frame.minX + 24, text.frame.minX)
         XCTAssertLessThanOrEqual(speaker.frame.maxX, text.frame.maxX + 1)
@@ -992,14 +878,11 @@ final class MainWindowUITests: XCTestCase {
         app.sheets.firstMatch.buttons["Cancel"].click()
     }
 
-    /// Asking stays a direct toolbar button. Copying and exporting are under
-    /// Share, and the short More menu keeps reprocessing one level down.
     func testMeetingProcessingActionsAreDirectToolbarButtons() {
         openLibrary()
         selectMeeting(fixture.designReview)
         XCTAssertTrue(identified("meeting.ask").exists)
         identified("meeting.export").click()
-        // Everything that copies or exports is under Share.
         for label in ["Copy summary", "Copy transcript", "Copy as Markdown", "Export as Markdown…",
                       "Export audio…", "Export spoken summary…", "Copy meeting path"] {
             XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing share action: \(label)")
@@ -1009,8 +892,6 @@ final class MainWindowUITests: XCTestCase {
         for label in ["Draft follow-up…", "Read summary aloud", "Edit start and end…", "Reprocess", "Show in Finder"] {
             XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing meeting action: \(label)")
         }
-        // The three ways to process a meeting again sit one level down.
-        // Pointing at the item opens its submenu; a click on it closes the menu.
         app.menuItems["Reprocess"].hover()
         for label in ["Transcribe & Summarize", "Transcribe only", "Summarize again"] {
             XCTAssertTrue(app.menuItems[label].waitForExistence(timeout: 3), "Missing reprocess action: \(label)")
@@ -1019,8 +900,6 @@ final class MainWindowUITests: XCTestCase {
         app.typeKey(.escape, modifierFlags: [])
     }
 
-    /// Command-F searches every visible meeting content node. Matches move through outcomes and summary prose into
-    /// collapsed transcript evidence without switching to library-wide Ask.
     func testMeetingFindSearchesAllVisibleContent() {
         openLibrary()
         selectMeeting(fixture.designReview)
@@ -1063,11 +942,6 @@ final class MainWindowUITests: XCTestCase {
         }, "meeting header metadata was not searchable")
     }
 
-    // MARK: - Ask
-
-    /// FTS5-backed search reindexes on every launch — typing a term that
-    /// only appears in the synthetic transcripts surfaces the matching
-    /// meeting, and clicking the hit deep-links to that meeting's detail.
     func testSearchFindsTranscriptHitAndDeepLinks() {
         clickSidebar("sidebar.ask")
         switchToKeywordSearch()
@@ -1090,15 +964,9 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertEqual(title.value as? String ?? title.label, fixture.designReview.title)
     }
 
-    /// The Ask section is reachable from the sidebar and renders its one
-    /// field with the two scope menus and the Ask button, which is enabled
-    /// once something is typed.
-    /// Stops short of sending (that would spin up the real local LLM).
     func testAskSectionRendersAndAcceptsInput() {
         clickSidebar("sidebar.ask")
 
-        // The page's heading is not matched by a static-text query on the
-        // runner; it is found by its identifier and read from label or value.
         let heading = identified("ask.heading")
         XCTAssertTrue(heading.waitForExistence(timeout: 6), "ask empty-state did not render")
         XCTAssertTrue([heading.label, heading.value as? String ?? ""].joined(separator: " ")
@@ -1148,9 +1016,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertLessThanOrEqual(field.frame.maxX, app.windows.firstMatch.frame.maxX)
     }
 
-    /// Restored split widths from Timeline or Meetings must not let the
-    /// conversation list consume the Ask workspace. Push the detail divider
-    /// toward the window edge and verify both column constraints hold.
     func testAskDetailResistsConversationListSqueeze() {
         clickSidebar("sidebar.ask")
 
@@ -1182,11 +1047,6 @@ final class MainWindowUITests: XCTestCase {
            + "(history: \(conversations.frame.width), Ask field: \(field.frame.width))")
     }
 
-    /// ↵ asks, whether a question or a single word was typed: the page
-    /// becomes the conversation with the typed text as the user turn. A full
-    /// question is answered from the chosen sources; a keyword from its matches. The model reply itself is not awaited (no local LLM in the
-    /// test host) — the transition and the persisted user turn are the
-    /// contract under test.
     func testAskEscalationShowsConversationWithUserTurn() {
         clickSidebar("sidebar.ask")
 
@@ -1203,17 +1063,12 @@ final class MainWindowUITests: XCTestCase {
                         "chat.message.user", "failover")).firstMatch
         XCTAssertTrue(userTurn.waitForExistence(timeout: 6),
                       "user turn did not appear in the conversation after ↵")
-        // A full question reads the chosen sources, not only what matched.
         XCTAssertEqual(identified("ask.sources").value as? String, "All sources")
     }
-
-    // MARK: - Selection
 
     func testMeetingSwitchKeepsReadingAnchorsAndSelectionStable() throws {
         XCTAssertFalse(NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
                        "This regression must exercise normal motion; Reduce Motion has its own hosted test")
-        // Exercise the real loading path slowly enough to inspect the outgoing
-        // document. No audio on the second meeting also checks player geometry.
         for name in ["mic.live.caf", "system.live.caf"] {
             let path = fixture.folder(for: fixture.standup).appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: path.path) { try FileManager.default.removeItem(at: path) }
@@ -1235,8 +1090,6 @@ final class MainWindowUITests: XCTestCase {
                        fixture.designReview.title)
         XCTAssertEqual(identified("detail.title").frame.minX, titleFrame.minX, accuracy: 1)
         XCTAssertFalse(identified("meeting.ask").isEnabled, "Outgoing meeting actions must not target a stale selection")
-        // Supersede the in-flight selection. Its completion must not replace
-        // the final meeting, or flash its unloaded content in the meantime.
         meetingRow(for: fixture.planning).click()
         waitForMeetingTitle(fixture.planning.title)
         XCTAssertFalse(identified("meeting.selection.loading").exists)
@@ -1258,10 +1111,6 @@ final class MainWindowUITests: XCTestCase {
         multi.name = "meeting-multiselect-stable-list"; multi.lifetime = .keepAlways; add(multi)
     }
 
-    /// Cmd-clicking a second row enters the multi-select state — the detail
-    /// pane swaps to the "N meetings selected" affordance with the deletion
-    /// button and the hint copy. Guards against `selectedMeeting` accidentally
-    /// returning non-nil for sets larger than one.
     func testMultiSelectShowsAggregateState() {
         openLibrary()
         selectTwo(fixture.designReview, fixture.standup)
@@ -1271,19 +1120,11 @@ final class MainWindowUITests: XCTestCase {
                       "multi-select description missing")
     }
 
-    // MARK: - Delete confirmation
-
-    /// Cancelling the confirmation dialog leaves both the list rows and the
-    /// on-disk folders untouched — the dialog is the only friction protecting
-    /// recordings from a stray click, so this regression test is load-bearing.
     func testDeleteConfirmationCancelsCleanly() {
         openLibrary()
         let deleteButton = selectTwo(fixture.standup, fixture.planning)
         deleteButton.click()
 
-        // `.confirmationDialog` renders as a Sheet labelled "alert"; scope
-        // the Cancel query to that sheet so we don't ambiguously match the
-        // TouchBar's own Cancel button when one is present.
         let sheet = app.sheets.firstMatch
         XCTAssertTrue(sheet.waitForExistence(timeout: 5),
                       "confirmation sheet never appeared")
@@ -1298,10 +1139,6 @@ final class MainWindowUITests: XCTestCase {
             "standup folder must survive a cancelled delete")
     }
 
-    /// Confirming runs the full destructive path — MainWindowView →
-    /// `AppState.deleteMeetings` → `StorageManager.deleteMeeting` — removing
-    /// both the list rows and the on-disk folders. Safe to actually delete:
-    /// the fixture lives in a throwaway tmp root.
     func testDeleteConfirmedRemovesMeetingsFromListAndDisk() {
         openLibrary()
         let deleteButton = selectTwo(fixture.standup, fixture.planning)
@@ -1316,14 +1153,12 @@ final class MainWindowUITests: XCTestCase {
                       "confirmation sheet never appeared")
         sheet.buttons["Delete (removes recordings & transcripts)"].click()
 
-        // Rows vanish from the list…
         expectation(for: NSPredicate(format: "exists == false"),
                     evaluatedWith: meetingRow(for: fixture.standup))
         expectation(for: NSPredicate(format: "exists == false"),
                     evaluatedWith: meetingRow(for: fixture.planning))
         waitForExpectations(timeout: 5)
 
-        // …and so do their folders on disk.
         XCTAssertFalse(FileManager.default.fileExists(atPath: standupFolder.path),
                        "standup folder must be removed from disk")
         XCTAssertFalse(FileManager.default.fileExists(atPath: planningFolder.path),
@@ -1332,8 +1167,6 @@ final class MainWindowUITests: XCTestCase {
                       "untouched meeting must remain in the list")
     }
 
-    // MARK: - Settings
-
     func testNemotronSpeakerModelSelectionPersistsAndRespectsDiarizationToggle() {
         clickSidebar("sidebar.settings")
         UITestHarness.selectSettingsCategory("Meetings", in: app)
@@ -1341,7 +1174,6 @@ final class MainWindowUITests: XCTestCase {
         UITestHarness.scrollTo(picker, in: app)
         XCTAssertTrue(picker.waitForExistence(timeout: 4))
         XCTAssertEqual(picker.label, "Speaker model")
-        // The harness seeds legacy saved settings without a model-selection key.
         XCTAssertEqual(picker.value as? String, "Pyannote Community-1")
         picker.click()
         app.menuItems["Nemotron 3 (Preview)"].click()
@@ -1367,7 +1199,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertEqual(picker.value as? String, "Nemotron 3 (Preview)")
     }
 
-    /// ⌘, opens LokalBot's own Settings window, the one home for settings.
     func testSettingsShortcutLandsInWindow() {
         app.typeKey(",", modifierFlags: .command)
         XCTAssertTrue(UITestHarness.settingsWindow(in: app).descendants(matching: .any)["settings.categories"]
@@ -1376,17 +1207,10 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(identified("today.header").exists, "The main window must stay where it was")
     }
 
-    // MARK: - Helpers
-
-    /// Click a sidebar entry by accessibility identifier. The identifier
-    /// lives on the inner `Label`; descend-by-id is unambiguous because
-    /// each sidebar item carries a unique identifier (`sidebar.<section>`).
     private func clickSidebar(_ identifier: String) {
         UITestHarness.clickSidebar(identifier, in: app)
     }
 
-    /// Open the Meetings section and wait for the meeting list —
-    /// the precondition for every list/detail/delete test.
     private func openLibrary() {
         clickSidebar("sidebar.meetings")
         XCTAssertTrue(app.outlines["meeting.list"].waitForExistence(timeout: 6),
@@ -1410,9 +1234,6 @@ final class MainWindowUITests: XCTestCase {
         }, "Selected meeting title did not settle: \(title)")
     }
 
-    /// Select two rows (click + ⌘-click) and wait until the multi-select
-    /// detail pane's destructive button appears, so callers begin from a
-    /// known multi-select state. Returns that button for the delete flows.
     @discardableResult
     private func selectTwo(_ a: SyntheticFixture.Meeting,
                            _ b: SyntheticFixture.Meeting) -> XCUIElement {
@@ -1420,10 +1241,6 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertTrue(first.waitForExistence(timeout: 4),
                       "row for \(a.title) not found")
         first.click()
-        // Confirm the first selection committed before extending it: the
-        // modifier-held ⌘-click can otherwise race an unsettled selection and
-        // land as a plain click (leaving a single selection, so the aggregate
-        // "Delete 2 meetings" button never appears).
         _ = identified("detail.title").waitForExistence(timeout: 4)
         XCUIElement.perform(withKeyModifiers: .command) { meetingRow(for: b).click() }
         let deleteButton = app.buttons["Delete 2 meetings"]
@@ -1433,9 +1250,6 @@ final class MainWindowUITests: XCTestCase {
     }
 
     private func meetingRow(for meeting: SyntheticFixture.Meeting) -> XCUIElement {
-        // SwiftUI surfaces the row's accessibility identifier on the merged
-        // StaticText element after `.accessibilityElement(children: .combine)`.
-        // Multiple children may carry the same identifier; take the first.
         app.staticTexts.matching(
             NSPredicate(format: "identifier == %@",
                         "meeting.row.\(meeting.id.uuidString)"))
@@ -1447,7 +1261,6 @@ final class MainWindowUITests: XCTestCase {
             NSPredicate(format: "identifier == %@", identifier)).firstMatch
     }
 
-    /// Prefer the stable identifier; fall back to visible copy if AX role differs.
     private func digestTasksVisible() -> Bool {
         let identifiedHeader = app.descendants(matching: .any)["dayDigest.tasks"]
         if identifiedHeader.waitForExistence(timeout: 5) { return true }
@@ -1459,19 +1272,12 @@ final class MainWindowUITests: XCTestCase {
         XCTAssertFalse(identified("ask.retrieval").exists)
     }
 
-    /// True when the meeting list shows a day-group header beginning with
-    /// `prefix` (e.g. "TODAY", "YESTERDAY"). Checks both `label` and `value`
-    /// since SwiftUI may route the header text through either axis.
     private func hasDayHeader(in list: XCUIElement, prefix: String) -> Bool {
         list.staticTexts.matching(
             NSPredicate(format: "label BEGINSWITH[c] %@ OR value BEGINSWITH[c] %@",
                         prefix, prefix)).count > 0
     }
 
-    /// Match a StaticText whose visible text (`label` or `value`) contains
-    /// the fragment, case-insensitively. Scoped to `staticTexts` because
-    /// `descendants(matching: .any)` evaluates predicates against every
-    /// element type — too slow to use as a routine query.
     private func textWithContent(_ fragment: String) -> XCUIElementQuery {
         app.staticTexts.matching(
             NSPredicate(format: "label CONTAINS[c] %@ OR value CONTAINS[c] %@",

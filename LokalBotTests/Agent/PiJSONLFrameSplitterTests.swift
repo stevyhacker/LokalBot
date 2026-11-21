@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// pi RPC framing rules (docs/rpc.md "Framing"): LF is the ONLY record
-/// delimiter; a trailing CR is stripped; U+2028/U+2029 inside JSON strings
-/// must not split records.
 final class PiJSONLFrameSplitterTests: XCTestCase {
 
     func testSplitsOnLFOnly() {
@@ -27,7 +24,6 @@ final class PiJSONLFrameSplitterTests: XCTestCase {
 
     func testReassemblesRecordsAcrossChunks() {
         var splitter = PiJSONLFrameSplitter()
-        // Split mid-record AND mid-UTF-8-sequence (é is 2 bytes).
         let full = Data("{\"text\":\"café\"}\n".utf8)
         var collected: [String] = []
         collected += splitter.append(full.prefix(5))

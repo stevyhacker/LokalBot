@@ -1,14 +1,9 @@
-//! Text the way keyword search keeps and matches it (`SearchText`), and how
-//! documents are cut for it (`DocExtractor.chunks`, `excerpt`).
-
 use std::sync::LazyLock;
 
 use regex::Regex;
 use unicode_normalization::UnicodeNormalization as _;
 use unicode_normalization::char::is_combining_mark;
 
-/// NFKC, invisible formatting dropped (zero-width joiners, direction marks),
-/// and Arabic the way people type it: no tatweel, no short vowels, one alef.
 pub fn normalized(text: &str) -> String {
     let mut out = String::with_capacity(text.len());
     for scalar in text.nfkc() {
@@ -37,23 +32,18 @@ fn is_arabic(c: char) -> bool {
     (0x0600..=0x06FF).contains(&(c as u32))
 }
 
-/// Words of scripts that attach endings are matched as prefixes.
 pub fn inflects(word: &str) -> bool {
     word.chars().any(|c| is_indic(c) || is_arabic(c))
 }
 
-/// `CharacterSet.letters`: letters and marks.
 fn is_letter(c: char) -> bool {
     c.is_alphabetic() || is_combining_mark(c)
 }
 
-/// `CharacterSet.alphanumerics`: letters, marks and numbers.
 pub(crate) fn is_word_character(c: char) -> bool {
     c.is_alphanumeric() || is_combining_mark(c)
 }
 
-/// At least a fifth of what isn't space is letters. A data dump or a table of
-/// numbers isn't, and gets keyword search only.
 pub fn has_words(text: &str) -> bool {
     let (mut letters, mut others) = (0usize, 0usize);
     for c in text.chars().filter(|c| !c.is_whitespace()) {
@@ -66,8 +56,6 @@ pub fn has_words(text: &str) -> bool {
     letters > 0 && letters * 4 >= others
 }
 
-/// Enough prose for a vector: `has_words`, and at least four words with a
-/// letter in them.
 pub fn has_prose(text: &str) -> bool {
     has_words(text)
         && text
@@ -78,7 +66,6 @@ pub fn has_prose(text: &str) -> bool {
             >= 4
 }
 
-/// One character's form for matching: normalized, lowercased, no diacritics.
 fn folded(c: char) -> Vec<char> {
     let mut buffer = [0u8; 4];
     normalized(c.encode_utf8(&mut buffer))
@@ -88,8 +75,6 @@ fn folded(c: char) -> Vec<char> {
         .collect()
 }
 
-/// Where `word` is in `text` as keyword search would find it, as char ranges of
-/// the text as written (`SearchText.matches`).
 fn matches(word: &str, text: &[char]) -> Vec<std::ops::Range<usize>> {
     let needle: Vec<char> = word.chars().flat_map(folded).collect();
     if needle.is_empty() {
@@ -133,8 +118,6 @@ fn matches(word: &str, text: &[char]) -> Vec<std::ops::Range<usize>> {
     found
 }
 
-/// One line around the first of `terms` it has, the terms marked « » as SQLite's
-/// `snippet()` marks them; `None` when none of them is in it.
 pub fn snippet(text: &str, terms: &[String], words: usize) -> Option<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut marks: Vec<std::ops::Range<usize>> = terms
@@ -183,8 +166,6 @@ pub fn snippet(text: &str, terms: &[String], words: usize) -> Option<String> {
     Some(out.split_whitespace().collect::<Vec<_>>().join(" "))
 }
 
-/// One line, at most `limit` characters (`excerpt`): only the start is cleaned
-/// up, since a page or a chunk can be thousands of characters.
 pub fn excerpt(text: &str, limit: usize) -> String {
     let cut = limit * 8;
     let start: String = text.chars().take(cut).collect();
@@ -203,9 +184,6 @@ static SPACES: LazyLock<Regex> =
 static BLANK_LINES: LazyLock<Regex> =
     LazyLock::new(|| Regex::new(r"\n\s*\n\s*\n+").expect("a valid pattern"));
 
-/// About 1,800-character pieces (~450 tokens) that overlap a little, breaking
-/// at whitespace (`DocExtractor.chunks`). The same text is always cut the same
-/// way, so a later step of a long file goes on where the last one stopped.
 pub fn chunks(text: &str, limit: usize) -> Vec<String> {
     const SIZE: usize = 1800;
     const OVERLAP: usize = 200;
@@ -291,7 +269,6 @@ mod tests {
         assert_eq!(chunks(&text, 2).len(), 2);
         assert_eq!(chunks("short", 5), vec!["short".to_string()]);
         assert!(chunks("  \n ", 5).is_empty());
-        // No spaces at all still ends.
         assert!(chunks(&"x".repeat(9000), 100).len() >= 5);
     }
 

@@ -1,11 +1,7 @@
 import CryptoKit
 import Foundation
 
-/// Parsing shared by the meeting readers: timestamps, dates, subtitle files,
-/// text decoding, folder walks, and stable ids.
 enum ExternalImportText {
-    /// "01:02:03,450", "01:02:03.450", "1:02:03", "02:03", or "02:03.5" in
-    /// seconds. Nil for anything else.
     static func timestamp(_ value: String) -> TimeInterval? {
         let trimmed = value.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ",", with: ".")
         let parts = trimmed.split(separator: ":", omittingEmptySubsequences: false)
@@ -22,8 +18,6 @@ enum ExternalImportText {
         return seconds
     }
 
-    /// ISO 8601 with or without fractional seconds or a time zone (a
-    /// missing zone is read as UTC, as the formats that omit it mean).
     static func date(_ value: String) -> Date? {
         let trimmed = value.trimmingCharacters(in: .whitespaces)
         for options: ISO8601DateFormatter.Options in [
@@ -46,8 +40,6 @@ enum ExternalImportText {
         return nil
     }
 
-    /// A 32-character hex id from parts that identify a meeting when the
-    /// source has no id of its own. The same parts always give the same id.
     static func stableID(_ parts: String...) -> String {
         stableID(parts)
     }
@@ -57,8 +49,6 @@ enum ExternalImportText {
         return digest.prefix(16).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// UTF-8 (with or without a byte-order mark), else UTF-16 with a mark,
-    /// else Windows-1252, the encodings exports use. Line endings become "\n".
     static func readText(_ url: URL) throws -> String {
         let data = try Data(contentsOf: url)
         let text: String
@@ -74,8 +64,6 @@ enum ExternalImportText {
         return text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
     }
 
-    /// Regular files under `folder` (or `folder` itself when it is a file),
-    /// sorted by path, skipping hidden files and macOS archive litter.
     static func files(in folder: URL, recursive: Bool = true) -> [URL] {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: folder.path, isDirectory: &isDirectory) else { return [] }
@@ -93,7 +81,6 @@ enum ExternalImportText {
         return files.sorted { $0.path.localizedStandardCompare($1.path) == .orderedAscending }
     }
 
-    /// A title from a file name: no extension, underscores as spaces.
     static func title(fromFileName url: URL) -> String {
         let stem = url.deletingPathExtension().lastPathComponent
             .replacingOccurrences(of: "_", with: " ")
@@ -101,9 +88,6 @@ enum ExternalImportText {
         return stem.isEmpty ? "Imported meeting" : stem
     }
 
-    /// Splits "Ana Petrović: Let's ship it" into a speaker and the rest when
-    /// the part before the colon reads like a name: short, starting with a
-    /// letter, and without sentence punctuation.
     static func splitSpeaker(_ line: String) -> (speaker: String?, text: String) {
         guard let colon = line.firstIndex(of: ":") else { return (nil, line) }
         let name = line[..<colon].trimmingCharacters(in: .whitespaces)
@@ -116,9 +100,6 @@ enum ExternalImportText {
     }
 }
 
-/// SubRip (`.srt`) and WebVTT (`.vtt`) captions, the transcript exports
-/// Otter, Fireflies, Zoom, and MacWhisper all offer. A speaker comes from a
-/// WebVTT voice tag (`<v Ana>`) or a leading "Name:".
 enum SubtitleTranscript {
     static func parse(_ text: String) -> [ExternalMeeting.Line] {
         let normalized = text.replacingOccurrences(of: "\r\n", with: "\n").replacingOccurrences(of: "\r", with: "\n")
@@ -128,7 +109,6 @@ enum SubtitleTranscript {
             guard let timingIndex = rows.firstIndex(where: { $0.contains("-->") }) else { continue }
             let timing = rows[timingIndex].components(separatedBy: "-->")
             guard timing.count == 2 else { continue }
-            // WebVTT allows cue settings after the end time.
             let endField = timing[1].trimmingCharacters(in: .whitespaces).split(separator: " ").first.map(String.init) ?? ""
             guard let start = ExternalImportText.timestamp(timing[0]),
                   let end = ExternalImportText.timestamp(endField) else { continue }
@@ -151,7 +131,6 @@ enum SubtitleTranscript {
                 body = split.text
             }
             guard !body.isEmpty else { continue }
-            // Consecutive cues from the same speaker read as one turn.
             if let last = lines.last, last.speaker == speaker, let lastEnd = last.end, start - lastEnd < 1.5,
                (last.text.count + body.count) < 600 {
                 lines[lines.count - 1].text += " " + body
@@ -168,7 +147,6 @@ enum SubtitleTranscript {
             return nil
         }
         var name = row[open.upperBound..<close.lowerBound].trimmingCharacters(in: .whitespaces)
-        // `<v.loud Ana>` carries classes before the name.
         if name.hasPrefix("."), let space = name.firstIndex(of: " ") {
             name = String(name[space...]).trimmingCharacters(in: .whitespaces)
         }

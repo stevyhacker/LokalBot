@@ -1,8 +1,3 @@
-//! Audio from a file a person imports (`MeetingImportService.exportAudio`):
-//! every audio track of a recording mixed into one 16 kHz track, so a screen
-//! recording's microphone and system audio both reach the transcript. A
-//! video's picture is dropped and the original file is only read.
-
 use std::io;
 use std::path::Path;
 use std::time::SystemTime;
@@ -10,28 +5,22 @@ use std::time::SystemTime;
 use crate::decode::{CompressedReader, audio_track_ids, mp4_creation_time};
 use crate::wav::{SAMPLE_RATE, WavWriter};
 
-/// Shorter than this is no audio to transcribe.
 pub const MIN_IMPORT_SECONDS: f64 = 0.3;
 const CHUNK_FRAMES: usize = SAMPLE_RATE as usize;
 
 #[derive(Debug)]
 pub enum ImportError {
-    /// Not a format LokalBot can decode.
     Unreadable,
-    /// Readable, but with no audio, or under `MIN_IMPORT_SECONDS` of it.
     NoAudio,
-    /// Decoding or writing failed part-way.
     Conversion(io::Error),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ImportedAudio {
     pub duration: f64,
-    /// The recorder's own creation date, when the container has one.
     pub recorded_at: Option<SystemTime>,
 }
 
-/// Decodes `source` into a 16 kHz mono WAV at `dest`. On failure `dest` is removed.
 pub fn import_audio(source: &Path, dest: &Path) -> Result<ImportedAudio, ImportError> {
     let ids = audio_track_ids(source).map_err(|_| ImportError::Unreadable)?;
     if ids.is_empty() {
@@ -62,8 +51,6 @@ pub fn import_audio(source: &Path, dest: &Path) -> Result<ImportedAudio, ImportE
     })
 }
 
-/// Sums the tracks chunk by chunk; each read is full-length until its track
-/// ends, so the tracks stay aligned.
 fn mix(readers: &mut [CompressedReader], dest: &Path) -> io::Result<u64> {
     let mut writer = WavWriter::create(dest)?;
     let mut mixed = Vec::with_capacity(CHUNK_FRAMES);
@@ -96,9 +83,6 @@ mod tests {
     use super::*;
     use crate::TrackReader;
 
-    /// One second of a 440 Hz tone as an ADTS AAC stream, the one format the
-    /// phone and tablet apps send: `ffmpeg -f lavfi -i
-    /// "sine=frequency=440:duration=1" -c:a aac -b:a 32k -f adts`.
     fn adts_tone() -> Vec<u8> {
         std::fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/data/tone-440-adts.aac"))
             .unwrap()
@@ -123,7 +107,6 @@ mod tests {
         assert!((audio.duration - 1.0).abs() < 0.1, "{} s", audio.duration);
         assert_eq!(audio.recorded_at, None, "ADTS has no dates");
 
-        // A 440 Hz tone crosses zero about 880 times a second.
         let samples = read_all(&dest);
         let crossings = samples
             .windows(2)
@@ -136,8 +119,6 @@ mod tests {
         );
     }
 
-    /// A recorder that dies stops in the middle of a frame, and the earlier
-    /// frames are still the recording.
     #[test]
     fn imports_what_a_dead_recorder_left() {
         let dir = tempfile::tempdir().unwrap();
@@ -155,7 +136,6 @@ mod tests {
         assert!(read_all(&dest).iter().any(|sample| sample.abs() > 0.01));
     }
 
-    /// `frame` with padding the decoder never reads, which an ADTS header counts.
     fn padded(frame: &[u8], extra: usize) -> Vec<u8> {
         let mut padded = frame.to_vec();
         padded.resize(frame.len() + extra, 0);
@@ -166,10 +146,6 @@ mod tests {
         padded
     }
 
-    /// ADTS doesn't say how long it is, and Symphonia's figure comes from the
-    /// frames at four points in the file. A device deletes its copy once the
-    /// meeting is stored, so one that's bigger there than elsewhere must still
-    /// arrive whole.
     #[test]
     fn imports_all_of_a_stream_whose_frames_vary_in_size() {
         let tone = adts_tone();

@@ -13,7 +13,6 @@ fn iso(at: DateTime<Utc>) -> String {
     at.to_rfc3339_opts(chrono::SecondsFormat::Millis, true)
 }
 
-/// Noon local time `days` days ago, so a scan's window always holds it.
 fn noon(days: i64) -> DateTime<Utc> {
     let day = Local::now().date_naive() - Duration::days(days);
     Local
@@ -23,7 +22,6 @@ fn noon(days: i64) -> DateTime<Utc> {
         .with_timezone(&Utc)
 }
 
-/// Transcript stamps have no finer detail than this needs.
 fn whole_second_now() -> DateTime<Utc> {
     Utc.timestamp_opt(Utc::now().timestamp(), 0).unwrap()
 }
@@ -149,7 +147,6 @@ fn subagent_folders_copied_records_and_consulted_replies_stay_out() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path();
     let at = noon(1);
-    // A subagent transcript in the session's own subfolder is not read.
     let nested = home.join(".claude/projects/-home-me-GitHub-app/session-1/subagents/one.jsonl");
     write_lines(&nested, &[claude_user(at, "n1", "subagent work")]);
     let first = claude_session(home, "first");
@@ -165,7 +162,6 @@ fn subagent_folders_copied_records_and_consulted_replies_stay_out() {
             ),
         ],
     );
-    // A forked session copies the records it inherited under their own ids.
     let forked = claude_session(home, "forked");
     write_lines(
         &forked,
@@ -182,7 +178,6 @@ fn subagent_folders_copied_records_and_consulted_replies_stay_out() {
     );
     assert!(all.contains(&"The new request".to_string()));
     assert!(!all.contains(&"subagent work".to_string()));
-    // The session read LokalBot's library, so its replies are withheld.
     assert!(scan.bursts.iter().all(|b| b.final_reply.is_none()));
 }
 
@@ -224,7 +219,6 @@ fn codex_rollouts_read_only_what_they_should() {
             }}),
         ],
     );
-    // A guardian thread reports through its parent.
     let reviewer = home.join(".codex/archived_sessions/rollout-2.jsonl");
     write_lines(
         &reviewer,
@@ -245,7 +239,6 @@ fn codex_rollouts_read_only_what_they_should() {
             json!({"id": "thread-1", "thread_name": "Renamed"}),
         ],
     );
-    // Codex's credentials and database are never parsed, whatever they hold.
     fs::write(home.join(".codex/auth.json"), "{\"token\":\"not read\"}").unwrap();
     let scan = scan_today(home, &chosen());
     assert_eq!(scan.bursts.len(), 1, "{scan:?}");
@@ -280,31 +273,26 @@ fn nothing_is_read_until_the_person_has_chosen() {
     let now = at + Duration::hours(1);
     let ingestor = Ingestor::default();
 
-    // Saved as true on every existing install, without ever having been asked.
     let unconfirmed = Settings::default();
     assert!(unconfirmed.coding_agent_evidence_enabled);
     let changed = ingestor.refresh_from(&library, &home, || unconfirmed.clone(), None, now);
     assert!(changed.is_empty());
     assert!(library.coding_agent_bursts(at, now).unwrap().is_empty());
-    // A library moved from a Mac starts the same way.
     let moved: Settings =
         serde_json::from_value(json!({"codingAgentEvidenceEnabled": true})).unwrap();
     ingestor.refresh_from(&library, &home, || moved.clone(), None, now);
     assert!(library.coding_agent_bursts(at, now).unwrap().is_empty());
-    // Choosing off stays off.
     let declined = Settings {
         coding_agent_evidence_enabled: false,
         ..chosen()
     };
     ingestor.refresh_from(&library, &home, || declined.clone(), None, now);
     assert!(library.coding_agent_bursts(at, now).unwrap().is_empty());
-    // The unconfirmed gate returns before any transcript is parsed.
     assert!(ingestor.cache.state_count() == 0);
 
     let changed = ingestor.refresh_from(&library, &home, chosen, None, now);
     assert_eq!(changed, vec![local_day(at)]);
     assert_eq!(library.coding_agent_bursts(at, now).unwrap().len(), 1);
-    // The agent's files are read, never written.
     assert_eq!(fs::read_dir(session.parent().unwrap()).unwrap().count(), 1);
 }
 
@@ -325,10 +313,8 @@ fn only_settled_work_is_stored_and_additions_dont_touch_a_digest() {
     let later = at + Duration::minutes(11);
     ingestor.refresh_from(&library, &home, chosen, None, later);
     assert_eq!(library.coding_agent_bursts(at, later).unwrap().len(), 1);
-    // A plain addition advances no evidence.
     let state = lokalbot_core::evidence::read_state(library.paths().root()).unwrap();
     assert_eq!(state.revision, 0);
-    // Scanning again with nothing new changes nothing.
     assert!(
         ingestor
             .refresh_from(&library, &home, chosen, None, later)
@@ -356,7 +342,6 @@ fn a_removed_session_withdraws_but_an_unreadable_one_does_not() {
     apply_scan(&library, &scan, &configuration, later).unwrap();
     assert_eq!(library.coding_agent_bursts(at, later).unwrap().len(), 1);
 
-    // An unreadable file says nothing about what was deleted.
     let unreadable = DayScan {
         bursts: Vec::new(),
         unreadable_files: vec!["/gone".into()],
@@ -374,7 +359,6 @@ fn a_removed_session_withdraws_but_an_unreadable_one_does_not() {
     );
     assert_eq!(library.coding_agent_bursts(at, later).unwrap().len(), 1);
 
-    // A deleted session is removed, as a revision.
     fs::remove_file(&session).unwrap();
     let scan = scan_today(&home, &chosen());
     let changed = apply_scan(&library, &scan, &configuration, later).unwrap();
@@ -480,7 +464,6 @@ fn a_finished_day_keeps_its_bursts_when_only_the_label_changed() {
         library.coding_agent_bursts(at, later).unwrap()[0].title,
         "Old name"
     );
-    // Today's burst follows its session's name.
     let today = noon(0) - Duration::hours(2);
     let current = CodingAgentBurst {
         start: today,
@@ -505,7 +488,6 @@ fn a_finished_day_keeps_its_bursts_when_only_the_label_changed() {
         library.coding_agent_bursts(today, later).unwrap()[0].title,
         "New name"
     );
-    // Changed work on a finished day replaces the stored burst.
     let changed = CodingAgentBurst {
         prompts: vec!["Different work".into()],
         ..burst.clone()
@@ -541,12 +523,9 @@ fn a_refresh_parses_only_appended_lines_and_rereads_a_rewritten_file() {
     let first = scanner.scan(window, today, Some(&cache));
     assert_eq!(first.files_read, 1);
     assert_eq!(first.bursts[0].prompt_count, 1);
-    // Nothing changed: the file isn't opened.
     let second = scanner.scan(window, today, Some(&cache));
     assert_eq!(second.files_read, 0);
     assert_eq!(second.bursts, first.bursts);
-    // Only the appended bytes are read, and a half-written line counts for this
-    // scan only.
     let before = fs::metadata(&session).unwrap().len();
     let appended = format!(
         "{}\n",
@@ -560,18 +539,14 @@ fn a_refresh_parses_only_appended_lines_and_rereads_a_rewritten_file() {
     let third = scanner.scan(window, today, Some(&cache));
     assert_eq!(third.bytes_read, body.len() as u64 - before);
     assert_eq!(third.bursts[0].prompt_count, 3);
-    // The rest of the line arrives; the request isn't counted twice.
     body.push('\n');
     fs::write(&session, &body).unwrap();
     let fourth = scanner.scan(window, today, Some(&cache));
     assert_eq!(fourth.bursts[0].prompt_count, 3);
-    // A rewritten file starts over.
     write_lines(&session, &[claude_user(at, "u9", "Only this now")]);
     let fifth = scanner.scan(window, today, Some(&cache));
     assert_eq!(fifth.bursts[0].prompts, vec!["Only this now".to_string()]);
     assert_eq!(fifth.bursts[0].prompt_count, 1);
-    // A later window drops what it no longer needs, and reaching back past what
-    // was kept parses the file again.
     assert!(scanner.scan(today, today, Some(&cache)).bursts.is_empty());
     let widened = scanner.scan(window, today, Some(&cache));
     assert_eq!(widened.files_read, 1);
@@ -597,12 +572,10 @@ fn bursts_split_on_inactivity_and_never_cross_midnight() {
                 31,
                 EventKind::PullRequest("https://github.com/a/b/pull/1".into()),
             ),
-            // A link written when nothing was running joins nothing.
             event(
                 90,
                 EventKind::PullRequest("https://github.com/a/b/pull/2".into()),
             ),
-            // Only activity makes no burst.
             event(200, EventKind::Activity),
         ],
     };
@@ -612,7 +585,6 @@ fn bursts_split_on_inactivity_and_never_cross_midnight() {
     assert_eq!(bursts[0].active_duration, 300.0);
     assert_eq!(bursts[1].pull_requests.len(), 1);
 
-    // A burst of one event has no active time, and says so as the Mac does.
     let single = Transcript {
         events: vec![event(0, EventKind::Prompt("Only".into()))],
         ..transcript.clone()
@@ -625,7 +597,6 @@ fn bursts_split_on_inactivity_and_never_cross_midnight() {
             .contains(r#""activeDuration":0.0"#)
     );
 
-    // Compaction keeps the same bursts.
     let compacted = compacting_activity(&transcript.events);
     let again = Transcript {
         events: compacted,
@@ -633,7 +604,6 @@ fn bursts_split_on_inactivity_and_never_cross_midnight() {
     };
     assert_eq!(builder::bursts(&again), bursts);
 
-    // Compaction keeps a ping between two days.
     let midnight = local_day_bounds(Local::now().date_naive()).0;
     let across = vec![
         Event::new(
@@ -677,7 +647,6 @@ fn text_rules_match_the_mac() {
         prompt("look at <pasted_content id=1>long paste</pasted_content> please").as_deref(),
         Some("look at [pasted text] please")
     );
-    // An unclosed harness tag is still harness text; HTML a person pasted isn't.
     assert_eq!(prompt("<ide-opened-file>src/a.rs"), None);
     assert_eq!(
         prompt("Why is <div>x</div> wrong").as_deref(),
@@ -735,7 +704,6 @@ fn text_rules_match_the_mac() {
         actions_in_command("pnpm run test"),
         vec![CodingAgentAction::RanTests {}]
     );
-    // The UI-test runner moved to Scripts/test/; older sessions still name the old path.
     for command in [
         "Scripts/test/ui-tests.sh --remote",
         "bash Scripts/ui-tests.sh --remote",
@@ -839,14 +807,12 @@ fn a_windows_folder_rule_under_home_matches_its_sessions() {
     assert_eq!(folder, "C:/Users/Ana/Code/client");
     let session = text::standardized_path(r"C:\Users\Ana\Code\client\app", home);
     assert!(text::is_inside(&session, &folder));
-    // Windows paths compare without case, and a sibling isn't inside.
     let other_case = text::standardized_path(r"c:\users\ana\code\CLIENT", home);
     assert!(text::is_inside(&other_case, &folder));
     let sibling = text::standardized_path(r"C:\Users\Ana\Code\client-two", home);
     assert!(!text::is_inside(&sibling, &folder));
 }
 
-/// A Codex rollout with one request and its reply, at `at`.
 fn codex_rollout(id: &str, at: DateTime<Utc>) -> Vec<serde_json::Value> {
     vec![
         json!({"type": "session_meta", "timestamp": iso(at), "payload": {
@@ -861,7 +827,6 @@ fn codex_rollout(id: &str, at: DateTime<Utc>) -> Vec<serde_json::Value> {
     ]
 }
 
-/// `rollout-<local start>-<id>.jsonl`, as Codex names a rollout.
 fn rollout_name(id: &str, at: DateTime<Utc>) -> String {
     format!(
         "rollout-{}-{id}.jsonl",
@@ -869,8 +834,6 @@ fn rollout_name(id: &str, at: DateTime<Utc>) -> String {
     )
 }
 
-/// Writes `lines` compressed, as Codex keeps a rollout it is done with, and
-/// returns the uncompressed size.
 fn write_compressed(path: &Path, lines: &[serde_json::Value]) -> u64 {
     fs::create_dir_all(path.parent().unwrap()).unwrap();
     let body: String = lines.iter().map(|line| format!("{line}\n")).collect();
@@ -900,7 +863,6 @@ fn compressed_codex_rollouts_are_read_like_plain_ones() {
             .join(format!("{name}.zst")),
         &lines,
     );
-    // Both files were created just now, so the window runs past now.
     let (start, _) = local_day_bounds(local_day(at));
     let end = Utc::now() + Duration::hours(1);
     let expected = codex::CodexReader {
@@ -928,8 +890,6 @@ fn compressed_codex_rollouts_are_read_like_plain_ones() {
 
 #[test]
 fn a_compressed_rollout_counts_on_the_day_it_began() {
-    // Compressing gives the file a creation time after its session began:
-    // here, now, two days after the work it holds.
     let dir = tempfile::tempdir().unwrap();
     let at = noon(2);
     let root = dir.path().join("codex");
@@ -1070,7 +1030,6 @@ fn antigravity_sessions_keep_work_skip_thinking_and_deduplicate_roots() {
         "FULL TRANSCRIPT SECRET\n",
     )
     .unwrap();
-    // Older duplicate in antigravity-cli is skipped in favor of the newer copy.
     let older =
         home.join(".gemini/antigravity-cli/brain/conv-1/.system_generated/logs/transcript.jsonl");
     write_lines(
@@ -1186,7 +1145,7 @@ fn t3_code_v2_sessions_deduplicate_native_agents_and_skip_subagents() {
     let at = noon(1);
     let earlier = at - Duration::days(1);
 
-    let db_path = home.join(".t3/userdata/statev2.sqlite");
+    let db_path = home.join(".t3").join("userdata").join("statev2.sqlite");
     fs::create_dir_all(db_path.parent().unwrap()).unwrap();
     let conn = rusqlite::Connection::open(&db_path).unwrap();
     conn.execute_batch(&format!(
@@ -1317,7 +1276,6 @@ fn t3_code_v2_sessions_deduplicate_native_agents_and_skip_subagents() {
     .unwrap();
     drop(conn);
 
-    // Native Claude & Codex sessions: one owned by T3 Code and one standalone each.
     write_lines(
         &claude_session(home, "claude-owned"),
         &[claude_user(at, "co1", "Owned by T3 Code")],
@@ -1415,7 +1373,6 @@ fn t3_code_v2_sessions_deduplicate_native_agents_and_skip_subagents() {
         assert!(!stored.contains(leaked), "leaked {leaked}");
     }
 
-    // Disabling T3 Code restores native Claude & Codex sessions.
     let without_t3 = Settings {
         coding_agent_reads_t3_code: false,
         ..chosen()
@@ -1444,7 +1401,7 @@ fn t3_code_v1_fallback_and_corrupt_database_handling() {
     let dir = tempfile::tempdir().unwrap();
     let home = dir.path();
     let at = noon(1);
-    let v1_path = home.join(".t3/userdata/state.sqlite");
+    let v1_path = home.join(".t3").join("userdata").join("state.sqlite");
     fs::create_dir_all(v1_path.parent().unwrap()).unwrap();
     let conn = rusqlite::Connection::open(&v1_path).unwrap();
     conn.execute_batch(&format!(
@@ -1476,7 +1433,7 @@ fn t3_code_v1_fallback_and_corrupt_database_handling() {
     .unwrap();
     drop(conn);
 
-    let corrupt = home.join(".t3/userdata/statev2.sqlite");
+    let corrupt = home.join(".t3").join("userdata").join("statev2.sqlite");
     fs::write(&corrupt, b"not a sqlite database").unwrap();
 
     let scan = scan_today(home, &chosen());

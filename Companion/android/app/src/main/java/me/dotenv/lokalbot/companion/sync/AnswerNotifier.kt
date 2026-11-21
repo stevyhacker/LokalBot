@@ -15,7 +15,6 @@ import me.dotenv.lokalbot.companion.R
 import me.dotenv.lokalbot.companion.data.model.AskRequest
 import me.dotenv.lokalbot.companion.data.model.AskResult
 
-/** A local notification when the Mac answers a question queued while it was away. */
 class AnswerNotifier(private val context: Context) {
 
     fun announce(request: AskRequest, result: AskResult) {

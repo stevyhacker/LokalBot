@@ -1,9 +1,5 @@
 import SwiftUI
 
-/// One permission line in a grouped Form: state icon, title, rationale, and a
-/// Grant button when missing. Shared by Settings, Dictation, and Cotyping so
-/// permission state reads the same everywhere. Callers are responsible for
-/// `PermissionManager.shared.startPolling()` while the row is visible.
 struct PermissionRow: View {
     let permission: AppPermission
     var why: String?
@@ -32,7 +28,6 @@ struct PermissionRow: View {
                 .help(Text(LocalizedStringKey(permission.guidanceHint)))
             }
         }
-        // Grants arrive from polling while the user is in System Settings.
         .animation(WorkspaceMotion.animation(.milestone, reduceMotion: reduceMotion), value: granted)
     }
 }

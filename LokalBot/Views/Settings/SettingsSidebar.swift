@@ -1,17 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Measurements of the Settings window, whose content runs to the top edge.
 enum SettingsChrome {
-    /// The bar that holds back, forward and the page's name.
     static let topBarHeight: CGFloat = 50
-    /// Room the traffic lights take above the search field.
     static let trafficLightsHeight: CGFloat = 38
 }
 
-/// The Settings window's list: search, the LokalBot row that opens Overview,
-/// then every page in its group. Feature rows say "Off" or "Paused" at the
-/// right, and the page where something is fixed carries a count.
 struct SettingsSidebar: View {
     @EnvironmentObject private var app: AppState
     let status: SettingsStatus
@@ -30,8 +24,6 @@ struct SettingsSidebar: View {
                     .tag(AppState.SettingsTab.overview)
                     .listRowSeparator(.hidden)
                 ForEach(AppState.SettingsTab.leadingPages, id: \.self) { row($0) }
-                // Headings are plain rows, like the main sidebar's: a List
-                // Section reaches accessibility as a group with no name.
                 ForEach(AppState.SettingsTab.Group.allCases, id: \.self) { group in
                     Text(LocalizedStringKey(group.rawValue))
                         .font(.scaled(.subheadline).bold())
@@ -43,9 +35,6 @@ struct SettingsSidebar: View {
                         .accessibilityIdentifier("settings.group.\(group)")
                     ForEach(AppState.SettingsTab.allCases.filter { $0.group == group }, id: \.self) { row($0) }
                 }
-                // The gap above the last page is padding on its row. An empty
-                // spacer row was a list cell with nothing to read, which
-                // VoiceOver stopped on and the accessibility audit flagged.
                 ForEach(AppState.SettingsTab.trailingPages, id: \.self) { page in
                     row(page).padding(.top, page == AppState.SettingsTab.trailingPages.first ? 14 : 0)
                 }
@@ -91,8 +80,6 @@ struct SettingsSidebar: View {
     }
 }
 
-/// The row at the top of the list, where System Settings puts the account:
-/// the app, and under it how many things need the person.
 private struct SettingsIdentityRow: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.backgroundProminence) private var prominence
@@ -106,8 +93,6 @@ private struct SettingsIdentityRow: View {
                 .frame(width: 32, height: 32)
                 .accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 1) {
-                // Each text carries its own identifier: one on the row would
-                // replace both.
                 Text(verbatim: "LokalBot")
                     .font(.scaled(.body).weight(.semibold))
                     .accessibilityIdentifier("settings.identity")
@@ -129,9 +114,6 @@ private struct SettingsIdentityRow: View {
     }
 }
 
-/// Category glyphs carry the accent like Agent's starters. A selected row on
-/// the prominent accent highlight falls back to the row's own foreground so
-/// nothing disappears into a teal fill.
 private struct SettingsCategoryRow: View {
     @Environment(\.backgroundProminence) private var prominence
     let page: AppState.SettingsTab

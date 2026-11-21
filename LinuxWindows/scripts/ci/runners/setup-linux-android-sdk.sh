@@ -1,17 +1,10 @@
 #!/usr/bin/env bash
-# Gives the Linux runner from setup-linux-runner.sh what the "Companion Android"
-# workflow needs: an Android SDK of its own, because a job can't read anyone
-# else's home. Run it as a user with sudo. Running it again installs only what's
-# missing, and it never holds a key: release builds stay on GitHub's runners.
 set -euo pipefail
 
 RUNNER_USER=ghrunner
 SDK=/home/$RUNNER_USER/android-sdk
-# Command-line tools 20.0, the ones android-emulator-runner uses on GitHub's runners.
 TOOLS_BUILD=14742923
 TOOLS_SHA256=04453066b540409d975c676d781da1477479dde3761310f1a7eb92a1dfb15af7
-# The same versions the job gets on GitHub's runners. The app's compileSdk picks
-# the platform, and AGP downloads the build tools it wants on top of these.
 PACKAGES=(
   platform-tools
   emulator

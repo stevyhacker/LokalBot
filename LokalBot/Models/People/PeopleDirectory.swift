@@ -1,14 +1,8 @@
 import Foundation
 
-/// Speaker names applied in one meeting's transcript. Only user-applied
-/// display names and their calendar-attendee links are read; speaker
-/// evidence, suggestions, and voice-profile identities never are.
 struct MeetingAppliedSpeakerNames: Equatable, Sendable {
     var names: [String] = []
-    /// Applied name keyed by the opaque calendar-participant id it was linked to.
     var namesByCalendarIdentityID: [String: String] = [:]
-    /// Applied name keyed by the speaker label's canonical key ("them 4"),
-    /// so a summary line or decision by that speaker reaches the person.
     var namesBySpeakerKey: [String: String] = [:]
 
     private struct Stored: Decodable {
@@ -19,7 +13,6 @@ struct MeetingAppliedSpeakerNames: Equatable, Sendable {
     static func load(from folder: URL) -> Self {
         guard let data = try? Data(contentsOf: folder.appendingPathComponent("transcript.json")),
               let stored = try? JSONDecoder().decode(Stored.self, from: data) else { return Self() }
-        // The user's own microphone label is not another person.
         let aliases = (stored.speakerAliases ?? [:]).filter { label, _ in
             let key = Transcript.canonicalSpeakerKey(label)
             let local = key.split(separator: ":").last.map(String.init) ?? key
@@ -35,40 +28,27 @@ struct MeetingAppliedSpeakerNames: Equatable, Sendable {
                     namesBySpeakerKey: bySpeaker)
     }
 
-    /// The applied name for a speaker label as written in notes ("Them 4").
     func name(forSpeaker label: String) -> String? {
         namesBySpeakerKey[Transcript.canonicalSpeakerKey(label)]
     }
 }
 
-/// One person the user meets, assembled from local meeting metadata:
-/// calendar attendee names, speaker names the user applied, and action
-/// owners. Attendee email addresses are used only as private join keys and
-/// never appear in a profile, its id, or anything derived from it.
 struct PersonProfile: Identifiable, Equatable, Sendable {
-    /// One recording shared with the person.
     struct MeetingRef: Identifiable, Equatable, Sendable {
         let id: UUID
         let title: String
         let startedAt: Date
         var endedAt: Date?
-        /// The calendar event the recording belongs to. Parts of one call
-        /// recorded separately share it.
         var calendarEventID: String?
-        /// Named people in the meeting other than the user.
         var participantCount = 0
 
         var duration: TimeInterval { max(0, (endedAt ?? startedAt).timeIntervalSince(startedAt)) }
     }
 
-    /// One meeting as it happened: a call recorded in several parts is one
-    /// occasion with several recordings.
     struct Occasion: Identifiable, Equatable, Sendable {
-        /// Newest first.
         let recordings: [MeetingRef]
 
         var id: UUID { primary.id }
-        /// The longest recording, which is the one worth opening.
         var primary: MeetingRef {
             recordings.max { $0.duration == $1.duration ? $0.startedAt < $1.startedAt : $0.duration < $1.duration }
                 ?? recordings[0]
@@ -77,10 +57,8 @@ struct PersonProfile: Identifiable, Equatable, Sendable {
         var startedAt: Date { recordings.map(\.startedAt).min() ?? primary.startedAt }
     }
 
-    /// Occasions that share a title, such as a weekly standup.
     struct Series: Identifiable, Equatable, Sendable {
         let title: String
-        /// Newest first.
         let occasions: [Occasion]
 
         var id: String { PeopleDirectory.normalized(title) }
@@ -95,33 +73,23 @@ struct PersonProfile: Identifiable, Equatable, Sendable {
         let meetingDate: Date
     }
 
-    /// A line from meeting notes said by the person or naming them.
     struct NotePoint: Identifiable, Equatable, Sendable {
         var id: String { text }
         let text: String
-        /// Who said it when that is someone other than the person: "You" or
-        /// a named speaker. Nil for the person's own lines and unnamed ones.
         let speaker: String?
-        /// The recording the line is from; a call recorded in parts has
-        /// notes for each part.
         let meetingID: UUID
-        /// Transcript time to open the recording at.
         let seek: TimeInterval?
     }
 
-    /// What the newest meeting notes about the person say.
     struct RecentNotes: Equatable, Sendable {
         let meetingID: UUID
         let meetingTitle: String
         let meetingDate: Date
-        /// Whether the notes come from the newest meeting with the person.
         let isLatestMeeting: Bool
         let points: [NotePoint]
     }
 
-    /// A project named in the person's notes, actions, or decisions.
     struct ProjectLink: Identifiable, Equatable, Sendable {
-        /// The project's id on the Projects page.
         let id: String
         let name: String
         let isTracked: Bool
@@ -131,20 +99,12 @@ struct PersonProfile: Identifiable, Equatable, Sendable {
     let id: String
     var name: String
     var otherNames: [String]
-    /// Every person id folded into this one, its own first; corrections
-    /// saved under an earlier id still apply after automatic joins change.
     var memberIDs: [String] = []
-    /// Newest first; every recording, including parts of one call.
     var meetings: [MeetingRef]
-    /// Open or deferred work this person owns.
     var theirActions: [ActionThread]
-    /// The user's open work that names this person or came from a small
-    /// meeting with them.
     var myActions: [ActionThread]
     var decisions: [DecisionRef]
-    /// Filled by `WorkMemoryConnections` from meeting summaries.
     var recentNotes: RecentNotes?
-    /// Filled by `WorkMemoryConnections` once projects are known.
     var projects: [ProjectLink] = []
 
     var lastMetAt: Date? { meetings.first?.startedAt }
@@ -152,11 +112,9 @@ struct PersonProfile: Identifiable, Equatable, Sendable {
     var firstName: String { name.split(separator: " ").first.map(String.init) ?? name }
     var openCount: Int { myActions.count + theirActions.count }
 
-    /// Recordings grouped into the meetings they belong to, newest first.
     var occasions: [Occasion] { PeopleDirectory.occasions(meetings) }
     var meetingCount: Int { occasions.count }
 
-    /// Occasions grouped by title, the series with the newest meeting first.
     var series: [Series] { PeopleDirectory.series(occasions) }
 
     func occasions(since date: Date) -> Int { occasions.filter { $0.startedAt >= date }.count }
@@ -164,25 +122,15 @@ struct PersonProfile: Identifiable, Equatable, Sendable {
 
 enum PeopleDirectory {
     static let maximumDecisions = 8
-    /// A meeting with at most this many other named participants counts as
-    /// "with" each of them for the user's own commitments.
     static let smallMeetingSize = 2
-    /// Decisions from meetings this small belong to every attendee; an
-    /// all-hands decision is not a decision made "with" each attendee, so
-    /// in larger meetings only the person who said it or is named gets it.
     static let decisionMeetingSize = 4
-    /// A second recording that starts within this long after the first one
-    /// ends, with the same title and no calendar event, is the same call.
     static let recordingGapTolerance: TimeInterval = 15 * 60
 
     struct Input: Sendable {
         var meetings: [Meeting]
         var projections: [MeetingOutcomeProjection]
         var appliedNames: [UUID: MeetingAppliedSpeakerNames] = [:]
-        /// The user's own names (the Mac account's full name by default);
-        /// matching names are never listed as other people.
         var selfNames: [String] = PeopleDirectory.defaultSelfNames
-        /// Names, merges, and hidden entries the person chose.
         var curation = PeopleCuration()
     }
 
@@ -230,7 +178,6 @@ enum PeopleDirectory {
             for key in keys { people.addMeeting(meeting, to: key) }
         }
         people.mergeFirstNamesIntoFullNames()
-        // A chosen name also identifies the person in owners and notes.
         people.addChosenNames(input.curation.names)
         people.applyMerges(input.curation.merges)
 
@@ -239,8 +186,6 @@ enum PeopleDirectory {
         let threads = ActionThreadClusterer.cluster(projections.flatMap(\.actionReferences))
             .filter { $0.status != .done }
 
-        // Rosters were recorded while people were still being merged; resolve
-        // each stored key to the person it now belongs to.
         func roster(_ meetingID: UUID) -> Set<String> {
             Set((participantsByMeeting[meetingID] ?? []).map(people.canonical))
         }
@@ -286,7 +231,6 @@ enum PeopleDirectory {
                 for key in targets { people.addDecision(ref, to: key) }
             }
         }
-        // Owners first seen in actions can be merged only now.
         people.applyMerges(input.curation.merges)
 
         var rosterSizes: [UUID: Int] = [:]
@@ -294,10 +238,6 @@ enum PeopleDirectory {
         return people.profiles(now: now, rosterSizes: rosterSizes, curation: input.curation)
     }
 
-    /// Recordings grouped into the meetings they belong to, newest first. Two
-    /// recordings on one day are one meeting when they share a calendar
-    /// event, or, without one, a title and the second started within
-    /// `recordingGapTolerance` of the first one ending.
     static func occasions(_ meetings: [PersonProfile.MeetingRef],
                           calendar: Calendar = .current) -> [PersonProfile.Occasion] {
         var groups: [[PersonProfile.MeetingRef]] = []
@@ -323,7 +263,6 @@ enum PeopleDirectory {
         return later.startedAt <= earlierEnd.addingTimeInterval(recordingGapTolerance)
     }
 
-    /// Occasions grouped by title; the series with the newest meeting first.
     static func series(_ occasions: [PersonProfile.Occasion]) -> [PersonProfile.Series] {
         var order: [String] = []
         var byKey: [String: [PersonProfile.Occasion]] = [:]
@@ -338,10 +277,6 @@ enum PeopleDirectory {
         }
     }
 
-    /// Whether text names the person: their full name, or a first name of
-    /// three or more letters, written with a capital as names are. A name
-    /// that is also a common word ("Will", "May") does not count at the
-    /// start of a sentence.
     static func isNamed(_ name: String, in text: String) -> Bool {
         let nameWords = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .components(separatedBy: CharacterSet.letters.union(.decimalDigits).inverted)
@@ -384,9 +319,6 @@ enum PeopleDirectory {
         "frank", "june", "april", "august", "art", "joy", "faith", "dawn", "rich", "case",
     ]
 
-    /// Resolves an owner label written in one meeting to a person, using the
-    /// same rules as the directory: that meeting's roster first, then a
-    /// unique full-name match across everyone.
     static func person(forOwner owner: String, meetingID: UUID,
                        in profiles: [PersonProfile]) -> PersonProfile? {
         let key = normalized(owner)
@@ -404,8 +336,6 @@ enum PeopleDirectory {
         return first.count == 1 ? first[0] : nil
     }
 
-    // MARK: - Helpers
-
     static func normalized(_ value: String) -> String {
         value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .components(separatedBy: CharacterSet.letters.union(.decimalDigits).inverted)
@@ -413,8 +343,6 @@ enum PeopleDirectory {
             .joined(separator: " ")
     }
 
-    /// Speaker labels are per meeting ("Them 4" is someone different in
-    /// every call) and collective words name no one, so neither is a person.
     static func isPlaceholder(_ name: String) -> Bool {
         let key = normalized(cleanedName(name))
         guard !key.isEmpty else { return true }
@@ -428,8 +356,6 @@ enum PeopleDirectory {
             options: .regularExpression) != nil
     }
 
-    /// Removes the "· source 2" suffixes meeting merges add to speaker names
-    /// and trailing notes such as "(Them 3)" or "(host)".
     static func cleanedName(_ name: String) -> String {
         name.replacingOccurrences(of: #"(\s*·\s*source\s*\d+)+\s*$"#, with: "",
                                   options: [.regularExpression, .caseInsensitive])
@@ -437,12 +363,8 @@ enum PeopleDirectory {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Action owners are model-written and often name a group or a role
-    /// ("Engineering team", "Product/research", "Go roadmap owner"). Only
-    /// one to four name-like words count as a person.
     static func isPersonName(_ name: String) -> Bool {
         guard !isPlaceholder(name), !name.contains("/"), !name.contains("'s "), !name.contains("’s "),
-              // "Matt, John, and Emil" is several people.
               !name.contains(","), !name.contains("&"), !name.contains("+") else {
             return false
         }
@@ -459,10 +381,6 @@ enum PeopleDirectory {
         return groupWords.isDisjoint(with: words)
     }
 
-    /// The name the rename picker suggests from an attendee address. Company
-    /// mailboxes are usually a first name ("dragan@…"); on public providers a
-    /// single-word mailbox ("donaldkevlee@gmail…") is a handle, so only a
-    /// spelled-out "first.last" counts there.
     static func nameFromAddress(_ identity: CalendarParticipantIdentity) -> String? {
         guard identity.name == nil, let name = identity.suggestedSpeakerName,
               let domain = identity.emailAddress?.split(separator: "@").last.map(String.init) else { return nil }
@@ -477,9 +395,6 @@ enum PeopleDirectory {
         "zoho.com", "fastmail.com", "hey.com",
     ]
 
-    /// Matches the user's own full name or a bare first name equal to theirs.
-    /// When the account name is a single word ("Stevan"), any name that
-    /// starts with it ("Stevan Bogosavljevic") is treated as the user too.
     struct SelfMatcher: Sendable {
         let fullNames: Set<String>
         let firstNames: Set<String>
@@ -501,7 +416,6 @@ enum PeopleDirectory {
         }
     }
 
-    /// Whole-word match of a full name or a first name of 3+ letters.
     static func mentions(_ text: String, name: String) -> Bool {
         let words = " " + normalized(text) + " "
         let full = normalized(name)
@@ -512,7 +426,6 @@ enum PeopleDirectory {
         return words.contains(" " + first + " ")
     }
 
-    /// FNV-1a over the private join key gives a stable, opaque identifier.
     static func opaqueID(_ key: String) -> String {
         var hash: UInt64 = 14_695_981_039_346_656_037
         for byte in key.utf8 {
@@ -530,24 +443,14 @@ enum PeopleDirectory {
         var decisions: [String: PersonProfile.DecisionRef] = [:]
     }
 
-    /// Joins calendar identities by address when present, otherwise by full
-    /// normalized name. A name-only person merges into an address-keyed one
-    /// when exactly one address-keyed person carries that full name.
     private struct Registry {
         var entries: [String: Entry] = [:]
         var order: [String] = []
         var keyByName: [String: Set<String>] = [:]
-        /// A merged-away key points to the person it joined, so keys stored
-        /// before the merge (meeting rosters) still reach the right person.
         var redirects: [String: String] = [:]
-        /// Every key folded into a person, by the person's key.
         var members: [String: [String]] = [:]
-        /// The name a merge target was shown under when the person merged
-        /// someone into it, so the target keeps its name.
         var mergeTargetNames: [String: String] = [:]
 
-        /// The person a saved id belongs to now, whichever of their keys
-        /// the id was made from.
         func key(forID id: String) -> String? {
             let known = order + Array(redirects.keys)
             return known.first { opaqueID($0) == id }.map(canonical)
@@ -565,7 +468,6 @@ enum PeopleDirectory {
             let key: String
             if let email {
                 key = "email:" + email.lowercased()
-                // Fold an earlier name-only entry into this address.
                 let nameOnly = "name:" + nameKey
                 if key != nameOnly, entries[nameOnly] != nil,
                    (keyByName[nameKey] ?? []).subtracting([nameOnly]).isEmpty {
@@ -593,7 +495,6 @@ enum PeopleDirectory {
             entries[canonical(key)].map { Array($0.nameCounts.keys) } ?? []
         }
 
-        /// Exact full-name match first, then a unique first-name match.
         func resolve(name: String, among keys: Set<String>?) -> String? {
             let target = normalized(name)
             let candidates = keys.map { Array(Set($0.map(canonical))) } ?? order
@@ -619,8 +520,6 @@ enum PeopleDirectory {
             }
         }
 
-        /// Merges the person chose, in the order they made them. A merge
-        /// whose people are not in the library (yet) waits.
         mutating func applyMerges(_ merges: [PeopleCuration.Merge]) {
             for merge in merges {
                 guard let source = key(forID: merge.sourceID), let target = key(forID: merge.targetID),
@@ -632,8 +531,6 @@ enum PeopleDirectory {
             }
         }
 
-        /// The fullest name first ("Ana Petrović" over "Ana"), then the most
-        /// frequently seen spelling.
         static func rankedNames(_ entry: Entry) -> [String] {
             entry.nameCounts.sorted {
                 let leftWords = $0.key.split(separator: " ").count
@@ -656,9 +553,6 @@ enum PeopleDirectory {
             entries[canonical(key)]?.decisions[decision.id] = decision
         }
 
-        /// A first name alone ("Dragan", often applied to a speaker) joins the
-        /// one person whose full name starts with it ("Dragan Cabarkapa").
-        /// Two different attendee addresses are never joined.
         mutating func mergeFirstNamesIntoFullNames() {
             var fullNamesByFirst: [String: Set<String>] = [:]
             for key in order {
@@ -710,8 +604,6 @@ enum PeopleDirectory {
                 let memberIDs: [String] = [opaqueID(key)]
                     + (members[key] ?? []).filter { $0 != key }.map(opaqueID)
                 guard !memberIDs.contains(where: curation.isHidden) else { return nil }
-                // A name the person chose wins, then the name a merge target
-                // had, then the best-ranked name.
                 var names = Self.rankedNames(entry)
                 if let preferred = memberIDs.lazy.compactMap({ curation.names[$0] }).first
                     ?? mergeTargetNames[key] {
@@ -724,7 +616,6 @@ enum PeopleDirectory {
                     meeting.participantCount = rosterSizes[meeting.id] ?? 0
                     return meeting
                 }.sorted { $0.startedAt > $1.startedAt }
-                // Decisions of one meeting keep one order between rebuilds.
                 let decisions = entry.decisions.values.sorted {
                     $0.meetingDate == $1.meetingDate ? $0.id < $1.id : $0.meetingDate > $1.meetingDate
                 }

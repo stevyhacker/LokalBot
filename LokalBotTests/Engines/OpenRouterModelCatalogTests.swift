@@ -5,7 +5,6 @@ final class OpenRouterModelCatalogTests: XCTestCase {
     private actor Server {
         enum Reply {
             case endpoints(Data)
-            /// Answers after a pause, failing if the asking task is cancelled.
             case delayed(Data)
             case status(Int)
             case failure
@@ -155,7 +154,6 @@ final class OpenRouterModelCatalogTests: XCTestCase {
         let server = Server([.delayed(modelList)])
         let catalog = catalog(server, defaults: defaults())
 
-        // A Settings view's task is cancelled when the view disappears.
         let view = Task { await catalog.reasoningSupport(model: "z-ai/glm-5.3-flash", baseURL: base,
                                                          approvedOrigins: approved) }
         while await server.recorded().isEmpty { await Task.yield() }
@@ -193,8 +191,6 @@ final class OpenRouterModelCatalogTests: XCTestCase {
         let first = await catalog(Server([.endpoints(endpoints([(1_000_000, nil)]))]), defaults: store)
             .contextTokens(model: "acme/long-context", baseURL: base, approvedOrigins: approved)
         XCTAssertEqual(first, 1_000_000)
-        // A relaunched app whose lookup fails keeps the same window, so the
-        // meeting's part plan and partial notes survive.
         for reply in [Server.Reply.failure, .status(404), .status(500), .endpoints(endpoints([]))] {
             let tokens = await catalog(Server([reply]), defaults: store)
                 .contextTokens(model: "acme/long-context", baseURL: base, approvedOrigins: approved)

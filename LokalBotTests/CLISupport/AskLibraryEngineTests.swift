@@ -56,7 +56,6 @@ final class AskLibraryEngineTests: XCTestCase {
         super.tearDown()
     }
 
-    /// `appRunning: nil` reads the library's instance lock, as the CLI does.
     private func makeEngine(
         client: MockChatClient,
         appRunning: Bool? = true,
@@ -152,8 +151,6 @@ final class AskLibraryEngineTests: XCTestCase {
         XCTAssertTrue(result.text.contains("read tools still work"))
     }
 
-    /// With the app closed nothing consumes a wake, so the answer is
-    /// immediate. It used to come after 60 one-second polls.
     func testAClosedAppIsReportedWithoutWaitingForAWake() async {
         let client = MockChatClient(healthyScript: [false, false, false, false])
         var polls = 0
@@ -198,8 +195,6 @@ final class AskLibraryEngineTests: XCTestCase {
         let result = await makeEngine(client: client).ask("caching decision")
         XCTAssertTrue(result.text.hasPrefix("[app_not_running]"))
     }
-
-    // MARK: - Reply drafts and CLI output
 
     func testReplyDraftsFromTheMeetingsTheMessageMatches() async throws {
         let client = MockChatClient(healthyScript: [true], completion: .success("We went with Redis."))

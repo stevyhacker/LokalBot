@@ -20,8 +20,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         try? FileManager.default.removeItem(at: root)
     }
 
-    // MARK: - Store
-
     func testStoreKeepsBurstsByStartDayAndAdvancesTheWatermark() throws {
         let store = makeStore()
         let morning = try burst("A", start: "2026-09-29T09:00:00Z", end: "2026-09-29T09:20:00Z")
@@ -42,8 +40,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
 
         XCTAssertTrue(ActivityStore(databaseURL: url, readOnly: true).codingAgentBursts(in: dayInterval).isEmpty)
     }
-
-    // MARK: - Ingestion
 
     func testApplyStoresOnlySettledWorkAndRevokesRemovalsAndCorrections() throws {
         let store = makeStore()
@@ -96,10 +92,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
                        "a disabled agent keeps its saved records; text past retention is never stored")
     }
 
-    /// Bursts saved by earlier readers carry their session's latest branch
-    /// and folder, file names relative to another folder, and edges moved by
-    /// activity across midnight. Reading them again on a later day must not
-    /// reopen that day's digest and Dream review; changed work still does.
     func testSameWorkReadAgainLeavesAFinishedDayAloneButChangedWorkReopensIt() throws {
         let store = makeStore()
         var revoked: [[Date]] = []
@@ -132,10 +124,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertEqual(revoked, [[day]], "changed work revokes what used the old record")
     }
 
-    /// 2026-10-20 and 21: Claude Code sessions that moved to another branch
-    /// or folder relabeled their earlier bursts on each refresh. Every
-    /// relabel revised those days, which rebuilt their digests and discarded
-    /// their Dream reviews several times a day.
     func testASessionMovingOnLeavesAnEarlierDaysEvidenceAndDigestCurrent() async throws {
         let claude = root.appendingPathComponent("claude", isDirectory: true)
         let file = claude.appendingPathComponent("-Users-me-Code-LokalBot/S1.jsonl")
@@ -179,7 +167,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertEqual(store.codingAgentBursts(on: day).map(\.branch), ["claude/fix-badge"])
         XCTAssertFalse(lifecycle.snapshot(for: day).isStale)
 
-        // The next day the same session works on another branch, in another repository.
         lines += [
             claudeRecord("user", uuid: "u2", at: "2026-09-30T10:00:00Z", cwd: mojo, branch: "mojo-branding",
                          content: #""Apply the Mojo branding""#),
@@ -223,8 +210,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertEqual(recorder.ranges.map { $0.1 }, [try date("2026-09-29T00:00:00Z"), try date("2026-09-10T00:00:00Z")])
     }
 
-    /// The first scan parses every transcript in the window, so at launch it
-    /// waits for the meeting library instead of competing with its load.
     func testTheFirstScanWaitsUntilTheLibraryIsReady() async throws {
         let recorder = ScanRecorder()
         let scanned = expectation(description: "first scan")
@@ -263,7 +248,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
             store: store,
             configuration: { switchBox.value },
             scan: { [dayInterval] _, _, _, _ in
-                // The person deletes saved sessions while this scan runs.
                 switchBox.value = .init(agents: [])
                 return CodingAgentDayScan(
                     interval: dayInterval, bursts: [settled], sessionCount: 1, filesRead: 1,
@@ -306,8 +290,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
                        "finishing setup with the default kept starts reading")
     }
 
-    // MARK: - Retention
-
     func testRetentionReviewExpiresAgentRecordsWithScreenText() throws {
         let store = makeStore()
         let now = try date("2026-09-29T12:00:00Z")
@@ -325,8 +307,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertFalse(review.covers(expanded), "more agent records need a fresh review")
         XCTAssertTrue(expanded.covers(review), "a record that disappeared may shrink a review")
     }
-
-    // MARK: - Evidence and journal
 
     func testSnapshotLoadsStoredBurstsWithDetailedActivityOnly() throws {
         let store = ActivityStore(databaseURL: root.appendingPathComponent("lokalbotv3.sqlite"))
@@ -430,8 +410,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertEqual(DayDigestEvidence.pullRequestLink("https://example.com/x"), "<https://example.com/x>")
     }
 
-    // MARK: - Lifecycle
-
     func testGenerationAcceptsNewWorkButRejectsAChangedOriginal() async throws {
         let original = try burst("A", start: "2026-09-29T09:00:00Z", end: "2026-09-29T09:20:00Z")
         let arriving = try burst("B", start: "2026-09-29T19:00:00Z", end: "2026-09-29T19:10:00Z")
@@ -460,8 +438,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
 
         XCTAssertEqual(preparedDays, [day], "agent evidence is refreshed before the day is read")
     }
-
-    // MARK: - Settings and scanning
 
     func testSettingsDefaultOnAndRoundTrip() throws {
         XCTAssertTrue(AppSettings().codingAgentEvidenceEnabled)
@@ -522,8 +498,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
         XCTAssertEqual(result.sessionCount, 1)
     }
 
-    // MARK: - Fixtures
-
     private struct FixedReader: CodingAgentSessionReader {
         var agent: CodingAgentKind { .codex }
         let transcript: CodingAgentTranscript
@@ -551,7 +525,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
 
     private var dayInterval: DateInterval { DateInterval(start: day, duration: 86_400) }
 
-    /// A defaults suite of its own, so the setup flag never touches the host's.
     private func isolatedDefaults() throws -> (UserDefaults, String) {
         let suite = "CodingAgentEvidenceTests.\(UUID().uuidString)"
         return (try XCTUnwrap(UserDefaults(suiteName: suite)), suite)
@@ -608,8 +581,6 @@ final class CodingAgentEvidenceTests: XCTestCase {
             actions: actions, pullRequests: pullRequests, toolCallCount: 3)
     }
 
-    /// A Claude Code user or assistant record; `content` is the message
-    /// content as JSON.
     private func claudeRecord(
         _ type: String, uuid: String, at timestamp: String, cwd: String, branch: String, content: String
     ) -> String {

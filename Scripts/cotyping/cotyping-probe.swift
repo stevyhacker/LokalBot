@@ -222,8 +222,6 @@ final class ProbeAppDelegate: NSObject, NSApplicationDelegate {
 
         let region = frame.insetBy(dx: -120, dy: -120).intersection(screen.frame).integral
         guard !region.isEmpty, let primary = NSScreen.screens.first else { return nil }
-        // screencapture uses global top-left coordinates, including displays
-        // whose origin is negative or above the primary display.
         return NSRect(x: region.minX, y: primary.frame.maxY - region.maxY,
                       width: region.width, height: region.height)
     }

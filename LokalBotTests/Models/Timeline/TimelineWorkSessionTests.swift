@@ -85,7 +85,6 @@ final class TimelineWorkSessionTests: XCTestCase {
             block(1, app: "Terminal", title: "Terminal", start: 0, end: 2_400),
             block(2, app: "Safari", title: "Sign in", start: 2_400, end: 2_408),
         ]).first)
-        // Eight seconds of Safari stay evidence without joining the title.
         XCTAssertEqual(session.title, "Terminal")
         XCTAssertTrue(session.titleNamesApps)
         XCTAssertEqual(session.activeDuration, 2_408)
@@ -230,7 +229,6 @@ final class TimelineWorkSessionTests: XCTestCase {
             block(3, app: "Discord", title: "", start: 1_000, end: 1_100),
             block(4, app: "Spotify", title: "", start: 1_100, end: 1_150),
         ]).first)
-        // Spotify's 50 seconds don't count toward "+1".
         XCTAssertEqual(session.title, "Claude, Google Chrome +1")
         XCTAssertEqual(session.apps.count, 4)
         XCTAssertTrue(session.titleNamesApps)

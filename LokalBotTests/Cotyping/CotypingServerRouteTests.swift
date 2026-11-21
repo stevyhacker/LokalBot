@@ -121,8 +121,6 @@ final class CotypingServerRouteTests: XCTestCase {
         XCTAssertFalse(try endpoint("https://openrouter.ai/api/v1", .textCompletion).startsWithChat)
     }
 
-    /// Choosing a server is the user's consent: the context toggles apply as
-    /// set, the same as on this Mac.
     func testAChosenServerGetsTheContextTheUserTurnedOn() {
         var settings = AppSettings()
         settings.cotypingEnabled = true
@@ -218,8 +216,6 @@ final class CotypingServerRouteTests: XCTestCase {
                        "The server fields live in the picker, found through one entry")
     }
 
-    // MARK: Models picker
-
     func testPickerSwitchesToAServerWithoutDownloadingAModel() {
         var settings = AppSettings()
         var draft = CotypingServerDraft(settings: settings)
@@ -293,8 +289,6 @@ final class CotypingServerRouteTests: XCTestCase {
         XCTAssertNil(ModelStackPreset.matching(settings))
         XCTAssertEqual(ModelStackPreset.lightweight.patch.applying(to: settings).cotypingBackend, .onDevice)
     }
-
-    // MARK: Helpers
 
     private func unavailableReason(_ settings: AppSettings, file: StaticString = #filePath, line: UInt = #line) -> String {
         guard case .unavailable(let reason) = settings.cotypingRoute(includingCredentials: false) else {

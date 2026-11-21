@@ -32,7 +32,6 @@ final class NemotronDiarizationTests: XCTestCase {
     }
 
     func testOverlappingSlotsSurviveConversionAndCannotBecomeNamedSpeech() throws {
-        // One second of speaker 0, with speaker 7 also active during the middle.
         var probabilities = [Float](repeating: 0, count: 100 * 8)
         for frame in 0..<100 { probabilities[frame * 8] = 0.9 }
         for frame in 30..<70 { probabilities[frame * 8 + 7] = 0.9 }
@@ -79,7 +78,6 @@ final class NemotronDiarizationTests: XCTestCase {
             try await task.value
             XCTFail("Cancelled preparation must throw")
         } catch is CancellationError {
-            // No network or generic-speaker success.
         } catch {
             XCTFail("Unexpected error: \(error)")
         }

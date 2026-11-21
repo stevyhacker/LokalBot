@@ -1,7 +1,3 @@
-//! The table behind [`super::registry`], with the Mac's keys, titles, tiers and
-//! choices (`SettingRegistry.swift`). `Settings` keys that exist only here come
-//! last.
-
 use super::registry::SettingCategory::*;
 use super::registry::SettingKind::*;
 use super::registry::SettingTier::*;

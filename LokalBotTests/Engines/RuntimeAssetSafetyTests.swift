@@ -45,7 +45,6 @@ final class RuntimeAssetSafetyTests: XCTestCase {
         XCTAssertEqual(try Data(contentsOf: installed.appendingPathComponent("helper")), Data("aaaa".utf8))
     }
 
-    /// A version folder as an app that has since quit leaves it behind.
     private func unusedVersion(in root: URL, helper: URL? = nil) throws -> URL {
         let identity = SHA256.hash(data: Data(UUID().uuidString.utf8)).map { String(format: "%02x", $0) }.joined()
         let folder = root.appendingPathComponent(identity, isDirectory: true)
@@ -78,7 +77,6 @@ final class RuntimeAssetSafetyTests: XCTestCase {
         let f = try fixture()
         defer { try? FileManager.default.removeItem(at: f.root) }
         let other = try unusedVersion(in: f.installed)
-        // What a running LokalBot holds on each version it uses.
         let claim = open(NativeRuntimeInstaller.claimURL(for: other.lastPathComponent, in: f.installed).path,
                          O_CREAT | O_RDWR | O_CLOEXEC, 0o600)
         XCTAssertGreaterThanOrEqual(claim, 0)

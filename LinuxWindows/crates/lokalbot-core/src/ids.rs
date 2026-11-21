@@ -1,9 +1,6 @@
-//! Identifiers shared with the macOS library format.
-
 use unicode_normalization::UnicodeNormalization;
 use uuid::Uuid;
 
-/// FNV-1a 64-bit, as used for stable outcome, thread and person IDs.
 pub fn fnv1a64(input: &str) -> u64 {
     let mut hash: u64 = 14_695_981_039_346_656_037;
     for byte in input.as_bytes() {
@@ -13,23 +10,18 @@ pub fn fnv1a64(input: &str) -> u64 {
     hash
 }
 
-/// `%016llx` of [`fnv1a64`].
 pub fn fnv_hex(input: &str) -> String {
     format!("{:016x}", fnv1a64(input))
 }
 
-/// The CLI's short meeting ID: the first 8 lowercase hex characters.
 pub fn short_id(id: &Uuid) -> String {
     id.simple().to_string()[..8].to_string()
 }
 
-/// Uppercase hyphenated form, matching Swift's `UUID.uuidString`.
 pub fn uuid_upper(id: &Uuid) -> String {
     id.hyphenated().to_string().to_uppercase()
 }
 
-/// Folder slug: lowercase, diacritics stripped, every non-alphanumeric run
-/// becomes one `-`, trimmed at both ends (`StorageManager.slugify`).
 pub fn slugify(title: &str) -> String {
     let folded: String = title
         .nfd()
@@ -55,8 +47,6 @@ pub fn slugify(title: &str) -> String {
     }
 }
 
-/// Case- and diacritic-folded text with collapsed whitespace, used by search
-/// and matching.
 pub fn fold(text: &str) -> String {
     let folded: String = text
         .nfd()
@@ -66,7 +56,6 @@ pub fn fold(text: &str) -> String {
     folded.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Uppercase serialization for `Uuid` fields, matching the macOS JSON.
 pub mod uuid_upper_serde {
     use serde::{Deserialize, Deserializer, Serializer};
     use uuid::Uuid;

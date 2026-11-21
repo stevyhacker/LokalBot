@@ -1,15 +1,6 @@
 import Foundation
 import Darwin
 
-/// Shared quality policy for the Main LLM. The bundled models expose much
-/// larger native windows, but 32K gives summaries and Agent Mode useful
-/// headroom without paying the latency and linear KV-cache cost of 128K.
-///
-/// "High" forces model-native thinking. App-authored requests use an 8K
-/// ceiling; requests that set a smaller total output budget reserve at least
-/// half of it for the visible answer (see
-/// `OpenAICompatibleEngine.applyGenerationOptions`). Agent Mode uses the same
-/// reasoning-enabled server with its model-native budget.
 enum MainLLMRuntimePolicy {
     static let contextTokens = 32_768
     static let highReasoningBudgetTokens = 8_192
@@ -18,9 +9,6 @@ enum MainLLMRuntimePolicy {
         "--reasoning", "on",
     ]
 
-    /// Keep vendor-specific sampling guidance scoped to the built-in model
-    /// that requires it. `extraBody` is merged after per-request options, so
-    /// these values consistently replace the generic digest temperature.
     static func requestOverrides(for modelID: String) -> [String: Any] {
         switch modelID {
         case "lfm2.5-2.6b":
@@ -30,7 +18,6 @@ enum MainLLMRuntimePolicy {
                 "repeat_penalty": 1.1,
             ]
         case "ministral-3-3b-instruct-2512":
-            // Mistral recommends temperature below 0.1 for this checkpoint.
             return ["temperature": 0.05]
         default:
             return [:]
@@ -38,44 +25,29 @@ enum MainLLMRuntimePolicy {
     }
 }
 
-/// Built-in LLM backend, part 3 of 3: the bundled llama-server subprocess
-/// lifecycle. One model loaded at a time; switching models restarts the server.
-/// Stopped when the app quits.
 actor LlamaServer {
 
-    /// Chat/completions instance (summaries, digests, Q&A).
     static let shared = LlamaServer(
         role: .main, contextTokens: MainLLMRuntimePolicy.contextTokens,
         extraArgs: MainLLMRuntimePolicy.serverExtraArguments,
         runtimeAllowanceBytes: 3 * 1_073_741_824)
-    /// Embeddings instance (semantic search) — small model, second port.
-    /// EmbeddingGemma's GGUF carries its own mean pooling and projection, so
-    /// no pooling flag is passed (one would override them). As a bidirectional
-    /// encoder it must see each input in a single micro-batch; real 1,500-
-    /// character OCR reaches about 950 tokens, so batch at the full context.
     static let embedder = LlamaServer(role: .embedder, contextTokens: 2_048,
                                       extraArgs: ["--embeddings", "-b", "2048", "-ub", "2048",
                                                   "--parallel", "1"],
                                       runtimeAllowanceBytes: 384 * 1_048_576)
-    /// Cotyping instance — an optional separate (typically smaller/faster)
-    /// model on a third port, so inline suggestions never contend with the
-    /// summarizer for the shared server (no model-reload thrash).
     static let cotyping = LlamaServer(
         role: .cotyping, contextTokens: 4_096,
         extraArgs: ["--parallel", "1", "--cache-ram", "512"],
         runtimeAllowanceBytes: 768 * 1_048_576)
 
     nonisolated let port: Int
-    /// Nil for a private instance on an explicit port (tests, replays).
     nonisolated let role: LlamaServerRole?
     nonisolated let contextTokens: Int
     private let extraArgs: [String]
-    /// Added to the inherited environment of the server process.
     private let environment: [String: String]
     private let runtimeAllowanceBytes: Int64
     nonisolated var baseURL: URL { URL(string: "http://127.0.0.1:\(port)/v1")! }
 
-    /// One of the app's servers, on this app copy's port for `role`.
     init(role: LlamaServerRole, contextTokens: Int, extraArgs: [String],
          environment: [String: String] = [:],
          runtimeAllowanceBytes: Int64 = 512 * 1_048_576) {
@@ -111,9 +83,6 @@ actor LlamaServer {
     private let ownerID = UUID()
     private var ownershipLock: LocalRuntimeOwnershipLock?
 
-    /// Shared bearer required by this private localhost server. It is created
-    /// with 256 bits of randomness, stored mode 0600, and can be obtained
-    /// before the lazy server boot so leased engines carry the right header.
     func authenticationToken() -> String {
         if let loadedAuthenticationToken { return loadedAuthenticationToken }
         if let markerToken = readPidMarker()?.authenticationToken {
@@ -146,9 +115,6 @@ actor LlamaServer {
             }
         }
     }
-    /// How long a started server may take to report healthy. A Mac that has
-    /// just booted can page a model in for minutes, and a load that crashes
-    /// ends this wait at once, so the limit only has to catch a hung server.
     static let startupHealthInterval: Duration = .milliseconds(500)
     static let startupHealthAttempts = 600
 
@@ -166,10 +132,6 @@ actor LlamaServer {
                 }
                 try await self.ensureRunningOnce(modelAt: url)
             }
-            // A caller for a different model may have owned the flight we just
-            // awaited. Loop so this request starts one replacement flight;
-            // callers for the same model return together without duplicate
-            // subprocess starts or health polling.
             guard loadedModelPath == url.path else { continue }
             await registerResidency(modelAt: url)
             return
@@ -184,14 +146,9 @@ actor LlamaServer {
         try await start(modelAt: url)
     }
 
-    /// This server's row in the app-wide model-memory ledger. Adopted healthy
-    /// servers register too — their weights are just as resident as ours.
     private nonisolated var residencyID: String { role?.residencyID ?? "llama-server:\(port)" }
 
     private func registerResidency(modelAt url: URL) async {
-        // Diagnostics must never gate inference. When libproc cannot provide a
-        // stable process identity, retain the model row with its weight-size
-        // estimate and let a later successful registration add live telemetry.
         let identity = activeProcessIdentity(modelAt: url)
         let generation = UUID()
         residencyGeneration = generation
@@ -213,8 +170,6 @@ actor LlamaServer {
            let usage = SystemResourceSampler.processUsage(for: process.processIdentifier) {
             return usage.identity
         }
-        // An orphan can be claimed only after its owning app exited and this
-        // instance acquired the exclusive runtime lock.
         guard let marker = readPidMarker(),
               marker.ownerID == ownerID,
               marker.port == port,
@@ -234,8 +189,6 @@ actor LlamaServer {
             at: pidMarkerURL.appendingPathExtension("owner-lock"))
         let binary: URL
         do { binary = try installedBinary() } catch { ownershipLock = nil; throw error }
-        // A live app owns its helper even when this app wants the same model.
-        // Never adopt it: our later eviction/shutdown would interrupt its work.
         if claimOrphanedMarker() {
             await stopRecordedServerIfOwned()
         }
@@ -248,8 +201,6 @@ actor LlamaServer {
             throw ServerError.failedToStart(
                 "port \(port) is already in use. Close the other LokalBot instance or local server and try again")
         }
-        // Make room before the subprocess mmaps the weights: evict the
-        // least-recently-used other models if this one would bust the budget.
         let loadReservation = await ModelResidency.shared.willLoad(
             id: residencyID,
             bytes: estimatedResidentBytes(modelAt: url),
@@ -263,8 +214,8 @@ actor LlamaServer {
                 "-m", url.path,
                 "--host", "127.0.0.1", "--port", String(port),
                 "-c", String(contextTokens),
-                "-ngl", "99",           // full Metal offload
-                "--jinja",              // correct chat templates (qwen3, gpt-oss)
+                "-ngl", "99",
+                "--jinja",
                 "--no-webui",
                 "--api-key", authenticationToken,
             ] + extraArgs
@@ -307,7 +258,6 @@ actor LlamaServer {
                 ownerStartTime: SystemResourceSampler.processUsage(for: getpid())?.startTime,
                 processStartTime: SystemResourceSampler.processUsage(for: process.processIdentifier)?.startTime))
 
-            // Model load can take a while for the big ones; poll /health.
             for _ in 0..<Self.startupHealthAttempts {
                 try await Task.sleep(for: Self.startupHealthInterval)
                 if !process.isRunning {
@@ -328,9 +278,6 @@ actor LlamaServer {
         }
     }
 
-    /// Weight files are not the whole llama footprint: prompt cache, KV, and
-    /// multimodal projector allocations can be several GiB. Keep an explicit
-    /// per-role allowance and include any `--mmproj` file in admission.
     private func estimatedResidentBytes(modelAt url: URL) -> Int64 {
         var total = ModelResidency.weightBytes(at: url)
         if let projectorFlag = extraArgs.firstIndex(of: "--mmproj"),
@@ -343,8 +290,6 @@ actor LlamaServer {
         return Self.saturatingAdd(total, max(0, runtimeAllowanceBytes))
     }
 
-    /// Says why a start failed, from the server's own output; the full tail
-    /// goes to the diagnostics log. No request has reached it yet.
     private func startupFailure(_ summary: String, output: LlamaServerOutputTail) async -> String {
         await output.settle()
         let lines = output.lines
@@ -381,10 +326,6 @@ actor LlamaServer {
                 }
             }
         } else if ownershipLock != nil {
-            // A healthy server can be adopted from a previous app process. It
-            // has a validated PID marker but no Foundation `Process` handle;
-            // still terminate it so eviction and the resource ledger reflect
-            // real memory residency instead of only hiding the row.
             await stopRecordedServerIfOwned()
         }
         if let generation {
@@ -423,7 +364,6 @@ actor LlamaServer {
                 id: residencyID,
                 ifGenerationMatches: generation)
         }
-        // A failed start reports its own output (`startupFailure`).
         var lastOutput: [String] = []
         if let output, output.isReady {
             await output.settle()
@@ -450,8 +390,6 @@ actor LlamaServer {
             removePidMarker(ifMatching: pid)
             return
         }
-        // The old owned helper can be from the previous bundled runtime. Its
-        // exact executable and start identity, not a filename suffix, prove it.
         guard Self.processPath(for: pid) == marker.binaryPath else { return }
         kill(pid, SIGTERM)
         for _ in 0..<40 {
@@ -496,7 +434,6 @@ actor LlamaServer {
             try FileManager.default.setAttributes(
                 [.posixPermissions: 0o600], ofItemAtPath: pidMarkerURL.path)
         } catch {
-            // Best-effort orphan recovery only; startup must not depend on it.
         }
     }
 
@@ -567,10 +504,6 @@ actor LlamaServer {
         url.lastPathComponent
     }
 
-    /// llama.cpp builds report either the model's full path or its filename.
-    /// Do not reduce a reported absolute path to a basename: a different file
-    /// with the same name must fail. The caller also verifies the PID marker's
-    /// exact model path, executable, context size and arguments before reuse.
     nonisolated static func servesModel(at url: URL, names: Set<String>) -> Bool {
         names.contains(url.path) || names.contains(modelMatchKey(for: url))
     }
@@ -598,7 +531,6 @@ actor LlamaServer {
         return String(cString: buffer)
     }
 
-    /// PIDs listening on `port`, via `lsof` (best-effort; empty if unavailable).
     nonisolated static func listeningPIDs(onPort port: Int) -> [pid_t] {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: "/usr/sbin/lsof")
@@ -614,12 +546,6 @@ actor LlamaServer {
             .compactMap { pid_t($0) }
     }
 
-    /// Stops LokalBot llama-servers that hold `port` after their app died:
-    /// reparented to launchd, running from a LokalBot `llama-cpp` runtime,
-    /// and named by no PID marker with a live owner (an app that adopted it).
-    /// Another copy (Dev, UI Test Host, unit tests, an older release) can
-    /// leave one behind, and it would block this server until it is killed.
-    /// Returns the PIDs that are gone.
     nonisolated static func stopOrphanedHelpers(
         _ listeners: [pid_t], port: Int,
         applicationSupport: URL = AppDirectories.userApplicationSupport
@@ -638,8 +564,6 @@ actor LlamaServer {
         return stopped
     }
 
-    /// The runtime folder and start time of `pid` when it is a LokalBot
-    /// llama-server whose owning app is gone; nil otherwise.
     nonisolated static func orphanedHelper(
         pid: pid_t, applicationSupport: URL
     ) -> (folder: URL, startTime: UInt64)? {
@@ -672,8 +596,6 @@ actor LlamaServer {
         return pid_t(info.pbi_ppid)
     }
 
-    /// Every PID marker in a runtime folder; nil when the folder cannot be
-    /// read, which must not pass for "no live owner".
     private nonisolated static func recordedMarkers(in folder: URL) -> [LocalLlamaServerMarker]? {
         guard let files = try? FileManager.default.contentsOfDirectory(
             at: folder, includingPropertiesForKeys: nil) else { return nil }
@@ -683,8 +605,6 @@ actor LlamaServer {
             .compactMap { try? JSONDecoder().decode(LocalLlamaServerMarker.self, from: $0) }
     }
 
-    /// SIGTERM, then SIGKILL after two seconds. The start time keeps a reused
-    /// PID from being signalled. Returns whether the process is gone.
     private nonisolated static func terminate(_ pid: pid_t, startTime: UInt64) async -> Bool {
         func isRunning() -> Bool {
             SystemResourceSampler.processUsage(for: pid)?.startTime == startTime
@@ -726,9 +646,6 @@ actor LlamaServer {
         var model: String?
     }
 
-    /// llama-server + dylibs are copied out of the bundle into Application
-    /// Support on first run (never execute from inside Resources), then
-    /// reused. Re-copied if the bundled version changes.
     private func installedBinary() throws -> URL {
         guard let bundled = Bundle.main.resourceURL?
             .appendingPathComponent("llama-cpp", isDirectory: true),
@@ -750,7 +667,6 @@ enum LocalRuntimeOwnershipPolicy {
               let ownerStart = marker.ownerStartTime,
               let helperStart = marker.processStartTime,
               liveHelperStartTime == helperStart else { return false }
-        // An unavailable identity is uncertainty, not proof a live owner died.
         if ownerIsAlive {
             guard let liveOwnerStartTime else { return false }
             return liveOwnerStartTime != ownerStart
@@ -759,12 +675,7 @@ enum LocalRuntimeOwnershipPolicy {
     }
 }
 
-/// Recognizes a llama-server that a LokalBot copy started and then lost. Its
-/// executable sits in a `llama-cpp` runtime under one of LokalBot's
-/// Application Support folders, next to the PID markers that copy writes.
 enum OrphanedLlamaServerPolicy {
-    /// `<applicationSupport>/me.dotenv.LokalBot[.<suffix>]` when `path` is
-    /// `<that folder>/llama-cpp/…/llama-server`; nil for anything else.
     static func runtimeFolder(forExecutable path: String, under applicationSupport: URL) -> URL? {
         let root = applicationSupport.standardizedFileURL.path
         let executable = URL(fileURLWithPath: path).standardizedFileURL.path
@@ -778,12 +689,8 @@ enum OrphanedLlamaServerPolicy {
         return applicationSupport.appendingPathComponent(components[0], isDirectory: true)
     }
 
-    /// Whether `marker` shows a live app owning the helper that started at
-    /// `helperStartTime`. An owner whose identity cannot be confirmed counts
-    /// as alive: a helper an app may still be using is never stopped.
     static func markerShowsLiveOwner(_ marker: LocalLlamaServerMarker, helperStartTime: UInt64,
                                      ownerExists: Bool, liveOwnerStartTime: UInt64?) -> Bool {
-        // A marker left by an earlier process with this PID says nothing.
         if let recorded = marker.processStartTime, recorded != helperStartTime { return false }
         guard let ownerPID = marker.ownerPID, ownerPID > 0, ownerExists else { return false }
         guard let recordedOwnerStart = marker.ownerStartTime,
@@ -792,8 +699,6 @@ enum OrphanedLlamaServerPolicy {
     }
 }
 
-/// Held for the entire helper lifetime, including health checks and shutdown.
-/// A second instance fails explicitly instead of sharing a process it can kill.
 final class LocalRuntimeOwnershipLock {
     private let descriptor: Int32
     private init(_ descriptor: Int32) { self.descriptor = descriptor }
@@ -814,11 +719,6 @@ final class LocalRuntimeOwnershipLock {
     deinit { close(descriptor) }
 }
 
-/// The tail of llama-server's stderr, kept in memory to explain a failure.
-/// Until the first health check passes the server has seen no request, so
-/// every line is kept and a failed start can say why. After that only crash
-/// lines are kept: request errors can echo request text, and diagnostic logs
-/// never hold transcripts or screen text (PRIVACY.md).
 final class LlamaServerOutputTail: @unchecked Sendable {
     static let maximumLines = 12
     static let maximumLineCharacters = 300
@@ -843,7 +743,6 @@ final class LlamaServerOutputTail: @unchecked Sendable {
         }
     }
 
-    /// The server passed its first health check.
     func serverIsReady() {
         lock.withLock { keepsEveryLine = false }
     }
@@ -855,7 +754,6 @@ final class LlamaServerOutputTail: @unchecked Sendable {
                 keep(String(decoding: pending[pending.startIndex..<newline], as: UTF8.self))
                 pending.removeSubrange(pending.startIndex...newline)
             }
-            // An unterminated line cannot grow without bound.
             if pending.count > 4 * Self.maximumLineCharacters {
                 keep(String(decoding: pending, as: UTF8.self))
                 pending.removeAll()
@@ -863,7 +761,6 @@ final class LlamaServerOutputTail: @unchecked Sendable {
         }
     }
 
-    /// End of output: the process exited.
     func finish() {
         lock.withLock {
             if !pending.isEmpty {
@@ -878,8 +775,6 @@ final class LlamaServerOutputTail: @unchecked Sendable {
     var isFinished: Bool { lock.withLock { finished } }
     var lines: [String] { lock.withLock { kept } }
 
-    /// The first line that reports an error; the lines after it are usually
-    /// its consequences ("failed to load model", "exiting").
     var reason: String? {
         let lines = self.lines
         return lines.first { line in
@@ -887,24 +782,20 @@ final class LlamaServerOutputTail: @unchecked Sendable {
         } ?? lines.last
     }
 
-    /// Waits briefly for the last output of an exited process.
     func settle() async {
         for _ in 0..<10 where !isFinished {
             try? await Task.sleep(for: .milliseconds(20))
         }
     }
 
-    /// Caller holds `lock`.
     private func keep(_ raw: String) {
         var line = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-        // "0.00.077.284 E gguf_init_from_reader: …": drop the time and level.
         if let prefix = line.range(of: #"^[0-9.]+ [A-Z] "#, options: .regularExpression) {
             line.removeSubrange(prefix)
         }
         guard !line.isEmpty else { return }
         if !keepsEveryLine {
             let lowered = line.lowercased()
-            // A JSON parse error quotes the text it was reading.
             guard Self.crashMarkers.contains(where: lowered.contains),
                   !lowered.contains("last read") else { return }
         }

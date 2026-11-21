@@ -1,15 +1,9 @@
 import Foundation
 
-/// The list in Timeline's rail for one day: its work sessions and meetings in
-/// time order under Morning, Afternoon and Evening, with long stretches of
-/// nothing kept as gaps. A session spent in the app a recorded meeting ran in folds into
-/// that meeting, so a call is listed once. Display only; nothing here is
-/// stored, and a folded session's activity stays in All captured activity.
 struct TimelineDayList: Equatable {
     enum Part: Int, CaseIterable, Sendable {
         case morning, afternoon, evening
 
-        /// The heading's catalog key.
         var title: String {
             switch self {
             case .morning: "Morning"
@@ -18,7 +12,6 @@ struct TimelineDayList: Equatable {
             }
         }
 
-        /// Before noon, before five, and the rest of the day.
         static func part(of date: Date, calendar: Calendar = .current) -> Part {
             let hour = calendar.component(.hour, from: date)
             return hour < 12 ? .morning : hour < 17 ? .afternoon : .evening
@@ -36,18 +29,10 @@ struct TimelineDayList: Equatable {
         let start: Date
         let end: Date
         let title: String
-        /// The second line: project and what was produced, or the apps, for
-        /// work; "Meeting · app" for a meeting. Empty when the title says it all.
         let detail: String
-        /// A session's active time; a meeting's length.
         let duration: TimeInterval
-        /// What colours a session's dot and its bar in the day strip: its
-        /// project, or its busiest app on a day without projects. Nil reads
-        /// as other activity. Meetings keep their own tone.
         let colorKey: String?
-        /// A title that only lists apps reads quieter than one that names work.
         let isQuiet: Bool
-        /// Call-app sessions folded into this meeting.
         var foldedSessionIDs: [TimelineWorkSession.ID] = []
 
         var isMeeting: Bool {
@@ -61,7 +46,6 @@ struct TimelineDayList: Equatable {
 
     enum Entry: Identifiable, Equatable {
         case row(Row)
-        /// Nothing was recorded between two rows.
         case away(start: Date, end: Date)
 
         var id: String {
@@ -80,7 +64,6 @@ struct TimelineDayList: Equatable {
 
     let sections: [Section]
 
-    /// Every session and meeting row, in list order.
     var rows: [Row] {
         sections.flatMap { section in
             section.entries.compactMap { entry -> Row? in
@@ -92,15 +75,9 @@ struct TimelineDayList: Equatable {
 
     var isEmpty: Bool { sections.isEmpty }
 
-    /// A stretch this long with nothing recorded gets its own "Away" line.
     static let minimumGap: TimeInterval = 30 * 60
-    /// A call app's session folds into a meeting that covers this much of it.
     static let foldShare = 0.6
 
-    /// - Parameters:
-    ///   - usesProjectColors: the day's time is split by project, so a
-    ///     session without one reads as other activity.
-    ///   - localize: looks a catalog key up in the interface language.
     init(
         sessions: [TimelineWorkSession],
         meetings: [Meeting],
@@ -120,14 +97,12 @@ struct TimelineDayList: Equatable {
 
         var sections: [Section] = []
         var latestEnd: Date?
-        // A meeting leads a session that starts with it.
         let items = TimelineDayItem.items(sessions: sessions, meetings: meetings, now: now).sorted { left, right in
             if left.start != right.start { return left.start < right.start }
             if left.isMeeting != right.isMeeting { return left.isMeeting }
             return left.id < right.id
         }
         for item in items {
-            // The gap closes the part of the day it began in, like the list reads.
             if let latestEnd, item.start.timeIntervalSince(latestEnd) >= Self.minimumGap, !sections.isEmpty {
                 sections[sections.count - 1].entries.append(.away(start: latestEnd, end: item.start))
             }
@@ -135,7 +110,6 @@ struct TimelineDayList: Equatable {
             let row: Row
             switch item {
             case .work(let session):
-                // A folded call is recorded time, shown as its meeting's row.
                 if foldedSessions.contains(session.id) { continue }
                 let text = Self.workText(for: session, localize: localize)
                 row = Row(
@@ -165,11 +139,6 @@ struct TimelineDayList: Equatable {
         self.sections = sections
     }
 
-    // MARK: - Folding a call into its meeting
-
-    /// The meeting a call-app session belongs to: the one that covers most
-    /// of it, when that is at least `foldShare`. Work with a project or
-    /// agent sessions is never folded.
     static func meeting(
         covering session: TimelineWorkSession,
         in meetings: [(meeting: Meeting, end: Date)]
@@ -187,9 +156,6 @@ struct TimelineDayList: Equatable {
         return best?.id
     }
 
-    /// The activity sampler stores an app's own name ("zoom.us", "Microsoft
-    /// Teams") and a meeting the name LokalBot gives its call app ("Zoom",
-    /// "Teams"), so one may contain the other.
     static func isSameApp(_ sessionApp: String, _ meetingApp: String) -> Bool {
         let left = appKey(sessionApp), right = appKey(meetingApp)
         guard left.count >= 3, right.count >= 3 else { return false }
@@ -200,12 +166,6 @@ struct TimelineDayList: Equatable {
         String(name.lowercased().unicodeScalars.filter(CharacterSet.alphanumerics.contains))
     }
 
-    // MARK: - Row text
-
-    /// A session's two lines. With a project the task leads and the project
-    /// moves to the second line beside what the agents produced. Without
-    /// one, the window that named the session leads and its apps follow. A
-    /// session only its apps describe is one quiet line.
     static func workText(
         for session: TimelineWorkSession,
         localize: (String) -> String = { $0 }
@@ -224,7 +184,6 @@ struct TimelineDayList: Equatable {
         return (session.title, joined([apps] + outcomes), false)
     }
 
-    /// "Meeting · Zoom", or "Recording · Zoom" while it is being recorded.
     static func meetingDetail(app: String, isLive: Bool, localize: (String) -> String = { $0 }) -> String {
         joined([localize(isLive ? "Recording" : "Meeting"), app.trimmingCharacters(in: .whitespaces)])
     }
@@ -233,20 +192,15 @@ struct TimelineDayList: Equatable {
         parts.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    // MARK: - Finding rows
-
     func row(id: String?) -> Row? {
         guard let id else { return nil }
         return rows.first { $0.id == id }
     }
 
-    /// The row that shows a session: its own, or the meeting it folded into.
     func rowID(showing session: TimelineWorkSession.ID) -> String? {
         rows.first { $0.id == Row.id(session: session) || $0.foldedSessionIDs.contains(session) }?.id
     }
 
-    /// The session a digest task's "09:00–10:30" covers most, so an older
-    /// digest's time range can open that session.
     func workRow(inTimeRange text: String, day: Date, calendar: Calendar = .current) -> Row? {
         guard let interval = Self.interval(fromTimeRange: text, day: day, calendar: calendar) else { return nil }
         var best: (row: Row, overlap: TimeInterval)?
@@ -257,8 +211,6 @@ struct TimelineDayList: Equatable {
         return best?.row
     }
 
-    /// "09:00–10:30" on `day`. A range that ends before it starts runs past
-    /// midnight and is clipped to the day.
     static func interval(fromTimeRange text: String, day: Date, calendar: Calendar = .current) -> DateInterval? {
         let numbers = text.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
         guard numbers.count == 4, numbers[0] < 24, numbers[2] < 24, numbers[1] < 60, numbers[3] < 60 else {
@@ -274,8 +226,6 @@ struct TimelineDayList: Equatable {
     }
 }
 
-/// "3 PRs opened · 1 merged", or the commits when no pull request moved.
-/// Each count is its own catalog entry, so every language words it.
 enum TimelineOutcomeWording {
     static func parts(_ outcomes: TimelineAgentOutcomes, localize: (String) -> String = { $0 }) -> [String] {
         var parts: [String] = []
@@ -298,25 +248,16 @@ enum TimelineOutcomeWording {
     }
 }
 
-/// What Timeline's main area shows: the day's page (`digest`, with no row
-/// chosen in the rail), a session or meeting row, or all captured activity.
-/// `none` is a moment opened from another page, which belongs to no row.
 enum TimelineListSelection: Equatable {
     case digest
     case row(String)
     case raw
     case none
 
-    /// The rail from top to bottom, for the arrow keys. The day's page
-    /// stands before the first session, where no row is chosen: Up from the
-    /// first session returns to it, as choosing that session again does.
-    /// All captured activity, the rail's bottom row, follows the last one.
     static func order(of list: TimelineDayList) -> [TimelineListSelection] {
         [.digest] + list.rows.map { .row($0.id) } + [.raw]
     }
 
-    /// The selection `step` rows away, stopping at either end. From a
-    /// selection the rail does not show, any step lands on the day's page.
     func moved(by step: Int, in list: TimelineDayList) -> TimelineListSelection {
         let order = Self.order(of: list)
         guard let index = order.firstIndex(of: self) else { return .digest }
@@ -324,13 +265,7 @@ enum TimelineListSelection: Equatable {
     }
 }
 
-/// The time on a row of Timeline's list: "9:10" on a 12-hour clock, without
-/// AM or PM (the list is under Morning, Afternoon and Evening) and without a
-/// leading zero; a 24-hour clock keeps its locale's own form. The pattern is
-/// built here because `Date.FormatStyle` with the day period omitted pads
-/// the hour ("09:10") on macOS 15 and 26.
 enum TimelineListClock {
-    /// The locale's hour-and-minute pattern without its day period.
     static func pattern(locale: Locale) -> String {
         let full = DateFormatter.dateFormat(fromTemplate: "jmm", options: 0, locale: locale) ?? "HH:mm"
         var kept = ""
@@ -358,7 +293,6 @@ enum TimelineListClock {
     }
 
     private static let lock = NSLock()
-    /// The last formatter made: a list draws every row with one locale.
     nonisolated(unsafe) private static var cached: (key: Key, formatter: DateFormatter)?
 
     private static func formatter(locale: Locale, timeZone: TimeZone) -> DateFormatter {

@@ -35,11 +35,6 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotMotion
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.MotionKind
 
-/**
- * Equal-width capsule tabs with a sliding teal knob (`ToolbarTabs`). The
- * selected tab is white on the accent fill; a hidden semibold copy of each
- * title reserves its width so the control never changes size.
- */
 @Composable
 fun <T> ToolbarTabs(
     tabs: List<T>,
@@ -77,7 +72,6 @@ fun <T> ToolbarTabs(
                 ) {
                     val style = MaterialTheme.typography.labelLarge
                     Text(text, style = style.copy(fontWeight = FontWeight.SemiBold), maxLines = 1, modifier = Modifier.alpha(0f))
-                    // Shrinks rather than clips when the pane is narrow or the font scale large.
                     BasicText(
                         text,
                         style = style.copy(

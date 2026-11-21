@@ -2,10 +2,6 @@ import XCTest
 @testable import LokalBot
 
 final class OtterMeetingReaderTests: XCTestCase {
-    // MARK: - Synthetic fixtures
-
-    /// Otter's TXT turns: name, two spaces, time, two spaces; the words on
-    /// the next line; a blank line; the closing line.
     private static let transcriptLines = [
         "Ana Petrović  0:00  ",
         "Let's keep the Team plan at fifteen per seat.",
@@ -22,7 +18,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         "Transcribed by https://otter.ai",
     ]
 
-    /// A TXT export with Otter's opening block and summary sections.
     private static let txt = ([
         "Pricing review",
         "Wed, Mar 4, 2026 10:15AM • 1:05:00",
@@ -42,7 +37,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         "",
     ] + transcriptLines).joined(separator: "\n") + "\n"
 
-    /// Otter's SRT names the speaker on a turn's first cue only.
     private static let srt = """
         1
         00:00:00,000 --> 00:00:03,500
@@ -66,8 +60,6 @@ final class OtterMeetingReaderTests: XCTestCase {
 
         """
 
-    /// The Word export's paragraphs; a tab parts a header's name and time,
-    /// and one header uses a single space for a listed speaker.
     private static let docxParagraphs = [
         "Pricing review",
         "Wed, Mar 4, 2026 10:15AM • 1:05:00",
@@ -99,8 +91,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         ]
     }
 
-    /// 10:15 on 4 March 2026 in this computer's time zone, as Otter's date
-    /// line is read.
     private func meetingStart() throws -> Date {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
@@ -130,8 +120,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         XCTAssertEqual(process.terminationStatus, 0)
     }
 
-    /// A minimal Word file: `[Content_Types].xml` and `word/document.xml`,
-    /// zipped with ditto.
     private func makeDocx(_ paragraphs: [String], at url: URL) throws {
         let source = try temporaryDirectory("docx-source")
         try FileManager.default.createDirectory(at: source.appendingPathComponent("word"), withIntermediateDirectories: true)
@@ -145,7 +133,6 @@ final class OtterMeetingReaderTests: XCTestCase {
                     .replacingOccurrences(of: ">", with: "&gt;")
                 return "<w:r><w:t xml:space=\"preserve\">\(escaped)</w:t></w:r>"
             }
-            // Tab stops in the paragraph's properties must not read as text.
             return "<w:p><w:pPr><w:tabs><w:tab w:val=\"left\" w:pos=\"2880\"/></w:tabs></w:pPr>"
                 + runs.joined(separator: "<w:r><w:tab/></w:r>") + "</w:p>"
         }.joined()
@@ -156,15 +143,12 @@ final class OtterMeetingReaderTests: XCTestCase {
         try ditto(source, to: url)
     }
 
-    /// The one meeting read from `text` saved as `name`.
     private func readOne(_ text: String, name: String = "Call_otter_ai.txt") throws -> ExternalMeeting {
         let file = try write(text, to: try temporaryDirectory("layout").appendingPathComponent(name))
         let scan = try OtterMeetingReader.read(file)
         XCTAssertEqual(scan.meetings.count, 1)
         return try XCTUnwrap(scan.meetings.first)
     }
-
-    // MARK: - Round trip
 
     func testTextExportWithRecordingRoundTrip() throws {
         let folder = try temporaryDirectory("roundtrip")
@@ -245,7 +229,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         XCTAssertEqual(fromWord.notes, "**Keywords:** pricing, team plan, annual billing")
         XCTAssertEqual(fromWord.sourceID, fromText.sourceID)
 
-        // A name the shell would read as a pattern is read as itself.
         let bracketed = try temporaryDirectory("bracketed").appendingPathComponent("Notes [v2].docx")
         try FileManager.default.copyItem(at: docx, to: bracketed)
         XCTAssertEqual(try OtterMeetingReader.read(bracketed).meetings.first?.lines, expectedLines())
@@ -283,8 +266,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         XCTAssertEqual(Set(result.scan.meetings.map(\.sourceID)).count, 2)
     }
 
-    // MARK: - Recognizing
-
     func testRecognizesOtterFilesOnly() throws {
         let folder = try temporaryDirectory("recognize")
         XCTAssertTrue(OtterMeetingReader.recognizes(try write("anything", to: folder.appendingPathComponent("Weekly sync_otter.ai.txt"))))
@@ -302,8 +283,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         XCTAssertFalse(OtterMeetingReader.recognizes(try write("jpeg", to: folder.appendingPathComponent("photo.jpg"))))
         XCTAssertFalse(OtterMeetingReader.recognizes(folder.appendingPathComponent("missing.txt")))
     }
-
-    // MARK: - Problems
 
     func testUnreadableFileInFolderBecomesAProblemAndTheRestIsRead() throws {
         let folder = try temporaryDirectory("problems")
@@ -335,8 +314,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         XCTAssertTrue(OtterMeetingReader.defaultLocations.isEmpty, "Otter keeps nothing on this computer to read")
     }
 
-    // MARK: - Ids
-
     func testSourceIDIsStableAcrossReads() throws {
         let folder = try temporaryDirectory("stable")
         try write(Self.txt, to: folder.appendingPathComponent("Pricing review_otter_ai.txt"))
@@ -351,8 +328,6 @@ final class OtterMeetingReaderTests: XCTestCase {
         let renamed = try readOne(Self.transcriptLines.joined(separator: "\n"), name: "Q4 planning_otter_ai.txt")
         XCTAssertNotEqual(renamed.sourceID, original.sourceID)
     }
-
-    // MARK: - Layouts
 
     func testLayoutsWithoutNamesOrTimesOrBoth() throws {
         let timesOnly = try readOne("0:00  \nHello there.\n\n0:05  \nGeneral Kenobi.\n\nTranscribed by https://otter.ai\n")

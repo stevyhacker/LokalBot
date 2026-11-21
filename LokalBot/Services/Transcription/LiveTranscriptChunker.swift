@@ -1,8 +1,6 @@
 import Accelerate
 import Foundation
 
-/// Bounded live-audio windows and inexpensive signal cleanup. Speech detection
-/// belongs to the shared VAD; a chunk's quietest speech is not a noise estimate.
 enum LiveTranscriptChunker {
     static let minChunkSeconds: TimeInterval = 4
     static let targetChunkSeconds: TimeInterval = 12
@@ -18,14 +16,10 @@ enum LiveTranscriptChunker {
         let available = totalFrames - processedFrames
         guard Double(available) / sampleRate >= minChunkSeconds else { return nil }
         let count = min(Double(available), targetChunkSeconds * sampleRate)
-        // `available` is a valid Int64, but its Double representation may round
-        // up at the extreme. The normal path only converts a bounded 12 s span.
         let frames = count >= Double(available) ? available : Int64(count)
         return processedFrames..<(processedFrames + frames)
     }
 
-    /// Choose a cut inside a quiet 200 ms window. Vector reductions avoid the
-    /// repeated per-sample Swift loops over overlapping windows.
     static func refinedCutOffset(tail: [Float], sampleRate: Double) -> Int {
         guard sampleRate.isFinite, sampleRate > 0,
               sampleRate < Double(Int.max) / 2 else { return tail.count }
@@ -48,9 +42,6 @@ enum LiveTranscriptChunker {
         return quietestStart + window / 2
     }
 
-    /// Returns a candidate for speech detection, NOT a positive speech verdict.
-    /// Only silence and predominantly subsonic/DC drift are discarded here.
-    /// Steady speech, room noise, and tones must reach VAD for classification.
     static func speechCandidate(from samples: [Float], sampleRate: Double) -> [Float]? {
         guard sampleRate.isFinite, sampleRate > 0, !samples.isEmpty else { return nil }
         let filtered = highPass(samples, sampleRate: sampleRate)
@@ -86,7 +77,6 @@ enum LiveTranscriptChunker {
         return sum
     }
 
-    /// One-pole high-pass filter, initialized without a false DC impulse.
     private static func highPass(_ samples: [Float], sampleRate: Double) -> [Float] {
         let rc = 1.0 / (2.0 * Double.pi * gateHighPassCutoffHz)
         let alpha = Float(rc / (rc + 1.0 / sampleRate))

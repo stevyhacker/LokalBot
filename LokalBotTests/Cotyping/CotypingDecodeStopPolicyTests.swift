@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Decode stop policy
-
 final class CotypingDecodeStopPolicyTests: XCTestCase {
     func testStopsAfterSentenceBoundaryOnceEnoughChunksArrive() {
         XCTAssertEqual(

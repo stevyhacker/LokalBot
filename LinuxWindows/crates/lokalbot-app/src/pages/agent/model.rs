@@ -1,8 +1,3 @@
-//! The Agent page's controller (`AgentRuntimeInstaller` + `AgentSessionTabs`
-//! as `AppState` owns them on macOS): Agent Mode setup and the task list,
-//! driven on the UI thread by each task's inbox. Created the first time the
-//! Agent page opens; stops every agent when LokalBot quits.
-
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
 use std::time::Duration;
@@ -20,7 +15,6 @@ use lokalbot_core::Settings;
 
 use crate::state::AppData;
 
-/// How long quitting waits for agents to stop before killing them.
 const QUIT_GRACE: Duration = Duration::from_millis(1500);
 
 pub struct AgentModel {
@@ -49,8 +43,6 @@ impl AgentModel {
         let subscriptions = vec![
             cx.observe(&data, |this, data, cx| this.sync_settings(&data, cx)),
             cx.on_app_quit(|this, _| {
-                // Every agent is asked to stop at once, then whatever is left
-                // is killed; the process tree never outlives LokalBot.
                 if let Some(tasks) = this.tasks.as_mut() {
                     tasks.shutdown_all(QUIT_GRACE);
                 }
@@ -74,14 +66,12 @@ impl AgentModel {
         model
     }
 
-    /// The cheap receipt check (the deep audit runs before each launch).
     fn check_receipt(&mut self, cx: &mut Context<Self>) {
         let installer = self.installer.clone();
         let markers = self.dirs.process_markers();
         cx.spawn(async move |this, cx| {
             let (phase, shell) = cx
                 .background_spawn(async move {
-                    // A pi left by a crashed LokalBot is stopped first.
                     lokalbot_agent::process::stop_leftovers(&markers);
                     (installer.initial_phase(), ShellChoice::detect())
                 })
@@ -116,10 +106,6 @@ impl AgentModel {
         )
     }
 
-    // -------------------------------------------------------------- setup
-
-    /// "Set Up Agent Mode" / "Repair Agent Mode". Repair stops every agent
-    /// first: a running Bun keeps its files open on Windows.
     pub fn install(&mut self, force: bool, cx: &mut Context<Self>) {
         if self.is_busy() {
             return;
@@ -167,8 +153,6 @@ impl AgentModel {
         .detach();
     }
 
-    /// "Verify Agent runtime…": hashes every runtime file. A failed audit
-    /// parks every task until the runtime is repaired.
     pub fn verify(&mut self, cx: &mut Context<Self>) {
         if self.is_busy() {
             return;
@@ -199,8 +183,6 @@ impl AgentModel {
         })
         .detach();
     }
-
-    // -------------------------------------------------------------- tasks
 
     fn ensure_tasks(&mut self, cx: &mut Context<Self>) {
         if self.tasks.is_some() {
@@ -256,7 +238,6 @@ impl AgentModel {
         cx.notify();
     }
 
-    /// Saves task metadata 200 ms after the last change.
     pub fn persist_soon(&mut self, cx: &mut Context<Self>) {
         self.persist_task = Some(cx.spawn(async move |this, cx| {
             cx.background_executor()
@@ -270,7 +251,6 @@ impl AgentModel {
         }));
     }
 
-    /// Lists saved conversations off the UI thread and adds them as tasks.
     pub fn refresh_history(&mut self, cx: &mut Context<Self>) {
         let Some(tasks) = self.tasks.as_ref() else {
             return;
@@ -301,7 +281,6 @@ impl AgentModel {
         .detach();
     }
 
-    /// Runs `change` on the task list and saves soon.
     pub fn update_tasks<R>(
         &mut self,
         cx: &mut Context<Self>,
@@ -314,8 +293,6 @@ impl AgentModel {
         Some(result)
     }
 
-    /// Settings changes reach new launches; a reasoning change also reaches
-    /// running agents from their next model call.
     fn sync_settings(&mut self, data: &Entity<AppData>, cx: &mut Context<Self>) {
         let latest = data.read(cx).settings.clone();
         let changed_reasoning = {

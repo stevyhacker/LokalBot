@@ -1,10 +1,6 @@
 import Foundation
 
-/// Runs one `agy` headless stream request. Tests replace the child process.
 protocol AntigravityRunning: Sendable {
-    /// `files` are written into a fresh private working directory (creating
-    /// intermediate subdirectories as needed), which `arguments` may name by
-    /// relative path; it is removed afterwards.
     func run(arguments: [String], input: Data, files: [String: Data],
              onLine: (@Sendable (String) -> Void)?) async throws -> PlanCLIProcess.Output
 }
@@ -34,24 +30,6 @@ struct LiveAntigravityRunner: AntigravityRunning {
     }
 }
 
-/// Think on the user's Google Antigravity plan, through their own signed-in
-/// `agy` CLI.
-///
-/// Every request runs in a fresh private temporary directory with three
-/// defense-in-depth tool-isolation layers:
-/// 1. A workspace custom agent (`.agents/agents/lokalbot-think.md`) whose tool
-///    list is restricted to `finish` (stripping shell, file, web, browser, and
-///    subagent tools from the model) and whose body carries the system prompt.
-/// 2. Session-only `--settings settings.json` with `toolPermission: "strict"`,
-///    `allowNonWorkspaceAccess: false`, `disableSlashCommands: true`, and
-///    explicit deny rules for commands, files, URLs, and MCP.
-/// 3. A workspace `PreToolUse` hook (`.agents/hooks.json`) whose RE2 matcher
-///    denies every tool call except `finish` (which `agy --json-schema` uses
-///    internally to return structured output).
-///
-/// Content travels over stdin (`--input-format stream-json`), and structured
-/// schemas travel in a private temporary file (`--json-schema schema.json`),
-/// never on the command line.
 struct AntigravityPlanEngine: TextEngine {
     var model: String
     var reasoningLevel: ThinkReasoningLevel = .automatic
@@ -65,9 +43,6 @@ struct AntigravityPlanEngine: TextEngine {
     static let logFilePath = "agy.log"
     static let fallbackSystemPrompt = "You are a helpful assistant."
 
-    /// RE2 regular expression matching every non-empty tool name except
-    /// `"finish"`, so `agy --json-schema`'s internal `finish` step succeeds
-    /// while every other tool (including MCP and task tools) is hard-denied.
     static let denyNonFinishMatcher =
         "^([^f].*|f([^i].*|$)|fi([^n].*|$)|fin([^i].*|$)|fini([^s].*|$)|finis([^h].*|$)|finish.+)$"
 
@@ -116,9 +91,6 @@ struct AntigravityPlanEngine: TextEngine {
     var accountsForGenerationRequests: Bool { true }
     var structuredOutputEnumLimit: Int? { 500 }
 
-    /// Base model slugs accept `--effort`; slugs that already carry an effort
-    /// suffix (`gemini-4-neon-high`) or orchestrator aliases fix their effort
-    /// on the model itself.
     var traits: (support: ReasoningSupport, thinksByDefault: Bool) {
         let name = model.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if AntigravityCLI.hasExplicitEffortSuffix(name) || name.contains("orchestrator") {
@@ -172,10 +144,6 @@ struct AntigravityPlanEngine: TextEngine {
         return result
     }
 
-    // MARK: Arguments & Files
-
-    /// Pure argument construction, covered offline. Neither user content nor
-    /// schema contents ever appear in command-line arguments.
     func arguments(structured: Bool, options: TextGenerationOptions?) -> [String] {
         var arguments = [
             "--input-format", "stream-json",
@@ -229,8 +197,6 @@ struct AntigravityPlanEngine: TextEngine {
         return data
     }
 
-    // MARK: Parsing
-
     struct Reply: Equatable {
         var text: String
         var truncated: Bool
@@ -239,8 +205,6 @@ struct AntigravityPlanEngine: TextEngine {
         var cachedTokens: Int?
     }
 
-    /// One `agy --output-format stream-json` NDJSON line: an assistant text
-    /// delta, the final result envelope, or neither.
     static func parseStreamLine(_ line: String) -> (delta: String?, result: [String: Any]?) {
         guard let data = line.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return (nil, nil) }
@@ -291,8 +255,6 @@ struct AntigravityPlanEngine: TextEngine {
             cachedTokens: usage?["cache_read_tokens"] as? Int)
     }
 
-    /// Plan limits and missing sign-in stop without retrying; transient server
-    /// overloads keep a retryable HTTP status for `GatedTextEngine`.
     static func failure(message: String) -> Error {
         let lowered = message.lowercased()
         if lowered.contains("authentication") || lowered.contains("please sign in")
@@ -336,8 +298,6 @@ struct AntigravityPlanEngine: TextEngine {
         }
         return try parseResult(result, wantsStructured: wantsStructured)
     }
-
-    // MARK: Run
 
     private func request(
         system: String,
@@ -398,7 +358,6 @@ struct AntigravityPlanEngine: TextEngine {
         }
     }
 
-    /// Forwards streamed text deltas to the UI, at most about 30 times a second.
     private final class PartialForwarder: @unchecked Sendable {
         private let onPartial: @MainActor (String) -> Void
         private let lock = NSLock()

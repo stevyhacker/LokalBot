@@ -1,24 +1,15 @@
 import Foundation
 
-/// Looks a sentence up in the interface catalog. Tests pass `{ $0 }`.
 typealias AgentLocalize = (String) -> String
 
-// MARK: - Files
-
-/// Where a file an agent step names sits, for the words beside it.
 struct AgentFileTarget: Equatable {
     enum Place: Equatable { case workingFolder, outside }
 
     let url: URL
     let name: String
-    /// "Agent Workspace", "Agent Workspace/drafts" or "~/Desktop".
     let folder: String
     let place: Place
 
-    /// Resolves a path the way the agent's file tools do: a leading `@` is
-    /// dropped, `~` is the home folder, and a relative path starts at the
-    /// working folder. Symlinks are followed, so a link that leaves the
-    /// working folder is named for where it really points.
     static func resolve(_ path: String, workspace: URL, workspaceName: String) -> AgentFileTarget {
         var text = path.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.hasPrefix("@") { text.removeFirst() }
@@ -38,30 +29,20 @@ struct AgentFileTarget: Equatable {
     }
 }
 
-/// A file the agent wrote or edited in one turn.
 struct AgentChangedFile: Identifiable, Equatable {
     enum Change: Equatable {
-        /// The file did not exist before the agent wrote it.
         case created
-        /// The agent wrote over a file that was there.
         case replaced
-        /// The agent changed part of a file.
         case edited
-        /// A write restored from saved history, where the earlier state is unknown.
         case written
     }
 
     var id: String { target.url.path }
     let target: AgentFileTarget
     var change: Change
-    /// Lines of the text a write put in the file.
     var lineCount: Int?
-    /// The step that changed it last, for opening its result.
     var stepID: String
 
-    /// The files changed by the succeeded write and edit steps in `items`, in
-    /// the order they were first changed. `existedBefore` holds, for each
-    /// write step seen as it started, whether its file was already there.
     static func list(in items: [AgentTranscriptItem], workspace: URL, workspaceName: String,
                      existedBefore: [String: Bool]) -> [AgentChangedFile] {
         var files: [AgentChangedFile] = []
@@ -76,7 +57,6 @@ struct AgentChangedFile: Identifiable, Equatable {
                 ? existedBefore[id].map { $0 ? .replaced : .created } ?? .written
                 : .edited
             if let index = files.firstIndex(where: { $0.id == target.url.path }) {
-                // A file the agent made stays new however often it is touched again.
                 if files[index].change != .created { files[index].change = change }
                 if let lines { files[index].lineCount = lines }
                 files[index].stepID = id
@@ -93,7 +73,6 @@ struct AgentChangedFile: Identifiable, Equatable {
         return body.components(separatedBy: "\n").count
     }
 
-    /// "New file", or nothing when history does not say what the write did.
     func changeLabel(localize: AgentLocalize) -> String? {
         switch change {
         case .created: localize("New file")
@@ -103,7 +82,6 @@ struct AgentChangedFile: Identifiable, Equatable {
         }
     }
 
-    /// "New file · 12 lines · Agent Workspace"
     func detail(localize: AgentLocalize) -> String {
         var parts = [changeLabel(localize: localize)].compactMap { $0 }
         if let lineCount {
@@ -114,21 +92,12 @@ struct AgentChangedFile: Identifiable, Equatable {
     }
 }
 
-// MARK: - Steps
-
-/// One tool call in plain words.
 struct AgentStepLabel: Equatable {
-    /// "Read meeting notes"
     let done: String
-    /// "Reading meeting notes", without the ellipsis.
     let doing: String
-    /// What the step worked on: the search, the meeting's title, the folder.
     let detail: String?
-    /// The words can begin with a file or tool name, whose capitals must stay.
     let beginsWithName: Bool
 
-    /// The words for a step in the given state. A step that was still running
-    /// when its task stopped never finished.
     func text(_ status: AgentToolStatus, taskIsWorking: Bool, localize: AgentLocalize) -> String {
         switch status {
         case .succeeded: done
@@ -142,7 +111,6 @@ enum AgentStepWording {
     struct Context {
         var workspace: URL
         var workspaceName: String
-        /// A meeting's title from the ID or ID prefix a lookup names.
         var meetingTitle: (String) -> String? = { _ in nil }
     }
 
@@ -183,16 +151,12 @@ enum AgentStepWording {
         "edit": ("Edited %@", "Editing %@"),
     ]
 
-    /// `lokalbot-cli` calls made of plain words get a name for what they
-    /// look up. Anything a shell could chain or redirect is a command, shown
-    /// with its text, so a label never hides what ran.
     private static func command(_ text: String, context: Context, localize: AgentLocalize) -> AgentStepLabel {
         let firstLine = text.split(whereSeparator: \.isNewline).first.map(String.init) ?? ""
         let shown = firstLine.count > 120 ? String(firstLine.prefix(119)) + "…" : firstLine
         let other = phrase("Ran a command", "Running a command", detail: shown.isEmpty ? nil : shown, localize: localize)
         guard let words = AgentApprovalPolicy.plainCommandWords(text), words.count >= 2,
               words[0] == "lokalbot-cli" else { return other }
-        // The first word after the subcommand that is not an option or its value.
         var subject: String?
         var skipValue = false
         for word in words.dropFirst(2) {
@@ -237,9 +201,6 @@ enum AgentStepWording {
                      detail: detail, beginsWithName: format.hasPrefix("%"))
     }
 
-    /// "Searched meeting library, read meeting notes": each different step
-    /// once, in order. `lowercaseFollowing` suits languages that write a
-    /// list's later items without a capital; names keep theirs.
     static func summary(_ labels: [(text: String, beginsWithName: Bool)], lowercaseFollowing: Bool) -> String {
         var seen = Set<String>()
         var parts: [String] = []
@@ -253,20 +214,14 @@ enum AgentStepWording {
         return parts.joined(separator: ", ")
     }
 
-    /// "4 steps"
     static func count(_ steps: Int, localize: AgentLocalize) -> String {
         steps == 1 ? localize("1 step") : String(format: localize("%lld steps"), steps)
     }
 }
 
-// MARK: - Transcript layout
-
-/// A run of tool steps shown as one line that opens to a row per step.
 struct AgentStepGroup: Identifiable, Equatable {
     let id: String
-    /// The steps and, in a finished turn, what the agent said between them.
     let entries: [AgentTranscriptItem]
-    /// A finished turn folds all its work into one counted line.
     let isTurnSummary: Bool
 
     var steps: [AgentTranscriptItem] {
@@ -277,17 +232,12 @@ struct AgentStepGroup: Identifiable, Equatable {
     }
 }
 
-/// What the conversation shows, top to bottom. It regroups the transcript
-/// for reading and never reorders or drops a message.
 enum AgentTranscriptBlock: Identifiable, Equatable {
     case user(AgentTranscriptItem)
-    /// What the agent says while it works, shown in full.
     case said(AgentTranscriptItem)
-    /// The last thing the agent said in a finished turn, with that turn's steps.
     case answer(AgentTranscriptItem, steps: [AgentTranscriptItem])
     case notice(AgentTranscriptItem)
     case steps(AgentStepGroup)
-    /// The step in progress.
     case live(AgentTranscriptItem)
 
     var id: String {
@@ -297,7 +247,6 @@ enum AgentTranscriptBlock: Identifiable, Equatable {
         }
     }
 
-    /// Everything a search of the task can match in this block.
     var searchableText: String {
         switch self {
         case .user(let item), .said(let item), .answer(let item, _), .notice(let item), .live(let item):
@@ -308,13 +257,10 @@ enum AgentTranscriptBlock: Identifiable, Equatable {
 }
 
 enum AgentTranscriptLayout {
-    /// `isWorking` says the last turn is still going: its words stay in full
-    /// and each run of steps folds on its own. Every earlier turn, and the
-    /// last one once it ends, folds its work into one line above its answer.
     static func make(_ items: [AgentTranscriptItem], isWorking: Bool) -> [AgentTranscriptBlock] {
         var turns: [[AgentTranscriptItem]] = []
         for item in items {
-            if case .approval = item { continue } // The approval card above the composer owns these.
+            if case .approval = item { continue }
             if case .user = item { turns.append([item]) } else if turns.isEmpty { turns.append([item]) } else {
                 turns[turns.count - 1].append(item)
             }
@@ -332,7 +278,6 @@ enum AgentTranscriptLayout {
         var blocks: [AgentTranscriptBlock] = []
         var body = turn[...]
         if case .user = body.first { blocks.append(.user(body.removeFirst())) }
-        // The answer is the last thing the agent said, when no step follows it.
         let lastSaid = body.lastIndex { if case .assistant = $0 { true } else { false } }
         if finished, let lastSaid, !body[body.index(after: lastSaid)...].contains(where: isStep) {
             var pending: [AgentTranscriptItem] = []
@@ -344,7 +289,6 @@ enum AgentTranscriptLayout {
                 }
                 pending = []
             }
-            // A notice (a denial, an error) is never folded away.
             for item in body[..<lastSaid] {
                 if case .notice = item { fold(); blocks.append(.notice(item)) } else { pending.append(item) }
             }
@@ -374,12 +318,8 @@ enum AgentTranscriptLayout {
     }
 }
 
-// MARK: - Status
-
-/// Where a task stands, for its list row and the toolbar.
 enum AgentTaskStatus: Equatable {
     case notStarted
-    /// A saved conversation with nothing going on.
     case saved
     case starting
     case working
@@ -402,7 +342,6 @@ enum AgentTaskStatus: Equatable {
         case .idle, .ready:
             if items.isEmpty { return hasSavedConversation ? .saved : .notStarted }
             if wasStopped { return .stopped }
-            // A task is done while its agent is still open and its last turn ended with an answer.
             let last = items.last { if case .notice = $0 { false } else { true } }
             if state == .ready, case .assistant(_, _, false)? = last { return .done(changedFiles: changedFiles) }
             return .saved
@@ -428,7 +367,6 @@ enum AgentTaskStatus: Equatable {
         }
     }
 
-    /// The word for the toolbar. A saved task that is doing nothing shows none.
     func title(localize: AgentLocalize) -> String? {
         switch self {
         case .notStarted: localize("Not started")
@@ -442,7 +380,6 @@ enum AgentTaskStatus: Equatable {
         }
     }
 
-    /// The line under a task's title in the list: "Done · 1 file changed".
     func line(localize: AgentLocalize) -> String? {
         guard case .done(let changed) = self, changed > 0 else { return title(localize: localize) }
         return changed == 1 ? localize("Done · 1 file changed")
@@ -450,14 +387,10 @@ enum AgentTaskStatus: Equatable {
     }
 }
 
-// MARK: - Task list
-
-/// The task list's groups: pinned tasks, then one group per day, newest first.
 struct AgentTaskListSection: Identifiable, Equatable {
     enum Kind: Equatable {
         case pinned, today, yesterday
         case day(Date)
-        /// Tasks from before task times were saved.
         case earlier
     }
 
@@ -480,7 +413,6 @@ struct AgentTaskListSection: Identifiable, Equatable {
         }
     }
 
-    /// Entries keep the order they come in within a group.
     static func make(_ entries: [Entry], now: Date, calendar: Calendar) -> [AgentTaskListSection] {
         var order: [Kind] = []
         var groups: [[UUID]] = []
@@ -513,10 +445,7 @@ struct AgentTaskListSection: Identifiable, Equatable {
     }
 }
 
-// MARK: - Access levels
-
 extension AgentApprovalMode {
-    /// On the composer's chip: what the agent does on its own.
     var chipTitle: String {
         switch self {
         case .askBeforeChanges: "Asks first"
@@ -526,7 +455,6 @@ extension AgentApprovalMode {
         }
     }
 
-    /// The level's name in the access list.
     var levelTitle: String {
         switch self {
         case .askBeforeChanges: "Ask first"
@@ -545,14 +473,11 @@ extension AgentApprovalMode {
         }
     }
 
-    /// Full access runs commands unasked, so it is drawn in the caution colour.
     var needsCaution: Bool { self == .fullAccess }
 
-    /// One line per level: what runs on its own, and what still asks.
     func levelDetail(workspaceName: String, localize: AgentLocalize) -> String {
         switch self {
         case .askBeforeChanges:
-            // Lookups skip approval only with a model on this Mac (AgentApprovalPolicy).
             String(format: localize("Reads files in %@ without asking, and looks things up in your LokalBot library when the model runs on this Mac. Asks before anything else."), workspaceName)
         case .approveReads:
             localize("Reads any file without asking. Asks before changing files or running commands.")
@@ -563,7 +488,6 @@ extension AgentApprovalMode {
         }
     }
 
-    /// The line under the heading of a new task.
     func capability(localize: AgentLocalize) -> String {
         switch self {
         case .askBeforeChanges:
@@ -578,18 +502,11 @@ extension AgentApprovalMode {
     }
 }
 
-// MARK: - Approval card
-
-/// The words of one approval request: a question that names its target, what
-/// will happen and where, and the text to review.
 struct AgentApprovalPresentation: Equatable {
-    /// Where the request's file sits.
     enum Place: Equatable {
         case workingFolder
         case outside
-        /// Inside LokalBot's library, runtime, saved tasks or app.
         case lokalbotData
-        /// The request names no file.
         case none
     }
 
@@ -598,12 +515,9 @@ struct AgentApprovalPresentation: Equatable {
     let symbol: String
     let title: String
     let effect: String
-    /// The full path, shown with a caution when the file is not in the working folder.
     let caution: String?
-    /// Where the result goes when the model is not on this Mac.
     let destination: String?
     let preview: String
-    /// "Allow writes for this task", when the policy lets this kind of request be allowed that way.
     let taskAnswer: String?
 
     var previewLines: [String] { preview.components(separatedBy: "\n") }
@@ -612,11 +526,9 @@ struct AgentApprovalPresentation: Equatable {
          remoteHost: String?, canAllowForTask: Bool, localize: AgentLocalize) {
         let tool = request.tool.lowercased()
         let name = request.path.map { URL(fileURLWithPath: $0).lastPathComponent }.flatMap { $0.isEmpty ? nil : $0 }
-        // A file tool always names its file; one that does not is shown as the tool it is.
         func named(_ format: String) -> String {
             String(format: localize(name == nil ? "Use %@?" : format), name ?? request.tool)
         }
-        // The question says what happens to the file; this line says where the file is.
         func located(_ inside: String) -> String {
             switch place {
             case .lokalbotData: localize("This file is part of LokalBot’s own data.")
@@ -667,7 +579,6 @@ struct AgentApprovalPresentation: Equatable {
         }
     }
 
-    /// "Show all 12 lines"
     static func showAll(_ lines: Int, localize: AgentLocalize) -> String {
         String(format: localize("Show all %lld lines"), lines)
     }

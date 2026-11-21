@@ -3,20 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Windows: the focused field through UI Automation (`CotypingAXHelper`,
-//! `CotypingFocusTracker`).
-//!
-//! A focus-changed handler follows focus, and the focused element gets
-//! text-changed and text-selection-changed handlers while it has focus.
-//! Reads run on the watcher's own thread, coalesced, and the last field is
-//! polled with Cotabby's backoff for providers that raise no events.
-//! Exclusions are checked from the owning process, and secure fields from
-//! `IsPassword` and their labels, before any text is requested.
-//!
-//! The caret comes from the text pattern: the character before the caret,
-//! else the collapsed selection, else the system caret (`GetGUIThreadInfo`),
-//! else an estimate at the field's leading edge.
-
 use std::ffi::c_void;
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -65,14 +51,10 @@ use super::{Capability, FieldSnapshot, FocusHandler, FocusSnapshot, InsertTarget
 
 pub(super) mod focused;
 
-/// Poll cadence before backoff (`CotypingFocusTracker.defaultIntervalMs`).
 const POLL_INTERVAL: Duration = Duration::from_millis(200);
-/// Events arriving this close together are read once.
 const COALESCE: Duration = Duration::from_millis(8);
-/// UI Automation gives up on a stuck app after this.
 const PROVIDER_TIMEOUT_MS: u32 = 1_000;
 const VISIBLE_BUDGET: Duration = Duration::from_millis(120);
-/// `ES_MULTILINE` for Win32 edit controls.
 const ES_MULTILINE: i32 = 0x0004;
 
 enum Command {
@@ -130,8 +112,6 @@ impl Watcher {
         let thread = std::thread::Builder::new()
             .name("lokalbot-autocomplete-watch".into())
             .spawn(move || {
-                // SAFETY: this thread joins the multi-threaded apartment for
-                // its whole life and leaves it at the end.
                 if let Err(err) = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.ok() {
                     let _ = ready_tx.send(Err(format!("COM: {err}")));
                     return;
@@ -146,7 +126,6 @@ impl Watcher {
                         let _ = ready_tx.send(Err(format!("{err:#}")));
                     }
                 }
-                // SAFETY: matches the CoInitializeEx above.
                 unsafe { CoUninitialize() };
             })?;
         match ready_rx.recv() {
@@ -185,7 +164,6 @@ impl Drop for Watcher {
     }
 }
 
-/// What is read once per focused element.
 #[derive(Clone, Debug)]
 struct Fixed {
     key: String,
@@ -213,7 +191,6 @@ struct Reader {
     text_handler: IUIAutomationEventHandler,
     policy: ReadPolicy,
     current: Option<IUIAutomationElement>,
-    /// The element the text handlers are registered on.
     watched: Option<IUIAutomationElement>,
     fixed: Option<Fixed>,
     visible: Option<(String, Option<String>)>,
@@ -230,7 +207,6 @@ impl Reader {
         commands: Sender<Command>,
         limitation: Arc<Mutex<Option<String>>>,
     ) -> anyhow::Result<Self> {
-        // SAFETY: COM is initialized on this thread; the objects live on it.
         unsafe {
             let automation: IUIAutomation =
                 CoCreateInstance(&CUIAutomation8, None, CLSCTX_INPROC_SERVER)
@@ -269,7 +245,6 @@ impl Reader {
 
     fn unregister(&mut self) {
         self.watch_text(None);
-        // SAFETY: removes the handlers this reader added.
         unsafe {
             let _ = self
                 .automation
@@ -332,9 +307,7 @@ impl Reader {
         })
     }
 
-    /// Re-reads which element has focus and moves the text handlers to it.
     fn follow_focus(&mut self) {
-        // SAFETY: COM calls on this thread's objects.
         let focused = unsafe { self.automation.GetFocusedElement() }.ok();
         let same = match (&focused, &self.current) {
             (Some(a), Some(b)) => {
@@ -348,14 +321,11 @@ impl Reader {
         }
         self.current = focused.clone();
         self.fixed = None;
-        // Text read from around a field is forgotten when focus leaves it.
         self.visible = None;
         self.watch_text(focused);
     }
 
     fn watch_text(&mut self, element: Option<IUIAutomationElement>) {
-        // SAFETY: COM calls on this thread's objects; handlers are removed
-        // from the element they were added to.
         unsafe {
             if let Some(old) = self.watched.take() {
                 for event in [
@@ -451,9 +421,7 @@ impl Reader {
         }
     }
 
-    /// Identity, privacy and the field's kind, from metadata only.
     fn read_fixed(&mut self, element: &IUIAutomationElement) -> Option<Fixed> {
-        // SAFETY: COM calls on this thread's objects.
         unsafe {
             let pid = element.CurrentProcessId().ok()? as u32;
             let mut fixed = Fixed {
@@ -494,7 +462,6 @@ impl Reader {
             let help = bstr(element.CurrentHelpText());
             let kind = bstr(element.CurrentLocalizedControlType());
             let aria = bstr(element.CurrentAriaRole());
-            // Secure fields: never read, judged before any text is touched.
             if password || policy::is_secure_field([name.as_str(), help.as_str(), kind.as_str()]) {
                 fixed.refusal = Some(Refusal::Blocked(reasons::SECURE));
                 return Some(fixed);
@@ -511,7 +478,6 @@ impl Reader {
                 || control == UIA_DocumentControlTypeId
                 || control == UIA_ComboBoxControlTypeId;
             if text.is_none() && editable_kind && !read_only {
-                // An editable field that keeps its text from UI Automation.
                 *self.limitation.lock() = Some(format!(
                     "{} does not share the text of its fields with accessibility tools, so autocomplete cannot suggest there.",
                     fixed.app_name
@@ -526,16 +492,12 @@ impl Reader {
                 fixed.refusal = Some(Refusal::Unsupported(reasons::SEARCH));
                 return Some(fixed);
             }
-            // Verification codes, PINs and one-time passwords, judged from
-            // the field's names before its text is read. Chromium reports
-            // the DOM id as the automation id.
             let automation_id = bstr(element.CurrentAutomationId());
             if policy::is_code_field([name.as_str(), help.as_str(), automation_id.as_str()]) {
                 fixed.refusal = Some(Refusal::Unsupported(reasons::CODE_FIELD));
                 return Some(fixed);
             }
             fixed.single_line = single_line(element, control);
-            // Chromium reports the DOM's class list as the class name.
             fixed.is_integrated_terminal =
                 policy::is_integrated_terminal(&bstr(element.CurrentClassName()));
             fixed.window_title = foreground_title(pid).unwrap_or_default();
@@ -552,12 +514,9 @@ impl Reader {
         }
     }
 
-    /// The page address of a browser: Chromium and Firefox report it as the
-    /// value of the document around the field.
     unsafe fn document_url(&self, element: &IUIAutomationElement) -> Option<String> {
         let mut node = element.clone();
         for _ in 0..40 {
-            // SAFETY: COM calls on this thread's objects.
             unsafe {
                 if node.CurrentControlType().ok() == Some(UIA_DocumentControlTypeId)
                     && let Ok(value) =
@@ -580,7 +539,6 @@ impl Reader {
         element: &IUIAutomationElement,
         fixed: &Fixed,
     ) -> Result<FieldSnapshot, Refusal> {
-        // SAFETY: COM calls on this thread's objects.
         unsafe {
             let pattern = element
                 .GetCurrentPatternAs::<IUIAutomationTextPattern>(UIA_TextPatternId)
@@ -647,7 +605,6 @@ impl Reader {
             }
             let (caret_rect, caret_exact) = match (caret_rect, field_frame) {
                 (Some(found), _) => found,
-                // A thin caret at the field's leading edge, as macOS estimates.
                 (None, Some(frame)) => (
                     Rect::new(frame.x + 4.0, frame.y, 1.0, frame.height.clamp(8.0, 22.0)),
                     false,
@@ -703,7 +660,6 @@ impl Reader {
         field: &FieldSnapshot,
     ) -> Option<String> {
         let field_frame = field.field_frame?;
-        // SAFETY: COM calls on this thread's objects.
         unsafe {
             let cache = self.automation.CreateCacheRequest().ok()?;
             for property in [
@@ -715,7 +671,6 @@ impl Reader {
             ] {
                 cache.AddProperty(property).ok()?;
             }
-            // The window, and the nearest container with room above the field.
             let mut node = self.walker.GetParentElement(element).ok()?;
             let mut scope: Option<(IUIAutomationElement, Rect)> = None;
             let mut window: Option<Rect> = None;
@@ -767,9 +722,7 @@ impl Reader {
     }
 }
 
-/// The collapsed selection at the caret.
 unsafe fn caret_range(pattern: &IUIAutomationTextPattern) -> Option<IUIAutomationTextRange> {
-    // SAFETY: COM calls on the caller's thread.
     unsafe {
         let selection = pattern.GetSelection().ok()?;
         if selection.Length().ok()? < 1 {
@@ -779,9 +732,7 @@ unsafe fn caret_range(pattern: &IUIAutomationTextPattern) -> Option<IUIAutomatio
     }
 }
 
-/// The font and colors of the character before the caret (or at it).
 unsafe fn style_near(caret: &IUIAutomationTextRange) -> Option<FieldStyle> {
-    // SAFETY: COM calls on the caller's thread.
     unsafe {
         let range = caret.Clone().ok()?;
         if range
@@ -811,7 +762,6 @@ unsafe fn style_near(caret: &IUIAutomationTextRange) -> Option<FieldStyle> {
     }
 }
 
-/// `COLORREF` is 0x00BBGGRR.
 fn colorref(value: i32) -> Rgb {
     let value = value as u32;
     Rgb {
@@ -821,8 +771,6 @@ fn colorref(value: i32) -> Rgb {
     }
 }
 
-/// Single-line for Win32 edit controls without `ES_MULTILINE`; documents
-/// are multi-line; other edits are decided from their height later.
 unsafe fn single_line(
     element: &IUIAutomationElement,
     control: windows::Win32::UI::Accessibility::UIA_CONTROLTYPE_ID,
@@ -830,7 +778,6 @@ unsafe fn single_line(
     if control == UIA_DocumentControlTypeId {
         return Some(false);
     }
-    // SAFETY: COM and window calls on the caller's thread.
     unsafe {
         let hwnd = element.CurrentNativeWindowHandle().ok()?;
         if hwnd.0.is_null() {
@@ -844,9 +791,7 @@ unsafe fn single_line(
     None
 }
 
-/// The foreground window's title when it belongs to `pid`.
 fn foreground_title(pid: u32) -> Option<String> {
-    // SAFETY: reads the caption into a buffer of the reported length.
     unsafe {
         let window = GetForegroundWindow();
         if window.0.is_null() {
@@ -867,10 +812,7 @@ fn foreground_title(pid: u32) -> Option<String> {
     }
 }
 
-/// The system caret of the foreground window's thread, in screen pixels,
-/// when it belongs to `pid` (`GetGUIThreadInfo`).
 fn system_caret(pid: u32) -> Option<Rect> {
-    // SAFETY: `info` is a valid GUITHREADINFO with cbSize set.
     unsafe {
         let window = GetForegroundWindow();
         if window.0.is_null() {
@@ -910,9 +852,7 @@ fn bstr(value: windows_core::Result<windows_core::BSTR>) -> String {
     value.map(|text| text.to_string()).unwrap_or_default()
 }
 
-/// A stable key for an element: its runtime id.
 unsafe fn runtime_key(element: &IUIAutomationElement) -> Option<String> {
-    // SAFETY: the array is read within its bounds and destroyed after.
     unsafe {
         let array = element.GetRuntimeId().ok()?;
         let values: Vec<i32> = read_array(array);
@@ -926,8 +866,6 @@ unsafe fn runtime_key(element: &IUIAutomationElement) -> Option<String> {
     }
 }
 
-/// The first rect of a `GetBoundingRectangles` array (x, y, width, height
-/// quadruples of doubles).
 unsafe fn first_rect(array: Option<*mut SAFEARRAY>) -> Option<Rect> {
     let values: Vec<f64> = unsafe { read_array(array?) };
     let quad = values.get(..4)?;
@@ -940,13 +878,10 @@ unsafe fn first_rect(array: Option<*mut SAFEARRAY>) -> Option<Rect> {
     (rect.height > 0.0).then_some(rect)
 }
 
-/// Copies a one-dimensional `SAFEARRAY` of `T` and destroys it.
 unsafe fn read_array<T: Copy>(array: *mut SAFEARRAY) -> Vec<T> {
     if array.is_null() {
         return Vec::new();
     }
-    // SAFETY: the array came from UI Automation with elements of type `T`;
-    // access is bracketed by Access/Unaccess and the array is destroyed once.
     unsafe {
         let lower = SafeArrayGetLBound(array, 1).unwrap_or(0);
         let upper = SafeArrayGetUBound(array, 1).unwrap_or(-1);
@@ -962,9 +897,7 @@ unsafe fn read_array<T: Copy>(array: *mut SAFEARRAY) -> Vec<T> {
     }
 }
 
-/// Reads a `VARIANT` of the expected kind and frees it.
 unsafe fn variant_text(mut value: VARIANT) -> Option<String> {
-    // SAFETY: the union member read matches `vt`; VariantClear frees it.
     unsafe {
         let inner = &value.Anonymous.Anonymous;
         let text = (inner.vt == VT_BSTR).then(|| inner.Anonymous.bstrVal.to_string());
@@ -974,7 +907,6 @@ unsafe fn variant_text(mut value: VARIANT) -> Option<String> {
 }
 
 unsafe fn variant_f64(mut value: VARIANT) -> Option<f64> {
-    // SAFETY: as in `variant_text`.
     unsafe {
         let inner = &value.Anonymous.Anonymous;
         let number = if inner.vt == VT_R8 {
@@ -992,7 +924,6 @@ unsafe fn variant_f64(mut value: VARIANT) -> Option<f64> {
 }
 
 unsafe fn variant_i32(mut value: VARIANT) -> Option<i32> {
-    // SAFETY: as in `variant_text`.
     unsafe {
         let inner = &value.Anonymous.Anonymous;
         let number = (inner.vt == VT_I4).then(|| inner.Anonymous.lVal);
@@ -1001,8 +932,6 @@ unsafe fn variant_i32(mut value: VARIANT) -> Option<i32> {
     }
 }
 
-/// The visible-context walk over UI Automation, with each node's
-/// properties fetched in one cached call.
 struct UiaSource<'a> {
     walker: &'a IUIAutomationTreeWalker,
     cache: IUIAutomationCacheRequest,
@@ -1015,7 +944,6 @@ impl VisibleSource for UiaSource<'_> {
 
     fn node(&mut self, id: &usize) -> Option<visible::Node> {
         let element = self.nodes.get(*id)?;
-        // SAFETY: cached property reads on this thread's objects.
         unsafe {
             let control = element.CachedControlType().ok()?;
             let password = element.CachedIsPassword().is_ok_and(|b| b.as_bool());
@@ -1070,7 +998,6 @@ impl VisibleSource for UiaSource<'_> {
             return Vec::new();
         };
         let mut children = Vec::new();
-        // SAFETY: tree walks on this thread's objects.
         unsafe {
             let mut child = self
                 .walker
@@ -1093,7 +1020,6 @@ impl VisibleSource for UiaSource<'_> {
 
     fn text(&mut self, id: &usize) -> Option<String> {
         let element = self.nodes.get(*id)?;
-        // SAFETY: a cached property read.
         let name = unsafe { element.CachedName() }.ok()?.to_string();
         (!name.trim().is_empty()).then_some(name)
     }
@@ -1120,7 +1046,6 @@ mod tests {
 
     #[test]
     fn the_watcher_starts_and_stops_without_a_desktop() {
-        // Over SSH (session 0) there is no focused field; it must not hang.
         let policy = ReadPolicy {
             enabled: true,
             ..Default::default()

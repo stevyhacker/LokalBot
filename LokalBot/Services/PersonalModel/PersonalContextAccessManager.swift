@@ -1,11 +1,6 @@
 import Combine
 import Foundation
 
-/// App-side owner of the Personal context grant (Settings → External Agents). While it
-/// is on, the app keeps `control/personal-context.json` in step with the
-/// claims the person shared, so `lokalbot-cli` and its MCP server can answer
-/// without the app running and without reading the encrypted personal model.
-/// Every failure removes the shared copy rather than leaving a stale one.
 @MainActor
 final class PersonalContextAccessManager: ObservableObject {
     @Published private(set) var isEnabled = false
@@ -49,8 +44,6 @@ final class PersonalContextAccessManager: ObservableObject {
         }
     }
 
-    /// Rewrites the shared copy from `current`; nil means the personal model
-    /// couldn't be read, so nothing is shared until it can be.
     func refresh(_ current: [PersonalClaim]?) {
         let shared = (current ?? []).filter { $0.sharing == .agents }
         sharedCount = shared.count
@@ -64,7 +57,6 @@ final class PersonalContextAccessManager: ObservableObject {
             return
         }
         let projected = shared.map(PersonalContextProjection.Claim.init)
-        // Answers stamp lastUsedAt, which agents never see; skip those rewrites.
         if gate.readProjection()?.claims == projected {
             lastError = nil
             return

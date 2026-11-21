@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// `lokalbot-cli import` end to end over the control socket: the app reads
-/// the files itself, a dry run or a plan with nothing new answers with
-/// counts, and anything else waits for the person. Runs against a real
-/// `AppState` in a temporary library with a synthetic Otter export.
 @MainActor
 final class MeetingImportFlowTests: XCTestCase {
     private var root: URL!

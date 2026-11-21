@@ -1,37 +1,26 @@
 import Foundation
 
-/// Splits the day's foreground activity across the projects its coding-agent
-/// sessions worked in. A window whose title names a project counts toward
-/// it. Time in an app where an agent runs (Claude, Codex, a terminal, an
-/// editor) goes to the agent bursts it overlaps, and only for the part those
-/// bursts cover. Everything else stays unattributed. This is deterministic
-/// matching on project and repository names; no model decides.
 struct TimelineProjectAttribution: Sendable {
     struct Share: Equatable, Sendable {
         let project: String
         let seconds: TimeInterval
     }
 
-    /// The day's tracked time by project, plus the time no project claims.
     struct DaySplit: Equatable, Sendable {
         var projects: [Share] = []
         var unattributedSeconds: TimeInterval = 0
     }
 
-    /// Bursts the person started, not scheduled runs, oldest first.
     let bursts: [CodingAgentBurst]
     private let projects: [(name: String, termSets: [Set<String>])]
     private let burstProjects: [String?]
 
-    /// Agent activity counts for a window this close to a burst's edges: a
-    /// burst starts with the request, which the person typed just before.
     static let edgeMargin: TimeInterval = 2 * 60
 
     init(bursts source: [CodingAgentBurst]) {
         bursts = source.filter { !$0.isScheduledRun && $0.end > $0.start }
             .sorted { $0.start < $1.start }
         burstProjects = bursts.map(\.workProject)
-        // The busiest project wins a title that names two.
         var activeByProject: [String: TimeInterval] = [:]
         var linksByRepository: [Set<String>: [String: Int]] = [:]
         for (burst, project) in zip(bursts, burstProjects) {
@@ -50,10 +39,6 @@ struct TimelineProjectAttribution: Sendable {
         for name in ranked {
             termSets[name] = [ProjectLinks.significantTerms(name)]
         }
-        // A repository a session linked names its project too, as when the
-        // folder is "alpha" and the repository "logic-onchain". One named
-        // after a project of the day stays that project's; any other goes to
-        // the project that linked it most.
         let projectNames = Set(ranked.map(ProjectLinks.significantTerms))
         for (repository, links) in linksByRepository where !repository.isEmpty && !projectNames.contains(repository) {
             var owner: (project: String, count: Int)?
@@ -70,19 +55,14 @@ struct TimelineProjectAttribution: Sendable {
 
     var isEmpty: Bool { projects.isEmpty }
 
-    /// The project this block's time goes to, by its largest share.
     func dominantProject(for block: ActivityBlock) -> String? {
         shares(for: block).first?.project
     }
 
-    /// The block's time per project, busiest first. The shares never add up
-    /// to more than the block's duration; the remainder is unattributed.
     func shares(for block: ActivityBlock) -> [Share] {
         shares(for: block, namedProject: namedProject(title: block.title, app: block.app))
     }
 
-    /// Each block's shares, in order. A day repeats the same window titles
-    /// many times, so each distinct one is matched against the projects once.
     func shares(for blocks: [ActivityBlock]) -> [[Share]] {
         var named: [String: String?] = [:]
         var result: [[Share]] = []
@@ -101,8 +81,6 @@ struct TimelineProjectAttribution: Sendable {
         return result
     }
 
-    /// Tracked time per project for the day, busiest first. Durations add
-    /// up like `DayActivityOverview.perApp`, so the two totals agree.
     func split(of blocks: [ActivityBlock]) -> DaySplit {
         let counted = blocks.filter { !TimelineWorkSession.isSystemOnly(app: $0.app) }
         let sharesByBlock = shares(for: counted)
@@ -130,10 +108,8 @@ struct TimelineProjectAttribution: Sendable {
         return agentShares(for: block, duration: duration)
     }
 
-    /// The busiest project whose name or repository the window title names.
     private func namedProject(title: String, app: String) -> String? {
         guard !projects.isEmpty, let cleaned = TimelineWorkSession.cleanedTitle(title, app: app) else { return nil }
-        // Folding the title once is far cheaper than a folded search per name.
         let words = ProjectLinks.words(cleaned)
         return projects.first { ProjectLinks.matches($0.termSets, words: words) }?.name
     }
@@ -146,14 +122,12 @@ struct TimelineProjectAttribution: Sendable {
         var weights: [String: TimeInterval] = [:]
         var covered: [DateInterval] = []
         for (burst, project) in zip(bursts, burstProjects) {
-            // Bursts are in start order, so none after this one can overlap.
             if burst.start.addingTimeInterval(-Self.edgeMargin) >= window.end { break }
             guard let project, hostedAgents.contains(burst.agent) else { continue }
             let start = max(burst.start.addingTimeInterval(-Self.edgeMargin), window.start)
             let end = min(burst.end.addingTimeInterval(Self.edgeMargin), window.end)
             guard end > start else { continue }
             weights[project, default: 0] += end.timeIntervalSince(start)
-            // The covered part is measured inside the block itself.
             let coveredStart = max(start, block.start), coveredEnd = min(end, block.end)
             if coveredEnd > coveredStart {
                 covered.append(DateInterval(start: coveredStart, end: coveredEnd))
@@ -170,7 +144,6 @@ struct TimelineProjectAttribution: Sendable {
         return Self.ranked(shares)
     }
 
-    /// Busiest first; equal times by name, so the order never flickers.
     static func ranked(_ shares: [Share]) -> [Share] {
         shares.sorted(by: isRankedBefore)
     }
@@ -195,11 +168,6 @@ struct TimelineProjectAttribution: Sendable {
         return total + current.duration
     }
 
-    // MARK: - Where agents run
-
-    /// The app can be where the person drives this agent: its own app, a
-    /// terminal, or an editor. A chat app with no coding agent never counts,
-    /// so time spent elsewhere while agents work stays unattributed.
     static func hosts(app: String, agent: CodingAgentKind) -> Bool {
         let name = app.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if agent == .t3Code { return name.hasPrefix("t3 code") }
@@ -218,11 +186,9 @@ struct TimelineProjectAttribution: Sendable {
         "conductor", "herdr", "opencodex",
     ]
 
-    /// Apps whose name carries a channel, such as "T3 Code (Nightly)".
     private static let sharedHostPrefixes = ["t3 code", "zed "]
 }
 
-/// What a session's agent bursts recorded doing.
 struct TimelineAgentOutcomes: Equatable, Sendable {
     var openedPullRequests: [String] = []
     var mergedPullRequests = 0
@@ -244,13 +210,10 @@ struct TimelineAgentOutcomes: Equatable, Sendable {
     var isEmpty: Bool { openedPullRequests.isEmpty && mergedPullRequests == 0 && commits == 0 }
 }
 
-/// One agent session's work inside a work session. An agent session that
-/// pauses and resumes leaves several bursts; they read as one task.
 struct TimelineAgentTask: Identifiable {
     let bursts: [CodingAgentBurst]
     var id: String { bursts[0].id }
 
-    /// Bursts grouped by agent session, in the order each session first ran.
     static func tasks(from bursts: [CodingAgentBurst]) -> [TimelineAgentTask] {
         var order: [String] = []
         var grouped: [String: [CodingAgentBurst]] = [:]
@@ -262,7 +225,6 @@ struct TimelineAgentTask: Identifiable {
         return order.compactMap { key in grouped[key].map(TimelineAgentTask.init(bursts:)) }
     }
 
-    /// The latest name: a session can be renamed as the work takes shape.
     var title: String { bursts[bursts.count - 1].workTitle }
     var project: String? { bursts.lazy.compactMap(\.workProject).first }
     var agent: CodingAgentKind { bursts[0].agent }

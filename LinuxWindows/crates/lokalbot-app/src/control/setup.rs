@@ -1,9 +1,3 @@
-//! The request an agent left with `lokalbot-cli setup start`, shown to the person
-//! in the agent setup window (`AgentSetupRequests.swift`). Allowing it turns on
-//! the settings grant, plus whichever read access the person ticks; declining
-//! leaves everything off. Each request is answered once, and the answer is written
-//! back to `control/setup-answer.json` for the CLI to read.
-
 use chrono::Utc;
 use gpui_kit::Context;
 use lokalbot_core::access;
@@ -13,7 +7,6 @@ use lokalbot_core::paths::LibraryPaths;
 
 use super::ControlHost;
 
-/// The boxes the person ticked.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Ticked {
     pub meeting_library: bool,
@@ -21,9 +14,6 @@ pub struct Ticked {
     pub files: bool,
 }
 
-/// Turns on what the person ticked among what the request asked for, and says what
-/// took. A box counts only if the request asked for it, and asking grants nothing.
-/// `file_folders` is what Files reads, or `None` while Files is off.
 fn grant_read_access(
     paths: &LibraryPaths,
     requested: &[Grant],
@@ -46,8 +36,6 @@ fn grant_read_access(
     if ticked.files && requested.contains(&Grant::Files) {
         match lokalbot_core::files::access::set_enabled(paths, true) {
             Ok(()) => {
-                // A list that can't be written doesn't undo the grant: the CLI
-                // then says Files has no folder yet.
                 if let Err(err) = lokalbot_core::files::access::refresh(paths, file_folders) {
                     log::warn!("could not update which folders agents can search: {err:#}");
                 }
@@ -60,8 +48,6 @@ fn grant_read_access(
 }
 
 impl ControlHost {
-    /// Picks up a request left by the CLI. An unreadable or expired request is
-    /// answered and removed. A new one opens its window.
     pub(super) fn check_setup(&mut self, cx: &mut Context<Self>) {
         let control = self.paths.control_dir();
         let path = setup::request_path(&control);
@@ -88,7 +74,6 @@ impl ControlHost {
         }
     }
 
-    /// The person allowed the request, with the read access they ticked.
     pub fn allow_setup(&mut self, ticked: Ticked, cx: &mut Context<Self>) {
         let Some(request) = self.setup_pending.clone() else {
             return;
@@ -99,7 +84,6 @@ impl ControlHost {
         }
         self.set_enabled(true, cx);
         if !self.enabled {
-            // The marker could not be written; the error is already shown.
             self.answer_setup(&request, RequestState::Denied, Vec::new(), cx);
             return;
         }
@@ -117,7 +101,6 @@ impl ControlHost {
         self.after_setup_answer(cx);
     }
 
-    /// A new install still needs its setup, so declining leads to onboarding.
     pub fn deny_setup(&mut self, cx: &mut Context<Self>) {
         let Some(request) = self.setup_pending.clone() else {
             return;
@@ -129,8 +112,6 @@ impl ControlHost {
         self.after_setup_answer(cx);
     }
 
-    /// A setup launch has no main window; without a tray icon nothing else would
-    /// lead back to LokalBot.
     fn after_setup_answer(&self, cx: &mut Context<Self>) {
         let tray = crate::desktop::desktop(cx).is_some_and(|d| d.has_tray());
         let main_window = crate::desktop::desktop(cx).is_some_and(|d| d.main_window_is_set());
@@ -156,7 +137,6 @@ impl ControlHost {
         if let Err(err) = setup::write(&answer, &setup::answer_path(&control)) {
             log::warn!("could not answer the agent's setup request: {err}");
         }
-        // Only remove the request this answers; the CLI may have left a newer one.
         let path = setup::request_path(&control);
         if setup::read::<SetupRequest>(&path).is_some_and(|r| r.nonce == request.nonce) {
             let _ = std::fs::remove_file(path);

@@ -1,20 +1,3 @@
-//! One Agent Mode turn against the real runtime and model, without the UI
-//! (`LokalBot --agent` on macOS). Drives the same task list and session code
-//! the Agent page uses, answers each approval card from the command line, and
-//! checks the result.
-//!
-//! ```text
-//! agent_turn <library> --workspace <dir> [--install] [--download-model]
-//!            [--approve | --deny] [--expect-file <path> [--expect-text <text>]]
-//!            [--expect-missing <path>] [--cli <dir>] [--powershell]
-//!            [--timeout <seconds>] <prompt>
-//! ```
-//!
-//! `--install` sets up Bun and pi in `<library>/runtimes/agent-runtime`;
-//! `--download-model` fetches the built-in Think model and llama.cpp runtime
-//! named by `<library>/settings.json` when they are missing. `--powershell`
-//! gives the agent pi's PowerShell tool, as on Windows without Bash.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -145,8 +128,6 @@ fn main() -> Result<()> {
         manifest: manifest.clone(),
         runtime: Some(runtime.clone()),
         api_key: Arc::new(|| None),
-        // Without the app's credential store, a plan task reports that the
-        // sign-in can't be read.
         chatgpt_account: lokalbot_ai::plans::chatgpt::shared(),
         helpers_dir: options.cli.clone().or_else(PiLauncher::bundled_helpers_dir),
         shell: options
@@ -283,7 +264,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Prints each item once it reaches a final state.
 fn report(item: &TranscriptItem, printed: &mut HashMap<String, String>) {
     let line = match item {
         TranscriptItem::User { text, .. } => format!("user: {text}"),

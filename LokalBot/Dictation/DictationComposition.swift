@@ -4,9 +4,6 @@ import Foundation
 import ScreenCaptureKit
 import Vision
 
-/// The application that owned focus when dictation began. Keeping this as a
-/// value snapshot prevents the later ScreenCaptureKit suspension points from
-/// silently switching the compose context to a different application.
 struct DictationScreenTarget: Equatable, Sendable {
     let processID: pid_t
     let appName: String
@@ -29,8 +26,6 @@ struct DictationScreenTarget: Equatable, Sendable {
     }
 }
 
-/// Ephemeral context for one compose request. No image or OCR output is ever
-/// written to disk; this value lives only until the generated text is delivered.
 struct DictationScreenContext: Equatable, Sendable {
     let appName: String
     let bundleID: String?
@@ -73,9 +68,6 @@ struct DictationScreenCapturePolicy: Equatable, Sendable {
     var excludedDomains: [String] = []
 }
 
-/// The exact Accessibility window whose metadata may be attached to a compose
-/// request. A process ID is too broad: switching documents inside the same app
-/// must invalidate the captured title and URL just like switching apps does.
 struct DictationScreenContextIdentity: Equatable, Sendable {
     let windowTitle: String
     let windowFrame: CGRect
@@ -106,8 +98,6 @@ struct DictationWindowCandidate: Equatable, Sendable {
     }
 }
 
-/// A unique focused-window match is required. Missing/ambiguous identity must
-/// never substitute another document belonging to the same application.
 enum DictationWindowSelector {
     static func preferredIndex(
         in candidates: [DictationWindowCandidate],
@@ -167,11 +157,8 @@ private struct DictationOCRImage: @unchecked Sendable {
 }
 
 private enum DictationScreenText {
-    /// How long Compose waits for the window's text. Dictation started the
-    /// read when recording began, so this is on top of the time spent speaking.
     static let recognitionLimit: TimeInterval = 5
 
-    /// The window's text, or nil when recognition gave no answer in time.
     static func recognize(_ input: DictationOCRImage) async -> String? {
         await TextRecognitionQueue.shared.run(
             "dictation screen context", urgency: .interactive, within: recognitionLimit
@@ -179,7 +166,6 @@ private enum DictationScreenText {
             let request = VNRecognizeTextRequest()
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = false
-            // Same as screen OCR: the en-US default cannot read CJK text.
             request.automaticallyDetectsLanguage = true
             try? VNImageRequestHandler(cgImage: input.image).perform([request])
             return (request.results ?? [])
@@ -195,9 +181,6 @@ private enum DictationScreenCaptureFailure: Error {
     case textRecognitionUnanswered
 }
 
-/// Captures only the window that was focused when dictation began. Screen
-/// Recording is optional: without it the caller still receives safe app/window
-/// metadata and composition continues from the spoken request.
 @MainActor
 final class DictationScreenContextCapture {
     static let shared = DictationScreenContextCapture()
@@ -232,8 +215,6 @@ final class DictationScreenContextCapture {
             windowTitle: ScreenContextPrivacy.redact(title).text,
             visibleText: "", identity: identity)
 
-        // Never prompt from a global shortcut. The Dictation permissions UI is
-        // the explicit place where the user can grant Screen Recording access.
         guard CGPreflightScreenCaptureAccess() else { return metadata }
 
         do {
@@ -248,9 +229,6 @@ final class DictationScreenContextCapture {
         } catch {
             if Task.isCancelled { return nil }
             lokalbotLog("dictation screen context skipped: \(error.localizedDescription)")
-            // Screen Recording denial and capture errors are allowed to fall
-            // back to metadata only while it still belongs to the exact bound
-            // field and window. Never return a stale same-app document title.
             guard await contextStillMatches(
                 target, identity: identity, policy: policy) else { return nil }
             return metadata
@@ -301,7 +279,6 @@ final class DictationScreenContextCapture {
         guard !Task.isCancelled, await contextStillMatches(target, identity: identity, policy: policy) else {
             throw DictationScreenCaptureFailure.focusChanged
         }
-        // Without the text, the caller falls back to the window's name alone.
         guard let text = await DictationScreenText.recognize(DictationOCRImage(image: image)) else {
             throw DictationScreenCaptureFailure.textRecognitionUnanswered
         }
@@ -326,8 +303,6 @@ final class DictationScreenContextCapture {
         guard !current.timedOut, let value = current.snapshot else { return false }
         guard identity.matches(value),
               DictationScreenPrivacy.permits(value, target: target, policy: policy) else { return false }
-        // Re-read the exact focused AX element after the awaited window capture.
-        // A same-process document change can happen while that reader is busy.
         return await focusMatches(target)
     }
 }
@@ -348,22 +323,13 @@ struct DictationComposeProfile: Equatable, Sendable {
     static let none = Self(personalization: .none)
 }
 
-/// How Compose cleans up speech that routing did not mark as a writing request.
 enum DictationCleanupPrompt: String, Codable, Sendable, CaseIterable {
-    /// The Compose prompt itself decides whether speech is an instruction. It
-    /// answered "Can you tell me when the 9 boxes arrive?" with "I don't know…"
-    /// (Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window).
     case composeDecides
-    /// The transcript is sent as JSON data under a cleanup-only system prompt
-    /// that forbids answering or carrying it out (as FluidVoice and Handy do).
-    /// Kept direct sentences 16/16 against 13/16 on a set frozen before it ran
-    /// (Benchmarks/transcribe/Dictation/results/2026-10-08-cleanup).
     case transcriptAsData
 
     static let production: Self = .transcriptAsData
 }
 
-/// The cleanup-only prompt for direct dictation.
 enum DictationCleanupPromptText {
     static let system = """
     You clean up dictated text for LokalBot. The user message is a JSON object whose "transcript" field holds speech recognized from the user. They will insert your output into the text field they are typing in, as if they had typed it themselves.
@@ -375,8 +341,6 @@ enum DictationCleanupPromptText {
     Return only the cleaned text, without quotation marks, labels, JSON or explanations.
     """
 
-    /// Names and terminology from the writing profile help spelling; style and
-    /// language preferences are left out because cleanup must not rewrite.
     static func system(profile: DictationComposeProfile) -> String {
         var hints: [String] = []
         if let name = profile.userName.map({ PromptContextSanitizer.sanitize($0, maxCharacters: 200) }), !name.isEmpty {
@@ -398,7 +362,6 @@ enum DictationCleanupPromptText {
         return json
     }
 
-    /// Small models sometimes echo the envelope or wrap the text in quotes.
     static func normalizedOutput(_ raw: String, spokenText: String) -> String {
         var output = DictationComposePrompt.normalizedOutput(raw)
         if output.hasPrefix("{"), let data = output.data(using: .utf8),
@@ -415,15 +378,8 @@ enum DictationCleanupPromptText {
     }
 }
 
-/// How much of the focused window's OCR text a Compose prompt keeps, and from
-/// which end. The replay benchmark varies it; production uses `.production`.
-/// Keeping the first 12,000 characters dropped the newest message of a long
-/// window (it sits at the bottom, next to the input field) and Compose answered
-/// from a stale one; the last 2,000 answered every window case.
 struct DictationWindowTextPolicy: Equatable, Sendable, Codable {
     var limit: Int
-    /// Keep the bottom of the window (the newest messages, next to the input
-    /// field) instead of the top.
     var keepsEnd: Bool
 
     static let production = DictationWindowTextPolicy(limit: 2_000, keepsEnd: true)
@@ -433,7 +389,6 @@ struct DictationWindowTextPolicy: Equatable, Sendable, Codable {
         let clean = PromptContextSanitizer.sanitize(text)
         guard limit > 1, clean.count > limit else { return limit > 0 ? clean : "" }
         var tail = clean.suffix(limit - 1)
-        // Start at a line boundary so the first kept line is whole.
         if let newline = tail.firstIndex(of: "\n"), tail.distance(from: tail.startIndex, to: newline) < 200 {
             tail = tail[tail.index(after: newline)...]
         }
@@ -441,8 +396,6 @@ struct DictationWindowTextPolicy: Equatable, Sendable, Codable {
     }
 }
 
-/// Pure prompt construction for the single dictation behavior: spoken input is
-/// either lightly cleaned as direct text or executed as a writing instruction.
 enum DictationComposePrompt {
     static let screenStartMarker = "<<< BEGIN UNTRUSTED SCREEN CONTEXT >>>"
     static let screenEndMarker = "<<< END UNTRUSTED SCREEN CONTEXT >>>"
@@ -541,10 +494,6 @@ enum DictationComposePrompt {
         return output
     }
 
-    /// The model's text as it will be inserted. Small models sometimes open
-    /// with the window title they were given, or format plain text as
-    /// markdown, even when told not to. What the person said always wins: a
-    /// title or markdown they asked for stays.
     static func insertableText(_ text: String, spokenText: String, context: DictationScreenContext?) -> String {
         let withoutTitle = removingEchoedTitle(text, spokenText: spokenText, context: context)
         return spokenRequestsMarkdown(spokenText) ? withoutTitle : removingMarkdownEmphasis(withoutTitle)

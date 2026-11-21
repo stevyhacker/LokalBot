@@ -1,24 +1,14 @@
 import Foundation
 
 extension Notification.Name {
-    /// Stored coding-agent evidence gained, lost, or corrected bursts.
     static let codingAgentEvidenceChanged = Notification.Name("codingAgentEvidenceChanged")
 }
 
-/// Keeps stored coding-agent evidence in step with the agents' transcripts.
-///
-/// Scans run off the main actor over a recent window. Only settled bursts
-/// are stored, so a digest's inputs cannot change while it is written. New
-/// bursts are plain additions. Removing or correcting a stored burst (a
-/// deleted session, a new folder exclusion) revokes dependent products
-/// through the same path as deleting screen evidence. A read failure is
-/// never taken as a deletion.
 @MainActor
 final class CodingAgentEvidenceIngestor {
     struct Configuration: Equatable, Sendable {
         var agents: Set<CodingAgentKind>
         var excludedFolders: [String]
-        /// Agent text expires with screen text; `nil` keeps it indefinitely.
         var retentionDays: Int?
 
         init(agents: Set<CodingAgentKind>, excludedFolders: [String] = [], retentionDays: Int? = nil) {
@@ -34,8 +24,6 @@ final class CodingAgentEvidenceIngestor {
                 retentionDays: settings.keepOCRTextForever ? nil : settings.retentionDays)
         }
 
-        /// Setup shows this choice, so a new install reads nothing until setup
-        /// is finished. From then on the settings alone decide.
         init(settings: AppSettings, onboardingFinished: Bool) {
             self.init(settings: settings)
             if !onboardingFinished { agents = [] }
@@ -47,7 +35,6 @@ final class CodingAgentEvidenceIngestor {
     ) -> CodingAgentDayScan
     typealias EvidenceMutation = (_ days: [Date], _ mutation: () throws -> Void) throws -> Void
 
-    /// Matches the digest scheduler's catch-up window.
     static let windowDays = DayDigestScheduler.catchUpDays
     static let refreshInterval: TimeInterval = 10 * 60
 
@@ -62,8 +49,6 @@ final class CodingAgentEvidenceIngestor {
     private var timer: Timer?
     private var firstRefresh: Task<Void, Never>?
     private var latestRefresh: Task<Void, Never>?
-    /// Reused across window refreshes and days, so a refresh parses only
-    /// the lines agents appended since the last one.
     private let parseCache = CodingAgentParseCache()
     private(set) var lastError: String?
 
@@ -98,9 +83,6 @@ final class CodingAgentEvidenceIngestor {
         ).scan(from: firstDay, through: lastDay, cache: cache)
     }
 
-    /// Refresh once `waitUntilReady` returns, then on a fixed interval while
-    /// any agent is enabled. The first refresh parses every transcript in the
-    /// window, so at launch it waits for the meeting library to load.
     func start() {
         stop()
         guard !configuration().agents.isEmpty else { return }
@@ -122,8 +104,6 @@ final class CodingAgentEvidenceIngestor {
         firstRefresh = nil
     }
 
-    /// Scan the recent window, plus `day` when it is older, and store what
-    /// changed. Refreshes run one after another, never concurrently.
     func refresh(including day: Date? = nil) async {
         let previous = latestRefresh
         let task = Task { @MainActor [weak self] in
@@ -142,8 +122,6 @@ final class CodingAgentEvidenceIngestor {
         let windowStart = calendar.date(byAdding: .day, value: -(Self.windowDays - 1), to: today) ?? today
         var ranges: [(first: Date, last: Date, cache: CodingAgentParseCache?)] = [(windowStart, today, parseCache)]
         if let day, calendar.startOfDay(for: day) < windowStart {
-            // An older day reaches past what the cache keeps: reading it
-            // there would reparse the window's files and drop the rest.
             ranges.append((calendar.startOfDay(for: day), calendar.startOfDay(for: day), nil))
         }
         let scan = self.scan
@@ -151,8 +129,6 @@ final class CodingAgentEvidenceIngestor {
             let result = await Task.detached(priority: .utility) {
                 scan(configuration, first, last, cache)
             }.value
-            // Turning the feature off, deleting saved sessions, or adding an
-            // exclusion during the scan must not be undone by its result.
             guard self.configuration() == configuration else { return }
             do {
                 try apply(result, configuration: configuration, scannedAt: scanTime)
@@ -164,8 +140,6 @@ final class CodingAgentEvidenceIngestor {
         }
     }
 
-    /// Store settled bursts from `scan`, replacing what the store holds for
-    /// the scanned agents and days.
     func apply(_ scan: CodingAgentDayScan, configuration: Configuration, scannedAt: Date) throws {
         let cutoff = configuration.retentionDays.map {
             scannedAt.addingTimeInterval(-Double($0) * 86_400)
@@ -176,11 +150,6 @@ final class CodingAgentEvidenceIngestor {
         }
         var existing = store.codingAgentBursts(in: scan.interval)
             .filter { configuration.agents.contains($0.agent) }
-        // A finished day keeps the bursts its digest and Dream review were
-        // written with until a session's work there changes or the session
-        // is gone. On 2026-10-20 and 21, sessions that moved to another
-        // branch relabeled earlier days' bursts, and each relabel rebuilt
-        // those days' digests, several times a day.
         let today = calendar.startOfDay(for: scannedAt)
         let unchanged = sessionDaysWithUnchangedWork(existing: existing, fresh: fresh, before: today)
         fresh.removeAll { unchanged.contains(sessionDay(of: $0)) }
@@ -193,7 +162,6 @@ final class CodingAgentEvidenceIngestor {
             guard let stored = existingByID[burst.id], stored != burst else { return false }
             return burst.start >= today || !stored.hasSameWork(as: burst)
         }
-        // An unreadable transcript is not a deleted one.
         let removed = scan.unreadableFiles.isEmpty ? existing.filter { !freshIDs.contains($0.id) } : []
 
         let revokedDays = days(of: removed + corrected)
@@ -216,9 +184,6 @@ final class CodingAgentEvidenceIngestor {
         Array(Set(bursts.map { calendar.startOfDay(for: $0.start) })).sorted()
     }
 
-    /// Sessions on days before `today` whose stored bursts hold the same
-    /// work, in order, as the scan's. Ids follow a burst's first event, so
-    /// a moved edge reads as a different burst; the work does not.
     private func sessionDaysWithUnchangedWork(
         existing: [CodingAgentBurst], fresh: [CodingAgentBurst], before today: Date
     ) -> Set<String> {

@@ -1,22 +1,15 @@
-//! The commands Quick Recall can run (`PaletteCommands.swift`), computed live
-//! from app state so titles follow recording and dictation status. Ctrl+K and
-//! the system-wide shortcut open the same window, so there is one list.
-
 use gpui_kit::{App, AppContext as _};
 use lokalbot_engine::{Command, DictationCommand};
 
 use crate::state::{AgentRequest, AppData, DictationHud, Section, SettingsCategory};
 use crate::ui::Ico;
 
-/// Where a command's result appears. Workspace commands show something in the
-/// main window. Background commands (recording, dictation) act in place.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Placement {
     Workspace,
     Background,
 }
 
-/// What running a command does.
 #[derive(Clone, Debug, PartialEq)]
 pub enum CommandAction {
     ToggleRecording,
@@ -24,7 +17,6 @@ pub enum CommandAction {
     Actions,
     FollowUp,
     OpenAsk,
-    /// "Import Recording…", from anywhere (the port's own command).
     ImportRecording,
     ToggleDictation,
     CopyLastDictation,
@@ -32,21 +24,15 @@ pub enum CommandAction {
     Agent(AgentRequest),
 }
 
-/// One command Quick Recall can run.
 #[derive(Clone, Debug)]
 pub struct PaletteCommand {
     pub id: String,
     pub icon: Ico,
     pub title: String,
-    /// The area the command belongs to ("Library", "Recording"). Typed words
-    /// match it; the row does not show it.
     pub subtitle: String,
-    /// English words that still find a translated command.
     pub search_aliases: String,
     pub placement: Placement,
-    /// Grey text after the title, when it says something ("2 open").
     pub detail: Option<String>,
-    /// The command's own keyboard shortcut, shown at the row's end.
     pub shortcut: Option<String>,
     pub action: CommandAction,
 }
@@ -65,18 +51,10 @@ impl PaletteCommand {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Matching {
-    /// Each query word may appear anywhere.
     Substring,
-    /// Each query word must start a word of the command.
     WordPrefix,
 }
 
-/// The commands typed words find, in two parts (`PaletteCommandFilter.split`).
-/// `leading` are those where each typed word starts a word of the command;
-/// Quick Recall lists them first, so Return runs the top one. `loose` only
-/// hold the words somewhere ("ion" in "Start dictation"); Quick Recall lists
-/// them under the search results, where they can be found but Return alone
-/// never runs one. Each part keeps the catalog's order.
 pub fn split(
     commands: &[PaletteCommand],
     query: &str,
@@ -89,8 +67,6 @@ pub fn split(
     (leading, loose)
 }
 
-/// The order before anything is typed: what acts in place (recording,
-/// dictation) first, then the rest as the catalog lists them.
 pub fn idle_order(commands: Vec<PaletteCommand>) -> Vec<PaletteCommand> {
     let (background, rest): (Vec<_>, Vec<_>) = commands
         .into_iter()
@@ -106,8 +82,6 @@ pub fn words(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Commands whose title, subtitle, and aliases contain every query word. An
-/// empty query matches nothing; callers decide what idle shows.
 pub fn filter(commands: &[PaletteCommand], query: &str, matching: Matching) -> Vec<PaletteCommand> {
     let tokens = match matching {
         Matching::Substring => query
@@ -131,8 +105,6 @@ pub fn filter(commands: &[PaletteCommand], query: &str, matching: Matching) -> V
             match matching {
                 Matching::Substring => tokens.iter().all(|t| lowered.contains(t.as_str())),
                 Matching::WordPrefix => {
-                    // Chinese titles have no spaces between words; match those
-                    // anywhere instead.
                     let candidates = words(&haystack);
                     tokens.iter().all(|token| {
                         if token.is_ascii() {
@@ -169,7 +141,6 @@ fn command(
     }
 }
 
-/// Titles for the dictation command in each of its states.
 fn dictation_title(state: &DictationHud) -> &'static str {
     match state {
         DictationHud::Starting
@@ -181,8 +152,6 @@ fn dictation_title(state: &DictationHud) -> &'static str {
     }
 }
 
-/// `in_workspace` adds commands that act on the main window's current section
-/// (Agent tasks), which only make sense when Quick Recall was opened from it.
 pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteCommand> {
     use CommandAction as A;
     use Placement::{Background, Workspace};
@@ -192,7 +161,6 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
         .open_action_count
         .filter(|count| *count > 0)
         .map(|count| lokalbot_i18n::fill(lokalbot_i18n::tr("%lld open"), &[&count.to_string()]));
-    // The dictation shortcut is registered only while Dictation is on.
     let dictation_shortcut = data
         .settings
         .dictation_enabled
@@ -290,7 +258,6 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
         )
         .with_shortcut(dictation_shortcut),
     ];
-    // From Quick Recall this hands focus back, ready to paste.
     if !data.recent_dictations.is_empty() {
         list.push(command(
             "dictation.copyLast",
@@ -301,7 +268,6 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
             A::CopyLastDictation,
         ));
     }
-    // The port's own: the Mac imports from its File menu.
     list.push(command(
         "recording.import",
         Ico::Import,
@@ -400,7 +366,6 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
             )
             .with_shortcut(Some("Ctrl+Alt+B")),
         ]);
-        // User-owned titles are added after translation, as they are.
         for (id, title, workspace) in crate::pages::agent::palette_tasks(cx).into_iter().take(30) {
             list.push(PaletteCommand {
                 id: format!("agent.task.{id}"),
@@ -418,7 +383,6 @@ pub fn commands(data: &AppData, in_workspace: bool, cx: &App) -> Vec<PaletteComm
     list
 }
 
-/// Runs a command. Workspace commands bring the main window forward.
 pub fn run(command: &PaletteCommand, cx: &mut App) {
     use CommandAction as A;
     log::debug!("running command {}", command.id);
@@ -454,13 +418,11 @@ pub fn run(command: &PaletteCommand, cx: &mut App) {
             });
         }
     }
-    // Settings has its own window; everything else is in the main one.
     if command.placement == Placement::Workspace && !matches!(command.action, A::Settings(_)) {
         crate::desktop::show_main_window(cx);
     }
 }
 
-/// Opens the newest meeting that has outcomes, with its follow-up draft.
 fn draft_follow_up_for_latest(data: &gpui_kit::Entity<AppData>, cx: &mut App) {
     let (library, meetings) = {
         let data = data.read(cx);
@@ -573,10 +535,8 @@ mod tests {
 
     #[test]
     fn commands_matching_only_inside_a_word_come_last() {
-        // "ion" sits inside "dictation": findable, but never under Return.
         assert_eq!(split_ids("ion"), (vec![], vec!["dictation".to_string()]));
         assert_eq!(split_ids("rec"), (vec!["record".to_string()], vec![]));
-        // "meet" starts a word of both; "eet" only sits inside them.
         assert_eq!(
             split_ids("meet"),
             (

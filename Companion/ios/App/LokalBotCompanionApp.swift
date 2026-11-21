@@ -25,7 +25,6 @@ struct LokalBotCompanionApp: App {
             environment.scenePhaseChanged(phase)
         }
 
-        // A meeting in its own window (iPad).
         WindowGroup("Meeting", id: MeetingWindow.id, for: String.self) { $meetingID in
             MeetingWindow(meetingID: meetingID)
                 .environment(environment.session)
@@ -35,8 +34,6 @@ struct LokalBotCompanionApp: App {
     }
 }
 
-/// A background task that ends once, whichever comes first: the upload
-/// finishing or iOS running out of patience.
 @MainActor
 private final class BackgroundHold {
     var task = UIBackgroundTaskIdentifier.invalid
@@ -52,8 +49,6 @@ private final class BackgroundHold {
     }
 }
 
-/// Everything the scenes share: the store and session, navigation, discovery
-/// and the app lock.
 @MainActor
 final class AppEnvironment {
     let session: CompanionSession
@@ -67,12 +62,9 @@ final class AppEnvironment {
     init(session: CompanionSession) {
         self.session = session
         recording = RecordingModel(session: session, capture: DemoLaunch.capture())
-        // Sending goes on for a while after the screen locks. What doesn't
-        // finish in that time resumes on the next sync.
         session.holdWhileUploading = {
             let application = UIApplication.shared
             let hold = BackgroundHold()
-            // iOS ends an app that overruns this, and the upload resumes anyway.
             hold.task = application.beginBackgroundTask(withName: "Send recording") { hold.end() }
             return { hold.end() }
         }
@@ -101,13 +93,10 @@ final class AppEnvironment {
         await session.syncNow()
     }
 
-    /// Sync on return to the foreground and every few minutes while open;
-    /// schedule background refresh on the way out.
     func scenePhaseChanged(_ phase: ScenePhase) {
         appLock.scenePhaseChanged(phase)
         switch phase {
         case .active:
-            // A call may have ended while recording couldn't restart by itself.
             recording.resume()
             foregroundSync?.cancel()
             foregroundSync = Task { [session] in

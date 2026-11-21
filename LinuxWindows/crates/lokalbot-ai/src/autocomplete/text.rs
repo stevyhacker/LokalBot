@@ -1,20 +1,13 @@
-//! Character classes the autocomplete rules share. Swift's `Character`
-//! properties map onto `char` here; a combining mark counts as part of the
-//! word it follows, as it would inside one Swift `Character`.
-
 use unicode_normalization::char::is_combining_mark;
 
-/// `Character.isLetter || Character.isNumber`.
 pub(crate) fn is_word_char(c: char) -> bool {
     c.is_alphanumeric() || is_combining_mark(c)
 }
 
-/// `Character.isLetter`.
 pub(crate) fn is_letter(c: char) -> bool {
     c.is_alphabetic() || is_combining_mark(c)
 }
 
-/// `Character.isNewline`.
 pub(crate) fn is_newline(c: char) -> bool {
     matches!(
         c,
@@ -22,8 +15,6 @@ pub(crate) fn is_newline(c: char) -> bool {
     )
 }
 
-/// Swift's `CharacterSet.controlCharacters`: Cc plus the format characters
-/// (Cf) a model or a host can leak into text.
 pub(crate) fn is_control(c: char) -> bool {
     c.is_control()
         || matches!(c, '\u{AD}' | '\u{600}'..='\u{605}' | '\u{61C}' | '\u{6DD}' | '\u{70F}'
@@ -32,14 +23,10 @@ pub(crate) fn is_control(c: char) -> bool {
             | '\u{FFF9}'..='\u{FFFB}')
 }
 
-/// `Character.isPunctuation || Character.isSymbol`: anything visible that is
-/// not part of a word.
 pub(crate) fn is_punctuation_or_symbol(c: char) -> bool {
     !is_word_char(c) && !c.is_whitespace() && !is_control(c)
 }
 
-/// `cotypingBeginsSpacelessScriptWord`: scripts written without spaces
-/// between words (CJK, kana, Hangul, Thai, Lao, Khmer, Myanmar).
 pub(crate) fn begins_spaceless_word(c: char) -> bool {
     matches!(u32::from(c),
         0x3040..=0x30FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF
@@ -65,7 +52,6 @@ pub(crate) fn is_cjk_opening_bracket(c: char) -> bool {
     )
 }
 
-/// `cotypingIsPhraseClauseBoundary`: the CJK comma marks.
 pub(crate) fn is_phrase_clause_boundary(c: char) -> bool {
     matches!(c, '\u{3001}' | '\u{FF0C}' | '\u{FF64}')
 }
@@ -74,24 +60,20 @@ pub(crate) fn binds_to_preceding_spaceless_word(c: char) -> bool {
     is_cjk_sentence_terminator(c) || is_phrase_clause_boundary(c) || is_cjk_closing_punctuation(c)
 }
 
-/// Periods after these do not end a sentence.
 pub(crate) const ABBREVIATIONS: [&str; 14] = [
     "mr", "mrs", "ms", "dr", "st", "vs", "eg", "ie", "etc", "no", "fig", "approx", "inc", "ltd",
 ];
 
-/// Suffixes that make `name.suffix` a domain or a file name, not two sentences.
 pub(crate) const DOMAIN_OR_FILE_SUFFIXES: [&str; 31] = [
     "ai", "app", "co", "com", "css", "dev", "edu", "env", "gov", "html", "io", "js", "json", "jsx",
     "local", "lock", "md", "me", "net", "org", "py", "rs", "swift", "toml", "ts", "tsx", "txt",
     "uk", "us", "yaml", "yml",
 ];
 
-/// Characters a URL, address or file name is made of.
 pub(crate) fn is_url_like(c: char) -> bool {
     is_word_char(c) || ".:/@_+-~%#?=&".contains(c)
 }
 
-/// Whether `token` (no spaces) reads as a URL, an address or a file name.
 pub(crate) fn is_url_domain_or_file(token: &str) -> bool {
     if !token.contains('.') {
         return false;
@@ -109,7 +91,6 @@ pub(crate) fn is_url_domain_or_file(token: &str) -> bool {
         .is_some_and(|suffix| DOMAIN_OR_FILE_SUFFIXES.contains(&suffix))
 }
 
-/// The letters directly before byte `end` of `text`.
 pub(crate) fn trailing_letters(text: &str, end: usize) -> &str {
     let head = &text[..end];
     let start = head
@@ -121,18 +102,14 @@ pub(crate) fn trailing_letters(text: &str, end: usize) -> &str {
     &head[start..]
 }
 
-/// The character before byte `index`, if any.
 pub(crate) fn char_before(text: &str, index: usize) -> Option<char> {
     text[..index].chars().next_back()
 }
 
-/// The character at byte `index`, if any.
 pub(crate) fn char_at(text: &str, index: usize) -> Option<char> {
     text[index..].chars().next()
 }
 
-/// Whether the period at byte `period` ends a sentence: not after a digit
-/// (`1.5`), a lone letter (`U.S.`) or an abbreviation (`e.g.`, `Dr.`).
 pub(crate) fn is_terminal_period(text: &str, period: usize) -> bool {
     let Some(before) = char_before(text, period) else {
         return true;
@@ -154,8 +131,6 @@ pub(crate) fn is_terminal_period(text: &str, period: usize) -> bool {
     true
 }
 
-/// Lowercase without diacritics, for comparisons (`folding(options:
-/// [.caseInsensitive, .diacriticInsensitive])`).
 pub(crate) fn fold(text: &str) -> String {
     use unicode_normalization::UnicodeNormalization as _;
     text.nfd()
@@ -164,7 +139,6 @@ pub(crate) fn fold(text: &str) -> String {
         .to_lowercase()
 }
 
-/// User-perceived characters, as one Backspace or Delete removes them.
 pub(crate) fn grapheme_count(text: &str) -> usize {
     use unicode_segmentation::UnicodeSegmentation as _;
     text.graphemes(true).count()

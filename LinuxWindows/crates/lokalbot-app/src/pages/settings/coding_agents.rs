@@ -1,8 +1,3 @@
-//! Day Memory → Coding agent sessions (`CodingAgentEvidenceSettings.swift`).
-//! Nothing is read until the person has chosen, in setup or here. The saved
-//! records can be deleted here. Notes are off until turned on after a notice.
-//! The agents' own files stay untouched either way.
-
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::WindowExt as _;
 use gpui_kit::component::button::{Button, ButtonVariant};
@@ -22,12 +17,10 @@ const DETAILS_WINDOWS: &str = "LokalBot reads the session files in %USERPROFILE%
 const NOTES_DETAILS_UNIX: &str = "LokalBot reads the Markdown notes in ~/.claude/projects/*/memory and, from ~/.codex/memories, MEMORY.md, memory_summary.md and the session summaries. It reads nothing else there: no credentials, settings, skills or instruction files. It keeps each note's title, text and file path in its library, with detected credentials redacted, and checks for changes every ten minutes. Notes about a folder listed above are left out. A note the agent deletes leaves LokalBot at the next check, and turning this off deletes every copy. Notes are an agent's own summary, so Ask treats them as leads to check, not as facts.";
 const NOTES_DETAILS_WINDOWS: &str = "LokalBot reads the Markdown notes in %USERPROFILE%\\.claude\\projects\\*\\memory and, from %USERPROFILE%\\.codex\\memories, MEMORY.md, memory_summary.md and the session summaries. It reads nothing else there: no credentials, settings, skills or instruction files. It keeps each note's title, text and file path in its library, with detected credentials redacted, and checks for changes every ten minutes. Notes about a folder listed above are left out. A note the agent deletes leaves LokalBot at the next check, and turning this off deletes every copy. Notes are an agent's own summary, so Ask treats them as leads to check, not as facts.";
 
-/// The row reads what actually happens: on only once the person has chosen.
 pub fn reads_sessions(settings: &lokalbot_core::Settings) -> bool {
     settings.coding_agent_evidence_enabled && settings.coding_agent_evidence_confirmed
 }
 
-/// Flipping the row is the person's choice, whichever way they flip it.
 pub fn choose(settings: &mut lokalbot_core::Settings, on: bool) {
     settings.coding_agent_evidence_enabled = on;
     settings.coding_agent_evidence_confirmed = true;
@@ -55,8 +48,6 @@ fn confirm_deletion(data: Entity<AppData>, window: &mut Window, cx: &mut App) {
     });
 }
 
-/// The notice before notes are read: they cover every project the agents
-/// worked in, so reading starts only on Turn On.
 fn confirm_notes(data: Entity<AppData>, window: &mut Window, cx: &mut App) {
     window.open_alert_dialog(cx, move |alert, _, _| {
         let data = data.clone();
@@ -77,7 +68,6 @@ fn confirm_notes(data: Entity<AppData>, window: &mut Window, cx: &mut App) {
     });
 }
 
-/// "Claude Code 12 · Codex 3", or a dash while nothing is saved.
 pub fn saved_notes_summary(status: &lokalbot_engine::agent_notes::AgentNotesStatus) -> String {
     if status.counts.is_empty() {
         return "—".into();
@@ -142,7 +132,6 @@ impl SettingsPage {
                 cx,
             ),
         );
-        // The agent switches and the excluded folders apply to notes too.
         if reading || reading_notes {
             section = section
                 .row(
@@ -285,7 +274,6 @@ mod tests {
     #[test]
     fn the_row_stays_off_until_the_person_chooses() {
         let mut settings = Settings::default();
-        // Saved as true without ever having been asked.
         assert!(settings.coding_agent_evidence_enabled);
         assert!(!reads_sessions(&settings));
         assert!(settings.enabled_coding_agents().is_empty());
@@ -294,7 +282,6 @@ mod tests {
         assert!(reads_sessions(&settings));
         assert_eq!(settings.enabled_coding_agents().len(), 4);
 
-        // Turning it off is a choice too, so it isn't asked again.
         choose(&mut settings, false);
         assert!(!reads_sessions(&settings));
         assert!(settings.coding_agent_evidence_confirmed);

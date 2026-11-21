@@ -55,7 +55,6 @@ final class AudioRecoveryJournalTests: XCTestCase {
         XCTAssertEqual(manifest.padding.count, 1)
         XCTAssertEqual(manifest.padding.first?.startFrame, 32_000)
         XCTAssertEqual(manifest.padding.first?.frames, 90 * 16_000)
-        // Neither a finalized AAC nor the single growing CAF is available.
         try Data("unfinalized AAC".utf8).write(to: folder.appendingPathComponent("mic.m4a"))
         try FileManager.default.removeItem(at: preview)
         let recovered = try XCTUnwrap(MeetingAudioFiles.readableURL(for: .mic, in: folder))
@@ -78,7 +77,6 @@ final class AudioRecoveryJournalTests: XCTestCase {
         let firstManifest = try Data(contentsOf: manifest)
         try journal.append(buffer(format, value: 0.6))
         journal.close()
-        // Process died after the next segment was closed, before its manifest committed.
         try firstManifest.write(to: manifest)
         let recovered = try XCTUnwrap(AudioRecoveryJournal.recover(previewURL: preview))
         let audio = try samples(recovered)
@@ -134,11 +132,6 @@ final class AudioRecoveryJournalTests: XCTestCase {
         XCTAssertNotNil(failure.error)
     }
 
-    /// The recording of 2026-11-17 left 28,712 checkpoints on one track and
-    /// 18,016 on the other. The rebuild searched the whole manifest for each
-    /// checkpoint, so every launch spent itself on that meeting and the library
-    /// never finished loading. A few thousand checkpoints tell a rebuild that
-    /// looks each one up from that one.
     func testThousandsOfCheckpointsRebuildWithoutSearchingTheManifestForEach() throws {
         let (folder, format) = try fixture()
         let preview = folder.appendingPathComponent(AudioPreviewTee.systemFileName)
@@ -167,8 +160,6 @@ final class AudioRecoveryJournalTests: XCTestCase {
         let elapsed = Date().timeIntervalSince(started)
         XCTAssertEqual(try samples(recovered).count, count * Int(framesPerChunk))
         XCTAssertTrue(try XCTUnwrap(AudioRecoveryJournal.receipt(previewURL: preview)).complete)
-        // Measured in a Debug build on 2026-11-18: 0.49 s with lookups, 10.8 s
-        // with a search per checkpoint. The limit leaves room for slower Macs.
         XCTAssertLessThan(elapsed, 5, "rebuilt \(count) checkpoints in \(String(format: "%.1f", elapsed)) s")
     }
 

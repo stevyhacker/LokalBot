@@ -1,16 +1,4 @@
 #!/usr/bin/env bash
-# Builds and installs the lokalbot-bin AUR package the way an AUR helper does
-# (makepkg -si as a regular user) in a clean archlinux container, then checks:
-#   - .SRCINFO matches the PKGBUILD (makepkg --printsrcinfo);
-#   - namcap finds no errors in the PKGBUILD or the built package;
-#   - lokalbot and lokalbot-cli are in /usr/bin and resolve every library
-#     they link, and the libraries they load at run time are installed;
-#   - lokalbot-cli reports the PKGBUILD's pkgver (MCP initialize).
-#
-#   scripts/ci/check-aur-package.sh [PKGBUILD_DIR]
-#
-# PKGBUILD_DIR defaults to packaging/aur/lokalbot-bin. ENGINE: docker
-# (default) or podman. IMAGE: the container image (default archlinux:latest).
 set -euo pipefail
 
 if [ "${1:-}" = "--in-container" ]; then
@@ -23,7 +11,6 @@ if [ "${1:-}" = "--in-container" ]; then
   cd /home/builder/pkg
   as_builder() { sudo -u builder -- "$@"; }
 
-  # namcap prints "<package> E: …" for errors and "W: …" for warnings.
   namcap_check() {
     local report
     report=$(as_builder namcap "$1")
@@ -59,7 +46,6 @@ if [ "${1:-}" = "--in-container" ]; then
   test -f /usr/share/icons/hicolor/512x512/apps/com.lokalbot.LokalBot.png
 
   echo "== libraries"
-  # grep -q would stop reading early, and pipefail would count ldd's SIGPIPE.
   for binary in /usr/bin/lokalbot /usr/bin/lokalbot-cli; do
     ldd "$binary"
     if ldd "$binary" | grep 'not found' > /dev/null; then
@@ -67,14 +53,12 @@ if [ "${1:-}" = "--in-container" ]; then
       exit 1
     fi
   done
-  # Loaded with dlopen, so ldd does not list them.
   for lib in libvulkan.so.1 libwayland-client.so.0; do
     ldconfig -p | grep -F "$lib" > /dev/null || { echo "missing $lib" >&2; exit 1; }
     echo "  $lib: installed"
   done
 
   echo "== version"
-  # Neither binary has --version; the MCP server reports CARGO_PKG_VERSION.
   pkgver=$(sed -n 's/^pkgver=//p' PKGBUILD)
   library=$(mktemp -d)
   reply=$(printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"check-aur-package","version":"1"}}}' |
