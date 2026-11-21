@@ -558,7 +558,8 @@ final class RecordingController: ObservableObject {
         if app.usesMicrophoneDetection {
             if MeetingDetector.microphoneBrowsers.contains(app.bundleID) {
                 guard settings.detectOtherBrowserCalls,
-                      await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: [app.pid]).contains(app.pid)
+                      await BrowserMeetingSession.microphoneFallbackWindows(processIDs: [app.pid])[app.pid]?
+                        .allowsStart == true
                 else { return false }
             } else if MeetingDetector.knownApps[app.bundleID] == nil,
                       !settings.additionalCallBundleIDs.contains(app.bundleID.lowercased()) {

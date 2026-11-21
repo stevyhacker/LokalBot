@@ -118,10 +118,20 @@ pub(crate) fn process_table() -> HashMap<u32, ProcessInfo> {
                     .iter()
                     .position(|&unit| unit == 0)
                     .unwrap_or(entry.szExeFile.len());
+                let name = String::from_utf16_lossy(&entry.szExeFile[..length]);
+                let name = if name.eq_ignore_ascii_case("browser.exe") {
+                    let image = crate::activity::process_image(entry.th32ProcessID);
+                    super::canonical_executable(
+                        &name,
+                        image.as_deref().and_then(std::path::Path::to_str),
+                    )
+                } else {
+                    name
+                };
                 table.insert(
                     entry.th32ProcessID,
                     ProcessInfo {
-                        name: String::from_utf16_lossy(&entry.szExeFile[..length]),
+                        name,
                         parent: entry.th32ParentProcessID,
                     },
                 );

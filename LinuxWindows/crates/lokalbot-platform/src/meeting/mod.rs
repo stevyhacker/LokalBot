@@ -20,6 +20,7 @@ pub struct DetectedMeeting {
     pub audio_pid: u32,
     pub meeting_url: Option<String>,
     pub title_hint: Option<String>,
+    pub microphone_detected: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -232,10 +233,25 @@ fn browser_family(process: &str) -> Option<&'static str> {
         "opera" => "opera",
         "vivaldi" | "vivaldi-bin" => "vivaldi",
         "arc" => "arc",
-        "yandex" => "yandex",
+        "yandex" | "yandex-browser" | "yandex-browser-stable" | "yandex_browser" => "yandex",
         "zen" | "zen-bin" => "zen",
         _ => return None,
     })
+}
+
+#[cfg(any(windows, test))]
+fn canonical_executable(name: &str, image: Option<&str>) -> String {
+    let yandex = normalized(name) == "browser"
+        && image.is_some_and(|path| {
+            path.to_lowercase()
+                .replace('/', "\\")
+                .contains("\\yandex\\yandexbrowser\\")
+        });
+    if yandex {
+        "yandex.exe".to_string()
+    } else {
+        name.to_string()
+    }
 }
 
 #[cfg(windows)]
@@ -474,6 +490,7 @@ impl Core {
                             audio_pid: host_pid,
                             meeting_url: Some(document.url.clone()),
                             title_hint: None,
+                            microphone_detected: false,
                         },
                     });
                 }
@@ -579,6 +596,7 @@ impl Core {
                     audio_pid,
                     meeting_url: room,
                     title_hint,
+                    microphone_detected: kind.requires_sustained_mic(),
                 },
             };
             if !found.iter().any(|known| known.same_app(&next)) {
@@ -947,6 +965,26 @@ mod tests {
     }
 
     #[test]
+    fn yandex_browser_is_recognized_by_its_install_folder_not_its_generic_name() {
+        let yandex = r"C:\Users\a\AppData\Local\Yandex\YandexBrowser\Application\browser.exe";
+        assert_eq!(
+            canonical_executable("browser.exe", Some(yandex)),
+            "yandex.exe"
+        );
+        assert_eq!(
+            browser_family(&canonical_executable("browser.exe", Some(yandex))),
+            Some("yandex")
+        );
+        assert_eq!(
+            canonical_executable("browser.exe", Some(r"C:\Tools\Other\browser.exe")),
+            "browser.exe"
+        );
+        assert_eq!(canonical_executable("browser.exe", None), "browser.exe");
+        assert_eq!(browser_family("browser.exe"), None);
+        assert_eq!(browser_family("yandex-browser-stable"), Some("yandex"));
+    }
+
+    #[test]
     fn unknown_browser_calls_require_opt_in_a_public_window_and_sustained_microphone() {
         let t0 = Instant::now();
         let mut core = Core::new(9999);
@@ -975,7 +1013,8 @@ mod tests {
         assert!(run(&mut core, t0, 32, 46, &browser).is_empty());
         browser.documents.clear();
         assert!(matches!(run(&mut core, t0, 48, 60, &browser).as_slice(),
-            [(60, DetectorEvent::Started(meeting))] if meeting.audio_pid == 123 && meeting.meeting_url.is_none()));
+            [(60, DetectorEvent::Started(meeting))] if meeting.audio_pid == 123
+                && meeting.meeting_url.is_none() && meeting.microphone_detected));
         assert!(matches!(
             run(&mut core, t0, 62, 80, &Evidence::default()).as_slice(),
             [(78, DetectorEvent::Ended(_))]
@@ -1009,7 +1048,7 @@ mod tests {
                 ..Evidence::default()
             };
             assert!(matches!(run(core, t0, 0, 12, &evidence).as_slice(),
-                [(12, DetectorEvent::Started(meeting))] if meeting.app_name == display && meeting.audio_pid == 7));
+                [(12, DetectorEvent::Started(meeting))] if meeting.app_name == display && meeting.audio_pid == 7 && meeting.microphone_detected));
         }
     }
 

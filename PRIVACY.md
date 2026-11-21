@@ -304,8 +304,15 @@ app, a global audio tap, or a new automatic recording. Microphone-only recording
 never acquires system audio through recovery.
 
 The optional microphone mode ends after the matching process releases its microphone
-and the stop delay passes. Automatic starts require a non-private browser window
-and abstain when the browser's window titles indicate a private window.
+and the stop delay passes. Automatic starts require readable browser windows (on macOS, every window)
+and none of their titles to indicate a private window, including localized markers such
+as "Incognito", "InPrivate" and "Инкогнито". Private-window detection relies on titles,
+so a browser that does not mark private windows in its title cannot be told apart. A
+window that becomes private during the call ends the recording; one that only becomes
+unreadable does not. The system-audio track then records the browser's whole process,
+including its other tabs. On Windows it stays on that process through silence, and
+falls back to the whole output, with every other sound playing, only when process
+loopback is unavailable (before Windows 10 build 20348) or fails to start.
 
 Recordings also keep local PCM recovery checkpoints, manifests, and capture-health
 reports beside the original tracks. These follow the meeting's deletion rules

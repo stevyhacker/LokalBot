@@ -135,6 +135,18 @@ On 2026-10-03 Meet's page after a call was not recognized as an end, so that cal
 
 Where: `LokalBotTests/Integration/CaptureReplayTests.swift` (`testCallInAnotherRoomReplacesAnUnverifiedCall`).
 
+### Optional browser microphone calls start only with readable, non-private windows
+
+A browser's microphone identifies a whole process family, not a tab, so "Detect other browser calls" starts only when no window of that browser marks a private window (on the Mac every window must also have a readable Accessibility title; Windows reads only titled top-level windows), in English or a localized form such as "Инкогнито". During a call, a window that becomes private ends it, while a merely unreadable one (picture-in-picture, an untitled popup, a slow Accessibility reply) does not, because untitled windows used to stop legitimate recordings. Capture traces store only this decision (`allowed`, `unreadable`, `privateWindow`), never the titles. On Windows, Yandex Browser ships as a generic `browser.exe`, so it is recognised by its `Yandex\YandexBrowser` install folder rather than by that name.
+
+Where: `LokalBot/Services/Recording/BrowserMeetingSession.swift` (`MicrophoneWindows`, `microphoneWindows`), `LokalBot/Services/Recording/MeetingDetector.swift` (`browserMicrophoneCandidates`, `browserMicrophoneRetained`), `LokalBot/Services/ScreenMemory/ScreenContextPrivacy.swift` (`isPrivateWindow`), `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`Core::microphone_browser_allowed`, `canonical_executable`), `LinuxWindows/crates/lokalbot-platform/src/privacy.rs` (`is_private_window`).
+
+### Additional call apps keep their own executable key
+
+Users pick additional call apps by file, and several can share a display name, so detection, start confirmation and handoff compare the normalized executable (Windows) or bundle identifier (Mac), never the name. The desktop MTS Link client keeps its room evidence even when one of its helpers is on the list.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`Candidate::configured_executable`), `LinuxWindows/crates/lokalbot-core/src/settings.rs` (`AdditionalCallApp::detector_key`), `LokalBot/Models/Settings/AppSettings.swift` (`AdditionalCallApp`).
+
 ### Prime web accessibility with `AXManualAccessibility`, once per browser process
 
 Chromium and Firefox expose page content to accessibility clients only once asked. Chromium honours `AXManualAccessibility`, the switch for assistive tools that are not screen readers (cotyping already uses it); `AXEnhancedUserInterface` puts the whole app into VoiceOver mode, which slows Chrome and breaks window-manager animations, and it used to be set on every 2-second poll, so only Firefox still gets it. Safari exposes its pages.

@@ -269,6 +269,10 @@ pub fn is_private_window(title: &str) -> bool {
         "navigation privee",
         "navegacion privada",
         "privates fenster",
+        "инкогнито",
+        "приватныи просмотр",
+        "приватныи режим",
+        "приватное окно",
     ]
     .iter()
     .any(|marker| normalized.contains(marker))
@@ -284,6 +288,8 @@ fn fold_diacritics(text: &str) -> String {
             'ñ' => 'n',
             'ò' | 'ó' | 'ô' | 'ö' | 'õ' => 'o',
             'ù' | 'ú' | 'û' | 'ü' => 'u',
+            'й' => 'и',
+            'ё' => 'е',
             other => other,
         })
         .collect()
@@ -727,5 +733,12 @@ mod tests {
         assert!(is_private_window("Nouvel onglet – Navigation privée"));
         assert!(is_private_window("InPrivate - Microsoft Edge"));
         assert!(!is_private_window("Docs"));
+        assert!(is_private_window(
+            "Новая вкладка в режиме инкогнито - Google Chrome"
+        ));
+        assert!(is_private_window("Инкогнито — Яндекс Браузер"));
+        assert!(is_private_window("Приватный просмотр — Mozilla Firefox"));
+        assert!(is_private_window("Новое приватное окно"));
+        assert!(!is_private_window("Политика приватности — Документы"));
     }
 }

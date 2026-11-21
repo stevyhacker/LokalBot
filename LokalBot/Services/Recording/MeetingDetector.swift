@@ -142,10 +142,11 @@ final class MeetingDetector {
     private var browserSnapshots: [pid_t: BrowserMeetingSession.Snapshot] = [:]
     private var otherRoomSnapshots: [pid_t: BrowserMeetingSession.Snapshot] = [:]
     private var browserMicrophoneCandidates: [DetectedApp] = []
-    private let microphoneWindowsAllowed: @Sendable ([pid_t]) async -> Set<pid_t>
+    private var browserMicrophoneRetained: [DetectedApp] = []
+    private let microphoneWindowsAllowed: @Sendable ([pid_t]) async -> [pid_t: BrowserMeetingSession.MicrophoneWindows]
 
-    init(microphoneWindowsAllowed: @escaping @Sendable ([pid_t]) async -> Set<pid_t> = {
-        await BrowserMeetingSession.microphoneFallbackAllowed(processIDs: $0)
+    init(microphoneWindowsAllowed: @escaping @Sendable ([pid_t]) async -> [pid_t: BrowserMeetingSession.MicrophoneWindows] = {
+        await BrowserMeetingSession.microphoneFallbackWindows(processIDs: $0)
     }) {
         self.microphoneWindowsAllowed = microphoneWindowsAllowed
     }
@@ -189,6 +190,7 @@ final class MeetingDetector {
         browserPollStartedAt = nil
         browserSnapshots = [:]
         browserMicrophoneCandidates = []
+        browserMicrophoneRetained = []
         otherRoomSnapshots = [:]
         timer?.cancel()
         timer = nil
@@ -307,6 +309,7 @@ final class MeetingDetector {
             browserSnapshots = [:]
             otherRoomSnapshots = [:]
             browserMicrophoneCandidates = []
+            browserMicrophoneRetained = []
             applyTick()
             return
         }
@@ -323,7 +326,7 @@ final class MeetingDetector {
             }
             let microphonePIDs = microphoneApps.filter { observations[$0.pid] == nil }.map(\.pid)
             let micCheckStarted = clock.now()
-            let publicWindows = await checkMicrophoneWindows(microphonePIDs)
+            let microphoneWindows = await checkMicrophoneWindows(microphonePIDs)
             guard let self, !Task.isCancelled, generation == self.browserPollGeneration else { return }
             if self.reportedLongBrowserPoll, let started = self.browserPollStartedAt {
                 lokalbotLog("detector browser observation finished after="
@@ -338,8 +341,12 @@ final class MeetingDetector {
             }
             self.browserSnapshots = otherRoomsStarted.timeIntervalSince(started) < 2 ? observations : [:]
             self.otherRoomSnapshots = clock.now().timeIntervalSince(otherRoomsStarted) < 2 ? otherRooms : [:]
-            self.browserMicrophoneCandidates = clock.now().timeIntervalSince(micCheckStarted) < 2
-                ? microphoneApps.filter { publicWindows.contains($0.pid) } : []
+            let windowsAnswered = clock.now().timeIntervalSince(micCheckStarted) < 2
+            self.browserMicrophoneCandidates = windowsAnswered
+                ? microphoneApps.filter { microphoneWindows[$0.pid]?.allowsStart == true } : []
+            self.browserMicrophoneRetained = microphoneApps.filter {
+                !windowsAnswered || microphoneWindows[$0.pid]?.allowsContinuation ?? true
+            }
             self.applyTick()
         }
     }
@@ -1148,7 +1155,7 @@ final class MeetingDetector {
     private func hasContinuingAudio(for app: DetectedApp, now: Date) -> Bool {
         if app.usesMicrophoneDetection {
             if Self.microphoneBrowsers.contains(app.bundleID) {
-                return browserMicrophoneCandidates.contains(app)
+                return browserMicrophoneRetained.contains(app)
             }
             return Self.microphoneIsActive(for: app)
         }

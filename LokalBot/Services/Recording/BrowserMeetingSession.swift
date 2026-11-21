@@ -34,22 +34,33 @@ enum BrowserMeetingSession {
         }
     }
 
-    static func microphoneFallbackWindowsAllowed(_ titles: [String?]) -> Bool {
-        !titles.isEmpty && titles.allSatisfy { title in
-            guard let title, !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
-            return !ScreenContextPrivacy.isPrivateWindow(title: title)
-        }
+    enum MicrophoneWindows: String, Codable, Equatable, Sendable {
+        case allowed, unreadable, privateWindow
+
+        var allowsStart: Bool { self == .allowed }
+        var allowsContinuation: Bool { self != .privateWindow }
     }
 
-    static func microphoneFallbackAllowed(processIDs: [pid_t]) async -> Set<pid_t> {
-        guard !processIDs.isEmpty else { return [] }
+    static func microphoneWindows(_ titles: [String?]) -> MicrophoneWindows {
+        if titles.contains(where: { $0.map(ScreenContextPrivacy.isPrivateWindow(title:)) ?? false }) {
+            return .privateWindow
+        }
+        let readable = !titles.isEmpty && titles.allSatisfy {
+            !($0 ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return readable ? .allowed : .unreadable
+    }
+
+    static func microphoneFallbackWindows(processIDs: [pid_t]) async -> [pid_t: MicrophoneWindows] {
+        guard !processIDs.isEmpty else { return [:] }
         let accessibility = CaptureEnvironment.current.accessibility
         return await withCheckedContinuation { continuation in
             observationQueue.async {
-                let eligible = processIDs.filter {
-                    accessibility.browserMicrophoneWindowsAllowed(processID: $0)
+                var windows: [pid_t: MicrophoneWindows] = [:]
+                for pid in processIDs {
+                    windows[pid] = accessibility.browserMicrophoneWindows(processID: pid)
                 }
-                continuation.resume(returning: Set(eligible))
+                continuation.resume(returning: windows)
             }
         }
     }

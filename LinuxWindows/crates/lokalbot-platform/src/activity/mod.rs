@@ -18,7 +18,7 @@ pub(crate) use linux::{AppResolver, FrontWindow, FrontWindows, WindowLister};
 #[cfg(windows)]
 pub use win32::friendly_name as executable_display_name;
 #[cfg(windows)]
-pub(crate) use win32::{app_for_pid, foreground_pid};
+pub(crate) use win32::{app_for_pid, foreground_pid, process_image};
 
 pub trait ActivitySource: Send {
     fn sample(&mut self) -> anyhow::Result<Option<ActivitySample>>;

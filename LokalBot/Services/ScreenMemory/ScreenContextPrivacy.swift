@@ -251,6 +251,7 @@ enum ScreenContextPrivacy {
         return [
             "private browsing", "private window", "incognito", "inprivate",
             "navigation privee", "navegacion privada", "privates fenster",
+            "инкогнито", "приватныи просмотр", "приватныи режим", "приватное окно",
         ].contains { normalized.contains($0) }
     }
 

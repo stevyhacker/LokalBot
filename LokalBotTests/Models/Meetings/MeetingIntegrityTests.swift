@@ -113,11 +113,17 @@ final class MeetingIntegrityTests: XCTestCase {
     }
 
     func testOptionalMicrophoneDetectionRequiresPublicBrowserWindows() {
-        XCTAssertTrue(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video"]))
-        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed([]))
-        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", nil]))
-        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", "  "]))
-        XCTAssertFalse(BrowserMeetingSession.microphoneFallbackWindowsAllowed(["Corporate video", "New Tab - Incognito"]))
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video"]), .allowed)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows([]), .unreadable)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video", nil]), .unreadable)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video", "  "]), .unreadable)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video", "New Tab - Incognito"]),
+                       .privateWindow)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows([nil, "Новая вкладка в режиме инкогнито"]),
+                       .privateWindow)
+        XCTAssertFalse(BrowserMeetingSession.MicrophoneWindows.unreadable.allowsStart)
+        XCTAssertTrue(BrowserMeetingSession.MicrophoneWindows.unreadable.allowsContinuation)
+        XCTAssertFalse(BrowserMeetingSession.MicrophoneWindows.privateWindow.allowsContinuation)
     }
 
     func testExpressUsesTheMicrophoneAndCustomAppsUseBundleIdentifiers() throws {

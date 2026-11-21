@@ -167,6 +167,18 @@ The "Them" track records the meeting app's sound when it can be separated, so ot
 
 Where: `LinuxWindows/crates/lokalbot-audio/src/app_audio.rs`, `LinuxWindows/crates/lokalbot-audio/src/app_audio.rs` (`build_has_process_loopback`).
 
+### A call found only by its microphone keeps its app's audio through silence
+
+eXpress, user-chosen call apps and optional browser calls are detected by sustained microphone use, so they can stay active while their app plays nothing. The 10-second no-output fallback would then record every other sound on the computer for the rest of the call, so these targets stay on Windows process loopback, which follows the whole process tree with or without open streams. Only a loopback that is unavailable or fails to open falls back to the whole output.
+
+Where: `LinuxWindows/crates/lokalbot-audio/src/app_audio.rs` (`AppAudioTarget::keep_app_scope`, `ScopeChooser`), `LinuxWindows/crates/lokalbot-engine/src/recording.rs` (`audio_target`), `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`DetectedMeeting::microphone_detected`).
+
+### The process-loopback activation PROPVARIANT never runs its destructor
+
+`ActivateAudioInterfaceAsync` takes a `VT_BLOB` PROPVARIANT whose blob points at `AUDIOCLIENT_ACTIVATION_PARAMS` on the caller's stack, and copies it during the call. In windows-rs, `PROPVARIANT::drop` calls `PropVariantClear`, which frees a `VT_BLOB` with `CoTaskMemFree`; the `ManuallyDrop` inside the union does not stop the outer destructor. Freeing that stack pointer crashed the app with 0xc0000409 on Windows 11 ARM64 (November 2026), so the whole variant is wrapped in `ManuallyDrop` and only borrowed for the call, on success and error alike.
+
+Where: `LinuxWindows/crates/lokalbot-audio/src/process_loopback.rs` (`with_activation_blob`, `activate`).
+
 ### A system-audio failure records the microphone alone
 
 The microphone must open unless system audio does; if system audio fails, the microphone records alone with a warning, as on macOS.

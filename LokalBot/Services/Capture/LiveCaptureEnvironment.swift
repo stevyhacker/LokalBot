@@ -123,20 +123,20 @@ struct LiveAccessibilitySource: AccessibilitySource {
         BrowserMeetingSession.lastReadIssue(processID: processID)
     }
 
-    func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool {
-        guard isTrusted() else { return false }
+    func browserMicrophoneWindows(processID: pid_t) -> BrowserMeetingSession.MicrophoneWindows {
+        guard isTrusted() else { return .unreadable }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
         var value: CFTypeRef?
         guard AXUIElementCopyAttributeValue(app, kAXWindowsAttribute as CFString, &value) == .success,
-              let windows = value as? [AXUIElement], windows.count <= 32 else { return false }
+              let windows = value as? [AXUIElement], windows.count <= 32 else { return .unreadable }
         let titles: [String?] = windows.map { window in
             var title: CFTypeRef?
             guard AXUIElementCopyAttributeValue(window, kAXTitleAttribute as CFString, &title) == .success
             else { return nil }
             return title as? String
         }
-        return BrowserMeetingSession.microphoneFallbackWindowsAllowed(titles)
+        return BrowserMeetingSession.microphoneWindows(titles)
     }
 }
 

@@ -29,7 +29,7 @@ final class RecordingMicrophoneSourceTests: XCTestCase {
             CaptureEnvironment.install(replay.environment)
             MeetingDetector.invalidateAudioProcessSnapshot()
             MeetingDetector.resetCaptureTargetMemory()
-            let detector = MeetingDetector(microphoneWindowsAllowed: { Set($0) })
+            let detector = MeetingDetector(microphoneWindowsAllowed: { Dictionary(uniqueKeysWithValues: $0.map { ($0, .allowed) }) })
             detector.additionalCallBundleIDs = [bundle.lowercased()]
             detector.detectOtherBrowserCalls = true
             let recovery = MeetingAudioRecovery()

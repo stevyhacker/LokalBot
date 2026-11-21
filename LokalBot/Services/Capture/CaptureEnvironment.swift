@@ -39,11 +39,11 @@ protocol AccessibilitySource: Sendable {
     func focusedWindowTitle(processID: pid_t) -> String?
     func browserMeetingSnapshot(processID: pid_t, expectedURL: URL?) -> BrowserMeetingSession.Snapshot?
     func browserReadIssue(processID: pid_t) -> BrowserMeetingSession.ReadIssue?
-    func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool
+    func browserMicrophoneWindows(processID: pid_t) -> BrowserMeetingSession.MicrophoneWindows
 }
 
 extension AccessibilitySource {
-    func browserMicrophoneWindowsAllowed(processID: pid_t) -> Bool { false }
+    func browserMicrophoneWindows(processID: pid_t) -> BrowserMeetingSession.MicrophoneWindows { .unreadable }
 
     func readWindow(processID: pid_t) -> AccessibilityRead {
         read(processID: processID, includeText: false)

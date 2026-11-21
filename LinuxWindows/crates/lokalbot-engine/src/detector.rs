@@ -218,6 +218,7 @@ mod tests {
             audio_pid: 1,
             meeting_url: None,
             title_hint: hint.map(str::to_string),
+            microphone_detected: false,
         }
     }
 
