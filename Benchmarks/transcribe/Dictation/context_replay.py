@@ -125,6 +125,18 @@ def score(cases, runs, variants=None):
     return {'summary': summary, 'controls': controls, 'cases': rows}
 
 
+RESERVED_SERVER_ARGUMENTS = {'-m', '--model', '--host', '--port', '-c', '--ctx-size', '--seed', '-s', '--parallel', '-np',
+                             '--api-key', '--webui', '--no-webui'}
+
+
+def server_command(server, model, port, extra=()):
+    reserved = [a for a in extra if a.split('=', 1)[0] in RESERVED_SERVER_ARGUMENTS]
+    if reserved:
+        raise ValueError(f'The runner owns these server arguments: {reserved}')
+    return [str(server), '-m', str(model), '--host', '127.0.0.1', '--port', str(port),
+            '-c', '32768', '-ngl', '99', '--parallel', '1', '--jinja', '--no-webui', '--seed', '12648430', *extra]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, required=True)
@@ -139,6 +151,8 @@ def main():
                         help='writing-request rule to evaluate (default: the build\'s production rule)')
     parser.add_argument('--cleanup-prompt', choices=['composeDecides', 'transcriptAsData'],
                         help='cleanup prompt for direct speech (default: the build\'s production prompt)')
+    parser.add_argument('--server-arg', action='append', default=[], metavar='ARG',
+                        help='extra llama-server argument, repeatable, e.g. --server-arg=--spec-type --server-arg=ngram-mod')
     args = parser.parse_args()
     variants = VARIANT_SETS[args.variant_set]
     args.output.mkdir(parents=True, exist_ok=False)
@@ -150,8 +164,7 @@ def main():
         probe.bind(('127.0.0.1', 0))
         port = probe.getsockname()[1]
     base = f'http://127.0.0.1:{port}'
-    command = [str(args.server.resolve()), '-m', str(args.model.resolve()), '--host', '127.0.0.1', '--port', str(port),
-               '-c', '32768', '-ngl', '99', '--parallel', '1', '--jinja', '--no-webui', '--seed', '12648430']
+    command = server_command(args.server.resolve(), args.model.resolve(), port, args.server_arg)
     manifest = {'appSHA256': digest(args.app), 'serverSHA256': digest(args.server), 'modelSHA256': digest(args.model),
                 'modelFile': args.model.name, 'corpusSHA256': digest(args.corpus), 'scriptSHA256': digest(__file__),
                 'split': args.split, 'caseIDs': [c['id'] for c in cases], 'serverArguments': command,

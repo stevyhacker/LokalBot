@@ -1,0 +1,16 @@
+{
+  "corpus": "context-speed-v1.json",
+  "sha256": "fccaae5f4b344da2291c7c24ac6f856a4dba2d5704298c1d449d1a0a658310ea",
+  "cases": [
+    "s1-plan-45",
+    "s2-numbers-70",
+    "s3-recap-100",
+    "s4-trip-150",
+    "s5-stutter-120",
+    "s6-feedback-200",
+    "s7-brainstorm-250",
+    "s8-handoff-90"
+  ],
+  "frozenAt": "2026-11-21T21:54:42Z",
+  "note": "Written for the speed measurement and frozen before its first inference. Synthetic only."
+}

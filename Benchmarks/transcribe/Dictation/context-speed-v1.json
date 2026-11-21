@@ -1,0 +1,201 @@
+{
+  "description": "Speed supplement for n-gram speculation: long direct dictation (45 to 250 words) with fillers, a stutter, digits, invented names and negation, so cleanup output is long enough for draft tokens to matter. Synthetic only; frozen before its first inference.",
+  "now": "2026-11-21T12:00:00Z",
+  "memoryItems": [],
+  "cases": [
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s1-plan-45",
+      "kind": "fidelity",
+      "speech": "um so the plan for tomorrow is pretty simple we start at 9 with the design review then uh Petra walks everyone through the new onboarding screens and after lunch we split into two groups to test the checkout flow on 3 devices",
+      "required": [
+        "9",
+        "petra",
+        "3",
+        "checkout"
+      ],
+      "forbidden": [
+        "um",
+        "uh",
+        "nine"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s2-numbers-70",
+      "kind": "fidelity",
+      "speech": "okay so I looked at the numbers from last week and uh the signups went from 412 to 538 which is a lot better than we expected but the churn didn't really change it's still around 6 percent so I don't think we should celebrate yet I think we need to look at why people leave in the first 2 weeks before we spend more on ads",
+      "required": [
+        "412",
+        "538",
+        "6",
+        "2",
+        "churn"
+      ],
+      "forbidden": [
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s3-recap-100",
+      "kind": "fidelity",
+      "speech": "so quick recap of the call with the Halden team um they want the first delivery by March 14 not March 7 like we said before because their legal review takes longer than they thought uh Jonas is going to send the updated contract on Monday and we need to sign it within 5 business days the price stays the same for the first phase but they asked if we can add the reporting module for an extra fee I said we would look at it but I didn't promise anything so let's talk about it on Thursday before we reply to them",
+      "required": [
+        "halden",
+        "14",
+        "7",
+        "jonas",
+        "5",
+        "monday",
+        "thursday"
+      ],
+      "forbidden": [
+        "um",
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s4-trip-150",
+      "kind": "fidelity",
+      "speech": "alright so for the trip next month here's what I have so far we fly out on the 12th at 6:40 in the morning which is early but it was 200 dollars cheaper than the afternoon flight uh the hotel is booked for 4 nights near the old town and it has free cancellation until the 5th so we can still change it if we want um for the first day I don't want to plan too much because we'll be tired so maybe just a walk and dinner somewhere close on the second day there's the boat tour at 10 that Mira recommended and on the third day we could rent bikes and ride out to the lake it's about 15 kilometers each way which should be fine if the weather holds the last day is open we can decide when we get there oh and remember to renew the passport because it expires in June",
+      "required": [
+        "200",
+        "4",
+        "mira",
+        "10",
+        "15",
+        "june"
+      ],
+      "forbidden": [
+        "um",
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s5-stutter-120",
+      "kind": "fidelity",
+      "speech": "we we need to talk about the the release schedule because honestly it's not working right now the last 3 releases all slipped by at least a week and every time it's the same thing uh the testing starts too late and then we find the big bugs on the last day so what I want to try is a code freeze 5 days before each release no new features after that only fixes and Lena has agreed to run the test pass on the Monday of release week instead of the Thursday I know this means some features will wait an extra cycle but I would rather ship on time with less than keep moving the date",
+      "required": [
+        "3",
+        "5",
+        "lena",
+        "monday",
+        "thursday"
+      ],
+      "forbidden": [
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s6-feedback-200",
+      "kind": "fidelity",
+      "speech": "okay here's my feedback on the new app after using it for about a week um overall I like it a lot more than the old one the home screen is cleaner and it loads way faster maybe 2 seconds instead of 5 but there are a few things that bug me first the search doesn't remember what I searched before so I end up typing the same thing over and over second when I add an item to the list it jumps to the top instead of staying where I was which is really annoying when the list is long like 40 or 50 items third the dark mode isn't really dark it's more like a gray and the text is hard to read at night uh and one more thing the notifications come in at random times sometimes 3 or 4 in a row I would love a setting to bundle them into one summary in the morning other than that it's great and I've already told Tomas and Ivana to try it",
+      "required": [
+        "2",
+        "5",
+        "40",
+        "50",
+        "tomas",
+        "ivana"
+      ],
+      "forbidden": [
+        "um",
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s7-brainstorm-250",
+      "kind": "fidelity",
+      "speech": "so I've been thinking about the garden for next year and uh I want to try something different instead of the long rows we did this year I want to build 6 raised beds each about 4 feet by 8 feet with paths in between wide enough for the wheelbarrow um the soil in the back corner never drained well so the beds should fix that and they'll warm up earlier in the spring which means we can start the peas and lettuce maybe 2 weeks sooner for the layout I'm thinking the 2 beds closest to the house get herbs and salad greens because we pick those every day the middle 2 get tomatoes and peppers since they need the most sun and the last 2 get squash and beans which can sprawl I don't want to plant potatoes again they took up too much space and we barely ate them for watering I'd like a simple drip line on a timer so we're not out there every evening with the hose the whole thing will probably cost around 300 dollars for lumber and another 150 for soil and the drip kit I asked Marko at the hardware store and he said the cedar boards go on sale in February so maybe we wait until then to buy them",
+      "required": [
+        "6",
+        "4",
+        "8",
+        "2",
+        "300",
+        "150",
+        "marko",
+        "february"
+      ],
+      "forbidden": [
+        "um",
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "s8-handoff-90",
+      "kind": "fidelity",
+      "speech": "hey so before I leave for the week a few things for whoever picks this up the backup job runs every night at 2 and if it fails you'll get an email from the monitor don't restart the server just rerun the job from the dashboard uh the client portal update is half done the login page is finished but the invoice page still shows the old totals and Aiko knows the details if you get stuck I'll be back on the 21st",
+      "required": [
+        "2",
+        "aiko",
+        "21st"
+      ],
+      "forbidden": [
+        "uh"
+      ]
+    }
+  ]
+}
