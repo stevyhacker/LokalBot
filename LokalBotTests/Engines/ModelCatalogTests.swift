@@ -49,6 +49,7 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertNotNil(ModelCatalog.entry(id: "qwen3.6-27b"))
         XCTAssertNotNil(ModelCatalog.entry(id: "gemma4-12b"))
         XCTAssertNotNil(ModelCatalog.entry(id: "qwen3.5-4b"))
+        XCTAssertNotNil(ModelCatalog.entry(id: "qwen3.5-4b-lokalbot-v2"))
         XCTAssertNotNil(ModelCatalog.entry(id: "lfm2.5-2.6b"))
         XCTAssertNotNil(ModelCatalog.entry(id: "lfm2.5-1.2b-instruct"))
         XCTAssertNotNil(ModelCatalog.entry(id: "granite-4.1-3b"))
@@ -99,6 +100,24 @@ final class ModelCatalogTests: XCTestCase {
             for: "ministral-3-3b-instruct-2512")
         XCTAssertEqual(overrides["temperature"] as? Double, 0.05)
         XCTAssertEqual(overrides.count, 1)
+    }
+
+    func testLokalBotFineTunedQwen35FourBArtifactIsIntegrityPinned() throws {
+        let entry = try XCTUnwrap(ModelCatalog.entry(id: "qwen3.5-4b-lokalbot-v2"))
+        XCTAssertEqual(entry.fileName, "Qwen3.5-4B-LokalBot-v2-Q4_K_M.gguf")
+        XCTAssertEqual(entry.sizeBytes, 2_741_241_920)
+        XCTAssertEqual(entry.sizeGB, 2.74)
+        XCTAssertEqual(
+            entry.sha256,
+            "d3b203035cd5405929ac15a502f713cf5c1c6e861fc3e70e5d412a6e01f197a2")
+        XCTAssertTrue(
+            entry.url.contains("/resolve/7901add386cd344a3ef85ee2b755eaac4521dde7/"))
+        XCTAssertTrue(ModelCatalog.mainLLMEntries(custom: []).contains(entry))
+        XCTAssertTrue(
+            MainLLMRuntimePolicy.requestOverrides(for: entry.id).isEmpty)
+        XCTAssertEqual(
+            ReasoningSupport.known(provider: .builtIn, model: entry.id).levels,
+            [.off, .low, .medium, .high])
     }
 
     func testFreshSettingsDefaultToQwen35FourBOnEveryMac() {
@@ -241,6 +260,8 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertFalse(ids.contains("granite-4.1-3b"), "Main LLM experiments are not for cotyping")
         XCTAssertFalse(ids.contains("ministral-3-3b-instruct-2512"),
                        "Main LLM experiments are not for cotyping")
+        XCTAssertFalse(ids.contains("qwen3.5-4b-lokalbot-v2"),
+                       "Think fine-tunes are not for cotyping")
         XCTAssertTrue(ids.contains(ModelCatalog.recommendedCotypingID))
         XCTAssertTrue(ids.contains("qwen3.5-2b"))
         XCTAssertTrue(ids.contains("lfm2.5-1.2b-instruct"))
