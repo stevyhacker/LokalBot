@@ -26,6 +26,8 @@ final class DictationWordLockTests: XCTestCase {
         XCTAssertEqual(broken("i'm not ready to sign yet", "I'm ready to sign."), [.negation])
         XCTAssertEqual(broken("don't send the draft", "Send the draft."), [.negation])
         XCTAssertEqual(broken("we never ship on fridays", "We ship on Fridays."), [.negation])
+        XCTAssertEqual(broken("i can't make the call", "I cannot make the call."), [], "same negation, other spelling")
+        XCTAssertEqual(broken("don't merge it", "Do not merge it."), [])
     }
 
     func testNamesMustSurviveUnlessRespelledFromTheGlossary() {

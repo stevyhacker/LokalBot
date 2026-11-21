@@ -1,0 +1,13 @@
+{
+  "frozenAt": "2026-11-21T19:18:31Z",
+  "note": "Hashes recorded before the first inference with the word lock. The new corpus was authored for the lock; the older corpora are unchanged.",
+  "corpora": {
+    "context-wordlock-v1.json": "73742d72b68ed5464448bd666a381e2a06cc169d6e93e260c0a686c3dae401b4",
+    "context-cleanup-v4.json": "bdced6d436ff6ceeb58121a7a55a85e85707888d0e4fa4638a0819e339b07c39",
+    "context-cleanup-v3.json": "3e0936c0fd4f78192ee9a5046af32845db2dc319a477a1b66438628d3988acf2",
+    "context-routing-v2.json": "57b002a18a2ec548bc0d78efd0a36a854f66c29ae83c2a96497e75f338431367",
+    "context-routing-heldout.json": "0f59157ccb849487151c85288be1688a8742ec078e44b3232001347eaa95b6d6",
+    "context-cases.json": "7063219ea6bd61a439b07ed8042142844e259f7fb81298b53872f1bcfdfff17c"
+  },
+  "context_replay.py": "3a1093daa6d4c3f10457adfaece09b1b7f624145192a0f4ce6f1ca8872e58af3"
+}

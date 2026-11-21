@@ -45,8 +45,9 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
     }
 
     static func negations(_ text: String) -> Set<String> {
-        Set(words(text.lowercased().replacingOccurrences(of: "’", with: "'")).filter { word in
-            negationWords.contains(word) || word.hasSuffix("n't")
+        Set(words(text.lowercased().replacingOccurrences(of: "’", with: "'")).compactMap { word in
+            if word.hasSuffix("n't") || word == "cannot" { return "not" }
+            return negationWords.contains(word) ? word : nil
         })
     }
 
