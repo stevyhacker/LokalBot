@@ -23,7 +23,7 @@ use super::super::{AcceptKeys, InterceptedKey};
 pub(super) const SOCKET_NAME: &str = "kwin-input-method.sock";
 /// Changes whenever a message changes meaning. An app and a helper from
 /// different releases (one updated while the other kept running) do not talk.
-pub(super) const VERSION: u32 = 1;
+pub(super) const VERSION: u32 = 2;
 /// No message comes close: the longest carries the 4,000 bytes or so of text
 /// an app reports around the caret, escaped.
 const MAX_LINE: usize = 64 * 1024;
@@ -117,17 +117,25 @@ pub(super) enum Request {
     Grab {
         on: bool,
     },
-    /// Shows `text` as the suggestion, or nothing when empty.
-    Preedit {
+    /// Shows `text` in the overlay pill, or hides it when empty.
+    Ghost {
         text: String,
+        emphasis_chars: usize,
+        dark: bool,
     },
+    /// Sends an empty preedit commit so a quiet field (such as Chromium's)
+    /// reports the text around its caret, without putting a suggestion into
+    /// the field's composition.
+    Nudge,
     /// One accept: removes bytes around the caret, types `text`, then shows
-    /// `preedit`.
+    /// `next` in the overlay pill.
     Commit {
         delete_before: u32,
         delete_after: u32,
         text: String,
-        preedit: String,
+        next: String,
+        next_emphasis_chars: usize,
+        dark: bool,
     },
     /// Types a taken key after all, because it accepted nothing.
     PassThrough {
@@ -306,7 +314,9 @@ mod tests {
             delete_before: 3,
             delete_after: 0,
             text: " up".into(),
-            preedit: " on it".into(),
+            next: " on it".into(),
+            next_emphasis_chars: 3,
+            dark: true,
         });
         let line = String::from_utf8(outbox.buf.clone()).unwrap();
         // Key order is serde's business; what matters is the tag and the trip.
@@ -321,7 +331,9 @@ mod tests {
                 delete_before: 3,
                 delete_after: 0,
                 text: " up".into(),
-                preedit: " on it".into(),
+                next: " on it".into(),
+                next_emphasis_chars: 3,
+                dark: true,
             }
         );
     }

@@ -4762,6 +4762,7 @@ dependencies = [
  "async-io",
  "calcard",
  "chrono",
+ "cosmic-text",
  "crossbeam-channel",
  "enigo",
  "env_logger",
