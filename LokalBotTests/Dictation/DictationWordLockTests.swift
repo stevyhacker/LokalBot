@@ -62,9 +62,32 @@ final class DictationWordLockTests: XCTestCase {
         XCTAssertEqual(broken("let's meet at 3, no, 4", "Let's meet at 4 or 5."), [.digits], "inventing a digit still breaks it")
     }
 
+    func testSpelledOutNumbersAreTurnedBackIntoTheSpokenDigits() {
+        let lock = DictationWordLock.production
+        XCTAssertEqual(lock.kept(spoken: "uh the last 3 releases slipped", cleaned: "The last three releases slipped.").text,
+                       "The last 3 releases slipped.", "cleanup is kept and the digit comes back")
+        XCTAssertEqual(lock.kept(spoken: "we need 2 or 3 people for about 25 minutes",
+                                 cleaned: "We need two or three people for about twenty-five minutes.").text,
+                       "We need 2 or 3 people for about 25 minutes.")
+        XCTAssertEqual(lock.kept(spoken: "one of us will call at 3", cleaned: "One of us will call at three.").text,
+                       "One of us will call at 3.", "a pronoun \"one\" is left alone")
+        let serbian = lock.kept(spoken: "Javi mi sutra da li dolaziš na 3 sastanka.", cleaned: "Javi mi sutra da li dolaziš na tri sastanka.")
+        XCTAssertEqual(serbian.text, "Javi mi sutra da li dolaziš na 3 sastanka.")
+        XCTAssertEqual(serbian.broken, [.digits], "only English number words are turned back")
+        XCTAssertEqual(lock.kept(spoken: "we meet at 3", cleaned: "We meet at three or 4.").broken, [.digits],
+                       "an invented digit still keeps the transcript")
+        XCTAssertNil(DictationWordLock.restoringDigits(spoken: "no digits here", cleaned: "No digits here."))
+        XCTAssertEqual(lock.kept(spoken: "honestly the last 3 releases slipped and I would rather wait",
+                                 cleaned: "Honestly, the last three releases slipped, and I would rather wait.").text,
+                       "Honestly, the last 3 releases slipped, and I would rather wait.",
+                       "an everyday \"rather\" or \"wait\" doesn't let a spelled-out digit through")
+        XCTAssertEqual(lock.kept(spoken: "let's meet at 3, no, 4", cleaned: "Let's meet at 4.").text, "Let's meet at 4.",
+                       "a real self-correction is left as cleaned")
+    }
+
     func testTheLockKeepsTheTranscriptOnlyWhenOn() {
         let spoken = "Can you send me the 4 slides?"
-        let cleaned = "Can you send me the four slides?"
+        let cleaned = "Can you send me the 4 or 5 slides?"
         XCTAssertEqual(DictationWordLock.production, .digitsNamesNegation)
         XCTAssertEqual(DictationWordLock.production.kept(spoken: spoken, cleaned: cleaned).text, spoken)
         XCTAssertEqual(DictationWordLock.production.kept(spoken: spoken, cleaned: cleaned).broken, [.digits])
@@ -77,9 +100,15 @@ final class DictationWordLockTests: XCTestCase {
         var settings = AppSettings()
         settings.dictationIntent = .compose
         let engine = WordLockTestEngine(reply: "Can you send me the four slides before noon?")
-        let locked = try await DictationTextPreparation.prepare(
+        let restored = try await DictationTextPreparation.prepare(
             speech: "can you send me the 4 slides before noon", settings: settings,
             screenContext: { nil }, makeEngine: { _ in engine })
+        XCTAssertEqual(restored.text, "Can you send me the 4 slides before noon?")
+
+        let inventing = WordLockTestEngine(reply: "Can you send me the 4 or 5 slides before noon?")
+        let locked = try await DictationTextPreparation.prepare(
+            speech: "can you send me the 4 slides before noon", settings: settings,
+            screenContext: { nil }, makeEngine: { _ in inventing })
         XCTAssertEqual(locked.text, "can you send me the 4 slides before noon")
 
         let unlocked = try await DictationTextPreparation.prepare(

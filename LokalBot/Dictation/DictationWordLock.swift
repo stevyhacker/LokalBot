@@ -13,7 +13,54 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
     func kept(spoken: String, cleaned: String, glossary: String? = nil) -> (text: String, broken: [Reason]) {
         guard self == .digitsNamesNegation else { return (cleaned, []) }
         let broken = Self.broken(spoken: spoken, cleaned: cleaned, glossary: glossary)
-        return (broken.isEmpty ? cleaned : spoken, broken)
+        if broken.isEmpty || broken == [.digits], Self.digitSequence(spoken) != Self.digitSequence(cleaned),
+           let restored = Self.restoringDigits(spoken: spoken, cleaned: cleaned),
+           Self.broken(spoken: spoken, cleaned: restored, glossary: glossary).isEmpty {
+            return (restored, [])
+        }
+        return broken.isEmpty ? (cleaned, []) : (spoken, broken)
+    }
+
+    static let numberWordValues: [String: Int] = [
+        "zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+        "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+        "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+        "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
+    ]
+
+    static func restoringDigits(spoken: String, cleaned: String) -> String? {
+        var remaining = Substring(digitSequence(spoken))
+        let tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety"
+        let units = "one|two|three|four|five|six|seven|eight|nine"
+        guard !remaining.isEmpty, let expression = try? NSRegularExpression(
+            pattern: "[0-9]+|\\b(?:\(tens))[- ](?:\(units))\\b|\\p{L}+", options: [.caseInsensitive]) else { return nil }
+        var result = ""
+        var last = cleaned.startIndex
+        var changed = false
+        for match in expression.matches(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)) {
+            guard let range = Range(match.range, in: cleaned) else { continue }
+            let token = String(cleaned[range])
+            if token.first?.isNumber == true {
+                guard remaining.hasPrefix(token) else { return nil }
+                remaining = remaining.dropFirst(token.count)
+                continue
+            }
+            guard let value = numberValue(token), remaining.hasPrefix(String(value)) else { continue }
+            result += cleaned[last..<range.lowerBound] + String(value)
+            last = range.upperBound
+            remaining = remaining.dropFirst(String(value).count)
+            changed = true
+        }
+        guard changed, remaining.isEmpty else { return nil }
+        return result + cleaned[last...]
+    }
+
+    private static func numberValue(_ token: String) -> Int? {
+        let parts = token.lowercased().split(whereSeparator: { $0 == " " || $0 == "-" }).map(String.init)
+        guard let first = parts.first, let value = numberWordValues[first] else { return nil }
+        guard parts.count == 2 else { return value }
+        guard value >= 20, value % 10 == 0, let unit = numberWordValues[parts[1]], (1...9).contains(unit) else { return nil }
+        return value + unit
     }
 
     static func broken(spoken: String, cleaned: String, glossary: String? = nil) -> [Reason] {

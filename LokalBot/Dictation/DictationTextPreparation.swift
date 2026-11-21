@@ -83,6 +83,8 @@ enum DictationTextPreparation {
             : (text: text, broken: [])
         if !locked.broken.isEmpty {
             lokalbotLog("dictation word lock kept the transcript reasons=\(locked.broken.map(\.rawValue).joined(separator: ","))")
+        } else if locked.text != text {
+            lokalbotLog("dictation word lock restored spoken digits")
         }
         let contextUse = DictationContextUse(
             wasWritingRequest: usesContext,
