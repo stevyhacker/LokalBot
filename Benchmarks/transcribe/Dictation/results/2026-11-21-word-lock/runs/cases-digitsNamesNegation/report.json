@@ -8,7 +8,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 275.73477049999997,
+      "medianMs": 282.65975000000003,
       "byKind": {
         "control": {
           "correct": 4,
@@ -36,7 +36,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 248.86179149999998,
+      "medianMs": 256.863271,
       "byKind": {
         "control": {
           "correct": 4,
@@ -64,7 +64,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 257.55275,
+      "medianMs": 261.1147085,
       "byKind": {
         "control": {
           "correct": 4,
@@ -92,7 +92,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 268.938896,
+      "medianMs": 275.2212705,
       "byKind": {
         "control": {
           "correct": 4,
@@ -120,7 +120,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 290.9263745,
+      "medianMs": 296.644271,
       "byKind": {
         "control": {
           "correct": 4,
@@ -195,7 +195,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 567.694542
+      "latencyMs": 570.958625
     },
     {
       "id": "held-place",
@@ -212,7 +212,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 251.195333
+      "latencyMs": 253.649417
     },
     {
       "id": "held-person",
@@ -229,7 +229,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.906125
+      "latencyMs": 300.585584
     },
     {
       "id": "held-serbian",
@@ -246,7 +246,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 307.427542
+      "latencyMs": 316.838375
     },
     {
       "id": "held-memory-owner",
@@ -263,7 +263,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 243.877125
+      "latencyMs": 250.078541
     },
     {
       "id": "held-memory-format",
@@ -280,7 +280,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 370.232334
+      "latencyMs": 378.570125
     },
     {
       "id": "held-linked-reviewer",
@@ -297,7 +297,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 322.910791
+      "latencyMs": 332.439791
     },
     {
       "id": "held-linked-place",
@@ -314,7 +314,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 290.550416
+      "latencyMs": 297.296792
     },
     {
       "id": "held-conflict-owner",
@@ -331,7 +331,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 274.81025
+      "latencyMs": 281.947875
     },
     {
       "id": "held-conflict-date",
@@ -348,7 +348,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 325.67
+      "latencyMs": 331.18875
     },
     {
       "id": "held-screen-memory",
@@ -365,7 +365,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 276.659291
+      "latencyMs": 283.371625
     },
     {
       "id": "held-mixed-memory",
@@ -382,7 +382,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 261.601875
+      "latencyMs": 266.158916
     },
     {
       "id": "held-explicit-owner",
@@ -399,7 +399,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 229.529291
+      "latencyMs": 234.142834
     },
     {
       "id": "held-direct-negation",
@@ -416,7 +416,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 547.459958
+      "latencyMs": 555.825333
     },
     {
       "id": "held-direct-uncertainty",
@@ -433,7 +433,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 357.920291
+      "latencyMs": 366.607792
     },
     {
       "id": "held-direct-name",
@@ -450,7 +450,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 243.879833
+      "latencyMs": 255.2815
     },
     {
       "id": "held-hidden",
@@ -467,7 +467,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.890083
+      "latencyMs": 189.197917
     },
     {
       "id": "held-domain",
@@ -484,7 +484,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.850833
+      "latencyMs": 189.807666
     },
     {
       "id": "held-credential",
@@ -501,7 +501,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 188.774958
+      "latencyMs": 189.514209
     },
     {
       "id": "held-injection",
@@ -518,7 +518,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 125.173042
+      "latencyMs": 127.473041
     },
     {
       "id": "held-transcribe-command",
@@ -535,7 +535,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001791
+      "latencyMs": 0.002167
     },
     {
       "id": "held-transcribe-facts",
@@ -552,7 +552,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.000625
+      "latencyMs": 0.000875
     },
     {
       "id": "held-day",
@@ -569,7 +569,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 212.684791
+      "latencyMs": 211.596333
     },
     {
       "id": "held-place",
@@ -586,7 +586,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 325.848042
+      "latencyMs": 332.1935
     },
     {
       "id": "held-person",
@@ -603,7 +603,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 355.092666
+      "latencyMs": 364.840792
     },
     {
       "id": "held-serbian",
@@ -620,7 +620,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 447.130875
+      "latencyMs": 455.892375
     },
     {
       "id": "held-memory-owner",
@@ -637,7 +637,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 244.838875
+      "latencyMs": 252.287334
     },
     {
       "id": "held-memory-format",
@@ -654,7 +654,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 370.178667
+      "latencyMs": 378.978042
     },
     {
       "id": "held-linked-reviewer",
@@ -671,7 +671,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 354.713208
+      "latencyMs": 368.448916
     },
     {
       "id": "held-linked-place",
@@ -688,7 +688,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 198.253709
+      "latencyMs": 200.519208
     },
     {
       "id": "held-conflict-owner",
@@ -705,7 +705,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 214.499584
+      "latencyMs": 217.425875
     },
     {
       "id": "held-conflict-date",
@@ -722,7 +722,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 181.5985
+      "latencyMs": 183.098333
     },
     {
       "id": "held-screen-memory",
@@ -739,7 +739,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 275.443
+      "latencyMs": 282.965666
     },
     {
       "id": "held-mixed-memory",
@@ -756,7 +756,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.591958
+      "latencyMs": 266.349625
     },
     {
       "id": "held-explicit-owner",
@@ -773,7 +773,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 276.245083
+      "latencyMs": 281.736583
     },
     {
       "id": "held-direct-negation",
@@ -790,7 +790,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.884708
+      "latencyMs": 258.268292
     },
     {
       "id": "held-direct-uncertainty",
@@ -807,7 +807,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 354.530708
+      "latencyMs": 366.097083
     },
     {
       "id": "held-direct-name",
@@ -824,7 +824,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 243.958
+      "latencyMs": 255.45825
     },
     {
       "id": "held-hidden",
@@ -841,7 +841,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.038166
+      "latencyMs": 189.00225
     },
     {
       "id": "held-domain",
@@ -858,7 +858,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 181.751333
+      "latencyMs": 189.467125
     },
     {
       "id": "held-credential",
@@ -875,7 +875,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 185.243209
+      "latencyMs": 189.366917
     },
     {
       "id": "held-injection",
@@ -892,7 +892,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 123.278209
+      "latencyMs": 128.080917
     },
     {
       "id": "held-transcribe-command",
@@ -909,7 +909,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.002083
+      "latencyMs": 0.00175
     },
     {
       "id": "held-transcribe-facts",
@@ -943,7 +943,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 160.613667
+      "latencyMs": 161.644833
     },
     {
       "id": "held-place",
@@ -960,7 +960,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 253.30475
+      "latencyMs": 252.830042
     },
     {
       "id": "held-person",
@@ -977,7 +977,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.461333
+      "latencyMs": 299.117708
     },
     {
       "id": "held-serbian",
@@ -994,7 +994,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 308.913834
+      "latencyMs": 315.473459
     },
     {
       "id": "held-memory-owner",
@@ -1011,7 +1011,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.920625
+      "latencyMs": 295.293125
     },
     {
       "id": "held-memory-format",
@@ -1028,7 +1028,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 290.699792
+      "latencyMs": 296.001084
     },
     {
       "id": "held-linked-reviewer",
@@ -1045,7 +1045,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 322.922541
+      "latencyMs": 332.715209
     },
     {
       "id": "held-linked-place",
@@ -1062,7 +1062,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.098541
+      "latencyMs": 300.999125
     },
     {
       "id": "held-conflict-owner",
@@ -1081,7 +1081,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 181.761834
+      "latencyMs": 182.82725
     },
     {
       "id": "held-conflict-date",
@@ -1100,7 +1100,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 181.247875
+      "latencyMs": 181.926875
     },
     {
       "id": "held-screen-memory",
@@ -1117,7 +1117,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 280.25775
+      "latencyMs": 282.507833
     },
     {
       "id": "held-mixed-memory",
@@ -1134,7 +1134,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 261.80075
+      "latencyMs": 266.822
     },
     {
       "id": "held-explicit-owner",
@@ -1151,7 +1151,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 276.421875
+      "latencyMs": 280.773041
     },
     {
       "id": "held-direct-negation",
@@ -1168,7 +1168,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 246.824917
+      "latencyMs": 254.57525
     },
     {
       "id": "held-direct-uncertainty",
@@ -1185,7 +1185,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 354.95475
+      "latencyMs": 365.947458
     },
     {
       "id": "held-direct-name",
@@ -1202,7 +1202,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 252.788333
+      "latencyMs": 255.407417
     },
     {
       "id": "held-hidden",
@@ -1219,7 +1219,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 183.47575
+      "latencyMs": 189.707917
     },
     {
       "id": "held-domain",
@@ -1236,7 +1236,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 184.195458
+      "latencyMs": 189.449625
     },
     {
       "id": "held-credential",
@@ -1253,7 +1253,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 184.574875
+      "latencyMs": 189.9115
     },
     {
       "id": "held-injection",
@@ -1270,7 +1270,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 123.084042
+      "latencyMs": 127.535375
     },
     {
       "id": "held-transcribe-command",
@@ -1287,7 +1287,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001792
+      "latencyMs": 0.001666
     },
     {
       "id": "held-transcribe-facts",
@@ -1304,7 +1304,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.000584
+      "latencyMs": 0.000917
     },
     {
       "id": "held-day",
@@ -1321,7 +1321,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 207.858125
+      "latencyMs": 207.526041
     },
     {
       "id": "held-place",
@@ -1338,7 +1338,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 325.683958
+      "latencyMs": 333.697916
     },
     {
       "id": "held-person",
@@ -1355,7 +1355,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 360.326584
+      "latencyMs": 361.952958
     },
     {
       "id": "held-serbian",
@@ -1372,7 +1372,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 447.571917
+      "latencyMs": 460.301167
     },
     {
       "id": "held-memory-owner",
@@ -1389,7 +1389,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 298.005291
+      "latencyMs": 298.163875
     },
     {
       "id": "held-memory-format",
@@ -1406,7 +1406,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 293.701875
+      "latencyMs": 297.299667
     },
     {
       "id": "held-linked-reviewer",
@@ -1423,7 +1423,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 326.81325
+      "latencyMs": 334.044292
     },
     {
       "id": "held-linked-place",
@@ -1440,7 +1440,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 247.073666
+      "latencyMs": 251.296708
     },
     {
       "id": "held-conflict-owner",
@@ -1457,7 +1457,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 247.982333
+      "latencyMs": 252.630334
     },
     {
       "id": "held-conflict-date",
@@ -1476,7 +1476,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 358.222167
+      "latencyMs": 364.700958
     },
     {
       "id": "held-screen-memory",
@@ -1493,7 +1493,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 277.309
+      "latencyMs": 283.374666
     },
     {
       "id": "held-mixed-memory",
@@ -1510,7 +1510,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 260.568792
+      "latencyMs": 267.067875
     },
     {
       "id": "held-explicit-owner",
@@ -1527,7 +1527,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 311.547125
+      "latencyMs": 316.731209
     },
     {
       "id": "held-direct-negation",
@@ -1544,7 +1544,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 251.511917
+      "latencyMs": 257.087959
     },
     {
       "id": "held-direct-uncertainty",
@@ -1561,7 +1561,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 355.5605
+      "latencyMs": 365.910125
     },
     {
       "id": "held-direct-name",
@@ -1578,7 +1578,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 245.604958
+      "latencyMs": 253.8455
     },
     {
       "id": "held-hidden",
@@ -1595,7 +1595,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.521417
+      "latencyMs": 188.467959
     },
     {
       "id": "held-domain",
@@ -1612,7 +1612,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.077541
+      "latencyMs": 188.720041
     },
     {
       "id": "held-credential",
@@ -1629,7 +1629,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.06575
+      "latencyMs": 190.000666
     },
     {
       "id": "held-injection",
@@ -1646,7 +1646,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 122.801334
+      "latencyMs": 128.058333
     },
     {
       "id": "held-transcribe-command",
@@ -1663,7 +1663,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001833
+      "latencyMs": 0.00175
     },
     {
       "id": "held-transcribe-facts",
@@ -1680,7 +1680,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.000958
+      "latencyMs": 0.000833
     },
     {
       "id": "held-day",
@@ -1697,7 +1697,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 205.493334
+      "latencyMs": 212.151125
     },
     {
       "id": "held-place",
@@ -1714,7 +1714,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 325.392417
+      "latencyMs": 332.185292
     },
     {
       "id": "held-person",
@@ -1731,7 +1731,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 355.584125
+      "latencyMs": 363.047625
     },
     {
       "id": "held-serbian",
@@ -1748,7 +1748,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 448.067625
+      "latencyMs": 459.802833
     },
     {
       "id": "held-memory-owner",
@@ -1765,7 +1765,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 290.870541
+      "latencyMs": 299.143916
     },
     {
       "id": "held-memory-format",
@@ -1782,7 +1782,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.21075
+      "latencyMs": 296.493792
     },
     {
       "id": "held-linked-reviewer",
@@ -1799,7 +1799,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 326.409
+      "latencyMs": 334.36825
     },
     {
       "id": "held-linked-place",
@@ -1816,7 +1816,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 247.391833
+      "latencyMs": 250.814208
     },
     {
       "id": "held-conflict-owner",
@@ -1833,7 +1833,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 248.708042
+      "latencyMs": 252.498958
     },
     {
       "id": "held-conflict-date",
@@ -1852,7 +1852,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 357.074417
+      "latencyMs": 365.06875
     },
     {
       "id": "held-screen-memory",
@@ -1869,7 +1869,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 308.343875
+      "latencyMs": 314.937166
     },
     {
       "id": "held-mixed-memory",
@@ -1886,7 +1886,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 290.982208
+      "latencyMs": 296.79475
     },
     {
       "id": "held-explicit-owner",
@@ -1903,7 +1903,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 310.511792
+      "latencyMs": 316.306291
     },
     {
       "id": "held-direct-negation",
@@ -1920,7 +1920,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 246.510792
+      "latencyMs": 251.554
     },
     {
       "id": "held-direct-uncertainty",
@@ -1937,7 +1937,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 353.964458
+      "latencyMs": 367.366209
     },
     {
       "id": "held-direct-name",
@@ -1954,7 +1954,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 245.486084
+      "latencyMs": 254.0185
     },
     {
       "id": "held-hidden",
@@ -1971,7 +1971,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.202583
+      "latencyMs": 189.458542
     },
     {
       "id": "held-domain",
@@ -1988,7 +1988,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 182.283792
+      "latencyMs": 189.869333
     },
     {
       "id": "held-credential",
@@ -2005,7 +2005,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 183.054916
+      "latencyMs": 188.965042
     },
     {
       "id": "held-injection",
@@ -2022,7 +2022,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 122.8575
+      "latencyMs": 128.381333
     },
     {
       "id": "held-transcribe-command",
@@ -2039,7 +2039,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.002
+      "latencyMs": 0.001834
     },
     {
       "id": "held-transcribe-facts",
@@ -2056,7 +2056,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.000709
+      "latencyMs": 0.000833
     }
   ],
   "manifest": {
@@ -2098,7 +2098,7 @@
       "--host",
       "127.0.0.1",
       "--port",
-      "54116",
+      "55275",
       "-c",
       "32768",
       "-ngl",

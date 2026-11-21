@@ -8,7 +8,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 262.485083,
+      "medianMs": 273.777875,
       "byKind": {
         "control": {
           "correct": 3,
@@ -36,7 +36,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 275.260542,
+      "medianMs": 282.046167,
       "byKind": {
         "control": {
           "correct": 3,
@@ -64,7 +64,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 261.914458,
+      "medianMs": 271.226416,
       "byKind": {
         "control": {
           "correct": 3,
@@ -92,7 +92,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 275.816958,
+      "medianMs": 281.9525,
       "byKind": {
         "control": {
           "correct": 3,
@@ -120,7 +120,7 @@
       "modelCallFailures": 0,
       "screenReadFailures": 0,
       "routingFailures": 0,
-      "medianMs": 274.904083,
+      "medianMs": 282.40525,
       "byKind": {
         "control": {
           "correct": 3,
@@ -199,7 +199,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 964.374542
+      "latencyMs": 980.691625
     },
     {
       "id": "fresh-polite-place",
@@ -216,7 +216,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 216.847792
+      "latencyMs": 225.606625
     },
     {
       "id": "fresh-serbian-place",
@@ -233,7 +233,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 370.304875
+      "latencyMs": 381.648916
     },
     {
       "id": "fresh-french-place",
@@ -250,7 +250,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 260.872291
+      "latencyMs": 271.755708
     },
     {
       "id": "fresh-named-memory",
@@ -267,7 +267,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.314333
+      "latencyMs": 267.858834
     },
     {
       "id": "fresh-linked-memory",
@@ -284,7 +284,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 165.75825
+      "latencyMs": 169.051875
     },
     {
       "id": "fresh-screen-memory",
@@ -301,7 +301,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 279.371541
+      "latencyMs": 282.518916
     },
     {
       "id": "fresh-mixed-memory",
@@ -318,7 +318,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 140.181875
+      "latencyMs": 136.405041
     },
     {
       "id": "fresh-direct-negation",
@@ -335,7 +335,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 551.406208
+      "latencyMs": 556.775417
     },
     {
       "id": "fresh-direct-names",
@@ -352,7 +352,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 298.760916
+      "latencyMs": 299.971208
     },
     {
       "id": "fresh-direct-uncertainty",
@@ -369,7 +369,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 338.663375
+      "latencyMs": 351.142334
     },
     {
       "id": "fresh-direct-question",
@@ -386,7 +386,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 262.485083
+      "latencyMs": 273.777875
     },
     {
       "id": "fresh-direct-serbian",
@@ -403,7 +403,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 311.138625
+      "latencyMs": 317.897083
     },
     {
       "id": "fresh-direct-thanks",
@@ -420,7 +420,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 329.108042
+      "latencyMs": 334.2375
     },
     {
       "id": "fresh-explicit-override",
@@ -437,7 +437,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 267.72275
+      "latencyMs": 276.320625
     },
     {
       "id": "fresh-instruction-in-screen",
@@ -454,7 +454,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 134.12025
+      "latencyMs": 135.939084
     },
     {
       "id": "fresh-hidden",
@@ -471,7 +471,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 44.366792
+      "latencyMs": 45.34825
     },
     {
       "id": "fresh-unknown-origin",
@@ -488,7 +488,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 44.717375
+      "latencyMs": 45.29875
     },
     {
       "id": "fresh-credentials",
@@ -505,7 +505,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 44.810083
+      "latencyMs": 45.015458
     },
     {
       "id": "fresh-transcribe",
@@ -522,7 +522,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001666
+      "latencyMs": 0.001125
     },
     {
       "id": "fresh-polite-time",
@@ -539,7 +539,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.065125
+      "latencyMs": 260.531792
     },
     {
       "id": "fresh-polite-place",
@@ -556,7 +556,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 325.518125
+      "latencyMs": 332.63525
     },
     {
       "id": "fresh-serbian-place",
@@ -573,7 +573,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 588.48
+      "latencyMs": 604.633417
     },
     {
       "id": "fresh-french-place",
@@ -590,7 +590,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 417.911083
+      "latencyMs": 430.822708
     },
     {
       "id": "fresh-named-memory",
@@ -607,7 +607,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.28775
+      "latencyMs": 269.761875
     },
     {
       "id": "fresh-linked-memory",
@@ -624,7 +624,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 311.54675
+      "latencyMs": 316.05375
     },
     {
       "id": "fresh-screen-memory",
@@ -641,7 +641,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 275.260542
+      "latencyMs": 282.046167
     },
     {
       "id": "fresh-mixed-memory",
@@ -658,7 +658,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 134.99225
+      "latencyMs": 136.486625
     },
     {
       "id": "fresh-direct-negation",
@@ -675,7 +675,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 247.482166
+      "latencyMs": 253.716083
     },
     {
       "id": "fresh-direct-names",
@@ -692,7 +692,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.894459
+      "latencyMs": 299.313416
     },
     {
       "id": "fresh-direct-uncertainty",
@@ -709,7 +709,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 346.172209
+      "latencyMs": 349.881666
     },
     {
       "id": "fresh-direct-question",
@@ -726,7 +726,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 262.5375
+      "latencyMs": 273.674042
     },
     {
       "id": "fresh-direct-serbian",
@@ -743,7 +743,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 312.548667
+      "latencyMs": 321.308375
     },
     {
       "id": "fresh-direct-thanks",
@@ -760,7 +760,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 322.675041
+      "latencyMs": 337.251792
     },
     {
       "id": "fresh-explicit-override",
@@ -777,7 +777,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 310.860792
+      "latencyMs": 317.3385
     },
     {
       "id": "fresh-instruction-in-screen",
@@ -794,7 +794,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 181.846667
+      "latencyMs": 184.044459
     },
     {
       "id": "fresh-hidden",
@@ -811,7 +811,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 134.412166
+      "latencyMs": 135.592541
     },
     {
       "id": "fresh-unknown-origin",
@@ -828,7 +828,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.196666
+      "latencyMs": 45.469542
     },
     {
       "id": "fresh-credentials",
@@ -845,7 +845,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.183042
+      "latencyMs": 45.3665
     },
     {
       "id": "fresh-transcribe",
@@ -862,7 +862,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001667
+      "latencyMs": 0.001333
     },
     {
       "id": "fresh-polite-time",
@@ -879,7 +879,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 547.823208
+      "latencyMs": 571.319708
     },
     {
       "id": "fresh-polite-place",
@@ -896,7 +896,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 218.456416
+      "latencyMs": 224.280667
     },
     {
       "id": "fresh-serbian-place",
@@ -913,7 +913,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 371.066708
+      "latencyMs": 382.419291
     },
     {
       "id": "fresh-french-place",
@@ -930,7 +930,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 260.349208
+      "latencyMs": 270.487792
     },
     {
       "id": "fresh-named-memory",
@@ -947,7 +947,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 290.443458
+      "latencyMs": 298.508166
     },
     {
       "id": "fresh-linked-memory",
@@ -964,7 +964,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 166.762458
+      "latencyMs": 169.240416
     },
     {
       "id": "fresh-screen-memory",
@@ -981,7 +981,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 275.830541
+      "latencyMs": 282.95875
     },
     {
       "id": "fresh-mixed-memory",
@@ -998,7 +998,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 135.890333
+      "latencyMs": 136.481125
     },
     {
       "id": "fresh-direct-negation",
@@ -1015,7 +1015,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 246.0985
+      "latencyMs": 253.713584
     },
     {
       "id": "fresh-direct-names",
@@ -1032,7 +1032,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 297.176375
+      "latencyMs": 300.385041
     },
     {
       "id": "fresh-direct-uncertainty",
@@ -1049,7 +1049,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 340.792792
+      "latencyMs": 356.384167
     },
     {
       "id": "fresh-direct-question",
@@ -1066,7 +1066,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 261.914458
+      "latencyMs": 271.226416
     },
     {
       "id": "fresh-direct-serbian",
@@ -1083,7 +1083,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 307.783541
+      "latencyMs": 317.6255
     },
     {
       "id": "fresh-direct-thanks",
@@ -1100,7 +1100,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 325.258209
+      "latencyMs": 334.137708
     },
     {
       "id": "fresh-explicit-override",
@@ -1117,7 +1117,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 310.209834
+      "latencyMs": 317.353708
     },
     {
       "id": "fresh-instruction-in-screen",
@@ -1134,7 +1134,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 134.723084
+      "latencyMs": 136.37125
     },
     {
       "id": "fresh-hidden",
@@ -1151,7 +1151,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.469042
+      "latencyMs": 46.05575
     },
     {
       "id": "fresh-unknown-origin",
@@ -1168,7 +1168,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.268209
+      "latencyMs": 45.641292
     },
     {
       "id": "fresh-credentials",
@@ -1185,352 +1185,12 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.511834
+      "latencyMs": 45.698666
     },
     {
       "id": "fresh-transcribe",
       "kind": "transcribe",
       "variant": "memory",
-      "text": "Please draft a reply saying we cannot send 18 units.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": null,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 0.001833
-    },
-    {
-      "id": "fresh-polite-time",
-      "kind": "factual",
-      "variant": "both",
-      "text": "14:30",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 268.928625
-    },
-    {
-      "id": "fresh-polite-place",
-      "kind": "factual",
-      "variant": "both",
-      "text": "The Saffron meeting is in Kotor.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 326.566917
-    },
-    {
-      "id": "fresh-serbian-place",
-      "kind": "factual",
-      "variant": "both",
-      "text": "Hvala, potvrdio sam da će radionica za projekat Javor biti u Cetinju.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 589.66375
-    },
-    {
-      "id": "fresh-french-place",
-      "kind": "factual",
-      "variant": "both",
-      "text": "C'est noté, la réunion du projet Lavande aura lieu à Lyon.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 418.5585
-    },
-    {
-      "id": "fresh-named-memory",
-      "kind": "factual",
-      "variant": "both",
-      "text": "The Marigold reviewer is Stefan.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 291.514084
-    },
-    {
-      "id": "fresh-linked-memory",
-      "kind": "factual",
-      "variant": "both",
-      "text": "Daria",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 231.581166
-    },
-    {
-      "id": "fresh-screen-memory",
-      "kind": "factual",
-      "variant": "both",
-      "text": "Please draft a sentence naming the Amberleaf coordinator.",
-      "correct": false,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 275.816958
-    },
-    {
-      "id": "fresh-mixed-memory",
-      "kind": "factual",
-      "variant": "both",
-      "text": "Sarah",
-      "correct": false,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 135.62475
-    },
-    {
-      "id": "fresh-direct-negation",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "I will not authorize the 63 requests.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 246.344625
-    },
-    {
-      "id": "fresh-direct-names",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Elena owns the Verbena handoff, not Elina.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 292.008458
-    },
-    {
-      "id": "fresh-direct-uncertainty",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "We may send 28 packages on Saturday, but this is not confirmed.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 342.673875
-    },
-    {
-      "id": "fresh-direct-question",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Can you confirm the 19 seats for Sunday?",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 259.816208
-    },
-    {
-      "id": "fresh-direct-serbian",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Ne mogu da odobrim 35 zahteva danas.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 306.197584
-    },
-    {
-      "id": "fresh-direct-thanks",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Thank you, Lejla, for checking the 26 entries.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": false,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 322.429792
-    },
-    {
-      "id": "fresh-explicit-override",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Ognjen owns the Oleander launch.",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 344.187917
-    },
-    {
-      "id": "fresh-instruction-in-screen",
-      "kind": "fidelity",
-      "variant": "both",
-      "text": "Thanks",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 182.715541
-    },
-    {
-      "id": "fresh-hidden",
-      "kind": "control",
-      "variant": "both",
-      "text": "Thanks",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 134.955042
-    },
-    {
-      "id": "fresh-unknown-origin",
-      "kind": "control",
-      "variant": "both",
-      "text": "Thanks",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 45.220459
-    },
-    {
-      "id": "fresh-credentials",
-      "kind": "control",
-      "variant": "both",
-      "text": "Thanks",
-      "correct": true,
-      "forbiddenFacts": [],
-      "memorySelectionCorrect": true,
-      "visibleSelectionCorrect": true,
-      "forbiddenReads": [],
-      "modelCallsCorrect": true,
-      "screenReadsCorrect": true,
-      "routedAsRequest": true,
-      "routingCorrect": true,
-      "error": null,
-      "latencyMs": 45.19775
-    },
-    {
-      "id": "fresh-transcribe",
-      "kind": "transcribe",
-      "variant": "both",
       "text": "Please draft a reply saying we cannot send 18 units.",
       "correct": true,
       "forbiddenFacts": [],
@@ -1547,6 +1207,346 @@
     {
       "id": "fresh-polite-time",
       "kind": "factual",
+      "variant": "both",
+      "text": "14:30",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 277.075917
+    },
+    {
+      "id": "fresh-polite-place",
+      "kind": "factual",
+      "variant": "both",
+      "text": "The Saffron meeting is in Kotor.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 334.134417
+    },
+    {
+      "id": "fresh-serbian-place",
+      "kind": "factual",
+      "variant": "both",
+      "text": "Hvala, potvrdio sam da će radionica za projekat Javor biti u Cetinju.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 606.641708
+    },
+    {
+      "id": "fresh-french-place",
+      "kind": "factual",
+      "variant": "both",
+      "text": "C'est noté, la réunion du projet Lavande aura lieu à Lyon.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 432.009875
+    },
+    {
+      "id": "fresh-named-memory",
+      "kind": "factual",
+      "variant": "both",
+      "text": "The Marigold reviewer is Stefan.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 298.973458
+    },
+    {
+      "id": "fresh-linked-memory",
+      "kind": "factual",
+      "variant": "both",
+      "text": "Daria",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 233.812208
+    },
+    {
+      "id": "fresh-screen-memory",
+      "kind": "factual",
+      "variant": "both",
+      "text": "Please draft a sentence naming the Amberleaf coordinator.",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 281.9525
+    },
+    {
+      "id": "fresh-mixed-memory",
+      "kind": "factual",
+      "variant": "both",
+      "text": "Sarah",
+      "correct": false,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 136.960416
+    },
+    {
+      "id": "fresh-direct-negation",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "I will not authorize the 63 requests.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 253.514208
+    },
+    {
+      "id": "fresh-direct-names",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Elena owns the Verbena handoff, not Elina.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 300.602125
+    },
+    {
+      "id": "fresh-direct-uncertainty",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "We may send 28 packages on Saturday, but this is not confirmed.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 349.707125
+    },
+    {
+      "id": "fresh-direct-question",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Can you confirm the 19 seats for Sunday?",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 272.528042
+    },
+    {
+      "id": "fresh-direct-serbian",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Ne mogu da odobrim 35 zahteva danas.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 318.232167
+    },
+    {
+      "id": "fresh-direct-thanks",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Thank you, Lejla, for checking the 26 entries.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": false,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 333.571292
+    },
+    {
+      "id": "fresh-explicit-override",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Ognjen owns the Oleander launch.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 351.28175
+    },
+    {
+      "id": "fresh-instruction-in-screen",
+      "kind": "fidelity",
+      "variant": "both",
+      "text": "Thanks",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 183.442167
+    },
+    {
+      "id": "fresh-hidden",
+      "kind": "control",
+      "variant": "both",
+      "text": "Thanks",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 135.713583
+    },
+    {
+      "id": "fresh-unknown-origin",
+      "kind": "control",
+      "variant": "both",
+      "text": "Thanks",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 45.681
+    },
+    {
+      "id": "fresh-credentials",
+      "kind": "control",
+      "variant": "both",
+      "text": "Thanks",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": true,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 45.340542
+    },
+    {
+      "id": "fresh-transcribe",
+      "kind": "transcribe",
+      "variant": "both",
+      "text": "Please draft a reply saying we cannot send 18 units.",
+      "correct": true,
+      "forbiddenFacts": [],
+      "memorySelectionCorrect": true,
+      "visibleSelectionCorrect": true,
+      "forbiddenReads": [],
+      "modelCallsCorrect": true,
+      "screenReadsCorrect": true,
+      "routedAsRequest": null,
+      "routingCorrect": true,
+      "error": null,
+      "latencyMs": 0.001541
+    },
+    {
+      "id": "fresh-polite-time",
+      "kind": "factual",
       "variant": "all",
       "text": "14:30",
       "correct": true,
@@ -1559,7 +1559,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 268.721958
+      "latencyMs": 275.572959
     },
     {
       "id": "fresh-polite-place",
@@ -1576,7 +1576,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 326.506959
+      "latencyMs": 333.191292
     },
     {
       "id": "fresh-serbian-place",
@@ -1593,7 +1593,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 589.508083
+      "latencyMs": 606.981625
     },
     {
       "id": "fresh-french-place",
@@ -1610,7 +1610,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 418.827084
+      "latencyMs": 432.524167
     },
     {
       "id": "fresh-named-memory",
@@ -1627,7 +1627,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 290.901833
+      "latencyMs": 300.092208
     },
     {
       "id": "fresh-linked-memory",
@@ -1644,7 +1644,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 231.383166
+      "latencyMs": 233.167958
     },
     {
       "id": "fresh-screen-memory",
@@ -1661,7 +1661,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 274.904083
+      "latencyMs": 282.40525
     },
     {
       "id": "fresh-mixed-memory",
@@ -1678,7 +1678,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 198.190334
+      "latencyMs": 199.484709
     },
     {
       "id": "fresh-direct-negation",
@@ -1695,7 +1695,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 249.64275
+      "latencyMs": 255.880125
     },
     {
       "id": "fresh-direct-names",
@@ -1712,7 +1712,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 291.878083
+      "latencyMs": 299.742458
     },
     {
       "id": "fresh-direct-uncertainty",
@@ -1729,7 +1729,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 340.140833
+      "latencyMs": 355.279666
     },
     {
       "id": "fresh-direct-question",
@@ -1746,7 +1746,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 259.658917
+      "latencyMs": 268.944583
     },
     {
       "id": "fresh-direct-serbian",
@@ -1763,7 +1763,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 308.195792
+      "latencyMs": 317.721542
     },
     {
       "id": "fresh-direct-thanks",
@@ -1780,7 +1780,7 @@
       "routedAsRequest": false,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 323.749125
+      "latencyMs": 335.503291
     },
     {
       "id": "fresh-explicit-override",
@@ -1797,7 +1797,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 344.992917
+      "latencyMs": 355.830333
     },
     {
       "id": "fresh-instruction-in-screen",
@@ -1814,7 +1814,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 183.224375
+      "latencyMs": 183.689167
     },
     {
       "id": "fresh-hidden",
@@ -1831,7 +1831,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 135.703209
+      "latencyMs": 136.364166
     },
     {
       "id": "fresh-unknown-origin",
@@ -1848,7 +1848,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.383583
+      "latencyMs": 45.627166
     },
     {
       "id": "fresh-credentials",
@@ -1865,7 +1865,7 @@
       "routedAsRequest": true,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 45.615708
+      "latencyMs": 45.871125
     },
     {
       "id": "fresh-transcribe",
@@ -1882,7 +1882,7 @@
       "routedAsRequest": null,
       "routingCorrect": true,
       "error": null,
-      "latencyMs": 0.001959
+      "latencyMs": 0.001375
     }
   ],
   "manifest": {
@@ -1922,7 +1922,7 @@
       "--host",
       "127.0.0.1",
       "--port",
-      "54100",
+      "55260",
       "-c",
       "32768",
       "-ngl",
