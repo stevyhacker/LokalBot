@@ -2,27 +2,15 @@ import CryptoKit
 import Foundation
 import NaturalLanguage
 
-/// The overnight learning pass (personal world model, Phase 3). After the
-/// day's review, it reads only the person's own words from that day: their
-/// lines in meetings, what they typed to coding agents or in Ask, and, when
-/// Learn from my dictation is on, what they dictated into other apps. It asks
-/// the Think model for at most three durable things about them. Every result
-/// must point at one of those lines and be grounded in it; anything else is
-/// dropped. Facts and goals from meetings are saved; preferences, and
-/// anything learned from typing, wait for review; principles are never
-/// learned (`PersonalModel.learn`).
 enum PersonalLearning {
-    /// One line of the person's own words. `handle` is what the model cites.
     struct Utterance: Equatable, Sendable {
         enum Source: Equatable, Sendable {
-            /// Consecutive microphone segments of one meeting, joined.
             case meeting(UUID)
             case typed(PersonalClaim.TypedSource)
         }
 
         var handle: String
         var source: Source
-        /// The meeting title or "typed to Claude Code", shown to the model.
         var label: String
         var dayKey: String
         var text: String
@@ -45,7 +33,6 @@ enum PersonalLearning {
         }
     }
 
-    /// Something the person typed or dictated that day, gathered by the app.
     struct TypedLine: Equatable, Sendable {
         var source: PersonalClaim.TypedSource
         var text: String
@@ -61,19 +48,12 @@ enum PersonalLearning {
 
     static let maxPerNight = 3
     static let maxUtterances = 40
-    /// Typed lines share the budget but never crowd meetings out.
     static let maxTypedUtterances = 15
     static let utteranceCharacterBudget = 6_000
     static let maxTurnCharacters = 400
     static let minimumWords = 5
     static let maxOutputTokens = 1_024
 
-    // MARK: - The person's lines
-
-    /// The person's turns from `day`'s meetings, most self-descriptive first
-    /// within the budget, then put back in meeting order with handles. A
-    /// meeting whose microphone was shared by several diarized local voices is
-    /// skipped: there is no telling which of them is the person.
     static func utterances(day: Date, storageRoot: URL, typed: [TypedLine] = [],
                            calendar: Calendar = .current) throws -> [Utterance] {
         let start = calendar.startOfDay(for: day)
@@ -125,11 +105,6 @@ enum PersonalLearning {
         return result
     }
 
-    /// The day's typed lines: requests the person sent to coding agents
-    /// (scheduled runs excluded), questions asked in Ask, and dictation kept
-    /// for learning. A "Remember …" message is already saved, so it is
-    /// skipped, and a dictation that became one of those requests is read
-    /// once, from the request.
     static func typedLines(bursts: [CodingAgentBurst], conversations: [Conversation],
                            dictations: [DictationLearningLog.Entry] = [], day: Date,
                            calendar: Calendar = .current) -> [TypedLine] {
@@ -159,7 +134,6 @@ enum PersonalLearning {
         return lines
     }
 
-    /// "meeting=4 typed=2 dictated=0" for the log: where a day's lines came from.
     static func lineCounts(_ lines: [Utterance]) -> String {
         var meeting = 0, typed = 0, dictated = 0
         for line in lines {
@@ -172,9 +146,6 @@ enum PersonalLearning {
         return "lines=meeting:\(meeting),typed:\(typed),dictated:\(dictated)"
     }
 
-    /// What the pass read for a day, independent of order and handles.
-    /// Dictated lines are left out: they are deleted once read, so a later
-    /// review of the same day would otherwise always look changed.
     static func fingerprint(_ lines: [Utterance]) -> String {
         let material = lines.compactMap { line -> String? in
             if case .typed(.dictation) = line.source { return nil }
@@ -183,8 +154,6 @@ enum PersonalLearning {
         return SHA256.hash(data: Data(material.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Whether `lines` still contain the line a learned claim quotes, ignoring
-    /// case, accents, punctuation, and where a long line was cut off.
     static func quoteStillSaid(_ quote: String?, in lines: [String]) -> Bool {
         guard let quote else { return false }
         let needle = foldedForDuplicate(quote.replacingOccurrences(of: "…", with: ""))
@@ -195,25 +164,11 @@ enum PersonalLearning {
         }
     }
 
-    /// Letters and digits only, case- and accent-folded, so a dictation and
-    /// the request it was pasted into compare equal despite punctuation.
     private static func foldedForDuplicate(_ text: String) -> String {
         let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
         return String(folded.unicodeScalars.filter { CharacterSet.alphanumerics.contains($0) }.map(Character.init))
     }
 
-    /// Joins consecutive segments of the person's own speech into turns.
-    ///
-    /// Own speech is microphone speech ("me", "local", "local N", also behind
-    /// a merged recording's "source:" prefix) whose attribution is the user:
-    /// echo, overlapping voices, and voices corrected to someone else are
-    /// left out. Diarization labels the person "local 1" and leaves some of
-    /// their segments as plain "local", so those are one voice. A voice the
-    /// person confirmed as theirs wins. Otherwise, when diarization found
-    /// several voices on the microphone, the meeting counts only if one of
-    /// them clearly dominates (four times the next), and then only that
-    /// voice is used; with no clear winner the microphone was shared and the
-    /// meeting is skipped, since there is no telling which voice is the person.
     static func ownTurns(in segments: [Transcript.Segment]) -> [String] {
         let keys = segments.map { Transcript.canonicalSpeakerKey($0.speaker) }
         let mine = segments.indices.filter { isOwnSpeech(segments[$0], key: keys[$0]) }
@@ -248,15 +203,12 @@ enum PersonalLearning {
         return turns
     }
 
-    /// Microphone speech attributed to the user. Older transcripts carry no
-    /// attribution; their microphone labels follow "My microphone is me".
     private static func isOwnSpeech(_ segment: Transcript.Segment, key: String) -> Bool {
         guard MeetingOutcomes.isMicrophoneSpeaker(segment.speaker), !key.hasSuffix("unclear") else { return false }
         guard segment.attribution != nil else { return SpeakerAttribution.microphoneIsUser }
         return segment.resolvedAttribution.identity == .user
     }
 
-    /// "local 1", "source2:local 3": one voice diarization told apart.
     private static func isNumberedVoice(_ key: String) -> Bool {
         let local = key.split(separator: ":").last.map(String.init) ?? key
         return local.range(of: #"^local \d+$"#, options: .regularExpression) != nil
@@ -269,8 +221,6 @@ enum PersonalLearning {
         "ја", "мој", "моја", "моје", "мене", "мени", "сам", "имам", "живим", "радим", "желим", "планирам", "хоћу",
     ]
 
-    /// How many first-person words a line has (English and Serbian). Lines
-    /// without any are not about the person and are never sent.
     static func selfReferenceScore(_ text: String) -> Int {
         let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
         var score = 0
@@ -280,8 +230,6 @@ enum PersonalLearning {
         }
         return score
     }
-
-    // MARK: - Prompt
 
     static let system = """
         You keep a small private profile of the user from things they said about themselves. \
@@ -356,8 +304,6 @@ enum PersonalLearning {
         ]
     }
 
-    // MARK: - Reading the reply
-
     private struct Reply: Decodable {
         struct Item: Decodable {
             var line: String
@@ -367,15 +313,12 @@ enum PersonalLearning {
         var items: [Item]
     }
 
-    /// An item the model proposed, tied to the line it cites.
     struct Proposal: Equatable, Sendable {
         var kind: PersonalClaimKind
         var text: String
         var utterance: Utterance
     }
 
-    /// Every item that cites a real line with a learnable kind, in reply
-    /// order. Grounding happens after this.
     static func proposals(from output: String, utterances: [Utterance]) -> [Proposal] {
         guard let start = output.firstIndex(of: "{"), let end = output.lastIndex(of: "}"),
               let reply = try? JSONDecoder().decode(Reply.self, from: Data(output[start...end].utf8)) else {
@@ -394,9 +337,6 @@ enum PersonalLearning {
         return result
     }
 
-    /// Word-overlap grounding only. At most `maxPerNight`. `run` calls
-    /// `groundedCandidates`, which applies the same rule to items in the
-    /// line's language; only tests call this.
     static func candidates(from output: String, utterances: [Utterance],
                            evidence: (Utterance) -> DreamEvidenceProvenance?) -> [PersonalModel.LearningCandidate] {
         var result: [PersonalModel.LearningCandidate] = []
@@ -414,19 +354,8 @@ enum PersonalLearning {
         return shared >= max(1, Int((Double(claimWords.count) / 3).rounded(.up)))
     }
 
-    // MARK: - Grounding across languages
-
-    /// Vectors for texts, L2-normalized, or nil when no embedder is available.
     typealias Embed = ([String]) async -> [[Float]]?
 
-    /// EmbeddingGemma 2 with the sentence-similarity prompt, measured on
-    /// Serbian lines against English items (2026-10-14): correct
-    /// translations 0.83–0.95, unrelated claims 0.73–0.79, and a wrong
-    /// detail ("doctor" for engineer, the wrong city) 0.80–0.90. Below the
-    /// floor an item is dropped. Above it, a fact or goal is saved only with a
-    /// shared word root or a very high score; otherwise it waits for review,
-    /// because embeddings alone can't tell a wrong detail from a right one.
-    /// Recalibrate whenever the embedding model changes.
     static let crossLanguageFloor: Float = 0.82
     static let confidentSimilarity: Float = 0.90
 
@@ -436,9 +365,6 @@ enum PersonalLearning {
         case rejected
     }
 
-    /// Word overlap for items in the line's language. An item the model
-    /// translated (the line is Serbian, the item English) can't share words,
-    /// so it is compared by meaning instead, when an embedder is available.
     static func groundedCandidates(
         from output: String, utterances: [Utterance], embed: Embed?,
         evidence: (Utterance) -> DreamEvidenceProvenance?
@@ -483,17 +409,12 @@ enum PersonalLearning {
         return .needsReview
     }
 
-    /// True when the two texts' dominant languages differ, so word overlap
-    /// can't apply. Unknown counts as the same language: the stricter path.
     static func isCrossLanguage(_ claim: String, _ line: String) -> Bool {
         guard let claimLanguage = NLLanguageRecognizer.dominantLanguage(for: claim),
               let lineLanguage = NLLanguageRecognizer.dominantLanguage(for: line) else { return false }
         return claimLanguage != lineLanguage
     }
 
-    /// A content word of the item and of the line (Cyrillic transliterated)
-    /// start the same way: "platform" in "platformu", "marathon" in
-    /// "maraton", "sad" in "sadu".
     static func sharesWordRoot(_ claim: String, _ line: String) -> Bool {
         let latinLine = line.applyingTransform(.toLatin, reverse: false) ?? line
         let lineWords = PersonalContextSelection.contentWords(latinLine)
@@ -525,10 +446,6 @@ enum PersonalLearning {
             evidence: evidence(utterance), needsReview: needsReview || utterance.meetingID == nil)
     }
 
-    /// What a learned item depends on: its meeting, or the day's activity
-    /// evidence for a coding-agent request (deleting saved agent sessions
-    /// retracts it). An Ask question has none; deleting its conversation
-    /// retracts the item instead.
     static func provenance(for utterance: Utterance, revision: UInt64) -> DreamEvidenceProvenance? {
         switch utterance.source {
         case .meeting(let id):
@@ -544,10 +461,6 @@ enum PersonalLearning {
         }
     }
 
-    // MARK: - Run
-
-    /// One night's pass. Returns no candidates without calling the model when
-    /// the day has none of the person's own lines.
     static func run(day: Date, storageRoot: URL, known: [PersonalClaim], revision: UInt64,
                     engine: TextEngine, embed: Embed? = nil, typed: [TypedLine] = [],
                     calendar: Calendar = .current) async throws -> [PersonalModel.LearningCandidate] {
@@ -555,8 +468,6 @@ enum PersonalLearning {
         return try await run(lines: lines, known: known, revision: revision, engine: engine, embed: embed)
     }
 
-    /// The pass over lines already gathered (`utterances`), so the caller can
-    /// first check `fingerprint` against the days already read.
     static func run(lines: [Utterance], known: [PersonalClaim], revision: UInt64,
                     engine: TextEngine, embed: Embed? = nil) async throws -> [PersonalModel.LearningCandidate] {
         guard !lines.isEmpty else { return [] }

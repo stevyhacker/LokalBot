@@ -1,15 +1,4 @@
 #!/usr/bin/env bash
-# Writes ../LICENSES/rust-crates.md: every Rust crate compiled into the Linux
-# and Windows app, the license it is used under, and that license's text as
-# the crate ships it. cargo-about reads Cargo.lock and the crates' sources;
-# about.toml and about.hbs hold its configuration and template.
-#
-#   scripts/third-party-licenses.sh          rewrite the file
-#   scripts/third-party-licenses.sh --check  fail if the file is out of date
-#
-# Run it after changing Cargo.lock. It downloads the pinned cargo-about
-# (checked by SHA-256) into the target directory on first use; CARGO_ABOUT
-# names another binary of the same version.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 ABOUT_VERSION=0.9.2
@@ -60,12 +49,9 @@ if [ "$have" != "$ABOUT_VERSION" ]; then
   exit 1
 fi
 
-# --offline keeps the output the same on every machine: license text comes
-# only from the downloaded crates, never from their git repositories.
 cargo fetch --locked --quiet
 "$about" generate --workspace --locked --offline --fail \
   -c about.toml -o "$tmp/generated.md" about.hbs
-# Some crates ship their license with Windows line endings; Git stores LF.
 new="$tmp/rust-crates.md"
 tr -d '\r' < "$tmp/generated.md" > "$new"
 

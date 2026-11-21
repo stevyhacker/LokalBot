@@ -40,7 +40,6 @@ from harness import (
 
 PACKAGE = "me.dotenv.lokalbot.companion"
 APP_NAME = "LokalBot"
-# The title of the dialog Android shows when an app or process stops answering.
 NOT_RESPONDING = re.compile(r"(.+) isn['’]t responding")
 RECORDING_SECONDS = 12
 
@@ -79,7 +78,6 @@ def signed(apk, out):
 
 
 def nodes():
-    # The dump fails while the screen is busy; the callers wait and ask again.
     shell("uiautomator dump /data/local/tmp/ui.xml", check_result=False)
     xml = adb("exec-out", "cat", "/data/local/tmp/ui.xml", check_result=False)
     try:
@@ -210,7 +208,6 @@ def open_the_scanner():
     step("Open the QR scanner")
     launch()
     tap("Pair with your computer", then="Or paste the pairing link")
-    # The camera and ML Kit start after the screen appears.
     time.sleep(5)
     assert_no_crashes()
 
@@ -258,7 +255,6 @@ def open_every_screen(meeting_title):
 def ask_a_question():
     step("Ask a question and read the streamed answer")
     tap("Ask", then="What's overdue?")
-    # Once only: a second tap would ask twice while the first answer streams.
     tap("What's overdue?")
     wait_for("cut onboarding to three steps", contains=True, timeout=60)
     check(True, "the computer's answer arrived")
@@ -360,7 +356,6 @@ def main():
         keep_a_pairing_allowed_after_cancelling(asking_host)
         asking_host.stop()
         host.start()
-        # A fresh install, so the rest starts from the welcome screen.
         ready_the_app(apk)
         open_the_scanner()
         meeting_title = pair_and_sync(host)

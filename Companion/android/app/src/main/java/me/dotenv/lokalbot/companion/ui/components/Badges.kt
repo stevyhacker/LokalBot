@@ -35,7 +35,6 @@ import me.dotenv.lokalbot.companion.ui.theme.Inter
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** A transcript timestamp that jumps to the cited moment (`EvidencePill`). */
 @Composable
 fun EvidencePill(start: Double, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val stamp = Formats.offset(start)
@@ -56,7 +55,6 @@ fun EvidencePill(start: Double, onClick: () -> Unit, modifier: Modifier = Modifi
     }
 }
 
-/** A numbered teal source badge: white on the accent fill, as on the Mac's Evidence list. */
 @Composable
 fun SourceBadge(number: Int, modifier: Modifier = Modifier, size: Dp = 20.dp) {
     val fontSize = with(LocalDensity.current) { (size * 0.55f).toSp() }
@@ -74,7 +72,6 @@ fun SourceBadge(number: Int, modifier: Modifier = Modifier, size: Dp = 20.dp) {
     }
 }
 
-/** A person's initials on a tint chosen from their name (`InitialsAvatar`). */
 @Composable
 fun InitialsAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 30.dp) {
     val color = BrandColors.avatarColor(name, LokalBotTheme.palette)
@@ -90,7 +87,6 @@ fun InitialsAvatar(name: String, modifier: Modifier = Modifier, size: Dp = 30.dp
     }
 }
 
-/** A project's first letter on a tint chosen from its name (`ProjectMonogram`). */
 @Composable
 fun ProjectMonogram(name: String, modifier: Modifier = Modifier, size: Dp = 30.dp) {
     val color = BrandColors.avatarColor(name, LokalBotTheme.palette)

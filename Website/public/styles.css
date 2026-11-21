@@ -1123,7 +1123,15 @@ kbd {
 .home-agents__demo { min-width: 0; }
 .home-phone__cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
 .home-phone .home-agents__copy > .home-phone__note { margin-top: 14px; color: var(--text-faint); font-size: 0.9rem; }
+.home-phone__shots {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 240px));
+  gap: 18px;
+  justify-content: center;
+  align-items: start;
+}
 .home-phone__shot { width: min(100%, 290px); justify-self: center; }
+.home-phone__shots .home-phone__shot { width: 100%; }
 .home-phone__shot .home-image-link { border-radius: 28px; }
 .home-agents__links { display: flex; flex-wrap: wrap; gap: 12px 24px; margin-top: 16px; font-size: 0.92rem; }
 .home-agents__links a { color: var(--accent-text); }
@@ -1142,6 +1150,7 @@ kbd {
   .home-cards { grid-template-columns: minmax(0, 1fr); }
   .home-writing__grid, .home-writing__lead { grid-template-columns: 1fr; }
   .home-platforms__shots { grid-template-columns: 1fr; }
+  .home-phone__shots { grid-template-columns: repeat(2, minmax(0, 220px)); gap: 14px; }
   .home .home-privacy, .home .home-faq { grid-template-columns: 1fr; gap: 28px; }
   .home .home-agents { grid-template-columns: minmax(0, 1fr); gap: 28px; }
 }

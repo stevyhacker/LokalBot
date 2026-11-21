@@ -1,6 +1,3 @@
-//! Embeds version metadata into the Windows CLI executable so every signed
-//! LokalBot binary carries the same ProductName and ProductVersion.
-
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {

@@ -1,13 +1,5 @@
 import Foundation
 
-/// Finds the proper nouns that recur across meetings (products, protocols,
-/// clients, codenames) so Projects can suggest names worth tracking.
-/// Deterministic and local: it counts capitalized terms in meeting titles,
-/// summaries, actions, and decisions, and keeps only terms that are nearly
-/// always capitalized, appear in several meetings, and are not people, apps,
-/// or generic work vocabulary. A capitalized word that starts a sentence
-/// ("**Them 4:** Vireo shipped…") counts only for terms also seen
-/// capitalized mid-sentence, so sentence starters stay out.
 enum ProjectTopicDetector {
     static let minimumMeetings = 3
     static let maximumTopics = 10
@@ -28,13 +20,9 @@ enum ProjectTopicDetector {
         var lastMentioned: [String: Date] = [:]
         var capitalizedCount: [String: Int] = [:]
         var lowercaseCount: [String: Int] = [:]
-        // Sentence-initial capitals, kept apart until mid-sentence use
-        // shows the term is a name rather than a sentence starter.
         var sentenceStartMeetings: [String: Set<UUID>] = [:]
         var sentenceStartDates: [String: Date] = [:]
         let excluded = Set(excludedWords.map { $0.lowercased() }).union(stopWords).union(commonApps)
-        // A known name spelled one letter differently ("Milana" for Milena)
-        // is still that person.
         let nearNames = Set(excludedWords.map { $0.lowercased() }.filter { $0.count >= 5 })
 
         func record(_ word: String, meeting: Meeting) {
@@ -106,7 +94,6 @@ enum ProjectTopicDetector {
         return names.contains { $0.first == word.first && withinOneEdit($0, word) }
     }
 
-    /// One substitution, insertion, or deletion apart, or equal.
     static func withinOneEdit(_ lhs: String, _ rhs: String) -> Bool {
         let left = Array(lhs)
         let right = Array(rhs)
@@ -149,7 +136,6 @@ enum ProjectTopicDetector {
         return words.filter { !$0.isEmpty }
     }
 
-    /// Summary text without the generated title and metadata lines.
     private static func summaryBody(_ summary: String) -> String {
         summary.components(separatedBy: "\n")
             .filter { line in
@@ -160,7 +146,6 @@ enum ProjectTopicDetector {
             .joined(separator: "\n")
     }
 
-    /// Apps and services people mention without it being their project.
     static let commonApps: Set<String> = [
         "chrome", "google", "safari", "firefox", "slack", "zoom", "discord", "telegram", "notion",
         "github", "gitlab", "figma", "claude", "chatgpt", "openai", "anthropic", "cursor", "xcode",
@@ -170,7 +155,6 @@ enum ProjectTopicDetector {
     ]
 
     private static let stopWords: Set<String> = [
-        // Function words and sentence starters.
         "the", "and", "for", "with", "from", "into", "onto", "about", "after", "before", "this", "that",
         "these", "those", "its", "our", "your", "their", "they", "them", "she", "his", "her", "him",
         "are", "was", "were", "been", "being", "does", "did", "done", "have", "has", "had", "will",
@@ -180,11 +164,9 @@ enum ProjectTopicDetector {
         "next", "new", "old", "same", "different", "own", "there", "here", "then", "than", "when",
         "where", "what", "which", "who", "why", "how", "once", "while", "until", "because", "per",
         "via", "but", "nor", "yet", "please", "thanks", "thank", "okay",
-        // Dates and times.
         "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "january",
         "february", "march", "april", "june", "july", "august", "september", "october", "november",
         "december", "today", "tomorrow", "yesterday", "week", "weekly", "daily", "monthly", "quarter",
-        // Meeting and notes vocabulary.
         "key", "points", "decisions", "decision", "action", "actions", "items", "item", "open",
         "questions", "question", "summary", "recap", "notes", "note", "steps", "step", "template",
         "language", "duration", "model", "words", "meeting", "meetings", "team", "discussion",
@@ -192,15 +174,12 @@ enum ProjectTopicDetector {
         "day", "call", "product", "agenda", "follow-up", "followup", "owner", "owners", "local",
         "speaker", "source", "unknown", "likely", "agreed", "discussed", "confirmed", "need", "needs",
         "check", "share", "send", "look", "ask", "set", "add", "use", "make", "keep", "get", "tldr",
-        // Generic technical acronyms.
         "api", "apis", "json", "sdk", "prs", "llm", "llms", "poc", "mvp", "eta", "ui", "ux", "url",
         "urls", "http", "https", "sql", "csv", "pdf", "ids", "okr", "okrs", "kpi", "kpis", "gpu",
         "cpu", "ram", "eod", "eow", "fyi", "tbd", "utc", "cet", "cest", "usd", "eur", "moe", "qa",
         "faq", "etc", "asap", "cto", "ceo", "cfo", "dev", "devs", "ops", "repo", "repos", "doc",
-        // Hardware and network terms.
         "ssd", "ssds", "hdd", "hdds", "nvme", "usb", "hdmi", "wifi", "wi-fi", "lan", "wan", "vpn", "dns",
         "ssh", "tcp", "udp", "oled", "lcd", "ghz", "mhz", "html", "css", "xml", "yaml",
-        // Company suffixes ("Corvid Labs") name no project on their own.
         "labs", "inc", "ltd", "llc",
     ]
 }

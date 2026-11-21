@@ -1,23 +1,9 @@
-//! The package that installed this copy, so an update it cannot install
-//! itself is offered the way that package updates.
-//!
-//! The package databases answer directly: `pacman -Qqo`, `dpkg-query -S`
-//! and `rpm -qf` on the executable. A copy no package lists (install.sh, an
-//! extracted archive, a folder under `/opt`) gets no answer. Linux only.
-
 use std::ffi::OsStr;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
 use crate::Version;
 
-/// The name of the release's own `.deb`, `.rpm` and Arch packages
-/// (`scripts/package-linux-distros.sh`). They are installed from a
-/// downloaded file. Once the repository key is committed, the `.deb` and
-/// `.rpm` also add LokalBot's apt or dnf repository ([`repository_file`]),
-/// and from then on the package manager fetches the next version; the Arch
-/// package never has one. Other names, such as the AUR's `lokalbot-bin`,
-/// come from a repository.
 pub const RELEASE_PACKAGE: &str = "lokalbot";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -31,29 +17,22 @@ pub enum Manager {
 pub struct Package {
     pub manager: Manager,
     pub name: String,
-    /// LokalBot's own repository is set up and enabled for this manager.
     pub repository: bool,
 }
 
 impl Package {
-    /// One of the release's own packages with no repository to update it:
-    /// installed from a downloaded file, so the next one is too.
     pub fn from_release(&self) -> bool {
         self.name == RELEASE_PACKAGE && !self.repository
     }
 
-    /// Updates a package from its repository.
     pub fn update_command(&self) -> &'static str {
         match self.manager {
-            // Arch users run an AUR helper; yay also updates repository packages.
             Manager::Pacman => "yay -Syu",
             Manager::Dpkg => "sudo apt upgrade",
             Manager::Rpm => "sudo dnf upgrade",
         }
     }
 
-    /// Installs `version`'s release package of this format, downloaded into
-    /// the current folder. The file names are package-linux-distros.sh's.
     pub fn install_command(&self, version: Version) -> String {
         match self.manager {
             Manager::Pacman => {
@@ -65,8 +44,6 @@ impl Package {
     }
 }
 
-/// The repository file the release's `.deb` (deb822) or `.rpm` installs
-/// for LokalBot's apt or dnf repository (`packaging/linux`).
 pub fn repository_file(manager: Manager) -> Option<&'static Path> {
     match manager {
         Manager::Dpkg => Some(Path::new("/etc/apt/sources.list.d/lokalbot.sources")),
@@ -75,9 +52,6 @@ pub fn repository_file(manager: Manager) -> Option<&'static Path> {
     }
 }
 
-/// The package that installed `executable`, or `None` when no package
-/// database lists it. Starts the package tools and reads the repository
-/// file, so call it off the UI thread.
 pub fn owner(executable: &Path) -> Option<Package> {
     if !cfg!(target_os = "linux") {
         return None;
@@ -101,16 +75,12 @@ pub fn owner(executable: &Path) -> Option<Package> {
     )
 }
 
-/// [`owner`] with `run` starting a package tool and returning what it
-/// printed when it succeeded, and `read` reading a file.
 fn owner_with(
     executable: &Path,
     run: &dyn Fn(&str, &[&OsStr]) -> Option<String>,
     read: &dyn Fn(&Path) -> Option<String>,
 ) -> Option<Package> {
     let path = executable.as_os_str();
-    // A system can have another distribution's tools (dpkg on Arch, to build
-    // .debs); only the database that lists the file answers.
     let queries: [(Manager, &str, &[&OsStr]); 3] = [
         (Manager::Pacman, "pacman", &["-Qqo".as_ref(), path]),
         (Manager::Dpkg, "dpkg-query", &["-S".as_ref(), path]),
@@ -138,8 +108,6 @@ fn owner_with(
     })
 }
 
-/// Whether a repository file leaves its repository on: no `Enabled: no`
-/// (deb822) or `enabled=0` (dnf) line.
 fn enabled(text: &str) -> bool {
     !text.lines().any(|line| {
         let line = line.trim();
@@ -156,13 +124,10 @@ fn enabled(text: &str) -> bool {
     })
 }
 
-/// The package name in a tool's answer.
 fn parse(manager: Manager, output: &str) -> Option<String> {
     let mut lines = output.lines().map(str::trim).filter(|l| !l.is_empty());
     let name = match manager {
         Manager::Pacman | Manager::Rpm => lines.next()?,
-        // `lokalbot: /usr/bin/lokalbot`, `libc6:amd64: /usr/lib/…` or
-        // `a, b: /path`, after any `diversion by …` lines.
         Manager::Dpkg => lines
             .filter(|l| !l.starts_with("diversion by "))
             .find_map(|l| l.split_once(": /"))?
@@ -188,7 +153,6 @@ mod tests {
         lookup_with_files(answers, &[])
     }
 
-    /// [`owner_with`] with tool answers and the files that exist.
     fn lookup_with_files(
         answers: &[(&str, &str)],
         files: &[(&str, &str)],
@@ -268,7 +232,6 @@ mod tests {
         let package = lookup_with_files(&rpm, &[(REPO, repo)]).0.unwrap();
         assert!(package.repository && !package.from_release());
 
-        // Installed before the repository existed, or with it turned off.
         assert!(lookup(&deb).0.unwrap().from_release());
         let off = format!("{sources}Enabled: no\n");
         assert!(
@@ -284,14 +247,12 @@ mod tests {
                 .unwrap()
                 .from_release()
         );
-        // The other manager's file says nothing about this package.
         assert!(
             lookup_with_files(&deb, &[(REPO, repo)])
                 .0
                 .unwrap()
                 .from_release()
         );
-        // The Arch package never has a repository.
         let arch = lookup_with_files(
             &[("pacman", "lokalbot\n")],
             &[(SOURCES, sources), (REPO, repo)],

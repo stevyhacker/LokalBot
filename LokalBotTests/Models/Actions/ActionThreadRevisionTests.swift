@@ -192,7 +192,6 @@ final class ActionThreadRevisionTests: XCTestCase {
         XCTAssertEqual(index.userActionThreads.first?.due, "Friday")
         XCTAssertEqual(index.userActionThreads.first?.dueSourceMeetingDate, meetings[1].startedAt)
 
-        // Correct only the older source's deadline; keep its text correction.
         XCTAssertTrue(index.correctAction(actionID: action.id, meetingID: meetings[0].id,
                                           text: "Send the first draft", owner: nil, due: "Tuesday"))
         XCTAssertEqual(index.userActionThreads.first?.text, "Send the signed proposal")
@@ -302,7 +301,6 @@ final class ActionThreadRevisionTests: XCTestCase {
         for meeting in meetings {
             XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.status, .done)
         }
-        // Status lives in the per-meeting overlay; extracted commitments stay untouched.
         for (offset, meeting) in meetings.enumerated() {
             XCTAssertEqual(try Data(contentsOf: meeting.folderURL(in: storage)
                 .appendingPathComponent(MeetingOutcomes.fileName)), sources[offset])

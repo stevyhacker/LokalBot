@@ -31,9 +31,10 @@ brew install --cask stevyhacker/tap/lokalbot
 [![Download LokalBot for macOS](https://img.shields.io/badge/%E2%80%82Download%20for%20macOS%E2%80%82-Apple%20Silicon-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![Download LokalBot for Windows (alpha)](https://img.shields.io/badge/%E2%80%82Download%20for%20Windows%E2%80%82-alpha-0969da?style=for-the-badge&logo=data%3Aimage%2Fsvg%2Bxml%3Bbase64%2CPHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNiAxNic%2BPHBhdGggZmlsbD0nd2hpdGUnIGQ9J00wIDBoNy41djcuNUgwek04LjUgMEgxNnY3LjVIOC41ek0wIDguNWg3LjVWMTZIMHpNOC41IDguNUgxNlYxNkg4LjV6Jy8%2BPC9zdmc%2B)](https://github.com/stevyhacker/lokalbot/releases/latest)
 [![Download LokalBot for Linux (alpha)](https://img.shields.io/badge/%E2%80%82Download%20for%20Linux%E2%80%82-alpha-0969da?style=for-the-badge&logo=linux&logoColor=white)](https://github.com/stevyhacker/lokalbot/releases/latest)
+[![Download LokalBot for iPhone and iPad on the App Store](https://img.shields.io/badge/%E2%80%82Download%20on%20the%20App%20Store%E2%80%82-iOS%20%26%20iPadOS-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/id6836773709)
 [![Get the LokalBot companion app for Android on Google Play](https://img.shields.io/badge/%E2%80%82Get%20it%20on%20Google%20Play%E2%80%82-Android-0969da?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)
 
-<sub>macOS: <code>.dmg</code> or Homebrew · Windows 10/11 x64: <code>setup.exe</code> or portable zip (alpha) · Linux x86_64: <code>.deb</code>, <code>.rpm</code>, Arch, or <code>.tar.gz</code> (alpha) · Android 10+ companion. <a href="#download">Install details</a></sub>
+<sub>macOS: <code>.dmg</code> or Homebrew · Windows 10/11 x64: <code>setup.exe</code> or portable zip (alpha) · Linux x86_64: <code>.deb</code>, <code>.rpm</code>, Arch, or <code>.tar.gz</code> (alpha) · iOS/iPadOS 18+ &amp; Android 10+ companions. <a href="#download">Install details</a></sub>
 
 **Free and open source (GPLv3) · No account · No analytics or telemetry · Notarized Mac app · Built-in AI works offline once the models are downloaded**
 
@@ -47,7 +48,7 @@ brew install --cask stevyhacker/tap/lokalbot
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Benchmarks](https://www.lokalbot.com/benchmarks) · [Hardware calculator](https://www.lokalbot.com/hardware) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
+[Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [iOS & Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Benchmarks](https://www.lokalbot.com/benchmarks) · [Hardware calculator](https://www.lokalbot.com/hardware) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
 
 </div>
 
@@ -228,16 +229,16 @@ The same window (**⌃⇧ Space**, or **Ctrl+Shift+Space** on Windows and Linux,
 
 <a id="on-your-phone"></a>
 
-#### On your phone (Android)
+#### On your phone and tablet (iOS & Android)
 
 > [!TIP]
-> **LokalBot for Android is on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion).** Read and search your meetings, actions, and Day Digests offline, and ask your computer questions from your phone. It syncs straight from your computer, end-to-end encrypted, with no LokalBot server in between.
+> **LokalBot is on the [App Store](https://apps.apple.com/app/id6836773709) for iPhone & iPad and on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) for Android.** Read and search your meetings, actions, and Day Digests offline, ask your computer questions, and record meetings from your phone or tablet. It syncs straight from your computer, end-to-end encrypted, with no LokalBot server in between.
 
-The Android app keeps an end-to-end encrypted copy of the meetings, actions, Timeline, Day Digests, people, and projects you choose to share, so you can read and search them offline. Ask sends your question to your computer, which answers with its own AI settings; away from it, queue the question for later. Pair it with a QR code under **Settings → Phones & tablets** on a Mac, Windows, or Linux computer. The phone syncs straight from your computer over your local network or Tailscale, with no LokalBot server in between. A paired phone can also record a meeting and send it the same way; your Mac processes it, and the phone then deletes its copy.
+The iPhone, iPad, and Android apps keep an end-to-end encrypted copy of the meetings, actions, Timeline, Day Digests, people, and projects you choose to share, so you can read and search them offline. Ask sends your question to your computer, which answers with its own AI settings; away from it, queue the question for later. Pair them with a QR code under **Settings → Phones & tablets** on a Mac, Windows, or Linux computer. They sync straight from your computer over your local network or Tailscale, with no LokalBot server in between. A paired phone or tablet can also record a meeting and send it the same way; your computer processes it, and the device then deletes its copy.
 
-<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/android-today-dark.png" /><img src="Assets/readme/android-today-light.png" width="300" alt="LokalBot on Android showing Today: open action items with their meetings and yesterday's Day Digest, from the sample library" /></picture></div>
+<div align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/ios-today-dark.png" /><img src="Assets/readme/ios-today-light.png" width="260" alt="LokalBot on iPhone showing Today: open action items with their meetings and yesterday's Day Digest, from the sample library" /></picture>&nbsp;&nbsp;&nbsp;&nbsp;<picture><source media="(prefers-color-scheme: dark)" srcset="Assets/readme/android-today-dark.png" /><img src="Assets/readme/android-today-light.png" width="260" alt="LokalBot on Android showing Today: open action items with their meetings and yesterday's Day Digest, from the sample library" /></picture></div>
 
-[Get it on Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) (Android 10 or later), or install the APK from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest). They're signed with different keys, so pick one: switching later means uninstalling, which removes the phone's copy and its pairing. You can try the sample library before you pair. The iPhone and iPad app isn't in the App Store yet.
+[Download on the App Store](https://apps.apple.com/app/id6836773709) (iOS and iPadOS 18 or later), [get it on Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) (Android 10 or later), or install the Android APK from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest). Google Play and release APKs are signed with different keys, so pick one: switching later means uninstalling, which removes the phone's copy and its pairing. You can try the sample library before you pair.
 
 <a id="windows-and-linux"></a>
 
@@ -346,7 +347,7 @@ LokalBot runs on Apple Silicon Macs with macOS 15 or later. Windows and Linux ar
 
 A library recorded on one platform opens on the others. Not every Mac feature is on Windows and Linux yet; see [what works where](LinuxWindows/README.md#what-works-where).
 
-**On your phone:** get the Android companion app on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) (Android 10 or later) and pair it under **Settings → Phones & tablets**. See [On your phone](#on-your-phone).
+**On your phone or tablet:** download the companion app on the [App Store](https://apps.apple.com/app/id6836773709) (iOS and iPadOS 18 or later) or [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion) (Android 10 or later) and pair it under **Settings → Phones & tablets**. See [On your phone and tablet](#on-your-phone).
 
 1. **Install the app** for your platform and open it.
 2. **Choose what to capture.** Review recording settings: automatic detection, ask-first, or manual recording. Day tracking starts with activity only; saving screen text or screenshots is a separate opt-in. Grant only the permissions for the features you enable.
@@ -391,7 +392,7 @@ Yes, as an alpha. The Windows and Linux app is a native Rust app with the same p
 <details>
 <summary><strong>Is there a phone app?</strong></summary>
 
-Yes, for Android 10 or later, on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion). It's a companion to LokalBot on your computer: it reads the meetings, actions, and Day Digests your computer shares, searches them offline, and sends your questions to your computer. Sharing is off until you turn on **Settings → Phones & tablets**, and the copy travels end-to-end encrypted over your local network or Tailscale, never through a LokalBot server. The iPhone and iPad app isn't in the App Store yet.
+Yes — for iPhone and iPad (iOS and iPadOS 18 or later) on the [App Store](https://apps.apple.com/app/id6836773709), and for Android (Android 10 or later) on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion). They're companions to LokalBot on your computer: they read the meetings, actions, and Day Digests your computer shares, search them offline, record meetings for your computer to transcribe, and send your questions to your computer. Sharing is off until you turn on **Settings → Phones & tablets**, and the copy travels end-to-end encrypted over your local network or Tailscale, never through a LokalBot server.
 
 </details>
 

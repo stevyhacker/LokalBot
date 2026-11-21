@@ -1,20 +1,11 @@
 import Foundation
 
-/// What autocomplete did for one period: suggestions shown and taken, and the
-/// words and characters they wrote. Counts only.
 struct CotypingUsageCounts: Codable, Equatable, Sendable {
-    /// Suggestions that appeared at the caret. A suggestion shown again at a
-    /// new caret, for example after an accept the app drew late, counts again.
     var shown = 0
-    /// Shown suggestions you took at least part of.
     var used = 0
-    /// Accept key presses that inserted suggested text.
     var accepts = 0
-    /// Words inserted from suggestions.
     var words = 0
-    /// Characters inserted from suggestions.
     var characters = 0
-    /// Accepts deleted or undone with the very next key.
     var takenBack = 0
 
     private enum CodingKeys: String, CodingKey {
@@ -36,7 +27,6 @@ struct CotypingUsageCounts: Codable, Equatable, Sendable {
         takenBack = try count(.takenBack)
     }
 
-    /// Zero counts are left out, which keeps a quiet day to a few bytes.
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         func count(_ value: Int, _ key: CodingKeys) throws {
@@ -52,20 +42,14 @@ struct CotypingUsageCounts: Codable, Equatable, Sendable {
 
     var isEmpty: Bool { self == CotypingUsageCounts() }
 
-    /// Share of shown suggestions you took part of. An accept just after
-    /// midnight can land on a later day than its suggestion, so `used` is
-    /// capped at `shown`.
     var acceptanceRate: Double? {
         shown > 0 ? Double(min(used, shown)) / Double(shown) : nil
     }
 
-    /// Words you took from each suggestion you used.
     var wordsPerUsedSuggestion: Double? {
         used > 0 ? Double(words) / Double(used) : nil
     }
 
-    /// Key presses you did not make: every inserted character, less the
-    /// accept presses that inserted them.
     var keystrokesSaved: Int { max(0, characters - accepts) }
 
     mutating func merge(_ other: CotypingUsageCounts) {
@@ -78,22 +62,13 @@ struct CotypingUsageCounts: Codable, Equatable, Sendable {
     }
 }
 
-/// One day or month of autocomplete use, with how much you typed yourself
-/// where autocomplete could suggest. No text, app name or window title.
 struct CotypingUsageBucket: Codable, Equatable, Sendable {
     var suggestions = CotypingUsageCounts()
-    /// By kind of app (a `CotypingSurfaceClass` raw value).
     var surfaces: [String: CotypingUsageCounts] = [:]
-    /// By autocomplete model ID.
     var models: [String: CotypingUsageCounts] = [:]
-    /// Characters you typed yourself in fields autocomplete serves.
     var typedCharacters = 0
-    /// Gaps between consecutive typed characters, up to
-    /// `CotypingUsageHistory.maxTypingGapMilliseconds`: their sum and count
-    /// give your typing speed.
     var typingMilliseconds = 0
     var typingGaps = 0
-    /// Misspellings replaced by accepting a correction.
     var typosFixed = 0
 
     private enum CodingKeys: String, CodingKey {
@@ -132,14 +107,11 @@ struct CotypingUsageBucket: Codable, Equatable, Sendable {
 
     var isEmpty: Bool { self == CotypingUsageBucket() }
 
-    /// Share of the text written where autocomplete works that came from
-    /// suggestions rather than your own keystrokes.
     var shareOfText: Double? {
         let total = suggestions.characters + typedCharacters
         return total > 0 ? Double(suggestions.characters) / Double(total) : nil
     }
 
-    /// Average time per typed character, once there are enough gaps to say.
     var millisecondsPerKeystroke: Double? {
         typingGaps >= CotypingUsageHistory.minimumTypingGaps
             ? Double(typingMilliseconds) / Double(typingGaps) : nil
@@ -155,7 +127,6 @@ struct CotypingUsageBucket: Codable, Equatable, Sendable {
         typosFixed += other.typosFixed
     }
 
-    /// Adds to the totals and to the given app kind and model.
     mutating func update(surface: String, model: String, _ change: (inout CotypingUsageCounts) -> Void) {
         change(&suggestions)
         change(&surfaces[surface, default: .init()])
@@ -163,22 +134,13 @@ struct CotypingUsageBucket: Codable, Equatable, Sendable {
     }
 }
 
-/// Autocomplete use by local calendar day and month. Daily rows are kept for
-/// `retainedDays`, for the week and month charts; monthly rows are kept, so
-/// longer ranges still add up and cost a few hundred bytes a month.
 struct CotypingUsageHistory: Codable, Equatable, Sendable {
-    /// "2026-10-14" → that day's counts.
     var days: [String: CotypingUsageBucket] = [:]
-    /// "2026-10" → that month's counts.
     var months: [String: CotypingUsageBucket] = [:]
 
     static let retainedDays = 92
-    /// A longer gap between two typed characters is a pause, not typing speed.
     static let maxTypingGapMilliseconds = 1_000
-    /// Typing speed is shown once this many gaps have been measured.
     static let minimumTypingGaps = 200
-    /// Used for time saved until your own speed is known: 40 words a minute
-    /// at five characters a word.
     static let fallbackMillisecondsPerKeystroke = 300.0
 
     init() {}
@@ -197,7 +159,6 @@ struct CotypingUsageHistory: Codable, Equatable, Sendable {
         }
     }
 
-    /// One accept press. `firstOfSuggestion` marks the suggestion as used.
     mutating func recordAccept(
         words: Int, characters: Int, firstOfSuggestion: Bool,
         surface: String, model: String, at date: Date, calendar: Calendar = .current
@@ -218,8 +179,6 @@ struct CotypingUsageHistory: Codable, Equatable, Sendable {
         }
     }
 
-    /// Characters you typed. `gapMilliseconds` is the time since the previous
-    /// typed character, when it was short enough to be typing.
     mutating func recordTyped(characters: Int, gapMilliseconds: Int?, at date: Date, calendar: Calendar = .current) {
         record(at: date, calendar: calendar) { bucket in
             bucket.typedCharacters += max(0, characters)
@@ -241,11 +200,9 @@ struct CotypingUsageHistory: Codable, Equatable, Sendable {
         change(&months[Self.monthKey(date, calendar: calendar), default: .init()])
     }
 
-    /// Drops daily rows older than `retainedDays`; their months keep the totals.
     private mutating func prune(before date: Date, calendar: Calendar) {
         guard let cutoff = calendar.date(byAdding: .day, value: -(Self.retainedDays - 1),
                                          to: calendar.startOfDay(for: date)) else { return }
-        // Zero-padded keys sort in date order.
         let oldest = Self.dayKey(cutoff, calendar: calendar)
         days = days.filter { $0.key >= oldest }
     }
@@ -261,7 +218,6 @@ struct CotypingUsageHistory: Codable, Equatable, Sendable {
     }
 }
 
-/// The periods the statistics can show.
 enum CotypingUsageRange: String, CaseIterable, Identifiable, Sendable {
     case week, month, year, allTime
 
@@ -277,8 +233,6 @@ enum CotypingUsageRange: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// One range of the history, ready to show: its total and one bar per day or
-/// month, empty periods included so the chart keeps an even time axis.
 struct CotypingUsageSummary: Equatable, Sendable {
     struct Bar: Identifiable, Equatable, Sendable {
         var start: Date
@@ -289,25 +243,18 @@ struct CotypingUsageSummary: Equatable, Sendable {
     var range: CotypingUsageRange
     var total: CotypingUsageBucket
     var bars: [Bar]
-    /// `.day` or `.month`.
     var barUnit: Calendar.Component
-    /// Time per keystroke from everything recorded, or nil while too little
-    /// typing has been measured. Typing speed is a habit, not a property of
-    /// the range, so a short range borrows the longer measurement.
     var millisecondsPerKeystroke: Double?
 
-    /// Your measured typing speed in words a minute, at five characters a word.
     var wordsPerMinute: Int? {
         millisecondsPerKeystroke.map { Int((60_000 / ($0 * 5)).rounded()) }
     }
 
-    /// Keystrokes saved, at your typing speed or the fallback.
     var timeSavedSeconds: Double {
         Double(total.suggestions.keystrokesSaved)
             * (millisecondsPerKeystroke ?? CotypingUsageHistory.fallbackMillisecondsPerKeystroke) / 1_000
     }
 
-    /// Days in the range with any suggestion accepted.
     var activeBars: Int { bars.filter { $0.bucket.suggestions.accepts > 0 }.count }
 }
 
@@ -329,7 +276,6 @@ extension CotypingUsageHistory {
             guard let thisMonth = calendar.dateInterval(of: .month, for: now)?.start else { break }
             var count = 12
             if range == .allTime {
-                // From the first recorded month, and never fewer than one bar.
                 let first = months.filter { !$0.value.isEmpty }.keys.min()
                     .flatMap { Self.monthStart($0, calendar: calendar) } ?? thisMonth
                 count = max(1, (calendar.dateComponents([.month], from: first, to: thisMonth).month ?? 0) + 1)

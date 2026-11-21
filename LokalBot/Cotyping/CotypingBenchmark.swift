@@ -8,16 +8,8 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
     var latencyTargetMs: Int
     var expectsVisibleSuggestion: Bool = true
     var allowedSuppressions: [CotypingSuppressionReason] = []
-    /// Word-completion contract (Cotypist parity): the caret sits at the end of
-    /// a word fragment and a visible suggestion MUST extend it — begin with a
-    /// word character, and (when provided) with one of
-    /// `expectedCompletionPrefixes`, the tails of every real word that fits the
-    /// fragment. Silence is safe but counts as a miss unless it is one of the
-    /// `allowedSuppressions`.
     var expectsWordCompletion: Bool = false
     var expectedCompletionPrefixes: [String] = []
-    /// Mirrors the coordinator's spell-checker verdict for the fragment at the
-    /// caret; drives the normalizer's whitespace-leading rejection.
     var wordPrefixIsValidWord: Bool = true
 
     private static func field(
@@ -32,13 +24,7 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
             windowTitle: windowTitle, fieldPlaceholder: placeholder)
     }
 
-    /// 26 scenarios in four groups: next-word continuations, word completions
-    /// (the caret is mid-word and the suggestion must finish the word — the
-    /// Cotypist parity gap), strictly-inside-word safety, and context/format
-    /// robustness. Latency targets: 2000 ms for the cold first case, 1500 ms
-    /// steady-state, 1200 ms for short mid-word prompts.
     static let defaults: [CotypingBenchmarkScenario] = [
-        // — Next-word continuations —
         CotypingBenchmarkScenario(
             id: "email-follow-up", name: "Email follow-up",
             field: field(
@@ -88,8 +74,6 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
             expectedTerms: ["fix", "review", "write", "prepare", "follow", "update"],
             latencyTargetMs: 1_500),
 
-        // — Word completion: caret at the end of a fragment no dictionary word
-        //   equals, so the ghost text MUST extend it (Cotypist parity) —
         CotypingBenchmarkScenario(
             id: "wc-follow", name: "Complete: follo→w",
             field: field(
@@ -217,9 +201,6 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
             expectedCompletionPrefixes: ["w"],
             wordPrefixIsValidWord: false),
 
-        // — Word fragments that are already valid words: both "extend the word"
-        //   and "start the next word" are legitimate, so only visibility is
-        //   asserted —
         CotypingBenchmarkScenario(
             id: "valid-fragment-the", name: "Valid fragment: the",
             field: field(
@@ -245,8 +226,6 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
             expectedTerms: [],
             latencyTargetMs: 1_200),
 
-        // — Strictly inside a word (text after the caret): the suggestion must
-        //   continue the word or stay quiet —
         CotypingBenchmarkScenario(
             id: "mid-word", name: "Mid-word safety",
             field: field(
@@ -274,7 +253,6 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
             expectedCompletionPrefixes: ["get"],
             wordPrefixIsValidWord: false),
 
-        // — Context and format robustness —
         CotypingBenchmarkScenario(
             id: "question", name: "Question continuation",
             field: field(
@@ -326,18 +304,11 @@ struct CotypingBenchmarkScenario: Identifiable, Equatable, Sendable {
     ]
 }
 
-/// What a scenario's result means for the person typing.
 enum CotypingBenchmarkOutcome: String, Codable, Sendable {
-    /// A suggestion the scenario accepts.
     case shown
-    /// Silence the scenario explicitly allows (e.g. strictly inside a word).
     case allowedSilence
-    /// No suggestion where one was expected, e.g. the confidence gate held it back.
     case withheld
-    /// A real word tail, but not one the scenario accepts.
     case wrongCompletion
-    /// Text that would damage the field: a leaked prompt, a split or corrupted
-    /// word, or any insertion where silence was required.
     case unsafe
     case error
 }
@@ -357,7 +328,6 @@ struct CotypingBenchmarkCaseResult: Identifiable, Equatable, Sendable {
     var allowedSuppression: Bool
     var expectedWordCompletion: Bool = false
     var expectedCompletionPrefixes: [String] = []
-    /// Letters follow the caret, so any insertion lands inside an existing word.
     var insideWord: Bool = false
 
     var outcome: CotypingBenchmarkOutcome {
@@ -370,29 +340,19 @@ struct CotypingBenchmarkCaseResult: Identifiable, Equatable, Sendable {
             return .withheld
         }
         if expectedWordCompletion {
-            // The ghost text sits right after the fragment: a leading space or
-            // punctuation would split the word ("follo w up").
             guard let first = text.first, first.isLetter || first.isNumber else { return .unsafe }
             let folded = text.lowercased()
             if expectedCompletionPrefixes.isEmpty
                 || expectedCompletionPrefixes.contains(where: { folded.hasPrefix($0.lowercased()) }) {
                 return .shown
             }
-            // A wrong tail is only a miss at the end of a word; inside one it
-            // corrupts the text that follows the caret.
             return insideWord ? .unsafe : .wrongCompletion
         }
         return expectedVisibleSuggestion ? .shown : .unsafe
     }
 
-    /// Nothing harmful reached the field: no prompt leak, no split or corrupted
-    /// word, no text where silence was required, and no engine error. Staying
-    /// quiet is safe; how often that happens is reported as `withheld`.
     var passedSafety: Bool { outcome != .unsafe && outcome != .error }
 
-    /// True when the suggestion completes the caret fragment into an accepted
-    /// word (word-completion scenarios only) — surfaced separately so summaries
-    /// can report the Cotypist-parity rate on its own.
     var wordCompletionHit: Bool {
         expectedWordCompletion && outcome == .shown
     }
@@ -412,8 +372,6 @@ struct CotypingBenchmarkSummary: Equatable, Sendable {
     var keywordHits: Int { results.map(\.expectedTermHits).reduce(0, +) }
     var keywordTotal: Int { results.map(\.expectedTermCount).reduce(0, +) }
 
-    /// Cotypist-parity signal: of the scenarios that demand a word completion,
-    /// how many produced a suggestion that extends the typed fragment.
     var wordCompletionTotal: Int { results.filter(\.expectedWordCompletion).count }
     var wordCompletionPassed: Int { results.filter(\.wordCompletionHit).count }
 
@@ -449,8 +407,6 @@ struct CotypingBenchmarkSummary: Equatable, Sendable {
     }
 }
 
-/// Machine-readable rendering for `LokalBot --cotyping-bench` — the scriptable
-/// evaluation model consumed by `Benchmarks/autocomplete/Cotyping/side_by_side.py`.
 extension CotypingBenchmarkSummary {
     fileprivate struct CaseJSON: Codable {
         let id: String
@@ -524,9 +480,6 @@ extension CotypingBenchmarkSummary {
     }
 }
 
-/// `LokalBot --cotyping-bench --model-path` output: pass 1's scenario results,
-/// model loading on its own, and latency split into the first pass (each
-/// prompt seen for the first time after loading) and the warm passes after it.
 struct CotypingEngineBenchmarkReport {
     var loadMs: Int
     var maxWords: Int
@@ -556,13 +509,11 @@ struct CotypingEngineBenchmarkReport {
     var unsafe: Int { summaries.map { $0.count(.unsafe) }.reduce(0, +) }
     var errors: Int { summaries.map { $0.count(.error) }.reduce(0, +) }
 
-    /// Decoding is greedy, so every pass should show exactly the same thing.
     var consistentAcrossPasses: Bool {
         let shown = summaries.map { $0.results.map { "\($0.text)|\($0.suppression?.rawValue ?? "")" } }
         return shown.allSatisfy { $0 == shown.first }
     }
 
-    /// Nearest-rank percentiles, as the replay scripts compute them.
     static func latency(_ values: [Int]) -> LatencyJSON? {
         guard !values.isEmpty else { return nil }
         let sorted = values.sorted()
@@ -629,10 +580,6 @@ enum CotypingBenchmarkRunner {
         return CotypingBenchmarkSummary(results: results)
     }
 
-    /// Runs every scenario `passes` times against the runtime the app builds for
-    /// autocomplete, with fresh-install settings. Like `--cotyping-replay`, it
-    /// reads only the given model: no saved settings, library, learning or
-    /// window. Exit 1 when anything was unsafe or errored.
     static func runEngine(model: URL, passes: Int) async -> Int32 {
         let engine = LocalLlamaCotypingEngine(runtime: .forAutocomplete(), modelPath: model.path)
         let settings = AppSettings()

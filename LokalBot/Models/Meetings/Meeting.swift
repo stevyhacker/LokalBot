@@ -1,90 +1,48 @@
 import Foundation
 
-/// One recorded meeting. Persisted as `meta.json` inside its own folder:
-/// `meetings/YYYY/MM/dd-slug/{mic.m4a, system.m4a, meta.json}`.
 struct Meeting: Identifiable, Codable, Equatable, Sendable {
     let id: UUID
     var title: String
     var appName: String
     var startedAt: Date
     var endedAt: Date?
-    /// Path relative to the LokalBot storage root, e.g. "meetings/2026/06/10-zoom-meeting".
     var relativePath: String
     var hasSystemTrack: Bool = false
 
-    // MARK: Calendar provenance (optional)
-    //
-    // Populated only when a recording was matched to a calendar event. All
-    // optional so `meta.json` written before calendar support still decodes
-    // (synthesized `Codable` decodes missing keys to nil and omits nil keys on
-    // encode, so manual recordings keep their old, calendar-free shape).
     var calendarProvider: String?
     var calendarEventID: String?
     var calendarTitle: String?
     var scheduledStartAt: Date?
     var scheduledEndAt: Date?
     var meetingURL: URL?
-    /// Calendar attendee / roster names that can seed speaker rename
-    /// suggestions. Optional so older `meta.json` files still decode.
     var participantNameHints: [String]?
-    /// Structured calendar attendees. Email addresses remain in this local
-    /// metadata only; transcript aliases retain opaque participant IDs.
     var calendarParticipantIdentities: [CalendarParticipantIdentity]?
-    /// The invitation's agenda with joining details, links, phone numbers,
-    /// and addresses removed. Saved only when the user enables agenda use.
     var calendarAgenda: String?
 
-    /// IDs of the source meetings when this record was created by the
-    /// non-destructive merge flow. Source folders are never removed or
-    /// rewritten, and speaker labels in the merged transcript stay scoped to
-    /// their source meeting so identities cannot silently bleed across calls.
     var mergedSourceMeetingIDs: [UUID]?
 
-    /// The merged meeting that folded this source out of the main library.
-    /// Keeping this relationship in the source metadata lets the app hide the
-    /// old row across launches without deleting its original evidence.
     var mergedIntoMeetingID: UUID?
 
-    /// The original file names when this meeting came from audio or video
-    /// files the user imported rather than recordings made on this Mac. The
-    /// screen during their time span shows what the user was doing then, not
-    /// this meeting, so imported meetings take no screen context. A merge
-    /// keeps every imported source's names, so it stays imported.
     var importedFileNames: [String]?
 
-    /// Set on a meeting brought in from another app's notes or transcript
-    /// (`ExternalMeetingWriter`): which app and the meeting's id there, so
-    /// importing the same export again skips it instead of adding a copy.
     var importSource: ImportSource?
 
     struct ImportSource: Codable, Equatable, Sendable {
-        /// An `ExternalMeetingSource` raw value, such as "otter".
         var app: String
-        /// The meeting's id in that app, or a hash of what identifies it.
         var id: String
         var importedAt: Date
 
         var key: String { "\(app)/\(id)" }
     }
 
-    /// Set on LokalBot's bundled sample meeting ("orders-api/en"): a made-up
-    /// call with synthetic voices (`SampleMeeting`). Ask, search and agents
-    /// still see it; personal memory (the day, digests, people, projects,
-    /// action lists, Personal Context) leaves it out.
     var sampleID: String?
 
     var isMergedMeeting: Bool { !(mergedSourceMeetingIDs ?? []).isEmpty }
     var isMergedSource: Bool { mergedIntoMeetingID != nil }
     var isImported: Bool { !(importedFileNames ?? []).isEmpty }
     var isSample: Bool { sampleID != nil }
-    /// The user's own work: what memory, digests, people, projects, action
-    /// lists and briefings are built from. Merged sources live on in their
-    /// merged meeting, and the sample is made up.
     var isOwnWork: Bool { !isMergedSource && !isSample }
 
-    /// Shared, read-only library projection for the app and CLI/MCP. Parent
-    /// manifests cover interrupted source-marker writes; missing parents make
-    /// their originals visible again. StorageManager persists these repairs.
     static func resolvingMergeRelationships(in meetings: [Meeting]) -> [Meeting] {
         var parents: [UUID: UUID] = [:]
         var sourceIDsByParent: [UUID: Set<UUID>] = [:]
@@ -114,22 +72,13 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
             : structured
     }
 
-    /// Length of the actual recorded audio (longest track), measured at
-    /// finalize. The wall-clock span (`duration`) can exceed what was captured
-    /// — an audio-device disruption can truncate the tracks while a
-    /// calendar-backed session stays live — so this is the playable length and
-    /// what `durationLabel` reports. Optional so older `meta.json` still decodes.
     var recordedDuration: TimeInterval?
 
-    /// Seconds on the original audio timeline. Raw tracks stay intact; all
-    /// derived meeting evidence is limited to this reviewable range.
     var contentRange: ContentRange?
 
-    /// Nil on legacy recordings: a saved range may have been a user edit.
     var contentRangeSource: ContentRangeSource?
     enum ContentRangeSource: String, Codable { case userReviewed, confirmedCallEnd }
 
-    /// Retained across detector visibility gaps and late attachment attempts.
     var captureIntent: CaptureIntent?
     struct CaptureIntent: Codable, Equatable, Sendable {
         var systemAudioRequested: Bool
@@ -156,8 +105,6 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
 
         func applying(to transcript: Transcript) -> Transcript {
             var result = transcript
-            // Without word alignment, a crossing segment cannot be safely
-            // clipped as text. Retranscription partitions audio at the boundary.
             result.segments = transcript.segments.filter {
                 isValid && $0.start >= start && $0.end <= end
             }
@@ -176,13 +123,8 @@ struct Meeting: Identifiable, Codable, Equatable, Sendable {
         return m >= 60 ? "\(m / 60)h \(m % 60)m" : "\(m) min"
     }
 
-    /// Human title hierarchy shared by list, preview, Today, Timeline, Ask,
-    /// and Agent surfaces. Calendar provenance beats generic recorder labels;
-    /// otherwise preserve the original title and fall back to app + time.
     var displayTitle: String {
         var cleanedTitle = Self.cleanedTitle(title)
-        // Older merges embedded bookkeeping in the title. Keep the stored
-        // title intact while presenting the meeting by its actual name.
         while isMergedMeeting, cleanedTitle.hasPrefix("Merged: "),
               cleanedTitle.range(of: #" \+ \d+ more$"#, options: .regularExpression) != nil {
             cleanedTitle = String(cleanedTitle.dropFirst("Merged: ".count))

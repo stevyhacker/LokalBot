@@ -1,16 +1,9 @@
 import Foundation
 
-// Record bodies from Companion/protocol/records.md, schema version 1.
-// Optional fields are omitted on the wire, never null.
-
-// MARK: - Envelope
-
 public enum RecordKind: String, Codable, Sendable, CaseIterable {
     case manifest, meeting, transcript, day, person, project
 }
 
-/// One record as it travels and is stored. A tombstone (`deleted`) has an
-/// empty body.
 public struct RecordEnvelope: Decodable, Sendable {
     public let kind: String
     public let key: String
@@ -54,22 +47,16 @@ public enum RecordBody: Sendable {
     case person(Person)
     case project(Project)
     case tombstone
-    /// A kind from a newer schema; clients ignore it.
     case unknown
 }
-
-// MARK: - Manifest
 
 public struct Manifest: Codable, Sendable, Hashable {
     public var schemaVersion: Int
     public var libraryName: String
     public var macName: String
     public var dataClasses: DataClasses
-    /// 0 is all history; otherwise 30, 90 or 365.
     public var historyDays: Int
     public var askEnabled: Bool
-    /// Whether the Mac takes recordings from this device now. Absent from a
-    /// Mac that predates them.
     public var recordingsEnabled: Bool?
     public var generatedAt: Date
 
@@ -99,8 +86,6 @@ public struct Manifest: Codable, Sendable, Hashable {
     }
 }
 
-// MARK: - Meeting
-
 public struct PersonRef: Codable, Sendable, Hashable, Identifiable {
     public var id: String
     public var displayName: String
@@ -126,9 +111,7 @@ public struct Meeting: Codable, Sendable, Hashable, Identifiable {
     public var title: String
     public var startedAt: Date
     public var endedAt: Date
-    /// Local day of `startedAt` on the Mac, `YYYY-MM-DD`.
     public var day: String
-    /// The Mac's offset at `startedAt`, for showing times as they were.
     public var timeZoneOffsetMinutes: Int
     public var durationSeconds: Double
     public var appName: String?
@@ -166,7 +149,6 @@ public struct Meeting: Codable, Sendable, Hashable, Identifiable {
         self.mergedInto = mergedInto
     }
 
-    /// The Mac's time zone when the meeting started.
     public var timeZone: TimeZone {
         TimeZone(secondsFromGMT: timeZoneOffsetMinutes * 60) ?? .current
     }
@@ -175,7 +157,6 @@ public struct Meeting: Codable, Sendable, Hashable, Identifiable {
 public enum ActionStatus: String, Codable, Sendable, CaseIterable, Hashable {
     case open, done, deferred
 
-    /// A status from a newer schema reads as open, so the action stays visible.
     public init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         self = ActionStatus(rawValue: raw) ?? .open
@@ -196,19 +177,12 @@ public struct ActionItem: Codable, Sendable, Hashable, Identifiable {
     public var owner: String?
     public var ownerIsUser: Bool
     public var ownerUnclear: Bool
-    /// Resolved on the Mac, `YYYY-MM-DD`.
     public var dueDate: String?
-    /// The phrase as spoken ("by Thursday").
     public var dueText: String?
     public var status: ActionStatus
-    /// 1–5.
     public var importance: Int
     public var citations: [Citation]
-    /// Added by this device's store, in a meeting's actions: the status was
-    /// changed here and the computer hasn't confirmed it.
     public var pending: Bool
-    /// Added by this device's store, in a meeting's actions: the computer
-    /// didn't make the last change.
     public var syncNote: ActionSyncNote?
 
     public init(id: String, text: String, owner: String? = nil, ownerIsUser: Bool = false,
@@ -229,7 +203,6 @@ public struct ActionItem: Codable, Sendable, Hashable, Identifiable {
         self.syncNote = syncNote
     }
 
-    /// The computer never sends `pending`, so its absence means false.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         id = try container.decode(String.self, forKey: .id)
@@ -247,10 +220,7 @@ public struct ActionItem: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// The computer's answer when it didn't make a status change sent from this
-/// device (ffi.md, `syncNote`).
 public struct ActionSyncNote: Codable, Sendable, Hashable {
-    /// Why, in the computer's words.
     public var message: String?
 
     public init(message: String? = nil) {
@@ -258,8 +228,6 @@ public struct ActionSyncNote: Codable, Sendable, Hashable {
     }
 }
 
-/// An offset range in seconds from the start of the meeting's audio, and the
-/// quoted words.
 public struct Citation: Codable, Sendable, Hashable, Identifiable {
     public var start: Double
     public var end: Double
@@ -276,7 +244,6 @@ public struct Citation: Codable, Sendable, Hashable, Identifiable {
     public var id: Double { start }
 }
 
-/// A decision or an open question.
 public struct MeetingOutcome: Codable, Sendable, Hashable, Identifiable {
     public var id: String
     public var text: String
@@ -289,8 +256,6 @@ public struct MeetingOutcome: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-// MARK: - Transcript
-
 public struct Transcript: Codable, Sendable, Hashable {
     public var meetingId: String
     public var segments: [TranscriptSegment]
@@ -300,7 +265,6 @@ public struct Transcript: Codable, Sendable, Hashable {
         self.segments = segments
     }
 
-    /// The segment holding `offset`, or the last one that starts before it.
     public func segmentIndex(at offset: Double) -> Int? {
         if let exact = segments.firstIndex(where: { offset >= $0.start && offset < max($0.end, $0.start + 0.5) }) {
             return exact
@@ -313,7 +277,6 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
     public var start: Double
     public var end: Double
     public var speaker: String
-    /// 0 is the person themselves; 1–7 the speaker palette; -1 grouped or unknown.
     public var colorIndex: Int
     public var text: String
 
@@ -326,10 +289,7 @@ public struct TranscriptSegment: Codable, Sendable, Hashable {
     }
 }
 
-// MARK: - Day
-
 public struct DayRecord: Codable, Sendable, Hashable, Identifiable {
-    /// `YYYY-MM-DD` in the Mac's local time zone.
     public var date: String
     public var digest: DayDigest?
     public var timeline: DayTimeline?
@@ -383,7 +343,6 @@ public struct DayDigest: Codable, Sendable, Hashable {
 public struct DayTimeline: Codable, Sendable, Hashable {
     public var trackedSeconds: Double
     public var sessions: [WorkSession]
-    /// Sorted by seconds, descending; no project counts under "Other".
     public var byProject: [TimeShare]
     public var byApp: [TimeShare]
     public var savedMoments: [SavedMoment]
@@ -415,7 +374,6 @@ public struct WorkSession: Codable, Sendable, Hashable, Identifiable {
     public var meetingId: String?
     public var project: String?
     public var apps: [TimeShare]
-    /// Present only while window titles are shared.
     public var windowTitles: [String]?
 
     public var id: String { "\(start.timeIntervalSince1970)-\(kind.rawValue)" }
@@ -434,7 +392,6 @@ public struct WorkSession: Codable, Sendable, Hashable, Identifiable {
 
     public var duration: TimeInterval { end.timeIntervalSince(start) }
 
-    /// The session's title, or its busiest apps when the Mac sent none.
     public var displayTitle: String {
         if let title, !title.isEmpty { return title }
         return apps.prefix(2).map(\.name).joined(separator: " · ")
@@ -463,8 +420,6 @@ public struct SavedMoment: Codable, Sendable, Hashable {
     }
 }
 
-// MARK: - Person
-
 public struct Person: Codable, Sendable, Hashable, Identifiable {
     public var id: String
     public var displayName: String
@@ -478,7 +433,6 @@ public struct Person: Codable, Sendable, Hashable, Identifiable {
         public var actionId: String
         public var text: String
         public var dueDate: String?
-        /// True when the person owns it, false when the LokalBot user does.
         public var theirs: Bool
 
         public init(meetingId: String, actionId: String, text: String, dueDate: String? = nil, theirs: Bool) {
@@ -505,7 +459,6 @@ public struct Person: Codable, Sendable, Hashable, Identifiable {
     }
 }
 
-/// Text that came from a meeting: a decision, a project decision.
 public struct LinkedText: Codable, Sendable, Hashable {
     public var meetingId: String
     public var text: String
@@ -515,8 +468,6 @@ public struct LinkedText: Codable, Sendable, Hashable {
         self.text = text
     }
 }
-
-// MARK: - Project
 
 public struct Project: Codable, Sendable, Hashable, Identifiable {
     public var id: String

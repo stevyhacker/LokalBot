@@ -23,10 +23,8 @@ import androidx.compose.ui.unit.dp
 val LocalLokalBotPalette = staticCompositionLocalOf { LokalBotTokens.Light }
 val LocalIsDarkTheme = staticCompositionLocalOf { false }
 
-/** Increase Contrast (Android 14+ contrast setting) strengthens strokes and supporting text. */
 val LocalIncreasedContrast = staticCompositionLocalOf { false }
 
-/** Access to the full LokalBot palette and roles beyond Material's color scheme. */
 object LokalBotTheme {
     val palette: LokalBotPalette
         @Composable @ReadOnlyComposable get() = LocalLokalBotPalette.current
@@ -37,16 +35,11 @@ object LokalBotTheme {
     val increasedContrast: Boolean
         @Composable @ReadOnlyComposable get() = LocalIncreasedContrast.current
 
-    /** Metadata lines: readable grey, primary text under Increase Contrast. */
     val supportingText: Color
         @Composable @ReadOnlyComposable get() =
             if (LocalIncreasedContrast.current) LocalLokalBotPalette.current.textPrimary else LocalLokalBotPalette.current.textSupporting
 }
 
-/**
- * LokalBot's Material 3 theme: dynamic color stays off so the teal brand
- * holds, colors come from Companion/design/tokens.json, type is Inter.
- */
 @Composable
 fun LokalBotTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -67,8 +60,6 @@ fun LokalBotTheme(
         shapes = LokalBotShapes,
     ) {
         CompositionLocalProvider(
-            // Text outside a Surface or Scaffold otherwise falls back to
-            // black, unreadable on the dark window.
             LocalContentColor provides colorScheme.onBackground,
             LocalLokalBotPalette provides palette,
             LocalIsDarkTheme provides darkTheme,

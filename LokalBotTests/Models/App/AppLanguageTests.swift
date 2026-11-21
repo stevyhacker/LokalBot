@@ -8,8 +8,6 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["zh-TW"]), "zh-Hant")
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["fr-FR", "zh_CN"]), "fr")
         XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: ["en-GB", "zh-Hans"]), "en")
-        // Dutch, Croatian, and Bosnian have no catalog; Croatian and Bosnian are
-        // not folded into Serbian.
         for unsupported in ["nl-NL", "hr-HR", "bs-BA"] {
             XCTAssertEqual(AppLanguage.system.localizationIdentifier(preferredLanguages: [unsupported]), "en", unsupported)
         }
@@ -38,7 +36,6 @@ final class AppLanguageTests: XCTestCase {
         for language in AppLanguage.allCases where language != .system {
             XCTAssertEqual(language.isRightToLeft, language == .arabic || language == .egyptianArabic || language == .urdu)
         }
-        // Direction comes from Foundation, so future catalogs need no list edit.
         XCTAssertTrue(AppLanguage.isRightToLeft(Locale(identifier: "fa")))
         XCTAssertTrue(AppLanguage.isRightToLeft(Locale(identifier: "he")))
     }
@@ -122,9 +119,6 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertEqual(descriptor.currentValue(in: settings, language: .simplifiedChinese), "Settings")
     }
 
-    /// SwiftUI resolves every label through the injected app-language locale,
-    /// and Foundation re-reads the table on each such lookup. UTF-16 text
-    /// tables made switching Settings categories take seconds.
     func testBundledStringTablesAreBinary() throws {
         for language in AppLanguage.allCases.filter({ $0 != .system }).map(\.rawValue) {
             let url = try XCTUnwrap(Bundle.main.url(

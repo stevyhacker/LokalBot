@@ -5,21 +5,12 @@
 
 import Foundation
 
-// Pure typo / autocorrect rules. Ports Cotabby's `CurrentWordExtractor` +
-// `TypoCaseTransfer` + `TypoGate` + `TypoCorrectionReplacementPlanner`.
-// Detection and correction themselves come from `NSSpellChecker`
-// (`CotypingSpellChecker`); these stay pure and testable.
-
-/// The trailing word at the caret plus its grapheme length (one Delete keypress
-/// removes one grapheme, so this is the backspace count to erase the word).
 enum CotypingWord {
     struct Result: Equatable, Sendable {
         let word: String
         let characterCount: Int
     }
 
-    /// Trailing word, or nil when the caret is on whitespace or the token isn't
-    /// plausible natural language.
     static func extract(from precedingText: String) -> Result? {
         guard let last = precedingText.last, !last.isWhitespace else { return nil }
         var start = precedingText.endIndex
@@ -33,8 +24,6 @@ enum CotypingWord {
         return Result(word: word, characterCount: word.count)
     }
 
-    /// Tolerates exactly one trailing space so a just-finished word stays
-    /// actionable (the correction survives pressing Space).
     static func extractTrailingWord(from precedingText: String) -> (result: Result, trailingSpaceCount: Int)? {
         guard precedingText.last == " " else {
             return extract(from: precedingText).map { ($0, 0) }
@@ -45,9 +34,6 @@ enum CotypingWord {
         return (result, 1)
     }
 
-    /// Skip non-natural-language tokens (code, URLs, numbers, all-caps acronyms)
-    /// so they're never flagged as typos. Conservative: misses are fine, false
-    /// positives on code are not.
     static func isPlausibleNaturalWord(_ word: String) -> Bool {
         guard word.count >= 2 else { return false }
         let codeLike: Set<Character> = [
@@ -64,8 +50,6 @@ enum CotypingWord {
     }
 }
 
-/// Copies a typo's capitalization onto its dictionary-cased correction
-/// (`Teh` → `The`, `HTE` → `THE`).
 enum CotypingCaseTransfer {
     static func applying(caseOf source: String, to correction: String) -> String {
         guard !correction.isEmpty else { return correction }
@@ -79,26 +63,13 @@ enum CotypingCaseTransfer {
     }
 }
 
-/// Gate decision for the trailing word before the caret.
 enum CotypingTypoDecision: Equatable {
-    /// No actionable typo — generate a normal continuation.
     case proceed
-    /// Misspelled word, no correction available — hide the continuation, show nothing.
     case suppress
-    /// Misspelled word with a fix — offer it as a one-key word replacement.
     case offerCorrection(word: String, correctedWord: String)
 }
 
 enum CotypingTypoGate {
-    /// `isTypo` / `bestCorrection` / `isCompletableWordPrefix` are injected
-    /// (production: `CotypingSpellChecker`; tests: stubs) so this stays pure.
-    ///
-    /// A word still being typed (no trailing space yet) that is a live prefix
-    /// of a real word ("follo" → follow) is NOT a typo — it is an unfinished
-    /// word, and the LLM continuation must run so it can complete it inline
-    /// (Cotypist's core mid-word behavior). Only a fragment that no dictionary
-    /// word starts with ("recieve") is treated as a typo mid-word. Once the
-    /// word is finished (trailing space), completability no longer applies.
     static func resolve(
         precedingText: String,
         enabled: Bool,
@@ -117,8 +88,6 @@ enum CotypingTypoGate {
     }
 }
 
-/// The synthetic edit to replace a verified trailing typo, recomputed from the
-/// live text at accept time (the field may have changed since the offer).
 struct CotypingCorrectionPlan: Equatable, Sendable {
     let deletingCharacters: Int
     let replacementText: String

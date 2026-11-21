@@ -245,8 +245,6 @@ final class DayDigestPresentationTests: XCTestCase {
                        [false, false])
     }
 
-    /// Timeline gives full rows to open tasks with a next step and to blocked
-    /// tasks; the rest of a group, and all of Done, become one-line rows.
     func testTimelineRowsKeepNextStepsAndBlockersInFull() {
         let presentation = DayDigestPresentation(markdown: """
             ## Day summary
@@ -357,7 +355,6 @@ final class DayDigestPresentationTests: XCTestCase {
         XCTAssertFalse(DayDigestView.Mode.timeline.showsMeetings)
         XCTAssertFalse(DayDigestView.Mode.timeline.showsFullActivityLog)
         XCTAssertFalse(DayDigestView.Mode.timeline.showsOtherActivity)
-        // Timeline's page leads with the highlights itself, above the day strip.
         XCTAssertFalse(DayDigestView.Mode.timeline.showsHighlights)
 
         XCTAssertTrue(DayDigestView.Mode.standalone.showsHighlights)

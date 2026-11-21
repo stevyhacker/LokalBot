@@ -312,8 +312,6 @@ class HostedRunnerTests(unittest.TestCase):
         lock.write_text('{}\n')
         (self.root / ".gitignore").write_text('.build/\n')
         self.git("init", "-q")
-        # Short failure-path tests can finish while Git's background helpers
-        # still touch .git, racing TemporaryDirectory cleanup on hosted Macs.
         self.git("config", "maintenance.auto", "false")
         self.git("config", "gc.auto", "0")
         self.git("config", "core.fsmonitor", "false")
@@ -471,7 +469,7 @@ sys.exit(int(os.environ.get(key, '0')))
 
     def test_ci_logging_pipeline_stops_before_smoke_when_compilation_fails(self):
         workflow = (SOURCE / '.github/workflows/ui-tests.yml').read_text()
-        self.assertIn('shell: bash', workflow)  # GHA enables -e -o pipefail for an explicit Bash shell.
+        self.assertIn('shell: bash', workflow)
         step = workflow.split('      - name: Build UI test targets\n', 1)[1].split('      - name:', 1)[0]
         run = step.split('        run: |\n', 1)[1]
         run = '\n'.join(line[10:] for line in run.splitlines() if line.startswith('          '))

@@ -12,7 +12,6 @@ const BIN = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'bin',
 function run(args, env = {}) {
   const result = spawnSync(process.execPath, [BIN, ...args], {
     encoding: 'utf8',
-    // The real ~/.claude and ~/.codex are never read: every run names its folders.
     env: { PATH: process.env.PATH, TZ: 'UTC', NO_COLOR: '1', ...env },
   });
   return { code: result.status, out: result.stdout, err: result.stderr };

@@ -30,7 +30,6 @@ import org.junit.After
 import org.junit.Before
 import org.junit.Test
 
-/** A library with more meetings than the Meetings list loads at once. */
 @OptIn(ExperimentalCoroutinesApi::class)
 class LongHistoryTest {
     private lateinit var repository: FixtureRepository
@@ -51,7 +50,6 @@ class LongHistoryTest {
         val viewModel = MeetingsViewModel(repository)
         assertThat(viewModel.shown()).hasSize(MeetingsViewModel.PAGE)
         assertThat(viewModel.shown()).doesNotContain(OLDEST)
-        // The header says "More than 1000 meetings" until the end is reached.
         assertThat(viewModel.state.value.hasMore).isTrue()
         assertThat(viewModel.state.value.total).isEqualTo(MeetingsViewModel.PAGE)
 
@@ -60,14 +58,12 @@ class LongHistoryTest {
         assertThat(viewModel.shown().last()).isEqualTo(OLDEST)
         assertThat(viewModel.state.value.hasMore).isFalse()
         assertThat(viewModel.state.value.total).isEqualTo(COUNT)
-        // Nothing is left to ask for.
         viewModel.showMore()
         assertThat(viewModel.shown()).hasSize(COUNT)
     }
 
     @Test
     fun `a meeting the page couldn't use doesn't end the list`() {
-        // Whether older meetings exist is the store's to say, from the rows it read, not from how many it could use.
         val short = object : CompanionRepository by repository {
             override suspend fun newestMeetings(limit: Int): MeetingsPage =
                 repository.newestMeetings(limit).let { it.copy(meetings = it.meetings.drop(1)) }
@@ -88,12 +84,10 @@ class LongHistoryTest {
         assertThat(viewModel.shown()).containsExactly(OLDEST)
         viewModel.setQuery("Ines")
         assertThat(viewModel.shown()).containsExactly(NEWEST, OLDEST).inOrder()
-        // In the summary only, so it comes from the search index.
         viewModel.setQuery("lighthouse")
         assertThat(viewModel.shown()).containsExactly(OLDEST)
         assertThat(viewModel.state.value.total).isEqualTo(COUNT)
         assertThat(viewModel.state.value.hasMore).isFalse()
-        // The rows a search keeps in memory carry what a row shows, not the long texts.
         assertThat(viewModel.state.value.days.single().meetings.single().summaryMarkdown).isNull()
 
         viewModel.setQuery("")

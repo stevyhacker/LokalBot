@@ -9,14 +9,12 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..',
 const hw = require(path.join(ROOT, 'Website', 'public', 'hardware.js'));
 
 test('hardware calculator covers Mac, Windows, and Linux tiers cleanly', () => {
-  // 8 GB Mac auto-fit -> lightweight stack fits inside 4 GB 50% cap
   const mac8 = hw.evaluateStack({ os: 'mac', ramGb: 8, profile: 'auto' });
   assert.equal(mac8.budgetGb, 4);
   assert.ok(['comfortable', 'lru'].includes(mac8.status), `expected comfortable/lru on 8 GB Mac, got ${mac8.status}`);
   assert.equal(mac8.rows.find((r) => r.roleKey === 'llm').model.id, 'qwen3.5-0.8b');
   assert.equal(mac8.rows.find((r) => r.roleKey === 'auto').model.id, 'lfm2.5-1.2b');
 
-  // 16 GB Mac auto-fit -> default stack with LRU swapping inside 8 GB cap
   const mac16 = hw.evaluateStack({ os: 'mac', ramGb: 16, profile: 'auto' });
   assert.equal(mac16.budgetGb, 8);
   assert.equal(mac16.status, 'lru');
@@ -24,17 +22,14 @@ test('hardware calculator covers Mac, Windows, and Linux tiers cleanly', () => {
   assert.equal(mac16.rows.find((r) => r.roleKey === 'llm').model.id, 'qwen3.5-4b');
   assert.equal(mac16.rows.find((r) => r.roleKey === 'auto').model.id, 'gemma4-e2b-q6');
 
-  // 24 GB Mac auto-fit -> comfortable all-warm fit inside 12 GB cap
   const mac24 = hw.evaluateStack({ os: 'mac', ramGb: 24, profile: 'auto' });
   assert.equal(mac24.budgetGb, 12);
   assert.equal(mac24.status, 'comfortable');
 
-  // 48 GB Mac quality -> picks Qwen3.6 35B-A3B MoE
   const mac48 = hw.evaluateStack({ os: 'mac', ramGb: 48, profile: 'quality' });
   assert.equal(mac48.rows.find((r) => r.roleKey === 'llm').model.id, 'qwen3.6-35b-a3b');
   assert.ok(['comfortable', 'lru'].includes(mac48.status));
 
-  // Manual override: Qwen3.6 35B-A3B on 16 GB Mac must warn exceeds
   const bad16 = hw.evaluateStack({
     os: 'mac',
     ramGb: 16,
@@ -43,12 +38,10 @@ test('hardware calculator covers Mac, Windows, and Linux tiers cleanly', () => {
   });
   assert.equal(bad16.status, 'exceeds');
 
-  // Windows 16 GB + 8 GB VRAM -> full-vram offload for default 4B stack
   const winGpu = hw.evaluateStack({ os: 'windows', ramGb: 16, vramGb: 8, profile: 'auto' });
   assert.equal(winGpu.gpuSummary.mode, 'full-vram');
   assert.equal(winGpu.rows.find((r) => r.roleKey === 'stt').model.id, 'qwen3-asr-0.6b');
 
-  // Linux 32 GB CPU-only -> cpu summary & comfortable all-warm fit
   const linuxCpu = hw.evaluateStack({ os: 'linux', ramGb: 32, vramGb: 0, profile: 'auto' });
   assert.equal(linuxCpu.gpuSummary.mode, 'cpu');
   assert.equal(linuxCpu.status, 'comfortable');
@@ -100,11 +93,9 @@ test('hardware.html SEO metadata, JSON-LD, OG image, and links are valid', () =>
     fs.existsSync(path.join(ROOT, 'Website', 'public', 'assets', 'og-hardware.png')),
     'Website/public/assets/og-hardware.png must exist'
   );
-  // No internal .html links
   const internalHtml = html.match(/href="(?:\/|https:\/\/www\.lokalbot\.com\/)[^"]*\.html(?:[#?][^"]*)?"/g);
   assert.equal(internalHtml, null, `Found .html internal links: ${internalHtml}`);
 
-  // Parse JSON-LD
   const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   assert.ok(ldMatch, 'JSON-LD script block required');
   const graph = JSON.parse(ldMatch[1])['@graph'];

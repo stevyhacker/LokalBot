@@ -1,11 +1,5 @@
 import Foundation
 
-/// Names and terms LokalBot already knows, offered to speech models that
-/// accept a vocabulary prompt (Whisper, Qwen and Granite 5). Every source is local and
-/// already part of the library: calendar attendee display names (never
-/// addresses or names derived from addresses), speaker names the user applied
-/// in related meetings, Dream project names, and distinctive meeting-title
-/// terms. Speaker evidence, suggestions, and voice-profile links are not read.
 enum TranscriptionVocabulary {
     static let fileName = "transcription-vocabulary.json"
     static let maximumTerms = 40
@@ -19,22 +13,12 @@ enum TranscriptionVocabulary {
         var titleTerms: [String] = []
     }
 
-    /// Per-meeting record so crash resumes and retries use the same prompt
-    /// (and therefore reuse transcription checkpoints) even if the library
-    /// changes in between.
     struct Record: Codable, Equatable, Sendable {
         var version = 1
         var terms: [String]
         var createdAt: Date
     }
 
-    // MARK: - Assembly
-
-    /// Priority order: attendees, then names the user applied before, then
-    /// projects, then title terms. Deduplicated case- and accent-insensitively
-    /// and bounded so the prompt never crowds out the audio context.
-    /// Placeholder speaker labels and the suffix meeting merges add to names
-    /// never reach the recognizer.
     static func terms(_ sources: Sources) -> [String] {
         var seen = Set<String>()
         var result: [String] = []
@@ -54,7 +38,6 @@ enum TranscriptionVocabulary {
         return result
     }
 
-    /// The user's own vocabulary stays first and verbatim; known terms follow.
     static func prompt(manual: String, terms: [String]) -> String {
         let manual = manual.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !terms.isEmpty else { return manual }
@@ -91,14 +74,11 @@ enum TranscriptionVocabulary {
         if let memory {
             sources.projectNames = Self.endorsedProjectNames(memory)
         }
-        // Names the person tracks in Projects are confirmed spellings too.
         sources.projectNames += ProjectCuration.load(libraryRoot: root)?.trackedNames ?? []
         sources.titleTerms = titleTerms(meeting.calendarTitle ?? meeting.title)
         return sources
     }
 
-    /// Recent attendee names and projects for dictation, which has no
-    /// meeting of its own. Most frequently met people come first.
     static func recentSources(library: [Meeting], memory: DreamMemory?,
                               now: Date = Date(), days: Int = 45) -> Sources {
         let cutoff = now.addingTimeInterval(-TimeInterval(days) * 86_400)
@@ -118,12 +98,6 @@ enum TranscriptionVocabulary {
         return sources
     }
 
-    // MARK: - Persistence
-
-    /// Only projects the person pinned. Unpinned Dream projects are model
-    /// labels, often built from earlier mishearings ("Ave vault accounting and
-    /// compliance"); as speech-model vocabulary they biased the next
-    /// transcript toward the same errors.
     static func endorsedProjectNames(_ memory: DreamMemory) -> [String] {
         memory.activeProjects.filter(\.pinned).map(\.name)
     }
@@ -135,8 +109,6 @@ enum TranscriptionVocabulary {
         return try? decoder.decode(Record.self, from: data)
     }
 
-    /// The prompt a finished meeting was transcribed with, for cleanup that
-    /// runs after transcription: the manual vocabulary plus the saved terms.
     static func savedPrompt(manual: String, in folder: URL) -> String {
         prompt(manual: manual, terms: load(from: folder)?.terms ?? [])
     }
@@ -148,8 +120,6 @@ enum TranscriptionVocabulary {
         try encoder.encode(record).write(to: folder.appendingPathComponent(fileName), options: .atomic)
     }
 
-    // MARK: - Helpers
-
     private static let genericTitleWords: Set<String> = [
         "all", "and", "call", "catch", "check", "daily", "demo", "for", "hands", "in",
         "kickoff", "meeting", "monthly", "office", "hours", "on", "one", "planning",
@@ -157,9 +127,6 @@ enum TranscriptionVocabulary {
         "to", "weekly", "with", "workshop", "interview", "onboarding", "update",
     ]
 
-    /// Department and format words name a series ("Product standup", so they
-    /// still relate its meetings) but are ordinary words a speech model spells
-    /// on its own; as vocabulary, "Product" came back in prompt-echo rows.
     private static let commonTitleWords: Set<String> = [
         "product", "design", "engineering", "eng", "dev", "tech", "marketing", "sales",
         "research", "support", "operations", "ops", "finance", "legal", "hr", "people",
@@ -175,8 +142,6 @@ enum TranscriptionVocabulary {
         "fortnightly", "morning", "afternoon", "evening", "today", "tomorrow",
     ]
 
-    /// Capitalized or mixed-case words and acronyms from a title ("Acme",
-    /// "iOS", "SDK") are likely names worth spelling; generic words are not.
     static func titleTerms(_ title: String) -> [String] {
         title.split(whereSeparator: { !$0.isLetter && !$0.isNumber && $0 != "-" && $0 != "'" })
             .map(String.init)
@@ -196,15 +161,10 @@ enum TranscriptionVocabulary {
         normalizedTitle.split(separator: " ").allSatisfy { genericTitleWords.contains(String($0)) }
     }
 
-    /// Placeholder speaker labels ("Them 6", "Speaker unclear", "Local
-    /// speaker") and collective words carry no spelling value; fed to a
-    /// recognizer, a label came back as transcript rows on silent spans.
     private static func isPlaceholderName(_ name: String) -> Bool {
         Transcript.isPlaceholderSpeakerName(name) || PeopleDirectory.isPlaceholder(name)
     }
 
-    /// Meeting merges suffix applied names with "· source 2", which names a
-    /// recording rather than a person; whitespace and edge punctuation go too.
     private static func cleanedTerm(_ raw: String) -> String {
         PeopleDirectory.cleanedName(raw)
             .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)

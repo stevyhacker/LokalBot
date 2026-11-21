@@ -1,13 +1,3 @@
-//! Wayland has no common way to read another window's pixels:
-//!
-//! - wlroots compositors (Sway, Hyprland) with `grim` installed: the focused
-//!   window's rectangle from the compositor's IPC, read with `grim -g`
-//!   straight into memory.
-//! - Elsewhere, the xdg-desktop-portal Screenshot API without a dialog
-//!   (`interactive: false`). Portals that can target the active window
-//!   (version 3) capture just that window. The picture the portal writes is
-//!   read, then deleted at once.
-
 use std::io::{Read as _, Write as _};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -22,10 +12,7 @@ use crate::session::Desktop;
 
 const IPC_TIMEOUT: Duration = Duration::from_millis(500);
 const GRIM_TIMEOUT: Duration = Duration::from_secs(5);
-/// How long a portal request may take, including a first permission prompt.
 const PORTAL_TIMEOUT: Duration = Duration::from_secs(20);
-
-// ------------------------------------------------------------------- grim
 
 pub(super) struct Grim {
     desktop: Desktop,
@@ -81,7 +68,6 @@ fn find_program(name: &str) -> Option<PathBuf> {
         .find(|path| path.is_file())
 }
 
-/// Runs a program and returns its standard output, killing it after `timeout`.
 fn run_with_timeout(command: &mut Command, timeout: Duration) -> anyhow::Result<Vec<u8>> {
     let mut child = command
         .stdin(Stdio::null())
@@ -114,12 +100,10 @@ fn run_with_timeout(command: &mut Command, timeout: Duration) -> anyhow::Result<
     }
 }
 
-/// A binary PPM (`P6`, 8-bit) to RGBA.
 fn parse_ppm(bytes: &[u8]) -> anyhow::Result<CapturedImage> {
     let mut fields = Vec::with_capacity(4);
     let mut position = 0;
     while fields.len() < 4 {
-        // Skip whitespace and comments between header fields.
         while position < bytes.len() {
             match bytes[position] {
                 b'#' => {
@@ -140,7 +124,7 @@ fn parse_ppm(bytes: &[u8]) -> anyhow::Result<CapturedImage> {
         }
         fields.push(std::str::from_utf8(&bytes[start..position])?.to_string());
     }
-    position += 1; // the single whitespace byte before the pixels
+    position += 1;
     if fields[0] != "P6" || fields[3] != "255" {
         bail!("unsupported PPM image ({} {})", fields[0], fields[3]);
     }
@@ -162,8 +146,6 @@ fn parse_ppm(bytes: &[u8]) -> anyhow::Result<CapturedImage> {
         rgba,
     })
 }
-
-// ------------------------------------------------------------ compositor IPC
 
 fn sway_focused() -> anyhow::Result<Option<FocusedWindow>> {
     const MAGIC: &[u8; 6] = b"i3-ipc";
@@ -204,8 +186,6 @@ fn find_sway_focused(node: &Value) -> Option<FocusedWindow> {
                 height: value.get("height")?.as_u64()? as u32,
             })
         };
-        // The content area: the container's position plus the window's
-        // offset inside it, without the title bar.
         let outer = rect("rect")?;
         let content = rect("window_rect")
             .filter(|inner| !inner.is_empty())
@@ -296,9 +276,6 @@ fn parse_hyprland(reply: &str) -> Option<FocusedWindow> {
     })
 }
 
-// ----------------------------------------------------------------- portal
-
-/// The portal can target only the active window from version 3 on.
 pub(super) struct Portal {
     desktop: Desktop,
     active_window: Option<bool>,
@@ -337,8 +314,6 @@ impl WindowCapture for Portal {
         None
     }
 
-    /// The portal captures "the active window" without naming it; the
-    /// engine checks that the same app and title stayed in front.
     fn focused(&mut self) -> anyhow::Result<Option<FocusedWindow>> {
         if !self.supports_active_window() {
             return Ok(None);
@@ -373,7 +348,6 @@ impl WindowCapture for Portal {
             .and_then(|url| url.to_file_path().ok())
             .context("the screenshot portal returned no file")?;
         let bytes = std::fs::read(&path);
-        // The portal saved a copy (often in ~/Pictures); it must not outlive this read.
         if let Err(err) = std::fs::remove_file(&path) {
             log::warn!("could not delete the portal's screenshot file: {err}");
         }

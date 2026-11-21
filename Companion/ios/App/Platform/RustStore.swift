@@ -3,15 +3,7 @@ import LokalBotCompanionKit
 @preconcurrency import LokalBotSync
 import UIKit
 
-/// The device's copy of the Mac's library, kept by the Rust sync core
-/// (Companion/protocol/ffi.md). Its calls block, so reads and local changes
-/// run on one serial queue and pairing, sync and unpairing on another, so a
-/// slow Mac never holds up the screens. Uploads get a queue of their own,
-/// because sending a long recording mustn't hold up syncing or Ask. So does
-/// Ask, which the core lets run beside a sync: an answer can take minutes, and
-/// a new question mustn't wait for a sync or for a queued question's answer.
 final class RustStore: CompanionStore, @unchecked Sendable {
-    /// The name the Mac shows when it asks to allow this device.
     let deviceName: String
     private let client: SyncClient
     private let local = DispatchQueue(label: "me.dotenv.LokalBot.companion.store", qos: .userInitiated)
@@ -24,8 +16,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         self.deviceName = deviceName
     }
 
-    /// Opens the store in Application Support with this device's Keychain key,
-    /// making the key on first launch.
     @MainActor
     static func open(deviceName: String = DeviceName.current) throws -> RustStore {
         let key = try DeviceIdentity.privateKey { generateStaticKey().privateKey }
@@ -37,8 +27,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
             staticPrivateKey: key)
         return RustStore(client: try SyncClient(config: config), deviceName: deviceName)
     }
-
-    // MARK: Running calls
 
     private func run<T: Sendable>(on queue: DispatchQueue, _ work: @escaping @Sendable (SyncClient) throws -> T) async throws -> T {
         let client = client
@@ -72,8 +60,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         }
     }
 
-    /// Decodes record JSON; a record this build can't read is skipped rather
-    /// than failing the whole list.
     private static func decode<T: Decodable>(_ type: T.Type, _ json: String?) -> T? {
         guard let json else { return nil }
         return try? CompanionJSON.decode(type, from: json)
@@ -86,8 +72,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     private static func limit(_ value: Int) -> UInt32 {
         value >= Int(UInt32.max) ? 0 : UInt32(max(0, value))
     }
-
-    // MARK: Reads
 
     func manifest() async throws -> Manifest? {
         try await read { Self.decode(Manifest.self, try $0.manifest()) }
@@ -149,13 +133,9 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         }
     }
 
-    // MARK: Changes
-
     func setActionStatus(meetingID: String, actionID: String, status: ActionStatus) async throws {
         try await read { try $0.setActionStatus(meetingId: meetingID, actionId: actionID, status: status.rawValue) }
     }
-
-    // MARK: Questions
 
     func ask(_ request: AskRequest, extraAddresses: [String],
              onDelta: @escaping @Sendable (String) -> Void) async throws -> AskResult {
@@ -177,8 +157,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     func askHistory(limit: Int) async throws -> [AskExchange] {
         try await read { Self.decodeAll(AskExchange.self, try $0.askHistory(limit: Self.limit(limit))) }
     }
-
-    // MARK: Recordings
 
     private static func converted(_ info: RecordingInfo) -> RecordingItem {
         RecordingItem(id: info.id, title: info.title, state: RecordingItem.State(rawValue: info.state) ?? .waiting,
@@ -225,8 +203,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
         }
     }
 
-    // MARK: Pairing and sync
-
     func pair(payload: String) async throws -> LokalBotCompanionKit.PairedMac {
         try await run(on: network) { Self.converted(try $0.pair(payload: payload)) }
     }
@@ -264,8 +240,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
                                        port: mac.port, pairedAt: CompanionJSON.parseInstant(mac.pairedAt) ?? Date())
     }
 
-    // MARK: Sample library
-
     func loadSampleLibrary() async throws {
         let json = try SampleLibrary.json()
         _ = try await read { try $0.importRecords(envelopesJson: json) }
@@ -276,7 +250,6 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     }
 }
 
-/// Forwards upload progress from the core.
 private final class ProgressListener: UploadListener, @unchecked Sendable {
     private let handler: @Sendable (String, Int64, Int64) -> Void
 
@@ -289,7 +262,6 @@ private final class ProgressListener: UploadListener, @unchecked Sendable {
     }
 }
 
-/// Forwards streamed answer text from the core.
 private final class DeltaListener: AskListener, @unchecked Sendable {
     private let handler: @Sendable (String) -> Void
 

@@ -63,7 +63,6 @@ test('Pi sessions count requests, tool calls, tokens, git actions, and dedup for
     sharedAssistant,
     { type: 'message', id: 'msg-tr1', timestamp: at(3, 4, 10, 3), message: { role: 'toolResult', toolName: 'bash', content: [] } },
   ]);
-  // Forked transcript copies shared records and adds one new reply.
   writeLines(forkFile, [
     { type: 'session', version: 3, id: '22222222-2222-2222-2222-222222222222', timestamp: at(3, 4, 11, 0), cwd: '/Users/maya/code/kiln' },
     sharedUser,
@@ -143,7 +142,7 @@ test('OMP rolls nested subagent transcripts into parent and normalizes Bedrock m
   const { stats } = computeStats(data, { year: YEAR, userName: 'maya' });
   assert.deepEqual(stats.agents.map((a) => a.name), ['OMP']);
   assert.equal(stats.totals.sessions, 1);
-  assert.equal(stats.totals.requests, 1); // Subagent user message never inflates requests.
+  assert.equal(stats.totals.requests, 1);
   assert.equal(stats.totals.subagents, 1);
   assert.equal(stats.totals.toolCalls, 2);
   assert.equal(stats.totals.edits, 1);
@@ -279,7 +278,6 @@ test('Cursor reads state.vscdb and JSONL transcripts without double-counting sha
   const sharedId = 'aaaaaaaa-1111-2222-3333-bbbbbbbbbbbb';
   const cliOnlyId = 'cccccccc-4444-5555-6666-dddddddddddd';
 
-  // Write both a shared transcript and a CLI-only transcript under projects/.
   const projDir = path.join(dir, 'projects', 'Users-maya-GitHub-LokalBot', 'agent-transcripts');
   const jsonlBody = [
     { role: 'user', message: { content: [{ type: 'text', text: 'check git status' }] } },
@@ -341,7 +339,6 @@ test('Cursor reads state.vscdb and JSONL transcripts without double-counting sha
   const { stats } = computeStats(data, { year: YEAR, userName: 'maya' });
   assert.deepEqual(stats.agents.map((a) => a.name), ['Cursor']);
   if (db) {
-    // 1 composer from state.vscdb (deduping sharedId JSONL) + 1 CLI-only JSONL = 2 sessions.
     assert.equal(stats.totals.sessions, 2);
     assert.equal(stats.totals.subagents, 1);
     assert.equal(stats.totals.toolCalls, 3);
@@ -397,7 +394,6 @@ test('Gemini CLI reads session JSON, project root, cached input without double c
   assert.equal(stats.totals.subagents, 1);
   assert.equal(stats.totals.commits, 1);
   assert.equal(stats.totals.testRuns, 1);
-  // `input` already includes `cached`; `output` includes `thoughts`.
   assert.equal(stats.totals.tokens.input, 4469);
   assert.equal(stats.totals.tokens.cached, 2988);
   assert.equal(stats.totals.tokens.output, 84);

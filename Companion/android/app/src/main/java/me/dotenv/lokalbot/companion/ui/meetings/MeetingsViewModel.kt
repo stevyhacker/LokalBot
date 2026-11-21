@@ -27,11 +27,8 @@ data class MeetingDay(val day: String, val meetings: List<Meeting>)
 data class MeetingsState(
     val today: LocalDate,
     val days: List<MeetingDay> = emptyList(),
-    /** How many meetings the library holds, or how many are listed so far while [hasMore]. */
     val total: Int = 0,
-    /** Older meetings wait below the ones listed. */
     val hasMore: Boolean = false,
-    /** How many meetings this list asked for. */
     val listed: Int = MeetingsViewModel.PAGE,
     val loaded: Boolean = false,
 )
@@ -41,17 +38,14 @@ class MeetingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
     private val _query = MutableStateFlow("")
     val query: StateFlow<String> = _query.asStateFlow()
 
-    /** How many meetings the list has asked for so far; it grows as the list is scrolled to its end. */
     private val listed = MutableStateFlow(PAGE)
 
-    /** Every meeting without its long texts, kept while a search is open so each keystroke filters in memory. */
     private var searched: Pair<Long, List<Meeting>>? = null
 
     val state: StateFlow<MeetingsState> = combine(repository.revision, _query, listed, ::Request)
         .mapLatest(::load)
         .stateIn(viewModelScope, SharingStarted.Eagerly, MeetingsState(repository.today()))
 
-    /** "From this device". The manifest can be stale, so it only explains; it never blocks recording. */
     val recordings: StateFlow<List<RecordingRowState>> = combine(
         repository.recordings,
         repository.uploadProgress,
@@ -67,7 +61,6 @@ class MeetingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
         _query.value = value
     }
 
-    /** The end of the list came into view. */
     fun showMore() {
         val current = state.value
         if (current.hasMore) listed.value = current.listed + PAGE
@@ -92,8 +85,6 @@ class MeetingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
             val page = repository.newestMeetings(request.listed)
             return showing(page.meetings, total = page.meetings.size, request).copy(hasMore = page.hasMore)
         }
-        // A search looks through the whole library, not just the part the list has loaded.
-        // A row shows a title, a time and an app, so the summaries, notes and action items needn't stay in memory.
         val all = searched?.takeIf { it.first == request.revision }?.second
             ?: repository.meetings(limit = Int.MAX_VALUE).map(::forListing).also { searched = request.revision to it }
         val terms = LocalSearch.terms(query)
@@ -127,7 +118,6 @@ class MeetingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
     private data class Request(val revision: Long, val query: String, val listed: Int)
 
     companion object {
-        /** Meetings the list loads at a time. */
         const val PAGE = 1000
     }
 }

@@ -10,8 +10,6 @@ struct LibraryModelTests {
 
     static func longHistoryID(_ index: Int) -> String { String(format: "meeting-%04d", index) }
 
-    /// A library with more meetings than the Meetings list loads at once;
-    /// index 0 is the oldest.
     static func longHistory() throws -> FixtureStore {
         let first = Date(timeIntervalSince1970: 1_767_603_600)
         var utc = Calendar(identifier: .gregorian)
@@ -42,7 +40,6 @@ struct LibraryModelTests {
         #expect(listed().last == Self.longHistoryID(0))
         #expect(!model.hasMore)
 
-        // A reload after a sync keeps what the list had reached, and there is nothing more to ask for.
         await model.load(session)
         await model.showMore(session)
         #expect(listed().count == Self.longHistoryCount)
@@ -54,7 +51,6 @@ struct LibraryModelTests {
             try CompanionJSON.encodeString(Meeting(id: "m\(index)", title: "Sync \(index)", startedAt: start, endedAt: start,
                                                    day: "2026-01-05", timeZoneOffsetMinutes: 0, durationSeconds: 0))
         }
-        // Three rows for a page of two, the middle one from a schema this build doesn't know.
         let rows = [try row(0), #"{"id":"m1","title":7}"#, try row(2)]
         let page = MeetingsPage(rows: rows, limit: 2)
         #expect(page.meetings.map(\.id) == ["m0"])
@@ -90,7 +86,6 @@ struct LibraryModelTests {
         #expect(!refused.pending)
         #expect(refused.syncNote?.message == "This action changed on your computer.")
 
-        // A row carries both itself; a note needn't have a message.
         let row = try CompanionJSON.decode(ActionRow.self, from: #"""
             {"meetingId":"m1","meetingTitle":"Review","meetingStartedAt":"2026-11-10T09:00:00.000Z","action":{\#(fields)},
              "pending":false,"syncNote":{"status":"rejected","requestedStatus":"done","at":"2026-11-10T09:00:00.000Z"}}
@@ -106,7 +101,6 @@ struct LibraryModelTests {
         try await store.setActionStatus(meetingID: Self.designReview, actionID: action.id, status: .done)
         #expect(await store.meeting(id: Self.designReview)?.actions.filter(\.pending).map(\.id) == [action.id])
         #expect(await store.meetings(fromDay: nil, toDay: nil, limit: 100).flatMap(\.actions).filter(\.pending).map(\.id) == [action.id])
-        // A row carries the flag itself, as the sync core's rows do.
         let row = try #require(await store.actions(.all).first { $0.pending })
         #expect(row.action.id == action.id && !row.action.pending)
 
@@ -141,7 +135,6 @@ struct LibraryModelTests {
 
         let sync = Task { await session.syncNow() }
         try await wait { !session.askingIDs.isEmpty }
-        // The sync is over while the computer writes its answer, so the next one can start.
         #expect(!session.isSyncing)
 
         let action = try #require(await store.meeting(id: Self.designReview)?.actions.first)

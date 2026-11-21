@@ -36,10 +36,8 @@ def render(source: Path, out: Path, size: tuple[int, int]) -> None:
             args += ["--no-pdf-header-footer", f"--print-to-pdf={target}"]
         else:
             args += ["--force-device-scale-factor=2", f"--window-size={size[0]},{size[1]}", f"--screenshot={target}"]
-        # A throwaway profile keeps this away from a Chrome you have open.
         chrome = subprocess.Popen([*args, source.resolve().as_uri()],
                                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        # Headless Chrome doesn't always exit after writing its output.
         for _ in range(60):
             if target.exists() and target.stat().st_size > 0:
                 time.sleep(0.5)

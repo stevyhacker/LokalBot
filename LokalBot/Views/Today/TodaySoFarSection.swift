@@ -1,21 +1,13 @@
 import SwiftUI
 
-/// The day up to now as a panel: the tracked total, a bar per app, the
-/// digest's highlights, and a footer saying when the digest was written, with
-/// Update when there is newer activity. Sessions, tasks and the full digest
-/// are on Timeline.
 struct TodaySoFarSection: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.appTextScale) private var textScale
     @ObservedObject var model: CaptureModel
-    /// Reflects every digest run for today, a scheduled one included, so a
-    /// manual request cannot start a competing generation.
     @ObservedObject var lifecycle: DayDigestLifecycle
     @State private var highlights = ""
 
     private static let appLimit = 4
-    /// The bar's name and duration columns, which grow with the text size
-    /// like the time column of Meetings today.
     private static let nameColumnWidth: CGFloat = 100
     private static let durationColumnWidth: CGFloat = 52
 
@@ -61,13 +53,10 @@ struct TodaySoFarSection: View {
             highlights = TodayDigestHighlights.markdown(for: digest)
         }
         .onChange(of: scheduledRun) { wasRunning, isRunning in
-            // Show the scheduled result as soon as it is saved.
             if wasRunning, !isRunning { model.refreshOverview(app: app) }
         }
     }
 
-    /// "2h 25m tracked", then the busiest apps, each with its dot, a bar and
-    /// its time. App names are shown as captured.
     private func tracked(_ perApp: [(label: String, seconds: TimeInterval)]) -> some View {
         let total = perApp.reduce(0) { $0 + $1.seconds }
         return VStack(alignment: .leading, spacing: 7) {
@@ -87,7 +76,6 @@ struct TodaySoFarSection: View {
         .accessibilityIdentifier("today.tracked")
     }
 
-    /// The name and the time say everything; the bar only shows it.
     private func appBar(_ bar: TodayAppBars.Bar) -> some View {
         let color = bar.isOther ? Color.gray : CaptureStyle.color(for: bar.label)
         return HStack(spacing: 10) {
@@ -153,8 +141,6 @@ struct TodaySoFarSection: View {
     }
 }
 
-/// One app's share of the longest row: a quiet track with the app's colour
-/// over the leading part of it.
 private struct TodayAppBarShape: View {
     let fraction: Double
     let color: Color
@@ -169,8 +155,6 @@ private struct TodayAppBarShape: View {
                     Capsule()
                         .fill(color)
                         .frame(width: max(fraction > 0 ? 3 : 0, proxy.size.width * fraction))
-                        // Leading, so the bar grows from the right in
-                        // right-to-left languages.
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }

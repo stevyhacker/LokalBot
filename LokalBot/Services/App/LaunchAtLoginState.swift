@@ -1,14 +1,6 @@
 import Foundation
 import LaunchAtLogin
 
-/// Cached "Launch at login" registration for Settings.
-///
-/// `SMAppService.status` is a synchronous round trip to the service-management
-/// daemon. `LaunchAtLogin.Toggle` bound it directly, and SwiftUI re-reads a
-/// toggle's binding on every view-graph update while it is visible, so General
-/// blocked the main thread thousands of times per minute. Reads and writes here
-/// run off the main thread, one at a time, and only the latest result is
-/// published.
 @MainActor
 final class LaunchAtLoginState: ObservableObject {
     static let shared = LaunchAtLoginState(
@@ -27,13 +19,11 @@ final class LaunchAtLoginState: ObservableObject {
         self.write = write
     }
 
-    /// Picks up changes made in System Settings → Login Items.
     func refresh() {
         let read = read
         schedule { read() }
     }
 
-    /// Shows the new value at once, then publishes what the system registered.
     func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
         let (read, write) = (read, write)
@@ -43,7 +33,6 @@ final class LaunchAtLoginState: ObservableObject {
         }
     }
 
-    /// Completes once every scheduled read or write has finished.
     func settle() async {
         while let current = work {
             await current.value

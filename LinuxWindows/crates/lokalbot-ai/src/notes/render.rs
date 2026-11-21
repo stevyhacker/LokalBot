@@ -1,6 +1,3 @@
-//! Markdown from accepted records (`SummaryClaimEvidence.render`,
-//! `MeetingSummaryOutcomeSynchronizer`, `MeetingOutcomesGenerator.merge`).
-
 use std::cmp::Ordering;
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
@@ -24,7 +21,6 @@ fn escaped(text: &str) -> String {
         .into_owned()
 }
 
-/// Sections of claims as reported speech: `- **Name:** text — [HH:MM:SS]`.
 pub fn render_claims(claims: &[Claim], view: &View, template: NoteTemplate) -> String {
     let mut seen = HashSet::new();
     let distinct: Vec<&Claim> = claims
@@ -87,8 +83,6 @@ pub fn render_claims(claims: &[Claim], view: &View, template: NoteTemplate) -> S
         .collect::<Vec<_>>()
         .join("\n\n")
 }
-
-// ------------------------------------------------------------ synchronizer
 
 const DECISIONS_HEADING: &str = "## Decisions";
 const ACTION_ITEMS_HEADING: &str = "## Action items";
@@ -209,8 +203,6 @@ fn parse_blocks(markdown: &str) -> Vec<Block> {
     blocks
 }
 
-/// Replaces (or appends) the outcome sections of `summary` with ones rendered
-/// from `outcomes`, so the recap can never disagree with the cards.
 pub fn synchronize(summary: &str, outcomes: &MeetingOutcomes, template: NoteTemplate) -> String {
     let controlled: Vec<&str> = if template == NoteTemplate::Meeting {
         vec![DECISIONS_HEADING, ACTION_ITEMS_HEADING]
@@ -259,8 +251,6 @@ pub fn synchronize(summary: &str, outcomes: &MeetingOutcomes, template: NoteTemp
     format!("{}\n", parts.join("\n\n"))
 }
 
-// ------------------------------------------------------------------- merge
-
 fn shares_evidence(lhs: &[OutcomeSourceCitation], rhs: &[OutcomeSourceCitation]) -> bool {
     let left: HashSet<&str> = lhs.iter().map(|c| c.segment_id.as_str()).collect();
     rhs.iter().any(|c| left.contains(c.segment_id.as_str()))
@@ -289,7 +279,6 @@ fn compatible_owners(lhs: &ActionItem, rhs: &ActionItem) -> bool {
     left.is_empty() || right.is_empty() || left == right
 }
 
-/// The task text is just its cited speaker's own words.
 fn repeats_its_source(action: &ActionItem) -> bool {
     let text = similarity_normalized(&action.text);
     text.split(' ').count() >= 4
@@ -440,7 +429,6 @@ fn decision_order(lhs: &Decision, rhs: &Decision) -> Ordering {
     left.partial_cmp(&right).unwrap_or(Ordering::Equal)
 }
 
-/// Deterministic deduplication across parts (`MeetingOutcomesGenerator.merge`).
 pub fn merge_outcomes(parts: &[MeetingOutcomes]) -> MeetingOutcomes {
     let mut actions: Vec<ActionItem> = Vec::new();
     let mut decisions: Vec<Decision> = Vec::new();
@@ -516,8 +504,6 @@ pub fn merge_outcomes(parts: &[MeetingOutcomes]) -> MeetingOutcomes {
     }
 }
 
-/// Every part's first takeaway, then every part's second, and so on, so
-/// the first bullets span the whole meeting.
 pub fn interleaving_tldr(parts: &[Vec<Claim>]) -> Vec<Claim> {
     let takeaways: Vec<Vec<&Claim>> = parts
         .iter()
@@ -553,7 +539,6 @@ pub fn distinct_claims(claims: Vec<Claim>) -> Vec<Claim> {
         .collect()
 }
 
-/// Three source-linked facts for a TL;DR when no part wrote one.
 pub fn overview_claims(claims: &[Claim], outcomes: &MeetingOutcomes) -> Vec<Claim> {
     let user_sources: BTreeSet<&str> = outcomes
         .user_action_items()
@@ -668,7 +653,6 @@ mod tests {
             synced,
             "## TL;DR\n\n- **You:** SSO ships in Q3. — [00:00:15]\n\n## Key points\n\nNone\n\n## Decisions\n\n- Ship SSO in Q3. — [00:00:15]\n\n## Action items\n\n### Me\n- [ ] Send the security overview — [00:00:15]\n\n### Others\nNone\n\n### Owner unclear\n- [ ] Prepare a 250-seat quote — due Friday — [00:00:30]\n\n## Open questions\n\nNone\n"
         );
-        // Other templates only append Action items.
         let lecture = synchronize("## TL;DR\n\nNone", &outcomes, NoteTemplate::Lecture);
         assert!(lecture.starts_with("## TL;DR\n\nNone\n\n## Action items\n\n### Me\n"));
     }

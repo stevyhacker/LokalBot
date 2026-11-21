@@ -1,19 +1,12 @@
 import Foundation
 
-/// What LokalBot downloads: conversations, not inboxes. A thread qualifies
-/// when the person wrote in it, or when someone on their calendar takes part
-/// and the mail isn't bulk. Newsletters, receipts, and notifications never
-/// qualify on the calendar rule. Spam, Trash, and Drafts are never read.
 enum EmailScope {
     static let windowDays = 90
-    /// A first scan stops here and says so in Settings.
     static let maxThreadsPerScan = 2_000
     static let maxBodyCharacters = 40_000
-    /// Addresses per participant search, keeping each Gmail query short.
     static let addressesPerQuery = 15
 
     static let excludedLabels: Set<String> = ["SPAM", "TRASH", "DRAFT"]
-    /// Gmail's tabs other than Primary.
     static let bulkCategories: Set<String> = [
         "CATEGORY_PROMOTIONS", "CATEGORY_SOCIAL", "CATEGORY_UPDATES", "CATEGORY_FORUMS",
     ]
@@ -22,21 +15,15 @@ enum EmailScope {
         now.addingTimeInterval(-TimeInterval(windowDays) * 86_400)
     }
 
-    // MARK: Searches
-
-    /// Threads the person wrote in. Gmail search leaves out Spam and Trash.
     static func sentQuery(after: Date) -> String {
         "in:sent after:\(Int(after.timeIntervalSince1970))"
     }
 
-    /// One search for a few people, and the people it covers.
     struct ParticipantSearch: Equatable, Sendable {
         var query: String
         var addresses: Set<String>
     }
 
-    /// Threads with these people, outside Gmail's bulk tabs. The `{}` group
-    /// is Gmail's OR.
     static func participantSearches(addresses: Set<String>, after: Date) -> [ParticipantSearch] {
         let searchable = addresses.filter(isSearchable).sorted()
         var searches: [ParticipantSearch] = []
@@ -57,14 +44,10 @@ enum EmailScope {
         return searches
     }
 
-    /// Only plain addresses go into a search; anything with Gmail query
-    /// syntax in it is skipped rather than escaped.
     static func isSearchable(_ address: String) -> Bool {
         guard address.contains("@"), address.count <= 254 else { return false }
         return address.allSatisfy { $0.isLetter || $0.isNumber || "@.-_+'".contains($0) }
     }
-
-    // MARK: Who counts
 
     private static let automatedLocalParts: Set<String> = [
         "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply", "do_not_reply",
@@ -73,8 +56,6 @@ enum EmailScope {
         "calendar-notification",
     ]
 
-    /// Mailboxes no person reads: no-reply senders, notification robots, and
-    /// calendar resources (rooms, group calendars).
     static func isAutomated(_ address: String) -> Bool {
         let parts = address.lowercased().split(separator: "@", maxSplits: 1)
         guard parts.count == 2 else { return true }
@@ -86,13 +67,10 @@ enum EmailScope {
         return domain.hasSuffix("calendar.google.com") || domain.hasSuffix(".bounces.google.com")
     }
 
-    /// The people worth searching mail for: calendar attendees who are
-    /// neither the person nor a robot.
     static func knownPeople(_ attendees: Set<String>, excluding owned: Set<String>) -> Set<String> {
         Set(attendees.map { $0.lowercased() }.filter { !owned.contains($0) && !isAutomated($0) && $0.contains("@") })
     }
 
-    /// Mailing lists, newsletters, and machine-sent mail.
     static func isBulk(_ message: GmailMessageResource) -> Bool {
         if !message.labels.isDisjoint(with: bulkCategories) { return true }
         if message.header("List-Unsubscribe") != nil || message.header("List-Id") != nil { return true }
@@ -104,15 +82,10 @@ enum EmailScope {
         return false
     }
 
-    /// Only Gmail's SENT label proves the account wrote a message. A `From`
-    /// header with the person's own address can be forged by anyone, so a
-    /// spoofed message never counts as the person's words.
     static func isFromOwner(_ message: GmailMessageResource) -> Bool {
         message.labels.contains("SENT")
     }
 
-    /// Messages LokalBot may keep from a thread: inside the window and in
-    /// none of the never-read labels.
     static func keptMessages(_ thread: GmailThreadResource, windowStart: Date) -> [GmailMessageResource] {
         (thread.messages ?? []).filter { message in
             guard message.labels.isDisjoint(with: excludedLabels), let date = message.date else { return false }
@@ -120,8 +93,6 @@ enum EmailScope {
         }
     }
 
-    /// Decides from headers alone (a `metadata` fetch) whether a thread is
-    /// downloaded. `people` are the calendar people of the window.
     static func qualifies(_ thread: GmailThreadResource, people: Set<String>, windowStart: Date) -> Bool {
         let kept = keptMessages(thread, windowStart: windowStart)
         guard !kept.isEmpty else { return false }
@@ -133,8 +104,6 @@ enum EmailScope {
         }
     }
 
-    /// The same rule for a stored thread, after older messages aged out of
-    /// it: what remains must still qualify on its own.
     static func stillQualifies(_ thread: EmailThread, people: Set<String>) -> Bool {
         if thread.messages.contains(where: \.fromMe) { return true }
         return thread.messages.contains { message in
@@ -152,10 +121,6 @@ enum EmailScope {
         return addresses
     }
 
-    // MARK: Building what is stored
-
-    /// The stored conversation from a `full` fetch, or nil when no message
-    /// survives the window and label rules.
     static func thread(from resource: GmailThreadResource, accountID: UUID, windowStart: Date) -> EmailThread? {
         let messages = keptMessages(resource, windowStart: windowStart)
             .compactMap(message(from:))
@@ -184,7 +149,6 @@ enum EmailScope {
             attachments: resource.payload.map(attachments) ?? [])
     }
 
-    /// The first `text/plain` body, else the first `text/html` one converted.
     static func bodyText(_ part: GmailMessagePart) -> String {
         if let plain = firstText(in: part, mimeType: "text/plain") {
             return plain.replacingOccurrences(of: "\r\n", with: "\n")

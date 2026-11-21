@@ -182,7 +182,6 @@ private fun FilterBar(filters: ActionFilters, onOwner: (OwnerFilter) -> Unit, on
     }
 }
 
-/** One action: who and when, the passage it came from, and what you can do from here. */
 @Composable
 private fun ActionDetail(repository: CompanionRepository, link: ActionLink, onBack: (() -> Unit)?) {
     val viewModel = viewModel(key = "action-${repository.id}-${link.key}") { ActionDetailViewModel(repository, link.meetingId, link.actionId) }
@@ -305,4 +304,3 @@ private fun DetailFact(label: String, value: String, valueColor: androidx.compos
         Text(value, style = LokalBotType.secondary.copy(fontWeight = FontWeight.Medium), color = valueColor ?: androidx.compose.ui.graphics.Color.Unspecified)
     }
 }
-

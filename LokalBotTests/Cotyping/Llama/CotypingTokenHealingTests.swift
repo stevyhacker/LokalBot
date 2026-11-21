@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-// MARK: - Token healing (mid-word prompt split)
-
 final class CotypingTokenHealingTests: XCTestCase {
     func testSplitsTrailingFragmentAndKeepsSeparatorInRequiredPrefix() {
         XCTAssertEqual(
@@ -43,8 +41,6 @@ final class CotypingTokenHealingTests: XCTestCase {
     }
 
     func testFragmentLengthLimitIsInclusive() {
-        // Contract: a fragment of exactly maxWordLength still heals; one more
-        // word character (URL/identifier territory) opts out of healing.
         let atLimit = String(repeating: "a", count: CotypingTokenHealing.maxWordLength)
         XCTAssertEqual(
             CotypingTokenHealing.split(prompt: "see \(atLimit)"),
@@ -64,8 +60,6 @@ final class CotypingTokenHealingTests: XCTestCase {
                 healedPrompt: "vielen Dank für deine", requiredPrefix: " Unterstüt"))
     }
 }
-
-// MARK: - Required-prefix byte matching (decode constraint)
 
 final class CotypingRequiredPrefixMatcherTests: XCTestCase {
     private func match(_ piece: String, against remaining: String) -> CotypingRequiredPrefixMatcher.Match {
@@ -89,8 +83,6 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
 
     func testDivergingPieceIsMismatch() {
         XCTAssertEqual(match(" xyz", against: " follo"), .mismatch)
-        // Longer than the remaining prefix but diverging before its end: the
-        // overshoot path must still verify every remaining byte.
         XCTAssertEqual(match(" follxx", against: " follo"), .mismatch)
     }
 
@@ -100,17 +92,12 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
     }
 
     func testMatchesAtByteLevelInsideMultiByteScalar() {
-        // BPE pieces can split a UTF-8 scalar: a piece carrying only the first
-        // byte of "ü" (0xC3) must consume that single byte, not be rejected for
-        // failing to align on a Character boundary.
         let remaining = Array("ü".utf8)
         XCTAssertEqual(remaining.count, 2)
         XCTAssertEqual(
             CotypingRequiredPrefixMatcher.match(pieceBytes: [remaining[0]], remaining: remaining[...]),
             .consumes(count: 1))
     }
-
-    // MARK: extendsWord (prefer word-extending overshoots)
 
     func testLetterAndDigitFirstBytesExtendTheWord() {
         XCTAssertTrue(CotypingRequiredPrefixMatcher.extendsWord(extraBytes: [UInt8(ascii: "w")]))
@@ -119,14 +106,10 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
     }
 
     func testApostropheExtendsTheWord() {
-        // Contractions must complete inside the constraint: overshooting
-        // "don" with "'t" (don' -> don't) is word-extending.
         XCTAssertTrue(CotypingRequiredPrefixMatcher.extendsWord(extraBytes: Array("'t".utf8)))
     }
 
     func testMultiByteScalarLeadExtendsTheWord() {
-        // An overshoot can start mid-scalar; a lead byte like 0xC3 (first
-        // byte of "ü") is always letter-ish and must count as word-extending.
         XCTAssertEqual(Array("ü".utf8).first, 0xC3)
         XCTAssertTrue(CotypingRequiredPrefixMatcher.extendsWord(extraBytes: [0xC3]))
     }
@@ -137,7 +120,6 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
                 CotypingRequiredPrefixMatcher.extendsWord(extraBytes: Array(extra.utf8)),
                 "\(extra.debugDescription) must not extend the word")
         }
-        // Only the FIRST extra byte decides; letters after a boundary don't help.
         XCTAssertFalse(CotypingRequiredPrefixMatcher.extendsWord(extraBytes: Array(". And".utf8)))
     }
 
@@ -146,9 +128,6 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
     }
 
     func testOvershootPreferencePairThroughMatch() {
-        // The runtime pairing: of two candidates overshooting " tomorro", the
-        // one continuing the word (" tomorrow" -> extra "w") is preferred over
-        // one ending it at the caret (" tomorro." -> extra ".").
         guard case .overshoots(let wordExtra) = match(" tomorrow", against: " tomorro") else {
             return XCTFail("expected \" tomorrow\" to overshoot \" tomorro\"")
         }
@@ -162,8 +141,6 @@ final class CotypingRequiredPrefixMatcherTests: XCTestCase {
         XCTAssertFalse(CotypingRequiredPrefixMatcher.extendsWord(extraBytes: boundaryExtra))
     }
 }
-
-// MARK: - Engine healing seam
 
 final class LocalLlamaHealedGenerationTests: XCTestCase {
     @MainActor
@@ -184,7 +161,6 @@ final class LocalLlamaHealedGenerationTests: XCTestCase {
         }
         let runtime = LlamaCotypingRuntime(selectiveOneWordHybrid: true, healingTraceEnabled: true)
         let engine = LocalLlamaCotypingEngine(runtime: runtime, modelPath: model)
-        // Test-only ablation: the same assertion must fail on the old decoder.
         let selectedMode: CotypingHealingMode = ProcessInfo.processInfo.environment["LOKALBOT_TEST_LEGACY_HEALING"] == "1"
             ? .wordBoundary : .prefixSearch
         try await engine.prewarm()

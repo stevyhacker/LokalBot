@@ -1,11 +1,3 @@
-//! `PromptContextSanitizer`: text without control bytes, ragged spacing or
-//! stacked blank lines. Punctuation is kept. It lives here because coding-agent
-//! titles are compared with what it produced.
-
-/// Control characters become spaces, every newline variant becomes `\n`,
-/// inline whitespace collapses to one space, blank-line runs collapse to one,
-/// edges are trimmed. With `max_characters`, the result is cut at a word
-/// boundary with a trailing `…` counted inside the cap.
 pub fn sanitize(text: &str, max_characters: Option<usize>) -> String {
     let mut folded = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
@@ -49,7 +41,6 @@ pub fn sanitize(text: &str, max_characters: Option<usize>) -> String {
     }
 }
 
-/// Unicode format characters (Cf) Swift's control set also removes.
 fn is_format(c: char) -> bool {
     matches!(c, '\u{AD}' | '\u{200B}'..='\u{200F}' | '\u{202A}'..='\u{202E}' | '\u{2060}'..='\u{2064}' | '\u{FEFF}')
 }
@@ -73,9 +64,6 @@ fn hard_cap(text: &str, cap: usize) -> String {
     format!("{head}…")
 }
 
-/// The Settings search matcher (`SettingsSearchRanker.swift`): every word of the
-/// query appears somewhere, ignoring case, diacritics and punctuation, so
-/// "auto-record" finds "auto record". An empty query matches everything.
 pub fn settings_search_matches(query: &str, haystack: &[&str]) -> bool {
     let words = search_folded(query);
     let words: Vec<&str> = words.split_whitespace().collect();
@@ -93,9 +81,6 @@ fn search_folded(text: &str) -> String {
         .collect()
 }
 
-/// Secrets, payment cards and IBANs replaced by `[REDACTED…]` markers
-/// (`ScreenContextPrivacy.redact`), with how many were replaced. Model output
-/// and screen text pass through it before they are shown, saved or sent.
 pub fn redaction(text: &str) -> (String, usize) {
     if text.is_empty() {
         return (String::new(), 0);
@@ -130,7 +115,6 @@ pub fn redaction(text: &str) -> (String, usize) {
     (output, count)
 }
 
-/// [`redaction`] without the count.
 pub fn redact(text: &str) -> String {
     redaction(text).0
 }
@@ -142,7 +126,6 @@ fn redaction_rules() -> &'static [Rule] {
     static RULES: std::sync::OnceLock<Vec<Rule>> = std::sync::OnceLock::new();
     RULES.get_or_init(|| {
         [
-            // The name may carry a prefix ("DB_PASSWORD", "GITHUB_TOKEN").
             (
                 r#"(?i)\b((?:[A-Za-z0-9]+[_.-])*(?:api[\s_-]?key|access[\s_-]?token|auth[\s_-]?token|client[\s_-]?secret|password|passwd|secret|private[\s_-]?key|access[_-]?key|account[_-]?key|shared[_-]?access[_-]?key|token))(\s*[:=]\s*)["']?(?!\[REDACTED)[^\s"',;]{6,}"#,
                 "${1}${2}[REDACTED]",
@@ -162,7 +145,6 @@ fn redaction_rules() -> &'static [Rule] {
             (r"\bhf_[A-Za-z0-9]{30,}", "[REDACTED_TOKEN]"),
             (r"\bSG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}", "[REDACTED_KEY]"),
             (r"\bpypi-[A-Za-z0-9_-]{50,}", "[REDACTED_TOKEN]"),
-            // "postgres://admin:hunter22@db:5432" keeps its user and host.
             (r"(?i)\b([a-z][a-z0-9+.-]*://[^\s:/@]+):(?!\[REDACTED)[^\s@/]+@", "${1}:[REDACTED]@"),
             (r"\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b", "[REDACTED_JWT]"),
             (
@@ -178,9 +160,6 @@ fn redaction_rules() -> &'static [Rule] {
     })
 }
 
-/// Numbers whose checksum makes them almost certainly a payment card (a
-/// known issuer prefix and Luhn) or an IBAN (mod 97); order, tracking and
-/// phone numbers stay readable.
 fn checked_rules() -> &'static [CheckedRule] {
     static RULES: std::sync::OnceLock<Vec<CheckedRule>> = std::sync::OnceLock::new();
     RULES.get_or_init(|| {
@@ -202,8 +181,6 @@ fn checked_rules() -> &'static [CheckedRule] {
     })
 }
 
-/// A known issuer prefix (Visa, Mastercard, Amex, Diners, Discover, JCB,
-/// UnionPay) and a valid Luhn checksum.
 pub fn is_payment_card_number(candidate: &str) -> bool {
     let digits: Vec<u32> = candidate.chars().filter_map(|c| c.to_digit(10)).collect();
     if !(13..=19).contains(&digits.len()) {
@@ -235,7 +212,6 @@ pub fn is_payment_card_number(candidate: &str) -> bool {
     sum.is_multiple_of(10)
 }
 
-/// The IBAN mod-97 check.
 pub fn is_iban(candidate: &str) -> bool {
     let compact: Vec<char> = candidate.chars().filter(|c| !c.is_whitespace()).collect();
     if !(15..=34).contains(&compact.len()) {

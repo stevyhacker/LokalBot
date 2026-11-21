@@ -1,14 +1,9 @@
-//! Carrying names across transcriptions and applying matches
-//! (`SpeakerIdentityResolver.swift`).
-
 use std::collections::BTreeMap;
 
 use super::{
     Assignment, AudioTurn, MatchSource, MatchTier, NameMatch, Origin, VoiceProfile, name_key, union,
 };
 
-/// Match by retained turns in the same audio revision. A clean split can
-/// inherit; a merge of different people or any ambiguous overlap cannot.
 pub fn remap(
     previous: &[Assignment],
     turns: &[AudioTurn],
@@ -54,8 +49,6 @@ pub fn remap(
     output
 }
 
-/// Applies voice matches to an unprotected assignment and returns the ones to
-/// offer. A different name is withdrawn into review, never silently replaced.
 pub fn apply(
     candidates: &[NameMatch],
     assignment: &mut Assignment,

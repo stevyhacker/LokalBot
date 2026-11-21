@@ -30,7 +30,6 @@ struct ConfigCommand: ParsableCommand {
     )
 }
 
-/// How commands that need the running app reach it.
 struct AppLaunchOptions: ParsableArguments {
     @Flag(name: .long, help: "Fail instead of starting LokalBot when it is not running.")
     var noLaunch: Bool = false
@@ -55,7 +54,6 @@ enum ControlOutput {
         return (try? String(data: encoder.encode(value), encoding: .utf8)) ?? "null"
     }
 
-    /// A value on one line: strings bare, everything else as compact JSON.
     static func plain(_ value: JSONValue?) -> String {
         guard let value else { return "" }
         if case .string(let text) = value { return text }

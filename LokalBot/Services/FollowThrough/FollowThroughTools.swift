@@ -1,29 +1,20 @@
 import Foundation
 
-/// The action Follow-through works on: one of the person's own commitments,
-/// from a meeting's saved actions or from Live Radar.
 struct FollowThroughTarget: Equatable, Sendable {
     let meetingID: Meeting.ID
     let meetingTitle: String
     let meetingDate: Date
-    /// The saved action, when there is one; Mark Done needs it.
     let actionID: String?
     let text: String
     let owner: String?
     let due: String?
-    /// Where it was said: "00:12:09 Me: I'll send the deck to Marko by Friday."
     let evidence: [String]
 }
 
-/// A step the model proposes. Nothing happens until the person approves it,
-/// and they may edit every field first.
 struct FollowThroughProposal: Identifiable, Equatable, Sendable {
     enum Kind: Equatable, Sendable {
-        /// Opens a draft in the mail app; the person sends it there.
         case email(to: [String], cc: [String], subject: String, body: String)
-        /// Opens an invitation in Calendar; the person adds it there.
         case event(title: String, start: Date, minutes: Int, attendees: [String], notes: String)
-        /// Fills a prompt into Claude Code or Codex; the person sends it there.
         case codingTask(agent: ActionAgentHandoff, prompt: String)
         case markDone(note: String)
     }
@@ -35,7 +26,6 @@ struct FollowThroughProposal: Identifiable, Equatable, Sendable {
         case failed(String)
     }
 
-    /// The tool call id, so the result goes back to the right call.
     let id: String
     var kind: Kind
     var rationale: String
@@ -60,8 +50,6 @@ struct FollowThroughProposal: Identifiable, Equatable, Sendable {
     }
 }
 
-/// Tool schemas and argument checks. Read tools reuse Ask's library tools;
-/// the proposal tools only describe a step for the person to approve.
 enum FollowThroughTools {
     static let readTools: Set<String> = ["search_meetings", "get_meeting", "get_action_items"]
     static let finishTool = "finish"
@@ -147,8 +135,6 @@ enum FollowThroughTools {
         }
     }
 
-    /// A proposal from a tool call, or the reason the call was malformed,
-    /// which goes back to the model so it can correct itself.
     static func proposal(from call: MuseChatClient.ToolCall, codingAgents: [ActionAgentHandoff],
                          canMarkDone: Bool, calendar: Calendar = .current) throws -> FollowThroughProposal? {
         let arguments = call.decodedArguments
@@ -210,10 +196,6 @@ enum FollowThroughTools {
         return ISO8601DateFormatter().date(from: text)
     }
 
-    // MARK: - Hand-off formats
-
-    /// A `mailto:` link the mail app opens as an unsent draft. Names without
-    /// a known address go into the body's greeting instead of the header.
     static func mailtoURL(to: [String], cc: [String], subject: String, body: String) -> URL? {
         var components = URLComponents()
         components.scheme = "mailto"
@@ -222,13 +204,10 @@ enum FollowThroughTools {
         let ccAddresses = cc.filter { $0.contains("@") }
         if !ccAddresses.isEmpty { items.insert(URLQueryItem(name: "cc", value: ccAddresses.joined(separator: ",")), at: 0) }
         components.queryItems = items
-        // `+` is a space in some mail clients' query parsing.
         components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
         return components.url
     }
 
-    /// An iCalendar invitation for Calendar to import. Attendees with a known
-    /// address are listed; the rest are named in the notes.
     static func icsDocument(title: String, start: Date, minutes: Int, attendees: [String],
                             notes: String, now: Date = Date(), uid: String = UUID().uuidString) -> String {
         let formatter = DateFormatter()

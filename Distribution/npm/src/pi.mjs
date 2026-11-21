@@ -1,13 +1,3 @@
-// Reads Pi (`~/.pi/agent/sessions`) and OMP / Oh My Pi (`~/.omp/agent/sessions`)
-// JSONL session logs. Both share the version-3 JSONL transcript format:
-//   - `session` header (`id`, `cwd`, `timestamp`)
-//   - `model_change` (`provider`, `modelId` or `model`)
-//   - `message` (`role: "user" | "assistant" | "toolResult"`, `content`, `usage`)
-//
-// OMP also stores subagent runs as nested `<session-dir>/<Subagent>.jsonl` files
-// beside the parent session; those roll into the parent session's time, tokens,
-// and tool calls without adding to its requests.
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -60,7 +50,6 @@ function readPiFamily(agent, root, collector, onProgress) {
           parentId: null,
         });
       } else if (entry.isDirectory()) {
-        // OMP places subagent transcripts in `<project>/<parent-session-stem>/<Agent>.jsonl`.
         const parentId = idFromStem(entry.name);
         collectSubagents(path.join(projectDir, entry.name), parentId, subFiles);
       }
@@ -276,7 +265,6 @@ function parseArgsObject(raw) {
       const parsed = JSON.parse(raw);
       if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed;
     } catch {
-      // Partial or non-JSON tool arguments.
     }
   }
   return {};

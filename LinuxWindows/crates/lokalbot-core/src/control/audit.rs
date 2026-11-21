@@ -1,8 +1,3 @@
-//! Settings changed from the terminal (`AgentSettingsChanges.swift`): an
-//! append-only log in `diagnostics/settings-changes.jsonl` and the recent list
-//! Settings shows with Undo. Values are kept as stored, so Undo restores them
-//! exactly. API keys are named but never stored.
-
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 
@@ -33,12 +28,9 @@ pub struct Entry {
 }
 
 pub const RECENT_LIMIT: usize = 20;
-/// The log keeps the newest entries once it grows past this size.
 pub const MAXIMUM_LOG_BYTES: u64 = 1_048_576;
 pub const KEPT_ENTRIES: usize = 1_000;
 
-/// Undoing a retention change could delete without the review a shorter policy
-/// needs, so those are changed back in Settings instead.
 pub const KEYS_WITHOUT_UNDO: [&str; 2] = ["retentionDays", "keepOCRTextForever"];
 
 pub struct AgentSettingsChanges {
@@ -79,7 +71,6 @@ impl AgentSettingsChanges {
         self.add(entries);
     }
 
-    /// An API key, which the log names but never stores.
     pub fn record_secret(
         &mut self,
         secret: AppSecret,
@@ -95,14 +86,11 @@ impl AgentSettingsChanges {
         );
     }
 
-    /// Access the person allowed from an agent's setup request.
     pub fn record_setup(&mut self, grants: &[Grant], caller: &str, time: DateTime<Utc>) {
         let names: Vec<&str> = grants.iter().map(|g| g.raw_value()).collect();
         self.record_event("setup.access", json!(names.join(", ")), caller, time);
     }
 
-    /// Something an agent did that is not a stored setting, such as choosing a
-    /// model preset or launch at login. Listed, never undone.
     pub fn record_event(&mut self, key: &str, value: Value, caller: &str, time: DateTime<Utc>) {
         self.add(vec![Entry {
             caller: caller.to_string(),
@@ -126,7 +114,6 @@ impl AgentSettingsChanges {
     }
 }
 
-/// Undo is offered only while the setting still holds the agent's value.
 pub fn can_undo(entry: &Entry, settings: &Settings) -> bool {
     registry::spec(&entry.key).is_some()
         && !KEYS_WITHOUT_UNDO.contains(&entry.key.as_str())
@@ -137,7 +124,6 @@ pub fn can_undo(entry: &Entry, settings: &Settings) -> bool {
         }
 }
 
-/// One line about an entry, for Settings.
 pub fn summary(entry: &Entry) -> String {
     let text = |value: &Option<Value>| {
         value
@@ -252,7 +238,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let paths = LibraryPaths::new(dir.path());
         std::fs::create_dir_all(dir.path().join("diagnostics")).unwrap();
-        // As Swift's JSONEncoder writes `Entry`: sorted keys and `.iso8601`.
         std::fs::write(
             dir.path().join("diagnostics/settings-changes.jsonl"),
             concat!(
@@ -299,7 +284,6 @@ mod tests {
                 .mode();
             assert_eq!(mode & 0o777, 0o600);
         }
-        // It survives a reload.
         assert_eq!(AgentSettingsChanges::new(&paths).recent.len(), 1);
     }
 

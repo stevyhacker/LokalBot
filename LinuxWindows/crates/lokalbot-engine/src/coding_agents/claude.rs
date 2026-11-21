@@ -1,12 +1,3 @@
-//! Reads Claude Code sessions from `~/.claude/projects/<cwd-slug>/<id>.jsonl`
-//! (`ClaudeCodeSessionReader.swift`).
-//!
-//! Only user prompts, the agent's text replies, tool names and inputs for file
-//! edits and shell commands, titles and pull request links are read. Tool
-//! results are recognised from their opening bytes and contribute only a
-//! timestamp. Subagent sidechains, meta records and compaction summaries are
-//! skipped.
-
 use std::collections::hash_map::DefaultHasher;
 use std::collections::{HashMap, HashSet};
 use std::hash::{Hash as _, Hasher as _};
@@ -44,15 +35,10 @@ impl ClaudeCodeReader {
         cache: Option<&ParseCache>,
     ) -> ReadResult {
         let mut result = ReadResult::default();
-        // Top level of each project folder only: subagent transcripts live in
-        // per-session subfolders and are not the person's sessions.
         let files: Vec<PathBuf> = listed(&self.root)
             .into_iter()
             .flat_map(|folder| listed(&folder))
             .collect();
-        // A fork or resumed session copies earlier records under their original
-        // ids. Reading older files first credits that history to the session
-        // where it happened.
         let mut candidates = cache::candidate_files(files, start, end, false);
         candidates.sort_by(|a, b| a.created.cmp(&b.created).then(a.path.cmp(&b.path)));
         let mut seen_records: HashSet<u64> = HashSet::new();
@@ -76,8 +62,6 @@ impl ClaudeCodeReader {
                     continue;
                 }
             };
-            // De-duplication against other files depends on the whole scan, so
-            // it happens here rather than in the cached summary.
             let session_id = candidate
                 .path
                 .file_stem()
@@ -92,7 +76,6 @@ impl ClaudeCodeReader {
                     .record_key
                     .is_some_and(|key| seen_records.contains(&key))
             });
-            // A file whose window holds only copies claims nothing.
             if !transcript.events.iter().any(|event| !event.is_annotation()) {
                 continue;
             }
@@ -110,12 +93,9 @@ impl ClaudeCodeReader {
 struct Record {
     at: DateTime<Utc>,
     key: Option<u64>,
-    /// Index into `labels`, or `-1` for a record naming neither.
     label: i32,
 }
 
-/// A folder and branch records ran in. Records naming the same pair share one
-/// copy, so a long session holds each path once.
 #[derive(Clone, Debug, PartialEq)]
 struct Label {
     working_directory: Option<String>,
@@ -131,17 +111,12 @@ fn record_key(id: &str) -> u64 {
     hasher.finish()
 }
 
-/// What the reader keeps of one session file between scans: each timed record's
-/// time, id and labels, the events those records hold with redundant activity
-/// compacted away, and the file's titles.
 #[derive(Clone, Debug, Default)]
 pub struct ClaudeSummary {
     records: Vec<Record>,
     held: HashSet<u64>,
     labels: Vec<Label>,
     events: Vec<StoredEvent>,
-    /// Checked across the whole file, not just the window: text read from the
-    /// library earlier can still be restated in today's replies.
     consulted_lokalbot: bool,
     title: Option<String>,
     titles: HashMap<&'static str, String>,
@@ -149,7 +124,6 @@ pub struct ClaudeSummary {
 
 impl FileSummary for ClaudeSummary {
     fn consume(&mut self, line: Line<'_>, start: DateTime<Utc>) {
-        // Tool results carry most of the bytes; read only their time.
         if line.prefix_contains(768, r#""type":"tool_result""#) {
             if line.prefix_contains(768, r#""isSidechain":true"#) {
                 return;
@@ -208,8 +182,6 @@ impl FileSummary for ClaudeSummary {
                 let Some(key) = self.admit(record["uuid"].as_str()) else {
                     return;
                 };
-                // Each record names the folder and branch it ran in; its events
-                // keep them, so a burst is labeled by its own work.
                 let working_directory = record["cwd"].as_str().map(str::to_string);
                 let branch = record["gitBranch"]
                     .as_str()
@@ -261,8 +233,6 @@ impl FileSummary for ClaudeSummary {
 }
 
 impl ClaudeSummary {
-    /// A record the file already holds is a copy, with the same time; it counts
-    /// where it first appears. `None` for a copy.
     fn admit(&mut self, id: Option<&str>) -> Option<Option<u64>> {
         let Some(id) = id else {
             return Some(None);
@@ -323,8 +293,6 @@ impl ClaudeSummary {
             Some(prompt) => self.append(EventKind::Prompt(prompt), at, record),
             None => self.append(EventKind::Activity, at, record),
         }
-        // A command the person ran in the agent's terminal mode is theirs, and
-        // still work in this session.
         if let Some(command) = text::terminal_command(&raw) {
             for action in text::actions_in_command(&command) {
                 self.append(EventKind::Action(action), at, record);
@@ -332,8 +300,6 @@ impl ClaudeSummary {
         }
     }
 
-    /// An edited file is named relative to the record's folder. A record without
-    /// one keeps the path as written, named when a window is read.
     fn append_assistant(
         &mut self,
         content: &Value,
@@ -411,8 +377,6 @@ impl ClaudeSummary {
         }
     }
 
-    /// The session's transcript inside the window and the ids of the records it
-    /// holds there, or `None` when the window holds no work.
     fn transcript(
         &self,
         session_id: &str,
@@ -422,8 +386,6 @@ impl ClaudeSummary {
         let inside = |at: DateTime<Utc>| at >= start && at <= end;
         let mut record_keys = HashSet::new();
         let mut working_directory = None;
-        // The session is labeled by the first record naming a folder. Files a
-        // record without one edited are named relative to it, once it is known.
         let mut labeled_by = i32::MAX;
         for (index, record) in self.records.iter().enumerate() {
             if !inside(record.at) {

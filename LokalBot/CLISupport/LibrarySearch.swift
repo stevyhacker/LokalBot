@@ -6,8 +6,6 @@ enum LibraryInputPolicy {
     static let maximumQueryCharacters = 4_096
     static let maximumQuestionCharacters = 16_384
 
-    /// Start of a real local calendar day written YYYY-MM-DD. The CLI, MCP,
-    /// and the app all mean the user's day, not UTC's.
     static func localDay(_ value: String, calendar: Calendar = .current) -> Date? {
         let parts = value.split(separator: "-", omittingEmptySubsequences: false)
         guard parts.count == 3,
@@ -24,16 +22,8 @@ enum LibraryInputPolicy {
     }
 }
 
-/// Shared word search over on-disk meeting artifacts, so the CLI and MCP
-/// expose one behavior without needing the app's index. A meeting matches
-/// when it contains every query word, in any order and ignoring case and
-/// accents; when none does, meetings with the most words follow. Hits with
-/// the exact phrase lead, ties keep meeting recency, and a quoted query
-/// matches only its exact phrase. Words of up to three letters or digits
-/// ("api", "ana", "q3") match only whole words.
 enum LibrarySearch {
     static let defaultLimit = 50
-    /// One long meeting full of a common word must not fill every slot.
     static let maximumTranscriptHitsPerMeeting = 5
 
     private struct Candidate {
@@ -43,7 +33,6 @@ enum LibrarySearch {
         var position: Int
         var matched: [String]
         var exact: Bool
-        /// A transcript hit's start, formatted only if the hit is returned.
         var start: TimeInterval?
     }
 
@@ -61,8 +50,6 @@ enum LibrarySearch {
         let terms = quoted ? [phrase] : searchTerms(phrase)
         let all = try meetings ?? SessionLookup.loadAllMeetings()
         let root = SessionLookup.storageRootURL
-        // Skips, from bytes alone, transcripts and texts that cannot match,
-        // which saves the decode and the fold; it never changes a result.
         var prefilter = LibrarySearchPrefilter(terms: terms)
 
         var candidates: [Candidate] = []
@@ -107,8 +94,6 @@ enum LibrarySearch {
             }
         }
 
-        // A word found in few meetings says more than one found in most, so
-        // "what did we decide about pricing" ranks by "pricing", not "we".
         var meetingsWithTerm: [String: Int] = [:]
         for words in coverage.values { for word in words { meetingsWithTerm[word, default: 0] += 1 } }
         let total = Double(max(1, all.count))
@@ -123,10 +108,6 @@ enum LibrarySearch {
         var meetingWeights: [Int: Double] = [:]
         for (meeting, words) in coverage { meetingWeights[meeting] = weight(Array(words)) }
 
-        // Every word somewhere in the meeting wins; when no meeting has them
-        // all, partial matches follow so a near miss is still found. A
-        // question's filler words need not appear, so Ask ranks every meeting
-        // by its words' weight instead.
         let complete = requireAllWords ? Set(coverage.filter { $0.value.count == terms.count }.keys) : []
         var ranked: [(candidate: Candidate, score: Double)] = []
         for candidate in candidates where complete.isEmpty || complete.contains(candidate.meeting) {
@@ -158,22 +139,12 @@ enum LibrarySearch {
         return hits
     }
 
-    /// Case- and accent-insensitive form used only for matching, never for
-    /// display: "izvestaj" finds "izveštaj" and "CAFE" finds "café".
     static func folded(_ text: String) -> String {
         let folding = text.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-        // Collapsing whitespace walks every character; skip it when it would
-        // rebuild the text unchanged, as it does for most sentences.
         if hasOnlySingleSpaces(folding) { return folding }
         return folding.split(whereSeparator: \.isWhitespace).joined(separator: " ")
     }
 
-    /// Whether the only whitespace is single spaces, none first or last and
-    /// each before an ASCII character. Such a space is either a character of
-    /// its own, which the split turns back into one space, or the end of the
-    /// character before it ("\u{600} "), which the split keeps; either way
-    /// splitting on whitespace and joining with spaces returns the text as
-    /// it was.
     private static func hasOnlySingleSpaces(_ text: String) -> Bool {
         var previous: Unicode.Scalar?
         for scalar in text.unicodeScalars {
@@ -189,21 +160,14 @@ enum LibrarySearch {
         return previous != " "
     }
 
-    /// Distinct words in query order. A run of CJK characters stays one word
-    /// and still matches inside an unspaced sentence.
     static func searchTerms(_ foldedQuery: String) -> [String] {
         var seen = Set<String>()
         let words = foldedQuery.components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty && seen.insert($0).inserted }
-        // A single Latin letter ("t" from "don't") matches nearly everything;
-        // keep one only when it is the whole query.
         let meaningful = words.filter { $0.count > 1 || $0.unicodeScalars.contains { !$0.isASCII } }
         return meaningful.isEmpty ? words : meaningful
     }
 
-    /// The first match of `needle`; a short Latin word or number must stand
-    /// alone, since inside longer words ("rapid", "banana") it mostly matches
-    /// by accident.
     static func wordRange(of needle: String, in text: String,
                           options: String.CompareOptions = []) -> Range<String.Index>? {
         let wholeWord = needle.count <= 3 && needle.unicodeScalars.allSatisfy(\.isASCII)

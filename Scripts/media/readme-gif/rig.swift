@@ -1,33 +1,3 @@
-// Films one LokalBot UI Test Host window for the README GIF.
-//
-// The window is captured with ScreenCaptureKit on its own, over a flat fill,
-// including the real pointer. It is driven with real HID input events (pointer
-// moves, clicks, keystrokes), so what the GIF shows is the app responding to
-// input. A take aborts if the keyboard, mouse or trackpad is touched, so a
-// person working on the Mac is never fought over the pointer.
-//
-//   rig take  <shot.json> <out-dir>   record frames + take.json into out-dir
-//   rig still <shot.json> <out.png>   place the window and save one frame
-//   rig ax    <shot.json>             place the window and print its accessibility tree
-//   rig probe <shot.json> <out-prefix> place the window, run the setup, save <prefix>.txt
-//                                     (the accessibility tree) and <prefix>.png (one frame)
-//   rig idle  <seconds>               wait until nobody has touched an input device that long
-//   rig key   <name> [mod...]         press one key, e.g. a system-wide shortcut: rig key space control shift
-//   rig windows list|kill             other apps' windows on the filming display; kill ends their owners
-//   rig appearance light|dark         set the system appearance, which the apps launched next read
-//
-// take.json also tracks the pointer at 60 Hz (`pointer`: [t, x, y] in capture
-// seconds and window-relative points), so an edit can draw or follow it when
-// the shot leaves it out of the recording (`"cursor": false`). RIG_DISPLAY
-// names the display to film on by its CGDirectDisplayID. RIG_TREE_DIR saves the
-// window's accessibility tree at each `mark`, as <dir>/<mark>.txt.
-//
-// Exit codes: 3 a person touched the Mac during the take, 5 a `ghost` wait
-// timed out, 6 the focused field does not end with an `expect` text (keys
-// were lost on the way) or holds a `reject` text. Film the take again for any
-// of them.
-//
-// Build: swiftc -O -swift-version 5 rig.swift -o rig
 import AppKit
 import ApplicationServices
 import CoreMedia
@@ -44,17 +14,15 @@ func note(_ message: String) {
     FileHandle.standardError.write(Data("rig: \(message)\n".utf8))
 }
 
-// MARK: - Shot file
-
 struct Target: Decodable {
-    var at: [Double]?         // window-relative points
-    var id: String?           // AXIdentifier
-    var label: String?        // exact AXDescription or AXTitle
-    var contains: String?     // substring of AXTitle, AXDescription or AXValue
+    var at: [Double]?
+    var id: String?
+    var label: String?
+    var contains: String?
     var role: String?
-    var index: Int?           // nth match, default 0
-    var offset: [Double]?     // points added to the resolved position
-    var anchor: [Double]?     // fraction of the element frame, default centre [0.5, 0.5]
+    var index: Int?
+    var offset: [Double]?
+    var anchor: [Double]?
 }
 
 struct Action: Decodable {
@@ -69,40 +37,40 @@ struct Action: Decodable {
     var duration: Double?
     var cps: Double?
     var mark: String?
-    var park: [Double]?       // window-relative; warps the pointer without motion
-    var press: Target?        // AXPress without moving the pointer
-    var focus: Target?        // give an element keyboard focus without moving the pointer
-    var hold: [String]?       // modifier keys held down while `during` runs, e.g. ["control", "option"]
+    var park: [Double]?
+    var press: Target?
+    var focus: Target?
+    var hold: [String]?
     var during: [Action]?
-    var run: [String]?        // a command started in the background, e.g. a voice line; not waited for
-    var ghost: Double?        // wait this long at most for an `also` app's floating window, e.g. a suggestion
-    var accept: Int?          // press `key` (default tab) up to this many times while that window shows
-    var expect: String?       // the focused field's text must end with this, else exit 6
-    var reject: String?       // the focused field's text must not contain this, else exit 6
-    var optional: Bool?       // skip this action, with a note, when its element is not found
-    var until: Target?        // wait for this element to appear, up to `timeout` seconds (default 60)
-    var gone: Bool?           // with `until`: wait for it to go away instead
+    var run: [String]?
+    var ghost: Double?
+    var accept: Int?
+    var expect: String?
+    var reject: String?
+    var optional: Bool?
+    var until: Target?
+    var gone: Bool?
     var timeout: Double?
 }
 
 struct Shot: Decodable {
     var bundle: String
-    var size: [Double]                // outer window size, points
-    var background: String?           // #RRGGBB fill behind the window; RIG_BACKGROUND overrides
-    var margin: Double?               // points captured around the window
-    var bottom: Double?               // window bottom this far above the visible screen bottom; default centred
-    var below: Double?                // points captured below the window, e.g. LokalBot's dictation overlay
-    var settle: Double?               // seconds between placing and recording
-    var pre: Double?                  // seconds recorded before the first action
-    var post: Double?                 // seconds recorded after the last action
-    var idle: Double?                 // seconds of no human input required to start
-    var setup: [Action]?              // runs before recording starts
-    var park: [Double]?               // window-relative pointer position while recording starts
+    var size: [Double]
+    var background: String?
+    var margin: Double?
+    var bottom: Double?
+    var below: Double?
+    var settle: Double?
+    var pre: Double?
+    var post: Double?
+    var idle: Double?
+    var setup: [Action]?
+    var park: [Double]?
     var actions: [Action]
-    var also: [String]?               // bundle ids whose windows are captured too, e.g. an overlay
-    var title: String?                // capture the window whose title contains this; default: the widest
-    var cursor: Bool?                 // false leaves the pointer out of the recording; default true
-    var ownInput: Bool?               // the app posts input itself, such as a paste; don't read it as a person's
+    var also: [String]?
+    var title: String?
+    var cursor: Bool?
+    var ownInput: Bool?
 }
 
 func loadShot(_ path: String) -> Shot {
@@ -123,13 +91,10 @@ func color(_ hex: String) -> CGColor {
                    blue: CGFloat(value & 0xff) / 255, alpha: 1)
 }
 
-// MARK: - Displays
-
-/// The built-in Retina panel when present (2x pixels), else the main display.
 struct Display {
     let id: CGDirectDisplayID
-    let bounds: CGRect        // global, top-left origin
-    let visible: CGRect       // global, top-left origin, minus menu bar and Dock
+    let bounds: CGRect
+    let visible: CGRect
     let scale: CGFloat
 
     static func filming() -> Display {
@@ -148,8 +113,6 @@ struct Display {
         return screens.first { CGDisplayIsBuiltin($0.id) != 0 } ?? screens.max { $0.scale < $1.scale }!
     }
 }
-
-// MARK: - Accessibility
 
 func axValue<T>(_ element: AXUIElement, _ name: String) -> T? {
     var value: CFTypeRef?
@@ -218,8 +181,6 @@ func axDump(_ element: AXUIElement, origin: CGPoint, depth: Int = 0, emit: (Stri
     for child in axChildren(element) { axDump(child, origin: origin, depth: depth + 1, emit: emit) }
 }
 
-// MARK: - The app under film
-
 final class Subject {
     let app: NSRunningApplication
     let element: AXUIElement
@@ -271,7 +232,6 @@ final class Subject {
         NSWorkspace.shared.frontmostApplication?.processIdentifier == app.processIdentifier
     }
 
-    /// Global point for a target; nil when its element is not there.
     func find(_ target: Target) -> CGPoint? {
         var p: CGPoint
         if let at = target.at {
@@ -291,20 +251,13 @@ final class Subject {
     }
 }
 
-// MARK: - Input
-
 let anyInput = CGEventType(rawValue: ~0)!
-/// Seconds since the HID system last saw input. Keystrokes and clicks this
-/// tool posts reset it too; pointer moves are warps and do not.
 func hidIdle() -> Double { CGEventSource.secondsSinceLastEventType(.hidSystemState, eventType: anyInput) }
 
-/// When this tool last posted an event.
 var lastPost = Date.distantPast
 
-/// False while filming an app that posts input itself.
 nonisolated(unsafe) var guardsInput = true
 
-/// True when input arrived after `start` that this tool did not post.
 func touchedSince(_ start: Date) -> Bool {
     guard guardsInput else { return false }
     let quiet = min(Date().timeIntervalSince(start), Date().timeIntervalSince(lastPost))
@@ -320,7 +273,6 @@ func post(_ event: CGEvent?) {
     lastPost = Date()
 }
 
-/// Moves the visible pointer and tells the app under it.
 func pointTo(_ p: CGPoint) {
     CGWarpMouseCursorPosition(p)
     post(CGEvent(mouseEventSource: source, mouseType: .mouseMoved, mouseCursorPosition: p, mouseButton: .left))
@@ -359,7 +311,6 @@ let namedKeys: [String: CGKeyCode] = [
     "left": 123, "right": 124, "down": 125, "up": 126,
 ]
 
-/// A key by name, or a single character such as "a".
 func keyCode(_ name: String) -> CGKeyCode? {
     namedKeys[name] ?? (name.count == 1 ? keyCodes[Character(name)] : nil)
 }
@@ -390,8 +341,6 @@ let modifierKeys: [String: (code: CGKeyCode, flag: CGEventFlags)] = [
     "option": (58, .maskAlternate), "control": (59, .maskControl), "shift": (56, .maskShift), "cmd": (55, .maskCommand),
 ]
 
-/// Presses and holds keys in order, e.g. ["option", "space"], and returns the
-/// release. Push-to-talk shortcuts need the key held, not tapped.
 func holdDown(_ names: [String]) -> () -> Void {
     var held: CGEventFlags = []
     var keys: [CGKeyCode] = []
@@ -431,22 +380,14 @@ func holdDown(_ names: [String]) -> () -> Void {
     }
 }
 
-/// Deterministic jitter so retakes type with the same rhythm.
 var rhythm: UInt64 = 0x9E3779B97F4A7C15
 func jitter() -> Double {
     rhythm = rhythm &* 6364136223846793005 &+ 1442695040888963407
     return 0.75 + Double((rhythm >> 33) % 1000) / 1000 * 0.5
 }
 
-// MARK: - Overlays
-
-/// Bundle ids of the shot's `also` apps; their floating windows are overlays.
 nonisolated(unsafe) var overlayBundles: [String] = []
 
-/// Waits up to `seconds` for an overlay app to put a window above the menu
-/// bar's level on screen, such as LokalBot's autocomplete suggestion panel.
-/// The window list names windows that capture cannot see, so this times the
-/// suggestion even when its pixels are hidden from recording.
 func waitForOverlay(_ seconds: Double) -> Bool {
     let pids = Set(overlayBundles.flatMap { NSRunningApplication.runningApplications(withBundleIdentifier: $0) }
         .map(\.processIdentifier))
@@ -467,8 +408,6 @@ func waitForOverlay(_ seconds: Double) -> Bool {
     } while Date() < deadline
     return false
 }
-
-// MARK: - Capture
 
 final class Capture: NSObject, SCStreamOutput {
     let dir: URL
@@ -512,7 +451,6 @@ final class Capture: NSObject, SCStreamOutput {
         }
     }
 
-    /// Copies the pooled IOSurface so the stream can reuse it immediately.
     static func copyImage(_ pixels: CVPixelBuffer) -> CGImage? {
         CVPixelBufferLockBaseAddress(pixels, .readOnly)
         defer { CVPixelBufferUnlockBaseAddress(pixels, .readOnly) }
@@ -533,9 +471,6 @@ final class Capture: NSObject, SCStreamOutput {
     func drain() { group.wait() }
 }
 
-/// The pointer's position through a take, sampled at 60 Hz on the capture's
-/// clock, relative to the captured rect. Capture delivers a frame only when
-/// the picture changes, so frames alone cannot place a hidden pointer.
 final class PointerTrack {
     private let lock = NSLock()
     private var samples: [[Double]] = []
@@ -563,12 +498,6 @@ final class PointerTrack {
     }
 }
 
-/// The display with every window left out except the subject's and those of
-/// the `also` apps. Windows are listed when capture starts, so an overlay app
-/// must already be running then; panels it opens later belong to no excluded
-/// window and are captured. Naming the subject's app as the shared content
-/// instead makes macOS badge its windows with the purple "window is being
-/// shared" capsule in place of the window controls.
 func filter(for subject: Subject, display: Display, also: [String]) async -> SCContentFilter {
     do {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: false)
@@ -594,7 +523,6 @@ func configuration(for rect: CGRect, display: Display, background: String, curso
     config.height = Int(rect.height * display.scale)
     config.pixelFormat = kCVPixelFormatType_32BGRA
     config.colorSpaceName = CGColorSpace.sRGB
-    // SCStreamConfiguration holds backgroundColor without retaining it.
     fills[background] = fills[background] ?? color(background)
     config.backgroundColor = fills[background]!
     config.showsCursor = cursor
@@ -604,16 +532,12 @@ func configuration(for rect: CGRect, display: Display, background: String, curso
     return config
 }
 
-// MARK: - Commands
-
 func captureRect(_ subject: Subject, _ shot: Shot) -> CGRect {
     var rect = subject.frame.insetBy(dx: -(shot.margin ?? 0), dy: -(shot.margin ?? 0))
     if let below = shot.below { rect.size.height += below }
     return rect
 }
 
-/// Places the window, runs the shot's setup, places it again (setup can change
-/// its minimum size), and leaves it frontmost and settled.
 func prepare(_ shot: Shot) -> (Subject, Display) {
     guard AXIsProcessTrusted() else { die("Accessibility permission is required") }
     guard CGPreflightScreenCaptureAccess() else { die("Screen Recording permission is required") }
@@ -852,10 +776,6 @@ func screenshot(_ shot: Shot, subject: Subject, display: Display, out: URL) asyn
     }
 }
 
-/// A take's capture leaves other apps' windows out, so a dialog never shows in
-/// the footage but still catches the rig's clicks. Lists what is on the filming
-/// display; with `kill`, ends the owners of windows that aren't part of a take
-/// or of the desktop.
 func strayWindows(kill shouldKill: Bool) {
     let keep: Set<String> = ["Window Server", "Dock", "Control Center", "SystemUIServer", "Notification Center",
                              "Wallpaper", "WindowManager", "Spotlight", "Finder", "loginwindow",
@@ -882,8 +802,6 @@ func strayWindows(kill shouldKill: Bool) {
     }
 }
 
-/// Apps read the WindowServer's theme, which the `AppleInterfaceStyle` default
-/// doesn't always reach by itself.
 func setSystemAppearance(dark: Bool) {
     typealias SetTheme = @convention(c) (Bool) -> Void
     guard let framework = dlopen("/System/Library/PrivateFrameworks/SkyLight.framework/SkyLight", RTLD_LAZY),

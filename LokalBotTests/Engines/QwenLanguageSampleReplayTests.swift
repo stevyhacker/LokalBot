@@ -1,17 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Opt-in replay for Benchmarks/transcribe/QwenLanguageSample. Decodes
-/// benchmark tracks on Qwen3-ASR 1.7B's llama-server with the language on
-/// auto-detect, as the engine did before language sampling (`before`: every
-/// window on auto, then the whole track again when its vote holds) and as it
-/// does now (`after`: `QwenASREngine.decodeOnAuto`). Windows come from the
-/// app's own VAD path, in the plain layout (`transcribe`) or the merged
-/// word-attribution layout. Each track, layout and mode appends one JSON line
-/// with every window decode, its time and its language vote, and the result.
-///
-/// LOKALBOT_QWEN_SAMPLE_MANIFEST names the job (see make_manifest.py there);
-/// LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR holds both 1.7B GGUFs. Runs resume.
 final class QwenLanguageSampleReplayTests: XCTestCase {
     private struct Manifest: Decodable {
         struct Track: Decodable {
@@ -20,27 +9,18 @@ final class QwenLanguageSampleReplayTests: XCTestCase {
         }
 
         var output: String
-        /// "before" and/or "after", run in this order for each track and layout.
         var modes: [String]
-        /// Reverse the order of `modes` on every other track and layout, so
-        /// the two paths of a pair share the machine's state for timing.
         var alternate: Bool?
-        /// "plain" (VAD spans of at most 15 s) and/or "word" (merged windows).
         var layouts: [String]
-        /// Sample sizes whose spans are recorded for the offline simulation.
         var sampleSizes: [Int]
         var tracks: [Track]
     }
 
     private struct Window: Encodable {
         var index: Int
-        /// nil: auto-detect.
         var language: String?
         var text: String
         var seconds: Double
-        /// Auto windows: the language this window's text votes for, aliased
-        /// as the engine's vote does, and its weight (characters); nil and 0
-        /// when it does not vote.
         var vote: String?
         var weight: Int
     }
@@ -123,7 +103,6 @@ final class QwenLanguageSampleReplayTests: XCTestCase {
             let vadSeconds = Date().timeIntervalSince(vadStarted)
             let reader = try SpanAudioReader(url: url)
             if !warmedUp, let first = vadSpans.first {
-                // The first decode after launch pays Metal's shader compilation.
                 _ = try await QwenASREngine.transcribeWindow(
                     samples: try reader.samples(from: first.start, to: first.end), language: "en", prompt: nil, server: server)
                 warmedUp = true
@@ -136,7 +115,6 @@ final class QwenLanguageSampleReplayTests: XCTestCase {
                 }
                 let index = Dictionary(uniqueKeysWithValues: spans.enumerated().map { ($1.start, $0) })
                 let log = Log()
-                // The engine's decoder, timed per window (no prompt, so no echoes to drop).
                 let decode: QwenASREngine.SpanDecoder = { batch, language in
                     try await SpanTranscription.segments(in: url, spans: batch) { samples, position in
                         let started = Date()
@@ -176,9 +154,6 @@ final class QwenLanguageSampleReplayTests: XCTestCase {
         }
     }
 
-    /// The engine's auto-detect path before language sampling, line for line:
-    /// every window on auto, the whole-track vote, and every window again in
-    /// the voted language unless the aligner cannot time it.
     private func decodeAsBefore(_ spans: [SpeechSpan], wordAttribution: Bool,
                                 decode: QwenASREngine.SpanDecoder) async throws -> QwenASREngine.AutoLanguageDecision {
         let segments = try await decode(spans, nil)

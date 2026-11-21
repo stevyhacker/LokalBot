@@ -1,13 +1,3 @@
-//! The user's calendars, kept fresh in the background
-//! (`EventKitCalendarEventProvider` on macOS).
-//!
-//! Detection and recording read the cached events and never wait on the
-//! network: a refresh thread reads Evolution every minute and private links
-//! every five minutes, from yesterday to a week ahead (so the detector's
-//! −15/+90 minute window works across midnight, Today sees the whole day and
-//! People sees who is coming up in the next seven days). Nothing is read while
-//! calendar detection is off.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -25,49 +15,38 @@ use crate::{EngineEvent, Shared};
 const EVOLUTION_INTERVAL: Duration = Duration::from_secs(60);
 const LINK_INTERVAL: Duration = Duration::from_secs(5 * 60);
 
-/// What Today and Settings show about the calendar.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CalendarSnapshot {
     pub status: CalendarStatus,
-    /// Recordable meetings from yesterday to a week ahead, by start.
     pub events: Vec<CalendarEvent>,
     pub refreshed_at: Option<DateTime<Utc>>,
-    /// Private links saved in the credential store.
     pub link_count: usize,
-    /// One line per source that could not be read (links redacted).
     pub problems: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum CalendarStatus {
-    /// Calendar detection is off.
     #[default]
     Off,
-    /// On, but no link is saved and Evolution is not used or not installed.
     NoSources,
     Loading,
     Ready,
-    /// Every source failed.
     Failed,
 }
 
-/// The cached calendar, shared by the detector, recording and the app.
 #[derive(Default)]
 pub(crate) struct Calendar {
     state: Mutex<CalendarSnapshot>,
-    /// Links from the credential store; `None` until first read.
     links: Mutex<Option<Vec<String>>>,
     wake: Mutex<Option<Sender<Wake>>>,
 }
 
 enum Wake {
-    /// Settings or links changed: read every source now.
     Refresh,
     Stop,
 }
 
 impl Calendar {
-    /// The event happening now (`activeCandidate`), when calendar detection is on.
     pub fn active_event(&self, settings: &Settings, now: DateTime<Utc>) -> Option<CalendarEvent> {
         if !settings.calendar_detection_enabled {
             return None;
@@ -80,21 +59,17 @@ impl Calendar {
         self.state.lock().clone()
     }
 
-    /// Reads the links from the credential store again, then every source
-    /// (Refresh in Settings, or calendar use turned back on).
     pub fn reload(&self) {
         *self.links.lock() = None;
         self.refresh();
     }
 
-    /// Reads every source again soon (settings or links changed).
     pub fn refresh(&self) {
         if let Some(wake) = self.wake.lock().as_ref() {
             let _ = wake.try_send(Wake::Refresh);
         }
     }
 
-    /// Replaces the saved links (credential store first) and refreshes.
     pub fn set_links(&self, links: Vec<String>) -> anyhow::Result<()> {
         crate::secrets::save_calendar_links(&links)?;
         *self.links.lock() = Some(links);
@@ -113,7 +88,6 @@ impl Calendar {
                 links
             }
             Err(err) => {
-                // Not retried every minute: a locked store would ask each time.
                 log::warn!("calendar: links could not be read from the credential store: {err:#}");
                 *cached = Some(Vec::new());
                 Vec::new()
@@ -122,7 +96,6 @@ impl Calendar {
     }
 }
 
-/// Starts the refresh thread.
 pub(crate) fn start(shared: Arc<Shared>) -> CalendarThread {
     let (wake, woken) = bounded(4);
     *shared.calendar.wake.lock() = Some(wake.clone());
@@ -285,9 +258,6 @@ impl From<lokalbot_platform::calendar::FetchReport> for SourceResult {
     }
 }
 
-/// Yesterday 00:00 to the end of the day a week from today, local time:
-/// People's "Coming up" reads the next seven days
-/// (`PeopleUpcomingMeetings.windowDays`).
 fn window(settings: &Settings, today: chrono::NaiveDate) -> ParseOptions {
     let (from, _) = lokalbot_core::time::local_day_bounds(today.pred_opt().unwrap_or(today));
     let last = today
@@ -306,7 +276,6 @@ fn window(settings: &Settings, today: chrono::NaiveDate) -> ParseOptions {
     }
 }
 
-/// `calendarMyEmailAddresses`, normalized.
 pub(crate) fn my_addresses(settings: &Settings) -> Vec<String> {
     settings
         .calendar_my_email_addresses

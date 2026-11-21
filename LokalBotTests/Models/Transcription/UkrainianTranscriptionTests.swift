@@ -94,7 +94,6 @@ final class UkrainianTranscriptionTests: XCTestCase {
             settings.transcriptionModel = choice
             settings.transcriptionLanguage = .uk
             let engine = settings.transcriptionEngine()
-            // Exercise meeting, dictation/live-preview, and word-attribution entry points.
             for path in 0..<3 {
                 do {
                     switch path {

@@ -1,14 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Opt-in, local-only audit of action ownership on real meetings. Normal
-/// unit/CI runs skip it. The copied meetings and the report stay outside the
-/// repository.
-///
-/// Saved outcomes keep the rows each action cites but not the model's answer.
-/// The audit therefore replays every saved action through the current rules
-/// twice: once as the model claiming the cited speaker committed to it, and
-/// once with no claim, which is what the rows prove on their own.
 final class ActionOwnershipAuditTests: XCTestCase {
     private struct Replay {
         var resolution = "dropped"

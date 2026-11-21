@@ -30,8 +30,6 @@ struct PeopleSplit: View {
     }
 }
 
-/// People, most recently met first. In a split view the list selects; in a
-/// stack (More on iPhone) rows push.
 struct PeopleList: View {
     @Environment(CompanionSession.self) private var session
     let selection: Binding<PersonRoute?>?
@@ -100,7 +98,6 @@ struct PersonRow: View {
 }
 
 extension String {
-    /// "Met today", "Met yesterday", but "Met Tuesday".
     var lowercasedFirstWordIfRelative: String {
         ["Today", "Yesterday"].contains(self) ? lowercased() : self
     }
@@ -193,7 +190,6 @@ struct PersonDetailScreen: View {
     }
 }
 
-/// An open action summarized on a person or project page.
 struct OpenWorkItem: Hashable {
     let meetingID: String
     let actionID: String
@@ -203,7 +199,6 @@ struct OpenWorkItem: Hashable {
     let status: ActionStatus
 }
 
-/// Open actions with toggles, due dates and their meeting.
 struct OpenWorkList: View {
     @Environment(CompanionSession.self) private var session
     let items: [OpenWorkItem]
@@ -261,7 +256,6 @@ struct OpenWorkList: View {
     }
 }
 
-/// A decision or other text with the meeting it came from.
 struct LinkedTextRow: View {
     let text: String
     let meeting: Meeting?
@@ -283,7 +277,6 @@ struct LinkedTextRow: View {
     }
 }
 
-/// Meetings as links, newest first.
 struct MeetingLinkList: View {
     let meetings: [Meeting]
 

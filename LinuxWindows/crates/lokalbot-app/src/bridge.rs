@@ -1,6 +1,3 @@
-//! Connects the window to the background engine: page requests become engine
-//! commands, and engine updates land in `AppData`.
-
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -25,7 +22,6 @@ pub fn send(command: Command, cx: &App) {
     }
 }
 
-/// Starts the engine and forwards its events into `data` on the UI thread.
 pub fn start(data: &Entity<AppData>, cx: &mut App) -> anyhow::Result<()> {
     let (library, settings) = {
         let data = data.read(cx);
@@ -35,7 +31,6 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) -> anyhow::Result<()> {
     let engine = Engine::start(library, settings, move |event| {
         let _ = sender.send_blocking(event);
     })?;
-    // Only the app itself shares with phones and tablets.
     engine.send(Command::Companion(CompanionCommand::Enable));
     cx.set_global(EngineHandle(Arc::new(engine)));
     cx.observe(data, |data, cx| stop_reading_off_page(&data, cx))
@@ -54,7 +49,6 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Reading aloud ends when the page it belongs to is left, as on macOS.
 fn stop_reading_off_page(data: &Entity<AppData>, cx: &mut App) {
     let data = data.read(cx);
     let Some(key) = data.speech.reading.as_deref() else {
@@ -72,8 +66,6 @@ fn stop_reading_off_page(data: &Entity<AppData>, cx: &mut App) {
     }
 }
 
-/// Turns a page request into an engine command. Returns false for requests
-/// the app handles itself.
 pub fn handle_request(event: &AppEvent, cx: &mut App) -> bool {
     let command = match event {
         AppEvent::LearnSpeakerVoices => Command::LearnSpeakerVoices,
@@ -234,7 +226,6 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                     data.processing.remove(&meeting_id),
                     Some(ProcessingStage::Summarizing)
                 );
-                // The sample's notes don't count toward asking for a GitHub star.
                 if summarized
                     && !data.settings.github_star_summary_completed
                     && data.meeting(meeting_id).is_some_and(|m| !m.is_sample())
@@ -293,7 +284,6 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                 .as_deref()
                 .is_some_and(|error| error.contains("cancelled"))
             {
-                // Cancelling is not a failure, and nothing is left running.
                 data.downloads.remove(&update.id);
                 data.cancelled_downloads.push(update.id);
             } else if let Some(error) = update.error {
@@ -371,7 +361,6 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
         EngineEvent::Autocomplete(update) => crate::autocomplete::engine_update(update, cx),
         EngineEvent::LivePreview(preview) => data.live_preview = preview,
         EngineEvent::Speech(status) => {
-            // Answers and the voice sample show their own failure in place.
             if status.error != data.speech.error
                 && let Some((key, message)) = &status.error
                 && !key.starts_with("answer:")
@@ -493,7 +482,6 @@ fn apply(data: &mut AppData, event: EngineEvent, cx: &mut Context<AppData>) {
                     }
                 }
                 DictationUpdate::DeliveryNotice { copied } => {
-                    // Lasts long enough to act on; goes soon after Copy.
                     schedule_hud_dismiss(
                         data,
                         cx,

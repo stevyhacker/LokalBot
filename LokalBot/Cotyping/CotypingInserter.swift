@@ -8,11 +8,7 @@ import ApplicationServices
 import CoreGraphics
 import Foundation
 
-/// Tags Cotyping's own synthetic keystrokes so the input taps ignore them and
-/// never re-observe an insert as user typing. Ported from Cotabby's
-/// `InputSuppressionController` (identity field only).
 enum CotypingSyntheticMarker {
-    /// "Lokal" in ASCII — an arbitrary sentinel on the event's source user data.
     static let userData: Int64 = 0x4C6F_6B61_6C
 
     static func mark(_ event: CGEvent) {
@@ -59,20 +55,11 @@ final class CotypingInputSuppressionController {
     }
 }
 
-/// Inserts accepted ghost text into the focused host app by synthesizing Unicode
-/// keystrokes (Cotabby's approach — AX value-set is silently dropped by Chromium
-/// and others). Each event is marked synthetic so the input monitor skips it.
 @MainActor
 final class CotypingInserter {
-    /// Pending restore of the user's clipboard after a paste insert, so overlapping
-    /// pastes coalesce onto the single saved clipboard rather than re-snapshotting
-    /// our own completion back into it.
     private var pendingPasteboardRestore: DispatchWorkItem?
     private var savedClipboardForRestore: [[NSPasteboard.PasteboardType: Data]]?
-    /// Kept alive while its promised text may still be read.
     private var activeHandoff: DictationPasteboardHandoff?
-    /// Pastes run one at a time. A second paste waits for the first; otherwise
-    /// it would snapshot the first one's dictated text as the user's clipboard.
     private let pasteQueue = SerialTaskQueue()
     private var cachedPasteMenuItems: [pid_t: AXUIElement] = [:]
     private let suppressionController: CotypingInputSuppressionController
@@ -103,9 +90,6 @@ final class CotypingInserter {
         return true
     }
 
-    /// Deletes `deletingCharacters` graphemes (one Backspace each) then types
-    /// `text`, in one suppressed synthetic burst. Used to swap a typo for its
-    /// correction. Backspace is virtual key 51.
     @discardableResult
     func replace(deletingCharacters count: Int, with text: String) -> Bool {
         let scrubbed = text.replacingOccurrences(of: "\r", with: "")
@@ -139,9 +123,6 @@ final class CotypingInserter {
         return true
     }
 
-    /// Deletes `deletingCharacters` graphemes to the right of the caret (Forward
-    /// Delete, virtual key 117) and then types `text`. Used for mid-word accepts
-    /// where the model's first characters are already present after the caret.
     @discardableResult
     func replaceForward(deletingCharacters count: Int, with text: String) -> Bool {
         let scrubbed = text.replacingOccurrences(of: "\r", with: "")
@@ -175,10 +156,6 @@ final class CotypingInserter {
         return true
     }
 
-    /// Types `text` in short Unicode keystrokes. Many apps take only the first
-    /// 20 UTF-16 units of a single synthetic key event, so the whole string in
-    /// one event could silently lose the rest. Dictation's fallback when paste
-    /// cannot be set up.
     @discardableResult
     func typeInChunks(_ text: String) -> Bool {
         let chunks = Self.typingChunks(text.replacingOccurrences(of: "\r", with: ""))
@@ -202,9 +179,6 @@ final class CotypingInserter {
         return true
     }
 
-    /// Splits `text` at character boundaries into runs of at most
-    /// `maximumUTF16` code units. A single longer character (a long emoji
-    /// sequence) stays whole in its own run.
     nonisolated static func typingChunks(_ text: String, maximumUTF16: Int = 20) -> [String] {
         var chunks: [String] = []
         var current = ""
@@ -224,34 +198,14 @@ final class CotypingInserter {
     }
 
     enum PasteOutcome: Equatable {
-        /// An app read the text after the paste command.
         case pasted
-        /// The paste command was sent but no app read the text in time. The
-        /// text is left on the clipboard so it is not lost.
         case unconfirmed
-        /// The pasteboard or paste command could not be set up; the clipboard
-        /// has been restored.
         case failed
-        /// Nothing was pasted: the caller was cancelled, or after waiting for
-        /// an earlier paste its destination was no longer valid.
         case skipped
     }
 
-    /// How long an app has to read the pasted text before LokalBot stops
-    /// waiting and leaves the text on the clipboard.
     nonisolated static let pasteReadTimeout: Duration = .milliseconds(1_500)
 
-    /// Inserts `text` by placing it on the pasteboard and sending Paste, then
-    /// restoring the user's clipboard once the focused app has read it. The
-    /// text is provided lazily so LokalBot learns when the read happens; a
-    /// fixed delay used to restore the old clipboard before a busy app read it,
-    /// and that app pasted the previous clipboard instead. A trimmed port of
-    /// Cotabby's `insertViaPaste`, used by dictation commits.
-    ///
-    /// `revalidateAfterWaiting` runs only when this paste had to wait for an
-    /// earlier one; focus may have moved meanwhile, so the caller re-checks
-    /// its destination. Cancelling the caller cancels a paste that has not
-    /// started.
     func insertViaPaste(
         _ text: String,
         revalidateAfterWaiting: @escaping @MainActor () async -> Bool = { true }
@@ -281,8 +235,6 @@ final class CotypingInserter {
             return .failed
         }
         let expectedChangeCount = pasteboard.changeCount
-        // Reads before the paste command (clipboard managers that ignore the
-        // transient marker) do not confirm anything.
         handoff.armConfirmation()
 
         var sent = await pressPasteMenuItem()
@@ -316,8 +268,6 @@ final class CotypingInserter {
               let vUp = CGEvent(keyboardEventSource: source, virtualKey: 0x09, keyDown: false) else {
             return false
         }
-        // Cmd via flags (no separate modifier key event). Marked synthetic so the
-        // consuming input tap ignores it.
         vDown.flags = .maskCommand
         vUp.flags = .maskCommand
         suppressionController.registerSyntheticInsertion(expectedKeyDownCount: 1)
@@ -328,9 +278,6 @@ final class CotypingInserter {
         return true
     }
 
-    /// Finds the menu item on the main actor but presses it on a background
-    /// queue: the app answers the press by reading the pasteboard, and that
-    /// read is served from LokalBot's main thread.
     private func pressPasteMenuItem() async -> Bool {
         guard let focusedElement = CotypingAXHelper.focusedElement(),
               let application = CotypingAXHelper.owningApplication(of: focusedElement) else {
@@ -375,9 +322,6 @@ final class CotypingInserter {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.pasteboardRestoreDelay, execute: restore)
     }
 
-    /// How long the completion stays on the pasteboard before the user's clipboard
-    /// is restored — long enough for the host to service Cmd-V, short enough that
-    /// the user's clipboard is theirs again almost immediately.
     private static let pasteboardRestoreDelay: TimeInterval = 0.3
 
     private func clearPendingPasteboardRestore() {
@@ -386,8 +330,6 @@ final class CotypingInserter {
         activeHandoff = nil
     }
 
-    /// Captures every representation of every pasteboard item so the user's
-    /// clipboard can be restored exactly, not just its plain-text form.
     static func snapshotPasteboard(_ pasteboard: NSPasteboard) -> [[NSPasteboard.PasteboardType: Data]] {
         (pasteboard.pasteboardItems ?? []).map { item in
             var reps: [NSPasteboard.PasteboardType: Data] = [:]
@@ -398,17 +340,12 @@ final class CotypingInserter {
         }
     }
 
-    /// Puts the user's clipboard back, marked as generated so clipboard
-    /// managers do not record it as a second copy. A concealed item (a password
-    /// manager's copy) is not put back: its owner clears it on a timer only
-    /// while the pasteboard is unchanged, so a restored copy would linger.
     static func restorePasteboard(_ saved: [[NSPasteboard.PasteboardType: Data]], to pasteboard: NSPasteboard) {
         pasteboard.clearContents()
         guard let items = restoredItems(saved) else { return }
         pasteboard.writeObjects(items)
     }
 
-    /// Nil when nothing should be restored.
     static func restoredItems(_ saved: [[NSPasteboard.PasteboardType: Data]]) -> [NSPasteboardItem]? {
         guard !saved.isEmpty,
               !saved.contains(where: { $0[DictationPasteboardHandoff.concealedType] != nil }) else { return nil }
@@ -423,10 +360,6 @@ final class CotypingInserter {
     }
 }
 
-/// Dictated text on its way to the focused app. The string is promised rather
-/// than written, so the first read after the paste command tells LokalBot the
-/// paste happened. Marked with the nspasteboard.org conventions so clipboard
-/// managers skip it.
 final class DictationPasteboardHandoff: NSObject, NSPasteboardItemDataProvider {
     static let transientType = NSPasteboard.PasteboardType("org.nspasteboard.TransientType")
     static let autoGeneratedType = NSPasteboard.PasteboardType("org.nspasteboard.AutoGeneratedType")
@@ -455,7 +388,6 @@ final class DictationPasteboardHandoff: NSObject, NSPasteboardItemDataProvider {
         return pasteboard.writeObjects([item])
     }
 
-    /// Reads from now on count as the paste.
     @MainActor
     func armConfirmation() {
         isArmed = true
@@ -473,7 +405,6 @@ final class DictationPasteboardHandoff: NSObject, NSPasteboardItemDataProvider {
         }
     }
 
-    /// AppKit calls providers on the main thread.
     func pasteboard(
         _ pasteboard: NSPasteboard?,
         item: NSPasteboardItem,
@@ -495,14 +426,10 @@ final class DictationPasteboardHandoff: NSObject, NSPasteboardItemDataProvider {
     }
 }
 
-/// Runs main-actor operations one after another. An operation that had to
-/// wait is dropped when its caller was cancelled meanwhile or `stillWanted`
-/// says no, so queued work never acts on a decision that went stale.
 @MainActor
 final class SerialTaskQueue {
     private var tail: Task<Void, Never>?
 
-    /// The operation's result, or nil when it did not run.
     func run<T: Sendable>(
         stillWanted: @escaping @MainActor () async -> Bool = { true },
         operation: @escaping @MainActor () async -> T

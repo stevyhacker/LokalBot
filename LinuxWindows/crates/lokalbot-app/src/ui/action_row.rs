@@ -1,30 +1,3 @@
-//! The action row as the Mac draws it everywhere (`ActionThreadRow`,
-//! `OutcomeActionRow`, `EvidencePill`, `MeetingPlayTimeButton`): an 18px
-//! completion circle, the action, a meta line and the "…" menu.
-//!
-//! Pages that list action threads use [`thread_row`], which builds the whole
-//! row from an `ActionThread` with the Mac's meta line and menu:
-//!
-//! ```ignore
-//! use crate::ui::action_row::{self, ThreadRowOptions};
-//!
-//! let row = action_row::thread_row(
-//!     format!("today-thread-{ix}").into(), // unique on the page
-//!     thread,
-//!     ThreadRowOptions { hint: hints.get(&thread.id), ..Default::default() },
-//!     &data, // Entity<AppData>
-//!     cx,
-//! );
-//! ```
-//!
-//! Rows of a single meeting's actions (a meeting's Summary) compose the
-//! primitives instead: [`status_toggle`], [`meta_link`], [`due_text`] with a
-//! [`DueTone`], [`evidence_pill`] or [`play_time`], [`options_menu`] and
-//! [`action_row_with`].
-//!
-//! The Actions page draws the row in its list style with [`list_row`]
-//! (`ActionListRowStyle`): its own wording, selection and status handling.
-
 mod list;
 mod thread;
 
@@ -51,8 +24,6 @@ use lokalbot_core::{ActionStatus, ActionThread};
 use super::{Ico, icon};
 use crate::theme::{LbThemeExt as _, metric, ty};
 
-/// The round toggle: open circle, filled teal check when done, minus for a
-/// thread whose meetings disagree.
 pub fn status_toggle(
     id: impl Into<ElementId>,
     status: ActionStatus,
@@ -101,7 +72,6 @@ pub fn status_toggle(
         .on_click(move |_, window, cx| on_click(window, cx))
 }
 
-/// `EvidencePill`: quote bubble + "00:00:26" in teal; the tooltip is the excerpt.
 pub fn evidence_pill(
     id: impl Into<ElementId>,
     seconds: f64,
@@ -140,9 +110,6 @@ pub fn evidence_pill(
         .on_click(move |_, window, cx| on_click(window, cx))
 }
 
-/// How a due date reads in a row: red once it has passed, amber within the
-/// week ahead, quiet after that (`ActionThreadRow.dueColor`). Only open work
-/// is overdue or due soon; done and deferred work reads quiet.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DueTone {
     Overdue,
@@ -151,9 +118,6 @@ pub enum DueTone {
 }
 
 impl DueTone {
-    /// The tone of work due on `due` (its resolved day), seen on `today`.
-    /// The week is `DUE_SOON_WINDOW_DAYS`: today through seven days ahead,
-    /// the window the attention order uses.
     pub fn of(due: Option<NaiveDate>, open: bool, today: NaiveDate) -> DueTone {
         let Some(due) = due.filter(|_| open) else {
             return DueTone::Calm;
@@ -172,7 +136,6 @@ impl DueTone {
         }
     }
 
-    /// A thread is open when any of its meetings still has it open.
     pub fn of_thread(thread: &ActionThread, today: NaiveDate) -> DueTone {
         Self::of(
             thread.resolved_due_date,
@@ -191,9 +154,6 @@ impl DueTone {
     }
 }
 
-/// The due words in a row's meta line ("Due Thu, Nov 19 · said “Thursday”"),
-/// coloured by `tone`. Overdue work also says so to a tooltip, since colour
-/// alone carries it.
 pub fn due_text(
     id: impl Into<ElementId>,
     text: impl Into<SharedString>,
@@ -214,7 +174,6 @@ pub fn due_text(
         })
 }
 
-/// "0:24", or "1:05:03" past an hour (`Transcript.shortStamp`).
 pub fn short_stamp(seconds: f64) -> String {
     let total = if seconds.is_finite() {
         seconds.max(0.0) as u64
@@ -233,8 +192,6 @@ pub fn short_stamp(seconds: f64) -> String {
     }
 }
 
-/// `MeetingPlayTimeButton`: "▶ 0:24" in teal, opening the meeting playing
-/// from there; the tooltip is what was said.
 pub fn play_time(
     id: impl Into<ElementId>,
     seconds: f64,
@@ -267,7 +224,6 @@ pub fn play_time(
         .on_click(move |_, window, cx| on_click(window, cx))
 }
 
-/// Plain metadata text in the row's second line.
 pub fn meta_text(text: impl Into<SharedString>, color: gpui_kit::Hsla) -> Div {
     div()
         .flex_none()
@@ -276,7 +232,6 @@ pub fn meta_text(text: impl Into<SharedString>, color: gpui_kit::Hsla) -> Div {
         .child(text.into())
 }
 
-/// A teal metadata link (meeting title, "Mentioned in 3 meetings").
 pub fn meta_link(
     id: impl Into<ElementId>,
     text: impl Into<SharedString>,
@@ -299,7 +254,6 @@ pub fn meta_link(
         .on_click(move |_, window, cx| on_click(window, cx))
 }
 
-/// The trailing `ellipsis` menu.
 pub fn options_menu(
     id: impl Into<ElementId>,
     build: impl Fn(PopupMenu, &mut Window, &mut Context<PopupMenu>) -> PopupMenu + 'static,
@@ -312,7 +266,6 @@ pub fn options_menu(
         .dropdown_menu(build)
 }
 
-/// One row: toggle, text with its metadata line and optional hint, menu.
 pub fn action_row(
     toggle: impl IntoElement,
     text: impl Into<SharedString>,
@@ -333,7 +286,6 @@ pub fn action_row(
     )
 }
 
-/// `action_row` with its text already built (Find marks matches in it).
 pub fn action_row_with(
     toggle: impl IntoElement,
     text: AnyElement,
@@ -395,7 +347,6 @@ mod tests {
         assert_eq!(DueTone::of(Some(day(27)), true, today), DueTone::Soon);
         assert_eq!(DueTone::of(Some(day(28)), true, today), DueTone::Calm);
         assert_eq!(DueTone::of(None, true, today), DueTone::Calm);
-        // Done and deferred work is never late.
         assert_eq!(DueTone::of(Some(day(1)), false, today), DueTone::Calm);
     }
 

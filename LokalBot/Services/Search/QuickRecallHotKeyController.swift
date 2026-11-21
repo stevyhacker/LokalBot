@@ -1,31 +1,22 @@
 import Carbon.HIToolbox
 import Foundation
 
-/// Registers one of LokalBot's opt-in, system-wide shortcuts (Quick Recall, selection
-/// actions, Hand off) without an event tap. Carbon hot keys work while another app is
-/// focused and do not read or retain any other keyboard input.
 @MainActor
 final class QuickRecallHotKeyController {
-    /// Each controller registers under its own identifier, so several can be
-    /// active at once and each handler ignores the others' presses.
     nonisolated static let askIdentifier: UInt32 = 1
     nonisolated static let selectionActionsIdentifier: UInt32 = 2
     nonisolated static let windowHandoffIdentifier: UInt32 = 3
 
     var onInvoke: (() -> Void)?
 
-    /// True while Settings records a new shortcut, so the current one reaches
-    /// the recorder instead of opening Quick Recall.
     var isSuspended = false {
         didSet { if isSuspended != oldValue { sync() } }
     }
 
-    private static let signature: OSType = 0x4C425152 // "LBQR"
+    private static let signature: OSType = 0x4C425152
     private let identifier: UInt32
 
-    /// The shortcut this controller answers to, or nil when it is off.
     private var shortcut: DictationShortcut?
-    /// The shortcut `hotKey` was registered with.
     private(set) var registeredShortcut: DictationShortcut?
     private var hotKey: EventHotKeyRef?
     private var eventHandler: EventHandlerRef?
@@ -34,9 +25,6 @@ final class QuickRecallHotKeyController {
         self.identifier = identifier
     }
 
-    /// Registers `shortcut`, replacing the previous one, or unregisters for
-    /// nil. Returns false when the system refuses the combination; Ask then
-    /// has no shortcut until a later call succeeds.
     @discardableResult
     func setShortcut(_ shortcut: DictationShortcut?) -> Bool {
         self.shortcut = shortcut
@@ -68,8 +56,6 @@ final class QuickRecallHotKeyController {
         return true
     }
 
-    /// Why `candidate` cannot be a system-wide shortcut, or nil. Pass the
-    /// other global shortcuts that are not being edited.
     static func problem(
         for candidate: DictationShortcut,
         dictationShortcut: DictationShortcut,
@@ -86,8 +72,6 @@ final class QuickRecallHotKeyController {
         return nil
     }
 
-    /// Enabled macOS keyboard shortcuts, such as ⌘ Space for Spotlight, take
-    /// the keys before a hot key registered here would see them.
     static func isSystemShortcut(_ shortcut: DictationShortcut) -> Bool {
         guard let keyCode = shortcut.keyCode else { return false }
         var unmanaged: Unmanaged<CFArray>?

@@ -1,15 +1,3 @@
-//! What LokalBot and its KWin input method helper say to each other.
-//!
-//! KWin talks `zwp_input_method_v1` only to a program it starts itself and
-//! keeps that connection for as long as the program runs. So a small helper
-//! (`lokalbot --kwin-input-method`) holds it for the whole session, and the app
-//! connects to the helper over a socket in its private runtime folder. Quitting
-//! and reopening LokalBot then leaves the desktop's input method in place.
-//!
-//! One JSON object per line. The helper sends text from around the caret only
-//! while the app has asked for it ([`Request::Reading`]), and keeps none of it
-//! once sent.
-
 use std::io::{self, Read as _, Write as _};
 use std::os::unix::net::UnixStream;
 use std::path::PathBuf;
@@ -19,15 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use super::super::{AcceptKeys, InterceptedKey};
 
-/// The helper's socket, in LokalBot's private runtime folder.
 pub(super) const SOCKET_NAME: &str = "kwin-input-method.sock";
-/// Changes whenever a message changes meaning. An app and a helper from
-/// different releases (one updated while the other kept running) do not talk.
 pub(super) const VERSION: u32 = 1;
-/// No message comes close: the longest carries the 4,000 bytes or so of text
-/// an app reports around the caret, escaped.
 const MAX_LINE: usize = 64 * 1024;
-/// Unsent messages beyond this mean the other side stopped reading.
 const MAX_OUTBOX: usize = 1024 * 1024;
 
 pub(super) fn socket_path() -> io::Result<PathBuf> {
@@ -65,29 +47,21 @@ impl From<Key> for InterceptedKey {
     }
 }
 
-/// From the helper to the app.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "event", rename_all = "snake_case")]
 pub(super) enum Event {
     Hello {
         version: u32,
     },
-    /// A text field has focus, or the one in focus may be another now.
     Field,
-    /// No text field has focus.
     NoField,
-    /// The field's next state. The content type uses `zwp_text_input_v3`'s
-    /// numbering; offsets are in bytes.
     State {
         content: Option<(u32, u32)>,
         surrounding: Option<Surrounding>,
     },
-    /// An accept key or Esc, taken while a suggestion showed.
     Key {
         key: Key,
     },
-    /// Another key went on to the field while a suggestion showed. The helper
-    /// took the suggestion out of the field first.
     Passed,
 }
 
@@ -98,14 +72,12 @@ pub(super) struct Surrounding {
     pub anchor: u32,
 }
 
-/// From the app to the helper.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "request", rename_all = "snake_case")]
 pub(super) enum Request {
     Hello {
         version: u32,
     },
-    /// Whether text around the caret may be sent at all.
     Reading {
         on: bool,
     },
@@ -113,23 +85,18 @@ pub(super) enum Request {
         accept: Key,
         full: Option<Key>,
     },
-    /// Take the keyboard while a suggestion shows; give it back after.
     Grab {
         on: bool,
     },
-    /// Shows `text` as the suggestion, or nothing when empty.
     Preedit {
         text: String,
     },
-    /// One accept: removes bytes around the caret, types `text`, then shows
-    /// `preedit`.
     Commit {
         delete_before: u32,
         delete_after: u32,
         text: String,
         preedit: String,
     },
-    /// Types a taken key after all, because it accepted nothing.
     PassThrough {
         key: Key,
     },
@@ -152,14 +119,12 @@ pub(super) fn accept_keys(accept: Key, full: Option<Key>) -> AcceptKeys {
     }
 }
 
-/// Lines read from a non-blocking stream as they arrive.
 #[derive(Default)]
 pub(super) struct Inbox {
     buf: Vec<u8>,
 }
 
 impl Inbox {
-    /// Reads what is waiting. `Ok(false)` once the other side has closed.
     pub(super) fn fill(&mut self, stream: &mut UnixStream) -> io::Result<bool> {
         let mut chunk = [0u8; 16 * 1024];
         loop {
@@ -181,7 +146,6 @@ impl Inbox {
         }
     }
 
-    /// The next complete message, if one has arrived.
     pub(super) fn next<T: DeserializeOwned>(&mut self) -> Option<Result<T, serde_json::Error>> {
         let end = self.buf.iter().position(|b| *b == b'\n')?;
         let line: Vec<u8> = self.buf.drain(..=end).collect();
@@ -193,7 +157,6 @@ impl Inbox {
     }
 }
 
-/// Messages waiting to go out on a non-blocking stream.
 #[derive(Default)]
 pub(super) struct Outbox {
     buf: Vec<u8>,
@@ -206,7 +169,6 @@ impl Outbox {
         }
     }
 
-    /// Writes what the stream takes now. An error means the link is gone.
     pub(super) fn flush(&mut self, stream: &mut UnixStream) -> io::Result<()> {
         while !self.buf.is_empty() {
             match stream.write(&self.buf) {
@@ -261,7 +223,6 @@ mod tests {
         outbox.push(&Event::Key { key: Key::Tab });
         let bytes = outbox.buf.clone();
         let mut inbox = Inbox::default();
-        // Half a line first: nothing is complete yet.
         helper.write_all(&bytes[..10]).unwrap();
         assert!(inbox.fill(&mut app).unwrap());
         assert!(inbox.next::<Event>().is_none());
@@ -309,7 +270,6 @@ mod tests {
             preedit: " on it".into(),
         });
         let line = String::from_utf8(outbox.buf.clone()).unwrap();
-        // Key order is serde's business; what matters is the tag and the trip.
         assert!(line.contains("\"request\":\"commit\""), "{line}");
         assert!(line.ends_with('\n'));
         let mut inbox = Inbox {

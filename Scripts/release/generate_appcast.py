@@ -37,13 +37,8 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-# OWNER/REPO is a placeholder, refused in main(): pass --repo (CI passes
-# --repo "$GITHUB_REPOSITORY"; the canonical slug is stevyhacker/lokalbot).
 DEFAULT_REPO = "OWNER/REPO"
-# Matches sign_update's stdout when signing a non-feed archive:
-#   sparkle:edSignature="<base64>" length="<bytes>"
 SIGNATURE_PATTERN = re.compile(r'sparkle:edSignature="([^"]+)"\s+length="([^"]+)"')
-# Deployment target floor; Sparkle refuses to offer the update below this.
 DEFAULT_MINIMUM_SYSTEM_VERSION = "15.0"
 
 
@@ -197,7 +192,6 @@ def candidate_sign_update_paths(explicit_path: str | None) -> list[Path]:
     sparkle_bin = os.environ.get("SPARKLE_BIN")
     if sparkle_bin:
         bin_path = Path(sparkle_bin).expanduser()
-        # Accept either the tool itself or the directory that contains it.
         candidates.append(bin_path if bin_path.name == "sign_update" else bin_path / "sign_update")
 
     on_path = shutil.which("sign_update")
@@ -216,8 +210,6 @@ def candidate_sign_update_paths(explicit_path: str | None) -> list[Path]:
     except FileNotFoundError:
         pass
 
-    # SwiftPM resolves Sparkle's binary artifacts into DerivedData (xcodebuild)
-    # or the local .build tree (swift build).
     derived = Path.home() / "Library/Developer/Xcode/DerivedData"
     if derived.exists():
         candidates.extend(derived.glob("*/SourcePackages/artifacts/**/Sparkle/bin/sign_update"))
@@ -266,7 +258,6 @@ def render_appcast(template_path: Path, replacements: dict[str, str]) -> str:
     rendered = template_path.read_text(encoding="utf-8")
     for token, value in replacements.items():
         rendered = rendered.replace(token, escape_xml(value))
-    # A token nobody filled would ship in the feed every installed copy reads.
     unfilled = sorted(set(re.findall(r"\{\{[A-Z_]+\}\}", rendered)))
     if unfilled:
         raise SystemExit(f"{template_path.name} has placeholders with no value: {', '.join(unfilled)}")
@@ -276,8 +267,6 @@ def render_appcast(template_path: Path, replacements: dict[str, str]) -> str:
 def main() -> int:
     args = parse_args()
     if args.repo == DEFAULT_REPO:
-        # Its enclosure and release URLs would point at github.com/OWNER/REPO,
-        # and a feed like that stops updates for everyone who reads it.
         raise SystemExit('Pass --repo with the real "owner/repo" slug, for example stevyhacker/lokalbot.')
 
     archive = Path(args.archive).expanduser().resolve()
@@ -307,8 +296,6 @@ def main() -> int:
     release_tag = args.release_tag or f"v{short_version}"
     release_page_url = f"{repository_url}/releases/tag/{release_tag}"
     archive_filename = args.archive_filename or archive.name
-    # Enclosure points at the version-specific asset (not /latest/) so Sparkle
-    # downloads exactly the build it advertised.
     archive_url = (
         f"{repository_url}/releases/download/{release_tag}/"
         f"{urllib.parse.quote(archive_filename)}"

@@ -1,7 +1,5 @@
 import Foundation
 
-/// Interface language only. Speech recognition and generated notes keep their
-/// own preferences; changing the interface never changes stored user content.
 enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
     case system
     case english = "en"
@@ -31,7 +29,6 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var id: String { rawValue }
 
-    /// Native names keep the language picker recognizable regardless of the current interface language.
     var displayName: String {
         switch self {
         case .system: "Follow System"
@@ -62,8 +59,6 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// English names for settings search. The exhaustive switch keeps a new
-    /// language from being unsearchable by its English name.
     var englishName: String {
         switch self {
         case .system: "Follow System"
@@ -101,19 +96,14 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
             let parts = code.split(separator: "-").map(String.init)
             let base = parts.first ?? ""
             if base == "zh" {
-                // The Traditional script, or Taiwan, Hong Kong, or Macau without an
-                // explicit Simplified script, selects Traditional Chinese.
                 let subtags = parts.dropFirst()
                 let traditional = subtags.contains("hant")
                     || (!subtags.contains("hans") && subtags.contains { ["tw", "hk", "mo"].contains($0) })
                 return traditional ? Self.traditionalChinese.rawValue : Self.simplifiedChinese.rawValue
             }
-            // Serbian in either script, and Montenegrin, use the Latin Serbian catalog.
             if base == "sr" || base == "cnr" {
                 return Self.serbianLatin.rawValue
             }
-            // A system ar-EG preference is Arabic with region Egypt, not a
-            // dialect choice. Only the language code arz selects Egyptian Arabic.
             if base == "arz" {
                 return Self.egyptianArabic.rawValue
             }
@@ -126,37 +116,25 @@ enum AppLanguage: String, Codable, CaseIterable, Identifiable, Sendable {
 
     var isRightToLeft: Bool { Self.isRightToLeft(locale) }
 
-    /// Foundation knows each script's direction, so a future Persian, Hebrew,
-    /// or Pashto catalog lays out right to left without a hand-kept list.
     static func isRightToLeft(_ locale: Locale) -> Bool {
         locale.language.characterDirection == .rightToLeft
     }
 
-    /// Translate only the system option; language names remain native so a
-    /// person can recover from accidentally selecting an unfamiliar language.
     func pickerLabel(in interfaceLanguage: Self) -> String {
         self == .system ? interfaceLanguage.localized(displayName) : displayName
     }
 
-    /// Native text-field bridges receive the locale from their SwiftUI parent.
     static func matching(_ locale: Locale) -> Self {
-        // These bridges receive the selected catalog locale, so an explicit
-        // Egyptian Arabic choice must stay ar-EG instead of following system rules.
         if let selected = Self(rawValue: locale.identifier), selected != .system { return selected }
         let identifier = Self.system.localizationIdentifier(preferredLanguages: [locale.identifier])
         return Self(rawValue: identifier) ?? .english
     }
 
-    /// AppKit menus and settings search do not read SwiftUI's locale. Resolve
-    /// their app-owned labels explicitly without changing AppleLanguages or
-    /// replacing Bundle.main (which would affect other frameworks).
     func localized(_ key: String, bundle: Bundle = .main) -> String {
         guard let path = bundle.path(forResource: localizationIdentifier(), ofType: "lproj"),
               let localizedBundle = Bundle(path: path) else { return key }
         return localizedBundle.localizedString(forKey: key, value: key, table: nil)
     }
 
-    /// `localized` as a function, for wording that model types put together
-    /// (a row's due text, a filter's chip) rather than a view.
     var catalog: (String) -> String { { localized($0) } }
 }

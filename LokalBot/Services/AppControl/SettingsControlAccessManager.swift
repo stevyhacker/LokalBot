@@ -1,9 +1,6 @@
 import Combine
 import Foundation
 
-/// App-side owner of "Allow external agents to change LokalBot settings":
-/// the Privacy marker plus the control socket, which exists only while the
-/// grant is on.
 @MainActor
 final class SettingsControlAccessManager: ObservableObject {
     @Published private(set) var isEnabled = false
@@ -47,7 +44,6 @@ final class SettingsControlAccessManager: ObservableObject {
             gate.disable()
             isEnabled = false
             stop()
-            // Requests already waiting go with the grant.
             onDisable()
         }
     }

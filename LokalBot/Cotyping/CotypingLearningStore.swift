@@ -14,8 +14,6 @@ struct CotypingLearningExample: Codable, Equatable, Identifiable, Sendable {
     var scopeKey: String?
 }
 
-/// Learning is confined to an identified document. Generic windows, messaging
-/// surfaces, and unknown websites cannot establish a recipient boundary.
 enum CotypingLearningScope {
     static let nativeDocumentApps: Set<String> = [
         "com.apple.textedit", "com.apple.iwork.pages", "com.microsoft.word",
@@ -47,9 +45,6 @@ struct CotypingLearningSnapshot: Codable, Equatable, Sendable {
     var examples: [CotypingLearningExample] = []
 }
 
-/// Accumulates one visible suggestion's accepted chunks until the coordinator
-/// closes that suggestion. Stats can still count each accept gesture, while
-/// encrypted learning stores one coherent example and performs one write.
 struct CotypingAcceptedSuggestionBatch: Equatable, Sendable {
     struct LearningRecord: Equatable, Sendable {
         var field: CotypingField
@@ -79,16 +74,11 @@ struct CotypingAcceptedSuggestionBatch: Equatable, Sendable {
         learningText += acceptedText
     }
 
-    /// Forgets the private text accumulated for the current suggestion while
-    /// preserving its accept count so stats can still close on the normal
-    /// suggestion boundary.
     mutating func discardLearningRecord() {
         learningField = nil
         learningText = ""
     }
 
-    /// Returns one completed persistence unit and resets the accumulator.
-    /// Calling it repeatedly without another accepted chunk is a no-op.
     mutating func complete() -> Completion? {
         guard acceptedChunkCount > 0 else { return nil }
         let learningRecord = learningField.map {
@@ -234,9 +224,6 @@ enum CotypingLearningRanker {
     }
 }
 
-/// Async persistence seam. The production actor keeps JSON encoding,
-/// encryption, and atomic file replacement off the main actor; tests inject a
-/// recorder without touching the user's Keychain.
 protocol CotypingLearningPersisting: Sendable {
     func persist(_ snapshot: CotypingLearningSnapshot) async
     func forget() async throws
@@ -272,8 +259,6 @@ actor EncryptedCotypingLearningPersistence: CotypingLearningPersisting {
             }
             try combined.write(to: url, options: .atomic)
         } catch {
-            // Learning is opportunistic. Match the previous best-effort write
-            // behavior without blocking typing or surfacing private content.
         }
     }
 }
@@ -349,9 +334,6 @@ final class CotypingLearningStore: ObservableObject {
         return CotypingLearningRanker.rankedExamples(snapshot.examples, for: field, limit: limit, now: now())
     }
 
-    /// Clear memory immediately, then delete after every older queued write.
-    /// New learning is paused while deletion is in flight, so forgotten text
-    /// cannot be restored by an asynchronous write completing later.
     func forgetAll() async throws {
         if let forgetTask { return try await forgetTask.value }
         isForgetting = true
@@ -378,16 +360,12 @@ final class CotypingLearningStore: ObservableObject {
         enqueuePersistence()
     }
 
-    /// Forces any dirty in-memory snapshot into the background queue, then
-    /// waits for it. Used at app termination; ordinary typing never awaits IO.
     func flushPersistence() async {
         if revision != enqueuedRevision { enqueuePersistence() }
         let pending = persistenceTask
         await pending?.value
     }
 
-    /// Waits only for already-enqueued work. Kept internal for deterministic
-    /// tests of the completed-suggestion batching boundary.
     func waitForPendingPersistence() async {
         let pending = persistenceTask
         await pending?.value

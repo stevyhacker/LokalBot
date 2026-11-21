@@ -1,8 +1,3 @@
-//! First-run setup (`OnboardingView.swift`): three steps under a labelled
-//! stepper. Choices stay a draft until setup finishes. The access step only
-//! reads what this computer allows, and nothing downloads until Download is
-//! pressed. An unfinished setup reopens where it was on the next launch.
-
 mod access;
 mod choose;
 mod download;
@@ -28,22 +23,16 @@ use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, UiFont as _, ty};
 use crate::ui::{self, Ico};
 
-/// The Mac's setup window (`OnboardingView.size`).
 const WIDTH: f32 = 650.;
 const HEIGHT: f32 = 668.;
-/// With client decorations on Linux the window's bounds include the shadow
-/// GPUI Kit draws around it (20 px a side), so the content gets the Mac's size.
 const FRAME: f32 = if cfg!(target_os = "linux") { 40. } else { 0. };
 
-/// Opens the welcome window, or brings it forward.
 pub fn open(cx: &mut App) {
     let existing = super::secondary(cx).onboarding;
     if super::activate(existing, cx) {
         return;
     }
     let kind = window_kind(&lokalbot_platform::session::desktop());
-    // A floating window's parent is the focused window, and on first launch
-    // the main window has only just opened.
     #[cfg(target_os = "linux")]
     if kind == WindowKind::Floating {
         super::when_focused(cx, move |cx| open_window(kind, cx));
@@ -52,10 +41,6 @@ pub fn open(cx: &mut App) {
     open_window(kind, cx);
 }
 
-/// Hyprland and Sway would tile the welcome window beside the main window.
-/// Opened as `Floating`, it gets the main window as its parent, so they
-/// float it, centered, at its own size. Other desktops place a normal window
-/// themselves.
 fn window_kind(desktop: &lokalbot_platform::session::Desktop) -> WindowKind {
     if desktop.tiles_windows() {
         WindowKind::Floating
@@ -65,7 +50,6 @@ fn window_kind(desktop: &lokalbot_platform::session::Desktop) -> WindowKind {
 }
 
 fn open_window(kind: WindowKind, cx: &mut App) {
-    // It may have opened while `open` waited for the main window.
     let existing = super::secondary(cx).onboarding;
     if super::activate(existing, cx) {
         return;
@@ -90,7 +74,6 @@ fn open_window(kind: WindowKind, cx: &mut App) {
     }
 }
 
-/// Setup's three steps, in order (`OnboardingStep`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) enum Step {
@@ -106,7 +89,6 @@ impl Step {
         Self::ALL.iter().position(|s| *s == self).unwrap_or(0)
     }
 
-    /// The label in the window's stepper.
     fn title(self) -> &'static str {
         match self {
             Step::Choose => lokalbot_i18n::tr("Choose"),
@@ -124,22 +106,16 @@ impl Step {
     }
 }
 
-/// `CaptureSetupDraft`: the choices, applied only when setup finishes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Draft {
     meeting_mode: AutoRecordMode,
     day_memory: bool,
     context_mode: ScreenContextMode,
-    /// The master switch for reading Claude Code and Codex sessions. The
-    /// per-agent switches and folder exclusions stay with Settings.
     coding_agent_sessions: bool,
-    /// What a detected call does while Meeting notes is on. The switch
-    /// returns to it, so turning it off and on keeps the choice.
     detected_call_mode: AutoRecordMode,
 }
 
-/// The two ways a detected call can start a recording.
 const DETECTED_CALL_MODES: [AutoRecordMode; 2] = [AutoRecordMode::Automatic, AutoRecordMode::Ask];
 
 impl Draft {
@@ -156,7 +132,6 @@ impl Draft {
         }
     }
 
-    /// A new install's own choice; setup never picks a different one.
     fn default_detected_call_mode() -> AutoRecordMode {
         match Settings::default().auto_record_mode {
             AutoRecordMode::Manual => AutoRecordMode::Ask,
@@ -164,7 +139,6 @@ impl Draft {
         }
     }
 
-    /// Setup's Meeting notes switch. Off records only on Record.
     fn records_detected_calls(&self) -> bool {
         self.meeting_mode != AutoRecordMode::Manual
     }
@@ -184,7 +158,6 @@ impl Draft {
         }
     }
 
-    /// Screen context the draft would turn on.
     fn screen_context(&self) -> ScreenContextMode {
         if self.day_memory {
             self.context_mode
@@ -201,12 +174,10 @@ impl Draft {
         self.screen_context() == ScreenContextMode::TextAndVisual
     }
 
-    /// Writes the fields this window owns.
     fn apply(&self, settings: &mut Settings) {
         settings.auto_record_mode = self.meeting_mode;
         settings.tracking_enabled = self.day_memory;
         settings.screen_context_capture_mode = self.screen_context();
-        // Setup shows this choice, so finishing it is the person's answer.
         crate::pages::settings::choose_coding_agents(settings, self.coding_agent_sessions);
     }
 }
@@ -214,15 +185,11 @@ impl Draft {
 pub struct Onboarding {
     data: Entity<AppData>,
     step: Step,
-    /// Direction of the last step change, so the page arrives from that side.
     forward: bool,
     draft: Draft,
-    /// The choices the settings held when this draft was started.
     baseline: Draft,
     download: download::Session,
-    /// The access checks are running in the background.
     checking: bool,
-    /// False once setup has finished, so nothing more is saved for it.
     saves: bool,
     _subscriptions: Vec<Subscription>,
 }
@@ -242,8 +209,6 @@ impl Onboarding {
             cx.notify();
         })];
         let baseline = Draft::new(&settings);
-        // A finished setup has nothing to resume: the port never reopens one
-        // after a restart it asked for.
         let saved = if settings.onboarding_completed {
             resume::clear(&root);
             None
@@ -292,7 +257,6 @@ impl Onboarding {
         cx.notify();
     }
 
-    /// Saves where setup is, so a relaunch reopens it here.
     fn save(&self, cx: &App) {
         if !self.saves {
             return;
@@ -309,9 +273,6 @@ impl Onboarding {
         );
     }
 
-    /// Reads what this computer allows, away from the UI thread, and again
-    /// every few seconds while the access step shows (`startPolling`). The
-    /// reading is `AppData`'s, the one Settings shows.
     fn start_checks(&mut self, cx: &mut Context<Self>) {
         if self.checking {
             return;
@@ -341,8 +302,6 @@ impl Onboarding {
         .detach();
     }
 
-    /// Applies the choices and ends setup. The sample meeting opens only
-    /// when the person saw that option, which is once a download exists.
     fn finish(&mut self, opens_sample_meeting: bool, window: &mut Window, cx: &mut Context<Self>) {
         self.saves = false;
         let draft = self.draft;
@@ -436,7 +395,6 @@ impl Onboarding {
                     })
                     .child(step.title()),
             );
-            // A finished step goes back to it.
             row = row.child(if step < current {
                 div()
                     .id(SharedString::from(format!(
@@ -547,7 +505,6 @@ impl Render for Onboarding {
             .bg(lb.window)
             .text_color(lb.text)
             .child(
-                // The steps share the title bar, as on the Mac.
                 TitleBar::new()
                     .bg(lb.title_bar)
                     .border_color(lb.separator)
@@ -587,9 +544,6 @@ impl Render for Onboarding {
     }
 }
 
-// ------------------------------------------------------------ shared parts
-
-/// A step's title with one lead sentence, centred (`OnboardingHeading`).
 fn heading(title: &'static str, lead: Option<String>, cx: &App) -> Div {
     let lb = cx.lb();
     v_flex()
@@ -617,13 +571,10 @@ fn heading(title: &'static str, lead: Option<String>, cx: &App) -> Div {
         })
 }
 
-/// Rows in one grouped card; callers put `divider` between rows.
 fn card(cx: &App) -> Div {
     ui::grouped_surface(cx).w_full().flex().flex_col()
 }
 
-/// One card row: a symbol tile, its text, and a control or state at the end
-/// (`OnboardingRow`).
 fn row(
     symbol: Ico,
     top: bool,
@@ -658,7 +609,6 @@ fn row(
         })
 }
 
-/// A row's title, with the quiet tag that says what it is for.
 fn row_title(title: impl Into<SharedString>, tag: Option<&'static str>, cx: &App) -> Div {
     let lb = cx.lb();
     h_flex()
@@ -687,7 +637,6 @@ fn row_title(title: impl Into<SharedString>, tag: Option<&'static str>, cx: &App
         })
 }
 
-/// Secondary text that wraps.
 fn quiet(content: impl Into<SharedString>, cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -697,7 +646,6 @@ fn quiet(content: impl Into<SharedString>, cx: &App) -> Div {
         .child(ui::text::paragraph(content))
 }
 
-/// A quiet line under a card: a small symbol and one sentence (`OnboardingNote`).
 fn note(symbol: Ico, content: impl Into<SharedString>, cx: &App) -> Div {
     let lb = cx.lb();
     h_flex()
@@ -714,7 +662,6 @@ fn note(symbol: Ico, content: impl Into<SharedString>, cx: &App) -> Div {
         .child(div().flex_1().min_w_0().child(quiet(content, cx)))
 }
 
-/// A green check with one word: Allowed, Ready (`OnboardingDoneLabel`).
 fn done_label(text: &'static str, cx: &App) -> AnyElement {
     let lb = cx.lb();
     h_flex()
@@ -731,7 +678,6 @@ fn done_label(text: &'static str, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// One word in the attention colour: Stopped, Needs Attention.
 fn attention_label(text: &'static str, cx: &App) -> AnyElement {
     div()
         .text_size(ty::SECONDARY)
@@ -741,7 +687,6 @@ fn attention_label(text: &'static str, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// A thin progress bar in the accent colour.
 fn progress_bar(fraction: f32, cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -781,8 +726,6 @@ mod tests {
         draft.set_records_detected_calls(true);
         assert_eq!(draft.meeting_mode, AutoRecordMode::Automatic);
 
-        // Settings that never auto-record start the switch off, and turning it
-        // on picks a new install's own choice.
         let manual = Settings {
             auto_record_mode: AutoRecordMode::Manual,
             ..Settings::default()
@@ -795,7 +738,6 @@ mod tests {
 
     #[test]
     fn a_fresh_draft_changes_nothing_when_applied() {
-        // Clicking straight through setup on a new install keeps the defaults.
         let settings = Settings::default();
         let mut applied = settings.clone();
         Draft::new(&settings).apply(&mut applied);

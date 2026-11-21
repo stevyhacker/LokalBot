@@ -1,5 +1,4 @@
 #!/bin/sh
-# Render the narrated, animated long showcase from the canonical screenshots.
 set -eu
 
 REPO_ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)

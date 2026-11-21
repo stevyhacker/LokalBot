@@ -1,10 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Settings › Models: what each of the three models does, which one it is,
-/// where it runs and whether it is ready; then rows that open the downloaded
-/// models, the online services and the other models; then a folded group
-/// for the rest.
 struct ModelStackOverviewView: View {
     @ObservedObject var app: AppState
     @Environment(\.colorSchemeContrast) private var contrast
@@ -13,8 +9,6 @@ struct ModelStackOverviewView: View {
     @ObservedObject private var setup: ModelSetupController
     @ObservedObject private var speech: ModelSpeechDownloadController
     @State private var resolvedReasoning: ResolvedReasoningSupport?
-    /// Text and speech models found on disk, counted when something
-    /// arrives or goes, not on every progress tick.
     @State private var modelFilesOnDisk = 0
     @SceneStorage("settings.models.advancedOpen") private var advancedOpen = false
     let present: (ModelsSettingsSheet) -> Void
@@ -53,7 +47,6 @@ struct ModelStackOverviewView: View {
                                       failures: checks.results.compactMapValues(\.failure)))
     }
 
-    /// Search and deep links that land on a setting under Advanced open it.
     private var advancedExpanded: Binding<Bool> {
         Binding(get: { advancedOpen || Self.advancedSettings.contains(app.focusedSettingID ?? "") },
                 set: { advancedOpen = $0 })
@@ -104,8 +97,6 @@ struct ModelStackOverviewView: View {
         }
     }
 
-    // MARK: - Model set
-
     private func modelSetRow(_ presentation: ModelsPagePresentation) -> some View {
         HStack(alignment: .center, spacing: 12) {
             VStack(alignment: .leading, spacing: 3) {
@@ -115,9 +106,6 @@ struct ModelStackOverviewView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 12)
-            // Choosing a set opens its review, which lists the changes and
-            // the download before anything is applied. A native pull-down:
-            // SwiftUI's Menu gives assistive tools no way to open it.
             WorkspaceMenu(
                 title: localized(presentation.modelSet?.title ?? "Custom"),
                 label: localized("Model set"),
@@ -151,13 +139,10 @@ struct ModelStackOverviewView: View {
         return "\(localized(preset.title)) · \(SettingsStatus.size(bytes))"
     }
 
-    // MARK: - Roles
-
     private func roleRow(_ row: ModelRoleRow) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .center, spacing: 16) {
                 roleHeading(row).frame(width: 256, alignment: .leading)
-                // A long model name wraps instead of pushing the row onto two levels.
                 modelSummary(row).frame(minWidth: 150, idealWidth: 170, maxWidth: .infinity, alignment: .leading)
                 chip(row)
                 changeButton(row.role)
@@ -227,8 +212,6 @@ struct ModelStackOverviewView: View {
         }
     }
 
-    /// Each server is set up where it is chosen: Think's on Online services,
-    /// the other two in their own pickers.
     private func reviewConnection(_ role: ModelRole) {
         switch role {
         case .transcribe: present(.transcription)
@@ -254,7 +237,6 @@ struct ModelStackOverviewView: View {
             .accessibilityIdentifier("models.stack.chip.\(row.role.rawValue)")
     }
 
-    /// When the model last answered its check, for the chip's tooltip.
     private func checkedHelp(_ role: ModelRole) -> String {
         guard let result = checks.results[role], result.failure == nil, snapshot[role].isReady else { return "" }
         return String(format: localized("Checked at %@"),
@@ -277,8 +259,6 @@ struct ModelStackOverviewView: View {
         }
     }
 
-    // MARK: - More
-
     private func moreRow(_ page: ModelsSettingsPage, title: String, detail: String, value: String) -> some View {
         Button { open(page) } label: {
             HStack(spacing: 10) {
@@ -300,7 +280,6 @@ struct ModelStackOverviewView: View {
         .accessibilityIdentifier("models.more.\(page.rawValue)")
     }
 
-    /// How many models are on this Mac, counted the way Downloaded lists them.
     private var downloadedSummary: String {
         let count = modelFilesOnDisk + (speech.isDownloaded ? 1 : 0)
         return count > 0 ? String(count) : localized("None yet")
@@ -318,18 +297,14 @@ struct ModelStackOverviewView: View {
         return files.count + speechModels.count
     }
 
-    /// The services approved to receive something, or that none is.
     private var onlineSummary: String {
         let origins = app.settings.approvedRemoteInferenceOrigins + app.settings.approvedRemoteTranscriptionOrigins
         let names = origins.reduce(into: [String]()) { names, origin in
-            // A server by its host, a subscription by its name.
             let name = URL(string: origin)?.host ?? SubscriptionPlan.approvalDisplayName(origin)
             if !names.contains(name) { names.append(name) }
         }
         return names.isEmpty ? localized("None set up") : names.joined(separator: ", ")
     }
-
-    // MARK: - Advanced
 
     private var advanced: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -389,8 +364,6 @@ struct ModelStackOverviewView: View {
         resolvedReasoning?.support(for: app.settings) ?? .known(for: app.settings)
     }
 
-    /// Offers only the levels the selected model accepts (see
-    /// `ReasoningSupport`); a stored level it lacks shows as the one it maps to.
     private var reasoningRow: some View {
         let support = reasoningSupport
         return advancedRow("How long Think reasons",
@@ -420,8 +393,6 @@ struct ModelStackOverviewView: View {
         }
     }
 
-    /// How much of a long meeting Think processes per pass. It applies to every
-    /// Think model, so it lives here rather than with one connection.
     private var budgetRow: some View {
         VStack(alignment: .leading, spacing: 8) {
             advancedRow("Effort on long meetings",
@@ -452,9 +423,6 @@ struct ModelStackOverviewView: View {
         .settingTarget("settings.generationBudgetPreset", selected: app.focusedSettingID)
     }
 
-    /// The checks run by themselves after a download, for models on this
-    /// Mac. This is where to run them again, and the only place a model on
-    /// a server is checked.
     private var checksRow: some View {
         advancedRow("Check the models",
                     detail: localized("Each model on this Mac is checked once after it downloads. An online model is checked only when you ask, because the check sends it a short sample.")) {
@@ -466,7 +434,6 @@ struct ModelStackOverviewView: View {
     }
 }
 
-/// Where the model files are and what is loaded now, under Advanced.
 struct ModelStorageRow: View {
     @ObservedObject var app: AppState
     @ObservedObject private var roles: ModelRoles
@@ -503,8 +470,6 @@ struct ModelStorageRow: View {
     }
 }
 
-/// The models that are not one of the three roles: Dictation's Compose,
-/// reading aloud and search by meaning. Each opens the sheet it always had.
 struct ModelOtherModelsView: View {
     @ObservedObject var app: AppState
     let present: (ModelsSettingsSheet) -> Void

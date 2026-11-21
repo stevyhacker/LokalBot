@@ -1,9 +1,6 @@
 import Foundation
 
-/// Runs one `claude -p` request. Tests replace the child process.
 protocol ClaudeCodeRunning: Sendable {
-    /// `files` are written into a fresh private working directory, which
-    /// `arguments` may name by relative path; it is removed afterwards.
     func run(arguments: [String], input: Data, files: [String: Data],
              onLine: (@Sendable (String) -> Void)?) async throws -> ClaudeCodeProcess.Output
 }
@@ -14,8 +11,6 @@ struct LiveClaudeCodeRunner: ClaudeCodeRunning {
         guard let executable = await ClaudeCodeLocator.shared.executable() else {
             throw ClaudePlanError.notInstalled
         }
-        // An empty folder of its own: no project instructions or settings to
-        // pick up, and the system prompt never appears in a process list.
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("LokalBot-claude-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false,
@@ -35,20 +30,12 @@ struct LiveClaudeCodeRunner: ClaudeCodeRunning {
     }
 }
 
-/// Think on the user's Claude plan, through their own signed-in Claude Code.
-///
-/// Every request runs with tools, MCP servers, slash commands, settings
-/// files, and customizations off, and without session persistence: the
-/// prompt is never written to `~/.claude/projects`, which LokalBot itself
-/// reads as coding-agent evidence. `--bare` is never used, because it
-/// ignores the Claude subscription sign-in.
 struct ClaudePlanEngine: TextEngine {
     var model: String
     var reasoningLevel: ThinkReasoningLevel = .automatic
     var runner: ClaudeCodeRunning = LiveClaudeCodeRunner()
 
     static let systemPromptFile = "system-prompt.txt"
-    /// Claude Code's own coding-agent prompt would otherwise apply.
     static let fallbackSystemPrompt = "You are a helpful assistant."
 
     var displayName: String { "Claude plan — \(model.isEmpty ? "Claude Code default" : model)" }
@@ -56,8 +43,6 @@ struct ClaudePlanEngine: TextEngine {
     var accountsForGenerationRequests: Bool { true }
     var structuredOutputEnumLimit: Int? { 500 }
 
-    /// Aliases and the default follow the newest models, which take effort
-    /// low through max and think by default.
     var traits: (support: ReasoningSupport, thinksByDefault: Bool) {
         let name = model.lowercased()
         if name.isEmpty || ["default", "opus", "sonnet", "haiku", "fable", "best", "opusplan"].contains(name)
@@ -68,9 +53,6 @@ struct ClaudePlanEngine: TextEngine {
         return (traits.reasoningSupport, traits.thinksByDefault)
     }
 
-    /// As for Anthropic's API: a chosen level, capped by the task's budget;
-    /// on Automatic a model that thinks by default gets the level its task
-    /// budget implies, so notes and digests don't spend minutes thinking.
     func effort(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         let (support, thinksByDefault) = traits
         let budget = options?.reasoningBudgetTokens
@@ -112,19 +94,10 @@ struct ClaudePlanEngine: TextEngine {
         return result
     }
 
-    // MARK: Arguments
-
-    /// Pure argument construction, covered offline. Nothing a caller supplies
-    /// is in it: a command line is readable by every process of the same
-    /// user, and a schema can hold meeting text (the notes repair lists the
-    /// meeting's action items as allowed values). A structured request
-    /// therefore reads its schema from stdin, which takes Claude Code's
-    /// stream-json input (`structuredInput`).
     func arguments(structured: Bool, options: TextGenerationOptions?, streaming: Bool) -> [String] {
         var arguments = ["-p"]
         if structured { arguments += ["--input-format", "stream-json"] }
         arguments += ["--output-format", streaming || structured ? "stream-json" : "json"]
-        // Claude Code refuses stream-json output without --verbose.
         if streaming || structured { arguments.append("--verbose") }
         if streaming { arguments.append("--include-partial-messages") }
         arguments += [
@@ -147,10 +120,6 @@ struct ClaudePlanEngine: TextEngine {
         return Data(parts.joined(separator: "\n\n").utf8)
     }
 
-    /// Stdin for a structured request, one JSON object per line: the
-    /// `initialize` request Claude Code's own SDK sends, carrying the schema
-    /// unchanged (`maxItems`, `minimum` included), then the prompt as a user
-    /// message. Checked against Claude Code 2.1.318.
     static func structuredInput(prompt: String, context: [String], schema: [String: Any]) throws -> Data {
         let text = String(decoding: input(prompt: prompt, context: context), as: UTF8.self)
         let initialize: [String: Any] = [
@@ -170,8 +139,6 @@ struct ClaudePlanEngine: TextEngine {
         return data
     }
 
-    // MARK: Result
-
     struct Reply: Equatable {
         var text: String
         var truncated: Bool
@@ -180,7 +147,6 @@ struct ClaudePlanEngine: TextEngine {
         var cachedTokens: Int?
     }
 
-    /// The final `result` object of `--output-format json` or `stream-json`.
     static func parseResult(_ json: [String: Any], wantsStructured: Bool) throws -> Reply {
         let message = (json["result"] as? String ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         if json["is_error"] as? Bool == true || (json["subtype"] as? String)?.hasPrefix("error") == true {
@@ -200,9 +166,6 @@ struct ClaudePlanEngine: TextEngine {
         }
         let truncated = stopReason == "max_tokens" || stopReason == "model_context_window_exceeded"
         guard truncated || !text.isEmpty else { throw TextEngineError.badResponse("Claude returned no text") }
-        // A Claude Code that does not take the schema from stdin answers in
-        // its own words. The caller asked for JSON, so prose is a failed
-        // request here, not a reply handed on as if it were structured.
         if wantsStructured, !isStructured, !truncated {
             guard let object = Self.jsonText(in: text) else {
                 throw TextEngineError.badResponse("Claude returned no structured output")
@@ -219,8 +182,6 @@ struct ClaudePlanEngine: TextEngine {
                      cachedTokens: cacheRead)
     }
 
-    /// `text` when it is JSON, or the JSON object inside it when the model
-    /// wrapped one in a sentence or a code fence; nil when there is none.
     static func jsonText(in text: String) -> String? {
         func parses(_ candidate: String) -> Bool {
             (try? JSONSerialization.jsonObject(with: Data(candidate.utf8))) != nil
@@ -230,8 +191,6 @@ struct ClaudePlanEngine: TextEngine {
         return object
     }
 
-    /// Plan limits and a missing sign-in stop without retrying; overloads
-    /// and server errors keep a status the request gate retries.
     static func failure(message: String, apiStatus: Int?) -> Error {
         let lowered = message.lowercased()
         if lowered.contains("not logged in") || lowered.contains("/login") || lowered.contains("invalid api key")
@@ -248,7 +207,6 @@ struct ClaudePlanEngine: TextEngine {
         return TextEngineError.badResponse("Claude Code: \(detail)")
     }
 
-    /// One `stream-json` line: a text delta, the final result, or neither.
     static func parseStreamLine(_ line: String) -> (delta: String?, result: [String: Any]?) {
         guard let data = line.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return (nil, nil) }
@@ -266,8 +224,6 @@ struct ClaudePlanEngine: TextEngine {
             return (nil, nil)
         }
     }
-
-    // MARK: Run
 
     private func request(system: String, prompt: String, context: [String],
                          schema: [String: Any]?, options: TextGenerationOptions?,
@@ -320,8 +276,6 @@ struct ClaudePlanEngine: TextEngine {
         }
     }
 
-    /// `streaming` says the output is stream-json: one object per line, the
-    /// result last.
     static func reply(from output: ClaudeCodeProcess.Output, streaming: Bool, wantsStructured: Bool) throws -> Reply {
         var result: [String: Any]?
         if streaming {
@@ -344,7 +298,6 @@ struct ClaudePlanEngine: TextEngine {
         return try parseResult(result, wantsStructured: wantsStructured)
     }
 
-    /// Forwards streamed text to the UI, at most about 30 times a second.
     private final class PartialForwarder: @unchecked Sendable {
         private let onPartial: @MainActor (String) -> Void
         private let lock = NSLock()
@@ -367,8 +320,6 @@ struct ClaudePlanEngine: TextEngine {
             }
             guard let snapshot else { return }
             let onPartial = onPartial
-            // A partial still queued when the run ends must not replace the
-            // final text the caller shows next.
             Task { @MainActor in
                 if !self.isFinished { onPartial(snapshot) }
             }

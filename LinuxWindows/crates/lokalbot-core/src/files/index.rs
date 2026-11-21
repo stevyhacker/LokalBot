@@ -1,8 +1,3 @@
-//! The on-disk index (`IndexStore`): one SQLite file with files, their segments
-//! (with float16 vectors) and an FTS5 table, in schema 5, the layout the Mac's
-//! DigUpKit writes. Vectors live with everything else, so a crash can never
-//! leave them out of step with the rows that describe them.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
@@ -13,14 +8,10 @@ use rusqlite::{Connection, OpenFlags, OptionalExtension as _, Row, params, param
 use super::{Candidate, FileKind, INDEXING_ORDER_SQL, Modality, SegmentKind, text, vector_blob};
 
 pub const SCHEMA_VERSION: i64 = 5;
-/// The main index's file in the index folder.
 pub const MAIN_FILE: &str = "index.sqlite";
 
-/// Keyword search's tokenizer. Marks count as letters, so Bengali vowel signs
-/// and Arabic harakat stay inside their words.
 const FTS_COLUMNS: &str = "name, body, original UNINDEXED, tokenize = \"porter unicode61 remove_diacritics 2 categories 'L* N* Co M*'\"";
 
-/// A file as the index knows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct FileRecord {
     pub id: i64,
@@ -31,7 +22,6 @@ pub struct FileRecord {
     pub inode: u64,
     pub device: u64,
     pub state: String,
-    /// Why it was skipped or failed, or how far a long file has been read.
     pub detail: Option<String>,
 }
 
@@ -57,12 +47,10 @@ pub struct Counts {
     pub by_kind_and_state: HashMap<String, HashMap<String, usize>>,
     pub vectors: usize,
     pub segments: usize,
-    /// Long files still being read, and their pages and chunks left.
     pub unfinished: usize,
     pub left: usize,
 }
 
-/// What a sync did (`Indexer.SyncSummary`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SyncSummary {
     pub added: usize,
@@ -70,7 +58,6 @@ pub struct SyncSummary {
     pub moved: usize,
     pub removed: usize,
     pub unchanged: usize,
-    /// Files this sync queued, so a watcher can index exactly those first.
     pub queued: Vec<i64>,
 }
 
@@ -81,9 +68,6 @@ pub struct FileIndex {
 }
 
 impl FileIndex {
-    /// Opens the index in `directory`, creating it when there is none. An index
-    /// a newer version made is refused; an older schema is rebuilt from the
-    /// folders, since nothing in it isn't derived from them.
     pub fn open(directory: &Path) -> Result<Self> {
         std::fs::create_dir_all(directory)?;
         let file = directory.join(MAIN_FILE);
@@ -106,7 +90,6 @@ impl FileIndex {
         Ok(index)
     }
 
-    /// For agents: never creates, migrates or writes anything.
     pub fn open_read_only(directory: &Path) -> Result<Self> {
         let file = directory.join(MAIN_FILE);
         let db = Connection::open_with_flags(
@@ -190,7 +173,6 @@ impl FileIndex {
         &self.directory
     }
 
-    /// Bytes on disk: the database and its write-ahead log.
     pub fn size_on_disk(&self) -> u64 {
         ["", "-wal"]
             .iter()
@@ -202,7 +184,6 @@ impl FileIndex {
             .sum()
     }
 
-    /// Runs `body` in a transaction, or in the one already open.
     pub fn transaction<T>(&self, body: impl FnOnce() -> Result<T>) -> Result<T> {
         if !self.db.is_autocommit() {
             return body();
@@ -219,8 +200,6 @@ impl FileIndex {
             }
         }
     }
-
-    // ------------------------------------------------------------------ meta
 
     pub fn meta(&self, key: &str) -> Result<Option<String>> {
         Ok(self
@@ -242,11 +221,6 @@ impl FileIndex {
         Ok(())
     }
 
-    // ----------------------------------------------------------------- files
-
-    /// The ranges of the UNIQUE path index that hold the files under `folder`,
-    /// for the folder as given and for its real path when that's spelled
-    /// differently.
     fn path_ranges(folder: &str) -> Vec<(String, String)> {
         let mut spellings = vec![folder.to_string()];
         let real = super::real_path(folder);
@@ -267,7 +241,6 @@ impl FileIndex {
             .collect()
     }
 
-    /// Every file under one of `roots`, each once.
     pub fn files_under(&self, roots: &[String]) -> Result<Vec<FileRecord>> {
         let mut out = Vec::new();
         let mut seen = HashSet::new();
@@ -275,7 +248,6 @@ impl FileIndex {
             "SELECT {FILE_COLUMNS} FROM files WHERE path >= ?1 AND path < ?2"
         ))?;
         for root in roots {
-            // A folder inside another one listed is already covered.
             if roots.iter().any(|other| super::is_inside(root, other)) {
                 continue;
             }
@@ -291,7 +263,6 @@ impl FileIndex {
         Ok(out)
     }
 
-    /// Adds a file (pending) and returns its id.
     pub fn insert(&self, file: &Candidate) -> Result<i64> {
         self.transaction(|| {
             self.db.execute(
@@ -311,7 +282,6 @@ impl FileIndex {
         })
     }
 
-    /// The file changed on disk: drop what was extracted and queue it again.
     pub fn requeue_as(&self, id: i64, file: &Candidate) -> Result<()> {
         self.transaction(|| {
             self.delete_segments(id, true)?;
@@ -331,8 +301,6 @@ impl FileIndex {
         })
     }
 
-    /// Same inode, size and date at a new path: a move. Only the path changes;
-    /// nothing is embedded again.
     pub fn move_to(&self, id: i64, path: &str) -> Result<()> {
         self.transaction(|| {
             self.db.execute(
@@ -361,7 +329,6 @@ impl FileIndex {
         Ok(())
     }
 
-    /// Removes every file that isn't under one of `roots`. Returns how many went.
     pub fn prune(&self, keeping_under: &[String]) -> Result<usize> {
         let prefixes: Vec<String> = keeping_under
             .iter()
@@ -390,7 +357,6 @@ impl FileIndex {
         Ok(gone.len())
     }
 
-    /// Queues every file again and forgets the fingerprint.
     pub fn reset_all(&self) -> Result<()> {
         self.transaction(|| {
             self.db.execute(
@@ -407,7 +373,6 @@ impl FileIndex {
         })
     }
 
-    /// Files waiting to be read, in indexing order; `only` narrows it.
     pub fn pending(&self, only: Option<&HashSet<i64>>) -> Result<Vec<FileRecord>> {
         if only.is_some_and(HashSet::is_empty) {
             return Ok(Vec::new());
@@ -434,7 +399,6 @@ impl FileIndex {
         )?)
     }
 
-    /// Long files with pages or chunks still to read after their first step.
     pub fn unfinished(&self) -> Result<Vec<FileRecord>> {
         let mut statement = self.db.prepare(&format!(
             "SELECT {FILE_COLUMNS} FROM files WHERE state = 'partial' \
@@ -444,7 +408,6 @@ impl FileIndex {
         Ok(rows.collect::<rusqlite::Result<_>>()?)
     }
 
-    /// How many long files are unfinished, and how many pages and chunks are left.
     pub fn unfinished_count(&self) -> Result<(usize, usize)> {
         Ok(self.db.query_row(
             "SELECT COUNT(*), COALESCE(SUM(MAX(0, CAST(json_extract(info, '$.read_end') AS INTEGER) \
@@ -455,7 +418,6 @@ impl FileIndex {
         )?)
     }
 
-    /// What indexing learned about a file (`finish`'s `info`).
     pub fn info(&self, id: i64) -> Result<BTreeMap<String, String>> {
         let json: Option<String> = self
             .db
@@ -469,7 +431,6 @@ impl FileIndex {
             .unwrap_or_default())
     }
 
-    /// The last page or chunk stored for a file.
     pub fn last_place(&self, id: i64) -> Result<Option<usize>> {
         let last: Option<f64> = self.db.query_row(
             "SELECT MAX(loc) FROM segments WHERE file = ?1 AND kind IN ('page', 'page_image', 'chunk')",
@@ -502,10 +463,6 @@ impl FileIndex {
         Ok(())
     }
 
-    // -------------------------------------------------------------- segments
-
-    /// Adds a segment; `text` goes into keyword search (normalized), `vector`
-    /// into meaning search.
     #[allow(clippy::too_many_arguments)]
     pub fn add_segment(
         &self,
@@ -583,8 +540,6 @@ impl FileIndex {
         Ok(())
     }
 
-    // ----------------------------------------------------------------- stats
-
     pub fn counts(&self) -> Result<Counts> {
         let mut counts = Counts::default();
         let mut statement = self
@@ -619,11 +574,6 @@ impl FileIndex {
         Ok(counts)
     }
 
-    // ------------------------------------------------------------------ sync
-
-    /// Reconciles the index with what the walk found: new files are queued,
-    /// changed ones queued again, moved ones re-pathed, and files that are gone
-    /// or newly excluded removed (`Indexer.sync`).
     pub fn sync(&self, roots: &[String], candidates: &[Candidate]) -> Result<SyncSummary> {
         let existing = self.files_under(roots)?;
         let mut by_path: HashMap<&str, &FileRecord> = HashMap::new();
@@ -663,8 +613,6 @@ impl FileIndex {
                     summary.added += 1;
                 }
             }
-            // A root that went away while it was being walked looked emptier
-            // than it is: keep its rows rather than take that for "deleted".
             let vanished: Vec<&String> = roots.iter().filter(|r| !Path::new(r).exists()).collect();
             for row in &existing {
                 if !seen.contains(row.path.as_str())
@@ -683,7 +631,6 @@ impl FileIndex {
     }
 }
 
-/// "Screenshot 2026-10-01 at 9.41.07 PM.png" → searchable words.
 fn name_text(path: &str) -> String {
     Path::new(path)
         .file_name()
@@ -691,8 +638,6 @@ fn name_text(path: &str) -> String {
         .unwrap_or_default()
 }
 
-/// The folders a file sits in, relative to the home folder, as low-weight
-/// keywords ("Downloads Invoices").
 fn folder_text(path: &str) -> String {
     let folder = Path::new(path).parent().unwrap_or(Path::new(""));
     let relative = super::home_dir()
@@ -745,7 +690,6 @@ pub(crate) mod tests {
             sql.contains("porter unicode61 remove_diacritics 2 categories 'L* N* Co M*'"),
             "{sql}"
         );
-        // Every column the Mac reads.
         index
             .db
             .execute_batch(
@@ -798,7 +742,6 @@ pub(crate) mod tests {
         let summary = index.sync(roots, &[first.clone(), other.clone()]).unwrap();
         assert_eq!(summary.added, 2);
         assert_eq!(summary.queued.len(), 2);
-        // A root that doesn't exist keeps its rows.
         let summary = index.sync(roots, &[]).unwrap();
         assert_eq!(summary.removed, 0);
 

@@ -1,7 +1,3 @@
-//! Deletes the screen captures retained in a time range of one day
-//! (`CaptureRangeDeletionView.swift`). Times snap to captured scenes, and a
-//! review lists exactly what will be removed before anything is deleted.
-
 use chrono::{DateTime, Duration, Local, Utc};
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -20,7 +16,6 @@ use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{Ico, controls, settings_row};
 
-/// The range being chosen, as positions in the day's moments.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct RangeDeletion {
     pub first: usize,
@@ -39,14 +34,12 @@ impl RangeDeletion {
         }
     }
 
-    /// Keeps both ends on a capture that still exists, in order.
     pub fn clamp(&mut self, count: usize) {
         let last = count.saturating_sub(1);
         self.first = self.first.min(last);
         self.last = self.last.min(last).max(self.first);
     }
 
-    /// `[first.ts, last.ts + 1 ms)` (`ScreenRewindSequence.deletionInterval`).
     pub fn interval(&self, moments: &[ScreenMoment]) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
         let first = moments.get(self.first)?.ts;
         let last = moments.get(self.last.max(self.first))?.ts;
@@ -74,8 +67,6 @@ fn clock(at: DateTime<Utc>) -> String {
 }
 
 impl TimelinePage {
-    /// "Delete screen moments…": a toggle, so it keeps its name while the
-    /// range controls are open and reads as on. `None` with nothing kept.
     pub(super) fn range_deletion_toggle(
         &self,
         moments: &[ScreenMoment],
@@ -103,8 +94,6 @@ impl TimelinePage {
         )
     }
 
-    /// The range to delete while the toggle is on. Nothing is deleted before
-    /// the review lists what goes.
     pub(super) fn render_range_deletion(
         &self,
         moments: &[ScreenMoment],
@@ -113,7 +102,6 @@ impl TimelinePage {
         if moments.is_empty() {
             return None;
         }
-        // The moments can shrink under an open range.
         self.range_deletion.clone().map(|mut range| {
             range.clamp(moments.len());
             self.render_range_controls(&range, moments, cx)
@@ -269,7 +257,6 @@ impl TimelinePage {
         .detach();
     }
 
-    /// Failures stay on screen, with the moments that didn't go still there.
     fn range_deleted(&mut self, failures: Vec<String>, cx: &mut Context<Self>) {
         if failures.is_empty() {
             self.range_deletion = None;

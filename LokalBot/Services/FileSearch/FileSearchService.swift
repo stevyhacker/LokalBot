@@ -1,33 +1,25 @@
 import DigUpKit
 import Foundation
 
-/// A file that matched a search: what Ask, Quick Recall and the agent show.
 struct FileSearchHit: Identifiable, Hashable, Sendable {
     enum Kind: String, Sendable {
         case screenshot, image, pdf, doc, audio, video, code
     }
 
-    /// The matching passage's id in the file index; `[file:<id>]` cites it.
     let id: Int64
     let path: String
     let kind: Kind
-    /// A PDF page, from 1.
     let page: Int?
-    /// Seconds into a recording or video.
     let seconds: Double?
-    /// The matched words in «», or the passage's start.
     let excerpt: String?
     let modified: Date
-    /// When a photo was taken (EXIF), if it says.
     let taken: Date?
     let size: Int64
-    /// Found by what it means or shows, without the query's words.
     let isSemantic: Bool
 
     var url: URL { URL(fileURLWithPath: path) }
     var name: String { url.lastPathComponent }
     var folder: String { (url.deletingLastPathComponent().path as NSString).abbreviatingWithTildeInPath }
-    /// The date Ask's time scope filters on.
     var date: Date { taken ?? modified }
 
     var kindLabel: String {
@@ -79,7 +71,6 @@ struct FileSearchHit: Identifiable, Hashable, Sendable {
             isSemantic: hit.keywordRank == nil)
     }
 
-    /// EXIF `DateTimeOriginal`: "2026:05:14 18:02:11", in the camera's local time.
     static func exifDate(_ text: String) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -88,22 +79,6 @@ struct FileSearchHit: Identifiable, Hashable, Sendable {
     }
 }
 
-/// Files: the folders a person chooses, searched by what is in them. DigUp's
-/// engine (DigUpKit, MIT) crawls and reads them and keeps the index; vectors
-/// come from the media embedder (`FileMediaEmbedderRuntime`), and searches
-/// embed their words on the text embedder search by meaning already runs.
-///
-/// Indexing happens in passes: at launch, after the folders change, and a few
-/// seconds after a change in them that can alter the index (`FileChangeFilter`).
-/// A pass reads only new and changed files, stops at the next file when a
-/// meeting starts recording, in Low Power Mode, or when the Mac is hot, and
-/// starts again when that ends. The image and audio model loads only while a
-/// pass has files to read.
-///
-/// A big read (a folder's first pass, the rest of long files) is paced while
-/// the person uses the Mac (`IndexPacing`) and, on battery, waits for a
-/// charger unless reading on battery is on. A few new files are read right
-/// away on any power source.
 @MainActor
 final class FileSearchService: ObservableObject {
     enum PauseReason: Equatable, Sendable {
@@ -117,7 +92,6 @@ final class FileSearchService: ObservableObject {
         case indexing(done: Int, total: Int)
         case finishingLongFiles(left: Int)
         case paused(PauseReason)
-        /// On battery, a big read waits for a charger: `left` files.
         case waitingForPower(left: Int)
         case ready
         case failed(String)
@@ -132,31 +106,21 @@ final class FileSearchService: ObservableObject {
         var indexBytes: Int64 = 0
     }
 
-    /// What the last pass did, for Settings: how much it read and how long the
-    /// model worked.
     struct PassReport: Equatable, Sendable {
         var finished: Date
         var filesRead: Int
         var modelSeconds: Double
         var wallSeconds: Double
-        /// Of `wallSeconds`, how long reading rested while the person used the Mac.
         var restedSeconds: Double = 0
     }
 
     struct Configuration: Equatable, Sendable {
         var enabled = false
         var folders: [String] = []
-        /// Read recordings and video too: sound 30 seconds at a time (a new
-        /// window every 25 s) and a frame per shot, at most one every 3 s.
         var includesMedia = true
-        /// Read big passes on battery too. Off, a folder's first pass and the
-        /// rest of long files wait for a charger.
         var readsOnBattery = false
     }
 
-    /// One pass's embedder: what its vectors are called (the index's
-    /// fingerprint), how to make it on the indexing thread, and how to let the
-    /// model go afterwards.
     struct EmbedderSession: Sendable {
         let source: String
         let makeEmbedder: @Sendable () throws -> any Embedder
@@ -166,38 +130,25 @@ final class FileSearchService: ObservableObject {
     typealias StartEmbedder = @MainActor (_ progress: @escaping @Sendable (Double) -> Void) async throws
         -> EmbedderSession
 
-    /// Recordings and video, by extension, for when the person turns them off
-    /// (DigUp recognises them by type, so the list errs on the side of more).
-    /// Code stays out because `IndexOptions.includeCode` is off.
     nonisolated static let mediaExtensions: Set<String> = [
         "mp3", "m4a", "m4b", "aac", "wav", "wave", "aif", "aiff", "aifc", "caf", "flac", "ogg", "oga", "opus",
         "wma", "amr", "mka", "ape", "ac3", "eac3", "mp4", "m4v", "mov", "qt", "avi", "mkv", "webm", "wmv", "flv",
         "mpg", "mpeg", "m2v", "mts", "m2ts", "3gp", "3g2", "ogv", "mxf", "dv", "vob",
     ]
     nonisolated static let indexFolderName = "files-index.noindex"
-    /// The state DigUp's indexer gives a file, or a long PDF's next pages, it
-    /// did not read because text recognition gave no answer.
     nonisolated static let leftUnread = "pending"
-    /// New files a sync finds, up to this many, are read on any power source;
-    /// more is a big read that waits for a charger on battery (as DigUp's
-    /// helper does).
     nonisolated static let newFilesLimit = 50
     static let vectorIdleSeconds: TimeInterval = 600
 
     @Published private(set) var state: State = .off
     @Published private(set) var totals = Totals()
     @Published private(set) var lastPass: PassReport?
-    /// About how long the pass reading now has left, at the pace so far.
     @Published private(set) var secondsLeft: Double?
 
     private(set) var configuration = Configuration()
-    /// How long changes in the folders settle before a pass reads them.
     var changeDelay: Duration = .seconds(5)
     var isRecording: () -> Bool = { false }
-    /// The words at a recording's or video's matched moment, for the
-    /// assistant (`FileMomentTranscriber`); nil leaves moments without words.
     var transcribeMoment: (@MainActor (FileSearchHit) async -> String?)?
-    /// Asked between jobs on the index queue, so it must not need the main actor.
     var isOnBattery: @Sendable () -> Bool = { false }
     var pacing = IndexPacing.unpaced
 
@@ -232,8 +183,6 @@ final class FileSearchService: ObservableObject {
 
     static func live(storage: StorageManager) -> FileSearchService {
         PowerSourceMonitor.postSourceChanges()
-        // Before anything reads a file: DigUp's text recognition waits its
-        // turn on the app's queue, and no longer than its limit.
         FileTextRecognition.route()
         let service = FileSearchService(
             indexFolder: storage.rootURL.appendingPathComponent(indexFolderName, isDirectory: true),
@@ -255,9 +204,6 @@ final class FileSearchService: ObservableObject {
 
     var isAvailable: Bool { configuration.enabled && !configuration.folders.isEmpty }
 
-    // MARK: - Lifecycle
-
-    /// Settings changed (or the app launched): start, re-read or stop.
     func apply(_ next: Configuration) {
         let previous = configuration
         configuration = next
@@ -277,8 +223,6 @@ final class FileSearchService: ObservableObject {
             state = .noFolders
             return
         }
-        // Reading on battery turned off: a big read going on battery stops at
-        // the next job, and the next pass waits for a charger.
         if previous.readsOnBattery, !next.readsOnBattery { stopFlag.set() }
         if releaseTimer == nil {
             releaseTimer = Timer.scheduledTimer(withTimeInterval: 120, repeats: true) { [weak self] _ in
@@ -288,7 +232,6 @@ final class FileSearchService: ObservableObject {
         requestPass()
     }
 
-    /// A recording started or stopped, or the power or thermal state changed.
     func conditionsDidChange() {
         guard isAvailable else { return }
         if let reason = pauseReason {
@@ -303,7 +246,6 @@ final class FileSearchService: ObservableObject {
         }
     }
 
-    /// Quitting: let the current file finish, then stop.
     func stop() {
         stopFlag.set()
         changeTask?.cancel()
@@ -315,7 +257,6 @@ final class FileSearchService: ObservableObject {
 
     var pauseReason: PauseReason? { PauseReason.current(isRecording: isRecording()) }
 
-    /// On battery with reading on battery off.
     var bigReadsWaitForPower: Bool { !configuration.readsOnBattery && isOnBattery() }
 
     private func turnOff() {
@@ -343,8 +284,6 @@ final class FileSearchService: ObservableObject {
         }
     }
 
-    // MARK: - Passes
-
     func requestPass() {
         guard isAvailable else { return }
         passWanted = true
@@ -354,7 +293,6 @@ final class FileSearchService: ObservableObject {
         }
     }
 
-    /// Resolves when no pass is running; tests use it.
     func waitUntilIdle() async {
         while let running = passTask { await running.value }
     }
@@ -381,7 +319,6 @@ final class FileSearchService: ObservableObject {
         let options = Self.indexOptions(includesMedia: configuration.includesMedia)
         let stop = stopFlag
 
-        // Find what is new or changed first: an unchanged library never loads the model.
         let synced: FileSyncResult
         do {
             synced = try await worker.perform { store in
@@ -400,8 +337,6 @@ final class FileSearchService: ObservableObject {
             state = pauseReason.map(State.paused) ?? .ready
             return
         }
-        // On battery only what this sync just found, if it is a few files; a
-        // folder's first pass waits for a charger.
         let readsOnBattery = configuration.readsOnBattery
         let onBattery = isOnBattery
         let waitsForPower: @Sendable () -> Bool = { !readsOnBattery && onBattery() }
@@ -473,7 +408,6 @@ final class FileSearchService: ObservableObject {
             }
         case .failure(let error):
             lokalbotLog("file search: pass stopped: \(error)")
-            // The embedder went away (WorkerError): files stay pending for the next pass.
             state = .failed("Indexing stopped: \(error)")
         }
     }
@@ -483,7 +417,6 @@ final class FileSearchService: ObservableObject {
         case .files(let done, let total):
             guard case .indexing = state else { return }
             state = .indexing(done: done, total: total)
-            // At the pace so far, once there is enough of it to go by.
             if let readingStarted, done >= 10, total > done {
                 secondsLeft = Date().timeIntervalSince(readingStarted) / Double(done) * Double(total - done)
             } else if done >= total {
@@ -512,22 +445,13 @@ final class FileSearchService: ObservableObject {
         self.totals = totals
     }
 
-    // MARK: - Indexing (on the index queue)
-
-    /// Turning recordings and video off excludes them by extension; the next
-    /// sync then drops those already indexed.
     nonisolated static func indexOptions(includesMedia: Bool = true) -> IndexOptions {
         var options = IndexOptions()
         if !includesMedia { options.excludedExtensions = mediaExtensions }
         return options
     }
 
-    /// Brings the index in line with the folders and says how many files wait
-    /// to be read (new, changed, or long files read part way), and which ones
-    /// it just found, if they are a few.
     nonisolated static func sync(store: IndexStore, roots: [String], options: IndexOptions) throws -> FileSyncResult {
-        // Folders taken off the list leave the index; a folder that is missing
-        // (an unplugged drive) or that macOS won't list keeps its files.
         _ = try store.prune(keepingUnder: roots)
         let readable = roots.filter(isReadableFolder)
         let indexer = try Indexer(store: store, options: options, makeEmbedder: {
@@ -540,10 +464,6 @@ final class FileSearchService: ObservableObject {
             fresh: summary.queued.count <= newFilesLimit ? Set(summary.queued) : [])
     }
 
-    /// Reads what is pending (`only` some: new files on battery). A big read
-    /// stops at the next job when `waitsForPower` says so, and every job
-    /// rests as `pacer` says. A screenshot or scan whose text recognition
-    /// gave no answer (`FileTextRecognition`) is left as it was, and counted.
     nonisolated static func index(store: IndexStore, options: IndexOptions, session: EmbedderSession,
                                   only: Set<Int64>? = nil, stop: FileIndexStopFlag,
                                   waitsForPower: @escaping @Sendable () -> Bool = { false },
@@ -552,7 +472,6 @@ final class FileSearchService: ObservableObject {
         let indexer = try Indexer(store: store, options: options, makeEmbedder: session.makeEmbedder)
         defer { indexer.finish() }
         indexer.embedderSource = session.source
-        // A new model or pipeline version re-reads everything rather than mixing vectors.
         indexer.resetOnModelChange = { indexed, now in
             lokalbotLog("file search: vectors changed (\(indexed) → \(now)); reading every file again")
         }
@@ -569,7 +488,6 @@ final class FileSearchService: ObservableObject {
             outcome.seconds += event.seconds
             progress.files(done: event.done, total: event.total)
         }
-        // DigUp reports a file it left for a later pass as still "pending".
         outcome.unanswered = read[Self.leftUnread] ?? 0
         outcome.filesRead = read.values.reduce(0, +) - outcome.unanswered
         if bigRead, !shouldStop() {
@@ -583,15 +501,6 @@ final class FileSearchService: ObservableObject {
         return outcome
     }
 
-    // MARK: - Estimating
-
-    /// What adding `folders` would read, before anything is read: files by
-    /// kind, how long the first pass takes on this Mac at full speed, and how
-    /// much room the index will take (`FileIndexSize`). DigUp's `Estimator`
-    /// goes by metadata alone (counts, PDF page counts and durations from
-    /// Spotlight); its costs are what indexing has measured here, or else its
-    /// M4 Pro costs scaled by a one-second speed check made once. Files
-    /// already under a chosen folder don't count.
     func estimate(of folders: [String], progress: @escaping @MainActor (Int) -> Void = { _ in })
         async -> FileFolderEstimate {
         let options = Self.indexOptions(includesMedia: configuration.includesMedia)
@@ -609,8 +518,6 @@ final class FileSearchService: ObservableObject {
     nonisolated static func estimate(of folders: [String], excluding chosen: [String], options: IndexOptions,
                                      costsFolder: URL, checksSpeed: Bool = true,
                                      progress: @escaping (Int) -> Void = { _ in }) -> FileFolderEstimate {
-        // Opening a protected folder (Documents, Desktop, Downloads) is what
-        // makes macOS ask the person; one they said no to can't be listed.
         let unreadable = folders.filter { !isReadableFolder($0) }
         let readable = folders.filter { !unreadable.contains($0) }
         let report = Crawler.crawl(readable.map { URL(fileURLWithPath: $0, isDirectory: true) }, options: options) {
@@ -637,10 +544,6 @@ final class FileSearchService: ObservableObject {
             && Crawler.canList(URL(fileURLWithPath: path))
     }
 
-    /// Documents, Desktop and Downloads, for one-click choices before any
-    /// folder is chosen: the ones that exist and aren't chosen already.
-    /// Nothing in them is opened until the person picks one, so macOS asks
-    /// for access only then.
     nonisolated static func suggestedFolders(excluding chosen: [String]) -> [FileFolderSuggestion] {
         let fileManager = FileManager.default
         let common: [(FileManager.SearchPathDirectory, String, String)] = [
@@ -656,18 +559,10 @@ final class FileSearchService: ObservableObject {
         }
     }
 
-    // MARK: - Searching
-
-    /// Files that match `text`, best first. With a query vector (the text
-    /// embedder's, made with `task: search result | query: `) it searches by
-    /// meaning and by words; without one, by words only.
     func search(_ text: String, queryVector: [Float]?, interval: DateInterval? = nil,
                 limit: Int = 40) async -> [FileSearchHit] {
         guard isAvailable, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return [] }
-        // A walk reports a folder as its real path (/private/var where the
-        // chosen path says /var), so a file matches either spelling.
         let roots = configuration.folders.flatMap { [$0, FolderSelection.realPath($0)] }
-        // Ask enough to fill the list after the date filter drops some.
         let found = await reader.search(text, queryVector: queryVector,
                                         limit: interval == nil ? limit : limit * 4)
         return found.lazy.filter { hit in
@@ -680,8 +575,6 @@ final class FileSearchService: ObservableObject {
         .map { $0 }
     }
 
-    /// The stored text of a matched passage, for the agent to read. For a
-    /// recording or video moment, what was said in its 30-second window.
     func passage(of hit: FileSearchHit) async -> String? {
         if hit.kind == .audio || hit.kind == .video {
             return await transcribeMoment?(hit)
@@ -689,8 +582,6 @@ final class FileSearchService: ObservableObject {
         return await reader.passage(segment: hit.id)
     }
 
-    /// A passage cited by an earlier answer, by its id; nil once its file left
-    /// the index.
     func hit(segment id: Int64) async -> FileSearchHit? {
         guard configuration.enabled else { return nil }
         return await reader.hit(segment: id)
@@ -698,9 +589,6 @@ final class FileSearchService: ObservableObject {
 }
 
 extension FileSearchService.PauseReason {
-    /// Why background model work should wait now: a meeting is recording, Low
-    /// Power Mode is on, or the Mac is hot. Files and picture vectors for
-    /// screens both use it.
     static func current(isRecording: Bool) -> Self? {
         if isRecording { return .recording }
         if ProcessInfo.processInfo.isLowPowerModeEnabled { return .lowPower }
@@ -709,32 +597,20 @@ extension FileSearchService.PauseReason {
     }
 }
 
-/// What adding folders would read (`FileSearchService.estimate`).
 struct FileFolderEstimate: Equatable, Sendable {
     var files = 0
-    /// Photos and screenshots.
     var pictures = 0
-    /// PDFs and documents.
     var documents = 0
-    /// Recordings and videos, and how long they play.
     var recordings = 0
     var playingSeconds = 0.0
-    /// The first pass at full speed on this Mac.
     var seconds = 0.0
-    /// The rest of long PDFs and documents, read after everything's first part.
     var laterSeconds = 0.0
-    /// The room these files take in the index once read through.
     var indexBytes = 0.0
-    /// The model still to download before the first pass (0 once it's here).
     var downloadBytes: Int64 = 0
-    /// Chosen folders macOS won't let LokalBot open (access was declined in
-    /// System Settings → Privacy & Security → Files and Folders).
     var unreadable: [String] = []
 
     init() {}
 
-    /// DigUp's estimate of `candidates`, kind by kind, so each kind's size
-    /// can be told: PDFs' pages counted to the end and each video's length.
     init(_ candidates: [Candidate], options: IndexOptions, costs: Costs) {
         var estimate = Estimate()
         for (kind, group) in Dictionary(grouping: candidates, by: \.kind) {
@@ -757,7 +633,6 @@ struct FileFolderEstimate: Equatable, Sendable {
                 case .image: indexBytes += Double(group.count) * FileIndexSize.picture
                 case .screenshot: indexBytes += Double(group.count) * FileIndexSize.screenshot
                 case .doc:
-                    // DigUp's own guess at a document's chunks, read to the end.
                     let chunks = group.reduce(0) { $0 + max(1, min(options.maxChunks, Int($1.size / 2000))) }
                     indexBytes += Double(chunks) * FileIndexSize.docChunk
                 case .audio: indexBytes += FileIndexSize.sound(seconds: part.audioSeconds, options: options)
@@ -775,9 +650,6 @@ struct FileFolderEstimate: Equatable, Sendable {
     }
 }
 
-/// A common folder offered before any is chosen. `name` is its English name,
-/// looked up in the app's language: Finder's own name for it would have to be
-/// read from inside the folder, which macOS guards.
 struct FileFolderSuggestion: Identifiable, Equatable, Sendable {
     let name: String
     let path: String
@@ -785,23 +657,12 @@ struct FileFolderSuggestion: Identifiable, Equatable, Sendable {
     var id: String { path }
 }
 
-/// Bytes the file index takes per item, measured on 31 October 2026 by
-/// indexing samples of each kind: a 768 × float16 vector (1.5 KB) per passage,
-/// picture, window or frame, the file's row, and any words, which the keyword
-/// index keeps twice (about 2.3 bytes a character). Files themselves are never
-/// copied.
 enum FileIndexSize {
     static let picture = 2_700.0
-    /// With about 1,500 characters of words read from it.
     static let screenshot = 6_700.0
-    /// A page of about 2,400 characters.
     static let pdfPage = 7_700.0
-    /// For each 2,000 bytes of a document: DigUp's chunk estimate.
     static let docChunk = 8_700.0
-    /// 30 seconds of sound, one window every `audioHop` (25) seconds.
     static let soundWindow = 2_000.0
-    /// A frame per shot, at most one every `frameInterval` (3) seconds and
-    /// 1,200 a video; near-duplicate frames are dropped, so this is the most.
     static let videoFrame = 2_000.0
     static let framesPerVideo = 1_200.0
 
@@ -814,7 +675,6 @@ enum FileIndexSize {
     }
 }
 
-/// Forwards a crawl's count of files checked, at most a few times a second.
 final class FileCountProgress: @unchecked Sendable {
     private let lock = NSLock()
     private var last = Date.distantPast
@@ -836,22 +696,16 @@ final class FileCountProgress: @unchecked Sendable {
 
 struct FilePassOutcome: Sendable {
     var filesRead = 0
-    /// Screenshots and scans whose text recognition gave no answer, and long
-    /// PDFs that stopped at such a page: left for a later pass.
     var unanswered = 0
     var seconds = 0.0
-    /// Files still waiting afterwards (a big read held for a charger, or stopped).
     var left = 0
 }
 
 struct FileSyncResult: Sendable {
-    /// Files waiting to be read.
     var waiting: Int
-    /// The ones this sync found, when they are `newFilesLimit` or fewer.
     var fresh: Set<Int64>
 }
 
-/// Forwards progress from the index queue, at most a few times a second.
 final class FilePassProgress: @unchecked Sendable {
     enum Update: Sendable {
         case files(done: Int, total: Int)

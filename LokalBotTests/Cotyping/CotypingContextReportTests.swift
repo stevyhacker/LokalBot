@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Effective states for the optional context grants, and the rehearsal's
-/// account of which sources a suggestion used.
 final class CotypingContextReportTests: XCTestCase {
     private typealias Availability = CotypingContextAvailability
     private typealias Inventory = CotypingContextAvailability.Inventory
@@ -53,8 +51,6 @@ final class CotypingContextReportTests: XCTestCase {
                        .available("Available: 1 meeting from the last 90 days."))
     }
 
-    /// The switch used to look active while Overnight review, turned off,
-    /// silently kept it from doing anything.
     func testScreenMemoryIsAvailableWhileOvernightReviewIsOff() {
         let state = availability(settings(screen: true),
                                  inventory: .init(screenFacts: 2, overnightReviewOn: false)).screenMemory
@@ -152,8 +148,6 @@ final class CotypingContextReportTests: XCTestCase {
         XCTAssertEqual(use.meetingSources, ["Cedar"])
         XCTAssertEqual(use.screenSources, ["Borealis", "Cedar"])
     }
-
-    // MARK: - Sample conversation
 
     func testSampleConversationIsSelectedTheWayNearbyTextIs() throws {
         let snapshot = try XCTUnwrap(CotypingRehearsalConversation.snapshot())

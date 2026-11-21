@@ -17,8 +17,6 @@ PORT_LOCKFILE = "LinuxWindows/Cargo.lock"
 PORT_UPDATE_KEY = "LinuxWindows/crates/lokalbot-update/src/lib.rs"
 ANDROID_BUILD = "Companion/android/app/build.gradle.kts"
 
-# Releases after this one link an explainer for their major features
-# (RELEASING.md, "Explainers for major features").
 EXPLAINERS_AFTER = (0, 11, 5)
 EXPLAINER_LINK = re.compile(r"https://(?:www\.)?lokalbot\.com/explainers/([^\s)\]\"'<>]+)")
 EXPLAINER_NAME = re.compile(r"[a-z0-9]+(?:-[a-z0-9]+)*\.(?:png|pdf)")
@@ -46,7 +44,6 @@ def validate_explainers(root, notes, candidate):
         with file.open("rb") as handle:
             if not handle.read(8).startswith(EXPLAINER_MAGIC[file.suffix]):
                 raise ValueError(f"Explainer isn't a {file.suffix[1:].upper()} file: {path}")
-        # The website deploys Website/public/ from master, so an explainer must be committed before the tag.
         if candidate and not committed(root, path):
             raise ValueError(f"Commit the explainer before the release candidate: {path}")
     if re.search(r"^## What[’']s new\s*$", notes, re.MULTILINE) and not names and not NO_EXPLAINER.search(notes):
@@ -62,7 +59,6 @@ def validate_port_version(root, version):
     declared = section and re.search(r'^version\s*=\s*"([^"]+)"', section[1], re.MULTILINE)
     if not declared or declared[1] != version:
         raise ValueError(f"{PORT_MANIFEST} and Info.plist disagree on the version")
-    # Workspace members are the lockfile packages without a registry or git source.
     members = [block for block in (root / PORT_LOCKFILE).read_text().split("[[package]]")[1:]
                if "\nsource = " not in block]
     stale = sorted(re.search(r'name = "([^"]+)"', block)[1] for block in members
@@ -129,7 +125,6 @@ def validate(root, *, version=None, candidate=False, staged=False, remote="origi
         tag = f"v{actual}"
         if git(root, "tag", "--list", tag):
             raise ValueError(f"Tag {tag} already exists locally")
-        # Network/auth failures also fail closed; they are not tag absence.
         if git(root, "ls-remote", "--tags", remote, f"refs/tags/{tag}", f"refs/tags/{tag}^{{}}"):
             raise ValueError(f"Tag {tag} already exists on {remote}")
         reachable = git(root, "tag", "--merged", "HEAD", "--list", "v*").splitlines()

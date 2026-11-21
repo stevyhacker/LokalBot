@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Questions from paired devices: citation markers become records.md's `[n]`
-/// references, the answer streams as deltas, and the shared classes limit
-/// what the agent may read.
 @MainActor
 final class CompanionAskResponderTests: XCTestCase {
     private let meeting = Meeting(
@@ -13,8 +10,6 @@ final class CompanionAskResponderTests: XCTestCase {
         relativePath: "meetings/2026/10/30-design-review")
 
     private var shortID: String { SessionLookup.shortID(meeting.id) }
-
-    // MARK: - Citations
 
     func testMeetingMarkersBecomeNumberedCitations() throws {
         let answer = "You agreed to cut onboarding to three steps [meeting:\(shortID)@00:12:04]. "
@@ -50,13 +45,11 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertEqual(stream.next("You agreed"), "You agreed")
         XCTAssertEqual(stream.next("You agreed to three steps [meeting:\(shortID)@00:12:04]"), " to three steps [1]")
         XCTAssertNil(stream.next("You agreed to three steps [meeting:\(shortID)@00:12:04]"))
-        // A restarted answer sends nothing; the final result replaces it.
         XCTAssertNil(stream.next("Different"))
     }
 
     func testToolsFollowTheSharedClasses() {
         XCTAssertEqual(CompanionAskResponder.scopes(for: .all), [.meetings, .today])
-        // Screen memory and Files are never searched for a device, whatever Ask on the Mac allows.
         XCTAssertTrue(CompanionAskResponder.scopes(for: .all).isDisjoint(with: [.screen, .files]))
         var classes = CompanionSharing.DataClasses.all
         classes.windowTitles = false
@@ -65,8 +58,6 @@ final class CompanionAskResponderTests: XCTestCase {
         classes.meetings = false
         XCTAssertEqual(CompanionAskResponder.scopes(for: classes), [])
     }
-
-    // MARK: - Answering
 
     func testAnswerStreamsAndFinishesWithMappedCitations() async throws {
         let engine = CompanionScriptedEngine([
@@ -98,9 +89,6 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertEqual(output.deltas.joined(), result.answer)
     }
 
-    /// "Ask About Today" on an iPad once held the question to that day, and
-    /// the answer said "the library has only one meeting". The day is now
-    /// where the answer starts: the tools still read everything shared.
     func testDayFromADeviceIsAStartingPointNotALimit() async throws {
         let engine = CompanionScriptedEngine([
             #"{"tool": "list_meetings", "arguments": {}}"#,
@@ -190,9 +178,6 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertFalse(system.contains("remove the date limit"), "the device cannot widen what the Mac shares")
     }
 
-    /// The shared copy leaves out the sample meeting and a meeting still being
-    /// recorded, so questions from a device must not read them either, even
-    /// with all history shared.
     func testToolsReachOnlySharedMeetingsWithAllHistory() async throws {
         let engine = CompanionScriptedEngine([
             #"{"tool": "list_meetings", "arguments": {}}"#,
@@ -233,9 +218,6 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertEqual(fromSample.failure, "That meeting is not shared with this device.")
     }
 
-    /// A new install's library holds only the sample meeting, so nothing is
-    /// shared. The empty shared set once reached the tools as "no limit", and
-    /// a phone's question was answered from the sample.
     func testALibraryWithNothingSharedAnswersFromNoMeeting() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-companion-empty-\(UUID().uuidString)", isDirectory: true)
@@ -283,9 +265,6 @@ final class CompanionAskResponderTests: XCTestCase {
         XCTAssertEqual(engine.contexts.count, 4, "all three tools were called")
     }
 
-    /// The Timeline tool takes any day the model names. With a history
-    /// window, a day before it must come back empty-handed: that activity was
-    /// never sent to the device.
     func testActivityBeforeTheSharedWindowIsNotRead() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-companion-ask-\(UUID().uuidString)", isDirectory: true)
@@ -369,8 +348,6 @@ final class CompanionAskResponderTests: XCTestCase {
     }
 }
 
-// MARK: - Test doubles
-
 private final class CompanionScriptedEngine: TextEngine {
     private var outputs: [String]
     private(set) var systems: [String] = []
@@ -390,7 +367,6 @@ private final class CompanionScriptedEngine: TextEngine {
         systems.append(system)
         contexts.append(context)
         let output = outputs.isEmpty ? "" : outputs.removeFirst()
-        // Stream in three growing prefixes, as a server would.
         for fraction in [0.4, 0.7, 1.0] {
             let partial = String(output.prefix(Int(Double(output.count) * fraction)))
             await MainActor.run { onPartial(partial) }

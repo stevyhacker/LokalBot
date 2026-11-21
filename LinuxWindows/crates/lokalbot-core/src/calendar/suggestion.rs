@@ -1,7 +1,3 @@
-//! `MeetingSpeakerSuggestion.swift`: names the Name Speaker sheet offers.
-//! Picker choices only, never a speaker attribution: attendance does not
-//! identify a voice.
-
 use unicode_normalization::UnicodeNormalization as _;
 use unicode_normalization::char::is_combining_mark;
 
@@ -10,12 +6,10 @@ use crate::model::CalendarParticipantIdentity;
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpeakerSuggestion {
     pub id: String,
-    /// `None` for a calendar guest with neither a name nor a usable address.
     pub name: Option<String>,
     pub calendar: Option<CalendarParticipantIdentity>,
 }
 
-/// Where a suggestion came from, for its badges.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SuggestionSource {
     Calendar,
@@ -24,8 +18,6 @@ pub enum SuggestionSource {
 }
 
 impl SpeakerSuggestion {
-    /// Calendar guests first (same-named guests stay separate, each with its
-    /// own identity), then hint names not already offered.
     pub fn choices(calendar: &[CalendarParticipantIdentity], hints: &[String]) -> Vec<Self> {
         let mut result: Vec<Self> = calendar
             .iter()
@@ -67,9 +59,6 @@ impl SpeakerSuggestion {
         }
     }
 
-    /// Every query word appears in the name or address, ignoring case and
-    /// accents, so "petrovic ana" finds "Ana Petrović". "đ" is typed as "d"
-    /// or "dj".
     pub fn matches(&self, query: &str) -> bool {
         let text = [
             self.name.as_deref(),
@@ -89,7 +78,6 @@ impl SpeakerSuggestion {
         })
     }
 
-    /// Whitespace-collapsed, case- and width-insensitive (accents kept).
     pub fn name_key(name: &str) -> String {
         name.split_whitespace()
             .collect::<Vec<_>>()

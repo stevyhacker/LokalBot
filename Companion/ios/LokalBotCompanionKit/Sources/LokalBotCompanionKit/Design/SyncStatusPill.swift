@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// What the phone knows about its copy, for the status pill and Settings.
 public enum SyncPresentation: Equatable, Sendable {
     case sample
     case notPaired
@@ -18,12 +17,9 @@ public enum SyncPresentation: Equatable, Sendable {
     }
 }
 
-/// "Synced with your computer · 2 min ago · Wi-Fi". Teal while fresh, amber when
-/// the Mac couldn't be reached.
 public struct SyncStatusPill: View {
     let state: SyncPresentation
     var format: LBFormat
-    /// Pins "now" for the sample library, previews and screenshots.
     var pinnedNow: Date?
 
     public init(state: SyncPresentation, format: LBFormat = .current, pinnedNow: Date? = nil) {

@@ -1,25 +1,14 @@
-//! WSOLA time stretching: playback at 0.75–2× without changing pitch, like
-//! `AVAudioPlayer` with `enableRate` on macOS.
-//!
-//! Frames of 40 ms are overlap-added with a 50% Hann window; each frame's
-//! source position is nudged by up to ±10 ms to best continue the previous
-//! frame's waveform, which keeps voiced speech free of phasing artefacts.
-
 const FRAME: usize = 640;
 const HOP: usize = FRAME / 2;
 const TOLERANCE: i64 = 160;
 
-/// Source of timeline samples; positions past either end read as silence.
 pub trait SampleSource {
-    /// Fills `out` with samples starting at absolute frame `start`.
     fn read(&mut self, start: i64, out: &mut [f32]);
 }
 
 pub struct Wsola {
     window: Vec<f32>,
-    /// Source position of the next frame (fractional, in frames).
     next_position: f64,
-    /// Where the previous frame's natural continuation begins.
     continuation: Option<i64>,
     overlap: Vec<f32>,
     scratch: Vec<f32>,
@@ -46,12 +35,10 @@ impl Wsola {
         }
     }
 
-    /// Source position the listener is hearing, in frames.
     pub fn position(&self) -> f64 {
         self.next_position
     }
 
-    /// Renders one block of `HOP` output samples at `speed`.
     pub fn render(&mut self, source: &mut dyn SampleSource, speed: f64, out: &mut Vec<f32>) {
         let target = self.next_position.round() as i64;
         let offset = match self.continuation {
@@ -75,14 +62,11 @@ impl Wsola {
     }
 }
 
-/// Offset in `-TOLERANCE..=TOLERANCE` whose candidate window best matches
-/// `reference` (normalised cross-correlation, coarse search then refinement).
 fn best_offset(reference: &[f32], candidates: &[f32]) -> i64 {
     let score = |shift: usize| -> f32 {
         let candidate = &candidates[shift..shift + FRAME];
         let mut dot = 0.0f32;
         let mut energy = 1e-9f32;
-        // Every other sample is plenty for speech and halves the cost.
         for i in (0..FRAME).step_by(2) {
             dot += reference[i] * candidate[i];
             energy += candidate[i] * candidate[i];
@@ -161,7 +145,6 @@ mod tests {
             );
             let freq = dominant_frequency(&out[2_000..out.len() - 2_000]);
             assert!((freq - 220.0).abs() < 6.0, "speed {speed}: {freq}");
-            // Overlap-add of matched frames keeps the level steady.
             let rms = (out[2_000..out.len() - 2_000]
                 .iter()
                 .map(|s| s * s)

@@ -6,8 +6,6 @@ import UniformTypeIdentifiers
 import XCTest
 @testable import LokalBot
 
-/// A synthetic metrics page, drawn rather than captured, so Vision reads it
-/// on any machine.
 private func dashboardPNG() throws -> Data {
     let width = 1_200, height = 700
     let context = try XCTUnwrap(CGContext(
@@ -114,8 +112,6 @@ final class RadarScreenAnswersTests: XCTestCase {
         XCTAssertTrue(url.hasPrefix("data:image/jpeg;base64,"))
     }
 
-    /// A radar that catches one question and answers it from a screen capture.
-    /// `asPictures` is the form for a model that reads images, with a price.
     @MainActor
     private func answerFromTheScreen(asPictures: Bool) async throws
         -> (answer: RadarScreenAnswer, pictures: Int, prompts: [String], saved: MeetingRadarRecord, searches: Int) {
@@ -164,8 +160,6 @@ final class RadarScreenAnswersTests: XCTestCase {
         return (answer, pictures, prompts, saved, screens.questions.count)
     }
 
-    /// The Think model reads text, so it is given what was read from each
-    /// crop on this Mac, and no pixels leave it.
     @MainActor
     func testRadarAnswersACaughtQuestionFromTheScreenAndSavesTheCrop() async throws {
         let run = try await answerFromTheScreen(asPictures: false)
@@ -177,7 +171,6 @@ final class RadarScreenAnswersTests: XCTestCase {
         XCTAssertEqual(run.saved.cost, 0, "the Think model reports no cost")
     }
 
-    /// The hosted film and the replay ask a model that reads pictures.
     @MainActor
     func testAModelThatReadsPicturesIsSentTheCropAndItsCostCounts() async throws {
         let run = try await answerFromTheScreen(asPictures: true)

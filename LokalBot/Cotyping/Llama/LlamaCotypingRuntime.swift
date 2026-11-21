@@ -13,9 +13,6 @@ private final class LlamaDecodeAbortState: @unchecked Sendable {
     private var abortRequested = false
     private var decodeActive = false
 
-    /// Starts one decode scope. Abort requests made while no decode is active
-    /// are intentionally ignored, so cancelling an old request cannot poison
-    /// the next generation.
     func beginDecode() {
         lock.lock()
         decodeActive = true
@@ -49,21 +46,6 @@ private func llamaCotypingAbortCallback(_ rawState: UnsafeMutableRawPointer?) ->
     return state.isAbortRequested
 }
 
-/// In-process llama.cpp runtime for cotyping. Owns the model, a persistent
-/// context + memory, and serializes all inference on the actor's executor
-/// (off the main actor).
-///
-/// The KV-reuse probe (`IncrementalPrefill`) reports how much of each prompt
-/// overlaps the previous one. On a pure-attention model this drives true
-/// partial-prefix reuse: the shared prefix KV is kept and only the diverged
-/// suffix is re-decoded. Hybrid/recurrent models cannot rewind their rolling
-/// state to a prefix, so focus prefill records only the logical prompt baseline
-/// and generation falls back to a full re-prefill; `lastPrefillTokenCount` still
-/// surfaces the diverged-suffix length as the meaningful reuse signal either
-/// way. The capability is cached once at load (`supportsPartialReuse`).
-///
-/// Built against the llama.cpp pinned in `Scripts/build/fetch-llama.sh`; symbols are
-/// verified against the vendored dylib.
 actor LlamaCotypingRuntime {
     typealias PostLoadAdmissionHook = @Sendable () async -> Void
 
@@ -72,30 +54,16 @@ actor LlamaCotypingRuntime {
     private var vocab: OpaquePointer?
     private var loadedModelPath: String?
     private var residencyGeneration: UUID?
-    /// Actor methods are reentrant at `await` points. Serialize model loads so
-    /// concurrent prewarm and first-generation calls cannot mmap the same
-    /// weights twice while `willLoad` is suspended.
     private var loadInProgress = false
     private var loadWaiters: [CheckedContinuation<Void, Never>] = []
-    /// Invalidates a load that was already in flight when `unload()` ran.
-    /// Actor isolation alone is insufficient here: `loadIfNeeded` suspends while
-    /// consulting the main-actor residency ledger, so `unload()` can otherwise
-    /// observe an empty runtime and return before that older load resumes and
-    /// installs its model.
     private var unloadEpoch: UInt64 = 0
-    /// Test seam placed immediately after residency admission. Production uses
-    /// the no-op default; tests suspend here to deterministically exercise the
-    /// unload-vs-load race without loading a multi-gigabyte GGUF.
     private let postLoadAdmissionHook: PostLoadAdmissionHook
-    /// The prompt most recently prefilled into the context (basis for the
-    /// incremental KV-reuse probe against the next prompt).
     private var cachedTokens: [Int32] = []
     private var lastDecodeTokenCount = 0
     private var lastLogitsPosition: Int32?
     private var lastLogitsToken: Int32?
     private var tokenPrefixIndex: CotypingTokenPrefixIndex?
     private(set) var lastPrefillTokenCount: Int = 0
-    /// Reused for the confidence gate's softmax, one float per vocabulary entry.
     private var probabilityScratch: [Float] = []
     private var boundaryTokenMask: [Float] = []
     private let confidenceBoundaryMode: CotypingConfidenceBoundaryMode
@@ -105,30 +73,17 @@ actor LlamaCotypingRuntime {
     nonisolated let searchExperiment: CotypingSearchExperiment
     nonisolated let replayThreadCount: Int32?
     nonisolated let replayBatchThreadCount: Int32?
-    /// Replay-only cancellation experiments; app policy remains unchanged until measured.
     nonisolated let replayPrefillChunkSize: Int
     nonisolated let replayPrefillFirstChunkSize: Int?
     nonisolated let replayFinalPrefillLogitsOnly: Bool
     nonisolated let replaySynchronizePrefillChunks: Bool
     private(set) var lastHealingTrace: CotypingHealingTrace?
     private(set) var lastReplayDiagnostics = CotypingReplayDiagnostics()
-    /// When a suggestion was last generated, for the memory-pressure policy.
     private var lastUsedUptime: TimeInterval?
-    /// When the model last ran on the GPU for any reason: a suggestion, a
-    /// prompt read or a `touch`. Counts time asleep, unlike `lastUsedUptime`.
     private var lastDecodeInstant: ContinuousClock.Instant?
-    /// True only for pure-attention models, whose per-position KV cells can be
-    /// partially evicted (`seq_rm` at a non-zero p0). Recurrent/hybrid (SSM/Mamba)
-    /// models cannot rewind their rolling state to a prefix, so they full-reprefill.
     private var supportsPartialReuse = false
-    /// Thread-safe bridge into llama.cpp's abort callback. A superseded Task can
-    /// flip this from outside the actor while `llama_decode` is still running.
     private let decodeAbortState = LlamaDecodeAbortState()
 
-    /// Initializes the llama backend exactly once across ALL instances. Swift
-    /// guarantees a static `let` initializer runs once and is thread-safe, which
-    /// removes the cross-instance check-then-set race a `static var` flag would have
-    /// (actor isolation does not protect static storage).
     private static let backendReady: Void = {
         llama_backend_init()
     }()
@@ -156,10 +111,6 @@ actor LlamaCotypingRuntime {
         self.postLoadAdmissionHook = postLoadAdmissionHook
     }
 
-    /// All app autocomplete uses the measured hybrid policy. Replay keeps its
-    /// explicit controls and baseline initializer defaults for historical parity.
-    /// Two generation/prefill threads won the fixed-E2B M4 Max latency study;
-    /// other hardware and cancellation responsiveness still need broader trials.
     nonisolated static func forAutocomplete() -> LlamaCotypingRuntime {
         LlamaCotypingRuntime(selectiveOneWordHybrid: true, searchExperiment: .certified, replayThreadCount: 2)
     }
@@ -168,7 +119,6 @@ actor LlamaCotypingRuntime {
 
     var canReusePromptPrefix: Bool { supportsPartialReuse }
 
-    /// Positions held in the context's memory for the one sequence, for tests.
     var memoryPositionCount: Int32 {
         guard let ctx else { return 0 }
         return llama_memory_seq_pos_max(llama_get_memory(ctx), 0) + 1
@@ -177,8 +127,6 @@ actor LlamaCotypingRuntime {
     nonisolated func abortInFlightDecode() {
         decodeAbortState.requestAbort()
     }
-
-    // MARK: - Lifecycle
 
     func loadIfNeeded(modelPath: String) async throws {
         let loadEpoch = unloadEpoch
@@ -196,8 +144,6 @@ actor LlamaCotypingRuntime {
         loadInProgress = true
         defer { finishLoad() }
         releaseLoadedResources()
-        // Make room before llama mmaps the weights: evict LRU models first
-        // if this load would push total resident weights past the budget.
         let loadReservation = await ModelResidency.shared.willLoad(
             id: Self.residencyID,
             bytes: ModelResidency.weightBytes(at: URL(fileURLWithPath: modelPath)),
@@ -212,10 +158,10 @@ actor LlamaCotypingRuntime {
             throw error
         }
 
-        _ = Self.backendReady   // forces the run-once backend init (idempotent)
+        _ = Self.backendReady
 
         var mparams = llama_model_default_params()
-        mparams.n_gpu_layers = 99   // full Metal offload (matches LlamaServer's -ngl 99)
+        mparams.n_gpu_layers = 99
         guard let m = llama_model_load_from_file(modelPath, mparams) else {
             await ModelResidency.shared.cancelLoad(loadReservation)
             throw LlamaRuntimeError.modelLoadFailed(modelPath)
@@ -229,9 +175,6 @@ actor LlamaCotypingRuntime {
         }
 
         var cparams = llama_context_default_params()
-        // Matches LlamaServer.cotyping.contextTokens. A long draft and a whole
-        // window of text must fit: a prompt cut at the front changes its start
-        // on every keystroke, and the model would read all of it each time.
         cparams.n_ctx = 4096
         cparams.n_batch = 2048
         let threads = replayThreadCount ?? Int32(max(1, ProcessInfo.processInfo.activeProcessorCount - 2))
@@ -261,8 +204,6 @@ actor LlamaCotypingRuntime {
         loadedModelPath = modelPath
         cachedTokens = []
         lastPrefillTokenCount = 0
-        // Cache the architecture capability once, at load: probing inside generate
-        // would emit a dylib stderr warning on every call for recurrent models.
         supportsPartialReuse = !llama_model_is_recurrent(m) && !llama_model_is_hybrid(m)
         if confidenceBoundaryMode == .boundaryMass || selectiveOneWordHybrid, let vocab {
             boundaryTokenMask = (0..<llama_vocab_n_tokens(vocab)).map { token in
@@ -283,10 +224,6 @@ actor LlamaCotypingRuntime {
         do {
             try requireActiveLoad(epoch: loadEpoch)
         } catch {
-            // If the epoch moved, the explicit unload already freed the pointers.
-            // If only this task was cancelled while registration was suspended,
-            // free them here. In both cases remove only this load's ledger row;
-            // a replacement runtime may already have registered under the same ID.
             if unloadEpoch == loadEpoch {
                 releaseLoadedResources(scheduleResidencyUnregister: false)
             }
@@ -297,12 +234,8 @@ actor LlamaCotypingRuntime {
         }
     }
 
-    /// One in-process runtime holds weights at a time, so a single ledger row.
     static let residencyID = "cotyping-in-process"
 
-    /// Frees the llama context + model when the actor is deallocated. Without
-    /// this the Metal backend's residency set is still live at process exit,
-    /// which trips a teardown assertion in the vendored ggml-metal build.
     deinit {
         let generation = residencyGeneration
         if let c = ctx { llama_free(c) }
@@ -328,12 +261,8 @@ actor LlamaCotypingRuntime {
         guard unloadEpoch == epoch else { throw CancellationError() }
     }
 
-    /// Prewarm == load + the priming decode `loadIfNeeded` already performs.
     func prewarm(modelPath: String) async throws { try await loadIfNeeded(modelPath: modelPath) }
 
-    /// Decodes a prompt into KV without sampling so a later generation can reuse
-    /// it. Cancellation/failure clears KV because a partial prefill must never
-    /// masquerade as the prompt represented by `cachedTokens`.
     func prefill(promptTokens: [Int32]) throws {
         guard let ctx, !promptTokens.isEmpty else { return }
         let promptTokens = Self.boundedPromptTokens(
@@ -342,10 +271,6 @@ actor LlamaCotypingRuntime {
         defer { decodeAbortState.endDecode() }
         try Task.checkCancellation()
         guard supportsPartialReuse else {
-            // CoTabby avoids speculative prefills once a model cannot reuse a
-            // prompt KV prefix. For hybrid/recurrent models this keeps focus
-            // prewarm from doubling the first real autocomplete decode while
-            // preserving the logical prefix baseline used for diagnostics.
             cachedTokens = promptTokens
             lastPrefillTokenCount = 0
             return
@@ -380,9 +305,6 @@ actor LlamaCotypingRuntime {
         releaseLoadedResources()
     }
 
-    /// Frees the currently installed pointers without invalidating the load that
-    /// intentionally called it while switching model paths. External teardown
-    /// must go through `unload()`, which advances `unloadEpoch` first.
     private func releaseLoadedResources(scheduleResidencyUnregister: Bool = true) {
         let generation = residencyGeneration
         residencyGeneration = nil
@@ -397,9 +319,6 @@ actor LlamaCotypingRuntime {
         tokenPrefixIndex = nil
         boundaryTokenMask = []
         probabilityScratch = []
-        // Keep this path synchronous for memory pressure, but only remove the
-        // generation that was actually freed. A reload may register before
-        // this main-actor task gets its turn.
         if scheduleResidencyUnregister, let generation {
             Task { @MainActor in
                 ModelResidency.shared.unregister(
@@ -409,13 +328,6 @@ actor LlamaCotypingRuntime {
         }
     }
 
-    /// Frees the model + context under memory pressure. The next `generate`
-    /// call lazily reloads via `loadIfNeeded` (or the engine routes to HTTP if
-    /// reload fails). Keeps cotyping from OOMing the app under a large model.
-    ///
-    /// A warning while someone is typing leaves the model loaded: dropping it
-    /// would make their next keystroke wait for a reload. Critical pressure,
-    /// or a warning after a minute without suggestions, frees it.
     func handleMemoryPressure(isCritical: Bool = true) {
         guard isCritical || Self.isIdle(lastUsedUptime: lastUsedUptime, now: ProcessInfo.processInfo.systemUptime) else {
             return
@@ -430,8 +342,6 @@ actor LlamaCotypingRuntime {
         return now - lastUsedUptime >= idleUnloadSeconds
     }
 
-    /// Runs one priming decode so Metal pipelines are hot before the first real
-    /// keystroke, then clears the KV so generation starts from a clean cache.
     private func warmup() {
         guard let vocab, let ctx else { return }
         decodeAbortState.beginDecode()
@@ -442,18 +352,6 @@ actor LlamaCotypingRuntime {
         cachedTokens = []
     }
 
-    /// Runs one throwaway token through the loaded model, so the next
-    /// suggestion after a pause does not pay for bringing the GPU and the
-    /// weights back. Never loads a model, and does not count as use for the
-    /// memory-pressure policy or the residency ledger.
-    ///
-    /// Waits for the GPU, so the time it takes is the cold cost it removes.
-    /// The token goes at the next free position, as llama.cpp requires, and is
-    /// removed afterwards, so a cached prompt stays cached. A recurrent state
-    /// cannot drop one token; those models read the whole prompt on every
-    /// suggestion anyway, so their memory is cleared instead.
-    /// - Parameter minimumIdle: skip when the model ran more recently.
-    /// - Returns: whether a token was decoded.
     @discardableResult
     func touch(ifIdleFor minimumIdle: Duration = .zero) -> Bool {
         guard let ctx, let vocab else { return false }
@@ -468,9 +366,6 @@ actor LlamaCotypingRuntime {
             position = 0
         }
         let decoded = decode([llama_vocab_bos(vocab)], startPos: position, logitsLastOnly: true)
-        // `llama_decode` only queues the GPU work, and nothing reads these
-        // logits. Without waiting, the next suggestion would wait for the
-        // touch's GPU work instead of finding it done.
         llama_synchronize(ctx)
         lastDecodeTokenCount = 0
         lastLogitsPosition = nil
@@ -482,13 +377,10 @@ actor LlamaCotypingRuntime {
         return decoded
     }
 
-    /// Replay/test reset; model weights remain resident.
     func clearReplayCache() {
         if let ctx { llama_memory_clear(llama_get_memory(ctx), true) }
         cachedTokens = []
     }
-
-    // MARK: - Tokenize / detokenize
 
     func tokenize(_ text: String, addBOS: Bool) -> [Int32] {
         guard let vocab else { return [] }
@@ -497,7 +389,7 @@ actor LlamaCotypingRuntime {
             var capacity = textLen + (addBOS ? 1 : 0) + 8
             var tokens = [Int32](repeating: 0, count: Int(capacity))
             var n = llama_tokenize(vocab, cstr, textLen, &tokens, capacity, addBOS, true)
-            if n < 0 {                      // buffer too small: -n is required size
+            if n < 0 {
                 capacity = -n
                 tokens = [Int32](repeating: 0, count: Int(capacity))
                 n = llama_tokenize(vocab, cstr, textLen, &tokens, capacity, addBOS, true)
@@ -518,10 +410,6 @@ actor LlamaCotypingRuntime {
         return buf.prefix(Int(n)).map { UInt8(bitPattern: $0) }
     }
 
-    // MARK: - Decode
-
-    /// Decodes `tokens` starting at `startPos` in sequence 0. When
-    /// `logitsLastOnly` is true only the final token requests logits (prefill).
     @discardableResult
     private func decode(
         _ tokens: [Int32], startPos: Int32, logitsLastOnly: Bool, requestLogits: Bool = true
@@ -557,8 +445,6 @@ actor LlamaCotypingRuntime {
         startPos: Int32,
         logitsLastOnly: Bool
     ) throws {
-        // Adaptive experiments protect the existing single-chunk path. Only
-        // a multi-chunk prefill gets an early checkpoint and a larger remainder.
         let firstChunk = tokens.count > 256 ? replayPrefillFirstChunkSize : nil
         let chunkSize = replayPrefillFirstChunkSize != nil && firstChunk == nil ? 256 : replayPrefillChunkSize
         var offset = 0
@@ -573,8 +459,6 @@ actor LlamaCotypingRuntime {
                 Array(tokens[offset..<end]),
                 startPos: startPos + Int32(offset),
                 logitsLastOnly: logitsLastOnly, requestLogits: requestLogits)
-            // A native call can queue Metal work. Include completion at each
-            // intermediate boundary when measuring cooperative interruption.
             if replaySynchronizePrefillChunks, end < tokens.count, let ctx { llama_synchronize(ctx) }
             offset = end
         }
@@ -595,26 +479,6 @@ actor LlamaCotypingRuntime {
         }
     }
 
-    // MARK: - Generate
-
-    /// - Parameters:
-    ///   - requiredPrefixUTF8: token-healing constraint. When non-empty,
-    ///     generation must first re-produce exactly these bytes (the whitespace +
-    ///     word fragment cut from the prompt tail by `CotypingTokenHealing`) via
-    ///     naturally tokenized pieces, then continue freely. Only the text AFTER
-    ///     the constraint (including the overshoot of a boundary-merging token
-    ///     like " follow" against " follo") is emitted and returned — it is the
-    ///     ghost text that extends the word the user is typing.
-    ///   - preferWordExtendingOvershoot: when the fragment is NOT a valid
-    ///     standalone word, a candidate that merely lands exactly on the caret
-    ///     leaves the model in the same awkward mid-word state healing exists to
-    ///     avoid (free decode after "…tomorro" can emit "ow."). Prefer a
-    ///     boundary-crossing candidate that keeps spelling the word — Cotypist's
-    ///     transition-expansion behavior.
-    ///   - minimumFirstWordProbability: the confidence gate
-    ///     (`CotypingFirstWordConfidence`); 0 turns it off. When the first
-    ///     word falls below it, generation stops, `onLowConfidence` is called
-    ///     and nothing is returned.
     func generate(
         promptTokens: [Int32],
         maxTokens: Int,
@@ -645,10 +509,6 @@ actor LlamaCotypingRuntime {
         let mem = llama_get_memory(ctx)
         let prefillStart = ContinuousClock.now
 
-        // KV-reuse probe: how many leading tokens this prompt shares with the cache.
-        // Clamp to count-1 so we ALWAYS decode >=1 token and get fresh logits for the
-        // next-token sample — required when the new prompt equals/prefixes the cached
-        // one (e.g. an identical re-generation), else we'd sample from stale logits.
         let shared = IncrementalPrefill.commonPrefixLength(cachedTokens, promptTokens)
         let reuse = min(shared, promptTokens.count - 1)
 
@@ -656,28 +516,11 @@ actor LlamaCotypingRuntime {
             try Task.checkCancellation()
             if supportsPartialReuse, reuse > 0,
                llama_memory_seq_rm(mem, 0, Int32(reuse), -1) {
-                // Attention model: the shared prefix KV is kept and only the diverged
-                // suffix is re-decoded. seq_rm dropped [reuse, end) — the diverged tail
-                // plus any stale tokens the previous generation appended past the prompt.
-                //
-                // Cotyping prompts are NOT guaranteed to stay inside the production
-                // Gemma4 model's 512-token sliding window: worst case is ~850–1100
-                // tokens (a 150-word prefix + the ~900-char preface + up to 2500 prefix
-                // chars). The load-bearing guard is the `llama_memory_seq_rm` return
-                // value below: it returns false when the partial removal can't be
-                // honored (e.g. the kept prefix [0, reuse) aged out of the SWA window on
-                // a long prompt), and we then fall through to the full re-prefill in the
-                // `else` branch. DO NOT remove that fallback — partial reuse is only
-                // safe when seq_rm confirms the kept prefix is still resident.
                 try decodeCancellable(
                     Array(promptTokens[reuse...]),
                     startPos: Int32(reuse),
                     logitsLastOnly: true)
             } else {
-                // Recurrent/hybrid model (SSM/Mamba) cannot partially rewind its rolling
-                // state, or a partial seq_rm above was not honored. Reset and prefill the
-                // whole prompt from position 0. `reuse` above is still the meaningful
-                // KV-reuse *signal* callers read via lastPrefillTokenCount.
                 llama_memory_seq_rm(mem, 0, 0, -1)
                 try decodeCancellable(promptTokens, startPos: 0, logitsLastOnly: true)
             }
@@ -732,8 +575,6 @@ actor LlamaCotypingRuntime {
             return confidence.accept(piece: piece, probability: probability, boundaryProbability: boundary, isEOG: isEOG)
         }
 
-        // Constrained phase: force-decode the healed word fragment. Each step
-        // consumes >=1 byte, so the loop terminates in <=count steps.
         var remaining = requiredPrefixUTF8[...]
         var constraintStopped = false
         while !remaining.isEmpty {
@@ -742,8 +583,6 @@ actor LlamaCotypingRuntime {
                 matching: remaining,
                 vocab: vocab,
                 preferWordExtendingOvershoot: preferWordExtendingOvershoot) else {
-                // No vocab token can extend the constraint (pathological bytes).
-                // Surface nothing rather than a suggestion that skips the fragment.
                 return ""
             }
             llama_sampler_accept(sampler, tok)
@@ -759,7 +598,7 @@ actor LlamaCotypingRuntime {
                 output += text
                 if !text.isEmpty, !onToken(text) { constraintStopped = true }
             case .mismatch:
-                return ""   // constrainedToken guarantees a match; defensive.
+                return ""
             }
             try decodeOrThrow([tok], startPos: pos, logitsLastOnly: true)
             pos += 1
@@ -785,18 +624,12 @@ actor LlamaCotypingRuntime {
             guard confident(tok, text) else { onLowConfidence(); return "" }
             output += text
             if !text.isEmpty, !onToken(text) { break }
-            // A mid-generation decode failure discards the partial output and
-            // propagates so the selector falls back to HTTP, rather than
-            // surfacing a truncated ghost as if it were a complete suggestion.
             try decodeOrThrow([tok], startPos: pos, logitsLastOnly: true)
             pos += 1
         }
         return output
     }
 
-    /// The model's probability of `token` given the current logits (softmax at
-    /// temperature 1, whatever the sampler's settings). Unknown is 0, which
-    /// keeps the gate closed rather than showing an unweighed suggestion.
     private func tokenProbability(_ token: Int32, ctx: OpaquePointer, vocab: OpaquePointer) -> Float {
         let vocabularySize = Int(llama_vocab_n_tokens(vocab))
         if probabilityScratch.count != vocabularySize {
@@ -807,8 +640,6 @@ actor LlamaCotypingRuntime {
         } ?? 0
     }
 
-    /// `probability(of:)` leaves exp(logit - max) in scratch. Reuse it instead
-    /// of another softmax or decode. The mask is tokenizer-only, built at load.
     nonisolated static func boundaryMass(numerators: [Float], mask: [Float]) -> Float {
         guard !numerators.isEmpty, numerators.count == mask.count else { return 0 }
         var total: Float = 0
@@ -819,8 +650,6 @@ actor LlamaCotypingRuntime {
         return min(1, max(0, boundary / total))
     }
 
-    /// Softmax probability of `token`, vectorized over the whole vocabulary.
-    /// `scratch` holds one float per vocabulary entry and is overwritten.
     nonisolated static func probability(
         of token: Int32, in logits: UnsafePointer<Float>?, scratch: UnsafeMutableBufferPointer<Float>
     ) -> Float? {
@@ -850,10 +679,6 @@ actor LlamaCotypingRuntime {
         return llama_vocab_is_eog(vocab, token)
     }
 
-    /// Runs once per generated token over the whole vocabulary (262k entries
-    /// for Gemma), so it is vectorized. The vector maximum is wrong when a
-    /// NaN is present, which the sum reveals; the scalar scan below then
-    /// decides, as it does when every logit is -infinity.
     nonisolated static func argmaxToken(
         in logits: UnsafePointer<Float>?,
         vocabularySize: Int32
@@ -881,9 +706,6 @@ actor LlamaCotypingRuntime {
         return bestToken
     }
 
-    /// Bound the physical prompt by tokens, not English character estimates.
-    /// Dense Unicode text can exceed the context even inside the character cap.
-    /// Keep the caret end and reserve space for healing plus visible generation.
     nonisolated static func boundedPromptTokens(
         _ tokens: [Int32], contextSize: Int, outputReserve: Int
     ) -> [Int32] {
@@ -891,19 +713,8 @@ actor LlamaCotypingRuntime {
         return tokens.count > limit ? Array(tokens.suffix(limit)) : tokens
     }
 
-    /// How many global candidates to try before consulting the prefix index.
-    /// Natural text usually finds a compatible piece in this cheap first pass.
     private static let constrainedCandidateScanLimit = 64
 
-    /// Highest-logit vocab token whose piece extends the remaining required
-    /// prefix (token healing). Ranks a bounded set in one vocabulary pass,
-    /// without copying or changing native logits. Rare fragments use a cached
-    /// byte-prefix index to find the best compatible token in the full vocabulary.
-    ///
-    /// With `preferWordExtendingOvershoot`, a candidate that consumes the
-    /// remaining bytes EXACTLY is parked while the scan continues for one whose
-    /// piece crosses the caret with a word character ("… tomorrow" beating
-    /// "… tomorro"); the parked candidate is used when no such token exists.
     private func constrainedToken(
         matching remaining: ArraySlice<UInt8>,
         vocab: OpaquePointer,
@@ -931,8 +742,6 @@ actor LlamaCotypingRuntime {
                         pieceBytes: pieceBytes(for: candidate), remaining: remaining) {
                     case .consumes(let count):
                         if preferWordExtendingOvershoot, count == remaining.count {
-                            // Lands exactly on the caret: park it, keep looking
-                            // for a token that keeps spelling the word.
                             if exactBoundaryFallback == nil { exactBoundaryFallback = candidate }
                         } else {
                             return candidate
@@ -966,16 +775,11 @@ actor LlamaCotypingRuntime {
         return tokenize(text, addBOS: false).first
     }
 
-    /// Search only the hidden prefix path. No free token is sampled or scored
-    /// here, and the sampler's RNG/history remains untouched until replay.
     private func searchPrefixPath(
         prompt: [Int32], requiredPrefix: [UInt8], preferOvershoot: Bool, width: Int
     ) throws -> [Int32] {
         guard let ctx, let vocab else { return [] }
         let vocabularySize = llama_vocab_n_tokens(vocab)
-        // A highest-ranked compatible token that already covers the prefix
-        // cannot be beaten by a lower-ranked token followed by more factors
-        // <=1. Keep this common case on the original single-decode path.
         if searchExperiment != .exactOnly,
            let first = constrainedToken(matching: requiredPrefix[...], vocab: vocab,
                                         preferWordExtendingOvershoot: preferOvershoot) {
@@ -1035,13 +839,10 @@ actor LlamaCotypingRuntime {
                 exactOnly: searchExperiment == .exactOnly) ?? []
             return tokens.map { RankedToken(token: $0, logProbability: min(0, Double(logits[Int($0)]) - normalizer)) }
         }
-        // Per-request scalar rankings only: no retained logits, KV snapshots, or text history.
         var memo: [[Int32]: [RankedToken]] = [:]
         var active = [CotypingHealingPath(remaining: requiredPrefix)]
         var best: CotypingHealingPath?
         do {
-            // Seed with the exact previous decoder path. Candidate pruning
-            // must never remove the existing completion from consideration.
             let baselineStart = ContinuousClock.now
             var alternativeUpperBound = -Double.infinity
             var baseline = CotypingHealingPath(remaining: requiredPrefix)
@@ -1078,8 +879,6 @@ actor LlamaCotypingRuntime {
                 guard !active.isEmpty else { finished = true; break }
                 active.sort(by: CotypingHealingPath.outranks)
                 let parent = active.removeFirst()
-                // Additional token log probabilities are <=0, so an unfinished
-                // path cannot beat a completed path above this upper bound.
                 if let best, best.logProbability > parent.logProbability { finished = true; break }
                 let ranked: [RankedToken]
                 if let saved = memo[parent.tokens] {
@@ -1135,7 +934,6 @@ actor LlamaCotypingRuntime {
         return Double(elapsed.seconds) * 1000 + Double(elapsed.attoseconds) / 1e15
     }
 
-    /// Test oracle: rescore the selected path after a cold prefill.
     func coldScore(promptTokens: [Int32], continuationTokens: [Int32]) throws -> Double {
         guard let ctx, let vocab, !promptTokens.isEmpty else { throw LlamaRuntimeError.decodeFailed }
         let memory = llama_get_memory(ctx)
@@ -1204,9 +1002,7 @@ actor LlamaCotypingRuntime {
     }
 }
 
-/// Headless confidence and decode counters; never persisted by live autocomplete.
 struct CotypingReplayDiagnostics: Codable, Sendable {
-    /// Tokens submitted to native decode, including a decode that was aborted.
     var decodedTokens = 0
     var decodeCalls = 0
     var prefillChunks = 0
@@ -1223,7 +1019,6 @@ struct CotypingReplayDiagnostics: Codable, Sendable {
     var searchRestores = 0
     var searchMemoHits = 0
     var searchExpansions = 0
-    /// This is the existing raw first-word gate, not a calibrated acceptance probability.
     var firstWordProbability: Float?
     var firstWordGateSettled: Bool?
     var hybridFallbackProbability: Float?

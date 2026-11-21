@@ -1,15 +1,3 @@
-//! Small, relevant facts from saved sources (`CotypingMemoryContext`,
-//! `CotypingMemoryLookup`, `CotypingMemoryVocabulary`): a retrieval policy,
-//! not a second model call or a stored profile.
-//!
-//! Reading the meeting library is its own grant (macOS
-//! `cotypingUseMeetingMemory`, off by default), separate from turning
-//! Autocomplete on. A fact is used only when the draft, the window title or
-//! the conversation above the field names its source, or when it shares
-//! enough distinctive words with what the user wrote themselves. Everyday
-//! wording never counts: "I'll get back to" is not about a note that happens
-//! to say so too.
-
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
@@ -19,11 +7,9 @@ use super::surface::SurfaceClass;
 use super::text::{fold, is_word_char};
 use crate::sanitize;
 
-/// The writing tool's own grants; nothing else permits reading saved facts.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Policy {
     pub meetings: bool,
-    /// Facts derived from screen memory need that separate grant too.
     pub screen_derived: bool,
 }
 
@@ -48,8 +34,6 @@ impl Policy {
     }
 }
 
-/// Size, modification time and file number of a source, or `None` when it is
-/// missing (`CotypingMemoryContextProvider.FileStamp`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct FileStamp {
     pub modified: Option<std::time::SystemTime>,
@@ -72,20 +56,14 @@ impl FileStamp {
     }
 }
 
-/// What a lookup read, so it can be told later whether its facts still hold
-/// (`CotypingMemoryContextProvider.Snapshot.isCurrent`). Editing or deleting
-/// a source, or withdrawing a grant, ends the suggestions it shaped. Paths and
-/// stamps only: no text.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MemoryGuard {
     pub policy: Policy,
     pub stamps: Vec<(std::path::PathBuf, Option<FileStamp>)>,
-    /// The library, whose evidence must stay readable.
     pub root: Option<std::path::PathBuf>,
 }
 
 impl MemoryGuard {
-    /// Stamps `paths` now, before they are read, so a later edit shows.
     pub fn stamp(
         policy: Policy,
         root: &std::path::Path,
@@ -117,7 +95,6 @@ impl MemoryGuard {
     }
 }
 
-/// One finished lookup: what it found, and how to tell it still holds.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Lookup {
     pub selection: Selection,
@@ -133,13 +110,11 @@ impl Lookup {
 #[derive(Clone, Debug, PartialEq)]
 pub struct Item {
     pub id: String,
-    /// The source's title: a meeting or a project.
     pub title: String,
     pub text: String,
     pub updated_at: DateTime<Utc>,
     pub requires_meetings: bool,
     pub requires_screen_memory: bool,
-    /// Overnight-review statements, facts even when one is its own title.
     pub is_work_memory: bool,
 }
 
@@ -149,7 +124,6 @@ pub struct Selection {
 }
 
 impl Selection {
-    /// The prompt's "Relevant saved facts" text.
     pub fn text(&self) -> Option<String> {
         (!self.items.is_empty()).then(|| {
             self.items
@@ -171,34 +145,23 @@ impl Selection {
 pub const MAX_ITEMS: usize = 2;
 pub const MAX_ITEM_CHARACTERS: usize = 180;
 pub const MAX_SEARCH_TERMS: usize = 12;
-/// The part of the nearby text a lookup may search, nearest the field.
 pub const MAX_VISIBLE_QUERY_CHARACTERS: usize = 600;
 
 pub fn max_age() -> Duration {
     Duration::days(90)
 }
 
-/// What the writing is about, kept apart by where each word came from. The
-/// conversation above the field may name a saved topic, but only the user's
-/// own words can show that a saved sentence is about the same thing.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Query {
-    /// Distinctive words from the draft and the window title.
     pub own: HashSet<String>,
-    /// `own` plus distinctive words from the visible text.
     pub all: HashSet<String>,
-    /// Words written as a name: a capital or a digit that does not merely
-    /// open a sentence.
     pub named: HashSet<String>,
-    /// `named` plus capitalized sentence openers.
     pub capitalized: HashSet<String>,
-    /// Index search terms, nearest the caret first.
     pub search: Vec<String>,
 }
 
 impl Query {
     pub fn new(draft: &str, title: &str, visible: &str, app_name: &str) -> Self {
-        // A window title usually ends with its app's name, which is no topic.
         let app_terms = terms(app_name);
         let title_words: Vec<String> = tokens(title)
             .into_iter()
@@ -218,7 +181,6 @@ impl Query {
 
         let (draft_inside, draft_opening) = capitalized_terms(draft);
         let (title_inside, title_opening) = capitalized_terms(title);
-        // Titles are not prose: every capitalized title word may be a name.
         let mut named: HashSet<String> = draft_inside
             .union(&title_inside)
             .chain(title_opening.iter())
@@ -249,9 +211,6 @@ impl Query {
         }
     }
 
-    /// `CotypingMemoryContext.query(for:)`: nothing for code editors,
-    /// terminals, or text that carries a secret. `before` should already be
-    /// cut to [`finished_words`].
     pub fn for_field(
         before: &str,
         title: &str,
@@ -283,7 +242,6 @@ fn last_chars(text: &str, n: usize) -> &str {
     }
 }
 
-/// Folded words in reading order, repeats included.
 pub fn tokens(text: &str) -> Vec<String> {
     fold(text)
         .split(|c: char| !is_word_char(c))
@@ -298,7 +256,6 @@ fn is_term(word: &str) -> bool {
         && !GENERIC_TERMS.contains(&word)
 }
 
-/// A word that can show two texts share a topic.
 pub fn is_distinctive(word: &str) -> bool {
     is_term(word) && !EVERYDAY_TERMS.contains(&word)
 }
@@ -314,8 +271,6 @@ pub fn distinctive_terms(text: &str) -> HashSet<String> {
         .collect()
 }
 
-/// Distinctive words written with a capital or a digit, apart from those
-/// that open a sentence or line, where the capital alone does not make a name.
 pub fn capitalized_terms(text: &str) -> (HashSet<String>, HashSet<String>) {
     let mut inside = HashSet::new();
     let mut opening = HashSet::new();
@@ -355,16 +310,12 @@ pub fn capitalized_terms(text: &str) -> (HashSet<String>, HashSet<String>) {
     (inside, opening)
 }
 
-/// A source is named when at least half of its title's distinctive words
-/// are in the draft, title or conversation. One word of a long title is
-/// too little to pull in everything filed under it.
 pub fn names(title: &str, query: &Query) -> Option<usize> {
     let title_terms = distinctive_terms(title);
     let shared = title_terms.intersection(&query.all).count();
     (shared > 0 && shared * 2 >= title_terms.len()).then_some(shared)
 }
 
-/// A notes line that adds no word to its source's title, such as a heading.
 pub fn is_heading(text: &str, title: &str) -> bool {
     let title_words: HashSet<String> = tokens(title).into_iter().collect();
     !tokens(text).iter().any(|word| {
@@ -378,9 +329,6 @@ pub struct Relevance {
     pub named: bool,
 }
 
-/// Whether a saved fact has earned a place in the prompt: its source is
-/// named, or it shares two distinctive words with the user's own draft or
-/// title, one written as a name, or three when none is.
 pub fn relevance(
     text: &str,
     title: &str,
@@ -416,8 +364,6 @@ pub fn relevance(
     })
 }
 
-/// The facts for a prompt: relevant, recent, at most two, the newest
-/// version of a named topic only.
 pub fn select(
     items: &[Item],
     query: &Query,
@@ -450,8 +396,6 @@ pub fn select(
         selected.title = title.chars().take(80).collect();
         ranked.push((selected, relevance.score, relevance.named));
     }
-    // When a named topic is recognized, another project's facts must not
-    // add a second, conflicting name or deadline.
     if ranked.iter().any(|(_, _, named)| *named) {
         ranked.retain(|(_, _, named)| *named);
     }
@@ -460,7 +404,6 @@ pub fn select(
             .then(b.0.updated_at.cmp(&a.0.updated_at))
             .then(a.0.id.cmp(&b.0.id))
     });
-    // An older version of the same topic must not contradict the current one.
     let mut newest: HashMap<String, DateTime<Utc>> = HashMap::new();
     for (item, _, _) in &ranked {
         let entry = newest.entry(fold(&item.title)).or_insert(item.updated_at);
@@ -479,10 +422,6 @@ pub fn select(
     Selection { items }
 }
 
-/// Projects and goals from the overnight reviews (`memory/memory.json` in
-/// a macOS library), each needing the grants of every kind of source behind
-/// it (`CotypingMemoryContextProvider.memoryItems`). Items with unattributed
-/// or no sources are left out.
 pub fn work_memory_items(json: &[u8]) -> Vec<Item> {
     #[derive(serde::Deserialize)]
     struct Source {
@@ -536,7 +475,6 @@ pub fn work_memory_items(json: &[u8]) -> Vec<Item> {
                 title: title.to_string(),
                 text,
                 updated_at: date.and_hms_opt(0, 0, 0)?.and_utc(),
-                // A digest can mix meetings with activity history.
                 requires_meetings: kinds.iter().any(|k| matches!(*k, "meeting" | "digest")),
                 requires_screen_memory: kinds.iter().any(|k| matches!(*k, "screenDay" | "digest")),
                 is_work_memory: true,
@@ -563,9 +501,6 @@ pub fn work_memory_items(json: &[u8]) -> Vec<Item> {
     projects.chain(goals).collect()
 }
 
-/// A notes or summary line as a fact: the Markdown of `summary.md` (list
-/// markers, checkboxes, bold names, transcript time links) removed, and
-/// headings, metadata and "None" left out.
 pub fn fact_line(line: &str) -> Option<String> {
     static TIME_LINK: std::sync::OnceLock<regex::Regex> = std::sync::OnceLock::new();
     let time_link = TIME_LINK.get_or_init(|| {
@@ -593,8 +528,6 @@ pub fn fact_line(line: &str) -> Option<String> {
     (!cleaned.is_empty() && !cleaned.eq_ignore_ascii_case("none")).then(|| cleaned.to_string())
 }
 
-/// The text before the caret without a word still being typed, so a
-/// half-typed word neither starts a lookup nor changes the facts mid-word.
 pub fn finished_words(text: &str) -> &str {
     match text.chars().next_back() {
         Some(last) if is_word_char(last) => {
@@ -609,8 +542,6 @@ pub fn finished_words(text: &str) -> &str {
     }
 }
 
-/// Writing and meeting language that must not pull an unrelated private
-/// fact into a draft because both say "project" or "today".
 const GENERIC_TERMS: &[&str] = &[
     "please",
     "thanks",
@@ -666,15 +597,10 @@ const GENERIC_TERMS: &[&str] = &[
     "name",
 ];
 
-/// `CotypingMemoryContext.everydayTerms`: everyday wording, calendar words
-/// and app names, folded like the tokens. Words that double as first names
-/// (Sam, Ali, Jan) are left out so a person can still be looked up.
 #[rustfmt::skip]
 const EVERYDAY_TERMS: &[&str] = &[
-    // Contraction stems left by splitting on the apostrophe.
     "don", "doesn", "didn", "won", "isn", "aren", "wasn", "weren", "haven", "hasn", "hadn",
     "wouldn", "couldn", "shouldn", "ain",
-    // Common verbs.
     "get", "gets", "got", "getting", "let", "lets", "know", "knows", "knew", "known",
     "make", "makes", "made", "making", "take", "takes", "took", "taken", "taking",
     "give", "gives", "gave", "given", "giving", "see", "sees", "saw", "seen", "seeing",
@@ -696,7 +622,6 @@ const EVERYDAY_TERMS: &[&str] = &[
     "reply", "respond", "connect", "catch", "circle", "loop", "ping", "join", "joined", "joining",
     "bring", "brought", "leave", "left", "find", "found", "read", "wrote", "written",
     "works", "worked", "having", "welcome", "sorry",
-    // Adverbs, adjectives and quantifiers.
     "back", "also", "well", "even", "still", "soon", "later", "again", "already", "always",
     "never", "ever", "maybe", "perhaps", "probably", "really", "very", "much", "many", "more",
     "most", "less", "least", "few", "lot", "lots", "bit", "too", "now", "then", "here", "right",
@@ -711,13 +636,11 @@ const EVERYDAY_TERMS: &[&str] = &[
     "currently", "recently", "finally", "hopefully", "unfortunately", "apparently", "obviously",
     "especially", "usually", "sometimes", "often", "almost", "enough", "quite", "rather",
     "pretty", "kind", "sort", "such", "per", "via", "previous", "upcoming", "past", "ago",
-    // Pronouns and counting words the search stop list leaves in.
     "his", "her", "hers", "him", "its", "their", "theirs", "ours", "yours", "mine", "myself",
     "yourself", "itself", "themselves", "ourselves", "everyone", "anyone", "someone",
     "everybody", "everything", "anything", "something", "nothing", "all", "both", "each",
     "every", "one", "ones", "two", "three", "four", "five", "six", "seven", "eight", "nine",
     "ten", "second", "third", "couple", "half",
-    // Time and calendar.
     "time", "times", "day", "days", "weeks", "months", "years", "morning", "afternoon",
     "evening", "night", "tonight", "weekend", "weekly", "daily", "monthly", "hour", "hours",
     "minute", "minutes", "moment", "noon", "midnight", "date", "dates",
@@ -725,33 +648,27 @@ const EVERYDAY_TERMS: &[&str] = &[
     "tue", "tues", "thu", "thur", "thurs", "fri",
     "january", "february", "march", "april", "june", "july", "august", "september", "october",
     "november", "december", "feb", "apr", "jun", "jul", "aug", "sep", "sept", "oct", "nov", "dec",
-    // Communication nouns.
     "thing", "things", "stuff", "way", "ways", "part", "point", "points", "question",
     "questions", "idea", "ideas", "thoughts", "detail", "details", "info", "information",
     "issue", "issues", "problem", "problems", "people", "person", "guys", "folks", "end",
     "rest", "side", "case", "place", "list", "item", "items", "example", "reason", "answer",
     "response", "link", "file", "doc", "docs", "document", "documents", "page", "pages",
     "thread", "invite", "invitation", "attachment", "screenshot",
-    // Meeting kinds, platforms and app chrome that title meetings and windows.
     "chat", "sync", "standup", "catchup", "kickoff", "intro", "session", "huddle", "recap",
     "retro", "retrospective", "sprint", "demo", "interview", "recording", "untitled", "video",
     "audio", "voice", "online", "zoom", "google", "teams", "microsoft", "webex", "slack",
     "facetime", "skype", "discord", "whatsapp", "telegram", "chrome", "safari", "firefox",
     "gmail", "outlook", "inbox", "notion", "calendar",
-    // German.
     "und", "oder", "aber", "der", "das", "den", "dem", "ein", "eine", "einen", "ist", "sind",
     "wird", "werden", "haben", "ich", "wir", "sie", "nicht", "auch", "noch", "schon", "nur",
     "sehr", "von", "zum", "zur", "fur", "auf", "aus", "nach", "uber", "wie", "dass", "wenn",
     "dann", "hier", "heute", "morgen", "gestern", "bitte", "danke", "gerne", "kann", "muss",
-    // French.
     "les", "des", "une", "est", "sont", "avec", "pour", "dans", "que", "qui", "mais", "nous",
     "vous", "cette", "tout", "tous", "tres", "bien", "merci", "bonjour", "aussi", "comme",
     "faire", "vers", "chez", "entre", "apres", "avant", "demain",
-    // Spanish.
     "los", "las", "una", "del", "con", "por", "para", "pero", "como", "muy", "sobre", "esta",
     "este", "estoy", "hay", "tiene", "tengo", "puede", "puedo", "nos", "todo", "todos",
     "gracias", "hola", "tambien", "cuando", "donde", "porque", "hoy", "ayer", "manana",
-    // Serbian, Latin script.
     "ili", "jer", "sto", "sta", "kao", "kad", "kada", "gde", "kako", "koji", "koja", "koje",
     "ovo", "ovaj", "taj", "smo", "ste", "nije", "nisu", "bilo", "bili", "bice", "ima", "nema",
     "treba", "mogu", "moze", "hocu", "samo", "vec", "jos", "opet", "sada", "posle", "kasnije",
@@ -809,9 +726,7 @@ mod tests {
             guard: MemoryGuard::stamp(policy, root, [source.clone(), root.join("gone.json")]),
         };
         assert!(lookup.is_current(policy));
-        // A grant withdrawn.
         assert!(!lookup.is_current(Policy::default()));
-        // An edit, a removal, or a source that appeared.
         std::fs::write(&source, "The launch moved to May.").unwrap();
         assert!(!lookup.is_current(policy));
         let appeared = Lookup {
@@ -820,7 +735,6 @@ mod tests {
         };
         std::fs::write(root.join("later.json"), "{}").unwrap();
         assert!(!appeared.is_current(policy));
-        // An unfinished revocation stops all overnight memory.
         let fresh = Lookup {
             selection: lookup.selection.clone(),
             guard: MemoryGuard::stamp(policy, root, []),
@@ -828,7 +742,6 @@ mod tests {
         assert!(fresh.is_current(policy));
         std::fs::write(root.join(lokalbot_core::evidence::PENDING_FILE), "{}").unwrap();
         assert!(!fresh.is_current(policy));
-        // Nothing found: nothing to withdraw.
         assert!(Lookup::default().is_current(Policy::default()));
     }
 
@@ -974,7 +887,6 @@ mod tests {
             "Hardware sync",
             "a",
         );
-        // Two distinctive words, one of them a name the draft writes.
         assert!(
             select_for(
                 std::slice::from_ref(&fact),
@@ -983,7 +895,6 @@ mod tests {
             .text()
             .is_some()
         );
-        // Two everyday-free words without a name are not enough.
         assert_eq!(
             select_for(std::slice::from_ref(&fact), "the vendor laptops").text(),
             None

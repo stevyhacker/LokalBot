@@ -40,15 +40,10 @@ final class DictationCoordinator: ObservableObject {
     @Published private(set) var lastComposedText: String?
     @Published private(set) var lastEngine: String?
     @Published private(set) var lastContextUse: DictationContextUse?
-    /// Recent results, so one left on the clipboard can be copied again after
-    /// something else replaced it, even after a crash or restart.
     @Published private(set) var history = DictationHistory()
-    /// Pasted text that the target field did not show afterwards.
     @Published private(set) var deliveryNotice: DictationDeliveryNotice?
     private var insertionCheckTask: Task<Void, Never>?
     private var noticeDismissTask: Task<Void, Never>?
-    /// Why the last dictation ended without its text, or why a model on this
-    /// Mac transcribed it. The HUD shows it over whatever app is in front.
     @Published private(set) var problemNotice: DictationProblemNotice?
     private var problemDismissTask: Task<Void, Never>?
     @Published private(set) var liveTranscript = DictationLiveTranscript()
@@ -56,20 +51,12 @@ final class DictationCoordinator: ObservableObject {
     @Published private(set) var isLivePreviewWorking = false
     @Published private(set) var isLivePreviewEnabled = false
     @Published private(set) var captureStatus = ""
-    /// Whether the microphone delivered audio within the last second. The HUD
-    /// waveform moves only while this is true, so it cannot look healthy while
-    /// the microphone is reconnecting.
     @Published private(set) var isReceivingAudio = false
-    /// The microphone has delivered audio in this recording. Until then the
-    /// HUD shows that the microphone is still starting.
     @Published private(set) var hasMicrophoneAudio = false
     var audioLevelMeter: AudioLevelMeter { recorder.levelMeter }
     @Published private(set) var modelPreparationStatus: String?
     @Published private(set) var modelPreparationProgress: Double?
     @Published private(set) var modelPreparationError: String?
-    /// A status-only preparation reaches the HUD once it outlasts a short
-    /// grace period. A warm model's check ends at once and used to flash the
-    /// preparation panel at the start of every transcription.
     private var modelPreparationOutlastedGrace = false
     private var modelPreparationGraceTask: Task<Void, Never>?
     private static let modelPreparationGracePeriod: Duration = .milliseconds(600)
@@ -85,9 +72,6 @@ final class DictationCoordinator: ObservableObject {
     private let onBusy: () -> Void
     private let onError: (String) -> Void
     private let onMicPermissionDenied: () -> Void
-    /// Spoken words (not Compose's draft) and the app they went to, for
-    /// Personal Context → Learn from my dictation. Called only while that is on,
-    /// after a paste into an identified field that passes the exclusions.
     private let onDictatedForLearning: (_ spokenText: String, _ appName: String) -> Void
     private var learningReadTask: Task<Void, Never>?
     private let focusSnapshotExecutor: DictationFocusSnapshotExecutor
@@ -101,9 +85,6 @@ final class DictationCoordinator: ObservableObject {
     private var startTask: Task<Void, Never>?
     private var startTaskGeneration: Int?
     private var livePreviewTask: Task<Void, Never>?
-    /// Every preview and authoritative pass joins this chain. A cancelled
-    /// decoder that does not cooperate immediately therefore remains owned and
-    /// cannot overlap the shared model runtime with the next dictation.
     private var asrHandoffTask: Task<Void, Never>?
     private var livePreviewTaskID = 0
     private var transcribeTask: Task<Void, Never>?
@@ -121,17 +102,12 @@ final class DictationCoordinator: ObservableObject {
     private var activeAudioURL: URL?
     private var pausedMediaSession: MediaPlaybackController.PauseSession?
     private var deliveryTarget: DictationDeliveryTarget?
-    /// Why no delivery target exists, when paste mode could not bind one.
     private var deliveryTargetIssue: DictationDeliveryCheck?
     private var deliveryTargetRetryTask: Task<Void, Never>?
     private var contextTarget: DictationScreenTarget?
     private var pendingFinishSource: String?
     private var generation = 0
-    /// The session a push-to-talk shortcut actually started. The shortcut can
-    /// be held while an earlier dictation is still transcribing; `start` then
-    /// does nothing, and the shortcut must not cancel that earlier dictation.
     private var shortcutStartedGeneration: Int?
-    /// When the latest start was requested, for the press-to-audio log.
     private var startPressedAt: Date?
 
     init(
@@ -176,8 +152,6 @@ final class DictationCoordinator: ObservableObject {
         inputMonitor.triggerModeProvider = { [weak self] in
             self?.settingsProvider().dictationTriggerMode ?? .pushToTalk
         }
-        // Read on every key event, so go straight to the stored settings
-        // rather than the dictation provider, which also builds vocabulary.
         inputMonitor.shortcutProvider = { [settingsStore] in settingsStore.current.dictationShortcut }
         inputMonitor.onStart = { [weak self] in self?.startFromShortcut() }
         inputMonitor.onStop = { [weak self] in self?.finishRecordingAndTranscribe(source: "shortcut") }
@@ -218,9 +192,6 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    /// While the microphone starts, the settings captured at the press decide,
-    /// so the HUD opens at the size recording keeps instead of growing from a
-    /// pill into the transcript panel once audio flows.
     var shouldShowLiveTranscriptPanel: Bool {
         if isStarting, !state.isWorking, let activeConfig {
             return activeConfig.dictationShowOverlay && activeConfig.dictationLivePreview
@@ -236,10 +207,6 @@ final class DictationCoordinator: ObservableObject {
             hasError: modelPreparationError != nil)
     }
 
-    /// Whether the HUD surfaces model preparation. Preparation begins
-    /// synchronously on every recording start, so `.recording` waits for
-    /// real download progress (or a failure) — a warm model never flashes
-    /// the panel — while `.transcribing` shows any status at all.
     static func shouldShowModelPreparation(
         state: State, hasStatus: Bool, hasProgress: Bool, hasError: Bool
     ) -> Bool {
@@ -299,7 +266,6 @@ final class DictationCoordinator: ObservableObject {
         refreshOverlay()
     }
 
-    /// Lets Settings record a shortcut without the global one firing.
     func setShortcutRecording(_ recording: Bool) {
         inputMonitor.isSuspended = recording
     }
@@ -314,8 +280,6 @@ final class DictationCoordinator: ObservableObject {
 
     private var activeConfig: AppSettings?
 
-    /// Describe the same intent, context and models that the in-flight
-    /// recording will use, even if the user edits Settings in another view.
     var presentedConfiguration: AppSettings {
         if isStarting || state.isWorking, let activeConfig { return activeConfig }
         return settingsProvider()
@@ -330,12 +294,6 @@ final class DictationCoordinator: ObservableObject {
         case ignore
     }
 
-    /// The shortcut never cancels finished speech: in Toggle mode a second
-    /// press while the text is being prepared (to start the next dictation, or
-    /// because the HUD looked slow) used to delete the recording and the
-    /// transcript. Push-to-talk already ignored it. While the speech model
-    /// needs attention, the shortcut retries instead. Menu and on-screen
-    /// controls keep their explicit Cancel.
     static func toggleAction(
         state: State,
         isStarting: Bool,
@@ -382,7 +340,6 @@ final class DictationCoordinator: ObservableObject {
         shortcutStartedGeneration = generation != before ? generation : nil
     }
 
-    /// A modifier chord turned out to be another shortcut (⌃⌥ then T).
     private func cancelShortcutStart() {
         guard Self.shouldCancelShortcutStart(
             startedGeneration: shortcutStartedGeneration,
@@ -393,8 +350,6 @@ final class DictationCoordinator: ObservableObject {
         cancel()
     }
 
-    /// Only the recording this shortcut started, and only before it has been
-    /// handed to transcription.
     nonisolated static func shouldCancelShortcutStart(
         startedGeneration: Int?,
         currentGeneration: Int,
@@ -426,11 +381,6 @@ final class DictationCoordinator: ObservableObject {
         activeConfig = initialConfig
         let outputMode = initialConfig.dictationOutputMode
         let screenTarget = DictationScreenTarget.frontmost()
-        // One focus read, started at the shortcut. The microphone opens
-        // alongside it; recording begins once it answers or its short deadline
-        // passes, and a slow app's answer to the same read can still bind the
-        // destination later. A fresh read during recording would bind
-        // whichever app had focus by then.
         let fullFocusCapture = Task { [focusSnapshotExecutor] in
             await focusSnapshotExecutor.capture(
                 deadlineMilliseconds: Self.deliveryCheckDeadlineMilliseconds)
@@ -472,9 +422,6 @@ final class DictationCoordinator: ObservableObject {
         resetLivePreview()
         refreshOverlay()
         let pendingMediaCleanup = mediaCleanupTask
-        // A cancelled start keeps its task until its media pause and resume
-        // finish. Queue behind it instead of ignoring the press: the shortcut
-        // used to do nothing at all until that cleanup ended.
         let cancelledStartTask = startTask
         startTask = Task { [weak self] in
             if let cancelledStartTask { await cancelledStartTask.value }
@@ -482,7 +429,6 @@ final class DictationCoordinator: ObservableObject {
             var keepScreenContext = false
             defer {
                 focusCaptureTask.cancel()
-                // A newer start owns the screen-context task once it begins.
                 if !keepScreenContext, self.startTaskGeneration == session {
                     self.discardScreenContext()
                 }
@@ -500,9 +446,6 @@ final class DictationCoordinator: ObservableObject {
                 self.onMicPermissionDenied()
                 return
             }
-            // An earlier cancel may still be restoring the exact players it
-            // paused. Finish that bounded transition before taking a new media
-            // snapshot, otherwise its late resume could interrupt this capture.
             if let pendingMediaCleanup { await pendingMediaCleanup.value }
             guard self.generation == session, !Task.isCancelled else { return }
             var localMediaSession: MediaPlaybackController.PauseSession?
@@ -523,9 +466,6 @@ final class DictationCoordinator: ObservableObject {
                 self.recorder.onFirstAudio = { [weak self] in
                     self?.microphoneDidDeliverFirstAudio(generation: session)
                 }
-                // The microphone opens while the focus read begun at the press
-                // finishes. Waiting for that read first delayed every start by
-                // up to its deadline, and words spoken meanwhile were lost.
                 try await self.startRecorder(writingTo: audioURL)
                 let focusCapture = await focusCaptureTask.value
                 try Task.checkCancellation()
@@ -598,9 +538,6 @@ final class DictationCoordinator: ObservableObject {
 
     func finishRecordingAndTranscribe(source: String = "ui") {
         if isStarting {
-            // Push-to-talk key-up can arrive while permission, focus, or media
-            // setup is still finishing. Remember the release instead of
-            // cancelling the start and silently dropping the invocation.
             pendingFinishSource = source
             return
         }
@@ -730,8 +667,6 @@ final class DictationCoordinator: ObservableObject {
             return
         }
         do {
-            // The server failing (a rejected key, no connection) does not
-            // lose the dictation: a model already on this Mac transcribes it.
             let spoken = try await DictationTranscriptionFallback.transcribe(
                 settings: config,
                 selected: {
@@ -793,8 +728,6 @@ final class DictationCoordinator: ObservableObject {
                 mode: config.dictationOutputMode,
                 generation: session,
                 contextIsCurrent: prepared.contextIsCurrent)
-            // Delivery can wait for the target app; a newer session may own
-            // the coordinator by the time it returns.
             guard generation == session else { return }
             let insertedInto = deliveryTarget
             if let outcome = DictationHistory.outcome(for: delivery) {
@@ -828,9 +761,6 @@ final class DictationCoordinator: ObservableObject {
                 "dictation composed source=\(source) chars=\(text.count) "
                     + "asr=\(transcript.engine) intent=\(config.dictationIntent.rawValue)")
             if let fallback = spoken.fallback {
-                // The HUD always says the server failed. LokalBot's own
-                // message says it too, unless it already holds a delivery
-                // problem, which matters more there.
                 switch delivery {
                 case .inserted, .copied, .displayed:
                     onError("Dictation was transcribed on this Mac with \(fallback.choice.displayName). "
@@ -845,7 +775,6 @@ final class DictationCoordinator: ObservableObject {
             complete()
         } catch {
             guard generation == session else { return }
-            // Compose failing must not lose minutes of transcribed speech.
             if let lastTranscript {
                 keepInHistory(lastTranscript, outcome: .notInserted)
             }
@@ -864,8 +793,6 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    /// Loads the model on this Mac that stands in for the server. It is on
-    /// disk already, so this is a load, shown in the HUD when it is slow.
     private func prepareStandInModel(_ local: AppSettings, generation session: Int) async throws {
         beginModelPreparation()
         try await local.transcriptionEngine().prepare { [weak self] update in
@@ -876,10 +803,6 @@ final class DictationCoordinator: ObservableObject {
         resetModelPreparation()
     }
 
-    /// The paste waits up to 1.5 s for the app to read the text. If the
-    /// dictation was cancelled meanwhile (and another may already be
-    /// recording), report it as cancelled so nothing touches the new session,
-    /// and never type the fallback.
     static func pasteDeliveryResult(
         _ outcome: CotypingInserter.PasteOutcome,
         sessionIsCurrent: Bool,
@@ -894,8 +817,6 @@ final class DictationCoordinator: ObservableObject {
         case .failed:
             return typeFallback() ? .inserted : .failed
         case .skipped:
-            // Not pasted while this dictation is still current: copy it so
-            // the session completes instead of waiting forever.
             return .failed
         }
     }
@@ -904,9 +825,7 @@ final class DictationCoordinator: ObservableObject {
         case displayed
         case inserted
         case copied
-        /// Copied to the clipboard instead of pasted, for this reason.
         case notDelivered(DictationDeliveryCheck)
-        /// Pasted, but no app read the text; it stays on the clipboard.
         case unconfirmed
         case failed
         case cancelled
@@ -933,7 +852,6 @@ final class DictationCoordinator: ObservableObject {
             guard !Task.isCancelled, generation == session else { return .cancelled }
             var queuedCheck: DictationDeliveryCheck?
             let outcome = await inserter.insertViaPaste(text) { [weak self] in
-                // An earlier paste held the queue; check the field again.
                 guard let self, self.generation == session else { return false }
                 let check = await self.deliveryTargetCheck()
                 queuedCheck = check
@@ -968,15 +886,10 @@ final class DictationCoordinator: ObservableObject {
         refreshOverlay()
     }
 
-    /// Reads the field back after a paste. Only a field that can be read and
-    /// still lacks the text raises the notice; an unreadable field (many
-    /// Electron and web editors) is left alone rather than guessed at.
     private func checkInsertion(
         of text: String, into target: DictationDeliveryTarget, excludedApps: [String]
     ) {
         insertionCheckTask?.cancel()
-        // Without a field identity the paste went to "the app"; reading
-        // whatever field is focused now could be another (or a secure) one.
         guard target.focusIdentityKey?.isEmpty == false else { return }
         let appName = NSRunningApplication(processIdentifier: target.processID)?.localizedName ?? ""
         guard !DictationScreenPrivacy.isExcluded(
@@ -1002,12 +915,8 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    /// Reads the pasted-into window's title and page address once, and hands
-    /// the spoken words on only if they pass the same exclusions as nearby
-    /// text. Anything unreadable keeps nothing.
     private func keepForLearning(_ spokenText: String, into target: DictationDeliveryTarget) {
         learningReadTask?.cancel()
-        // The stored settings: the dictation provider also builds vocabulary.
         guard settingsStore.current.learnsFromDictation, target.focusIdentityKey?.isEmpty == false else { return }
         let appName = NSRunningApplication(processIdentifier: target.processID)?.localizedName ?? ""
         learningReadTask = Task { [weak self] in
@@ -1056,7 +965,6 @@ final class DictationCoordinator: ObservableObject {
         scheduleNoticeDismissal(after: .seconds(2))
     }
 
-    /// Puts a kept dictation, the newest by default, back on the clipboard.
     @discardableResult
     func copyFromHistory(_ id: DictationHistoryEntry.ID? = nil) -> Bool {
         let entry = id == nil ? history.entries.first : history.entries.first { $0.id == id }
@@ -1065,7 +973,6 @@ final class DictationCoordinator: ObservableObject {
         return NSPasteboard.general.setString(entry.text, forType: .string)
     }
 
-    /// Forgets the kept dictations, and the last result the Dictation page shows.
     func clearHistory() {
         history.removeAll()
         historyStore.deleteAll()
@@ -1085,8 +992,6 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    /// The app dictation started in, for the history. LokalBot itself (Try
-    /// here) is left unnamed.
     private var dictatedAppName: String? {
         guard let processID = deliveryTarget?.processID ?? contextTarget?.processID,
               processID != ProcessInfo.processInfo.processIdentifier else { return nil }
@@ -1126,7 +1031,6 @@ final class DictationCoordinator: ObservableObject {
         return DictationDeliveryTarget.captured(from: snapshot)
     }
 
-    /// Why paste mode has no target, from the snapshot taken at the shortcut.
     nonisolated static func deliveryTargetIssue(
         for capture: DictationFocusCaptureResult
     ) -> DictationDeliveryCheck? {
@@ -1134,8 +1038,6 @@ final class DictationCoordinator: ObservableObject {
         return snapshot.isSecureOrBlocked ? .secureField : nil
     }
 
-    /// The paste check is not on the shortcut's critical path, so slow apps
-    /// (Electron, Chromium) get longer to answer than the start snapshot.
     nonisolated static let deliveryCheckDeadlineMilliseconds = 600
 
     private func deliveryTargetCheck() async -> DictationDeliveryCheck {
@@ -1146,9 +1048,6 @@ final class DictationCoordinator: ObservableObject {
         return deliveryTarget.check(snapshot)
     }
 
-    /// The start snapshot has a short deadline so the microphone opens without
-    /// delay. When it times out, wait for the same read rather than copying
-    /// every dictation into a slow app to the clipboard.
     private func bindLateDeliveryTarget(
         _ fullCapture: Task<DictationFocusCaptureResult, Never>,
         pressedProcessID: pid_t?,
@@ -1166,8 +1065,6 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    /// The late answer to the shortcut's focus read, accepted only for the app
-    /// that was frontmost when the shortcut was pressed.
     nonisolated static func lateDeliveryBinding(
         capture: DictationFocusCaptureResult,
         pressedProcessID: pid_t?
@@ -1181,8 +1078,6 @@ final class DictationCoordinator: ObservableObject {
         return (target, target == nil ? deliveryTargetIssue(for: capture) ?? .fieldUnreadable : nil)
     }
 
-    /// `capture`'s result if it arrives within `deadline`, otherwise a
-    /// timeout; `capture` itself keeps running for a later reader.
     nonisolated static func focusCapture(
         _ capture: Task<DictationFocusCaptureResult, Never>,
         within deadline: Duration
@@ -1199,11 +1094,6 @@ final class DictationCoordinator: ObservableObject {
 
     private func invalidateStartingSession() {
         generation += 1
-        // Do not cancel an in-flight media pause: it is bounded, and allowing
-        // it to return gives that task the exact resume token it needs. The
-        // generation guard prevents the recorder from starting afterward. Keep
-        // the task retained until that pause-and-resume cleanup finishes so a
-        // new start cannot race ahead of its late media restoration.
         isStarting = false
         state = .idle
         stopTick()
@@ -1245,9 +1135,6 @@ final class DictationCoordinator: ObservableObject {
         return task
     }
 
-    /// Ends a dictation that delivered nothing. `message` goes to LokalBot's
-    /// own window and `notice` to the HUD, which is what the person sees when
-    /// they dictated into another app.
     private func completeWithMessage(_ message: String, notice: DictationProblemNotice) {
         lokalbotLog("dictation ended without delivery: \(message)")
         onError(message)
@@ -1276,8 +1163,6 @@ final class DictationCoordinator: ObservableObject {
     }
 
     func retryModelPreparation() {
-        // Both paths begin preparation, which clears the error while the
-        // panel is still showing it, so the panel stays up for the retry.
         if let pending = pendingTranscriptionRetry {
             pendingTranscriptionRetry = nil
             beginModelPreparation()
@@ -1321,11 +1206,6 @@ final class DictationCoordinator: ObservableObject {
         return try await engine.transcribe(audio: audioURL, language: language, prompt: nil)
     }
 
-    /// The engines drop rows made only of vocabulary-hint terms, because a
-    /// near-silent span decodes to the hint itself. A dictation can genuinely
-    /// be only those words ("Mila Novak, Orion Launch"), and it then ended as
-    /// "No speech detected". With clear speech, decode once more without the
-    /// hint, which cannot echo anything.
     static func shouldRetryWithoutVocabulary(
         transcript: Transcript,
         prompt: String?,
@@ -1434,9 +1314,6 @@ final class DictationCoordinator: ObservableObject {
                             transcript.segments.map(\.displayText).joined(separator: " "))
                         lastPreviewedDuration = window.endTime
                         if !text.isEmpty {
-                            // While the overlap still reaches the recording's
-                            // beginning, this window is the complete prefix and
-                            // can replace the earlier preview outright.
                             accumulatedPreviewText = window.startTime == 0
                                 ? text
                                 : DictationPreviewTextStitcher.stitch(
@@ -1448,9 +1325,6 @@ final class DictationCoordinator: ObservableObject {
                             refreshOverlay()
                         }
                     } catch DictationError.noAudio {
-                        // A valid snapshot can still be a fraction shorter than
-                        // the recorder's health counter. Advance past that tiny
-                        // silent/short window rather than retrying it forever.
                         lastPreviewedDuration = window.endTime
                     } catch DictationError.noSpeech {
                         lastPreviewedDuration = window.endTime
@@ -1517,9 +1391,6 @@ final class DictationCoordinator: ObservableObject {
         let endTime: TimeInterval
     }
 
-    /// Opens the append-safe CAF at its current length and materializes only the
-    /// unprocessed suffix plus a short overlap. This keeps preview I/O bounded
-    /// as dictation grows instead of copying the full recording on every pass.
     private static func makeIncrementalLivePreviewWindow(
         from audioURL: URL,
         storageRoot: URL,
@@ -1649,7 +1520,6 @@ final class DictationCoordinator: ObservableObject {
         "Check your connection and free disk space, then try again."
 
     private func beginModelPreparation() {
-        // A panel already on screen (a Retry, a slow load) stays up.
         let alreadyShown = shouldShowModelPreparation
         modelPreparationError = nil
         modelPreparationProgress = nil
@@ -1707,7 +1577,6 @@ final class DictationCoordinator: ObservableObject {
     private func startTick() {
         now = Date()
         isReceivingAudio = false
-        // Twice a second so the waveform follows the microphone closely.
         tick = Timer.publish(every: 0.5, on: .main, in: .common)
             .autoconnect()
             .sink { [weak self] date in
@@ -1734,7 +1603,6 @@ final class DictationCoordinator: ObservableObject {
         isReceivingAudio = Self.isReceivingAudio(lastAudioWriteAt: health.lastAudioWriteAt, now: current)
         let previousStatus = captureStatus
         defer {
-            // The compact HUD widens to fit a status, so resize the panel.
             if captureStatus != previousStatus, state.isRecording { refreshOverlay() }
         }
         switch health.recoveryState {
@@ -1743,9 +1611,6 @@ final class DictationCoordinator: ObservableObject {
                 captureStatus = Self.idleMicrophoneStatus(
                     lastAudioWriteAt: health.lastAudioWriteAt, startedAt: startedAt, now: current)
             } else {
-                // Recover after the recorder's settle delay. Rebuilding here
-                // ran on the main thread, raced the reconfiguration notice,
-                // and blocked the keyboard shortcut while a device reopened.
                 captureStatus = "Reconnecting microphone"
                 recorder.recoverCapture(reason: "The microphone stopped.")
             }
@@ -1757,7 +1622,6 @@ final class DictationCoordinator: ObservableObject {
             captureStatus = ""
             lokalbotLog("dictation microphone recovery FAILED: \(errorDescription)")
             if Self.shouldTranscribeAfterMicrophoneFailure(capturedDuration: health.duration) {
-                // Keep what was said before the microphone failed.
                 onError("The microphone stopped, so dictation ended early. \(errorDescription)")
                 finishRecordingAndTranscribe(source: "microphone-failure")
             } else {
@@ -1767,9 +1631,6 @@ final class DictationCoordinator: ObservableObject {
         }
     }
 
-    /// The HUD switches from "starting" to recording, and the optional cue
-    /// plays, only once audio actually arrives: pressing the shortcut does not
-    /// mean the microphone is listening yet.
     private func microphoneDidDeliverFirstAudio(generation session: Int) {
         guard generation == session, state.isRecording || isStarting, !hasMicrophoneAudio else { return }
         hasMicrophoneAudio = true
@@ -1792,8 +1653,6 @@ final class DictationCoordinator: ObservableObject {
         return now.timeIntervalSince(lastAudioWriteAt) < 1
     }
 
-    /// Status for a running microphone that is not delivering audio. A
-    /// Bluetooth headset takes a moment to switch into headset mode.
     nonisolated static func idleMicrophoneStatus(
         lastAudioWriteAt: Date?, startedAt: Date, now: Date
     ) -> String {
@@ -1808,9 +1667,6 @@ final class DictationCoordinator: ObservableObject {
     }
 
     private func refreshOverlay() {
-        // The preparation-error panel holds the only Retry button, so it shows
-        // even when the floating status is turned off. So do the notices:
-        // without them a dictation that failed looks like nothing happened.
         overlay.update(
             for: self,
             visible: settingsProvider().dictationShowOverlay || modelPreparationError != nil
@@ -1849,7 +1705,6 @@ private enum DictationError: LocalizedError {
     }
 }
 
-/// Resumes a continuation exactly once, from whichever racer finishes first.
 private final class ResumeOnce<Value: Sendable>: @unchecked Sendable {
     private let lock = NSLock()
     private var continuation: CheckedContinuation<Value, Never>?

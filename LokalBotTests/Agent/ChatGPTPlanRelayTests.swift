@@ -1,16 +1,12 @@
 import XCTest
 @testable import LokalBot
 
-/// The relay Agent Mode's pi talks to for the ChatGPT plan, over real
-/// loopback HTTP with a fake OpenAI upstream and token source.
 final class ChatGPTPlanRelayTests: XCTestCase {
-    /// Records upstream requests and answers them from a queue.
     private final class FakeOpenAI: @unchecked Sendable {
         struct Reply {
             var status = 200
             var headers = ["Content-Type": "text/event-stream"]
             var chunks: [String] = []
-            /// Keeps the body open after the chunks, like a model still thinking.
             var staysOpen = false
         }
 
@@ -101,8 +97,6 @@ final class ChatGPTPlanRelayTests: XCTestCase {
         try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(data)) as? [String: Any])
     }
 
-    // MARK: Request reading
-
     private func head(_ lines: [String], body: String = "") -> Data {
         Data((lines.joined(separator: "\r\n") + "\r\n\r\n" + body).utf8)
     }
@@ -137,8 +131,6 @@ final class ChatGPTPlanRelayTests: XCTestCase {
         XCTAssertNil(status(["POST /v1/responses?x=1 HTTP/1.1", auth, "Content-Length: 0"]))
     }
 
-    // MARK: Plan rules
-
     func testBodyFollowsThePlanRoutesRules() throws {
         let body = try Self.json(ChatGPTPlanRelayPolicy.upstreamBody(JSONSerialization.data(withJSONObject: Self.piBody)))
         XCTAssertEqual(body["store"] as? Bool, false)
@@ -164,8 +156,6 @@ final class ChatGPTPlanRelayTests: XCTestCase {
             code: "subscription_sharing_usage_unavailable", message: nil, param: nil), true)
         XCTAssertNil(ChatGPTPlanRelayPolicy.shouldRetry(code: "rate_limit_exceeded", message: nil, param: nil))
     }
-
-    // MARK: Relaying
 
     func testStreamsOpenAIsReplyWithThePlanTokenNotPisKey() async throws {
         let events = ["data: {\"type\":\"response.created\"}\n\n", "data: {\"type\":\"response.completed\"}\n\n"]
@@ -258,8 +248,6 @@ final class ChatGPTPlanRelayTests: XCTestCase {
         await fulfillment(of: [openAI.ended], timeout: 5)
         _ = await client.result
     }
-
-    // MARK: Agent Mode connection
 
     func testAgentModePointsPiAtARelayOnThisMac() async throws {
         var settings = AppSettings()

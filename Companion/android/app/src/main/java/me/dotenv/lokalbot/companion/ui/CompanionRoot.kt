@@ -40,7 +40,6 @@ import me.dotenv.lokalbot.companion.ui.settings.SettingsActions
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** Device-level state the activity owns: app lock and an incoming pairing link. */
 data class RootActions(
     val appLockEnabled: Boolean,
     val appLockAvailable: Boolean,
@@ -50,7 +49,6 @@ data class RootActions(
     val versionName: String,
 )
 
-/** Chooses between first run, pairing and the library. */
 @Composable
 fun CompanionRoot(container: AppContainer, actions: RootActions) {
     val ready by container.ready.collectAsStateWithLifecycle()
@@ -108,11 +106,6 @@ fun CompanionRoot(container: AppContainer, actions: RootActions) {
     }
 }
 
-/**
- * Keeps one library's view models together, and drops them when the library
- * changes. Pairing again with the same computer is a new library with the same
- * id, and view models of the old one would keep using its closed store.
- */
 class LibraryScopes : ViewModel() {
     private var current: Pair<CompanionRepository, ViewModelStore>? = null
 
@@ -135,7 +128,6 @@ fun LibraryScope(library: CompanionRepository, content: @Composable () -> Unit) 
     CompositionLocalProvider(LocalViewModelStoreOwner provides owner, content = content)
 }
 
-/** Shown while the app lock is on and the app hasn't been unlocked. */
 @Composable
 fun LockScreen(onUnlock: () -> Unit) {
     val palette = LokalBotTheme.palette

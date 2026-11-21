@@ -3,7 +3,6 @@ import XCTest
 
 final class ActionDueResolverTests: XCTestCase {
     private var calendar: Calendar!
-    /// Tuesday, 22 September 2026, mid-morning.
     private var tuesday: Date!
 
     override func setUpWithError() throws {
@@ -47,7 +46,6 @@ final class ActionDueResolverTests: XCTestCase {
         XCTAssertEqual(resolved("Friday"), "2026-09-25")
         XCTAssertEqual(resolved("by Friday."), "2026-09-25")
         XCTAssertEqual(resolved("on Monday"), "2026-09-28")
-        // The same weekday means the following week, never the day it was said.
         XCTAssertEqual(resolved("Tuesday"), "2026-09-29")
         XCTAssertEqual(resolved("do petka"), "2026-09-25")
     }
@@ -62,7 +60,6 @@ final class ActionDueResolverTests: XCTestCase {
 
     func testNextWeekdayMeansTheFollowingWeek() {
         XCTAssertEqual(resolved("next Friday"), "2026-10-02")
-        // Said on a Saturday, the next Monday is already in the following week.
         let saturday = calendar.date(byAdding: .day, value: 4, to: tuesday)
         XCTAssertEqual(resolved("next Monday", from: saturday), "2026-09-28")
     }
@@ -76,7 +73,6 @@ final class ActionDueResolverTests: XCTestCase {
         XCTAssertEqual(resolved("next month"), "2026-10-31")
         XCTAssertEqual(resolved("end of Q3"), "2026-09-30")
         XCTAssertEqual(resolved("Q4"), "2026-12-31")
-        // A quarter that already ended refers to next year's quarter.
         XCTAssertEqual(resolved("Q1"), "2027-03-31")
         XCTAssertEqual(resolved("Q1 2026"), "2026-03-31")
     }
@@ -85,7 +81,6 @@ final class ActionDueResolverTests: XCTestCase {
         XCTAssertEqual(resolved("in 3 days"), "2026-09-25")
         XCTAssertEqual(resolved("in two weeks"), "2026-10-06")
         XCTAssertEqual(resolved("within a week"), "2026-09-29")
-        // Business days skip the weekend.
         XCTAssertEqual(resolved("in 5 business days"), "2026-09-29")
     }
 
@@ -95,7 +90,6 @@ final class ActionDueResolverTests: XCTestCase {
         XCTAssertEqual(resolved("5 October"), "2026-10-05")
         XCTAssertEqual(resolved("the 5th of October"), "2026-10-05")
         XCTAssertEqual(resolved("Sep 20"), "2026-09-20")
-        // Far in the past without a year means next year.
         XCTAssertEqual(resolved("January 10"), "2027-01-10")
         XCTAssertEqual(resolved("January 10, 2026"), "2026-01-10")
         XCTAssertNil(resolved("February 30"))
@@ -140,7 +134,6 @@ final class ActionDueResolverTests: XCTestCase {
         ])
         XCTAssertEqual(ordered.count, 4)
 
-        // Rows color dates by the same three groups the order uses.
         let byText = Dictionary(uniqueKeysWithValues: threads.map { ($0.text, $0) })
         func state(_ text: String) -> [Bool] {
             let thread = byText[text]

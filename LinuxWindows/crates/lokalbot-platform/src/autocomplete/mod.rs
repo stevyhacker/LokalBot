@@ -3,35 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Autocomplete's desktop side (`LokalBot/Cotyping`): reading the text field
-//! the user types in, taking Tab and Esc while ghost text shows, and typing
-//! an accepted suggestion into the field. Prediction lives in the engine.
-//!
-//! - [`FieldWatcher`] follows the focused field on its own thread: AT-SPI2
-//!   events on Linux, UI Automation events on Windows, each with a polled
-//!   fallback that backs off while nothing changes. Every snapshot holds the
-//!   app, the window title, the bounded text around the caret, the caret on
-//!   screen, and whether the field is secure or single-line.
-//! - [`KeyInterceptor`] takes the plain accept keys and Esc only while it is
-//!   active, which the app keeps true exactly while a suggestion is visible:
-//!   `XGrabKey` on X11, a low-level keyboard hook on Windows.
-//! - [`insert`] types an accepted chunk at the caret: AT-SPI `EditableText`
-//!   when the field supports it, else XTest; `SendInput` Unicode keystrokes on
-//!   Windows. Never through the clipboard.
-//!
-//! - [`clipboard`] and [`spell`] read the clipboard for prompt context and
-//!   check words against the system's dictionaries.
-//!
-//! Privacy (`PRIVACY.md`): nothing is read while autocomplete is off, secure
-//! fields and excluded apps are never read (the check runs before any text
-//! is), LokalBot's own windows are skipped, and nothing read is kept on disk.
-//!
-//! Wayland lets no app take a key from another app or place a window at
-//! another app's caret, so there autocomplete takes part as the desktop's
-//! input method where it can (`input_method`), and the field draws the ghost
-//! itself ([`InlineGhost`]). Where it cannot, [`support`] says so; LokalBot's
-//! own practice editor still works.
-
 pub mod clipboard;
 pub mod focused;
 pub mod geometry;
@@ -56,74 +27,49 @@ use std::sync::Arc;
 pub use geometry::{FieldStyle, Rect, Rgb};
 pub use policy::ReadPolicy;
 
-/// Whether the focused element can take a suggestion (`CotypingCapability`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Capability {
-    /// An editable field with a collapsed caret.
     Supported,
-    /// Editable, but withheld: a secure field or selected text.
     Blocked(&'static str),
-    /// Not a text field autocomplete can drive.
     Unsupported(&'static str),
 }
 
-/// The focused field, read once (`CotypingField`). Never contains text from
-/// a secure field or an excluded app.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct FieldSnapshot {
-    /// The toolkit's identity for the element (bus name and object path, or
-    /// UI Automation runtime id). Empty when it has none.
     pub focus_key: String,
     pub app_name: String,
-    /// Desktop id, `WM_CLASS` or executable: "org.gnome.TextEditor", "notepad.exe".
     pub app_id: String,
     pub pid: u32,
     pub window_title: String,
-    /// Text before the caret, at most [`policy::MAX_BEFORE_UTF16`] units.
     pub before: String,
     pub before_truncated: bool,
-    /// Text after the caret, at most [`policy::MAX_AFTER_UTF16`] units.
     pub after: String,
-    /// The caret in screen pixels (top-left origin). Zero width.
     pub caret: Rect,
-    /// False when the caret was estimated from the field's frame.
     pub caret_exact: bool,
     pub field_frame: Option<Rect>,
-    /// A one-line input, where Enter usually sends.
     pub single_line: bool,
-    /// An xterm.js surface in an editor or a browser: a DOM class starting
-    /// with "xterm" (`CotypingSurfaceClassifier.isIntegratedTerminal`).
     pub is_integrated_terminal: bool,
-    /// The page address when the app is a browser and it could be read.
     pub url: Option<String>,
-    /// Text shown just above the field, read once per field when allowed.
     pub visible_text: Option<String>,
     pub style: Option<FieldStyle>,
-    /// How [`insert`] reaches this field.
     pub target: InsertTarget,
 }
 
-/// What [`insert`] needs to type into a field.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct InsertTarget {
-    /// AT-SPI bus name and object path, when the field supports `EditableText`.
     #[cfg(target_os = "linux")]
     pub(crate) editable: Option<(String, String)>,
     pub(crate) pid: u32,
-    /// The field is reached through the desktop's input method.
     #[cfg(target_os = "linux")]
     pub(crate) input_method: bool,
 }
 
-/// The watcher's view of focus (`CotypingFocus`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct FocusSnapshot {
     pub app_name: String,
     pub app_id: String,
     pub capability: Capability,
-    /// Set only for [`Capability::Supported`].
     pub field: Option<FieldSnapshot>,
-    /// The element's identity even when its text is withheld.
     pub focus_key: Option<String>,
 }
 
@@ -159,15 +105,12 @@ impl FocusSnapshot {
     }
 }
 
-/// Whether autocomplete can work in other apps in this session.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Support {
     Available,
-    /// Why not, worded for Settings.
     Unavailable(String),
 }
 
-/// What this desktop allows. Cheap; call it when Settings opens.
 pub fn support() -> Support {
     #[cfg(target_os = "linux")]
     {
@@ -191,8 +134,6 @@ pub fn support() -> Support {
     }
 }
 
-/// The file that makes LokalBot one of GNOME's input sources, for installs
-/// that no package put it in place for (`lokalbot --ibus-component`).
 pub fn ibus_component() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
@@ -204,10 +145,6 @@ pub fn ibus_component() -> Option<String> {
     }
 }
 
-/// Runs the input method KDE Plasma starts for LokalBot (`lokalbot
-/// --kwin-input-method`) until Plasma stops it, and returns the exit code.
-/// Plasma starts it once the user chooses LokalBot under System Settings →
-/// Keyboard → Virtual Keyboard.
 pub fn run_kwin_input_method() -> i32 {
     #[cfg(target_os = "linux")]
     {
@@ -219,9 +156,6 @@ pub fn run_kwin_input_method() -> i32 {
     }
 }
 
-/// The desktop entry that lists LokalBot under Plasma's Virtual Keyboard, for
-/// installs that no package put it in place for (`lokalbot
-/// --kwin-input-method-entry`).
 pub fn kwin_input_method_entry() -> Option<String> {
     #[cfg(target_os = "linux")]
     {
@@ -233,16 +167,12 @@ pub fn kwin_input_method_entry() -> Option<String> {
     }
 }
 
-/// What the user does to use autocomplete on this desktop, for Settings.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct InputSourceSteps {
     pub text: String,
-    /// A command to run once in a terminal first, to copy.
     pub command: Option<String>,
 }
 
-/// The steps where autocomplete goes through the desktop's input method.
-/// `None` elsewhere: nothing to do beyond turning it on.
 pub fn input_source_steps() -> Option<InputSourceSteps> {
     #[cfg(target_os = "linux")]
     {
@@ -256,9 +186,6 @@ pub fn input_source_steps() -> Option<InputSourceSteps> {
 type FocusHandler = Arc<dyn Fn(FocusSnapshot) + Send + Sync>;
 type KeyHandler = Arc<dyn Fn(InterceptedKey) + Send + Sync>;
 
-/// Follows the focused field on a background thread until dropped. The
-/// handler runs on that thread whenever the snapshot changes; forward it to
-/// the UI thread.
 pub struct FieldWatcher {
     #[cfg(target_os = "linux")]
     inner: LinuxWatcher,
@@ -304,7 +231,6 @@ impl FieldWatcher {
         }
     }
 
-    /// Applies new exclusions at once; the next snapshot follows them.
     pub fn set_policy(&self, policy: ReadPolicy) {
         #[cfg(target_os = "linux")]
         match &self.inner {
@@ -317,7 +243,6 @@ impl FieldWatcher {
         let _ = policy;
     }
 
-    /// Reads the field again now instead of at the next event or poll.
     pub fn refresh_now(&self) {
         #[cfg(target_os = "linux")]
         match &self.inner {
@@ -328,7 +253,6 @@ impl FieldWatcher {
         self.inner.refresh_now();
     }
 
-    /// What the backend cannot do on this desktop, worded for Settings.
     pub fn limitation(&self) -> Option<String> {
         #[cfg(target_os = "linux")]
         {
@@ -347,8 +271,6 @@ impl FieldWatcher {
         }
     }
 
-    /// The way to draw the ghost where the field draws it itself, as on a
-    /// Wayland input method. `None` where LokalBot's own overlay does.
     pub fn inline_ghost(&self) -> Option<InlineGhost> {
         #[cfg(target_os = "linux")]
         {
@@ -366,8 +288,6 @@ impl FieldWatcher {
     }
 }
 
-/// A suggestion the field draws itself, and accepts that go in with what
-/// remains of it. Non-blocking.
 #[derive(Clone)]
 pub struct InlineGhost {
     #[cfg(target_os = "linux")]
@@ -375,7 +295,6 @@ pub struct InlineGhost {
 }
 
 impl InlineGhost {
-    /// Shows `text` after the caret in `field`; empty shows nothing.
     pub fn show(&self, field: &FieldSnapshot, text: &str) {
         #[cfg(target_os = "linux")]
         self.inner.show(field, text);
@@ -383,9 +302,6 @@ impl InlineGhost {
         let _ = (field, text);
     }
 
-    /// Makes `edit` at the caret and shows `next` as what is left, in one
-    /// step. `before` and `after` are the field's text around the caret as
-    /// the edit expects it.
     pub fn accept(
         &self,
         field: &FieldSnapshot,
@@ -401,24 +317,17 @@ impl InlineGhost {
     }
 }
 
-/// A key taken while a suggestion shows.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InterceptedKey {
     Tab,
     Escape,
     RightArrow,
-    /// The physical key left of 1, whatever it types on this layout, like the
-    /// Mac's key code 50.
     Backtick,
 }
 
-/// What the accept keys are bound to. The primary key wins when both are the
-/// same key (`CotypingAcceptHint`, `acceptScope`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AcceptKeys {
-    /// Takes the next word or phrase.
     pub accept: InterceptedKey,
-    /// Takes the rest of the suggestion, if bound.
     pub full: Option<InterceptedKey>,
 }
 
@@ -449,7 +358,6 @@ impl AcceptKeys {
         }
     }
 
-    /// Every key to take while a suggestion shows. Escape is always one.
     pub fn taken(&self) -> Vec<InterceptedKey> {
         let mut keys = vec![self.accept, InterceptedKey::Escape];
         keys.extend(self.full);
@@ -460,8 +368,6 @@ impl AcceptKeys {
         key == self.accept || key == InterceptedKey::Escape || self.full == Some(key)
     }
 
-    /// Whether `key` takes the rest of the suggestion rather than the next
-    /// chunk; `None` when it accepts nothing.
     pub fn is_full(&self, key: InterceptedKey) -> Option<bool> {
         if key == self.accept {
             Some(false)
@@ -473,8 +379,6 @@ impl AcceptKeys {
     }
 }
 
-/// Takes the plain accept keys and Esc away from the focused app while
-/// active. Inactive it holds no grab or hook, so the keyboard is untouched.
 pub struct KeyInterceptor {
     #[cfg(target_os = "linux")]
     inner: LinuxKeys,
@@ -517,7 +421,6 @@ impl KeyInterceptor {
         }
     }
 
-    /// Which keys accept, applied at once even while active.
     pub fn set_keys(&self, keys: AcceptKeys) {
         #[cfg(target_os = "linux")]
         match &self.inner {
@@ -530,7 +433,6 @@ impl KeyInterceptor {
         let _ = keys;
     }
 
-    /// Takes the keys while `true`; releases them at once when `false`.
     pub fn set_active(&self, active: bool) {
         #[cfg(target_os = "linux")]
         match &self.inner {
@@ -543,9 +445,6 @@ impl KeyInterceptor {
         let _ = active;
     }
 
-    /// Sends a key that was taken but not used on to the focused app, so a
-    /// Tab pressed as a suggestion went away still moves focus (macOS fails
-    /// open the same way).
     pub fn pass_through(&self, key: InterceptedKey) {
         #[cfg(target_os = "linux")]
         match &self.inner {
@@ -559,8 +458,6 @@ impl KeyInterceptor {
     }
 }
 
-/// One edit at the caret: delete `backward` characters (grapheme clusters)
-/// before it and `forward` after it, then type `text`.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Edit {
     pub text: String,
@@ -568,16 +465,11 @@ pub struct Edit {
     pub forward: usize,
 }
 
-/// Applies `edit` to `field`, which must still have focus. Blocks for the
-/// few milliseconds the app takes; call from a background thread. Refuses
-/// rather than typing into another app.
 pub fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     let text = edit.text.replace('\r', "");
     if text.is_empty() && edit.backward == 0 && edit.forward == 0 {
         return Ok(());
     }
-    // A burst of deletions from one accept stays small, as on macOS
-    // (`CotypingSyntheticEditPolicy`).
     anyhow::ensure!(
         edit.backward <= 64 && edit.forward <= 64,
         "an accept never deletes more than 64 characters"
@@ -606,18 +498,12 @@ pub fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     }
 }
 
-/// A window of LokalBot's own, for the overlay helpers below.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NativeWindow {
-    /// An X11 window id.
     X11(u32),
-    /// A Win32 `HWND`.
     Win32(isize),
 }
 
-/// Makes the ghost window click-through, never activated by a click, and
-/// (on Windows, when `exclude_from_capture`) left out of screenshots and
-/// recordings, as macOS does with `sharingType = .none`.
 pub fn prepare_overlay(window: NativeWindow, exclude_from_capture: bool) -> anyhow::Result<()> {
     match window {
         #[cfg(target_os = "linux")]
@@ -634,8 +520,6 @@ pub fn prepare_overlay(window: NativeWindow, exclude_from_capture: bool) -> anyh
     }
 }
 
-/// Moves and sizes the ghost window to `frame` (screen pixels) and shows or
-/// hides it, without activating it.
 pub fn place_overlay(window: NativeWindow, frame: Option<Rect>) -> anyhow::Result<()> {
     match window {
         #[cfg(target_os = "linux")]
@@ -649,9 +533,6 @@ pub fn place_overlay(window: NativeWindow, frame: Option<Rect>) -> anyhow::Resul
     }
 }
 
-/// Device pixels per logical pixel on the monitor showing `rect`, where the
-/// system keeps a scale per monitor (Windows). `None` elsewhere: X11 has one
-/// scale for the whole screen, which the ghost window already reports.
 pub fn scale_at(rect: &Rect) -> Option<f32> {
     #[cfg(windows)]
     {
@@ -664,8 +545,6 @@ pub fn scale_at(rect: &Rect) -> Option<f32> {
     }
 }
 
-/// The work area of the monitor showing `rect`, in screen pixels, so ghost
-/// text and pills stay on screen.
 pub fn screen_containing(rect: &Rect) -> Option<Rect> {
     #[cfg(target_os = "linux")]
     {
@@ -682,9 +561,6 @@ pub fn screen_containing(rect: &Rect) -> Option<Rect> {
     }
 }
 
-/// The luminance (0–1) of the screen just behind where ghost text would go,
-/// to keep it legible on fields whose colors the toolkit does not report.
-/// `None` when the screen cannot be read.
 pub fn sample_luminance(rect: &Rect) -> Option<f32> {
     #[cfg(target_os = "linux")]
     {

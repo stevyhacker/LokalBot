@@ -52,7 +52,6 @@ struct ModelDownloadsView: View {
 
     private var transcriptionChoices: [TranscriptionModelChoice] {
         TranscriptionModelChoice.allCases.filter { choice in
-            // A transcription server or built-in macOS speech engine has no files on disk to manage.
             !choice.isRemote
                 && (!choice.isBuiltInSystem
                     || roles.transcriptionPreparations[choice.id] != nil
@@ -178,8 +177,6 @@ struct ModelDownloadsView: View {
     }
 
     private func transcriptionRow(_ choice: TranscriptionModelChoice) -> some View {
-        // Downloaded manages the in-flight candidate, while role readiness
-        // continues to describe the current model. Keep candidate cancellation available.
         let status = roles.transcriptionPreparations[choice.id].map {
             ModelRoleStatus.preparing(progress: $0.progress, label: $0.label)
         } ?? roles.transcriptionStatus(for: choice)

@@ -2,11 +2,7 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Settings codec
-
 final class CotypingSettingsTests: XCTestCase {
-    /// Settings saved before the option existed load with it on, like a
-    /// fresh install: Chrome-based browsers get enhanced accessibility.
     func testChromiumEnhancedAccessibilityIsOnByDefault() throws {
         XCTAssertTrue(AppSettings().cotypingChromiumEnhancedAccessibility)
         var saved = try XCTUnwrap(
@@ -22,9 +18,6 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertFalse(reloaded.cotypingChromiumEnhancedAccessibility)
     }
 
-    /// Chrome switched modes even though the request reported an error, so
-    /// only a timeout leaves a browser to be asked again; asking again would
-    /// raise Chrome's request count past what one release takes back.
     func testOnlyATimeoutLeavesEnhancedAccessibilityUnasked() {
         XCTAssertTrue(CotypingEnhancedAccessibilityRequest.wasDelivered(.success))
         XCTAssertTrue(CotypingEnhancedAccessibilityRequest.wasDelivered(.attributeUnsupported))
@@ -177,7 +170,6 @@ final class CotypingSettingsTests: XCTestCase {
     }
 
     func testTolerantDecodeDefaultsInProcessRuntimeOn() throws {
-        // A saved blob predating the flag must decode with the default (true).
         let json = "{}".data(using: .utf8)!
         let decoded = try JSONDecoder().decode(AppSettings.self, from: json)
         XCTAssertTrue(decoded.cotypingInProcessRuntime)
@@ -192,8 +184,6 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertEqual(settings.cotypingMaxResponseTokens, 6)
     }
 
-    /// Version 4 moved two defaults to what Cotypist does. Settings saved by
-    /// an earlier build follow; a value chosen since then is kept.
     func testEarlierDefaultsMoveToTheCotypistOnesOnce() throws {
         let earlier = #"{"cotypingSettingsVersion":3,"cotypingMaxWords":3,"cotypingAutoAcceptTrailingPunctuation":true}"#
         let migrated = try JSONDecoder().decode(AppSettings.self, from: Data(earlier.utf8))
@@ -208,7 +198,6 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertEqual(kept.cotypingMaxWords, 3)
         XCTAssertTrue(kept.cotypingAutoAcceptTrailingPunctuation)
 
-        // Saving stamps the current version, so the move happens only once.
         var saved = migrated
         saved.cotypingMaxWords = 3
         let reloaded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(saved))
@@ -218,14 +207,14 @@ final class CotypingSettingsTests: XCTestCase {
     func testMaxResponseTokensMirrorCotypistBudget() {
         var settings = AppSettings()
         settings.cotypingMaxWords = 2
-        XCTAssertEqual(settings.cotypingMaxResponseTokens, 5)   // floor
+        XCTAssertEqual(settings.cotypingMaxResponseTokens, 5)
         settings.cotypingMaxWords = 8
-        XCTAssertEqual(settings.cotypingMaxResponseTokens, 11)  // ceil(8 * 1.3)
+        XCTAssertEqual(settings.cotypingMaxResponseTokens, 11)
         settings.cotypingMaxWords = 20
-        XCTAssertEqual(settings.cotypingMaxResponseTokens, 26)  // ceil(20 * 1.3)
+        XCTAssertEqual(settings.cotypingMaxResponseTokens, 26)
         settings.cotypingMultiLine = true
-        XCTAssertEqual(settings.cotypingMaxResponseTokens, 52)  // doubled for multiline
+        XCTAssertEqual(settings.cotypingMaxResponseTokens, 52)
         settings.cotypingMaxWords = 100
-        XCTAssertEqual(settings.cotypingMaxResponseTokens, 120) // cap
+        XCTAssertEqual(settings.cotypingMaxResponseTokens, 120)
     }
 }

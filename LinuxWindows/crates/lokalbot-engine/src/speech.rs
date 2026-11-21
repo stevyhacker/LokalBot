@@ -1,10 +1,3 @@
-//! One loaded transcription model, shared by meeting processing and dictation,
-//! released after two idle minutes like the macOS speech engines.
-//!
-//! The model is shared span by span. Dictation, the live previews and the
-//! model check are answered while someone waits, so a meeting pass stands
-//! aside for them between spans ([`SpeechCache::stand_aside`]).
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
@@ -25,21 +18,17 @@ const IDLE_UNLOAD: Duration = Duration::from_secs(120);
 #[derive(Default)]
 pub struct SpeechCache {
     loaded: Mutex<Option<Loaded>>,
-    /// Calls in progress that someone is waiting on.
     urgent: AtomicUsize,
-    /// Dictation's known names, kept for a day or until the library changes.
     dictation_terms: Mutex<Option<(String, Vec<String>)>>,
     voice_loaded: AtomicBool,
 }
 
 struct Loaded {
-    /// The model id, or the server, model and key behind a transcription server.
     model_id: String,
     transcriber: Arc<Transcriber>,
     last_used: Instant,
 }
 
-/// Counts one urgent call until dropped.
 struct Urgent<'a>(&'a AtomicUsize);
 
 impl<'a> Urgent<'a> {
@@ -55,7 +44,6 @@ impl Drop for Urgent<'_> {
     }
 }
 
-/// The approved server, with its key, for one transcription.
 fn server_client(settings: &Settings) -> Result<Client> {
     let key = request_key(
         &settings.remote_transcription_base_url,
@@ -100,9 +88,6 @@ impl SpeechServer for ServerClient {
 }
 
 impl SpeechCache {
-    /// Runs `f` with the transcriber for `model_id`, loading it first if
-    /// needed. For work someone is waiting on: a meeting pass in progress
-    /// lets it go first.
     pub fn with<T>(
         &self,
         shared: &Shared,
@@ -110,16 +95,12 @@ impl SpeechCache {
         f: impl FnOnce(&Transcriber) -> Result<T>,
     ) -> Result<T> {
         let transcriber = self.transcriber(shared, model_id)?;
-        // Counted once the model is in hand: while this call waits for a pass
-        // to give up another model, that pass must not wait for this call.
         let _urgent = Urgent::begin(&self.urgent);
         let result = f(&transcriber);
         self.used(&transcriber);
         result
     }
 
-    /// [`Self::with`] for a whole meeting. `f` calls [`Self::stand_aside`]
-    /// between spans, so nobody waits for more than the span being decoded.
     pub fn with_in_background<T>(
         &self,
         shared: &Shared,
@@ -132,16 +113,13 @@ impl SpeechCache {
         result
     }
 
-    /// Returns once no urgent call is using the model.
     pub fn stand_aside(&self) {
         while self.urgent.load(Ordering::SeqCst) > 0 {
             std::thread::sleep(Duration::from_millis(20));
         }
     }
 
-    /// The transcriber for `model_id`, loading it first if needed.
     fn transcriber(&self, shared: &Shared, model_id: &str) -> Result<Arc<Transcriber>> {
-        // Checked each time, so a revoked approval counts from the next clip.
         let settings = shared.settings();
         let server = is_remote(model_id)
             .then(|| server_client(&settings))
@@ -151,8 +129,6 @@ impl SpeechCache {
             None => model_id.to_string(),
         };
         let mut loaded = self.loaded.lock();
-        // Two models never share memory: a call still using the other one
-        // finishes first, as it did when the model was held for a whole call.
         while loaded
             .as_ref()
             .is_some_and(|l| l.model_id != identity && Arc::strong_count(&l.transcriber) > 1)
@@ -187,7 +163,6 @@ impl SpeechCache {
         Ok(entry.transcriber.clone())
     }
 
-    /// Restarts the idle clock when a call ends.
     fn used(&self, transcriber: &Arc<Transcriber>) {
         if let Some(entry) = self.loaded.lock().as_mut()
             && Arc::ptr_eq(&entry.transcriber, transcriber)
@@ -196,20 +171,16 @@ impl SpeechCache {
         }
     }
 
-    /// Whether `model_id` is in memory. One still loading is not there yet.
     pub fn is_loaded(&self, model_id: &str) -> bool {
         self.loaded
             .try_lock()
             .is_some_and(|loaded| loaded.as_ref().is_some_and(|l| l.model_id == model_id))
     }
 
-    /// Read aloud's voice model came into or left memory.
     pub fn set_voice_loaded(&self, loaded: bool) {
         self.voice_loaded.store(loaded, Ordering::Relaxed);
     }
 
-    /// Speech models held in this process, with the role each serves. A model
-    /// still loading is missed for that reading; it never blocks the caller.
     pub fn loaded_models(&self) -> Vec<(&'static str, String)> {
         let mut models = Vec::new();
         if let Some(loaded) = self.loaded.try_lock()
@@ -227,9 +198,6 @@ impl SpeechCache {
         models
     }
 
-    /// Dictation has no meeting of its own, so prompt-capable models get recent
-    /// attendee and project names beside the manual vocabulary
-    /// (`AppState.dictationTranscriptionSettings`).
     pub fn dictation_prompt(&self, shared: &Shared, settings: &Settings) -> String {
         if !settings.auto_transcription_vocabulary
             || !accepts_vocabulary(&settings.transcription_model)
@@ -260,8 +228,6 @@ impl SpeechCache {
         lokalbot_core::vocabulary::prompt(&settings.transcription_prompt, &terms)
     }
 
-    /// Frees the model when it has not been used for a while. A call in
-    /// progress holds its own reference, so a long pass is never idle.
     pub fn release_if_idle(&self) {
         if let Some(mut loaded) = self.loaded.try_lock()
             && loaded.as_ref().is_some_and(|l| {
@@ -273,7 +239,6 @@ impl SpeechCache {
     }
 }
 
-/// Starts the idle-release timer.
 pub fn start_idle_release(cache: Arc<SpeechCache>, shared: Arc<Shared>) {
     std::thread::spawn(move || {
         while !shared.is_shutting_down() {
@@ -305,7 +270,6 @@ mod tests {
         }
     }
 
-    /// An engine whose cache already holds a transcriber under `MODEL`.
     fn loaded() -> (tempfile::TempDir, Arc<Shared>) {
         let dir = tempfile::tempdir().unwrap();
         let library =
@@ -386,7 +350,6 @@ mod tests {
         dictation.join().unwrap().unwrap();
         pass.join().unwrap();
         assert!(resumed.load(Ordering::SeqCst));
-        // Nothing is left counted, so the next span starts at once.
         shared.speech.stand_aside();
     }
 
@@ -401,8 +364,6 @@ mod tests {
                 shared.speech.with_in_background(&shared, MODEL, |_| {
                     started.send(()).unwrap();
                     let _ = told.recv();
-                    // The other call is waiting for this model to be freed, so
-                    // it must not make this pass wait in turn.
                     shared.speech.stand_aside();
                     Ok(())
                 })
@@ -424,7 +385,6 @@ mod tests {
         );
         go_on.send(()).unwrap();
         pass.join().unwrap().unwrap();
-        // Then it tries to load its own model, which is not installed here.
         assert_eq!(answer.recv_timeout(Duration::from_secs(5)), Ok(true));
     }
 }

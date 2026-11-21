@@ -1,6 +1,4 @@
 #!/bin/sh
-# Render and atomically promote the canonical 16:9, 30-second product promo.
-# Run only after the HyperFrames Studio preview has been reviewed.
 set -eu
 
 REPO_ROOT=$(CDPATH='' cd -- "$(dirname -- "$0")/../.." && pwd)
@@ -78,8 +76,6 @@ if [ ! -s "$MASTER" ]; then
   exit 1
 fi
 
-# Measure first, then apply a linear second pass. A single loudnorm pass can
-# miss both integrated loudness and true-peak targets on a short, dynamic mix.
 LOUDNESS_LOG=$(mktemp "${TMPDIR:-/tmp}/lokalbot-loudnorm.XXXXXX")
 trap 'rm -f "$LOUDNESS_LOG"' EXIT HUP INT TERM
 
@@ -115,7 +111,6 @@ ffmpeg -y -v error -i "$MASTER" -map 0:v:0 -map 0:a:0 \
   -c:a aac -b:a 192k -ar 48000 -movflags +faststart "$FINAL_TMP"
 mv "$FINAL_TMP" "$FINAL"
 
-# The complete cited-answer frame reads clearly before playback and at social-card size.
 ffmpeg -y -v error -ss 10.8 -i "$FINAL" -frames:v 1 \
   -q:v 2 -pix_fmt yuvj444p "$POSTER_TMP"
 mv "$POSTER_TMP" "$POSTER"
@@ -170,7 +165,6 @@ write_manifest() {
 
 write_manifest "$FINAL" "$REPO_ROOT/.build/hero-demo/hero-demo.manifest.json"
 
-# Keep the previous public aliases aligned with the canonical website cut.
 for alias in hero-demo-short feature-demo; do
   alias_tmp="$REPO_ROOT/.build/hero-demo/$alias.production.mp4"
   alias_final="$REPO_ROOT/.build/hero-demo/$alias.mp4"

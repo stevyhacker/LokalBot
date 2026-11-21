@@ -3,24 +3,11 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Inline `/macro` autocomplete (`CotypingMacro`).
-//!
-//! A `/` opens a query only at a word boundary (the field's start or after
-//! whitespace), so `http://`, `and/or` and file paths never fire, and the
-//! ghost shows only when the query computes to a result: `/5+5` → `= 10`,
-//! `/10km->mi` → `6.214 mi`, `/today` → `Jun 23, 2026`, `/100usd to eur` →
-//! `€92.00`, `/d20` → a roll, `/uuid` → a UUID.
-//!
-//! macOS formats dates and money with the user's locale through Foundation;
-//! here they read as they do in en-US. `iso` and `24h` dates need no locale.
-
 use chrono::{Datelike as _, Days, Duration, Local, Months, NaiveDateTime, Timelike as _};
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use super::text::is_newline;
 
-/// What to preview under the caret and what an accept inserts. They differ
-/// for arithmetic (`= 10`, then `10`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MacroResult {
     pub preview: String,
@@ -36,17 +23,13 @@ impl MacroResult {
     }
 }
 
-/// A match at the caret.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MacroMatch {
     pub result: MacroResult,
-    /// User-perceived characters of the typed `/query`.
     pub token_length: usize,
     pub query: String,
 }
 
-/// The best macro for the trailing `/query`, with the live clock and random
-/// source.
 pub fn match_trailing(before: &str) -> Option<MacroMatch> {
     match_with(before, &mut Engine::standard())
 }
@@ -61,12 +44,10 @@ pub fn match_with(before: &str, engine: &mut Engine) -> Option<MacroMatch> {
     })
 }
 
-/// The raw query after a boundary `/` at the caret.
 pub fn trailing_query(before: &str) -> Option<String> {
     scan_token(before).map(|token| token.query)
 }
 
-/// Length of the trailing `/query`, whether or not it evaluates.
 pub fn trailing_token_length(before: &str) -> Option<usize> {
     scan_token(before).map(|token| token.token_length)
 }
@@ -83,9 +64,6 @@ fn is_space_grapheme(grapheme: &str) -> bool {
     grapheme.chars().next().is_some_and(char::is_whitespace)
 }
 
-/// Walks back from the caret until a boundary `/`. An inner `/` preceded by
-/// a non-space (`5/2`) stays in the query; a newline or an over-long run ends
-/// the search.
 fn scan_token(text: &str) -> Option<Token> {
     let mut graphemes = text.graphemes(true).rev().peekable();
     let mut collected: Vec<&str> = Vec::new();
@@ -116,10 +94,8 @@ fn scan_token(text: &str) -> Option<Token> {
     None
 }
 
-/// The clock and random source are injected so tests are deterministic.
 pub struct Engine<'a> {
     pub now: NaiveDateTime,
-    /// A whole number from the first bound to the second, inclusive.
     pub random: Box<dyn FnMut(i64, i64) -> i64 + 'a>,
     pub uuid: Box<dyn FnMut() -> String + 'a>,
 }
@@ -132,14 +108,12 @@ impl Engine<'static> {
                 let span = (high - low) as u128 + 1;
                 low + (uuid::Uuid::new_v4().as_u128() % span) as i64
             }),
-            // Swift's `UUID().uuidString` is uppercase.
             uuid: Box::new(|| uuid::Uuid::new_v4().to_string().to_uppercase()),
         }
     }
 }
 
 impl Engine<'_> {
-    /// Date, random, unit, currency, then arithmetic as the catch-all.
     pub fn evaluate(&mut self, raw_query: &str) -> Option<MacroResult> {
         let query = trim_spaces(raw_query);
         if query.is_empty() {
@@ -151,8 +125,6 @@ impl Engine<'_> {
             .or_else(|| evaluate_currency(query))
             .or_else(|| evaluate_arithmetic(query))
     }
-
-    // ------------------------------------------------------------- dates
 
     fn evaluate_date(&self, query: &str) -> Option<MacroResult> {
         let lower = query.to_lowercase();
@@ -177,7 +149,6 @@ impl Engine<'_> {
         Some(MacroResult::same(result))
     }
 
-    /// `+3d`, `-5d`, `+2w`, `+1mo`, `+1y`.
     fn relative_date(&self, base: &str) -> Option<NaiveDateTime> {
         let mut chars = base.chars();
         let sign = chars.next()?;
@@ -201,8 +172,6 @@ impl Engine<'_> {
         }
     }
 
-    /// `next-<weekday>` (strictly after today), `this-<weekday>` (including
-    /// today), `last-<weekday>` (strictly before today).
     fn weekday_date(&self, base: &str) -> Option<NaiveDateTime> {
         let (which, day) = base.split_once('-')?;
         let target = weekday_number(day)?;
@@ -218,8 +187,6 @@ impl Engine<'_> {
         };
         self.now.checked_add_signed(Duration::try_days(delta)?)
     }
-
-    // ------------------------------------------------------------ random
 
     fn evaluate_random(&mut self, query: &str) -> Option<MacroResult> {
         let lower = query.to_lowercase();
@@ -370,8 +337,6 @@ fn split_argument(text: &str) -> (&str, Option<&str>) {
     (&text[..open], (!argument.is_empty()).then_some(argument))
 }
 
-/// Short forms and misspellings of the keywords, then a `next`/`this`/`last`
-/// weekday written with a space or no separator as `next-fri`.
 fn canonical_base(base: &str) -> String {
     let alias = match base {
         "tdy" | "tod" | "tody" | "2day" => "today",
@@ -420,17 +385,12 @@ fn number_prefix(text: &str) -> (&str, &str) {
     text.split_at(end)
 }
 
-// --------------------------------------------------------------- conversions
-
-/// `<value><from> <sep> <to>`, on `->`, `→` or ` to `. Shared by the unit and
-/// currency families.
 fn split_conversion(query: &str) -> Option<(&str, &str)> {
     for token in ["->", "→"] {
         if let Some(found) = query.split_once(token) {
             return Some(found);
         }
     }
-    // Case-insensitive " to ": ASCII, so byte offsets hold.
     let at = query
         .as_bytes()
         .windows(4)
@@ -443,13 +403,11 @@ enum Quantity {
     Length(f64),
     Mass(f64),
     Volume(f64),
-    /// Coefficient and constant to kelvin.
     Temperature(f64, f64),
 }
 
 const FAHRENHEIT: Quantity = Quantity::Temperature(0.55555555555556, 255.37222222222427);
 
-/// Foundation's `Dimension` coefficients, so conversions print as on macOS.
 fn unit(token: &str) -> Option<Quantity> {
     use Quantity::*;
     Some(match token {
@@ -466,8 +424,6 @@ fn unit(token: &str) -> Option<Quantity> {
         "kg" | "kgs" | "kilo" | "kilos" | "kilogram" | "kilograms" => Mass(1.0),
         "oz" | "ounce" | "ounces" => Mass(0.0283495),
         "lb" | "lbs" | "pound" | "pounds" => Mass(0.453592),
-        // Foundation's table has 0.157473 here, which is stones per kilogram;
-        // a stone is 6.35029 kg.
         "st" | "stone" | "stones" => Mass(6.35029),
         "c" | "celsius" | "centigrade" => Temperature(1.0, 273.15),
         "f" | "fahrenheit" => FAHRENHEIT,
@@ -512,8 +468,6 @@ fn evaluate_unit(query: &str) -> Option<MacroResult> {
 }
 
 fn unit_format(value: f64) -> String {
-    // Foundation's rounded temperature constants leave `32f to c` a hair off
-    // zero; a whole number should print as one.
     let whole = value.round();
     if (value - whole).abs() < 1e-9 && value.abs() < 1e12 {
         return (whole as i64).to_string();
@@ -521,8 +475,6 @@ fn unit_format(value: f64) -> String {
     format_g(value, 4)
 }
 
-/// C's `%.<precision>g`: significant digits, trailing zeros removed, and an
-/// exponent below 1e-4 or from 1e<precision> up. Rust has no `%g`.
 pub fn format_g(value: f64, precision: usize) -> String {
     if !value.is_finite() {
         return if value.is_nan() {
@@ -555,10 +507,6 @@ pub fn format_g(value: f64, precision: usize) -> String {
     strip(&format!("{value:.decimals$}"))
 }
 
-// ------------------------------------------------------------------ currency
-
-/// Bundled, offline, approximate rates, units per US dollar. Never reaches
-/// the network. As of 2026-06.
 const RATES_PER_USD: [(&str, f64); 32] = [
     ("USD", 1.0),
     ("EUR", 0.92),
@@ -662,8 +610,6 @@ fn evaluate_currency(query: &str) -> Option<MacroResult> {
     Some(MacroResult::same(format_currency(converted, &to)))
 }
 
-/// `NumberFormatter`'s `.currency` style in en-US: its symbols, its grouping,
-/// and no decimals for yen and won.
 fn format_currency(value: f64, code: &str) -> String {
     let symbol = match code {
         "USD" => "$",
@@ -716,8 +662,6 @@ fn grouped(value: f64, decimals: usize) -> String {
     }
 }
 
-// ---------------------------------------------------------------- arithmetic
-
 fn evaluate_arithmetic(query: &str) -> Option<MacroResult> {
     let literal = query.strip_suffix('=').unwrap_or(query);
     if literal.is_empty() {
@@ -736,7 +680,6 @@ fn evaluate_arithmetic(query: &str) -> Option<MacroResult> {
     })
 }
 
-/// Whole numbers print without a point; others with up to 10 significant digits.
 pub fn format_number(value: f64) -> Option<String> {
     if !value.is_finite() {
         return None;
@@ -747,7 +690,6 @@ pub fn format_number(value: f64) -> Option<String> {
     Some(format_g(value, 10))
 }
 
-/// A hand-written parser: nothing in a query is ever evaluated as code.
 struct Arithmetic {
     characters: Vec<char>,
     index: usize,
@@ -817,7 +759,6 @@ impl Arithmetic {
         if self.peek() == Some('^') {
             self.advance();
             self.used_operator = true;
-            // Right associative.
             return base.powf(self.power());
         }
         base
@@ -882,7 +823,6 @@ mod tests {
     use super::*;
     use chrono::NaiveDate;
 
-    /// Tuesday 23 June 2026, 15:04.
     fn engine() -> Engine<'static> {
         Engine {
             now: NaiveDate::from_ymd_opt(2026, 6, 23)
@@ -915,7 +855,6 @@ mod tests {
     fn a_query_that_computes_nothing_shows_nothing() {
         assert!(match_with("/hello world", &mut engine()).is_none());
         assert!(match_with("/", &mut engine()).is_none());
-        // A number alone is not a calculation.
         assert!(match_with("/42", &mut engine()).is_none());
         let hit = match_with("Total /5+5", &mut engine()).unwrap();
         assert_eq!(hit.token_length, 4);
@@ -1002,7 +941,6 @@ mod tests {
         assert_eq!(eval("-1w(iso)").as_deref(), Some("2026-06-16"));
         assert_eq!(eval("+1mo(iso)").as_deref(), Some("2026-07-23"));
         assert_eq!(eval("+1y(iso)").as_deref(), Some("2027-06-23"));
-        // Tuesday: this week's Tuesday is today, next and last are a week off.
         assert_eq!(eval("this-tue(iso)").as_deref(), Some("2026-06-23"));
         assert_eq!(eval("next tue(iso)").as_deref(), Some("2026-06-30"));
         assert_eq!(eval("lastfri(iso)").as_deref(), Some("2026-06-19"));

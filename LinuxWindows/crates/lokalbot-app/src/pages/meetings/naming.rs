@@ -1,9 +1,3 @@
-//! One sheet to name a meeting's unnamed voices (`MeetingSpeakerNamingSheet`):
-//! play a sample, read what that voice said, then pick an invited name or
-//! type one. Names are saved together, each as if that speaker had been named
-//! on its own; a voice left alone stays unnamed. A voice recognized from
-//! earlier meetings starts picked and is applied only when the person saves.
-
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -37,10 +31,8 @@ pub(crate) struct NamingSheet {
     voices: Vec<NamingVoice>,
     known: Vec<NamingKnown>,
     suggestions: Vec<SpeakerSuggestion>,
-    /// Guests already assigned to a voice in this meeting.
     assigned: HashSet<String>,
     draft: NamingDraft,
-    /// A name field per voice switched to "Someone else…".
     typed: HashMap<String, Entity<InputState>>,
     can_play: bool,
     busy: bool,
@@ -127,8 +119,6 @@ impl NamingSheet {
                             cx,
                         ))
                     });
-                    // Typing enables Save names; Return saves, as the sheet's
-                    // default button does.
                     cx.subscribe_in(&input, window, |this, _, event: &InputEvent, window, cx| {
                         match event {
                             InputEvent::Change => cx.notify(),
@@ -152,7 +142,6 @@ impl NamingSheet {
             .update(cx, |page, cx| page.play_excerpt(start, start + 12., cx));
     }
 
-    /// A named speaker picked from the sheet is renamed once it closes.
     fn change(&mut self, speaker: String, window: &mut Window, cx: &mut Context<Self>) {
         window.close_dialog(cx);
         let page = self.page.clone();
@@ -163,16 +152,12 @@ impl NamingSheet {
         });
     }
 
-    /// Saves every name picked, one at a time as if each speaker had been
-    /// named on its own; a failure midway leaves the earlier ones saved.
     fn save(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         use lokalbot_core::voice::{Choice, DecisionAction};
         let choices = self.choices(cx);
         if self.busy || choices.is_empty() {
             return;
         }
-        // The same check as naming one speaker: a person's name, never an
-        // address, link or secret.
         if choices.iter().any(|choice| {
             lokalbot_core::voice::safe_name(&choice.name, &|text| {
                 lokalbot_ai::sanitize::redaction(text).1 > 0
@@ -199,7 +184,6 @@ impl NamingSheet {
                     for choice in choices {
                         let mut decision =
                             Choice::new(&choice.speaker, Some(choice.name), DecisionAction::Assign);
-                        // The chosen guest's opaque id, never the address.
                         decision.calendar_identity_id = choice.calendar_identity_id;
                         current = lokalbot_engine::voice::save_choice(
                             &library, &decision, &meeting, &current,
@@ -213,8 +197,6 @@ impl NamingSheet {
                 data.update(cx, |data, cx| {
                     data.mark_library_changed(cx);
                     if result.is_ok() {
-                        // A newly remembered voice can name speakers in
-                        // other recent meetings.
                         data.request(crate::state::AppEvent::LearnSpeakerVoices, cx);
                     }
                 });
@@ -236,7 +218,6 @@ impl NamingSheet {
         .detach();
     }
 
-    /// Dimmed, and still a choice: the guest already names another voice.
     fn is_used(&self, suggestion: &SpeakerSuggestion, speaker: &str) -> bool {
         self.draft.is_taken_elsewhere(&suggestion.id, speaker)
             || suggestion
@@ -245,7 +226,6 @@ impl NamingSheet {
                 .is_some_and(|guest| self.assigned.contains(&guest.id))
     }
 
-    /// "12 min of speech · 2 actions".
     fn speech_summary(voice: &NamingVoice) -> String {
         let speech = lokalbot_i18n::mac(
             "%lld min of speech",
@@ -291,8 +271,6 @@ impl NamingSheet {
             .filter(|s| s.name.is_some())
             .collect();
         let mut chips: Vec<AnyElement> = Vec::new();
-        // A recognized voice that is also a guest is that guest's chip,
-        // already picked; otherwise it gets a chip of its own.
         if let Some(recognized) = &voice.recognized_name {
             let pick = presentation::recognized_pick(recognized, &voice.key, &self.suggestions);
             if !named.iter().any(|s| s.id == pick.id) {
@@ -486,7 +464,6 @@ impl NamingSheet {
     }
 }
 
-/// A rounded name choice: outlined, filled with the accent once picked.
 fn name_chip(
     id: SharedString,
     label: String,

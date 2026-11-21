@@ -1,9 +1,6 @@
 import DigUpKit
 import Foundation
 
-/// What Files lets agents search, as the app last wrote it: the folders the
-/// person chose. The app keeps it only while the Files grant is on and Files
-/// is on with a folder, so the CLI never has to read the app's settings.
 struct FilesAccessProjection: Codable, Equatable, Sendable {
     static let currentVersion = 1
 
@@ -12,14 +9,9 @@ struct FilesAccessProjection: Codable, Equatable, Sendable {
     var folders: [String]
 }
 
-/// Cross-process truth for the Files grant: a marker the app sets from
-/// Settings → External Agents (or the box on Settings → Files), plus the
-/// projection it keeps in sync with Settings → Files. Separate from every other grant,
-/// and no Agent Mode capability satisfies it.
 struct FilesAccessGate {
     static let markerName = "files-access-enabled"
     static let projectionName = "files-access.json"
-    /// Files' index in the library (`FileSearchService.indexFolderName`).
     static let indexFolderName = "files-index.noindex"
 
     var root: URL
@@ -47,7 +39,6 @@ struct FilesAccessGate {
         try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: accessMarkerURL.path)
     }
 
-    /// Revoking removes the folder list too.
     func disable() {
         removeProjection()
         try? FileManager.default.removeItem(at: accessMarkerURL)
@@ -66,8 +57,6 @@ struct FilesAccessGate {
         try? FileManager.default.removeItem(at: projectionURL)
     }
 
-    /// The chosen folders, or nil when the grant is off, Files is off, or the
-    /// app hasn't written them.
     func readProjection() -> FilesAccessProjection? {
         guard isEnabled, let data = try? Data(contentsOf: projectionURL) else { return nil }
         let decoder = JSONDecoder()
@@ -86,18 +75,11 @@ struct FilesAccessGate {
     }
 }
 
-/// `search_files` for MCP and `lokalbot-cli search-files`: word search over
-/// the Files index (DigUp's keyword search), which works while the app is
-/// closed. Search by meaning needs LokalBot's embedding model, so it stays in
-/// Ask.
 enum FilesSearchTool {
     static let name = "search_files"
     static let defaultLimit = 10
     static let maximumLimit = 50
-    /// The most ranked matches one search looks through for ones inside the
-    /// chosen folders and dates.
     static let widestSearch = 4_096
-    /// A passage longer than this is cut, with an ellipsis.
     static let passageCharacters = 1_500
 
     static let disabledMessage =
@@ -158,8 +140,6 @@ enum FilesSearchTool {
             }
         }
 
-        /// What a CLI command throws for a refusal, with its code. Nil for
-        /// bad arguments, which the command reports as a usage error.
         var commandError: CodedCommandError? {
             switch self {
             case .disabled: CodedCommandError(code: .filesAccessDisabled, message: FilesSearchTool.disabledMessage)
@@ -171,7 +151,6 @@ enum FilesSearchTool {
 
     struct Report: Encodable {
         struct Item: Encodable {
-            /// The matched passage's id in the index.
             var id: Int64
             var path: String
             var name: String
@@ -179,7 +158,6 @@ enum FilesSearchTool {
             var page: Int?
             var seconds: Double?
             var modified: String
-            /// When a photo was taken, if it says.
             var taken: String?
             var size: Int64
             var excerpt: String?
@@ -249,10 +227,8 @@ enum FilesSearchTool {
         } catch {
             return .failure(.unavailable)
         }
-        // A walk reports a folder by its real path (/private/var for /var).
         let roots = projection.folders.flatMap { [$0, FolderSelection.realPath($0)] }
         let stamp = ISO8601DateFormatter()
-        /// The hits inside the chosen folders and dates, best first, up to `count`.
         func kept(_ found: [SearchHit]) -> [(hit: SearchHit, modified: Date, taken: Date?)] {
             var kept: [(hit: SearchHit, modified: Date, taken: Date?)] = []
             for hit in found where kept.count < count {
@@ -267,10 +243,6 @@ enum FilesSearchTool {
             }
             return kept
         }
-        // The folders and dates are applied after ranking, so the best few
-        // matches can all fall outside them: forty older invoices hid the
-        // one from this month. Look further down the ranking until enough
-        // are inside, or there is nothing more to look at.
         var window = count * 4
         var matches: [(hit: SearchHit, modified: Date, taken: Date?)] = []
         while true {
@@ -306,7 +278,6 @@ enum FilesSearchTool {
         return String(decoding: data, as: UTF8.self)
     }
 
-    /// A plain-text table for `lokalbot-cli search-files --table`.
     static func table(_ report: Report) -> String {
         guard !report.results.isEmpty else { return "No files matched \"\(report.query)\"." }
         return report.results.map { item in
@@ -322,7 +293,6 @@ enum FilesSearchTool {
         return String(trimmed.prefix(passageCharacters)) + "…"
     }
 
-    /// EXIF `DateTimeOriginal`: "2026:05:14 18:02:11", in the camera's local time.
     private static func exifDate(_ text: String) -> Date? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

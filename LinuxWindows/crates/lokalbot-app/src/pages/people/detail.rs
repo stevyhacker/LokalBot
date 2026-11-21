@@ -1,9 +1,3 @@
-//! One person's page (`PersonDetailView`). The next calendar meeting with
-//! them leads when there is one, then what is open between you, what the last
-//! meeting said, and what you decided together. Projects, meetings and other
-//! names sit in a side column, so a long history fits one screen and someone
-//! met once has a short page. A section with nothing in it is not shown.
-
 use chrono::{DateTime, Utc};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Icon, Sizable as _, v_flex};
@@ -26,7 +20,6 @@ use crate::ui::side_column::{
 };
 use crate::ui::{self, Ico};
 
-/// "Show 3 more" / "Show fewer" under a list.
 fn more_link(
     id: impl Into<ElementId>,
     expanded: bool,
@@ -84,8 +77,6 @@ impl PeoplePage {
             side.push(self.names(person, cx));
         }
 
-        // Beside the page while the pane has room for both, under it
-        // otherwise (`PageWithSideColumn`).
         let scale = self.data.read(cx).settings.text_size.scale();
         let pane = self
             .detail_bounds
@@ -102,10 +93,6 @@ impl PeoplePage {
         )
     }
 
-    /// The next calendar meeting with the person (`PersonNextMeetingCard`):
-    /// when, its title, who else is invited, and Prepare, which hands the
-    /// person's notes and open work to Agent. Prepare goes under the words
-    /// when the card is too narrow for both.
     fn next_meeting_card(
         &self,
         person: &PersonProfile,
@@ -116,8 +103,6 @@ impl PeoplePage {
         let lb = cx.lb().clone();
         let data = self.data.clone();
         let prompt = lokalbot_core::people::preparation_prompt(person);
-        // As wide as its longest line (`ViewThatFits`): when that and Prepare
-        // do not fit one row, Prepare wraps under the words.
         let summary = v_flex()
             .flex_auto()
             .min_w_0()
@@ -169,8 +154,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// One section, two labelled parts: what the user owes, then what the
-    /// person owes. Stale work keeps its "Still open?" line.
     fn open_work(&self, person: &PersonProfile, cx: &mut Context<Self>) -> AnyElement {
         let first = model::first_name(person).to_string();
         let mut column = v_flex().w_full().child(
@@ -239,8 +222,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// "Last time" (or "Last mentioned" when the notes come from an older
-    /// meeting), the meeting as a link, and up to three lines from its notes.
     fn last_time(
         &self,
         person: &PersonProfile,
@@ -277,9 +258,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// One line from meeting notes, with who said it when that is not the
-    /// person, and the moment in the call, which plays from there
-    /// (`NotePointRow`).
     fn note_point(
         &self,
         index: usize,
@@ -289,7 +267,6 @@ impl PeoplePage {
         let lb = cx.lb().clone();
         let page = cx.entity();
         let meeting_id = point.meeting_id;
-        // Who said it in semibold before the line (`NotePointRow`).
         let text: AnyElement = match &point.speaker {
             Some(speaker) => {
                 let lead = format!("{speaker}:");
@@ -331,8 +308,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// "Decided together": three, then Show more. Each names the meeting it
-    /// came from quietly at the trailing edge (`PageDecisionRow`).
     fn decisions(
         &self,
         person: &PersonProfile,
@@ -386,7 +361,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// Projects named around the person; a suggested one says so.
     fn projects(&self, person: &PersonProfile, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         side_block(lokalbot_i18n::tr("Projects"), None, cx)
@@ -423,8 +397,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// Meeting titles, a series opening to list each date; eight, then Show
-    /// more.
     fn meetings(
         &self,
         person: &PersonProfile,
@@ -464,9 +436,6 @@ impl PeoplePage {
         .into_any_element()
     }
 
-    /// A single meeting opens; a series opens to list each date. A call
-    /// recorded in parts is one meeting that opens its longest recording
-    /// (`MeetingSeriesRow`).
     fn series_row(
         &self,
         series: &Series,
@@ -538,7 +507,6 @@ impl PeoplePage {
             .into_any_element()
     }
 
-    /// Other names the person appears as.
     fn names(&self, person: &PersonProfile, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         side_block(lokalbot_i18n::tr("Names"), None, cx)

@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Settings → Phones & tablets: off by default, persisted like every other
-/// setting, and classified as consent when an agent widens it.
 final class CompanionSettingsTests: XCTestCase {
     func testSharingIsOffByDefaultWithGenerousClasses() {
         let settings = AppSettings()
@@ -73,10 +71,8 @@ final class CompanionSettingsTests: XCTestCase {
         XCTAssertEqual(AppState.SettingsTab(captureName: "phones & tablets"), .devices)
         XCTAssertEqual(AppState.SettingsTab(captureName: "devices"), .devices)
         XCTAssertEqual(AppState.SettingsTab.devices.displayName, "Phones & tablets")
-        // Sharing with other devices, beside AI agents.
         XCTAssertEqual(AppState.SettingsTab.devices.group, .sharing)
         XCTAssertTrue(SettingDescriptor.search("tailscale").contains { $0.id == "settings.companionSharingEnabled" })
-        // The other controls appear only once sharing is on.
         let port = try? XCTUnwrap(SettingDescriptor.all.first { $0.id == "settings.companionPort" })
         var settings = AppSettings()
         XCTAssertEqual(port?.focusTarget(in: settings), "settings.companionSharingEnabled")

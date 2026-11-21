@@ -1,10 +1,3 @@
-//! A saved meeting's page (`MeetingWorkspaceView.swift`, v2): one compact
-//! title block and the player pinned above content that fills the pane with
-//! 24px gutters. Summary is a recap lead panel, Decisions, Actions (For you /
-//! For others), Open questions and a closed Full summary panel; Notes is one
-//! panel with the save status in its footer. The Transcript tab is in
-//! `transcript.rs`, the naming sheet in `naming.rs`.
-
 use crate::i18n::h_flex;
 use crate::windows::screen_image::{self, ScreenImage};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -34,13 +27,9 @@ use crate::ui::action_row::{self, DueTone};
 use crate::ui::section_panel::{SectionPanel, SectionPanelLead, footer_text, panel_surface};
 use crate::ui::{self, Ico};
 
-/// The tone of a status line at the top of the content
-/// (`MeetingStatusBanner.Tone`).
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) enum BannerTone {
-    /// Something to notice or fix.
     Attention,
-    /// Work in progress or an offer.
     Info,
 }
 
@@ -49,7 +38,6 @@ impl MeetingsPage {
         self.data.read(cx).settings.text_size.scale()
     }
 
-    /// The page's column: the full pane up to its widest, with the gutters.
     pub(super) fn page_column(&self, cx: &gpui_kit::App) -> Div {
         v_flex()
             .w_full()
@@ -62,7 +50,6 @@ impl MeetingsPage {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        // "Try a sample meeting" holds the pane until its models are here or it is cancelled.
         if self.data.read(cx).sample_setup.is_some() {
             return crate::sample::render_setup(&self.data, cx);
         }
@@ -141,8 +128,6 @@ impl MeetingsPage {
             }
         };
 
-        // The title, who spoke and the player stay put on every tab; only
-        // the tab's content scrolls beneath them.
         v_flex()
             .size_full()
             .bg(lb.page)
@@ -163,8 +148,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// Several meetings selected: what can be done with them
-    /// (`MeetingLibraryDetailView.libraryContent`).
     fn render_multi_selection(&self, cx: &mut Context<Self>) -> AnyElement {
         let count = self.selection.len();
         let ids = self.selection.clone();
@@ -203,10 +186,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------- header
-
-    /// The meeting's one title: name, a date line, and who spoke. Unnamed
-    /// voices are named from here (`MeetingDetailHeader`).
     fn render_title_block(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let title = doc.meeting.display_title();
@@ -226,8 +205,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// "Today at 11:00 AM · 1 min · Zoom", and "Mic only" in amber when only
-    /// the microphone was recorded.
     fn render_date_line(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         use super::page_search::{MetadataField, app_chip, audio_chip};
         let lb = cx.lb().clone();
@@ -259,8 +236,6 @@ impl MeetingsPage {
             if ix > 0 {
                 row = row.child(div().flex_none().child(" · "));
             }
-            // Each part is its own line: "25 دقيقة" keeps its number in
-            // Arabic only with the right-to-left mark (as page search sees it).
             let text = lokalbot_i18n::directional(text);
             let marked =
                 self.find_marked(Location::Metadata(field), &text, text.clone(), false, cx);
@@ -284,7 +259,6 @@ impl MeetingsPage {
         row.into_any_element()
     }
 
-    /// Everyone who spoke, then "Name 2 speakers…" while voices need names.
     fn render_speaker_line(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> Option<AnyElement> {
         if doc.speakers.is_empty() {
             return None;
@@ -353,11 +327,6 @@ impl MeetingsPage {
         Some(row.into_any_element())
     }
 
-    // ------------------------------------------------------------- player
-
-    /// One slim bar under the title on every tab: play, who is speaking and
-    /// what is being said at the playhead, the waveform, the time and speed
-    /// (`MeetingPlayerBar`). It takes the panels' raised surface.
     fn render_player(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         if !doc.has_audio || self.player.is_none() {
@@ -505,8 +474,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// Who is speaking and what is being said at the playhead, with "Show in
-    /// transcript" off the Transcript tab.
     fn render_caption(&self, doc: &MeetingDoc, row: usize, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let Some(line) = doc.rows.get(row) else {
@@ -559,10 +526,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------- status
-
-    /// One line of status above the tab's content: what happened and, when
-    /// there is one, the single thing to do about it (`MeetingStatusBanner`).
     #[allow(clippy::too_many_arguments)]
     pub(super) fn banner(
         &self,
@@ -602,8 +565,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// The status lines above the tab's content, in the Mac's order
-    /// (`meetingStatusContent`).
     pub(super) fn render_status(
         &self,
         doc: &MeetingDoc,
@@ -738,7 +699,6 @@ impl MeetingsPage {
         out
     }
 
-    /// Processing, waiting for models or failed, each with its one action.
     fn render_stage(
         &self,
         doc: &MeetingDoc,
@@ -782,9 +742,6 @@ impl MeetingsPage {
                 cx,
             ),
             _ => {
-                // With nothing written yet, say what will appear and offer
-                // the transcript meanwhile. A refresh keeps the earlier
-                // summary below.
                 let awaits_first = self.tab == MeetingTab::Summary && !doc.has_summary_content();
                 let message = v_flex()
                     .gap(px(2.))
@@ -817,9 +774,6 @@ impl MeetingsPage {
         }
     }
 
-    /// Offered only after speaker names changed. The summary written before
-    /// the change stays on the page until the refresh finishes. Where the
-    /// refresh runs is said beside the button, as the consent boundary is.
     fn render_refresh_banner(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let settings = &self.data.read(cx).settings;
@@ -937,11 +891,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------ summary
-
-    /// The Summary tab leads with the outcome, each part on its own panel:
-    /// the recap, decisions, actions split by whose they are, open
-    /// questions, what was on screen, and the full summary on demand.
     fn render_summary(&mut self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let processing = self.data.read(cx).is_processing(doc.meeting.id);
         let mut panels: Vec<AnyElement> = Vec::new();
@@ -980,7 +929,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// The recap as the lead panel: five points, then "Show N More Points".
     fn render_recap(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let total = doc.recap.len();
@@ -1024,8 +972,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// Decisions: what was decided, and at the row's trailing edge the time
-    /// it was said, which plays in place.
     fn render_decisions(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let decisions = doc.shown_decisions();
@@ -1083,8 +1029,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// One panel for every action: a band for yours, then a band for
-    /// everyone else's. A side with none says so under its band.
     fn render_actions(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let actions = doc.shown_actions();
         let panel = ActionsPanel::new(actions);
@@ -1142,7 +1086,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// The one line under a band whose side of the meeting has no actions.
     fn empty_group_line(&self, text: &str, cx: &mut Context<Self>) -> AnyElement {
         div()
             .w_full()
@@ -1186,9 +1129,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// One action (`MeetingActionRow`): toggle, text, then the owner (on
-    /// other people's actions) as a small menu, the due date coloured as in
-    /// Actions, and a ▶ time that plays in place; the "…" menu at the end.
     fn render_action(
         &self,
         ix: usize,
@@ -1200,7 +1140,6 @@ impl MeetingsPage {
             return div().into_any_element();
         };
         let editable = doc.partial_progress.is_none();
-        // Previous notes kept on screen during a refresh can't change state.
         let can_set_status = editable && doc.has_projection;
         let done = action.status == ActionStatus::Done;
         let toggle = {
@@ -1302,9 +1241,6 @@ impl MeetingsPage {
         .into_any_element()
     }
 
-    /// Someone else's action carries its owner as a small menu; it turns
-    /// amber while the owner is missing or still an unnamed voice
-    /// (`MeetingActionOwnerMenu`).
     fn owner_chip(
         &self,
         ix: usize,
@@ -1412,7 +1348,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// The row's "…" menu: status, Owner, corrections and hand-offs.
     fn action_menu(
         &self,
         ix: usize,
@@ -1536,7 +1471,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// A panel that is only its header until it is opened in place.
     fn render_full_summary(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let expanded = self.full_notes_expanded;
@@ -1589,10 +1523,6 @@ impl MeetingsPage {
         panel.into_any_element()
     }
 
-    // -------------------------------------------------------------- notes
-
-    /// Your notes on one panel: the editor is its body, and the line that
-    /// says whether they are saved is its footer.
     fn render_notes_tab(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let status = self.notes.status.clone();
@@ -1631,11 +1561,6 @@ impl MeetingsPage {
         panel.into_any_element()
     }
 
-    // --------------------------------------------------------- on screen
-
-    /// `MeetingScreenMaterialsSection`. The time plays the recording from
-    /// when it first appeared, the capture opens in Timeline and a page whose
-    /// address was captured can be reopened.
     fn render_screen_materials(&self, doc: &MeetingDoc, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let rows: Vec<AnyElement> = doc
@@ -1700,7 +1625,6 @@ impl MeetingsPage {
                         ),
                     )
                     .child(
-                        // The retained capture, opening in Timeline.
                         div()
                             .id(("screen-open", ix))
                             .w(px(74.))
@@ -1772,10 +1696,8 @@ impl MeetingsPage {
         .into_any_element()
     }
 
-    /// A capture's small image, loading it the first time it is asked for.
     fn screen_thumbnail(&self, snapshot: i64, cx: &mut Context<Self>) -> Option<ScreenImage> {
         const PIXELS: u32 = 240;
-        /// A call shows few documents; later rows keep their icon.
         const MAX: usize = 32;
         {
             let thumbnails = self.screen_thumbnails.borrow();
@@ -1800,7 +1722,6 @@ impl MeetingsPage {
                 })
                 .await;
             let _ = this.update(cx, |_, cx| {
-                // A meeting that was left meanwhile gave its entries up.
                 if let Some(entry) = thumbnails.borrow_mut().get_mut(&snapshot) {
                     *entry = image;
                     cx.notify();
@@ -1811,7 +1732,6 @@ impl MeetingsPage {
         None
     }
 
-    /// Lets go of another meeting's pixels.
     pub(super) fn release_screen_thumbnails(
         &mut self,
         window: &mut Window,
@@ -1838,7 +1758,6 @@ impl MeetingsPage {
         }
     }
 
-    /// `MeetingOnScreenNowBar`: which window was in front at the playhead.
     pub(super) fn render_on_screen_now(
         &self,
         doc: &MeetingDoc,
@@ -1920,10 +1839,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------ actions
-
-    /// A ▶ time on a decision or action: play from there and stay on the
-    /// page. Without a recording, the line is shown in the transcript instead.
     pub(super) fn play_in_place(&mut self, seconds: f64, cx: &mut Context<Self>) {
         if self.player.is_some() {
             self.focus_at = Some(seconds);
@@ -1934,8 +1849,6 @@ impl MeetingsPage {
         }
     }
 
-    /// The player's "Show in transcript": go to the line being said, without
-    /// interrupting playback.
     pub(super) fn show_in_transcript(&mut self, seconds: f64, cx: &mut Context<Self>) {
         self.focus_at = Some(seconds);
         self.pending_reveal = true;
@@ -1944,7 +1857,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Saves a new owner picked from a row's menu.
     pub(super) fn set_owner(
         &mut self,
         option: &OwnerOption,
@@ -1997,7 +1909,6 @@ impl MeetingsPage {
         cx: &mut Context<Self>,
     ) {
         let Some(doc) = self.doc.clone() else { return };
-        // Actions become editable when the notes finish.
         if doc.partial_progress.is_some() {
             return;
         }
@@ -2011,7 +1922,6 @@ impl MeetingsPage {
         );
     }
 
-    /// Renames one speaker (`WorkspaceSpeakerRenameSheet`).
     pub(super) fn open_name_speaker(
         &mut self,
         speaker: model::ReviewSpeaker,
@@ -2050,7 +1960,6 @@ impl MeetingsPage {
         }
     }
 
-    /// The one sheet that goes through this meeting's unnamed voices.
     pub(super) fn open_naming_sheet(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(doc) = self.doc.clone() else { return };
         if doc.transcript.is_none() {
@@ -2066,10 +1975,6 @@ impl MeetingsPage {
         );
     }
 
-    // --------------------------------------------------------------- find
-
-    /// `text`, with Find's matches at `location` marked; the current one
-    /// scrolls into view (`MeetingPageSearchMatch`).
     pub(super) fn find_text(
         &self,
         location: Location,
@@ -2080,8 +1985,6 @@ impl MeetingsPage {
         self.find_marked(location, source, shown, true, cx)
     }
 
-    /// A small control that can't mark its own words, tinted while Find has a
-    /// match in it.
     fn find_tinted(
         &self,
         element: gpui_kit::Stateful<gpui_kit::Div>,
@@ -2117,8 +2020,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// `find_text`, for text that isn't in the overview's scroll view and so
-    /// has nothing to scroll with `anchored` off.
     pub(super) fn find_marked(
         &self,
         location: Location,
@@ -2134,8 +2035,6 @@ impl MeetingsPage {
             .iter()
             .filter(|found| found.location == location)
             .collect();
-        // A shown text that differs from its source (names filled in) keeps
-        // its ranges only when they still land on the same words.
         if matches.is_empty() || shown.as_ref() != source {
             return div().child(shown).into_any_element();
         }
@@ -2159,8 +2058,6 @@ impl MeetingsPage {
             .into_any_element()
     }
 
-    /// Plain lines with Find's matches marked, while Find has a match in a
-    /// Markdown block that cannot mark its own text; `None` otherwise.
     fn find_lines(
         &self,
         location: Location,
@@ -2209,8 +2106,6 @@ impl MeetingsPage {
         Some(v_flex().gap(px(3.)).children(lines).into_any_element())
     }
 
-    /// Marks where the current match is and, the first time it paints, scrolls
-    /// the overview so it shows.
     fn find_anchor(&self) -> impl IntoElement + use<> {
         let scroll = self.find.scroll.clone();
         let reveal = self.find.reveal.clone();
@@ -2242,13 +2137,11 @@ impl MeetingsPage {
 }
 
 impl MeetingDoc {
-    /// Decision and question text with display speaker names.
     pub(super) fn speakers_text(&self, text: &str) -> String {
         text.to_string()
     }
 }
 
-/// The owner a row shows: its name, or "No owner".
 pub(super) fn owner_text(action: &MeetingAction) -> String {
     action
         .owner_label
@@ -2256,8 +2149,6 @@ pub(super) fn owner_text(action: &MeetingAction) -> String {
         .unwrap_or_else(|| lokalbot_i18n::tr("No owner").to_string())
 }
 
-/// The line being said at `seconds`: the latest that has started, or the
-/// first before any speech (`PlayheadIndex.caption`).
 pub(super) fn caption_at(doc: &MeetingDoc, seconds: f64) -> Option<usize> {
     if doc.rows.is_empty() {
         return None;
@@ -2270,8 +2161,6 @@ pub(super) fn caption_at(doc: &MeetingDoc, seconds: f64) -> Option<usize> {
     )
 }
 
-/// The small amber control that asks for a missing name
-/// (`MeetingAttentionChipStyle`).
 fn attention_chip(
     id: &'static str,
     label: impl Into<SharedString>,
@@ -2303,8 +2192,6 @@ fn highlight(attention: &Hsla, current: bool) -> gpui_kit::HighlightStyle {
     }
 }
 
-/// "Gmail · 4 min on screen"; the source is left out when the title already
-/// names it.
 fn screen_detail(material: &lokalbot_core::meeting_screen::Material) -> String {
     let source = material.site.as_deref().unwrap_or(&material.app);
     let minutes = (material.seconds_on_screen / 60.).round() as u64;

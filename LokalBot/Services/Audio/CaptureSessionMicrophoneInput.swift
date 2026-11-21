@@ -2,29 +2,11 @@ import AVFoundation
 import CoreMedia
 import Foundation
 
-/// Dictation's microphone: an `AVCaptureSession` on the default input device.
-///
-/// `AVAudioEngine` stops itself whenever the I/O hardware format changes, and
-/// a Bluetooth headset changes format as soon as its microphone opens (AirPods
-/// switch from music to headset mode). The engine therefore stopped right after
-/// it started; rebuilding it a second later had already released the
-/// microphone, so the headset fell back to music mode and the next start
-/// repeated the cycle. Dictation kept recording fragments while the microphone
-/// indicator flickered. A capture session keeps the device open across those
-/// format changes and converts every buffer to one fixed client format, so a
-/// headset switch never reaches the writer.
-///
-/// Starting and stopping run on a private serial queue: opening a Bluetooth
-/// microphone can take a second, and the main thread also services the global
-/// dictation shortcut's keyboard event tap.
 final class CaptureSessionMicrophoneInput: NSObject, MicrophoneInput,
     AVCaptureAudioDataOutputSampleBufferDelegate {
-    /// Every instance starts and stops on this one queue, so a new session
-    /// cannot open the device while an earlier one is still closing.
     private static let sessionQueue = DispatchQueue(
         label: "me.dotenv.LokalBot.dictation-microphone.session", qos: .userInitiated)
 
-    /// Speech recognition runs at 16 kHz mono, so dictation records exactly that.
     static let clientFormat = AVAudioFormat(
         commonFormat: .pcmFormatFloat32, sampleRate: 16_000, channels: 1, interleaved: false)!
 
@@ -90,9 +72,6 @@ final class CaptureSessionMicrophoneInput: NSObject, MicrophoneInput,
         }
     }
 
-    /// True from `start()` until the session fails or is stopped. A session
-    /// that is still opening counts as running so health checks do not tear
-    /// down a Bluetooth microphone that is mid-switch.
     var isRunning: Bool {
         lock.lock()
         let state = self.state
@@ -176,7 +155,6 @@ final class CaptureSessionMicrophoneInput: NSObject, MicrophoneInput,
         return status == noErr ? buffer : nil
     }
 
-    /// The buffer's start on the host clock, like an `AVAudioEngine` tap.
     private func audioTime(for sampleBuffer: CMSampleBuffer) -> AVAudioTime {
         let presentation = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         if presentation.isValid, let clock = session.synchronizationClock {

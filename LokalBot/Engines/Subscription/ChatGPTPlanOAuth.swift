@@ -2,28 +2,17 @@ import CryptoKit
 import Foundation
 import Security
 
-/// OpenAI's Sign in with ChatGPT for open-source apps ("token sharing"),
-/// documented at developers.openai.com/siwc/token-sharing-open-source
-/// (2026-10). The first sign-in registers this Mac's LokalBot as a client
-/// (`dynamic_agent_client`); OpenAI returns the issued client id in the
-/// callback, and later sign-ins and refreshes use that id. No client secret
-/// or API key exists in this flow.
 enum ChatGPTPlanOAuth {
     static let issuer = "https://auth.openai.com"
     static let authorizeURL = URL(string: "https://auth.openai.com/api/accounts/authorize")!
     static let tokenURL = URL(string: "https://auth.openai.com/api/accounts/oauth/token")!
     static let discoveryURL = URL(string: "https://auth.openai.com/.well-known/openid-configuration")!
-    /// Only the entry point of a first registration. Never stored, never sent
-    /// to the token endpoint.
     static let registrationClientID = "dynamic_agent_client"
     static let agentName = "LokalBot"
     static let scope = "openid profile email offline_access resource.invoke chatgpt.tokens.use.direct"
-    /// The grant that lets requests draw on the ChatGPT plan. A valid sign-in
-    /// without it identifies the user but authorizes no inference.
     static let planScope = "chatgpt.tokens.use.direct"
     static let resource = "https://api.openai.com/v1"
     static let callbackPath = "/auth/callback"
-    /// OpenAI's example port. Any port works; only the port may vary.
     static let preferredCallbackPort: UInt16 = 1455
 
     static func redirectURI(port: UInt16) -> URL {
@@ -41,14 +30,12 @@ enum ChatGPTPlanOAuth {
     }
 
     struct AuthorizationRequest: Equatable, Sendable {
-        /// The issued client id, or nil for a first registration.
         var clientID: String?
         var hostID: String
         var redirectURI: URL
         var state: String
         var nonce: String
         var pkce: PKCE
-        /// A previous ID token skips OpenAI's account picker on return.
         var idTokenHint: String?
         var loginHint: String?
 
@@ -76,8 +63,6 @@ enum ChatGPTPlanOAuth {
             if let loginHint, !loginHint.isEmpty {
                 items.append(URLQueryItem(name: "login_hint", value: loginHint))
             }
-            // Strict escaping: URLComponents leaves "@", "+", ":" and "/"
-            // as-is in a query, and OpenAI's examples escape the hints.
             let query = items.map { item in
                 "\(item.name)=\(ChatGPTPlanOAuth.formEscaped(item.value ?? ""))"
             }.joined(separator: "&")
@@ -86,13 +71,10 @@ enum ChatGPTPlanOAuth {
     }
 
     enum CallbackOutcome: Equatable, Sendable {
-        /// `clientID` is the issued id when the callback names one.
         case code(String, clientID: String?)
         case denied
     }
 
-    /// Validates `state` before anything else, so a forged request from
-    /// another local process can neither complete nor cancel a sign-in.
     static func parseCallback(_ query: [String: String], expectedState: String,
                               expectedClientID: String?) throws -> CallbackOutcome {
         guard let state = query["state"], state == expectedState else {
@@ -128,7 +110,6 @@ enum ChatGPTPlanOAuth {
         ])
     }
 
-    /// `scope` is omitted so the refresh keeps the whole grant.
     static func refreshRequest(refreshToken: String, clientID: String) -> URLRequest {
         formRequest(tokenURL, [
             "grant_type": "refresh_token",
@@ -157,7 +138,6 @@ enum ChatGPTPlanOAuth {
         return request
     }
 
-    /// Percent-encodes everything outside RFC 3986's unreserved characters.
     static func formEscaped(_ value: String) -> String {
         let unreserved = CharacterSet(charactersIn:
             "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
@@ -184,14 +164,11 @@ enum ChatGPTPlanOAuth {
         }
     }
 
-    /// Refresh errors after which the refresh token is unusable and the user
-    /// must sign in again with the saved registration.
     static let terminalRefreshErrors: Set<String> = [
         "invalid_grant", "invalid_refresh_token", "token_expired", "refresh_token_expired",
         "refresh_token_invalidated", "refresh_token_reused",
     ]
 
-    /// The OAuth `error` code from a token-endpoint failure body.
     static func oauthErrorCode(_ data: Data) -> String? {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
         if let code = json["error"] as? String { return code }
@@ -251,11 +228,6 @@ enum ChatGPTPlanError: LocalizedError, Equatable, Sendable {
     }
 }
 
-// MARK: - ID token
-
-/// Validates an OpenID Connect ID token from OpenAI: signature against the
-/// issuer's published keys (RS256 or ES256), then issuer, audience, expiry
-/// and nonce.
 enum ChatGPTIDToken {
     struct Claims: Equatable, Sendable {
         var subject: String
@@ -357,7 +329,6 @@ enum ChatGPTIDToken {
                                     attributes as CFDictionary, nil)
     }
 
-    /// PKCS#1 RSAPublicKey: SEQUENCE { INTEGER modulus, INTEGER exponent }.
     static func rsaPublicKeyDER(modulus: Data, exponent: Data) -> Data {
         func length(_ count: Int) -> Data {
             if count < 0x80 { return Data([UInt8(count)]) }

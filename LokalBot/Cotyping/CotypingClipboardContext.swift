@@ -6,10 +6,6 @@
 import AppKit
 import Foundation
 
-/// Deterministic sanitizer for auxiliary context that did not come from the
-/// focused text field. Clipboard text often carries shell prompts, Markdown
-/// fences, ANSI color escapes, and punctuation-heavy output that small local
-/// models can copy back into suggestions.
 enum CotypingPromptContextSanitizer {
     private static let ansiEscapePattern = "\u{001B}\\[[0-?]*[ -/]*[@-~]"
     private static let allowedCharacters = CharacterSet.alphanumerics
@@ -55,25 +51,11 @@ enum CotypingPromptContextSanitizer {
     }
 }
 
-/// Sanitized clipboard context folded into the cotyping prompt so the model can
-/// "see" what was just copied — a trimmed port of Cotabby's clipboard context
-/// (`ClipboardRelevanceFilter` + request-factory clipping). The sanitization,
-/// bounding, relevance checks, and an "already-in-the-field" guard are pure
-/// here; reading the pasteboard is a thin runtime wrapper
-/// (`CotypingClipboardProvider`).
-///
-/// Enabled by default when cotyping runs; snippets may be memoized in memory for
-/// one focused field/pasteboard state to keep the prompt prefix stable, but are
-/// never persisted or logged.
 enum CotypingClipboardContext {
-    /// Hard cap on the snippet included in the prompt (mirrors Cotabby's 1_200).
     static let maxSnippetCharacters = 1_200
     private static let compactLineThreshold = 3
     private static let headFallbackCharacters = 300
 
-    /// Sanitizes raw clipboard text: strips prompt-shaped noise, collapses
-    /// inline whitespace, keeps meaningful line boundaries, and caps the length.
-    /// Nil for empty, whitespace-only, or punctuation-only input.
     static func sanitize(_ raw: String?, maxCharacters: Int? = maxSnippetCharacters) -> String? {
         guard let raw else { return nil }
         let sanitized = CotypingPromptContextSanitizer.sanitize(raw, maxCharacters: maxCharacters)
@@ -85,9 +67,6 @@ enum CotypingClipboardContext {
         return sanitized
     }
 
-    /// Whether a clipboard snippet is worth including: false when it is empty, or
-    /// when it is already present in the text the user is typing (no point
-    /// re-injecting what is already in the field — e.g. right after pasting it).
     static func shouldInclude(snippet: String?, precedingText: String) -> Bool {
         guard let snippet, !snippet.isEmpty else { return false }
         let normalizedSnippet = collapsedContainmentText(snippet)
@@ -97,7 +76,6 @@ enum CotypingClipboardContext {
         return !normalizedPreceding.contains(normalizedSnippet)
     }
 
-    /// Convenience: sanitize + guard → the snippet to include, or nil.
     static func resolve(rawClipboard: String?, precedingText: String,
                         maxCharacters: Int = maxSnippetCharacters) -> String? {
         guard let sanitized = sanitize(rawClipboard, maxCharacters: nil) else { return nil }
@@ -111,9 +89,6 @@ enum CotypingClipboardContext {
         CotypingPromptContextSanitizer.significantTokens(from: text, minimumLength: minimumLength)
     }
 
-    /// Keep only the clipboard lines that share meaningful tokens with the
-    /// current prefix. Short snippets pass through unchanged; long unrelated
-    /// copies fall back to a small head sample rather than crowding the prompt.
     private static func distill(clipboard: String, prefixText: String) -> String {
         let lines = clipboard.components(separatedBy: "\n")
         guard lines.count > compactLineThreshold else { return clipboard }
@@ -136,10 +111,6 @@ enum CotypingClipboardContext {
     }
 }
 
-/// CoTabby-style gate for clipboard context. The first pasteboard observation is
-/// treated as an unknown-age baseline, not a fresh copy. Only later copies made
-/// during this app session can enter the prompt, and then only while fresh and
-/// related to the typed prefix.
 final class CotypingClipboardRelevanceFilter {
     static let staleThresholdSeconds: TimeInterval = 300
 
@@ -189,9 +160,6 @@ final class CotypingClipboardRelevanceFilter {
     }
 }
 
-/// One pinned, non-empty clipboard-context verdict for a focused field and a
-/// pasteboard state. Nil verdicts are intentionally not represented: they add
-/// nothing to the prompt and should re-evaluate as the user types more context.
 nonisolated struct CotypingClipboardPrefaceMemo: Equatable, Sendable {
     let identityKey: String
     let changeCount: Int
@@ -267,8 +235,6 @@ struct CotypingClipboardSnapshot: Equatable, Sendable {
     let text: String
 }
 
-/// Checks sensitivity markers before asking a pasteboard owner for any text.
-/// A concurrent pasteboard change invalidates the entire observation.
 @MainActor
 final class CotypingClipboardProvider {
     private let readChangeCount: () -> Int

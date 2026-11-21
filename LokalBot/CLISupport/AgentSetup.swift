@@ -1,14 +1,7 @@
 import Foundation
 
-/// The one way the terminal can ask for access: a short-lived request file in
-/// the library's `control/` folder that the app shows to the person. Only the
-/// app writes grant markers, and only after the person allows the request in
-/// LokalBot. A request written by any other process gains nothing without
-/// that click.
 enum AgentSetup {
-    /// Passed by `lokalbot-cli setup start` when it opens the app.
     static let launchArgument = "--lokalbot-agent-setup"
-    /// Posted by the CLI so a running LokalBot looks for a new request.
     static let notificationName = "me.dotenv.LokalBot.agent-setup-requested"
     static let lifetime: TimeInterval = 5 * 60
     static let maximumFileBytes = 16_384
@@ -17,15 +10,12 @@ enum AgentSetup {
         case settings
         case meetingLibrary
         case screenMemory
-        /// Search the folders chosen under Files (`search_files`).
         case files
     }
 
     struct Request: Codable, Equatable {
         var version = 1
         var nonce: String
-        /// Who asked, as the CLI saw its own process tree, for example
-        /// "lokalbot-cli via claude". Shown to the person, never trusted.
         var requester: String
         var grants: [Grant]
         var createdAt: Date
@@ -41,7 +31,6 @@ enum AgentSetup {
     struct Answer: Codable, Equatable {
         var nonce: String
         var state: SettingsRequestState
-        /// What the person allowed; empty when they declined.
         var grants: [Grant]
         var answeredAt: Date
     }
@@ -67,7 +56,6 @@ enum AgentSetup {
         return try? decoder.decode(type, from: data)
     }
 
-    /// Writes into the private control folder, readable by this user only.
     static func write<T: Encodable>(_ value: T, to url: URL) throws {
         let directory = url.deletingLastPathComponent()
         try FileManager.default.createDirectory(
@@ -80,9 +68,6 @@ enum AgentSetup {
     }
 }
 
-/// Names the program behind a process: its own name and, when it runs under
-/// a shell, the nearest ancestor that is not one, such as "lokalbot-cli via
-/// claude". Used for the audit log and the setup request.
 enum ProcessAncestry {
     static func describe(pid: Int32) -> String? {
         guard let name = processName(pid) else { return nil }
@@ -132,11 +117,7 @@ enum ProcessAncestry {
     }
 }
 
-/// What `setup plan` prints and `setup apply` reads: the settings a setup
-/// conversation covers, a model preset, and launch at login. `settings` has
-/// the same shape as `config export`, so `config import` reads it too.
 struct SetupPlan: Codable, Equatable {
-    /// The settings to talk through with the person, in the order to ask.
     static let keys = [
         "autoRecordMode", "calendarDetectionEnabled", "transcriptionLanguage", "summaryLanguage", "noteTemplate",
         "trackingEnabled", "screenContextCaptureMode", "codingAgentEvidenceEnabled",

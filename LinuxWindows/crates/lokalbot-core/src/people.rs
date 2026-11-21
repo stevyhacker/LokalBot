@@ -1,8 +1,3 @@
-//! People: profiles joined from calendar attendees, speaker names the user
-//! applied and action owners (`PeopleDirectory.swift`, `PersonNotes.swift`).
-//! Attendee email addresses are private join keys only: they never appear
-//! in a profile, its ID or anything derived from it.
-
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::sync::{LazyLock, OnceLock};
 
@@ -17,37 +12,26 @@ use crate::model::*;
 
 pub mod upcoming;
 
-/// Decisions kept per person.
 pub const MAXIMUM_DECISIONS: usize = 8;
-/// A meeting with at most this many other named people counts as "with"
-/// each of them for the user's own commitments.
 pub const SMALL_MEETING_SIZE: usize = 2;
-/// Decisions from meetings this small belong to every attendee.
 pub const DECISION_MEETING_SIZE: usize = 4;
-/// A second recording within this long of the first one's end, with the
-/// same title, is the same call.
 pub const RECORDING_GAP_TOLERANCE_SECONDS: i64 = 15 * 60;
 const MAXIMUM_NOTE_POINTS: usize = 3;
 const MAXIMUM_NOTE_MEETINGS: usize = 8;
 const MAXIMUM_NOTE_CHARACTERS: usize = 280;
 
-/// `person-%016llx` of a join key (`email:<address>` or `name:<normalized>`).
 pub fn person_id(key: &str) -> String {
     format!("person-{}", crate::ids::fnv_hex(key))
 }
 
-/// The ID a name-only person gets.
 pub fn person_id_for_name(name: &str) -> String {
     person_id(&format!("name:{}", normalized(name)))
 }
 
-/// Folded alphanumeric words (`PeopleDirectory.normalized`).
 pub fn normalized(value: &str) -> String {
     normalized_words(value)
 }
 
-/// The user's own name: the configured autocomplete name when set, else
-/// the operating-system account's full name (`NSFullUserName` on macOS).
 pub fn user_full_name(configured: Option<&str>) -> Option<String> {
     if let Some(name) = configured.map(str::trim).filter(|n| !n.is_empty()) {
         return Some(name.to_string());
@@ -75,7 +59,6 @@ fn os_full_name() -> Option<String> {
     None
 }
 
-/// The GECOS full name (before the first comma) of `user` in `/etc/passwd`.
 pub fn passwd_full_name(passwd: &str, user: &str) -> Option<String> {
     passwd.lines().find_map(|line| {
         let fields: Vec<&str> = line.split(':').collect();
@@ -91,13 +74,11 @@ pub fn passwd_full_name(passwd: &str, user: &str) -> Option<String> {
 fn windows_full_name() -> Option<String> {
     use windows_sys::Win32::Security::Authentication::Identity::{GetUserNameExW, NameDisplay};
     let mut size: u32 = 0;
-    // SAFETY: a null buffer with size 0 only queries the required length.
     unsafe { GetUserNameExW(NameDisplay, std::ptr::null_mut(), &mut size) };
     if size == 0 {
         return None;
     }
     let mut buffer = vec![0u16; size as usize + 1];
-    // SAFETY: `buffer` holds `size` UTF-16 units plus a terminator, as requested.
     let ok = unsafe { GetUserNameExW(NameDisplay, buffer.as_mut_ptr(), &mut size) };
     if !ok {
         return None;
@@ -117,13 +98,11 @@ static PLACEHOLDER: LazyLock<Regex> = LazyLock::new(|| {
         .expect("valid regex")
 });
 
-/// Removes merge suffixes ("· source 2") and trailing notes ("(host)").
 pub fn cleaned_name(name: &str) -> String {
     let without_source = SOURCE_SUFFIX.replace(name, "");
     PAREN_SUFFIX.replace(&without_source, "").trim().to_string()
 }
 
-/// Speaker labels and collective words name no one.
 pub fn is_placeholder(name: &str) -> bool {
     let key = normalized(&cleaned_name(name));
     const COLLECTIVE: &[&str] = &[
@@ -145,7 +124,6 @@ pub fn is_placeholder(name: &str) -> bool {
     key.is_empty() || COLLECTIVE.contains(&key.as_str()) || PLACEHOLDER.is_match(&key)
 }
 
-/// One to four name-like words with no group or role words.
 pub fn is_person_name(name: &str) -> bool {
     if is_placeholder(name)
         || name.contains('/')
@@ -199,7 +177,6 @@ pub fn is_person_name(name: &str) -> bool {
         && !words.iter().any(|w| GROUP_WORDS.contains(w))
 }
 
-/// Whole-word match of a full name or a first name of 3+ letters.
 pub fn mentions(text: &str, name: &str) -> bool {
     let words = format!(" {} ", normalized(text));
     let full = normalized(name);
@@ -220,8 +197,6 @@ const COMMON_WORD_NAMES: &[&str] = &[
     "june", "april", "august", "art", "joy", "faith", "dawn", "rich", "case",
 ];
 
-/// Whether `text` names the person: the full name, or a capitalized first
-/// name of 3+ letters that is not a common word starting a sentence.
 pub fn is_named(name: &str, text: &str) -> bool {
     let name_words: Vec<String> = normalized(name)
         .split(' ')
@@ -277,7 +252,6 @@ pub fn is_named(name: &str, text: &str) -> bool {
     false
 }
 
-/// Matches the user's own names (`PeopleDirectory.SelfMatcher`).
 pub(crate) struct SelfMatcher {
     full: HashSet<String>,
     first: HashSet<String>,
@@ -321,7 +295,6 @@ impl SelfMatcher {
     }
 }
 
-/// Speaker names the user applied in one meeting (`MeetingAppliedSpeakerNames`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct AppliedNames {
     pub names: Vec<String>,
@@ -365,7 +338,6 @@ impl AppliedNames {
     }
 }
 
-/// Calendar attendees, deduplicated by address then by name.
 fn resolved_identities(meeting: &Meeting) -> Vec<CalendarParticipantIdentity> {
     let raw: Vec<CalendarParticipantIdentity> = match &meeting.calendar_participant_identities {
         Some(identities) if !identities.is_empty() => identities.clone(),
@@ -453,7 +425,6 @@ const PUBLIC_MAIL_DOMAINS: &[&str] = &[
     "hey.com",
 ];
 
-/// A name suggested by an attendee address ("dragan@…", "ana.petrovic@gmail…").
 fn name_from_address(identity: &CalendarParticipantIdentity) -> Option<String> {
     if identity.name.is_some() {
         return None;
@@ -539,8 +510,6 @@ struct Entry {
     decisions: BTreeMap<String, (MeetingRef, Decision)>,
 }
 
-/// Joins calendar identities by address when present, otherwise by full
-/// normalized name (`PeopleDirectory.Registry`).
 #[derive(Default)]
 struct Registry {
     entries: HashMap<String, Entry>,
@@ -631,7 +600,6 @@ impl Registry {
             .unwrap_or_default()
     }
 
-    /// Exact full-name match first, then a unique first-name match.
     fn resolve(&self, name: &str, among: Option<&BTreeSet<String>>) -> Option<String> {
         let target = normalized(name);
         let candidates: Vec<String> = match among {
@@ -706,7 +674,6 @@ impl Registry {
         }
     }
 
-    /// A first name alone joins the one person whose full name starts with it.
     fn merge_first_names_into_full_names(&mut self) {
         let mut full_by_first: HashMap<String, BTreeSet<String>> = HashMap::new();
         for key in &self.order {
@@ -792,7 +759,6 @@ impl Registry {
     }
 }
 
-/// The fullest name first, then the most frequent spelling.
 fn ranked_names(entry: &Entry) -> Vec<String> {
     let mut names: Vec<(&String, &usize)> = entry.name_counts.iter().collect();
     names.sort_by(|a, b| {
@@ -813,7 +779,6 @@ fn by_recency(threads: impl Iterator<Item = ActionThread>) -> Vec<ActionThread> 
     threads
 }
 
-/// Everything the directory is built from.
 pub struct PeopleInput<'a> {
     pub meetings: &'a [Meeting],
     pub projections: &'a [crate::actions::OutcomeProjection],
@@ -823,7 +788,6 @@ pub struct PeopleInput<'a> {
     pub today: NaiveDate,
 }
 
-/// Builds every person profile (`PeopleDirectory.build`), most recently met first.
 pub fn build_people(input: &PeopleInput) -> Vec<PersonProfile> {
     let mut people = Registry::default();
     let meetings: Vec<&Meeting> = input.meetings.iter().filter(|m| m.is_own_work()).collect();
@@ -1065,7 +1029,6 @@ pub fn build_people(input: &PeopleInput) -> Vec<PersonProfile> {
     profiles
 }
 
-/// Recordings grouped into the meetings they belong to, newest first.
 pub fn occasions(meetings: &[MeetingRef]) -> Vec<Vec<MeetingRef>> {
     let mut sorted = meetings.to_vec();
     sorted.sort_by_key(|m| std::cmp::Reverse(m.started_at));
@@ -1082,7 +1045,6 @@ pub fn occasions(meetings: &[MeetingRef]) -> Vec<Vec<MeetingRef>> {
     groups
 }
 
-/// Same local day and calendar event, or same title within 15 minutes.
 pub fn same_occasion(left: &MeetingRef, right: &MeetingRef) -> bool {
     if crate::time::local_day(left.started_at) != crate::time::local_day(right.started_at) {
         return false;
@@ -1102,7 +1064,6 @@ pub fn same_occasion(left: &MeetingRef, right: &MeetingRef) -> bool {
     later.started_at <= earlier_end + chrono::Duration::seconds(RECORDING_GAP_TOLERANCE_SECONDS)
 }
 
-/// The occasion's longest recording, the one worth opening.
 pub fn primary(occasion: &[MeetingRef]) -> &MeetingRef {
     let duration = |m: &MeetingRef| {
         (m.ended_at.unwrap_or(m.started_at) - m.started_at)
@@ -1119,9 +1080,6 @@ pub fn primary(occasion: &[MeetingRef]) -> &MeetingRef {
         .unwrap_or(&occasion[0])
 }
 
-// ------------------------------------------------------------------ notes
-
-/// One summary bullet (`PersonNotes.SummaryLine`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct SummaryLine {
     pub section: String,
@@ -1158,7 +1116,6 @@ const SKIPPED_SECTIONS: &[&str] = &[
 ];
 const OVERVIEW_SECTIONS: &[&str] = &["tl dr", "tldr", "summary", "overview", "key points"];
 
-/// Summary bullets outside action/decision sections (`PersonNotes.lines`).
 pub fn summary_lines(markdown: &str) -> Vec<SummaryLine> {
     let mut result = Vec::new();
     let mut section = String::new();
@@ -1245,7 +1202,6 @@ fn is_person(speaker: &str, names: &[String]) -> bool {
     })
 }
 
-/// Whether a summary line was said by the person or names them.
 pub(crate) fn line_is_about(
     line: &SummaryLine,
     person: &PersonProfile,
@@ -1254,8 +1210,6 @@ pub(crate) fn line_is_about(
     note_point(line, Uuid::nil(), person, applied).is_some()
 }
 
-/// A summary line said by the person or naming them, as shown on their page
-/// (`PersonNotes.point`); `None` when the line is about someone else.
 pub fn note_point(
     line: &SummaryLine,
     meeting_id: Uuid,
@@ -1294,18 +1248,13 @@ pub fn note_point(
     }))
 }
 
-/// What the newest meeting notes about a person say (`PersonProfile.RecentNotes`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct RecentNotes {
     pub meeting: MeetingRef,
-    /// The notes come from the newest meeting with the person.
     pub is_latest_meeting: bool,
     pub points: Vec<NotePoint>,
 }
 
-/// The newest meeting whose notes say something about the person
-/// (`PersonNotes.recentNotes`): up to three lines, or a small meeting's
-/// overview when no line names them.
 pub fn recent_notes(
     person: &PersonProfile,
     lines: &HashMap<Uuid, Vec<SummaryLine>>,
@@ -1360,9 +1309,6 @@ pub fn recent_notes(
     None
 }
 
-/// The meetings to offer "Draft Follow-up" for, newest first: each occasion's
-/// main recording when it was small enough to be with this person, rather
-/// than a team call they happened to attend (`followUpMeeting`).
 pub fn follow_up_candidates(person: &PersonProfile) -> Vec<MeetingRef> {
     occasions(&person.meetings)
         .iter()
@@ -1371,7 +1317,6 @@ pub fn follow_up_candidates(person: &PersonProfile) -> Vec<MeetingRef> {
         .collect()
 }
 
-/// The "Prepare in Agent…" prompt (`PersonDetailView.preparationPrompt`).
 pub fn preparation_prompt(person: &PersonProfile) -> String {
     let mut lines = vec![format!(
         "Help me prepare for my next conversation with {}.",
@@ -1436,10 +1381,7 @@ pub fn preparation_prompt(person: &PersonProfile) -> String {
     lines.join("\n")
 }
 
-// ---------------------------------------------------------------- library
-
 impl Library {
-    /// The user's own names, excluded from people.
     pub fn self_names(&self) -> Vec<String> {
         let settings = crate::settings::Settings::load(&self.paths().settings_file());
         user_full_name(Some(&settings.cotyping_user_name))
@@ -1454,7 +1396,6 @@ impl Library {
         )
     }
 
-    /// Saves corrections; an empty curation deletes the file.
     pub fn save_people_curation(&self, curation: &PeopleCuration) -> Result<()> {
         let path = self.paths().people_dir().join("curation.json");
         if curation.names.is_empty() && curation.merges.is_empty() && curation.hidden.is_empty() {
@@ -1472,13 +1413,10 @@ impl Library {
         Ok(())
     }
 
-    /// Everyone the user meets, most recently met first, with recent notes
-    /// and the projects named around them.
     pub fn people(&self) -> Result<Vec<PersonProfile>> {
         Ok(crate::projects::build_people_and_projects(self)?.0)
     }
 
-    /// Speaker names applied per meeting.
     pub fn applied_names(&self, meetings: &[Meeting]) -> HashMap<Uuid, AppliedNames> {
         meetings
             .iter()
@@ -1574,12 +1512,10 @@ mod tests {
         let lines = summary_lines(
             "## Key points\n- **Ana Petrovic:** Launch moves to Tuesday. — [00:01:36]\n- **You:** Ana will own the launch checklist.\n- **Marko:** Ana said the budget is settled.\n- Nobody mentioned the budget again.\n",
         );
-        // Her own line carries no label, and keeps its moment.
         let own = note_point(&lines[0], id, &ana, None).unwrap();
         assert_eq!(own.speaker, None);
         assert_eq!(own.seek, Some(96.0));
         assert_eq!(own.meeting_id, id);
-        // The user's line about her says who said it.
         assert_eq!(
             note_point(&lines[1], id, &ana, None)
                 .unwrap()
@@ -1587,7 +1523,6 @@ mod tests {
                 .as_deref(),
             Some("You")
         );
-        // So does somebody else's.
         assert_eq!(
             note_point(&lines[2], id, &ana, None)
                 .unwrap()
@@ -1595,7 +1530,6 @@ mod tests {
                 .as_deref(),
             Some("Marko")
         );
-        // A line about someone else is not hers.
         assert!(note_point(&lines[3], id, &ana, None).is_none());
     }
 
@@ -1687,7 +1621,6 @@ mod tests {
         );
     }
 
-    /// `people/curation.json` as `PeopleStore` writes it (sorted, pretty keys).
     #[test]
     fn curation_reads_and_writes_the_mac_format() {
         let mac = r#"{
@@ -1732,7 +1665,6 @@ mod tests {
         assert!(curation.merge(&source, &target));
         assert!(curation.names.is_empty(), "the source's chosen names go");
         assert_eq!(curation.merges[0].source_name, "Stevan B");
-        // The folded profile lists both ids, so Separate finds the merge.
         let mut folded = target.clone();
         folded.member_ids.push(source.id.clone());
         assert_eq!(curation.merges_into(&folded).len(), 1);

@@ -1,8 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// One glanceable page: what needs attention, the digest, today's meetings
-/// and time, and how fresh the copy is. Pull to sync with the Mac.
 struct TodayScreen: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppNavigator.self) private var navigator
@@ -33,7 +31,6 @@ struct TodayScreen: View {
         .task(id: session.revision) { await model.load(session) }
     }
 
-    /// Side by side from about 760 pt: the work on the left, the digest on the right.
     private var wide: some View {
         VStack(alignment: .leading, spacing: LBTokens.Spacing.sectionSpacing) {
             header

@@ -1,9 +1,4 @@
 #!/usr/bin/env bash
-# Build one upgrade fixture on a CLEAN hosted Mac: seed with that release's
-# own seed script, write its settings, open the library with that release's
-# signed build (headless), and export library + defaults + test key.
-# Writes the real me.dotenv.LokalBot defaults domain and Keychain items, so
-# it refuses to run outside CI.
 set -euo pipefail
 [[ "${CI:-}" == "true" ]] || { echo "generate.sh writes the app's real defaults and Keychain; run it only in CI" >&2; exit 2; }
 VERSION="${1:?version}"
@@ -13,13 +8,9 @@ WORK=$(mktemp -d)
 LIB="$WORK/library"
 DOMAIN=me.dotenv.LokalBot
 
-# The seed script as that release shipped it. Releases tagged before the November
-# 2026 reorganization kept it at Scripts/seed_demo_library.py.
 git -C "$ROOT_DIR" show "v$VERSION:Scripts/test/seed_demo_library.py" > "$WORK/seed.py" 2>/dev/null \
   || git -C "$ROOT_DIR" show "v$VERSION:Scripts/seed_demo_library.py" > "$WORK/seed.py"
 python3 "$WORK/seed.py" "$LIB"
-# Releases with Personal Context seed it as plaintext; a real library holds it
-# sealed with the chat key, so seal it with the fixture's key.
 if [[ -f "$LIB/memory/personal-model.json" ]]; then
   swift "$ROOT_DIR/Scripts/test/upgrade-fixtures/seal.swift" \
     "$(python3 "$ROOT_DIR/Scripts/test/upgrade-fixtures/settings.py" key chat-key)" \
@@ -36,7 +27,6 @@ for account in screenshot-key chat-key; do
     -X "$(python3 "$ROOT_DIR/Scripts/test/upgrade-fixtures/settings.py" key "$account")"
 done
 
-# Releases before 0.11.2 only have LokalBot.dmg; later ones add the version.
 gh release download "v$VERSION" --repo stevyhacker/LokalBot \
   --pattern "LokalBot-$VERSION-macos-arm64.dmg" --output "$WORK/LokalBot.dmg" 2>/dev/null \
   || gh release download "v$VERSION" --repo stevyhacker/LokalBot --pattern LokalBot.dmg --dir "$WORK"
@@ -49,7 +39,6 @@ LOKALBOT_STORAGE_ROOT="$LIB" "$WORK/LokalBot.app/Contents/MacOS/LokalBot" --sear
 
 mkdir -p "$OUT"
 rsync -a --exclude models --exclude debug.log --exclude 'debug.log.*' "$LIB/" "$OUT/library/"
-# Fold the write-ahead log into the database so the fixture commits as is.
 for db in "$OUT"/library/*.sqlite; do
   sqlite3 "$db" 'PRAGMA wal_checkpoint(TRUNCATE)' >/dev/null
   rm -f "$db-wal" "$db-shm"

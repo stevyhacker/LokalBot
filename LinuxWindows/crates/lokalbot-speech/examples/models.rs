@@ -1,9 +1,3 @@
-//! Lists the speech model catalog and its install state; `--finish` runs
-//! `finish_install` for every model folder that exists (after a manual
-//! download + extract into `<root>/models/speech/<id>/`).
-//!
-//! `cargo run -p lokalbot-speech --example models -- <library root> [--finish]`
-
 use lokalbot_core::LibraryPaths;
 use lokalbot_speech::models;
 

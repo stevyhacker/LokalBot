@@ -1,8 +1,3 @@
-//! Projects: tracked projects and recurring topics joined to meetings,
-//! actions, decisions, people and window time (`ProjectLinks.swift`,
-//! `ProjectTopicDetector.swift`). Matching is deterministic word matching on
-//! the project's names; no model decides what belongs to a project.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::LazyLock;
 
@@ -54,7 +49,6 @@ const GENERIC_WORDS: &[&str] = &[
     "app",
 ];
 
-/// Words of a project name that can identify it: 3+ characters, not generic.
 pub fn significant_terms(name: &str) -> HashSet<String> {
     let key = normalized(name);
     let words: Vec<&str> = key.split(' ').filter(|w| !w.is_empty()).collect();
@@ -82,7 +76,6 @@ pub fn words(text: &str) -> HashSet<String> {
         .collect()
 }
 
-/// Any one of a project's names matches when all its terms are whole words.
 pub fn matches_words(term_sets: &[HashSet<String>], words: &HashSet<String>) -> bool {
     term_sets
         .iter()
@@ -116,7 +109,6 @@ fn cleaned_line(raw: &str) -> String {
     LINE_SPEAKER.replace(&line, "").trim().to_string()
 }
 
-/// The line when it fits, else a window starting a little before the name.
 pub fn excerpt(line: &str, term_sets: &[HashSet<String>], limit: usize) -> String {
     let text = line.trim();
     let chars: Vec<char> = text.chars().collect();
@@ -176,8 +168,6 @@ pub fn excerpt(line: &str, term_sets: &[HashSet<String>], limit: usize) -> Strin
     }
     result
 }
-
-// --------------------------------------------------------- topic detector
 
 const COMMON_APPS: &[&str] = &[
     "chrome",
@@ -485,7 +475,6 @@ const TOPIC_STOP_WORDS: &[&str] = &[
     "llc",
 ];
 
-/// A recurring capitalized term (`ProjectTopicDetector.Topic`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Topic {
     pub name: String,
@@ -553,7 +542,6 @@ fn summary_body(summary: &str) -> String {
         .join("\n")
 }
 
-/// Proper nouns that recur across three or more meetings.
 pub fn detect_topics(
     meetings: &[&Meeting],
     summaries: &HashMap<Uuid, String>,
@@ -682,8 +670,6 @@ pub fn detect_topics(
     topics.truncate(MAXIMUM_TOPICS);
     topics
 }
-
-// --------------------------------------------------------------- profiles
 
 struct MeetingText<'a> {
     meeting: &'a Meeting,
@@ -946,16 +932,12 @@ fn profile(
     }
 }
 
-/// People (with notes and project links) and projects, built together
-/// because each refers to the other.
 pub fn build_people_and_projects(
     library: &Library,
 ) -> Result<(Vec<PersonProfile>, Vec<ProjectProfile>)> {
     build_people_and_projects_from(library, library.list_own_meetings()?)
 }
 
-/// The same, from only these meetings: what is shared with a paired device
-/// reaches no further than the meetings it may see.
 pub fn build_people_and_projects_from(
     library: &Library,
     meetings: Vec<Meeting>,
@@ -1066,7 +1048,6 @@ pub fn build_people_and_projects_from(
 
     let project_curation = library.project_curation().unwrap_or_default();
     let saved_summaries = library.project_summaries().unwrap_or_default();
-    // Through the evidence check: a project whose source changed is gone.
     let review_projects: Vec<crate::dream::MemoryProject> =
         crate::evidence::read_work_memory(library.paths().root())
             .and_then(|bytes| serde_json::from_slice::<crate::dream::DreamMemory>(&bytes).ok())
@@ -1138,7 +1119,6 @@ pub fn build_people_and_projects_from(
         .iter()
         .map(|n| normalized(n))
         .collect();
-    // Overnight review projects nobody tracks yet.
     let review_suggestions: Vec<&crate::dream::MemoryProject> = review_projects
         .iter()
         .filter(|project| {
@@ -1203,7 +1183,6 @@ pub fn build_people_and_projects_from(
             .cloned();
     }
 
-    // People's recent notes and project links (`WorkMemoryConnections`).
     let lines: HashMap<Uuid, Vec<people_mod::SummaryLine>> = summaries
         .iter()
         .map(|(id, summary)| (*id, people_mod::summary_lines(summary)))
@@ -1264,7 +1243,6 @@ pub fn build_people_and_projects_from(
 }
 
 impl Library {
-    /// Tracked projects first, then suggested topics by meeting count.
     pub fn projects(&self) -> Result<Vec<ProjectProfile>> {
         Ok(build_people_and_projects(self)?.1)
     }
@@ -1277,15 +1255,12 @@ impl Library {
         write_json(&self.paths().projects_dir().join("tracked.json"), curation)
     }
 
-    /// Saved "Where it stands" notes, with profile ids (`tracked:<UUID>`) and
-    /// local `YYYY-MM-DD` meeting dates.
     pub fn project_summaries(&self) -> Result<Vec<ProjectSummary>> {
         let stored: Vec<ProjectSummary> =
             read_json(&self.paths().projects_dir().join("summaries.json"))?.unwrap_or_default();
         Ok(stored.into_iter().map(summary_from_disk).collect())
     }
 
-    /// Replaces the note for `summary.project_id`; the file stays sorted by ID.
     pub fn save_project_summary(&self, summary: ProjectSummary) -> Result<()> {
         let mut all = self.project_summaries()?;
         all.retain(|s| s.project_id != summary.project_id);
@@ -1293,8 +1268,6 @@ impl Library {
         write_project_summaries(&self.paths().projects_dir().join("summaries.json"), all)
     }
 
-    /// Drops a project's note when it stops being tracked or is merged away
-    /// (`ProjectStore.removeSummary`).
     pub fn remove_project_summary(&self, project_id: &str) -> Result<()> {
         let path = self.paths().projects_dir().join("summaries.json");
         let mut all = self.project_summaries()?;
@@ -1313,9 +1286,6 @@ impl Library {
     }
 }
 
-/// Writes `projects/summaries.json` the way macOS reads it (`ProjectStore`):
-/// a bare project UUID and ISO-8601 meeting dates. macOS decodes the file as
-/// a whole, so a note that is not for a tracked project is left out.
 pub(crate) fn write_project_summaries(
     path: &std::path::Path,
     summaries: Vec<ProjectSummary>,
@@ -1467,7 +1437,6 @@ mod tests {
         assert_eq!(suggested[0].name, "Billing rewrite");
         assert!(suggested[0].id.starts_with("review:"));
 
-        // A pending revocation withholds it all.
         std::fs::write(dir.path().join(crate::evidence::PENDING_FILE), "[]").unwrap();
         let projects = library.projects().unwrap();
         assert!(projects.iter().all(|p| p.review_notes.is_empty()));

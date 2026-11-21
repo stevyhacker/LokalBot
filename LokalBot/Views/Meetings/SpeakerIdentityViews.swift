@@ -48,9 +48,6 @@ private struct SpeakerVoiceProfileManager: View {
             .frame(maxHeight: 320)
             if let error { Text(error).font(.scaled(.caption)).foregroundStyle(.red) }
             HStack {
-                // Profiles are built from speakers confirmed across many
-                // meetings and cannot be brought back, so one click next to
-                // Done must not remove them all.
                 Button("Clear all", role: .destructive) { confirmingClearAll = true }
                     .disabled(people.isEmpty)
                     .confirmationDialog("Forget every remembered voice?", isPresented: $confirmingClearAll,
@@ -99,8 +96,6 @@ private struct SpeakerVoiceProfileRow: View {
     }
 }
 
-/// Lives inside the existing native rename sheet; evidence never joins the
-/// ordinary transcript model or its search/export paths.
 struct SpeakerIdentityReview: View {
     let speaker: String
     let state: MeetingSpeakerIdentityState?

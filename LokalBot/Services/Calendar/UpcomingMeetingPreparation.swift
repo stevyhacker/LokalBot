@@ -1,9 +1,6 @@
 import Combine
 import Foundation
 
-/// A source-backed note shown while preparing for an upcoming meeting. Every
-/// decision and commitment retains its meeting id so Today can jump back to
-/// the exact source instead of presenting an uncited AI assertion.
 struct UpcomingMeetingReference: Identifiable, Equatable, Sendable {
     enum Kind: String, Equatable, Sendable {
         case decision
@@ -65,19 +62,13 @@ struct UpcomingMeetingRelatedMeeting: Equatable, Sendable {
     let relevanceScore: Int
 }
 
-/// The complete, bounded evidence packet behind one pre-meeting card. The LLM
-/// only rewrites this packet; code selects the event, source meetings, project
-/// context, decisions, and commitments.
 struct UpcomingMeetingEvidence: Equatable, Sendable {
     let event: CalendarMeetingCandidate
     let relatedMeetings: [UpcomingMeetingRelatedMeeting]
     let decisions: [UpcomingMeetingReference]
     let commitments: [UpcomingMeetingReference]
     let projects: [UpcomingMeetingProjectContext]
-    /// Sanitized invitation agenda, present only when agenda use is enabled.
     var agenda: String?
-    /// Downloaded conversations with the attendees, when an email account is
-    /// connected (`EmailMeetingContext`).
     var emailThreads: [UpcomingMeetingEmailThread] = []
 
     var hasPreparationContext: Bool {
@@ -85,8 +76,6 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
             || agenda != nil || !emailThreads.isEmpty
     }
 
-    /// Stable within one process and deliberately includes extracted content,
-    /// so a newly-written summary/outcomes file invalidates the in-memory brief.
     var signature: String {
         let meetingParts = relatedMeetings.map { $0.meeting.id.uuidString + $0.summary }
         let commitmentParts: [String] = commitments.map { commitment in
@@ -113,9 +102,6 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
         return parts.joined(separator: "\u{1f}")
     }
 
-    /// An immediate, model-free brief keeps the card useful while the local
-    /// model starts (or when none is available). It only restates selected
-    /// evidence and never infers completion or ownership.
     var fallbackBrief: String {
         var sentences: [String] = []
         if let decision = decisions.first {
@@ -157,9 +143,6 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
 
     static let promptContextCharacters = 12_000
 
-    /// Decisions, commitments, and project context are what the brief is for.
-    /// Prior meeting summaries share the room those leave: placed first and cut
-    /// at the end, six long summaries used to push them past the cap.
     var promptContext: String {
         var head = [
             "Upcoming meeting: \(event.title)",
@@ -237,15 +220,9 @@ struct UpcomingMeetingEvidence: Equatable, Sendable {
 }
 
 enum UpcomingMeetingSelector {
-    /// How Today treats a calendar event.
     enum Kind: Equatable {
-        /// Other people or a conferencing link: a call LokalBot can record.
         case meeting
-        /// Only the user is invited, but the title names a meeting (a standup
-        /// joined from elsewhere). Listed, without Join or Record.
         case soloMeeting
-        /// Only the user, with a non-meeting title (a dentist or doctor visit,
-        /// an errand). Never listed as a meeting.
         case personal
     }
 
@@ -254,8 +231,6 @@ enum UpcomingMeetingSelector {
         return looksLikeMeeting(event.title) ? .soloMeeting : .personal
     }
 
-    /// Meeting words in English and Serbian. A personal appointment title
-    /// rarely uses them; a meeting kept on a private calendar usually does.
     static func looksLikeMeeting(_ title: String) -> Bool {
         title.range(of: meetingTitlePattern, options: [.regularExpression, .caseInsensitive]) != nil
     }
@@ -272,9 +247,6 @@ enum UpcomingMeetingSelector {
         return #"(?:^|[^\p{L}\p{N}])(?:"# + words.joined(separator: "|") + #")(?:$|[^\p{L}\p{N}])"#
     }()
 
-    /// Keep every meeting overlapping the requested local day, including
-    /// meetings which have ended and meetings many hours away. Personal
-    /// appointments are left out so they cannot take a meeting's place.
     static func schedule(
         from candidates: [CalendarMeetingCandidate],
         on date: Date,
@@ -290,9 +262,6 @@ enum UpcomingMeetingSelector {
             }
     }
 
-    /// Pick the meeting whose preparation deserves emphasis: an in-progress
-    /// event first, otherwise the next event at any later time today. The event
-    /// already being recorded is skipped because Today has a dedicated live card.
     static func primary(
         from schedule: [CalendarMeetingCandidate],
         now: Date,
@@ -314,9 +283,6 @@ enum UpcomingMeetingSelector {
     }
 }
 
-/// Deterministic local retrieval for pre-meeting evidence. Participant matches
-/// dominate recurring-title matches; recency breaks ties. This avoids asking an
-/// LLM to search the entire private library or decide which sources are relevant.
 enum UpcomingMeetingPreparationCompiler {
     static let lookbackDays = 180
     static let maximumRelatedMeetings = 6
@@ -352,7 +318,6 @@ enum UpcomingMeetingPreparationCompiler {
                 maxCharacters: 1_600)
             let priorNames = Set(meeting.resolvedCalendarParticipantIdentities.compactMap(\.name)
                 .map(normalizedPhrase).filter { !$0.isEmpty })
-            // An address is the same person even when a display name differs.
             let priorAddresses = Set(meeting.resolvedCalendarParticipantIdentities
                 .compactMap { $0.emailAddress?.lowercased() })
             let directParticipantMatches = max(eventParticipantNames.intersection(priorNames).count,
@@ -526,8 +491,6 @@ enum UpcomingMeetingLocalGenerationPolicy {
         DreamInferenceProvenance(settings: settings).location == .local
     }
 
-    /// Automatic preparation must never trigger a surprise multi-gigabyte
-    /// download. A user can still explicitly request generation from the card.
     static func shouldGenerateAutomatically(settings: AppSettings,
                                             storage: StorageManager) -> Bool {
         guard permitsLocalGeneration(settings: settings) else { return false }
@@ -544,16 +507,11 @@ enum UpcomingMeetingLocalGenerationPolicy {
     }
 }
 
-/// Today's calendar meetings, read once for whoever shows them: the Today
-/// page (`UpcomingMeetingPreparationModel`) and the menu bar's status block.
-/// Without the Calendar setting and macOS access there are no meetings.
 enum UpcomingMeetingSchedule {
     enum Reading: Equatable {
-        /// Calendar use is off in Settings.
         case disabled
         case permissionRequired
         case permissionDenied
-        /// The day's meetings in time order; personal appointments left out.
         case meetings([CalendarMeetingCandidate])
     }
 
@@ -578,9 +536,6 @@ enum UpcomingMeetingSchedule {
             from: app.calendar.meetingCandidates(on: now), on: now))
     }
 
-    /// Meetings from now through the next week, for People's "Coming up" and
-    /// a person's next-meeting card. Nil while Calendar use is off or access
-    /// is missing; People never asks for access.
     @MainActor
     static func readAhead(
         app: AppState, now: Date, days: Int = PeopleUpcomingMeetings.windowDays
@@ -601,9 +556,6 @@ enum UpcomingMeetingSchedule {
     }
 
 #if LOKALBOT_UI_TEST_HOST
-    /// A deterministic, non-EventKit seam for screenshots and XCUITest. It
-    /// exercises the real schedule, evidence compiler, Join/Record actions,
-    /// and accessibility tree without reading the developer's calendar.
     private static func demoSchedule(now: Date) -> [CalendarMeetingCandidate] {
         [
             CalendarMeetingCandidate(
@@ -629,10 +581,6 @@ enum UpcomingMeetingSchedule {
 #endif
 }
 
-/// Today-owned state for the full calendar day. Every meeting is retained for
-/// the schedule, but only the active/next meeting gets the heavier history
-/// lookup and optional local-LLM brief. Generated briefs stay cached across
-/// 30-second refreshes.
 @MainActor
 final class UpcomingMeetingPreparationModel: ObservableObject {
     enum Status: Equatable {
@@ -654,9 +602,6 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
 
     private var refreshToken = UUID()
     private var failedSignatures: Set<String> = []
-    /// Email threads for the primary event, reused until the event or the
-    /// downloaded mail changes, so the 30-second refresh doesn't decrypt the
-    /// mailbox each time.
     private var emailCacheKey: String?
     private var cachedEmailThreads: [UpcomingMeetingEmailThread] = []
 
@@ -697,8 +642,6 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
             clear(status: .noMeetingsToday)
             return
         }
-        // An event a recording already covers, the one being recorded
-        // included, is not coming up again. Today lists it as that recording.
         let recorded = TodayAgenda.recordedEventIDs(
             in: (app.currentMeeting.map { [$0] } ?? []) + app.meetings)
         let primary = UpcomingMeetingSelector.primary(
@@ -756,9 +699,6 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
         }
     }
 
-    /// Explicit generation may prepare/download the user's selected local
-    /// model; unlike automatic refresh, that potentially expensive action is
-    /// always initiated by the Generate brief button.
     func generate(app: AppState, evidence: UpcomingMeetingEvidence) async {
         guard generatingSignature == nil, evidence.hasPreparationContext else { return }
         guard UpcomingMeetingLocalGenerationPolicy.permitsLocalGeneration(
@@ -785,9 +725,6 @@ final class UpcomingMeetingPreparationModel: ObservableObject {
             guard self.evidence?.signature == signature else { return }
             generatedBriefs[signature] = generated
             failedSignatures.remove(signature)
-            // Dictionary order is arbitrary, so this drops some other entry,
-            // never the brief just written: without it the card would fall
-            // back to the template and the next refresh would generate again.
             if generatedBriefs.count > 24,
                let evicted = generatedBriefs.keys.first(where: { $0 != signature }) {
                 generatedBriefs.removeValue(forKey: evicted)

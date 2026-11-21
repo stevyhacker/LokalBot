@@ -1,9 +1,3 @@
-//! The approval card above the composer (`AgentApprovalDock.swift`): a
-//! question that names its file or command, what will happen and where, the
-//! first lines to review, then Deny apart from the answers that allow. A
-//! command gets Deny and Allow once only, and so does a file inside
-//! LokalBot's own data.
-
 use std::path::Path;
 
 use crate::i18n::h_flex;
@@ -27,7 +21,6 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico};
 
 impl AgentPage {
-    /// The card's words for this request, from the selected task.
     fn approval_card(&self, request: &ApprovalRequest, cx: &gpui_kit::App) -> Option<ApprovalCard> {
         let tab = self.model(cx)?.tasks.as_ref()?.selected()?;
         let session = &tab.session;
@@ -42,7 +35,6 @@ impl AgentPage {
             Destination::Remote(host) => Some(host),
             _ => None,
         };
-        // A command runs in the folder its request came from.
         let folder = if is_shell_tool(&request.tool) {
             request
                 .workspace
@@ -74,8 +66,6 @@ impl AgentPage {
         let lb = cx.lb().clone();
         let waiting = snapshot.approvals.len();
         let showing_all = self.approval_previews.contains(&request.id);
-        // Room for the whole preview once it is opened, without taking the
-        // conversation above it in a small window.
         let preview_max = px((f32::from(window.viewport_size().height) - 520.).clamp(60., 260.));
 
         let mut column = v_flex()
@@ -307,7 +297,6 @@ impl AgentPage {
         });
     }
 
-    /// Escape denies the first waiting approval of the selected task.
     pub(super) fn deny_visible_approval(&mut self, cx: &mut Context<Self>) -> bool {
         let Some(id) = self
             .snapshot(cx)

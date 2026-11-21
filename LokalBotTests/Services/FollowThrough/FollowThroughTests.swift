@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The Meta Model API wire format and the Follow-through loop, offline.
 final class MuseChatClientTests: XCTestCase {
     private func client(transport: @escaping MuseChatClient.Transport = { _ in throw CancellationError() }) -> MuseChatClient {
         var client = MuseChatClient(apiKey: "test-key", model: "muse-wonder-1.0", reasoningEffort: "low",
@@ -251,14 +250,10 @@ final class FollowThroughSessionTests: XCTestCase {
         XCTAssertEqual(turns[1].last?["role"] as? String, "tool")
     }
 
-    /// Follow-through runs on the Think model, which returns text, not tool
-    /// calls: each turn is one JSON call that `ThinkChat` reads, and earlier
-    /// calls travel as context with what they returned.
     func testTheLoopRunsOnAThinkEngine() async throws {
         let environment = StubEnvironment()
         let engine = RadarThinkEngine(replies: [
             #"{"call": {"tool": "search_meetings", "arguments": {"query": "pricing deck"}}}"#,
-            // A model without a schema to hold it wraps the call in prose.
             #"""
             Here is the draft:
             {"call": {"tool": "draft_email", "arguments": {"to": ["Marko"], "cc": null, "subject": "Pricing deck",

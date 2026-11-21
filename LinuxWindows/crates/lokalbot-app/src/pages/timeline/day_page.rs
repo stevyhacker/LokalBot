@@ -1,7 +1,3 @@
-//! The day's page, Timeline's main area while nothing is chosen in the rail
-//! (`TimelineDigestPage.swift`): Highlights, the actions from the day's
-//! meetings, the work summary and the decisions, each on its own panel.
-
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -56,7 +52,6 @@ impl TimelinePage {
                     this.select(Some(Selection::Session(session)), cx)
                 });
             });
-            // An older digest's "09:00–10:30" opens the session it covers.
             let sessions: HashMap<String, String> = digest
                 .tasks
                 .iter()
@@ -83,9 +78,6 @@ impl TimelinePage {
         self.page_column("timeline-day-page", panels, cx)
     }
 
-    /// The digest's highlights as the page's first panel. Its footer says
-    /// when the digest was written and offers Update once there is newer
-    /// activity. A day without a digest, and one being written, say so here.
     fn highlights_panel(&self, model: &DayModel, cx: &mut Context<Self>) -> Option<AnyElement> {
         let lb = cx.lb().clone();
         let (writing, writes_each_evening) = {
@@ -109,7 +101,6 @@ impl TimelinePage {
         let writing_first = state == DigestLine::Writing && !has_digest;
         let shows_content = highlights.is_some() || state == DigestLine::Missing || writing_first;
         let shows_footer = state.shows_footer(has_digest);
-        // A digest with no highlights and no date has nothing to say here.
         if !shows_content && !shows_footer {
             return None;
         }
@@ -222,8 +213,6 @@ impl TimelinePage {
         Some(panel.into_any_element())
     }
 
-    /// "Digest written 6:02 PM": the time alone on the day itself, the date
-    /// too once it was written later.
     fn written(&self, at: DateTime<Utc>) -> String {
         let local = at.with_timezone(&Local);
         let text = if local.date_naive() == self.day {
@@ -239,9 +228,6 @@ impl TimelinePage {
         mac("Digest written %@", &[&text])
     }
 
-    /// The user's actions from the day's meetings, as the shared action rows
-    /// under a header that counts the open ones and leads to Actions. With
-    /// none open the panel is its header, "All done".
     fn day_actions_panel(
         &mut self,
         model: &DayModel,
@@ -265,7 +251,6 @@ impl TimelinePage {
         )
         .section(Section::Actions)
         .status(status, tone)
-        // The longest panel title on the page, beside a badge and a link.
         .title_lines(2)
         .trailing_link(
             "timeline-all-actions",

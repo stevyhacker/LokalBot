@@ -2,8 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// Plays the server's side of a realtime session: scripted replies, then it
-/// stays open until closed (or closes itself after `closeAfterReplies`).
 private final class FakeSocket: MuseRealtimeSocket, @unchecked Sendable {
     private let lock = NSLock()
     private var replies: [String]
@@ -56,7 +54,6 @@ private func json(_ object: [String: Any]) -> String {
     (try? JSONSerialization.data(withJSONObject: object)).map { String(decoding: $0, as: UTF8.self) } ?? "{}"
 }
 
-/// A 16 kHz mono float CAF like the live preview tee writes.
 private func writeTrack(_ url: URL, seconds: Double) throws {
     let settings: [String: Any] = [
         AVFormatIDKey: kAudioFormatLinearPCM, AVSampleRateKey: 16_000.0, AVNumberOfChannelsKey: 1,
@@ -125,18 +122,14 @@ final class MuseLiveTextTests: XCTestCase {
         var pacer = MuseLiveTextPacer(originFrame: 0)
         XCTAssertEqual(pacer.plan(fileLength: 16_000, elapsedSeconds: 0).read, 16_000, "a short backlog goes at once")
         XCTAssertEqual(pacer.plan(fileLength: 17_600, elapsedSeconds: 0.1).read, 1_600)
-        // The file stops growing; after 1.5 s behind real time the session is padded.
         XCTAssertEqual(pacer.plan(fileLength: 17_600, elapsedSeconds: 1.0).silence, 0)
         let padded = pacer.plan(fileLength: 17_600, elapsedSeconds: 3.0)
         XCTAssertEqual(padded.read, 0)
         XCTAssertEqual(padded.silence, 48_000 - 17_600 - 8_000)
         XCTAssertEqual(pacer.cursor, 40_000)
-        // The padded stretch of the file is skipped when it arrives.
         XCTAssertEqual(pacer.plan(fileLength: 50_000, elapsedSeconds: 3.2).read, 10_000)
-        // Frames the file couldn't deliver are read again, not skipped.
         pacer.unread(128)
         XCTAssertEqual(pacer.cursor, 49_872)
-        // Never more than three seconds ahead of the clock.
         var fresh = MuseLiveTextPacer(originFrame: 0)
         XCTAssertEqual(fresh.plan(fileLength: 160_000, elapsedSeconds: 0).read, 48_000)
     }
@@ -159,7 +152,6 @@ final class MuseLiveTextTests: XCTestCase {
             XCTFail("a session ends when the server closes it")
         } catch {}
 
-        // Five seconds recorded: the session starts three seconds back, at 2.0 s.
         XCTAssertEqual(recorder.turns, [
             .connected(origin: 2),
             .partial(time: 2.5, text: "I'll send"),
@@ -172,8 +164,6 @@ final class MuseLiveTextTests: XCTestCase {
         let audio = sent.dropFirst().compactMap { message -> Data? in
             if case .data(let data) = message { data } else { nil }
         }
-        // The three-second backlog as 16-bit samples; AVAudioFile may hold
-        // back the last packet of a just-written file.
         XCTAssertEqual(Double(audio.reduce(0) { $0 + $1.count }), 48_000 * 2, accuracy: 512)
         XCTAssertTrue(audio.allSatisfy { $0.count <= 3_200 }, "100 ms frames at most")
         XCTAssertTrue(socket.closed)

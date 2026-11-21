@@ -1,8 +1,3 @@
-//! Windows: the foreground window (`GetForegroundWindow`), its title, the
-//! owning process's name from its executable's version resources
-//! (`FileDescription`, then `ProductName`, then the file name), and idle time
-//! from `GetLastInputInfo`.
-
 use std::collections::HashMap;
 use std::ffi::{OsString, c_void};
 use std::os::windows::ffi::{OsStrExt, OsStringExt};
@@ -53,7 +48,6 @@ impl WindowsSource {
 impl ActivitySource for WindowsSource {
     fn sample(&mut self) -> anyhow::Result<Option<ActivitySample>> {
         let idle = self.idle_seconds().unwrap_or(0.0);
-        // SAFETY: no arguments; returns a possibly null window handle.
         let window = unsafe { GetForegroundWindow() };
         if window.0.is_null() {
             return Ok(None);
@@ -68,8 +62,6 @@ impl ActivitySource for WindowsSource {
         let class = window_class(window);
         let mut title = window_title(window);
         let mut image = process_image(pid);
-        // Store apps draw inside ApplicationFrameHost; their own process owns
-        // a child window.
         if image
             .as_deref()
             .is_some_and(|path| file_name(path).eq_ignore_ascii_case("ApplicationFrameHost.exe"))
@@ -82,7 +74,6 @@ impl ActivitySource for WindowsSource {
             return Ok(Some(own_window_sample(idle)));
         }
         if matches!(class.as_str(), "Progman" | "WorkerW") {
-            // The desktop itself ("Program Manager").
             title.clear();
         }
         let (app, app_id) = match &image {
@@ -104,11 +95,9 @@ impl ActivitySource for WindowsSource {
             cbSize: size_of::<LASTINPUTINFO>() as u32,
             dwTime: 0,
         };
-        // SAFETY: `info` is a valid LASTINPUTINFO with cbSize set.
         if !unsafe { GetLastInputInfo(&mut info) }.as_bool() {
             return None;
         }
-        // SAFETY: no arguments. Both values wrap every 49.7 days together.
         let now = unsafe { GetTickCount() };
         Some(f64::from(now.wrapping_sub(info.dwTime)) / 1000.0)
     }
@@ -122,16 +111,12 @@ impl ActivitySource for WindowsSource {
     }
 }
 
-/// `(friendly name, lowercase executable)` of a process, by day memory's
-/// rules, for autocomplete's exclusions.
 pub(crate) fn app_for_pid(pid: u32) -> Option<(String, String)> {
     let image = process_image(pid)?;
     Some((friendly_name(&image), file_name(&image).to_lowercase()))
 }
 
-/// The foreground window's process, or the app a store frame hosts.
 pub(crate) fn foreground_pid() -> Option<u32> {
-    // SAFETY: no arguments; returns a possibly null window handle.
     let window = unsafe { GetForegroundWindow() };
     if window.0.is_null() {
         return None;
@@ -146,9 +131,7 @@ pub(crate) fn foreground_pid() -> Option<u32> {
     Some(pid)
 }
 
-/// Lowercase executable name of the foreground window's process.
 pub(super) fn foreground_app_id() -> Option<String> {
-    // SAFETY: no arguments; returns a possibly null window handle.
     let window = unsafe { GetForegroundWindow() };
     if window.0.is_null() {
         return None;
@@ -166,15 +149,11 @@ pub(super) fn foreground_app_id() -> Option<String> {
 
 fn window_pid(window: HWND) -> u32 {
     let mut pid = 0u32;
-    // SAFETY: `pid` outlives the call; an invalid window leaves it 0.
     unsafe { GetWindowThreadProcessId(window, Some(&mut pid)) };
     pid
 }
 
 fn window_title(window: HWND) -> String {
-    // SAFETY: reads the caption into a buffer of the reported length. For
-    // other processes this never sends WM_GETTEXT, so a hung app cannot
-    // block the sampler.
     unsafe {
         let length = GetWindowTextLengthW(window);
         if length <= 0 {
@@ -188,15 +167,11 @@ fn window_title(window: HWND) -> String {
 
 fn window_class(window: HWND) -> String {
     let mut buffer = [0u16; 256];
-    // SAFETY: the buffer is writable for its full length.
     let copied = unsafe { GetClassNameW(window, &mut buffer) };
     String::from_utf16_lossy(&buffer[..copied.max(0) as usize])
 }
 
-/// Full path of a process's executable, if this user may query it.
 fn process_image(pid: u32) -> Option<PathBuf> {
-    // SAFETY: the handle is closed below; the buffer is writable for `size`
-    // UTF-16 units and `size` is updated to the length written.
     unsafe {
         let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
         let mut buffer = vec![0u16; 1024];
@@ -225,8 +200,6 @@ struct HostedSearch {
 }
 
 unsafe extern "system" fn visit_child(child: HWND, lparam: LPARAM) -> BOOL {
-    // SAFETY: `lparam` is the address of the `HostedSearch` that
-    // `hosted_app_pid` keeps alive for the whole enumeration.
     let search = unsafe { &mut *(lparam.0 as *mut HostedSearch) };
     let pid = window_pid(child);
     if pid != 0 && pid != search.host {
@@ -238,7 +211,6 @@ unsafe extern "system" fn visit_child(child: HWND, lparam: LPARAM) -> BOOL {
 
 fn hosted_app_pid(frame: HWND, host: u32) -> Option<u32> {
     let mut search = HostedSearch { host, found: 0 };
-    // SAFETY: the callback only runs during this call, while `search` lives.
     unsafe {
         let _ = EnumChildWindows(
             Some(frame),
@@ -253,7 +225,6 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-/// `FileDescription`, then `ProductName`, then the file name.
 pub fn friendly_name(image: &Path) -> String {
     let stem = image
         .file_stem()
@@ -269,9 +240,6 @@ pub fn friendly_name(image: &Path) -> String {
 
 fn version_string(image: &Path, key: &str) -> Option<String> {
     let path: Vec<u16> = image.as_os_str().encode_wide().chain(Some(0)).collect();
-    // SAFETY: `data` holds the whole version block for as long as the
-    // pointers VerQueryValueW returns into it are read; every read stays
-    // within the lengths it reports.
     unsafe {
         let size = GetFileVersionInfoSizeW(PCWSTR(path.as_ptr()), None);
         if size == 0 {
@@ -343,7 +311,6 @@ mod tests {
 
     #[test]
     fn sampling_never_fails_without_a_desktop() {
-        // Over SSH (session 0) there is no foreground window; that is fine.
         let mut source = WindowsSource::new();
         let sample = source.sample().unwrap();
         eprintln!("windows sample: {sample:?}");

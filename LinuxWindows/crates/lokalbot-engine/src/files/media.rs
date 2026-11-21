@@ -1,13 +1,3 @@
-//! Pictures, sound and video for the model (`ImageExtractor`, `AudioExtractor`,
-//! `VideoExtractor`, `Platform/Portable`).
-//!
-//! Pictures decode here (JPEG, PNG, GIF, BMP, TIFF, WebP, TGA, PNM); HEIC and AVIF
-//! go through ffmpeg when it's installed. Sound decodes through Symphonia, which
-//! the meeting pipeline already uses (MP3, AAC, FLAC, Ogg Vorbis, WAV, AIFF, CAF,
-//! MP4, MKV), with ffmpeg as the fallback for the rest. A video's frames need
-//! ffmpeg: without it a video is read for its sound and its name only, and
-//! Settings says so.
-
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 
@@ -17,21 +7,16 @@ use super::documents::ReadError;
 use super::image_sizing::Rgb;
 
 const SAMPLE_RATE: f64 = 16_000.0;
-/// ≈ −50 dBFS: silence isn't worth a vector.
 const SILENCE_RMS: f64 = 0.003;
-/// The tail of a file must add at least this much.
 const MINIMUM_SECONDS: f64 = 2.0;
 
-/// One piece of sound, or one kept frame.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MediaPiece {
     pub start: f64,
     pub end: f64,
-    /// A WAV for sound, a PNG-ready picture's file for a frame.
     pub bytes: Vec<u8>,
 }
 
-/// `ffmpeg` beside the app or on PATH.
 pub fn ffmpeg() -> Option<PathBuf> {
     find_tool("ffmpeg")
 }
@@ -68,7 +53,7 @@ fn tool_command(tool: &Path) -> Command {
     #[cfg(windows)]
     {
         use std::os::windows::process::CommandExt as _;
-        command.creation_flags(0x0800_0000); // CREATE_NO_WINDOW
+        command.creation_flags(0x0800_0000);
     }
     command
 }
@@ -78,15 +63,10 @@ fn tool_output(tool: &Path, args: &[&str]) -> Option<Vec<u8>> {
     output.status.success().then_some(output.stdout)
 }
 
-// ----------------------------------------------------------------- pictures
-
-/// A picture decoded and turned the way the camera held it, and its date.
 pub struct DecodedImage {
     pub image: Rgb,
-    /// Its size as shown.
     pub width: usize,
     pub height: usize,
-    /// EXIF `DateTimeOriginal`, as written by the camera.
     pub taken: Option<String>,
 }
 
@@ -104,7 +84,6 @@ impl std::fmt::Display for ImageFailure {
     }
 }
 
-/// RAW isn't read yet, and says so.
 fn not_read_yet(ext: &str) -> Option<String> {
     matches!(ext, "cr2" | "nef" | "arw" | "dng" | "raf" | "orf" | "rw2").then(|| {
         format!(
@@ -114,8 +93,6 @@ fn not_read_yet(ext: &str) -> Option<String> {
     })
 }
 
-/// Decodes a picture in full, no matter its size, then applies its orientation.
-/// Pictures smaller than `min_side` on both sides aren't worth a vector.
 pub fn decode_image(path: &Path, min_side: u32) -> Result<DecodedImage, ImageFailure> {
     let ext = path
         .extension()
@@ -193,7 +170,6 @@ fn decode_with_ffmpeg(path: &Path, ext: &str) -> Result<image::RgbImage, ImageFa
         .map_err(|_| ImageFailure::Unreadable("can't decode image".into()))
 }
 
-/// Turned the way the camera held it (EXIF orientation 1–8).
 fn oriented(image: Rgb, orientation: u16) -> Rgb {
     if !(2..=8).contains(&orientation) {
         return image;
@@ -228,23 +204,16 @@ fn oriented(image: Rgb, orientation: u16) -> Rgb {
     }
 }
 
-// --------------------------------------------------------------------- exif
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Exif {
     pub orientation: u16,
     pub date_time_original: Option<String>,
 }
 
-/// The two EXIF facts the indexer wants (`EXIF`), from a JPEG's APP1 segment, a
-/// TIFF's own tags or a WebP's EXIF chunk. HEIF files are left to ffmpeg, which
-/// turns them itself.
 pub fn read_exif(path: &Path) -> Option<Exif> {
     use std::io::Read as _;
     let file = std::fs::File::open(path).ok()?;
     let mut head = Vec::new();
-    // Headers come first in JPEG and most TIFFs; WebP's chunk may trail, but a
-    // photo's vector doesn't depend on it.
     file.take(1 << 20).read_to_end(&mut head).ok()?;
     exif_from_bytes(&head)
 }
@@ -282,8 +251,6 @@ fn jpeg_exif(bytes: &[u8]) -> Option<Exif> {
             return None;
         }
         if marker == 0xE1 && bytes.get(i + 4..i + 10) == Some(b"Exif\0\0") {
-            // A declared length under 8 ends the segment before its own
-            // "Exif\0\0" header does: there is no TIFF block to read.
             let end = (i + 2 + length).min(bytes.len());
             return parse_tiff(bytes.get(i + 10..end)?);
         }
@@ -369,16 +336,12 @@ fn parse_tiff(tiff: &[u8]) -> Option<Exif> {
     Some(exif)
 }
 
-// -------------------------------------------------------------------- sound
-
-/// A stream of 16 kHz mono samples.
 enum SoundSource {
     Decoder(Box<CompressedReader>),
     Pipe(std::process::Child),
 }
 
 impl SoundSource {
-    /// Symphonia first; ffmpeg for what it doesn't read (Opus, AVI, WMA).
     fn open(path: &Path) -> Result<Self, ReadError> {
         if let Ok(reader) = CompressedReader::open(path) {
             return Ok(Self::Decoder(Box::new(reader)));
@@ -397,7 +360,6 @@ impl SoundSource {
         Ok(Self::Pipe(child))
     }
 
-    /// Up to `max` samples; 0 at the end.
     fn read(&mut self, max: usize, out: &mut Vec<f32>) -> Result<usize, ReadError> {
         match self {
             Self::Decoder(reader) => reader
@@ -446,9 +408,6 @@ fn rms(samples: &[f32]) -> f64 {
     (sum / samples.len() as f64).sqrt()
 }
 
-/// Sound cut into `window`-second pieces `hop` seconds apart, skipping silent
-/// ones; one model input ignores anything past 30 s. Memory stays at one window
-/// plus the pieces that are ready, and `on_piece` takes each away as it comes.
 pub fn sound_windows(
     path: &Path,
     window: f64,
@@ -494,8 +453,6 @@ pub fn sound_windows(
     };
     source.finish();
     result?;
-    // The tail: new sound beyond the previous window's overlap, or the whole
-    // file if it was shorter than a window.
     let covered = if offset == 0 {
         0
     } else {
@@ -507,8 +464,6 @@ pub fn sound_windows(
     Ok((offset + buffer.len()) as f64 / SAMPLE_RATE)
 }
 
-/// `seconds` of sound from `start`, as a WAV: the moment a search found, for the
-/// assistant to hear (`FileMomentTranscriber.exportClip`). Nothing is written.
 pub fn sound_clip(path: &Path, start: f64, seconds: f64) -> Option<Vec<f32>> {
     let mut source = SoundSource::open(path).ok()?;
     if let SoundSource::Decoder(reader) = &mut source {
@@ -539,7 +494,6 @@ pub fn sound_clip(path: &Path, start: f64, seconds: f64) -> Option<Vec<f32>> {
     (!out.is_empty()).then_some(out)
 }
 
-/// How long a recording or video plays, from its header (`MediaInfo.duration`).
 pub fn duration(path: &Path) -> f64 {
     if let Ok(reader) = CompressedReader::open(path) {
         return reader.frames() as f64 / SAMPLE_RATE;
@@ -565,9 +519,6 @@ pub fn duration(path: &Path) -> f64 {
     .unwrap_or(0.0)
 }
 
-// -------------------------------------------------------------------- video
-
-/// 8×8 average hash: gray cells brighter than the mean are 1.
 pub fn average_hash(image: &Rgb) -> u64 {
     const SIDE: usize = 8;
     let (width, height) = (image.width, image.height);
@@ -603,10 +554,6 @@ pub fn average_hash(image: &Rgb) -> u64 {
 const MAX_FRAMES: f64 = 1200.0;
 const FRAME_PIXELS: u32 = 1024;
 
-/// A frame per shot, through ffmpeg: a frame every `interval` seconds, and one
-/// that looks like the previous kept one (8×8 average hash within 4 bits) only
-/// extends it. Frames reach `on_frame` one at a time with the second they show;
-/// it returns false to stop. Nothing happens without ffmpeg.
 pub fn keyframes(
     path: &Path,
     interval: f64,
@@ -672,8 +619,6 @@ mod tests {
 
     #[test]
     fn exif_comes_from_a_jpeg_header() {
-        // A little-endian TIFF block: orientation 6, and DateTimeOriginal in a
-        // separate IFD.
         let mut tiff: Vec<u8> = vec![0x49, 0x49, 0x2A, 0x00, 8, 0, 0, 0];
         tiff.extend([2, 0]);
         tiff.extend([0x12, 0x01, 3, 0, 1, 0, 0, 0, 6, 0, 0, 0]);
@@ -703,8 +648,6 @@ mod tests {
 
     #[test]
     fn a_jpeg_exif_segment_shorter_than_its_header_is_not_read() {
-        // APP1 declares 2 to 7 bytes but still carries "Exif\0\0": the segment
-        // ends before the TIFF block starts. This used to panic the Files pass.
         for length in 2u16..8 {
             let mut jpeg = vec![0xFF, 0xD8, 0xFF, 0xE1];
             jpeg.extend(length.to_be_bytes());
@@ -716,7 +659,6 @@ mod tests {
 
     #[test]
     fn orientation_turns_the_picture() {
-        // 2×1: red, blue.
         let image = Rgb {
             width: 2,
             height: 1,

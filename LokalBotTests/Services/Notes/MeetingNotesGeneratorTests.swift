@@ -194,8 +194,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(split.outcomes.userActionItems.first?.due, "16:00")
     }
 
-    /// The built-in Qwen3.5 4B copied cited source IDs into `due`, and the
-    /// notes rendered "due s268" (2026-10-01).
     func testSourceIDInDueIsNotADueDate() async throws {
         var leaked = action()
         leaked["due"] = "s268"
@@ -254,7 +252,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
             .init(start: 0, end: 5, speaker: "me", text: "I have been doing reviews."),
             .init(start: 5, end: 10, speaker: "me", text: obligation),
         ]
-        // The first answer cites only the status row, which proves nothing.
         var original = action(owner: "unknown")
         original["text"] = "Review the remaining change"
         original["basis"] = "unclear"
@@ -301,8 +298,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         var repaired = original
         repaired["source"] = "s2"
         repaired["quote"] = transcript.segments[1].text
-        // The user's own half of that sentence is a commitment no task
-        // covers yet, so the model is asked for it once.
         var mine = action(owner: "source")
         mine["text"] = "Prepare the policy"
         mine["quote"] = "I'll prepare the policy"
@@ -322,7 +317,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         var transcript = transcript
         transcript.segments[0].text = "I have been doing reviews."
         transcript.segments[1] = .init(start: 5, end: 10, speaker: "me", text: "I still have to review the change.")
-        // Cites the status row with words nobody said: unresolved until repaired.
         var original = action(owner: "unknown")
         original["text"] = "Review the change"
         original["basis"] = "unclear"
@@ -378,8 +372,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
 
     func testOwnershipRepairsBatchTasksButKeepEachOriginalNeighborhood() async throws {
         var transcript = longTranscript()
-        // Two sentences that each hand the task to someone else, each
-        // followed by the other speaker taking it on.
         transcript.segments[0].text = "I'll check the logs, and you will review the draft."
         transcript.segments[1] = .init(start: 5, end: 10, speaker: "them 2", text: "I need to review the draft.")
         transcript.segments[19].text = "I'll check the build, and you will send the measurements."
@@ -431,16 +423,12 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let result = try await generate(script, transcript: transcript)
         let calls = await script.recorded()
         XCTAssertEqual(calls.count, 3, "Only two targeted repairs are allowed per part")
-        // Repeated ambiguous evidence leaves the task visible with an unclear
-        // owner instead of failing the meeting on every retry.
         XCTAssertEqual(result.outcomes.actionItems.map(\.text), ["Send the measurements"])
         XCTAssertEqual(result.outcomes.actionItems[0].attribution?.rejectionReason, .ambiguousQuote)
         XCTAssertTrue(result.outcomes.actionItems[0].ownershipIsUnclear)
         XCTAssertTrue(result.outcomes.userActionItems.isEmpty)
     }
 
-    /// A task between two other participants whose only evidence names both
-    /// actors, so no quote can bind it to one undertaking.
     private func unbindableTask() -> (Transcript, [String: Any]) {
         var transcript = transcript
         transcript.segments[0] = .init(start: 0, end: 5, speaker: "them",
@@ -648,9 +636,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
     }
 
     func testMalformedProviderShapeGetsOneBoundedRecoveryRetry() async throws {
-        // A provider can return a successful JSON response with an optional
-        // action that has no source (or even omit the notes array). That shape
-        // must trigger one focused re-read, not fail the whole meeting.
         let script = Script([
             .text(#"{"actions":[{"text":"Use the plan"}],"has_more":false}"#),
             .text(try response(notes: [note()], actions: [action()])),
@@ -698,7 +683,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(MeetingNotesEvidence(transcript: transcript).units.filter(\.isUserCommitment).map(\.source), ["s21"])
         let script = Script([
             .text(try response(notes: [note("s1", "The dependency needs review.")])),
-            // Asked again at temperature 0, the model gives the same answer.
             .text(try response()), .text(try response()),
         ])
 
@@ -806,10 +790,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(result.outcomes.userActionItems.count, 1)
     }
 
-    /// Escaped bug: without a provider tokenizer, parts are packed to a byte
-    /// ceiling beside a full output reservation. The continuation ledger then
-    /// pushed the page over that reservation, and every retry failed before
-    /// sending a request.
     func testContinuationOfAPartPackedToTheContextLimitShrinksItsOutput() async throws {
         let (script, chunks, system, _) = try await packedContinuationScript(noteLength: 120, notes: 10)
         let result = try await generate(script, transcript: longTranscript(segments: 120), contextTokens: 16_384,
@@ -844,9 +824,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertLessThanOrEqual(input + output, 16_384)
     }
 
-    /// First part pages once with `notes` long records; every other part
-    /// answers in one page. Chunks use the byte bound of a tokenizer-less
-    /// provider at a 16K context, as an unknown OpenRouter model does.
     private func packedContinuationScript(noteLength: Int, notes count: Int) async throws
         -> (Script, [[MeetingNotesEvidence.Unit]], String, [String]) {
         let evidence = MeetingNotesEvidence(transcript: longTranscript(segments: 120))
@@ -947,7 +924,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
     }
 
     func testTheCitedVoiceOutranksAWrongOwnerAndANegationIsNotATask() throws {
-        // The model named the other participant for words the user said.
         let evidence = MeetingNotesEvidence(transcript: transcript)
         let wrongOwner = evidence.validate(try response(actions: [action(owner: "p2")]),
             units: evidence.units, template: .meeting, meetingID: UUID(), maximumNotes: 12, maximumActions: 10)
@@ -1014,8 +990,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertTrue((item["required"] as? [String] ?? []).contains("quote"))
     }
 
-    /// Filmed on 2026-11-04: Qwen 4B filed "Decision made…" under Key points,
-    /// so the notes said "No cited decisions" for a meeting that made two.
     func testAStatedDecisionReachesTheFinishedNotesWhenTheModelFiledItElsewhere() async throws {
         var filmed = Transcript(segments: [
             .init(start: 0, end: 5, speaker: "me", text: "Agreed. Decision made, we shoot in the studio, can you book it for the 12th?"),
@@ -1319,22 +1293,16 @@ final class MeetingNotesGeneratorTests: XCTestCase {
             system: system, context: [], contextTokens: 16_384)
         let verified = try await MeetingNotesGenerator.makeChunks(evidence: evidence, engine: engine,
             system: system, context: [], contextTokens: window)
-        // Each part carries about twice the evidence; the tail part may be short.
         XCTAssertLessThanOrEqual(verified.count, conservative.count / 2 + 1,
                                  "planned \(verified.count) parts against \(conservative.count) at 16K")
         XCTAssertEqual(Set(verified.flatMap { $0.map(\.source) }), Set(evidence.units.map(\.source)))
         XCTAssertEqual(verified.last?.last?.source, evidence.units.last?.source)
         for chunk in verified {
             let bytes = (system + "\n\n" + MeetingNotesGenerator.prompt(units: chunk, roster: evidence.roster)).utf8.count
-            // Even at one token per byte a part stays inside its window with
-            // the full output and envelope headroom.
             XCTAssertLessThanOrEqual(bytes + 4_096 + 1_536, window)
         }
     }
 
-    /// Parts follow the model's window in steps: windows within a step plan
-    /// identical parts, so a window that drifts between lookups keeps a
-    /// meeting's saved parts, and each larger step plans fewer, larger parts.
     func testWindowsInOneStepPlanTheSamePartsAndLargerStepsPlanFewer() async throws {
         let multilingual = Transcript(segments: (0..<240).map { index in
             .init(start: Double(index), end: Double(index + 1), speaker: index.isMultiple(of: 3) ? "me" : "them",
@@ -1367,9 +1335,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         }
     }
 
-    /// On 2026-10-07 a 21-minute standup on Cerebras Qwen (64K window) was
-    /// planned as four standard parts. A larger part now gets the output and
-    /// record caps of the standard parts it covers.
     func testALargerPartGetsTheOutputAndRecordsOfTheStandardPartsItCovers() async throws {
         let transcript = longTranscript(segments: 200)
         let evidence = MeetingNotesEvidence(transcript: transcript)
@@ -1385,9 +1350,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(result.claims.count, 20, "more than one standard part's 12 notes")
     }
 
-    /// On 2026-10-07 reasoning used every output token of a standup's first
-    /// part. The next runs asked the model to continue from an empty list of
-    /// accepted records, got empty answers, and stopped the part for good.
     func testAPartCutOffBeforeAnyRecordIsScannedAgainNotContinued() async throws {
         let output = try folder()
         let transcript = longTranscript(segments: 3)
@@ -1407,7 +1369,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertEqual(result.claims.count, 1)
     }
 
-    /// Automatic runs keep a stopped part stopped; asking again scans it.
     func testSummarizeAgainRetriesAPartAnEarlierRunStopped() async throws {
         let output = try folder()
         let transcript = longTranscript(segments: 3)
@@ -1447,10 +1408,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertGreaterThan(largerAllowance, plainAllowance)
     }
 
-    /// Each popular model resolves its provider's window without a network
-    /// lookup, and a 20-minute meeting with calendar context (like the
-    /// 2026-10-07 standup, planned as four parts) becomes one or two requests
-    /// whose schemas fit the provider.
     func testPopularModelsPlanAMeetingFromTheirProvidersWindow() async throws {
         func config(_ baseURL: String, _ model: String) -> AppSettings {
             var config = openRouterConfig(model)
@@ -1489,8 +1446,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         }
     }
 
-    /// On 2026-10-07 the standup's 228 rows became one part whose schema held
-    /// 709 enum values, and Cerebras rejected it ("cannot exceed 500").
     func testPartsKeepTheirSchemaWithinTheProvidersEnumLimit() async throws {
         let transcript = Transcript(segments: (0..<228).map { index in
             .init(start: Double(index * 5), end: Double(index * 5 + 5), speaker: index.isMultiple(of: 2) ? "me" : "them",
@@ -1517,8 +1472,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
 
     func testVerifiedWindowKeepsTheFullOutputForAContinuationThat16KShrinks() async throws {
         let system = MeetingNotesGenerator.systemPrompt(template: .meeting, language: .matchTranscript)
-        // One part that fits 16K, leaving less room than its own ledger needs
-        // beside the full output allowance.
         var transcript = Transcript(segments: [], engine: "fixture")
         while true {
             let evidence = MeetingNotesEvidence(transcript: transcript)
@@ -1632,7 +1585,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let output = try folder()
         let budget = MeetingGenerationBudget(limits: .init(seconds: 0.05))
         do { _ = try await generate(script, folder: output, budget: budget); XCTFail("expected deadline") } catch is MeetingGenerationBudget.Exhausted {} catch { XCTFail("unexpected error \(error)") }
-        // A short deadline may run out during planning, before an HTTP request.
         let observed8 = await script.recorded().count
         XCTAssertLessThanOrEqual(observed8, 1)
         let metric = try String(contentsOf: output.appendingPathComponent("notes-generation-metrics.json"), encoding: .utf8)
@@ -1702,8 +1654,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
             XCTAssertLessThan(smaller.outputTokens, larger.outputTokens)
         }
 
-        // run() races a Task.sleep deadline and allowance() converts
-        // seconds * 35 to Int — even Unlimited must stay finite and Int-safe.
         let unlimited = GenerationBudgetPreset.unlimited.limits
         XCTAssertTrue(unlimited.seconds.isFinite)
         XCTAssertLessThan(unlimited.seconds * 35, Double(Int.max))
@@ -1717,8 +1667,6 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         return config
     }
 
-    /// About 6,000 words over 30 minutes from two speakers. Their wording
-    /// differs so neither turn reads as the other's echo.
     private func thirtyMinuteTranscript() -> Transcript {
         Transcript(segments: (0..<360).map { index in
             .init(start: Double(index * 5), end: Double(index * 5 + 5), speaker: index.isMultiple(of: 2) ? "me" : "them",

@@ -1,42 +1,21 @@
-//! Whose sound the "Them" track records (`SystemAudioRecorder.swift`,
-//! `RecordingController.swift`): the meeting app's when it can be separated,
-//! so other sounds stay out, otherwise everything the computer plays.
-//!
-//! Everything the meeting app plays is also in the whole output, so the whole
-//! output is always the safe answer: a tap that can't open, or an app with no
-//! open output stream, never costs the recording its other side.
-
 use std::time::{Duration, Instant};
 
-/// How long a meeting app may have no output stream before the whole output
-/// is recorded instead. An app that closes its stream between sentences comes
-/// back to its tap as soon as the stream reopens.
 pub(crate) const NO_OUTPUT_GRACE: Duration = Duration::from_secs(10);
-/// How long after a tap failed it isn't tried again.
 pub(crate) const TAP_RETRY: Duration = Duration::from_secs(30);
 
-/// The meeting app whose sound the "Them" track records.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AppAudioTarget {
-    /// The top process of the app. On Windows its whole process tree counts.
     pub pid: u32,
-    /// Executable name as the OS reports it ("Zoom.exe", "chrome").
     pub process_name: String,
-    /// What to call it ("Zoom", "Google Meet").
     pub app_name: String,
 }
 
 impl AppAudioTarget {
-    /// The same app, even when it restarted under a new process.
     pub fn same_app(&self, other: &AppAudioTarget) -> bool {
         normalized(&self.process_name) == normalized(&other.process_name)
     }
 }
 
-/// The target a recording moves to when a call is detected
-/// (`considerDetectedSource`): one with no target binds to the call, and one
-/// bound to an app only follows that app's replacement process. It never moves
-/// to another app's call.
 pub fn next_target(
     current: Option<&AppAudioTarget>,
     detected: Option<&AppAudioTarget>,
@@ -51,30 +30,24 @@ pub fn next_target(
     }
 }
 
-/// `ZOOM.exe` and `zoom` are one app.
 pub(crate) fn normalized(name: &str) -> String {
     let lower = name.trim().to_lowercase();
     lower.strip_suffix(".exe").unwrap_or(&lower).to_string()
 }
 
-/// Process loopback exists from Windows 10 build 20348.
 #[cfg_attr(not(windows), allow(dead_code))]
 pub(crate) fn build_has_process_loopback(build: u32) -> bool {
     build >= 20_348
 }
 
-/// What the capture records right now.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Scope {
     App,
     WholeOutput,
 }
 
-/// Chooses between the app's tap and the whole output, from what each poll
-/// sees. Pure, so the fallback rules are testable without a sound server.
 #[derive(Clone, Debug)]
 pub(crate) struct ScopeChooser {
-    /// There is an app to tap and this system can tap it.
     can_tap: bool,
     scope: Scope,
     last_output: Option<Instant>,
@@ -91,8 +64,6 @@ impl ScopeChooser {
         }
     }
 
-    /// `app_output` is whether the app has an open output stream, or `None`
-    /// when that couldn't be read. An unreadable state changes nothing.
     pub fn observe(&mut self, app_output: Option<bool>, now: Instant) -> Scope {
         if !self.can_tap {
             self.scope = Scope::WholeOutput;
@@ -119,7 +90,6 @@ impl ScopeChooser {
         self.scope
     }
 
-    /// A tap didn't open or broke: the whole output, and no retry for a while.
     pub fn tap_failed(&mut self, now: Instant) -> Scope {
         self.scope = Scope::WholeOutput;
         self.retry_at = Some(now + TAP_RETRY);
@@ -127,18 +97,12 @@ impl ScopeChooser {
     }
 }
 
-/// One of the app's open output streams.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub(crate) struct AppStream {
-    /// The sink input (Linux) or the emitting process (Windows).
     pub id: u32,
-    /// The output device it plays on. A stream that moves is reopened.
     pub device: u32,
 }
 
-/// Mixes a tap's streams into one track. A stream that stops delivering (it
-/// paused, or the app is about to close it) must not hold up the others, so
-/// it counts as silence once it is `MAX_SKEW` frames behind.
 #[derive(Debug, Default)]
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 pub(crate) struct StreamMixer {
@@ -147,7 +111,6 @@ pub(crate) struct StreamMixer {
 
 #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
 impl StreamMixer {
-    /// 40 ms at 16 kHz.
     const MAX_SKEW: usize = 640;
 
     pub fn add(&mut self, lane: u32) {
@@ -158,7 +121,6 @@ impl StreamMixer {
         self.lanes.remove(&lane);
     }
 
-    /// Takes one stream's samples and returns what is ready to write.
     pub fn push(&mut self, lane: u32, samples: &[f32]) -> Vec<f32> {
         self.lanes.entry(lane).or_default().extend(samples);
         let longest = self.lanes.values().map(|l| l.len()).max().unwrap_or(0);

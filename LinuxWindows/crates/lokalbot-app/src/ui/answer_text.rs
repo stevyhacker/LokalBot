@@ -1,8 +1,3 @@
-//! Renders assistant answers and generated notes: a small Markdown subset
-//! (paragraphs, headings, lists, quotes, code, bold, italic, links) with
-//! inline `[n]` citations in teal on a teal wash, like `SelectableDigestText`
-//! with `ChatCitationParser.extract(…, linked: true)` on macOS.
-
 use std::ops::Range;
 use std::rc::Rc;
 
@@ -18,7 +13,6 @@ use crate::theme::{LbThemeExt as _, ty};
 const CITE_OPEN: char = '\u{E000}';
 const CITE_CLOSE: char = '\u{E001}';
 
-/// Inline styling of one run of text.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SpanStyle {
     pub bold: bool,
@@ -28,7 +22,6 @@ pub struct SpanStyle {
     pub cite: Option<usize>,
 }
 
-/// One line-wrapped run of styled text.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Inline {
     pub text: String,
@@ -75,7 +68,6 @@ pub enum Block {
     Rule,
 }
 
-/// A parsed answer: blocks, the cited sources in number order and the link targets.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Answer {
     pub blocks: Vec<Block>,
@@ -89,7 +81,6 @@ impl Answer {
     }
 }
 
-/// Parses Markdown with LokalBot citation markers.
 pub fn parse(text: &str) -> Answer {
     let (pieces, citations) = citations::split(text);
     let mut source = String::with_capacity(text.len());
@@ -178,7 +169,6 @@ fn parse_blocks(source: &str, answer: &mut Answer) {
         if let Some((depth, marker, text)) = list_item(line) {
             flush_paragraph(&mut paragraph, answer);
             let mut body = text.to_string();
-            // Indented continuation lines belong to the item.
             while let Some(next) = lines.peek() {
                 let next_trimmed = next.trim();
                 let indented = next.starts_with("  ") || next.starts_with('\t');
@@ -223,7 +213,6 @@ fn heading(line: &str) -> Option<(u8, &str)> {
     Some((hashes as u8, rest.trim_end_matches('#').trim()))
 }
 
-/// `- item`, `* item`, `+ item`, `• item`, `1. item`, `2) item`.
 fn list_item(line: &str) -> Option<(usize, Option<String>, &str)> {
     let indent: usize = line
         .chars()
@@ -345,8 +334,6 @@ fn parse_inline(source: &str, style: &SpanStyle, out: &mut Inline, links: &mut V
     out.push(&plain, style);
 }
 
-/// Length of the content before the closing `marker`, if the span is valid:
-/// non-empty, not starting or ending with whitespace.
 fn closing(rest: &str, marker: &str) -> Option<usize> {
     if rest.starts_with(char::is_whitespace) {
         return None;
@@ -357,7 +344,6 @@ fn closing(rest: &str, marker: &str) -> Option<usize> {
         let before = rest[..at].chars().last();
         let after = rest[at + marker.len()..].chars().next();
         let valid_end = at > 0 && before.is_some_and(|b| !b.is_whitespace());
-        // `_` closes only at a word boundary, so snake_case stays literal.
         let boundary = !marker.starts_with('_') || after.is_none_or(|a| !a.is_alphanumeric());
         if valid_end && boundary {
             return Some(at);
@@ -372,11 +358,9 @@ fn opens_emphasis(bytes: &[u8], i: usize) -> bool {
     if next.is_none_or(|n| n.is_ascii_whitespace()) {
         return false;
     }
-    // `_` inside a word is literal.
     bytes[i] != b'_' || i == 0 || !bytes[i - 1].is_ascii_alphanumeric()
 }
 
-/// `[label](url)` at the start of `rest`.
 fn link(rest: &str) -> Option<(&str, &str, usize)> {
     let close = rest.find("](")?;
     let label = &rest[1..close];
@@ -392,15 +376,10 @@ fn link(rest: &str) -> Option<(&str, &str, usize)> {
     Some((label, url, close + 2 + end + 1))
 }
 
-// ------------------------------------------------------------------ render
-
-/// Called with the 0-based citation index when a `[n]` is clicked.
 pub type CiteHandler = Rc<dyn Fn(usize, &mut Window, &mut App)>;
 
-/// Called with a link's target when it isn't a web link.
 pub type LinkHandler = Rc<dyn Fn(&str, &mut Window, &mut App)>;
 
-/// Text size and color of a rendered answer.
 #[derive(Clone, Copy)]
 pub struct AnswerStyle {
     pub size: gpui_kit::Pixels,
@@ -418,7 +397,6 @@ impl AnswerStyle {
     }
 }
 
-/// Lays out the parsed answer. `id` must be unique in the window.
 pub fn render(
     id: impl Into<ElementId>,
     answer: &Answer,
@@ -429,8 +407,6 @@ pub fn render(
     render_linked(id, answer, style, on_cite, None, cx)
 }
 
-/// [`render`], with `on_link` deciding what a non-web link opens. Without it such
-/// a link does nothing.
 pub fn render_linked(
     id: impl Into<ElementId>,
     answer: &Answer,
@@ -568,7 +544,6 @@ fn styled(
         if span.bold {
             highlight.font_weight = Some(FontWeight::SEMIBOLD);
         } else if span.emphasis {
-            // Inter ships without italics here; medium weight carries the emphasis.
             highlight.font_weight = Some(FontWeight::MEDIUM);
         }
         if span.code {

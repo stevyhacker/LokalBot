@@ -1,22 +1,13 @@
 import Foundation
 
-/// Finds finished recordings whose transcript is missing or incomplete, so the
-/// pipeline can queue them once. Recordings from before processing intent was
-/// durable can have audio but no transcript and no job; merges made before a
-/// merge re-transcribed untranscribed sources can leave a whole source's span
-/// of the merged transcript empty.
 enum MissingTranscription {
     enum Reason: Equatable, Sendable {
         case neverTranscribed
         case mergedGap
     }
 
-    /// Written before a merged-gap repair is queued, so a span that stays
-    /// empty (for example, silence) is not re-transcribed on every launch.
     static let gapRepairMarkerFileName = "transcript-gap-repair.json"
-    /// Shorter recordings hold no speech worth a model run.
     static let minimumRecordingSeconds: TimeInterval = 5
-    /// A merged source shorter than this may legitimately have no segments.
     static let minimumGapSeconds: TimeInterval = 30
 
     static func reason(for meeting: Meeting, folder: URL) -> Reason? {
@@ -31,8 +22,6 @@ enum MissingTranscription {
         return hasMergedSourceGap(in: folder) ? .mergedGap : nil
     }
 
-    /// True when a merged meeting's transcript has no segment at all within
-    /// the span of one of its sources.
     static func hasMergedSourceGap(in folder: URL) -> Bool {
         let fileManager = FileManager.default
         guard !fileManager.fileExists(atPath: folder.appendingPathComponent(gapRepairMarkerFileName).path),

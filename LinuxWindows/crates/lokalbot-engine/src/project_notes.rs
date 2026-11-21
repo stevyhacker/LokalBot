@@ -1,8 +1,3 @@
-//! "Where it stands" notes on tracked projects (`ProjectStore.writeSummary`).
-//! The button writes one on request. Opening a tracked project writes or
-//! refreshes its note by itself, if the Think model is ready and may run
-//! unattended, and at most once for the same evidence.
-
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -21,12 +16,9 @@ pub struct ProjectNotes {
     shared: Arc<Shared>,
     models: Models,
     writing: Arc<Mutex<HashSet<String>>>,
-    /// `<project><evidence fingerprint>` of every automatic try this run, so a
-    /// note that keeps failing isn't retried each time the project opens.
     attempts: Arc<Mutex<HashSet<String>>>,
 }
 
-/// Whether opening `project` should write its note (`shouldWriteAutomatically`).
 fn due_automatically(
     project: &ProjectProfile,
     writing: &HashSet<String>,
@@ -59,7 +51,6 @@ impl ProjectNotes {
         }
     }
 
-    /// The button: writes the note now, or says why it can't.
     pub fn write(&self, project_id: String) {
         let notes = self.clone();
         std::thread::spawn(move || {
@@ -76,8 +67,6 @@ impl ProjectNotes {
         });
     }
 
-    /// A tracked project was opened. Nothing here asks the person for
-    /// anything: a failure just leaves the Write Note button.
     pub fn opened(&self, project_id: String) {
         let notes = self.clone();
         std::thread::spawn(move || {
@@ -143,8 +132,6 @@ impl ProjectNotes {
             .find(|p| p.id == project_id)
             .ok_or_else(|| anyhow!("That project no longer exists."))?;
         let summary = project_status::generate(&think, &shared.library, &project)?;
-        // The approval may have gone, or the project been dropped, while the
-        // model wrote.
         if automatic && !allows_automatic_main_inference(&shared.settings()) {
             return Ok(());
         }
@@ -227,19 +214,14 @@ mod tests {
         let fingerprint = project_status::fingerprint(&project_status::evidence(&atlas));
         let none = HashSet::new();
 
-        // Never written.
         assert!(due_automatically(&atlas, &none, &none));
-        // Out of date.
         atlas.summary = Some(summary(&atlas, "older evidence"));
         assert!(due_automatically(&atlas, &none, &none));
-        // Up to date.
         atlas.summary = Some(summary(&atlas, &fingerprint));
         assert!(!due_automatically(&atlas, &none, &none));
         atlas.summary = None;
-        // Being written now, by the button or by opening it.
         let writing = HashSet::from([atlas.id.clone()]);
         assert!(!due_automatically(&atlas, &writing, &none));
-        // Tried already for this evidence.
         let attempts = HashSet::from([attempt_key(&atlas.id, &fingerprint)]);
         assert!(!due_automatically(&atlas, &none, &attempts));
     }

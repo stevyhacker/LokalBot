@@ -45,15 +45,12 @@ import me.dotenv.lokalbot.companion.ui.components.StatusDot
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** Where a recording on this device has got to, as the list shows it. */
 sealed interface RecordingStatus {
     data object Recording : RecordingStatus
 
-    /** [message] says what's holding it up, when anything is known to. */
     data class Waiting(val message: String?, val computerTurnedItOff: Boolean = false) : RecordingStatus
     data class Sending(val percent: Int) : RecordingStatus
 
-    /** The computer has it; the row stays until the meeting arrives. */
     data object Processing : RecordingStatus
     data class Failed(val message: String?) : RecordingStatus
 }
@@ -92,7 +89,6 @@ fun RecordingStatus.text(resources: Resources, computer: String?): RecordingStat
     is RecordingStatus.Failed -> RecordingStatusText(resources.getString(R.string.recording_status_failed), message)
 }
 
-/** Title, then "Today · 10:30 · 42 min", then where it has got to. */
 @Composable
 fun DeviceRecordingRow(
     row: RecordingRowState,
@@ -181,7 +177,6 @@ private fun RowMenu(onRename: () -> Unit, onDelete: () -> Unit) {
     }
 }
 
-/** Deleting destroys the only copy, so it asks. */
 @Composable
 fun DeleteRecordingDialog(onConfirm: () -> Unit, onDismiss: () -> Unit) {
     AlertDialog(

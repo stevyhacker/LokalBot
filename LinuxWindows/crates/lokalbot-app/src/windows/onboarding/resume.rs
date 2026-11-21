@@ -1,7 +1,3 @@
-//! Where an unfinished setup was (`OnboardingResumeState`), kept next to the
-//! library's settings so the next launch reopens setup at the same step with
-//! the choices not applied yet.
-
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
@@ -15,8 +11,6 @@ const FILE: &str = "onboarding-resume.json";
 pub(super) struct ResumeState {
     pub step: Step,
     pub draft: Draft,
-    /// The choices the settings held when the draft was started. When the
-    /// settings have changed since, the saved draft no longer describes them.
     pub baseline: Draft,
     pub include_autocomplete: bool,
     pub opens_sample_meeting: bool,
@@ -26,8 +20,6 @@ fn path(root: &Path) -> PathBuf {
     root.join(FILE)
 }
 
-/// The saved state, when it still belongs to settings whose choices are
-/// `current`.
 pub(super) fn load(root: &Path, current: &Draft) -> Option<ResumeState> {
     let text = std::fs::read_to_string(path(root)).ok()?;
     parse(&text, current)
@@ -81,7 +73,6 @@ mod tests {
         let text = serde_json::to_string(&saved).unwrap();
         assert_eq!(parse(&text, &baseline), Some(saved));
 
-        // Settings changed elsewhere since: start over from them.
         let changed = Draft::new(&Settings {
             tracking_enabled: false,
             ..settings
@@ -98,7 +89,6 @@ mod tests {
         assert_eq!(load(dir.path(), &baseline), Some(state(baseline)));
         clear(dir.path());
         assert_eq!(load(dir.path(), &baseline), None);
-        // Clearing twice is fine.
         clear(dir.path());
     }
 }

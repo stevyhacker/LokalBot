@@ -1,17 +1,8 @@
-//! What a browser's accessibility tree says about a call
-//! (`BrowserMeetingSession.swift`). Only a supported meeting document and its
-//! call controls count, and no pixels, participant names or page text are kept.
-//!
-//! The older Google Meet title and microphone fallback remains available.
-//! Telemost and MTS Link must prove a room, including from the desktop MTS
-//! Link web view.
-
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use lokalbot_core::calendar::{MeetingService, meeting_room};
 
-/// All of a poll's windows give up after this long.
 pub(crate) const READ_DEADLINE: Duration = Duration::from_secs(1);
 pub(crate) const MAX_WINDOWS: usize = 32;
 pub(crate) const MAX_NODES: usize = 3_000;
@@ -19,29 +10,21 @@ pub(crate) const MAX_NODES: usize = 3_000;
 pub(crate) const MAX_DEPTH: usize = 30;
 #[cfg(target_os = "linux")]
 pub(crate) const MAX_CHILDREN: usize = 500;
-/// Longer labels are page text, not a control's name.
 pub(crate) const MAX_LABEL: usize = 160;
-/// How long a window without a Meet document isn't walked again, unless a
-/// new title says a tab came to the front (`QuietWindowCache.maximumAge`).
 const QUIET_MAX_AGE: Duration = Duration::from_secs(30);
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum CallState {
     InCall,
-    /// The already verified call is still in this window.
     #[cfg(any(windows, test))]
     Present,
     Ended,
-    /// The service visibly offers to join the room.
     WaitingRoom,
-    /// A room whose controls couldn't be read.
     Unavailable,
 }
 
 #[cfg(any(windows, test))]
 impl CallState {
-    /// A device dialog can hide the controls of an existing call. A visible
-    /// Join action instead shows that the participant is back in the lobby.
     pub fn in_bound_window(self) -> Self {
         match self {
             Self::Unavailable => Self::Present,
@@ -51,42 +34,30 @@ impl CallState {
     }
 }
 
-/// One supported room document found in a window.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct BrowserDocument {
     pub family: &'static str,
     pub url: String,
     pub state: CallState,
-    /// Window owner when the operating system can identify it for loopback.
     pub host_pid: Option<u32>,
 }
 
-/// What the documents of one browser say.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Verdict {
-    /// Nothing was read: the title and microphone decide.
     Unknown,
-    /// Call controls are on screen, in the one document named when it is known.
     InCall(Option<String>),
-    /// The room is still in its bound window, but its controls are hidden.
     #[cfg(any(windows, test))]
     Present,
-    /// A meeting document is open without call controls.
     NotInCall,
-    /// The document says the call is over.
     Ended,
 }
 
-/// The canonical meeting-room URL, or `None` for anything that is not an exact
-/// `https://meet.google.com/abc-defg-hij` document. Meet also serves the room
-/// as `/meet/abc-defg-hij`; both give the short form calendar links use.
 pub fn meet_url(raw: &str) -> Option<String> {
     meeting_room(raw)
         .filter(|room| room.service == MeetingService::GoogleMeet)
         .map(|room| room.url)
 }
 
-/// `BrowserMeetingSession.state`: which call state the labels show.
 pub(crate) fn call_state(buttons: &[String], messages: &[String]) -> CallState {
     const ENDED: [&str; 5] = [
         "you left the meeting",
@@ -118,9 +89,6 @@ pub(crate) fn call_state(buttons: &[String], messages: &[String]) -> CallState {
     if leave && microphone {
         return CallState::InCall;
     }
-    // Meet's page after a call offers to rejoin it or go home, whatever its
-    // heading says. With the call controls gone, that pair is end evidence
-    // where the wording is not.
     if !leave && offers("rejoin") && offers("return to home screen") {
         CallState::Ended
     } else {
@@ -188,8 +156,6 @@ fn document_state(
     }
 }
 
-/// Whether a nested Telemost document belongs to the verified room; other
-/// iframe controls must not be used to prove that the user joined.
 #[cfg(any(windows, test))]
 pub(crate) fn telemost_room_frame(room: &str, frame: &str) -> bool {
     let Some(code) = room.strip_prefix("https://telemost.yandex.ru/j/") else {
@@ -199,7 +165,6 @@ pub(crate) fn telemost_room_frame(room: &str, frame: &str) -> bool {
     frame == format!("https://telemost.yandex.ru/private-join/{code}")
 }
 
-/// Match the title of an already verified room against a browser tab label.
 #[cfg(windows)]
 pub(crate) fn title_names_room(title: &str, room: &str, verified: &str) -> bool {
     let title = title.to_lowercase();
@@ -223,8 +188,6 @@ pub(crate) fn title_names_room(title: &str, room: &str, verified: &str) -> bool 
     ) && title.contains(&verified)
 }
 
-/// The landing page reached when leaving a supported room. This is only
-/// consulted for its previously verified window once its call tab is gone.
 #[cfg(windows)]
 pub(crate) fn is_post_call_page(room: &str, address: &str) -> bool {
     let address = address.split(['?', '#']).next().unwrap_or("");
@@ -241,8 +204,6 @@ pub(crate) fn is_post_call_page(room: &str, address: &str) -> bool {
     }
 }
 
-/// What `documents` say about `family`'s call. `expected` is the room a call
-/// already in progress is bound to: another room's document says nothing about it.
 pub(crate) fn verdict(
     documents: &[BrowserDocument],
     family: &str,
@@ -277,8 +238,6 @@ pub(crate) fn verdict(
         .collect();
     match calls.as_slice() {
         [call] => Verdict::InCall(Some(call.url.clone())),
-        // Keep the existing Google Meet behavior. Other providers must
-        // identify one room before they can authorize a new recording.
         [_, ..] if calls.iter().all(|call| meet_url(&call.url).is_some()) => Verdict::InCall(None),
         [_, ..] => Verdict::NotInCall,
         [] if own
@@ -291,7 +250,6 @@ pub(crate) fn verdict(
     }
 }
 
-/// The labels of one document while a window is walked.
 #[derive(Debug, Default)]
 pub(crate) struct DocumentLabels {
     pub url: Option<String>,
@@ -335,7 +293,6 @@ impl DocumentLabels {
     }
 }
 
-/// The controls of a Windows window arrive in document order from UIA.
 #[cfg(any(windows, test))]
 #[derive(Default)]
 pub(crate) struct WindowCall {
@@ -408,8 +365,6 @@ impl WindowCall {
         enabled: bool,
         offscreen: bool,
     ) {
-        // UIA's flat list cannot find the end of an unrelated frame. Keep
-        // attaching controls to the last Meet document, as before.
         if let Some(meet) = self.google.last_mut() {
             if kind == CallControl::Text {
                 meet.add_message(label.clone());
@@ -440,8 +395,6 @@ impl WindowCall {
     }
 }
 
-/// Browser windows whose last complete read found no Meet document, so a
-/// window keeping its title isn't walked on every poll (`QuietWindowCache`).
 #[derive(Debug, Default)]
 pub(crate) struct QuietWindows {
     entries: HashMap<String, (String, Instant)>,
@@ -463,7 +416,6 @@ impl QuietWindows {
         }
     }
 
-    /// Forgets windows that closed.
     pub fn keep(&mut self, windows: &[String]) {
         self.entries.retain(|window, _| windows.contains(window));
     }
@@ -635,7 +587,6 @@ mod tests {
         assert_eq!(call_state(&joining, &[]), CallState::Unavailable);
         let leave_only = labels(&["Leave call"]);
         assert_eq!(call_state(&leave_only, &[]), CallState::Unavailable);
-        // A word that only starts the same doesn't offer the action.
         let lookalike = labels(&["Leave callback", "Turn on microphone"]);
         assert_eq!(call_state(&lookalike, &[]), CallState::Unavailable);
     }
@@ -646,7 +597,6 @@ mod tests {
         assert_eq!(call_state(&[], &message), CallState::Ended);
         let after = labels(&["Rejoin", "Return to home screen"]);
         assert_eq!(call_state(&after, &[]), CallState::Ended);
-        // Call controls beside a rejoin offer are not the end.
         let both = labels(&["Rejoin", "Return to home screen", "Leave call"]);
         assert_eq!(call_state(&both, &[]), CallState::Unavailable);
     }

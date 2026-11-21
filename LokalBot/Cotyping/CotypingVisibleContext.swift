@@ -1,8 +1,6 @@
 import CoreGraphics
 import Foundation
 
-/// The same bounded traversal runs over AX in production and a synthetic tree in
-/// replay. Metadata is inspected before text; rejected branches are never read.
 protocol CotypingVisibleContextSource {
     func target() -> CotypingVisibleContext.Target?
     func region(_ id: String) -> CotypingVisibleContext.Region?
@@ -13,9 +11,7 @@ protocol CotypingVisibleContextSource {
 
 enum CotypingVisibleContext {
     struct Policy: Codable, Equatable, Sendable {
-        /// Accessibility labels and messages above the field.
         var enabled = false
-        /// The whole focused window, read from its pixels on device.
         var windowText = false
         var excludedApps: [String] = []
         var excludedDomains: [String] = []
@@ -37,7 +33,6 @@ enum CotypingVisibleContext {
             autocompleteExcludedDomains = settings.cotypingExcludedDomainList
         }
 
-        /// Whether `snapshot` may still be used, by the grant it was read under.
         func permits(_ snapshot: Snapshot) -> Bool {
             permits(snapshot.target, source: snapshot.source)
         }
@@ -50,18 +45,14 @@ enum CotypingVisibleContext {
                 appName: target.appName, bundleIdentifier: target.bundleID,
                 windowTitle: target.windowTitle, sourceURL: target.sourceURL,
                 focusedSecureField: target.focusedSecureField, hasWebContent: target.hasWebContent)
-            // Unlike activity tracking, a missing browser origin always abstains.
             guard !ScreenContextPrivacy.isBrowser(observation) && !target.hasWebContent
                     || ScreenContextPrivacy.sanitizedURL(target.sourceURL) != nil else { return false }
-            // Nearby text never comes from a private or incognito window, as
-            // PRIVACY.md promises; activity tracking keeps its own rule.
             guard !ScreenContextPrivacy.isPrivateWindow(title: target.windowTitle ?? "") else { return false }
             return ScreenContextPrivacy.permitsContent(
                 observation, excludedApps: excludedApps, excludedDomains: excludedDomains)
         }
     }
 
-    /// All rectangles use AX global coordinates (origin at the top left).
     struct Target: Codable, Equatable, Sendable {
         var appName: String
         var bundleID: String?
@@ -92,11 +83,8 @@ enum CotypingVisibleContext {
         var text: String
     }
 
-    /// How the text was read; each needs its own grant.
     enum Source: String, Codable, Equatable, Sendable {
-        /// Accessibility labels and messages in the field's column.
         case accessibility
-        /// On-device text recognition over the whole focused window.
         case windowText
     }
 
@@ -104,11 +92,9 @@ enum CotypingVisibleContext {
         var target: Target
         var excerpts: [Excerpt]
         var source: Source = .accessibility
-        /// Window text keeps its line breaks: a conversation reads line by line.
         var text: String? {
             excerpts.isEmpty ? nil : excerpts.map(\.text).joined(separator: source == .windowText ? "\n" : " | ")
         }
-        /// The text for the prompt line of each source.
         var nearbyText: String? { source == .accessibility ? text : nil }
         var windowText: String? { source == .windowText ? text : nil }
     }
@@ -134,7 +120,6 @@ enum CotypingVisibleContext {
     static func capture<Source: CotypingVisibleContextSource>(
         from source: Source, policy: Policy
     ) -> Snapshot? {
-        // Even metadata reads require the separate visible-context opt-in.
         guard policy.enabled, source.withinBudget, let target = source.target(),
               policy.permits(target), let area = corridor(for: target) else { return nil }
         var queue: [(String, CGRect)] = [(target.scopeID, target.scopeFrame.intersection(target.windowFrame))]
@@ -163,7 +148,6 @@ enum CotypingVisibleContext {
             guard valid(clipped) else { continue }
             queue.append(contentsOf: source.children(id).prefix(80).map { ($0, clipped) })
         }
-        // Read the nearest messages first, without ever reading rejected text.
         candidates.sort {
             let left = $0.frame ?? .zero, right = $1.frame ?? .zero
             if left.maxY != right.maxY { return left.maxY > right.maxY }
@@ -176,8 +160,6 @@ enum CotypingVisibleContext {
             guard excerpts.count < maximumExcerpts, remaining > 0 else { break }
             guard source.withinBudget, source.region(candidate.id) == candidate else { return nil }
             guard let raw = source.text(candidate.id), !raw.isEmpty, raw.count <= 8_000 else { continue }
-            // Omit credential-bearing snippets instead of teaching the model to
-            // complete a redaction marker. Prompt control characters are stripped.
             guard !CotypingSecureFieldDetector.isSecure(
                 role: nil, subrole: nil, roleDescription: nil, title: raw, descriptionLabel: nil),
                   let cleaned = CotypingMemoryContext.sanitized(raw) else { continue }
@@ -189,7 +171,6 @@ enum CotypingVisibleContext {
         guard source.withinBudget, source.target() == target,
               candidates.allSatisfy({ source.withinBudget && source.region($0.id) == $0 }),
               source.withinBudget else { return nil }
-        // Preserve reading order in the prompt after selecting by proximity.
         excerpts.sort { $0.frame.minY == $1.frame.minY ? $0.frame.minX < $1.frame.minX : $0.frame.minY < $1.frame.minY }
         return Snapshot(target: target, excerpts: excerpts)
     }

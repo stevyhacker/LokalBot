@@ -2,8 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// The real writer, preview tee, and health path, fed from a file instead of
-/// the microphone — what the UI background host and CI use.
 final class MicRecorderFileInputTests: XCTestCase {
     func testFileInputRecordsThroughTheRealWriter() throws {
         let folder = FileManager.default.temporaryDirectory
@@ -26,9 +24,6 @@ final class MicRecorderFileInputTests: XCTestCase {
         XCTAssertGreaterThan(written.length, 0)
     }
 
-    /// #373: a closed MacBook lid leaves the default input writing digital
-    /// silence. Those writes must not count as signal, while a room-noise
-    /// level input (about -69 dBFS) still does.
     func testDigitalSilenceIsWrittenButIsNotSignal() throws {
         let folder = FileManager.default.temporaryDirectory
             .appendingPathComponent("mic-file-\(UUID().uuidString)", isDirectory: true)

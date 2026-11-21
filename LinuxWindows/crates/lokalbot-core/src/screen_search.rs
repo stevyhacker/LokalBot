@@ -1,14 +1,3 @@
-//! Screen search by meaning: text and picture vectors of saved screens, and their
-//! ranking with keyword hits (`ScreenSearch`, `ScreenSearchRanking`,
-//! `EmbeddingIndex.screenMeanings`).
-//!
-//! Ranked the way DigUp ranks files: meaning is how far a capture stands out for
-//! this query among all stored vectors of its kind, and the query's words add a
-//! bonus that grows with how many of them the capture holds. A capture qualifies
-//! by standing out in meaning or by holding at least half of the query's words, so
-//! one common word can't outrank a clear meaning match, while all the words of an
-//! exact lookup ("INV-2041") usually win.
-
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{LazyLock, Mutex};
@@ -29,27 +18,19 @@ use crate::search::{MatchMode, ScreenHit};
 use crate::time::{from_epoch, to_epoch};
 use crate::timeline::table_exists;
 
-/// How far above this query's average a capture must score to count by meaning.
 pub const Z_GATE: f64 = 2.0;
 pub const WORD_WEIGHT: f64 = 2.0;
 const MINIMUM_DEVIATION: f64 = 0.02;
-/// Fewer vectors of a kind than this take the average of all kinds.
 const MODALITY_MINIMUM_COUNT: usize = 20;
-/// How many OR-fallback hits get their full text read to count the query's words;
-/// the rest are counted from their snippet and title.
 const FULL_TEXT_LIMIT: usize = 100;
-/// The text embedded per capture.
 const DOCUMENT_CHARS: usize = 1_500;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Modality {
-    /// The capture's text, embedded as a document.
     Text,
-    /// The captured picture itself.
     Image,
 }
 
-/// One stored vector's similarity to the query vector.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Score {
     pub snapshot_id: i64,
@@ -57,7 +38,6 @@ pub struct Score {
     pub cosine: f32,
 }
 
-/// A capture's best meaning match, on this query's scale.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Meaning {
     pub z: f64,
@@ -70,23 +50,16 @@ pub struct Ranked {
     pub snapshot_id: i64,
     pub score: f64,
     pub meaning: Option<Meaning>,
-    /// Share of the query's words the capture holds, 0…1.
     pub coverage: f64,
-    /// 1-based place in the keyword results, if the words found it.
     pub keyword_rank: Option<usize>,
 }
 
 impl Ranked {
-    /// Found by meaning alone: the list says so.
     pub fn is_semantic(&self) -> bool {
         self.keyword_rank.is_none() || self.coverage < 0.5
     }
 }
 
-/// Each capture's best vector on this query's scale. Scores are centred per kind
-/// first, because text scores higher than pictures for the same topic, then put on
-/// one z scale. Pass every stored vector, not only those in the date or app scope:
-/// the scale must not depend on the filter.
 pub fn meaning(scores: &[Score]) -> HashMap<i64, Meaning> {
     if scores.is_empty() {
         return HashMap::new();
@@ -131,13 +104,10 @@ pub fn meaning(scores: &[Score]) -> HashMap<i64, Meaning> {
     best
 }
 
-/// The query's content words, as keyword search over files sees them.
 pub fn terms(query: &str) -> Vec<String> {
     file_search::terms(query)
 }
 
-/// An exact lookup: every word carries digits. Words then count for more than
-/// meaning.
 pub fn is_lookup(terms: &[String]) -> bool {
     file_search::is_lookup(terms)
 }
@@ -150,8 +120,6 @@ fn folded(text: &str) -> String {
         .collect()
 }
 
-/// The share of `terms` in any of `texts`, ignoring case and diacritics. A word
-/// matches as the start of a longer word ("deploy" in "deployment").
 pub fn coverage(terms: &[String], texts: &[&str]) -> f64 {
     if terms.is_empty() {
         return 0.0;
@@ -176,10 +144,6 @@ pub fn coverage(terms: &[String], texts: &[&str]) -> f64 {
     found as f64 / terms.len() as f64
 }
 
-/// Captures that stand out in meaning or hold at least half of the query's words,
-/// best first. Score: meaning z plus a word bonus that grows with coverage; for a
-/// lookup, words weigh double and meaning half. Ties go to word matches, then to
-/// keyword order, then to the newer capture.
 pub fn rank(
     meanings: &HashMap<i64, Meaning>,
     keyword: &[(i64, f64)],
@@ -244,8 +208,6 @@ pub fn rank(
     ranked
 }
 
-// --------------------------------------------------------------- the excerpt
-
 static MARKUP_START: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"^\s*(?:#{1,6}\s+|[-*•]\s+(?:\[[ xX]\]\s*)?|\d+\.\s+)").expect("a valid pattern")
 });
@@ -290,8 +252,6 @@ fn is_useful(text: &str) -> bool {
     true
 }
 
-/// How many of the query's words `text` holds; a marked «match» counts for more
-/// (`RecallPassage.queryMatchCount`).
 pub fn query_match_count(text: &str, query: &str) -> usize {
     let lower = folded(text);
     usize::from(text.contains('«')) * 100
@@ -301,8 +261,6 @@ pub fn query_match_count(text: &str, query: &str) -> usize {
             .count()
 }
 
-/// A reading excerpt from captured text: the line with the query's words, or the
-/// first useful one (`RecallPassage.excerpt`).
 pub fn excerpt(source: &str, query: &str, limit: usize) -> Option<String> {
     let lines: Vec<String> = source
         .split('\n')
@@ -327,7 +285,6 @@ pub fn excerpt(source: &str, query: &str, limit: usize) -> Option<String> {
                 .filter(|term| lower.contains(&folded(term)))
                 .count()
     };
-    // Ties go to the earlier line.
     let selected = lines
         .iter()
         .rev()
@@ -364,9 +321,6 @@ pub fn excerpt(source: &str, query: &str, limit: usize) -> Option<String> {
     Some(out)
 }
 
-// ------------------------------------------------------------------- storage
-
-/// A capture's text waiting for its vector.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScreenDocument {
     pub snapshot_id: i64,
@@ -375,7 +329,6 @@ pub struct ScreenDocument {
     pub text: String,
 }
 
-/// A capture's best meaning match for a query, and what search shows for it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScreenMeaningMatch {
     pub meaning: Meaning,
@@ -383,12 +336,10 @@ pub struct ScreenMeaningMatch {
     pub app: String,
 }
 
-/// What a screen search may reach.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ScreenFilter {
     pub since: Option<DateTime<Utc>>,
     pub until: Option<DateTime<Utc>>,
-    /// Case-insensitive.
     pub app: Option<String>,
     pub snapshot_ids: Option<HashSet<i64>>,
 }
@@ -423,7 +374,6 @@ fn cosine(blob: &[u8], query: &[f32]) -> Option<f32> {
 }
 
 impl Library {
-    /// Captures with text and no vector, oldest first.
     pub fn screen_documents_without_vectors(&self, limit: usize) -> Result<Vec<ScreenDocument>> {
         self.with_db(|db| {
             if !table_exists(db, "ocr_fts")? || !table_exists(db, "screenshots")? {
@@ -453,9 +403,6 @@ impl Library {
         })
     }
 
-    /// Stores text vectors. Retention or deletion may remove text while embedding
-    /// runs, so the exact live text is checked again under the write transaction;
-    /// a late pass can't bring expired text back into this table.
     pub fn store_screen_vectors(&self, rows: &[(ScreenDocument, Vec<f32>)]) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -496,7 +443,6 @@ impl Library {
         })
     }
 
-    /// Screens have been searched by meaning on this library.
     pub fn has_screen_vectors(&self) -> Result<bool> {
         self.with_db(|db| {
             Ok(db
@@ -512,8 +458,6 @@ impl Library {
         })
     }
 
-    /// Text vectors another model made: this library searched by meaning before,
-    /// so they are rebuilt.
     pub fn has_stale_screen_vectors(&self) -> Result<bool> {
         self.with_db(|db| {
             Ok(db
@@ -527,7 +471,6 @@ impl Library {
         })
     }
 
-    /// Picture vectors a changed model, sizing or request shape made are dropped.
     pub fn purge_picture_vectors_except(&self, model_id: &str) -> Result<()> {
         if self.is_read_only() {
             return Ok(());
@@ -541,7 +484,6 @@ impl Library {
         })
     }
 
-    /// Retained captures without a picture vector, newest first: `(id, path)`.
     pub fn screens_without_picture_vectors(
         &self,
         model_id: &str,
@@ -562,10 +504,6 @@ impl Library {
         })
     }
 
-    /// Stores a capture's picture vector, or an empty one for pixels that can't be
-    /// read, so a broken capture isn't tried on every pass. The pixels may have
-    /// been deleted or replaced while this was embedded: a vector is never stored
-    /// for pixels that are gone.
     pub fn store_picture_vector(
         &self,
         model_id: &str,
@@ -601,7 +539,6 @@ impl Library {
         })
     }
 
-    /// Captures with a picture vector.
     pub fn picture_vector_count(&self, model_id: &str) -> Result<usize> {
         self.with_db(|db| {
             Ok(db.query_row(
@@ -612,9 +549,6 @@ impl Library {
         })
     }
 
-    /// Every screen vector, text and picture, scored against the query on one
-    /// scale, then limited to `filter`. The scale comes from all vectors, so a date
-    /// or app filter never changes how far a capture stands out.
     pub fn screen_meanings(
         &self,
         query_vector: &[f32],
@@ -650,9 +584,6 @@ impl Library {
                 }
                 Ok(())
             };
-            // Text stays unread here: a search shows a few hundred captures at
-            // most (`screen_texts` reads theirs), and reading every capture's
-            // text was about a third of this scan's time at 30,000 captures.
             read(
                 "SELECT embedded.snapshot_id, shot.ts, shot.app, embedded.vec \
                  FROM screen_embeddings AS embedded \
@@ -707,9 +638,6 @@ impl Library {
         Ok(matches)
     }
 
-    /// The text behind each capture's text vector, for the captures a search shows
-    /// (`screen_meanings` leaves it unread). A capture with only a picture vector,
-    /// or none, has no entry.
     pub fn screen_texts(&self, ids: &[i64]) -> Result<HashMap<i64, String>> {
         let wanted: Vec<i64> = ids
             .iter()
@@ -751,8 +679,6 @@ impl Library {
         })
     }
 
-    /// Keyword hits under `filter`: all the words, or any of them when that finds
-    /// nothing. `true` when they hold every word.
     pub fn keyword_screen_hits(
         &self,
         query: &str,
@@ -788,9 +714,6 @@ impl Library {
         Ok((any, false))
     }
 
-    /// The share of the query's words each keyword hit holds. Hits found by the
-    /// all-words search hold them all; for the OR fallback the capture's text is
-    /// read. A query of only stopwords counts every hit it found.
     pub fn screen_coverage(
         &self,
         query: &str,
@@ -825,9 +748,6 @@ impl Library {
         shares
     }
 
-    /// Keyword hits and meaning matches as one ranked list. A capture found only by
-    /// meaning gets its text's best passage as the snippet, or its window title
-    /// when it has no text (a picture-only match). Returns `(hit, is_semantic)`.
     pub fn ranked_screen_hits(
         &self,
         query: &str,
@@ -854,7 +774,6 @@ impl Library {
         let meaning_only: HashMap<i64, Meaning> =
             meanings.iter().map(|(id, m)| (*id, m.meaning)).collect();
         let ranked = rank(&meaning_only, &list, is_lookup(&wanted), limit);
-        // Records and text for the captures found by meaning alone, read once each.
         let found_by_meaning: Vec<i64> = ranked
             .iter()
             .map(|item| item.snapshot_id)
@@ -901,16 +820,11 @@ impl Library {
     }
 }
 
-// ----------------------------------------------------- "search by meaning" use
-
 type Observer = Box<dyn Fn(&Path) + Send + Sync>;
 
 static OBSERVER: Mutex<Option<Observer>> = Mutex::new(None);
-/// Libraries searched by meaning in this run, for an observer that starts late.
 static SEARCHED: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
-/// Someone searched screens by meaning: vectors for what's waiting start now.
-/// Nobody downloads the image model for a search they never make.
 pub fn note_searched_by_meaning(root: &Path) {
     if let Ok(mut searched) = SEARCHED.lock()
         && !searched.iter().any(|known| known == root)
@@ -924,14 +838,12 @@ pub fn note_searched_by_meaning(root: &Path) {
     }
 }
 
-/// `note_searched_by_meaning` was called for this library in this run.
 pub fn was_searched_by_meaning(root: &Path) -> bool {
     SEARCHED
         .lock()
         .is_ok_and(|searched| searched.iter().any(|known| known == root))
 }
 
-/// Hears `note_searched_by_meaning`.
 pub fn observe_searches(observer: impl Fn(&Path) + Send + Sync + 'static) {
     if let Ok(mut slot) = OBSERVER.lock() {
         *slot = Some(Box::new(observer));
@@ -961,7 +873,6 @@ mod tests {
 
     #[test]
     fn each_kind_is_centred_on_its_own_average() {
-        // Text scores higher than pictures across the board.
         let mut scores = Vec::new();
         for i in 0..25 {
             scores.push(score(i, 0.8));
@@ -1028,7 +939,6 @@ mod tests {
         assert_eq!(ids, [1, 2], "one word of four doesn't qualify");
         assert!(ranked[0].is_semantic());
         assert!(!ranked[1].is_semantic());
-        // z 3.0 against 1.0 + 2 × 0.5^1.5.
         assert!((ranked[1].score - (1.0 + 2.0 * 0.5f64.powf(1.5))).abs() < 1e-9);
     }
 
@@ -1136,13 +1046,11 @@ mod tests {
             .screen_meanings(&[0.0, 1.0], model, &filter)
             .unwrap();
         assert_eq!(matches[&id].meaning.modality, Modality::Image);
-        // Text is read afterwards, only for the captures a search shows.
         assert_eq!(
             library.screen_texts(&[id, id, 9_999]).unwrap(),
             HashMap::from([(id, "Quarterly roadmap review".to_string())])
         );
 
-        // The date and app filters limit the result, not the scale.
         let other_app = ScreenFilter {
             app: Some("Zed".into()),
             ..ScreenFilter::default()
@@ -1284,7 +1192,6 @@ mod tests {
             excerpt("Quarterly roadmap review", "roadmap", 320)
         );
 
-        // A capture deleted after scoring is left out, not shown blank.
         library.delete_screen_moments(&[id]).unwrap();
         assert!(
             library

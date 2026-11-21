@@ -4,9 +4,6 @@ enum AgentToolStatus: Equatable {
     case running, succeeded, failed
 }
 
-/// App-owned, structured description of a mutating tool request. Keeping the
-/// fields separate lets the approval surface show the exact command/content
-/// instead of trusting a model-authored one-line summary.
 struct AgentApprovalRequest: Equatable, Identifiable {
     struct Edit: Equatable {
         let oldText: String
@@ -22,12 +19,8 @@ struct AgentApprovalRequest: Equatable, Identifiable {
     let edits: [Edit]
     let summary: String?
     let isTruncated: Bool
-    /// Exact JSON arguments of a tool without a dedicated preview (MCP tools,
-    /// codemode, tools added by later Pi releases).
     var arguments: String?
 
-    /// Also enforced in the extension before an approval is requested. Keep
-    /// the host fail-closed for old, malformed, or locally bounded payloads.
     var canApprove: Bool {
         if let arguments {
             return !isTruncated && arguments.utf16.count <= 64 * 1_024
@@ -61,9 +54,6 @@ enum AgentTranscriptItem: Equatable, Identifiable {
     }
 }
 
-/// Folds the PiEvent stream into a display-ready transcript. Pure state
-/// machine — no async, no UI — so every folding rule is unit-testable
-/// (same decomposition philosophy as the Cotyping policy types).
 struct AgentTranscriptFolder: Equatable {
     static let maximumItems = 500
     static let maximumMessageCharacters = 1_000_000
@@ -80,14 +70,10 @@ struct AgentTranscriptFolder: Equatable {
     private var retainedCharacterCount = 0
     private var counter = 0
 
-    /// Resolved fresh on every use so removals elsewhere in the array
-    /// (e.g. resolveApproval) can never leave a stale index behind.
     private var streamingAssistantIndex: Int? {
         guard let streamingAssistantID else { return nil }
         return items.firstIndex { $0.id == streamingAssistantID }
     }
-
-    // MARK: - Local inserts (not driven by pi events)
 
     mutating func noteUserPrompt(_ text: String) {
         appendItem(.user(id: nextID("user"), text: Self.boundedMessage(text)))
@@ -147,8 +133,6 @@ struct AgentTranscriptFolder: Equatable {
         }
     }
 
-    // MARK: - Event folding
-
     mutating func fold(_ event: PiEvent) {
         switch event {
         case .agentStart:
@@ -160,8 +144,6 @@ struct AgentTranscriptFolder: Equatable {
             if let terminalFailure { appendNotice(terminalFailure, isError: true) }
         case .messageStart(let role):
             guard role == "assistant" else { return }
-            // A fresh attempt can recover from Pi's automatic retry. Only
-            // the outcome left when agent_settled arrives is terminal.
             terminalFailure = nil
             let id = nextID("assistant")
             appendItem(.assistant(id: id, text: "", isStreaming: true))
@@ -180,7 +162,7 @@ struct AgentTranscriptFolder: Equatable {
                case .assistant(let id, let streamed, _) = items[index] {
                 let final = Self.boundedMessage(text.isEmpty ? streamed : text)
                 if final.isEmpty {
-                    removeItem(at: index)   // tool-call-only turn: drop the empty bubble
+                    removeItem(at: index)
                 } else {
                     replaceItem(
                         at: index,
@@ -209,8 +191,6 @@ struct AgentTranscriptFolder: Equatable {
             break
         }
     }
-
-    // MARK: - Helpers
 
     private mutating func nextID(_ prefix: String) -> String {
         counter += 1

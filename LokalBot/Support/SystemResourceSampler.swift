@@ -1,13 +1,7 @@
 import Darwin
 import Foundation
 
-/// Stateless CPU and memory readings for the LokalBot process family from
-/// Mach/libproc. Every call answers "what is true right now" and the caller
-/// owns the cadence.
 enum SystemResourceSampler {
-    /// One process reading used to build a whole-app sample. CPU time is
-    /// cumulative, so callers compare two snapshots to get Activity Monitor's
-    /// multi-core percentage (which may legitimately exceed 100%).
     struct ProcessUsage: Equatable, Sendable {
         let processIdentifier: pid_t
         let startTime: UInt64
@@ -37,17 +31,11 @@ enum SystemResourceSampler {
         }
     }
 
-    /// Samples LokalBot plus every descendant process (llama-server, Agent
-    /// Mode, transient native helpers). Extra PIDs cover a healthy llama-server
-    /// adopted from a prior app process, which is no longer our descendant.
     static func usageSnapshot(additionalProcessIdentities: [ProcessIdentity] = []) -> UsageSnapshot {
         let root = getpid()
         let familyIdentifiers = Set([root] + descendantProcessIdentifiers(of: root))
         var processes = familyIdentifiers.sorted().compactMap(processUsage(for:))
 
-        // Adopted llama servers are no longer descendants. Match both PID and
-        // start time before adding one so a stale marker cannot make an
-        // unrelated process part of LokalBot's headline CPU/RAM totals.
         let adoptedIdentities = Set(additionalProcessIdentities).filter {
             $0.processIdentifier > 0 && !familyIdentifiers.contains($0.processIdentifier)
         }
@@ -62,9 +50,6 @@ enum SystemResourceSampler {
         )
     }
 
-    /// Combined CPU percentage between two whole-app samples. Identity includes
-    /// the process start time so a rapidly reused PID never creates a huge,
-    /// bogus delta. New and exited helpers begin/leave contributing cleanly.
     static func cpuUsagePercent(from previous: UsageSnapshot,
                                 to current: UsageSnapshot) -> Double? {
         let elapsed = current.capturedAt - previous.capturedAt
@@ -118,8 +103,6 @@ enum SystemResourceSampler {
     }
 
     private static func directChildProcessIdentifiers(of parent: pid_t) -> [pid_t] {
-        // The nil-buffer call returns a PID-count estimate. Leave slack because
-        // the process tree can grow between the sizing and population calls.
         let estimatedCount = max(Int(proc_listchildpids(parent, nil, 0)), 0)
         var identifiers = [pid_t](repeating: 0, count: max(estimatedCount + 16, 32))
         let count = identifiers.withUnsafeMutableBytes { buffer in

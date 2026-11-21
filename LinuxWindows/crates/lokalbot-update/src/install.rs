@@ -1,13 +1,3 @@
-//! Putting a verified, unpacked update in place of the running copy.
-//!
-//! Every new file is first copied next to the file it replaces, so the final
-//! step is a rename within one folder. Linux renames over the old file; the
-//! running processes keep the old inode. Windows cannot replace a running
-//! executable but can rename it, so `lokalbot.exe` and `lokalbot-cli.exe`
-//! (which a coding agent may hold open as its MCP server) become `.old`
-//! files that the next start deletes. A failure part-way restores every file
-//! already replaced.
-
 use std::ffi::OsString;
 use std::fs;
 use std::io;
@@ -16,15 +6,10 @@ use std::process::{Command, Stdio};
 use std::sync::{Mutex, MutexGuard, PoisonError};
 use std::time::{Duration, Instant};
 
-/// The relaunched copy waits for the old one to release the library.
 pub const AFTER_UPDATE_ARG: &str = "--after-update";
-/// install.sh's desktop entry and icon name.
 pub const APP_ID: &str = "com.lokalbot.LokalBot";
 const ICON_SIZES: [u32; 8] = [16, 24, 32, 48, 64, 128, 256, 512];
-/// The archive's folder of license texts.
 const LICENSES_DIR: &str = "LICENSES";
-/// The Windows archive's Visual C++ runtime, which lokalbot-ai's runtime.rs
-/// (`VC_RUNTIME_DIR`) copies beside llama-server.exe.
 const VC_RUNTIME_DIR: &str = "vc-runtime";
 
 pub const APP_BINARY: &str = if cfg!(windows) {
@@ -38,13 +23,9 @@ pub const CLI_BINARY: &str = if cfg!(windows) {
     "lokalbot-cli"
 };
 
-/// How the files are swapped. Both are tested on every platform; the running
-/// build uses [`SwapStyle::NATIVE`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SwapStyle {
-    /// Keep a hard link to the old file, then rename the new one over it.
     Unix,
-    /// Rename the old file aside, then rename the new one into its place.
     Windows,
 }
 
@@ -56,19 +37,13 @@ impl SwapStyle {
     };
 }
 
-/// Whether this copy may replace itself.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Placement {
     Replaceable,
-    /// A package manager, a system folder (`/usr`, `/opt`, Program Files),
-    /// a sandbox or a source build owns the files: say how to update
-    /// instead ([`crate::package`] tells package installs apart).
     Managed,
-    /// The folder cannot be written by this user.
     NotWritable,
 }
 
-/// Where the running copy lives.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Installation {
     pub dir: PathBuf,
@@ -76,7 +51,6 @@ pub struct Installation {
 }
 
 impl Installation {
-    /// The folder of the running executable.
     pub fn current() -> io::Result<Self> {
         let exe = std::env::current_exe()?;
         let exe = fs::canonicalize(&exe).unwrap_or(exe);
@@ -101,13 +75,11 @@ impl Installation {
         self.placement == Placement::Replaceable
     }
 
-    /// What an update replaces for this installation.
     pub fn targets(&self) -> Targets {
         Targets::for_dir(self.dir.clone(), &|name| std::env::var_os(name))
     }
 }
 
-/// Windows' canonical paths start with `\\?\`; show and compare them as typed.
 fn dunce(path: &Path) -> PathBuf {
     #[cfg(windows)]
     {
@@ -122,7 +94,6 @@ fn dunce(path: &Path) -> PathBuf {
 }
 
 fn is_managed(dir: &Path, env: &dyn Fn(&str) -> Option<OsString>) -> bool {
-    // A cargo target folder: a developer's release build.
     let in_target = |dir: &Path| {
         dir.parent()
             .and_then(Path::file_name)
@@ -153,7 +124,6 @@ fn is_managed(dir: &Path, env: &dyn Fn(&str) -> Option<OsString>) -> bool {
         .any(|root| under(Path::new(&root)));
         in_system_dir || is_scoop_managed(dir, env)
     } else {
-        // AppImage, Snap and Flatpak run from read-only images.
         ["APPIMAGE", "SNAP", "FLATPAK_ID"]
             .iter()
             .any(|name| env(name).is_some_and(|v| !v.is_empty()))
@@ -200,17 +170,10 @@ fn is_writable(dir: &Path) -> bool {
     }
 }
 
-/// The files an update writes.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Targets {
-    /// The folder holding `lokalbot` and `lokalbot-cli`.
     pub dir: PathBuf,
-    /// `lokalbot-cli install-skill`'s copy on Windows,
-    /// `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe`, which coding
-    /// agents run as their MCP server. Replaced when it exists.
     pub cli_copy: Option<PathBuf>,
-    /// The XDG data folder holding install.sh's desktop entries and icons.
-    /// They are refreshed when the application entry starts this installation.
     pub data_dir: Option<PathBuf>,
 }
 
@@ -251,7 +214,6 @@ impl Targets {
     }
 }
 
-/// Windows' answer when another handle doesn't allow the rename.
 const ERROR_SHARING_VIOLATION: i32 = 32;
 const BUSY_PATIENCE: Duration = Duration::from_secs(30);
 
@@ -267,10 +229,8 @@ pub enum InstallError {
     },
 }
 
-/// What was replaced.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Installed {
-    /// The new `lokalbot` to relaunch.
     pub executable: PathBuf,
     pub replaced: Vec<PathBuf>,
 }
@@ -278,19 +238,10 @@ pub struct Installed {
 struct Replacement {
     source: PathBuf,
     target: PathBuf,
-    /// The new file, copied next to `target`.
     staged: PathBuf,
-    /// The old file, kept until every replacement succeeded.
     backup: Option<PathBuf>,
 }
 
-/// Replaces the installed files with the unpacked update in `staged` (the
-/// archive's `LokalBot-<version>-<platform>` folder): both binaries, the
-/// Windows CLI copy, files the archive folder also holds (licenses, notices,
-/// when LokalBot runs from an extracted archive or the installer's folder),
-/// license texts the update adds to that folder's `LICENSES`, the Visual C++
-/// runtime, then install.sh's desktop entries and icons. Nothing is replaced
-/// unless every file could be staged.
 pub fn install(
     staged: &Path,
     targets: &Targets,
@@ -317,8 +268,6 @@ pub fn install(
             });
         }
     }
-    // Running executables keep their old file on Windows; the next start
-    // deletes it (`remove_leftovers`).
     for replacement in &replacements {
         if let Some(backup) = &replacement.backup {
             let _ = fs::remove_file(backup);
@@ -341,8 +290,6 @@ fn plan(staged: &Path, targets: &Targets) -> Result<Vec<Replacement>, InstallErr
             return Err(InstallError::Incomplete(name.into()));
         }
         let target = targets.binary(name);
-        // install-skill may have linked the CLI from elsewhere; a link is
-        // not this installation's file.
         if fs::symlink_metadata(&target).is_ok_and(|m| m.file_type().is_symlink()) {
             continue;
         }
@@ -363,13 +310,9 @@ fn plan(staged: &Path, targets: &Targets) -> Result<Vec<Replacement>, InstallErr
         }
         let target = targets.dir.join(&relative);
         let present = fs::symlink_metadata(&target).is_ok_and(|m| m.is_file());
-        // A LICENSES folder already in place also gets the license texts the
-        // update adds, so the notices it ships stay complete.
         let new_license = !present
             && relative.parent() == Some(Path::new(LICENSES_DIR))
             && fs::symlink_metadata(targets.dir.join(LICENSES_DIR)).is_ok_and(|m| m.is_dir());
-        // Installations from before the Windows archive carried the Visual
-        // C++ runtime get it too; their llama.cpp runtimes need it.
         let vc_runtime = relative.parent() == Some(Path::new(VC_RUNTIME_DIR));
         if present || new_license || vc_runtime {
             pairs.push((staged.join(&relative), target));
@@ -386,7 +329,6 @@ fn plan(staged: &Path, targets: &Targets) -> Result<Vec<Replacement>, InstallErr
         .collect())
 }
 
-/// Relative paths of the regular files under `root`.
 fn files_under(root: &Path) -> io::Result<Vec<PathBuf>> {
     let mut out = Vec::new();
     let mut pending = vec![PathBuf::new()];
@@ -406,7 +348,6 @@ fn files_under(root: &Path) -> io::Result<Vec<PathBuf>> {
     Ok(out)
 }
 
-/// `lokalbot` → `lokalbot.new` / `lokalbot.old`, in the same folder.
 fn sibling(target: &Path, suffix: &str) -> PathBuf {
     let mut name = target.file_name().unwrap_or_default().to_os_string();
     name.push(".");
@@ -416,7 +357,6 @@ fn sibling(target: &Path, suffix: &str) -> PathBuf {
 
 fn stage(replacement: &Replacement) -> io::Result<()> {
     let _ = fs::remove_file(&replacement.staged);
-    // The Visual C++ runtime can be new to an installation, folder and all.
     if let Some(folder) = replacement.staged.parent() {
         fs::create_dir_all(folder)?;
     }
@@ -429,14 +369,12 @@ fn stage(replacement: &Replacement) -> io::Result<()> {
             fs::set_permissions(&replacement.staged, fs::Permissions::from_mode(0o755))?;
         }
     }
-    // Windows flushes only through a handle that may write.
     fs::OpenOptions::new()
         .write(true)
         .open(&replacement.staged)?
         .sync_all()
 }
 
-/// A free `<name>.old` (or `<name>.<n>.old` while an older one is still in use).
 fn backup_path(target: &Path) -> PathBuf {
     let first = sibling(target, "old");
     if fs::symlink_metadata(&first).is_err() || fs::remove_file(&first).is_ok() {
@@ -463,8 +401,6 @@ fn swap(replacement: &mut Replacement, style: SwapStyle) -> io::Result<()> {
         replacement.backup = Some(backup);
     }
     if let Err(err) = rename_when_free(&replacement.staged, &replacement.target) {
-        // The target was not replaced. On Unix it is still the old file (and
-        // renaming a hard link onto its twin would do nothing).
         if let Some(backup) = replacement.backup.take() {
             match style {
                 SwapStyle::Unix => {
@@ -478,9 +414,6 @@ fn swap(replacement: &mut Replacement, style: SwapStyle) -> io::Result<()> {
     Ok(())
 }
 
-/// Renames, waiting while something on Windows holds the file for a moment.
-/// Antivirus does after a new file, and so does anything reading a running
-/// executable's version details, as LokalBot does to name the focused app.
 fn rename_when_free(from: &Path, to: &Path) -> io::Result<()> {
     let started = Instant::now();
     loop {
@@ -507,15 +440,12 @@ fn rename_when_free(from: &Path, to: &Path) -> io::Result<()> {
     }
 }
 
-/// Undoes a completed swap.
 fn restore(replacement: &mut Replacement, style: SwapStyle) {
     let Some(backup) = replacement.backup.take() else {
-        // The file was new.
         let _ = fs::remove_file(&replacement.target);
         return;
     };
     if style == SwapStyle::Windows {
-        // The new file is not running yet, so it can be removed.
         let _ = fs::remove_file(&replacement.target);
     }
     put_back(&backup, &replacement.target);
@@ -547,24 +477,17 @@ fn discard_staged(replacements: &[Replacement]) {
     }
 }
 
-/// Folders an [`install`] in this process is replacing files in right now.
-/// [`remove_leftovers`], which the app runs 0, 10 and 60 seconds after it
-/// starts, skips them: it used to delete the `.new` file of an install under
-/// way (an update started at launch on a slow machine), and the rename then
-/// failed with "No such file or directory".
 static REPLACING: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
 fn replacing() -> MutexGuard<'static, Vec<PathBuf>> {
     REPLACING.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
-/// Lists an install's folders in [`REPLACING`] until dropped.
 struct Replacing(Vec<PathBuf>);
 
 impl Replacing {
     fn new(targets: &Targets) -> Self {
         let dirs = leftover_dirs(targets);
-        // Waits for a cleanup pass that is going on in these folders.
         replacing().extend(dirs.iter().cloned());
         Self(dirs)
     }
@@ -581,8 +504,6 @@ impl Drop for Replacing {
     }
 }
 
-/// Where an update leaves `.old` and `.new` binaries: the installation's
-/// folder and the Windows CLI copy's.
 fn leftover_dirs(targets: &Targets) -> Vec<PathBuf> {
     let mut dirs = vec![targets.dir.clone()];
     if let Some(parent) = targets.cli_copy.as_deref().and_then(Path::parent) {
@@ -591,11 +512,7 @@ fn leftover_dirs(targets: &Targets) -> Vec<PathBuf> {
     dirs
 }
 
-/// Deletes `.old` and `.new` binaries an earlier update left in `dir` (and
-/// next to the Windows CLI copy). Ones still running stay until next time, and
-/// so does a folder an install in this process is replacing files in.
 pub fn remove_leftovers(targets: &Targets) {
-    // Held for the whole pass, so no install starts in these folders halfway.
     let busy = replacing();
     for dir in leftover_dirs(targets) {
         if busy.contains(&dir) {
@@ -626,10 +543,6 @@ fn is_leftover(name: &str) -> bool {
     })
 }
 
-/// Rewrites install.sh's desktop entries (the application's, and the one that
-/// lists LokalBot under KDE Plasma's Virtual Keyboard settings) and icons from
-/// the update when the application entry starts this installation. Failures
-/// only log: the binaries are already in place.
 fn refresh_desktop_entry(staged: &Path, dir: &Path, data_dir: &Path) {
     let entry_path = data_dir
         .join("applications")
@@ -653,7 +566,6 @@ fn refresh_desktop_entry(staged: &Path, dir: &Path, data_dir: &Path) {
     if !ours {
         return;
     }
-    // install.sh: sed "s|^Exec=lokalbot|Exec=$BIN/lokalbot|"
     let resolve = |template: &str| -> String {
         template
             .lines()
@@ -665,8 +577,6 @@ fn refresh_desktop_entry(staged: &Path, dir: &Path, data_dir: &Path) {
     };
     let entry = resolve(&template);
     let result = write_atomically(&entry_path, entry.as_bytes()).and_then(|()| {
-        // install.sh installs the input-method entry whenever the archive
-        // has one, so an update from a release without it adds it too.
         let input_method = format!("{APP_ID}.InputMethod.desktop");
         if let Ok(template) = fs::read_to_string(staged.join(&input_method)) {
             write_atomically(
@@ -714,9 +624,6 @@ fn write_atomically(path: &Path, bytes: &[u8]) -> io::Result<()> {
     })
 }
 
-/// Starts the updated LokalBot detached from this process, with `args`
-/// after [`AFTER_UPDATE_ARG`] so it waits for this copy to exit and release
-/// the library. `remove_env` names variables that describe only this process.
 pub fn relaunch(executable: &Path, args: &[OsString], remove_env: &[&str]) -> io::Result<()> {
     let mut command = Command::new(executable);
     command
@@ -761,7 +668,6 @@ mod tests {
         fs::read_to_string(path).unwrap()
     }
 
-    /// An unpacked update archive.
     fn update(root: &Path) -> PathBuf {
         let staged = root.join("update/LokalBot-0.10.11-linux-x86_64");
         write(&staged.join(APP_BINARY), "new app");
@@ -818,7 +724,6 @@ mod tests {
             assert_eq!(installed.executable, bin.join(APP_BINARY));
             assert_eq!(read(&bin.join(APP_BINARY)), "new app");
             assert_eq!(read(&bin.join(CLI_BINARY)), "new cli");
-            // Licenses only replace copies that are already there.
             assert_eq!(names(&bin), sorted(&[APP_BINARY, CLI_BINARY, "other-tool"]));
             #[cfg(unix)]
             {
@@ -846,7 +751,6 @@ mod tests {
             install(&staged, &targets(&folder), style).unwrap();
             assert_eq!(read(&folder.join("THIRD_PARTY_NOTICES.md")), "new notices");
             assert_eq!(read(&folder.join("LICENSES/AGPL-3.0.txt")), "new license");
-            // A license text new in this release is added beside the others.
             assert_eq!(read(&folder.join("LICENSES/MIT.txt")), "added license");
             assert_eq!(read(&folder.join("settings-of-the-user.txt")), "kept");
             assert!(!folder.join("icons").exists());
@@ -905,7 +809,6 @@ mod tests {
             for replacement in &replacements {
                 stage(replacement).unwrap();
             }
-            // The last swap fails: its staged file vanished.
             let last = replacements.len() - 1;
             fs::remove_file(&replacements[last].staged).unwrap();
             for index in 0..replacements.len() {
@@ -940,7 +843,6 @@ mod tests {
         targets.cli_copy = Some(copy.clone());
         install(&staged, &targets, SwapStyle::Windows).unwrap();
         assert_eq!(read(&copy), "new cli");
-        // No copy installed: nothing is created.
         let absent = temp.path().join("nowhere").join(CLI_BINARY);
         targets.cli_copy = Some(absent.clone());
         install(&staged, &targets, SwapStyle::Windows).unwrap();
@@ -1029,7 +931,6 @@ mod tests {
         write(&bin.join(APP_BINARY), "old app");
         write(&bin.join(CLI_BINARY), "old cli");
 
-        // A cleanup pass holds the list, so the install can't start yet.
         let pass = replacing();
         let job = {
             let (staged, bin) = (staged.clone(), bin.clone());
@@ -1060,8 +961,6 @@ mod tests {
                 bin.join(APP_BINARY).display()
             ),
         );
-        // The entry for KDE Plasma's Virtual Keyboard settings, which the
-        // installed release did not have yet.
         let input_method = format!("{APP_ID}.InputMethod.desktop");
         write(
             &staged.join(&input_method),
@@ -1090,7 +989,6 @@ mod tests {
             "new icon 48"
         );
 
-        // An entry that starts another copy is left alone.
         let other = "[Desktop Entry]\nExec=/opt/LokalBot/lokalbot %U\n".to_string();
         write(&entry, &other);
         fs::remove_file(&input_method).unwrap();
@@ -1159,7 +1057,6 @@ mod tests {
             let locked = temp.path().join("locked");
             fs::create_dir_all(&locked).unwrap();
             fs::set_permissions(&locked, fs::Permissions::from_mode(0o555)).unwrap();
-            // Root can write anywhere; the check only means something for users.
             if !is_writable(&locked) {
                 assert_eq!(
                     Installation::at(locked.clone(), &none).placement,
@@ -1221,8 +1118,6 @@ mod tests {
         }
     }
 
-    /// The update's end-to-end check failed this way on a real Windows desktop:
-    /// `lokalbot.exe` was held for a moment, and the whole update gave up.
     #[cfg(windows)]
     #[test]
     fn windows_waits_for_a_file_held_for_a_moment() {
@@ -1253,9 +1148,6 @@ mod tests {
         assert_eq!(read(&folder.join(APP_BINARY)), "new app");
     }
 
-    /// The real Windows case: the CLI is running (as an MCP server would be)
-    /// while the update replaces it. Renaming works; deleting the old file
-    /// waits until the process exits.
     #[cfg(windows)]
     #[test]
     fn windows_replaces_a_running_cli() {
@@ -1272,7 +1164,6 @@ mod tests {
             .spawn()
             .unwrap();
         std::thread::sleep(std::time::Duration::from_millis(300));
-        // A running image cannot be overwritten or deleted in place.
         assert!(fs::write(folder.join(CLI_BINARY), "x").is_err());
 
         let staged = update(temp.path());
@@ -1286,7 +1177,6 @@ mod tests {
             "the CLI keeps running"
         );
 
-        // A second update while the first old CLI is still running.
         write(&staged.join(CLI_BINARY), "newer cli");
         fs::copy(&ping, folder.join(CLI_BINARY)).unwrap();
         let mut running_new = Command::new(folder.join(CLI_BINARY))
@@ -1305,7 +1195,6 @@ mod tests {
         running.wait().unwrap();
         running_new.kill().unwrap();
         running_new.wait().unwrap();
-        // The image is released shortly after exit.
         for _ in 0..50 {
             remove_leftovers(&targets(&folder));
             if !old.exists() {

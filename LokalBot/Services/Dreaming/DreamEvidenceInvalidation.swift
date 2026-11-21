@@ -1,8 +1,6 @@
 import Foundation
 
 enum DreamEvidenceInvalidation {
-    /// A meeting contributes to its own day and the following comparison
-    /// windows. Include targets without a report so in-flight work is cancelled.
     static func dayKeys(
         affectedDays: [Date], through latestDay: Date, calendar: Calendar,
         comparisonWindowDays: Int = DreamCompiler.comparisonWindowDays

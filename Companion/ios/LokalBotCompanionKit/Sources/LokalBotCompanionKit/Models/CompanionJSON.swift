@@ -1,7 +1,5 @@
 import Foundation
 
-/// JSON coding for companion records: camelCase keys, ISO 8601 instants with
-/// milliseconds (`2026-10-30T09:30:00.000Z`), unknown keys ignored.
 public enum CompanionJSON {
     public static func decoder() -> JSONDecoder {
         let decoder = JSONDecoder()

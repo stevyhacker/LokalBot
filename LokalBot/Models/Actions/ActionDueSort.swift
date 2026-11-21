@@ -1,7 +1,5 @@
 import Foundation
 
-/// Unknown dates stay last in either direction. Equal dates retain the
-/// existing newest-meeting order and a stable identity tie-break.
 struct ActionDueSort: SortComparator {
     var order: SortOrder = .forward
 

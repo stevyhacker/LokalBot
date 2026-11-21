@@ -1,9 +1,3 @@
-//! Suggested names in Name Speaker (`MeetingSpeakerRenameSheet`): the
-//! meeting's calendar guests and name hints. Choosing a guest keeps its
-//! opaque identity with the name (`speakerCalendarIdentityIDs`), so same-named
-//! guests stay apart; attendance alone never names a voice. Typing in the
-//! name input searches the suggestions.
-
 use std::cell::Cell;
 use std::collections::HashSet;
 use std::rc::Rc;
@@ -26,14 +20,9 @@ const LIST_MAX_HEIGHT: f32 = 220.;
 
 pub(crate) struct SpeakerSuggestions {
     pub choices: Vec<SpeakerSuggestion>,
-    /// The calendar guest chosen for this voice.
     pub selected: Option<String>,
-    /// Guests already given to another voice in this meeting.
     assigned_elsewhere: HashSet<String>,
-    /// The name as last typed, which searches the suggestions. A choice
-    /// clears it, so the whole list shows again.
     pub query: String,
-    /// The tallest the list has been, so filtering never shrinks the sheet.
     list_height: Rc<Cell<Pixels>>,
 }
 
@@ -61,8 +50,6 @@ impl SpeakerSuggestions {
         }
     }
 
-    /// The calendar identity to save with `name`: the chosen guest's, while
-    /// a guest is chosen.
     pub fn identity_for_save(&self) -> Option<String> {
         self.selected.clone()
     }
@@ -81,8 +68,6 @@ impl SpeakerSuggestions {
         }
     }
 
-    /// Matches for the typed name. The chosen guest stays listed while its
-    /// name is edited, since saving keeps that guest.
     fn visible(&self, name: &str) -> Vec<usize> {
         let query = self.query.trim();
         (0..self.choices.len())
@@ -93,8 +78,6 @@ impl SpeakerSuggestions {
             .collect()
     }
 
-    /// The top match not already chosen, which Enter fills in. With none,
-    /// Enter saves the name as typed.
     pub fn return_choice(&self, name: &str) -> Option<usize> {
         let query = self.query.trim();
         if query.is_empty() {
@@ -337,7 +320,6 @@ mod tests {
         assert!(list.visible("Hernan").is_empty());
         assert_eq!(list.return_choice("Hernan"), None);
 
-        // A typed hint name is already that suggestion, so Enter saves it.
         list.query = "matt".into();
         assert_eq!(list.return_choice("matt"), None);
     }

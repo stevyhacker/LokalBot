@@ -1,34 +1,14 @@
 import DigUpKit
 import Foundation
 
-/// DigUpKit's `Embedder`, served by the media llama-server: EmbeddingGemma 2
-/// with its image and audio projector (`LlamaServer.mediaEmbedder`). DigUp's
-/// indexer calls it from its own thread, one call at a time, and waits, so the
-/// requests here are synchronous.
-///
-/// Inputs travel the way the 30 October parity run qualified them
-/// (Benchmarks/search/EmbeddingGemma2/2026-10-30-media-embedder): texts as given
-/// (cut to one batch when longer, `fitted`), images as PNG sized for their budget (`FileImageSizing`), audio as WAV, each
-/// medium as a typed content part. That run reproduced DigUp's reference
-/// vectors at cosine ≥ 0.9997.
-/// Immutable after init (an endpoint and a URLSession), so it can cross threads.
 final class FileMediaEmbedder: Embedder, @unchecked Sendable {
-    /// Which vectors this pipeline makes: the model files, the llama.cpp build,
-    /// the image sizing and the request shapes. Bump it when any of them changes
-    /// the vectors (the reference-vector check says when); every file index then
-    /// embeds again.
     static let vectorVersion = 1
     static let workerInfo = WorkerInfo(
         model: "google/embeddinggemma-2",
         revision: "bfcd298762cc34d0357ece5ebdd31791a3a374d8",
         runtime: "lokalbot-llama-server-vectors\(vectorVersion)",
         dtype: "text-q8_0+mmproj-q8_0", dim: 768, textOnly: false, loadSeconds: nil)
-    /// Texts per request. One request is one llama-server batch; this keeps a
-    /// long document from becoming a single multi-minute request.
     static let textsPerRequest = 16
-    /// The most tokens one input may have, `<bos>` and `<eos>` included: the
-    /// server's batch (`-ub 2048`; an embedding must fit in one), and where
-    /// DigUp's own embedder cuts a text.
     static let maxInputTokens = 2_048
     static let requestTimeout: TimeInterval = 120
 
@@ -77,10 +57,6 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
 
     func close() {}
 
-    /// One picture already sized and encoded (`FileImageSizing.png(of:budget:)`),
-    /// for screen captures that are decrypted in memory. Throws `WorkerError`
-    /// when the server can't answer and any other error when it rejects the
-    /// picture.
     func embedImage(png: Data) throws -> [Float] {
         guard let vector = try post(Self.requestBody(inputs: [Self.imagePart(png: png)])).first else {
             throw WorkerError.died("the media embedder returned no vector")
@@ -88,13 +64,6 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         return vector
     }
 
-    // MARK: - Requests
-
-    /// One file's vector, or why it has none. A file the server cannot read
-    /// (a broken picture) must not sink its neighbours. A server that cannot
-    /// answer throws `WorkerError`: DigUp's indexer then stops the pass and
-    /// leaves the files pending for the next one, where any other error would
-    /// mark the whole batch failed for good.
     private func embedding(_ makeInput: () throws -> [String: Any]) throws -> Embedding {
         let input: [String: Any]
         do {
@@ -109,13 +78,6 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         }
     }
 
-    /// A text as it is sent: itself when it fits one batch, otherwise its
-    /// tokens cut the way DigUp's embedder (and transformers) cuts, the first
-    /// `maxInputTokens - 1` and `<eos>`. llama-server refuses a longer input
-    /// with HTTP 500 instead of cutting it, and a dense page of Cyrillic or
-    /// figures passes 2,048 tokens well within the 4,000 characters DigUp
-    /// sends. No token is shorter than a byte, so shorter texts skip the
-    /// tokenizer; tokens and text make the same vector.
     private func fitted(_ text: String) throws -> Any {
         guard text.utf8.count + 2 > Self.maxInputTokens else { return text }
         let tokens = try tokens(of: text)
@@ -123,7 +85,6 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         return Array(tokens.prefix(Self.maxInputTokens - 1)) + [eos]
     }
 
-    /// The server's tokens for a text, with the `<bos>` and `<eos>` it embeds.
     private func tokens(of text: String) throws -> [Int] {
         let (data, http) = try send("tokenize", ["content": text, "add_special": true])
         guard http.statusCode == 200 else {
@@ -134,8 +95,6 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         return tokens
     }
 
-    /// The server answered, but not with vectors for this input (HTTP 4xx, or
-    /// an input too large for its batch).
     private struct RejectedInput: Error, CustomStringConvertible {
         let description: String
     }
@@ -154,15 +113,10 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         }
     }
 
-    /// llama-server's answer to an input longer than its batch: HTTP 500,
-    /// though the server is fine. Texts are cut to fit first (`fitted`); a
-    /// picture or recording that still doesn't fit fails alone instead of
-    /// stopping every pass at the same file.
     static func isTooLarge(_ data: Data) -> Bool {
         String(decoding: data.prefix(300), as: UTF8.self).contains("too large to process")
     }
 
-    /// One synchronous request to the server.
     private func send(_ path: String, _ body: [String: Any]) throws -> (Data, HTTPURLResponse) {
         var request = URLRequest(url: endpoint.baseURL.appendingPathComponent(path))
         request.httpMethod = "POST"
@@ -186,14 +140,10 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
         return try result.get()
     }
 
-    // MARK: - Request and response shapes
-
     static func requestBody(inputs: [Any]) -> [String: Any] {
         ["input": inputs, "model": EmbeddingIndex.modelID, "cache_prompt": false]
     }
 
-    /// A typed content part nested one level inside the input item; a flat
-    /// `input: [{type: image_url}]` is rejected (ggml-org/llama.cpp#30082).
     static func imagePart(png: Data) -> [String: Any] {
         ["content": [["type": "image_url",
                       "image_url": ["url": "data:image/png;base64," + png.base64EncodedString()]]]]
@@ -204,7 +154,6 @@ final class FileMediaEmbedder: Embedder, @unchecked Sendable {
                       "input_audio": ["data": wav.base64EncodedString(), "format": "wav"]]]]
     }
 
-    /// L2-normalized vectors in input order (rows are ordered by `index`).
     static func vectors(fromResponse data: Data) throws -> [[Float]] {
         do {
             return try EmbeddingIndex.embeddingVectors(fromResponse: data)

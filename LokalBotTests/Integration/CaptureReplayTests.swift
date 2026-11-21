@@ -2,8 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Real services on replayed traces. Each test must fail with its bug's fix
-/// undone (see the plan's Step 7 for how that was verified).
 @MainActor
 final class CaptureReplayTests: XCTestCase {
     private var root: URL!
@@ -25,8 +23,6 @@ final class CaptureReplayTests: XCTestCase {
         let replay = ReplayCaptureEnvironment(trace: try CaptureTrace.load(from: url),
                                               start: Date(timeIntervalSince1970: 1_790_000_000))
         CaptureEnvironment.install(replay.environment)
-        // Both outlive a test: the process list is cached by (virtual) time,
-        // and capture remembers which sibling last emitted per bundle.
         MeetingDetector.invalidateAudioProcessSnapshot()
         MeetingDetector.resetCaptureTargetMemory()
         return replay
@@ -36,8 +32,6 @@ final class CaptureReplayTests: XCTestCase {
         ActivityStore(databaseURL: DiagnosticsPaths.database(root: root))
     }
 
-    /// #116: Chrome's first read fails while its tree settles; one retry 0.75 s
-    /// later must capture the page text instead of skipping.
     func testChromeTextIsCapturedAfterATransientRead() async throws {
         let replay = try replay("chrome-focus-after-tree-read")
         let store = store()
@@ -54,10 +48,6 @@ final class CaptureReplayTests: XCTestCase {
                       "the transient read must be retried and the text stored")
     }
 
-    /// 2026-11-09: one text-recognition request never returned. The capture
-    /// waiting for it kept its turn, and every capture after it was skipped as
-    /// "already in flight" for the rest of the day. A window whose accessible
-    /// text is thin is still captured, and so is the next one.
     func testCapturesGoOnWhenTextRecognitionNeverAnswers() async throws {
         let replay = try replay("window-with-little-accessible-text")
         let store = store()
@@ -97,10 +87,6 @@ final class CaptureReplayTests: XCTestCase {
                        "pixels whose text nothing read are unchecked for credentials and are not kept")
     }
 
-    /// 2026-10-12: screens captured after 2026-10-08 never got vectors. Only
-    /// a screen search started a backfill, and a pass that failed (another
-    /// embedder held port 17873) was never retried. A capture in a library
-    /// that searches screens by meaning must reach semantic search on its own.
     func testCapturedTextIsEmbeddedWithoutASearchAfterAFailedPass() async throws {
         let replay = try replay("chrome-focus-after-tree-read")
         let databaseURL = DiagnosticsPaths.database(root: root)
@@ -120,7 +106,6 @@ final class CaptureReplayTests: XCTestCase {
             screenBackfillSchedule: .init(newTextDelay: .milliseconds(20),
                                           firstRetryDelay: .milliseconds(20),
                                           maximumRetryDelay: .milliseconds(80)))
-        // An earlier screen already has a vector: this library searches screens.
         let earlier = try store.insertScreenshot(
             ts: Date(timeIntervalSince1970: 1_789_000_000), path: "", app: "Notes",
             windowTitle: "Earlier", ocr: "Earlier screen")
@@ -170,21 +155,16 @@ final class CaptureReplayTests: XCTestCase {
         return store.screenshots(in: nil, includingMissingFiles: true).filter { $0.app == "Google Chrome" }
     }
 
-    /// Chrome exposes framed pages as their own web areas; the page keeps its
-    /// address under unrelated site exclusions.
     func testFramedPageKeepsItsAddress() async throws {
         let captures = try await captureFramedPage(excludingDomains: "thr.xmpl")
         XCTAssertEqual(captures.first?.sourceURL, "https://dcs.xmpl/d/kd")
     }
 
-    /// An excluded site framed inside another page still keeps the window out.
     func testFramedExcludedSiteKeepsTheWindowOut() async throws {
         let captures = try await captureFramedPage(excludingDomains: "wdgts.xmpl")
         XCTAssertTrue(captures.isEmpty, "the framed site's text would be stored with the page")
     }
 
-    /// #109: a browser window with web content and no readable address keeps
-    /// its app name; it must not become Private.
     func testBrowserTimeKeepsItsAppName() async throws {
         let replay = try replay("browser-web-content-without-url")
         let store = store()
@@ -199,8 +179,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertFalse(blocks.contains { $0.app == "Private" })
     }
 
-    /// #98: an open call tab whose controls cannot be read keeps the meeting
-    /// running for ten minutes; it ends only when the call ends.
     func testMeetCallSurvivesUnreadableControlsUntilItEnds() async throws {
         let replay = try replay("meet-controls-unreadable-tab-open")
         let detector = MeetingDetector()
@@ -219,9 +197,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertLessThan(ended.first ?? .infinity, 720)
     }
 
-    /// #372: Meet showed the room as /meet/abc-defg-hij, which was not taken
-    /// for a call document, so no meeting started and system audio never
-    /// attached. The call starts, binds to the room's canonical URL, and ends.
     func testMeetCallUnderMeetPathStartsAndEnds() async throws {
         let replay = try replay("meet-room-under-meet-path")
         let detector = MeetingDetector()
@@ -333,12 +308,9 @@ final class CaptureReplayTests: XCTestCase {
                           objectID: 90, isRunningOutput: true)
                 ]),
                 .init(t: 0, query: .inputRunning, processID: 802, flag: true),
-                // A private window is open; a later read cannot read every title.
-                // The trace stores only the privacy decision, never the titles.
                 .init(t: 0, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: false),
                 .init(t: 30, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: false),
                 .init(t: 60, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: true),
-                // A private or unreadable window during the call revokes fallback.
                 .init(t: 90, query: .browserMicrophoneWindowsAllowed, processID: 801, flag: false)
             ])
         let replay = ReplayCaptureEnvironment(trace: trace, start: start)
@@ -383,10 +355,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ended.first ?? 0, 72)
     }
 
-    /// 2026-10-03: Meet's page after the first call was not recognized as an
-    /// end, so that call stayed bound but unverified, and the next meeting, in
-    /// another room, was never detected. A verified call in another room must
-    /// end the stale session and start its own, with its calendar event.
     func testCallInAnotherRoomReplacesAnUnverifiedCall() async throws {
         let replay = try replay("meet-room-change-after-unrecognized-end")
         let detector = MeetingDetector()
@@ -420,9 +388,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertEqual(verified[1_830], true)
     }
 
-    /// The same evening's manual Start from the menu bar: while the first call
-    /// is unverified, the recording must neither join its session (whose later
-    /// end would stop it) nor be labeled with its room.
     func testManualStartDoesNotJoinAnUnverifiedCall() async throws {
         let replay = try replay("meet-room-change-after-unrecognized-end")
         let app = AppState()
@@ -443,9 +408,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertEqual(context.detectedApp?.bundleID, "com.google.Chrome", "the browser's audio is still captured")
     }
 
-    /// Back-to-back events on one Meet link: the call never ends, so the next
-    /// event must split the recording, as it does for a native app. An event
-    /// in another room means the current call is running over and must not.
     func testNextEventInTheSameRoomSplitsTheCall() async throws {
         for (nextRoom, splits) in [("bcd-fghj-klm", true), ("npq-rstv-wxz", false)] {
             let replay = try replay("meet-same-room-back-to-back")
@@ -496,8 +458,6 @@ final class CaptureReplayTests: XCTestCase {
         func meetingCandidates(now: Date) -> [CalendarMeetingCandidate] { candidates }
     }
 
-    /// Teams (#49/#56): a launch sound must not start a meeting; sustained call
-    /// audio must, after the native-audio confirmation window.
     func testTeamsLaunchBlipDoesNotStartAMeetingButTheCallDoes() async throws {
         let replay = try replay("teams-launch-blip-then-call")
         let detector = MeetingDetector()
@@ -514,9 +474,6 @@ final class CaptureReplayTests: XCTestCase {
 
     private let teams = MeetingDetector.DetectedApp(name: "Teams", bundleID: "com.microsoft.teams2", pid: 700)
 
-    /// #179: new Teams plays a scheduled meeting only through modulehost, whose
-    /// stream is open even while Teams is idle, so nothing counted as a source
-    /// and a manual recording stayed microphone-only. It must hold modulehost.
     func testManualRecordingHoldsTheTeamsCallOnModuleHost() throws {
         _ = try replay("teams-call-only-on-modulehost")
         XCTAssertNil(MeetingDetector.captureCandidateApp(), "modulehost is not evidence of a call")
@@ -525,9 +482,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: teams)?.id, 720, "the tap goes on modulehost")
     }
 
-    /// The case 2fde15d guards: Teams sits idle while the Meet call being
-    /// recorded cannot be read yet. Teams is only held, the call replaces it
-    /// once readable, and a recording bound to the call never holds Teams.
     func testAHeldTeamsStreamGivesWayToTheMeetCall() async throws {
         let replay = try replay("teams-idle-while-meet-call-unreadable")
         let room = try XCTUnwrap(URL(string: "https://meet.google.com/bcd-fghj-klm"))
@@ -541,10 +495,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertEqual(RecordingSystemAudioSource.find(for: unbound), .verified(call))
     }
 
-    /// Tencent Meeting was not a known app, so its calls never started a
-    /// recording and a hand-started one saved only the microphone. As a
-    /// dedicated conferencing app it now starts like Zoom: as soon as the call
-    /// is audible, with no sustained-audio wait.
     func testTencentMeetingCallStartsWithoutTheChatAppWait() async throws {
         let replay = try replay("tencent-meeting-call")
         let detector = MeetingDetector()
@@ -563,9 +513,6 @@ final class CaptureReplayTests: XCTestCase {
                           "a dedicated conferencing app does not wait out the chat-app gate")
     }
 
-    /// Feishu plays calls through ByteDance-named Electron helpers outside the
-    /// `com.electron.lark` namespace. A hand-started recording must find the
-    /// call and tap the helper, not save only the microphone.
     func testManualRecordingCapturesAFeishuCallOnItsHelper() throws {
         _ = try replay("feishu-call-on-helper")
         let feishu = MeetingDetector.DetectedApp(name: "Feishu", bundleID: "com.electron.lark", pid: 900)
@@ -575,8 +522,6 @@ final class CaptureReplayTests: XCTestCase {
                        "the tap goes on the helper that carries the call")
     }
 
-    /// #363: Webex's media helper is outside its host's dot-separated bundle
-    /// namespace. A manual recording must verify the call and select its audio.
     func testManualRecordingCapturesAWebexCallOnItsMediaHelper() async throws {
         let replay = try replay("webex-call-on-media-helper")
         await replay.clock.advance(to: 10)
@@ -587,8 +532,6 @@ final class CaptureReplayTests: XCTestCase {
                        "the silent host must not take the remote participants' track")
     }
 
-    /// The same process-family mapping must work before speech starts, through
-    /// a quiet pause, and when recovery sees a replacement helper with a new PID.
     func testWebexCaptureFollowsItsMediaHelperAcrossSilenceAndRestart() async throws {
         let replay = try replay("webex-call-on-media-helper")
         let webex = MeetingDetector.DetectedApp(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: 900)
@@ -616,7 +559,6 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertEqual(started, [.init(name: "Webex", bundleID: "Cisco-Systems.Spark", pid: 900)])
     }
 
-    /// Every scripted browser trace must replay to at least one text capture.
     func testScriptedBrowserTracesReplayToACapture() async throws {
         let folder = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "capture-traces", withExtension: nil, subdirectory: "Fixtures"))

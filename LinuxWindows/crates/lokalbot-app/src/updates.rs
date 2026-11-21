@@ -1,21 +1,3 @@
-//! Automatic updates (`AppUpdateManager.swift`, Sparkle's standard driver).
-//!
-//! While "Check for updates automatically" is on, LokalBot reads the latest
-//! release's feed shortly after launch and once a day. "Check for Updates…"
-//! in Settings checks at any time. As with Sparkle's defaults, nothing is
-//! downloaded or installed until the user chooses Install and Relaunch in
-//! Settings → General or the tray menu; a newly found version is announced
-//! once with a notification. Installing downloads the archive, verifies it
-//! (size, SHA-256, Ed25519 signature) before unpacking, swaps the files,
-//! stops the llama.cpp servers, starts the new copy and quits; Agent Mode
-//! stops its processes as LokalBot quits. When this copy cannot replace its
-//! own files (`/opt`, Program Files, a source build), the update is offered
-//! as a download from GitHub instead. A copy a package manager installed is
-//! told to update through it: the AUR's `lokalbot-bin` with `yay -Syu`, the
-//! release's .deb and .rpm with `apt upgrade` and `dnf upgrade` once they
-//! added LokalBot's repository, and otherwise (the Arch package, or a .deb
-//! or .rpm from before the repository) by installing the new package.
-
 use std::ffi::OsString;
 use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
@@ -28,14 +10,10 @@ use lokalbot_update::{Check, Release, UpdateError, Updater, Version};
 
 use crate::state::{AppData, RecordingState};
 
-/// The first automatic check waits for startup work to settle.
 const FIRST_CHECK_DELAY: Duration = Duration::from_secs(20);
-/// Sparkle's `SUScheduledCheckInterval`.
 const CHECK_INTERVAL: Duration = Duration::from_secs(24 * 60 * 60);
-/// After a failed automatic check (offline at login, say).
 const RETRY_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const TICK: Duration = Duration::from_secs(60);
-/// An update installed while a stopped recording's details can't be saved yet.
 const REFUSED_RELAUNCH: &str = "The update is installed, but a recording could not be saved. Resolve the storage error, then quit and open LokalBot again.";
 
 pub struct UpdatesHandle(pub Entity<Updates>);
@@ -48,17 +26,14 @@ pub fn global(cx: &App) -> Option<Entity<Updates>> {
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum Status {
-    /// A development build, or a platform without published archives.
     Unavailable,
     Idle,
     Checking,
     UpToDate,
-    /// The latest release has no feed for this platform.
     Unpublished,
     Available(Release),
     Downloading {
         release: Release,
-        /// 0…1.
         progress: f32,
     },
     Installing(Release),
@@ -69,21 +44,14 @@ pub enum Status {
     },
 }
 
-/// How the update on offer reaches this copy.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Route {
-    /// Install and Relaunch replaces this copy.
     Install,
-    /// The release page: a copy that cannot replace itself, or the
-    /// release's own package, which has no repository to update from.
     Download,
-    /// A package manager updates this copy from a repository (the AUR's
-    /// `lokalbot-bin`, a distribution's package).
     PackageManager,
 }
 
 impl Status {
-    /// The release on offer, in any state that has one.
     pub fn release(&self) -> Option<&Release> {
         match self {
             Status::Available(release)
@@ -106,19 +74,13 @@ pub struct Updates {
     data: Entity<AppData>,
     updater: Option<Arc<Updater>>,
     installation: Option<Installation>,
-    /// The package that installed this copy, looked up with the first check
-    /// (the inner `None`: no package lists it).
     package: Option<Option<Package>>,
     pub status: Status,
     next_check: Instant,
-    /// The newest version a notification already announced.
     announced: Option<Version>,
-    /// `lokalbot install-update`: install as soon as a check finds one.
     install_when_found: bool,
 }
 
-/// Creates the updater and its daily schedule. Leftovers of an earlier
-/// update (`.old` binaries, downloads) are removed first.
 pub fn start(data: &Entity<AppData>, cx: &mut App) {
     let work_dir = data.read(cx).library.paths().root().join("updates");
     let updater = Updater::for_this_build(work_dir).map(Arc::new);
@@ -139,16 +101,13 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
         ),
         _ => log::info!("updates: off in this build"),
     }
-    // Before anything can start a download into it.
     if let Some(updater) = &updater {
         updater.clear_work_dir();
     }
     if let Some(installation) = &installation {
         let targets = installation.targets();
         cx.background_spawn(async move {
-            // The copy that installed this update may predate this call.
             record_installed_version(&targets.dir, &Version::current());
-            // The copy this one replaced may still be closing.
             for delay in [0, 10, 60] {
                 smol::Timer::after(Duration::from_secs(delay)).await;
                 install::remove_leftovers(&targets);
@@ -189,7 +148,6 @@ impl Updates {
         self.updater.is_some()
     }
 
-    /// Whether Install and Relaunch can replace this copy.
     pub fn can_install(&self, release: &Release) -> bool {
         release.installable
             && self
@@ -198,12 +156,10 @@ impl Updates {
                 .is_some_and(Installation::can_replace)
     }
 
-    /// Install and Relaunch, the download, or the package manager.
     pub fn route(&self, release: &Release) -> Route {
         route(self.can_install(release), self.package())
     }
 
-    /// The package that installed this copy, once the first check looked.
     pub fn package(&self) -> Option<&Package> {
         self.package.as_ref().and_then(Option::as_ref)
     }
@@ -219,13 +175,11 @@ impl Updates {
         if !automatic || self.updater.is_none() || self.status.busy() {
             return;
         }
-        // An offered update stays offered; the feed is read again daily.
         if Instant::now() >= self.next_check {
             self.check(false, cx);
         }
     }
 
-    /// "Check for Updates…" (`manual`) or the daily check.
     pub fn check(&mut self, manual: bool, cx: &mut Context<Self>) {
         let Some(updater) = self.updater.clone() else {
             return;
@@ -236,7 +190,6 @@ impl Updates {
         let previous = self.status.clone();
         self.status = Status::Checking;
         cx.notify();
-        // Only a copy that cannot replace itself needs to know its package.
         let executable = match (&self.package, &self.installation) {
             (None, Some(installation)) if installation.placement == Placement::Managed => {
                 Some(installation.dir.join(install::APP_BINARY))
@@ -295,7 +248,6 @@ impl Updates {
             }
             Err(err) => {
                 log::warn!("updates: check failed: {err}");
-                // A failed automatic check keeps showing what was known.
                 match previous {
                     Status::Available(release) if !manual => Status::Available(release),
                     _ => Status::CheckFailed(check_error(&err)),
@@ -329,8 +281,6 @@ impl Updates {
         }
     }
 
-    /// `lokalbot install-update`: installs the offered update, checking first
-    /// when none is known yet. The user asked for it, so no further consent.
     pub fn install_from_command(&mut self, cx: &mut Context<Self>) {
         if self.updater.is_none() {
             log::warn!("updates: install-update ignored; updates are off in this build");
@@ -346,7 +296,6 @@ impl Updates {
         }
     }
 
-    /// Install and Relaunch.
     pub fn install(&mut self, cx: &mut Context<Self>) {
         let (Some(updater), Some(release)) = (self.updater.clone(), self.status.release().cloned())
         else {
@@ -456,8 +405,6 @@ impl Updates {
         .detach();
     }
 
-    /// The files are in place: stop the llama.cpp servers, start the new
-    /// copy, quit (Agent Mode stops its processes on quit).
     fn relaunch(
         &mut self,
         installed: install::Installed,
@@ -483,7 +430,6 @@ impl Updates {
         let refused_release = release_for_refusal;
         cx.spawn(async move |this, cx| {
             if !prepare_to_quit(engine, cx).await {
-                // The new files are in place; this copy just can't go yet.
                 let _ = this.update(cx, |this, cx| {
                     this.status = Status::InstallFailed {
                         release: refused_release,
@@ -520,7 +466,6 @@ impl Updates {
         .detach();
     }
 
-    /// Release Notes, or Download for copies that cannot replace themselves.
     pub fn open_release_page(&self, cx: &mut App) {
         if let Some(release) = self.status.release() {
             cx.open_url(&release.feed.release_notes_url);
@@ -528,7 +473,6 @@ impl Updates {
     }
 }
 
-/// [`Updates::open_release_page`] for callers holding only the app.
 pub fn open_release_page(cx: &mut App) {
     let url = global(cx).and_then(|updates| {
         updates
@@ -542,9 +486,6 @@ pub fn open_release_page(cx: &mut App) {
     }
 }
 
-/// Shows `version` in the installer's Installed apps entry (Windows), which an
-/// update LokalBot installs itself would otherwise leave at the installer's
-/// version. Failures only log: the update itself is in place.
 fn record_installed_version(dir: &std::path::Path, version: &Version) {
     match lokalbot_update::installed_apps::record_version(dir, version) {
         Ok(true) => log::info!("updates: Installed apps now shows LokalBot {version}"),
@@ -553,9 +494,6 @@ fn record_installed_version(dir: &std::path::Path, version: &Version) {
     }
 }
 
-/// Saves any recording, then stops the llama.cpp servers, before a new copy
-/// starts. False when the recording could not be saved: the engine has said why,
-/// and this copy has to stay.
 async fn prepare_to_quit(
     engine: Option<std::sync::Arc<lokalbot_engine::Engine>>,
     cx: &gpui_kit::AsyncApp,
@@ -573,7 +511,6 @@ async fn prepare_to_quit(
     .await
 }
 
-/// Starts a new copy of this LokalBot and quits this one (`lokalbot-cli restart`).
 pub fn restart(cx: &mut App) {
     let engine = cx
         .try_global::<crate::bridge::EngineHandle>()
@@ -593,7 +530,6 @@ pub fn restart(cx: &mut App) {
     .detach();
 }
 
-/// The library this copy uses, passed on to the new copy.
 fn relaunch_args() -> Vec<OsString> {
     let args: Vec<String> = std::env::args().collect();
     match lokalbot_core::LibraryPaths::root_from_args(&args) {
@@ -622,7 +558,6 @@ fn install_error(err: &UpdateError) -> String {
     }
 }
 
-/// The status line under "Current version" in Settings.
 pub fn status_text(updates: &Updates) -> SharedString {
     match &updates.status {
         Status::Unavailable => {
@@ -641,7 +576,6 @@ pub fn status_text(updates: &Updates) -> SharedString {
     }
 }
 
-/// Help under the "LokalBot <version> is available" row.
 pub fn offer_text(updates: &Updates, release: &Release) -> SharedString {
     let dir = updates.install_dir().unwrap_or_default();
     match &updates.status {
@@ -677,7 +611,6 @@ fn route(can_install: bool, package: Option<&Package>) -> Route {
     }
 }
 
-/// [`offer_text`] while nothing is downloading or installing.
 fn advice(route: Route, package: Option<&Package>, release: &Release, dir: String) -> String {
     match (route, package) {
         (Route::Install, _) => lokalbot_i18n::format(
@@ -688,7 +621,6 @@ fn advice(route: Route, package: Option<&Package>, release: &Release, dir: Strin
             "Update LokalBot with your package manager, for example {command}.",
             &[("command", package.update_command().to_string())],
         ),
-        // The release's own package.
         (_, Some(package)) => lokalbot_i18n::format(
             "Download the new package and install it with {command}.",
             &[("command", package.install_command(release.version))],
@@ -735,7 +667,6 @@ mod tests {
         }
     }
 
-    /// What a copy that cannot replace itself is told.
     fn offered(package: Option<&Package>, installable: bool) -> (Route, String) {
         let release = release(installable);
         let route = route(false, package);
@@ -752,7 +683,6 @@ mod tests {
                 "Update LokalBot with your package manager, for example yay -Syu.".into()
             )
         );
-        // Even when the copy is too old to update itself.
         assert_eq!(offered(Some(&aur), false).0, Route::PackageManager);
         let debian = package(Manager::Dpkg, "lokalbot-desktop");
         assert_eq!(

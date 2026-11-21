@@ -3,9 +3,6 @@ import Qwen3ForcedAlignerCoreML
 @testable import LokalBot
 
 final class QwenASREngineTests: XCTestCase {
-    /// speech-swift's loaders use the Hub layout `base/models/<org>/<model>`.
-    /// The forced aligner lives there, and both Qwen tiers find the MLX
-    /// weights they replaced there to delete them.
     func testHubStyleCacheDirMatchesPackageLayout() {
         let base = URL(fileURLWithPath: "/tmp/qwen3-asr-models", isDirectory: true)
         let dir = QwenASREngine.hubStyleCacheDir(
@@ -16,8 +13,6 @@ final class QwenASREngineTests: XCTestCase {
 
     func testSubFrameAudioRetainsSamplesAndProducesEncoderFrames() {
         let extractor = WhisperFeatureExtractor()
-        // The crash left a 30 s + 11-sample WAV. Its final split had no
-        // features, causing Qwen3AudioEncoder to stack an empty array.
         XCTAssertEqual(extractor.extractFeaturesRaw([Float](repeating: 0.25, count: 11)).timeFrames, 0)
         for count in [1, 11, 159, 160, 161, 400] {
             let original = [Float](repeating: 0.25, count: count)

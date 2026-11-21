@@ -64,7 +64,6 @@ struct ReplyCommand: AsyncParsableCommand {
 
     private func readMessageFromStandardInput() throws -> String {
         let data = try FileHandle.standardInput.readToEnd() ?? Data()
-        // The engine checks the character limit; this only bounds memory.
         guard data.count <= LibraryInputPolicy.maximumQuestionCharacters * 4 else {
             throw ValidationError(
                 "The message is limited to \(LibraryInputPolicy.maximumQuestionCharacters) characters.")
@@ -73,8 +72,6 @@ struct ReplyCommand: AsyncParsableCommand {
     }
 }
 
-/// Prints JSON or text on standard output; failures exit with status 1 so
-/// scripts notice, after the JSON that says why.
 func printAskOutcome(_ outcome: AskLibraryOutcome, table: Bool) throws {
     if table {
         if outcome.isFailure {

@@ -1,18 +1,9 @@
 import Foundation
 
-/// `get_briefing` and `lokalbot-cli brief`: the one call an agent makes first,
-/// so it knows what LokalBot holds and what it may ask before it asks the
-/// user. A fixed-size, recency-weighted read in the spirit of OptMem's `wake`,
-/// assembled from what LokalBot already records. Every section is gated by
-/// the permission that already covers its data; with nothing granted, the
-/// briefing says only which permissions are off and how to turn them on.
 enum Briefing {
     static let toolName = "get_briefing"
     static let maximumCharacters = 12_000
 
-    /// What the briefing tells the agent to call next: MCP tools for
-    /// `get_briefing`, `lokalbot-cli` commands for `brief`, so an agent that
-    /// can only run a shell isn't pointed at tools it can't reach.
     enum Vocabulary {
         case mcp
         case cli
@@ -95,8 +86,6 @@ enum Briefing {
         guard text.count > maximumCharacters else { return text }
         return String(text.prefix(maximumCharacters - 40)) + "\n…(briefing cut at its size limit)"
     }
-
-    // MARK: - Sections
 
     private static func capabilities(_ context: Context, meetings: [Meeting],
                                      screenScope: ScreenMemoryAccessProfile.Scope?,
@@ -227,10 +216,6 @@ enum Briefing {
         var workGoals: [Goal]?
     }
 
-    /// Work memory items need the permission of every kind of source behind
-    /// them: meeting access for meetings, screen access (and its history
-    /// window) for screen, activity, and digest evidence. Items without
-    /// source attribution are never shown.
     private static func workMemory(_ context: Context, screenOn: Bool, cutoffDay: String?) -> String? {
         let url = context.root.appendingPathComponent("memory/memory.json")
         guard let data = try? Data(contentsOf: url),
@@ -284,7 +269,6 @@ enum Briefing {
             var line = "- \(clean(project, 60)) (\(agents), \(sessionCount) "
                 + "\(sessionCount == 1 ? "session" : "sessions"), latest "
                 + "\(shortDay(latest.start, calendar: context.calendar)))"
-            // Automated wake-ups title a session with their raw tags.
             if let titled = group.first(where: { !$0.title.isEmpty && !$0.title.hasPrefix("<") }) {
                 line += ": \(clean(titled.title, 140))"
             }
@@ -294,8 +278,6 @@ enum Briefing {
         return lines.joined(separator: "\n")
     }
 
-    /// Recent days in detail, older weeks and months as one line each, all
-    /// inside the screen-memory history window.
     private static func timeline(_ context: Context, cutoffDay: String?) -> String? {
         let calendar = context.calendar
         let reviews = DreamRollupFormat.reviews(root: context.root)
@@ -337,8 +319,6 @@ enum Briefing {
         return (["## Recent days, then weeks and months (from LokalBot's overnight reviews)"] + lines)
             .joined(separator: "\n")
     }
-
-    // MARK: - Helpers
 
     private static func screenCutoff(_ scope: ScreenMemoryAccessProfile.Scope?, now: Date,
                                      calendar: Calendar) -> Date? {

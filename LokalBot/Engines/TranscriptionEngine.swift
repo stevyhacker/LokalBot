@@ -36,12 +36,6 @@ private func downloadProgressHandler(
     }
 }
 
-/// User-facing transcription model list (Settings). CoreML/MLX families
-/// (Parakeet, Qwen3-ASR, Whisper, Cohere) plus ONNX-runtime models for languages
-/// those cover poorly — SenseVoice (CJK) and GigaAM (Russian) — via the bundled
-/// sherpa-onnx engine. Fun-ASR-Nano uses a user-selected local ONNX folder.
-/// A transcription server sends audio to a user-configured, approved
-/// OpenAI-style endpoint instead (`RemoteTranscriptionEngine`).
 enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case parakeetUltra = "parakeet-ultra"
     case parakeetV3 = "parakeet-v3"
@@ -60,16 +54,10 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     var id: String { rawValue }
     static let recommended: Self = .qwenASR17B
 
-    /// Superseded choices. They stay decodable (a persisted selection keeps
-    /// working) and deletable, but the Models UI hides them from new users —
-    /// every language Cohere covers is served better by Granite/Qwen/Whisper,
-    /// which add language detection, timestamps, and diarization support.
     var isLegacy: Bool { self == .cohere }
 
-    /// Runs on a server the user configures; nothing is downloaded.
     var isRemote: Bool { self == .remoteServer }
 
-    /// Built into macOS rather than downloaded into Application Support.
     var isBuiltInSystem: Bool { self == .appleSpeech }
 
     var displayName: String {
@@ -91,13 +79,8 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Granite Speech 5 TurboCTC (English only, MLX) was removed. A saved
-    /// selection of it moves to Parakeet v2, the other fast English-only model.
     static let removedGraniteTurbo = ["granite-speech-5-turbo", "Granite Speech 5 fast (English)"]
 
-    /// Settings written before the raw values were stabilized persisted the
-    /// display strings. Keep decoding them so an update never silently resets
-    /// a user's model choice.
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         if Self.removedGraniteTurbo.contains(raw) {
@@ -112,7 +95,6 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Engines whose `transcribe(audio:language:prompt:)` uses the prompt.
     var acceptsVocabularyPrompt: Bool {
         switch self {
         case .whisperLarge, .qwenASR17B, .qwenASR06B, .graniteSpeech5, .appleSpeech, .remoteServer: true
@@ -120,7 +102,6 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         }
     }
 
-    /// Download size from the blurb ("0.6 GB"), when the blurb leads with one.
     var sizeLabel: String? {
         guard let lead = blurb.components(separatedBy: " · ").first,
               lead.hasSuffix(" GB") || lead.hasSuffix(" MB") else { return nil }
@@ -161,58 +142,34 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .senseVoice: OnnxTranscriptionEngine.senseVoice
         case .gigaamRussian: OnnxTranscriptionEngine.gigaamRussian
         case .appleSpeech: AppleSpeechEngine.shared
-        // Needs the server settings: `AppSettings.transcriptionEngine(for:)`.
         case .remoteServer: RemoteTranscriptionEngine(
             configuration: .init(baseURL: "", model: "", approvedOrigins: []), apiKey: { "" })
         }
     }
 }
 
-/// M2 contract (design doc §5). The app talks only to these protocols;
-/// engines (Parakeet, WhisperKit, whisper.cpp, VibeVoice) plug in behind.
-/// `prepare` downloads/loads the model (idempotent) so prewarm paths and the
-/// Models UI can drive any engine through `TranscriptionModelChoice.engine`
-/// without per-engine switches.
 protocol TranscriptionEngine {
     var displayName: String { get }
-    /// Stable identity of the selected model files for crash-resume checkpoints.
     var checkpointIdentity: String { get throws }
     var supportsStreaming: Bool { get }
-    /// How `AttributedTrackTranscriber` combines this engine with speaker turns.
     var speakerAttribution: SpeakerAttributionStrategy { get }
     func prepare(progress: ModelPreparationProgressHandler?) async throws
     func transcribe(audio: URL, language: String?) async throws -> Transcript
     func transcribe(audio: URL, language: String?, prompt: String?) async throws -> Transcript
-    /// Whole-track transcription whose words will be attributed to speakers
-    /// (`.alignedWords`), so decode windows may be longer. Segments without
-    /// the engine's own word times are re-timed by forced alignment.
     func transcribeForWordAttribution(audio: URL, language: String?, prompt: String?) async throws -> WordTimedTranscript
-    /// Word-attribution transcripts are expected to carry the engine's own
-    /// word times, so the forced aligner is fetched only for segments without them.
     var providesWordTimings: Bool { get }
 }
 
-/// A whole-track transcript for word attribution. An engine that times words
-/// itself (a transcription server answering `timestamp_granularities[]=word`)
-/// fills `words`; the rest are left to the forced aligner.
 struct WordTimedTranscript {
     struct Segment: Sendable {
         var segment: Transcript.Segment
-        /// On the track timeline; nil when the engine returned no word times.
         var words: [AlignedWordTiming]?
     }
 
     var segments: [Segment]
     var engine: String
     var allowsForcedAlignment: Bool
-    /// The language the engine settled on for the whole track while set to
-    /// auto-detect, if it did. When the words cannot be attributed and the
-    /// track falls back to speaker regions, those decode in this language:
-    /// a few seconds of speech are too little to detect it again.
     var trackLanguage: String?
-    /// The engine settled on a `trackLanguage` the forced aligner cannot time
-    /// and stopped there: attribute by speaker regions decoded in it, without
-    /// `segments`, which may be incomplete.
     var needsSpeakerRegions = false
 
     init(segments: [Segment], engine: String, trackLanguage: String? = nil, allowsForcedAlignment: Bool = true) {
@@ -222,7 +179,6 @@ struct WordTimedTranscript {
         self.allowsForcedAlignment = allowsForcedAlignment
     }
 
-    /// Text without word times, for the forced aligner.
     init(_ transcript: Transcript, trackLanguage: String? = nil) {
         self.init(segments: transcript.segments.map { Segment(segment: $0) }, engine: transcript.engine,
                   trackLanguage: trackLanguage)
@@ -231,13 +187,8 @@ struct WordTimedTranscript {
     var transcript: Transcript { Transcript(segments: segments.map(\.segment), engine: engine) }
 }
 
-/// How a diarized (or content-trimmed) track is attributed to speakers.
 enum SpeakerAttributionStrategy: Sendable {
-    /// Cut the audio at speaker turns and transcribe each region on its own.
     case regions
-    /// Transcribe the whole track, then assign each forced-aligned word to the
-    /// speaker active at that moment. Measured on Qwen3-ASR 1.7B and 0.6B in
-    /// Benchmarks/transcribe/QwenSpanLength: regions cost 3.0 and 2.8 points of meeting WER.
     case alignedWords
 }
 
@@ -255,8 +206,6 @@ extension TranscriptionEngine {
 extension TranscriptionEngine {
     func prepare() async throws { try await prepare(progress: nil) }
 
-    /// Engines without a prompt API keep their existing behavior. Whisper and
-    /// Qwen override this overload with their native context mechanisms.
     func transcribe(audio: URL, language: String?, prompt: String?) async throws -> Transcript {
         try await transcribe(audio: audio, language: language)
     }
@@ -275,10 +224,6 @@ enum TranscriptionEngineError: LocalizedError {
     var errorDescription: String? { "Transcription model failed to load." }
 }
 
-/// Releases an idle, expensive resource (a loaded transcription model) after a
-/// quiet period — mirrors Handy's idle-unload so a long-running app doesn't pin
-/// hundreds of MB to >1 GB of CoreML weights between meetings. Call `bump()`
-/// after each use; `onIdle` runs only if nothing bumped during the interval.
 actor IdleTimer {
     private let seconds: TimeInterval
     private let onIdle: @Sendable () async -> Void
@@ -300,14 +245,11 @@ actor IdleTimer {
     }
 
     private func fireIfIdle(_ scheduled: Int) async {
-        guard scheduled == generation else { return }   // a newer use bumped us
+        guard scheduled == generation else { return }
         await onIdle()
     }
 }
 
-/// Coalesces overlapping async setup calls. Swift actors are reentrant at
-/// every `await`, so a simple `guard model == nil` does not prevent two callers
-/// from downloading or loading the same model concurrently.
 actor AsyncSingleFlight {
     private var task: Task<Void, Never>?
     private var waiters: [UUID: CheckedContinuation<Void, Error>] = [:]
@@ -337,7 +279,6 @@ actor AsyncSingleFlight {
         } onCancel: {
             Task { await self.cancelWaiter(id) }
         }
-        // Cancellation racing successful completion must not report Ready.
         try Task.checkCancellation()
     }
 
@@ -347,8 +288,6 @@ actor AsyncSingleFlight {
     private func cancelWaiter(_ id: UUID) {
         guard let waiter = waiters.removeValue(forKey: id) else { return }
         waiter.resume(throwing: CancellationError())
-        // Another consumer (for example a recording prewarm) still owns the
-        // shared download. Cancel actual work only after its final owner leaves.
         if waiters.isEmpty { task?.cancel() }
     }
 
@@ -361,10 +300,6 @@ actor AsyncSingleFlight {
 }
 
 
-/// Parakeet TDT 0.6B via FluidAudio — CoreML, in-process, runs on the
-/// Neural Engine. Ultra and v3 cover 25 European languages;
-/// v2 is English-only. The model is fetched
-/// from Hugging Face on first use and cached; the only network access.
 actor ParakeetEngine: TranscriptionEngine {
 
     enum Variant: CaseIterable, Sendable {
@@ -379,7 +314,6 @@ actor ParakeetEngine: TranscriptionEngine {
         }
 
         var encoderPrecision: ParakeetEncoderPrecision {
-            // The pinned v3 snapshot uses the corrected Encoder_v2 weights.
             self == .v3 ? .int8V2 : .int8
         }
 
@@ -424,8 +358,6 @@ actor ParakeetEngine: TranscriptionEngine {
         }
     }
 
-    /// One instance per variant so the pipeline, dictation prewarm, and the
-    /// Models UI can each target a variant without racing over shared state.
     static let ultra = ParakeetEngine(variant: .ultra)
     static let v3 = ParakeetEngine(variant: .v3)
     static let v2 = ParakeetEngine(variant: .v2)
@@ -444,7 +376,6 @@ actor ParakeetEngine: TranscriptionEngine {
         self.displayName = variant.displayName
     }
 
-    /// Downloads (first run) and loads the CoreML model. Idempotent.
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
         guard manager == nil else { return }
         reportPreparationUpdate(.init(fractionCompleted: nil, status: "Checking..."),
@@ -491,7 +422,6 @@ actor ParakeetEngine: TranscriptionEngine {
         }
     }
 
-    /// Free the loaded model after an idle period (driven by `idle`).
     private func unload() async {
         guard activeUses == 0, !(await preparation.isRunning) else { return }
         manager = nil
@@ -522,10 +452,6 @@ actor ParakeetEngine: TranscriptionEngine {
         Task { await idle.bump() }
     }
 
-    // MARK: - Token timings → readable segments
-
-    /// Group plain text into one segment per track when an engine has no
-    /// timestamps (Cohere). Track-level Me/Them attribution still works.
     static func singleSegment(text: String, duration: TimeInterval,
                               speaker: String) -> [Transcript.Segment] {
         let trimmed = Transcript.normalizedText(text)
@@ -535,12 +461,6 @@ actor ParakeetEngine: TranscriptionEngine {
                                    timingPrecision: .coarse)]
     }
 
-    /// Groups token timings into sentence-ish segments: split on silence
-    /// gaps > 1 s, on sentence-ending punctuation once a segment has grown
-    /// past ~200 chars, or after 30 s regardless. Token timing can place a
-    /// sentence's closing punctuation after the pause that follows it, so a
-    /// token with no letters or digits always stays with the words before it
-    /// and neither causes a split nor stretches the segment's end.
     static func segments(from result: ASRResult, speaker: String) -> [Transcript.Segment] {
         guard let timings = result.tokenTimings, !timings.isEmpty else {
             let text = Transcript.normalizedText(result.text)
@@ -595,8 +515,6 @@ actor ParakeetEngine: TranscriptionEngine {
     }
 }
 
-/// Whisper large-v3 turbo via WhisperKit (CoreML, ~1.6 GB, auto-downloaded
-/// from Hugging Face on first use). 99 languages, real segment timestamps.
 actor WhisperEngine: TranscriptionEngine {
     static let shared = WhisperEngine()
     nonisolated let displayName = "Whisper large-v3 turbo"
@@ -643,16 +561,10 @@ actor WhisperEngine: TranscriptionEngine {
             let tokenizerFolder = modelFolder.appendingPathComponent(".lokalbot-tokenizer")
             let tokenizerSnapshot = try PinnedModelSnapshot.catalog("whisperTokenizer")
             try await tokenizerSnapshot.prepare(in: tokenizerFolder, progress: progress)
-            // WhisperKit searches a nested Hub cache before this folder and
-            // can populate it on a tokenizer parse failure. Never accept that
-            // mutable fallback as the configured pinned tokenizer.
             let fallback = tokenizerFolder.appendingPathComponent("models")
             guard !FileManager.default.fileExists(atPath: fallback.path) else {
                 throw PinnedModelSnapshot.SnapshotError.unexpectedWeights
             }
-            // Fail locally if the pinned tokenizer cannot be parsed. The
-            // dependency's convenience loader otherwise downloads mutable
-            // Hub files even when model downloads are disabled.
             _ = try await AutoTokenizerWrapper.from(modelFolder: tokenizerFolder)
             reportPreparationUpdate(.init(fractionCompleted: nil, status: "Loading..."),
                                     to: progress)
@@ -721,10 +633,6 @@ actor WhisperEngine: TranscriptionEngine {
     }
 }
 
-/// Cohere Transcribe (03-2026) via FluidAudio — CoreML int8, 14 languages.
-/// The model emits no timestamps, so each track is split into VAD speech regions
-/// and transcribed per region, giving real per-utterance timing (with a
-/// whole-track single-segment fallback when VAD is unavailable).
 actor CohereEngine: TranscriptionEngine {
     static let shared = CohereEngine()
     nonisolated let displayName = "Cohere Transcribe"
@@ -790,10 +698,6 @@ actor CohereEngine: TranscriptionEngine {
         let lang = language.flatMap { CohereAsrConfig.Language(rawValue: $0) } ?? .english
         let sampleRate = CohereAsrConfig.sampleRate
 
-        // Cohere returns no timestamps, so transcribe each VAD speech region
-        // (≤14 s) on its own and stamp it with the region's real start/end —
-        // real per-utterance timing without forced alignment. Falls back to one
-        // whole-track segment if VAD is unavailable.
         if let spans = await SpeechActivity.shared.vadSpans(in: url, maxSegmentSeconds: nil) {
             guard !spans.isEmpty else {
                 return Transcript(segments: [], engine: "cohere-transcribe-03-2026 (FluidAudio, vad-segmented)")
@@ -813,7 +717,6 @@ actor CohereEngine: TranscriptionEngine {
             }
         }
 
-        // Fallback: whole track as one segment (no timestamps).
         let conversionStarted = Date()
         let samples = try AudioConverter().resampleAudioFile(url)
         let conversionSeconds = Date().timeIntervalSince(conversionStarted)
@@ -846,8 +749,6 @@ actor CohereEngine: TranscriptionEngine {
     }
 }
 
-/// The voice-activity model's memory of one live track, handed back and forth
-/// through `SpeechActivity.liveProbability`.
 struct LiveVoiceState: Sendable {
     struct Unavailable: Error {}
 
@@ -857,11 +758,6 @@ struct LiveVoiceState: Sendable {
     fileprivate init(stream: VadStreamState) { self.stream = stream }
 }
 
-/// Voice-activity gate over FluidAudio's Silero VAD. Lets the pipeline skip
-/// transcribing a track with no speech (e.g. your mic while muted for the whole
-/// call) rather than feeding silence to the ASR model, which can hallucinate
-/// text. Conservative: any error/uncertainty reports speech so a real track is
-/// never dropped. Idle-unloads the (small) VAD model like the ASR engines.
 actor SpeechActivity {
     static let shared = SpeechActivity()
 
@@ -869,20 +765,8 @@ actor SpeechActivity {
     private let preparation = AsyncSingleFlight()
     private var activeUses = 0
     private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
-    /// Single-entry segments cache. The pipeline gates each track on
-    /// `speechSeconds` and the engine immediately re-requests the segments for
-    /// the same file — without this, every track is decoded and VAD-swept
-    /// twice. Deliberately segments-only: the decoded track (~230 MB per
-    /// recorded hour) is released the moment the VAD sweep finishes, and
-    /// transcription re-reads each span's window on demand (`SpanAudioReader`).
-    /// Keyed on path + mtime + size; released with the idle unload.
     private var cachedSegments: (key: String, segments: [VadSegment])?
 
-    /// Decode `url` to 16 kHz mono (transiently) and split it into ≤14 s
-    /// speech regions (Silero VAD, ASR-tuned `.default` config), or nil when
-    /// VAD is unavailable. Each region carries a real `startTime`/`endTime`,
-    /// which lets timestamp-less engines (Cohere) emit per-region segments
-    /// instead of one block per track.
     func speechSegments(in url: URL) async -> [VadSegment]? {
         activeUses += 1
         defer { finishUse() }
@@ -903,17 +787,10 @@ actor SpeechActivity {
         }
     }
 
-    /// Total seconds of detected speech in `url`, or nil when VAD is
-    /// unavailable — in which case the caller should transcribe anyway.
     func speechSeconds(in url: URL) async -> Double? {
         await speechSegments(in: url)?.reduce(0.0) { $0 + $1.duration }
     }
 
-    /// How likely the next `liveChunkFrames` of a track being recorded are
-    /// speech. `state` is the model's memory of that track so far; pass back
-    /// the one returned. Unlike the file sweep above this throws when the
-    /// model is unavailable, so a live preview stops instead of treating
-    /// everything as speech.
     func liveProbability(of chunk: [Float],
                          state: LiveVoiceState) async throws -> (probability: Float, state: LiveVoiceState) {
         activeUses += 1
@@ -924,7 +801,6 @@ actor SpeechActivity {
         return (result.probability, LiveVoiceState(stream: result.state))
     }
 
-    /// Frames (16 kHz) the model judges at a time: 256 ms.
     static let liveChunkFrames = VadManager.chunkSize
 
     private nonisolated static func cacheKey(for url: URL) -> String {

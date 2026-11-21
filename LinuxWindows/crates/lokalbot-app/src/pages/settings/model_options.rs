@@ -1,8 +1,3 @@
-//! The options behind Models' rows (`ModelSupportingSettings.swift`,
-//! `ModelPickerSheet.remoteTranscriptionSetup`): Read aloud's voice, speed and
-//! sample, the transcription language and vocabulary, the transcription server
-//! and where downloads come from.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState, Textarea, TextareaState};
@@ -29,8 +24,6 @@ use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// `speechSpeed` shown like the Mac's `%.2g×`, two significant digits: 1×,
-/// 1.2×, 0.95×, 0.5×.
 fn speed_label(speed: f64) -> String {
     let text = if speed < 1.0 {
         format!("{speed:.2}")
@@ -43,20 +36,15 @@ fn speed_label(speed: f64) -> String {
 
 const SAMPLE_KEY: &str = "sample";
 
-/// Controls that live as long as the Settings page.
 pub struct OptionsState {
     speed: Entity<SliderState>,
     prompt: Entity<TextareaState>,
     server_url: Entity<InputState>,
     server_model: Entity<InputState>,
     server_key: Entity<InputState>,
-    /// The approval checkbox's draft, for the origin in `server_origin`.
     server_consent: bool,
     server_origin: Option<String>,
-    /// Asked of the credential store when the form first shows, since a locked
-    /// store may prompt.
     server_key_saved: Option<bool>,
-    /// The saved-key state is being read and nothing has replaced it yet.
     server_key_loading: bool,
     server_error: Option<SharedString>,
 }
@@ -122,7 +110,6 @@ impl OptionsState {
                 window,
                 |page, _, event: &SliderEvent, _, cx| {
                     let (SliderEvent::Change(value) | SliderEvent::Release(value)) = event;
-                    // Slider steps as the Mac stores them: 1.05, not 1.0499999.
                     let speed = (f64::from(value.start()) * 20.0).round() / 20.0;
                     page.update_settings(move |s| s.speech_speed = speed, cx);
                 },
@@ -190,7 +177,6 @@ fn is_approved(origin: Option<&str>, settings: &Settings) -> bool {
     })
 }
 
-/// The transcription model's name; a server names its model and host.
 pub(super) fn transcription_name(settings: &Settings) -> String {
     if lokalbot_speech::models::is_remote(&settings.transcription_model) {
         RemoteTranscription::from_settings(settings).display_name()
@@ -199,7 +185,6 @@ pub(super) fn transcription_name(settings: &Settings) -> String {
     }
 }
 
-/// "Download models from" (`ModelDownloadSourcePicker`), in Settings and onboarding.
 pub(crate) fn download_source_row(
     current: ModelDownloadSource,
     focused: bool,
@@ -252,7 +237,6 @@ pub(crate) fn download_source_row(
     )
 }
 
-/// The back button, title and subtitle of a Models subpage.
 pub(super) fn subpage_header(
     page: Entity<SettingsPage>,
     title: &'static str,
@@ -296,8 +280,6 @@ fn stop_sample(cx: &mut App) {
 }
 
 impl SettingsPage {
-    /// The URL changed: an approval belongs to one origin, so show the saved
-    /// choice for a newly entered server rather than carrying the toggle over.
     fn server_draft_changed(&mut self, cx: &mut Context<Self>) {
         let settings = self.data.read(cx).settings.clone();
         let origin = self.server_draft(&settings, cx).origin();
@@ -310,7 +292,6 @@ impl SettingsPage {
         cx.notify();
     }
 
-    /// The server form as a configuration, with the approval checkbox applied.
     fn server_draft(&self, settings: &Settings, cx: &App) -> RemoteTranscription {
         let options = &self.models.options;
         let mut draft = RemoteTranscription {
@@ -329,9 +310,6 @@ impl SettingsPage {
         draft
     }
 
-    /// Saves the typed key and the approval, then switches once the server is
-    /// allowed to receive audio. The approval list is replaced as a whole, so
-    /// unchecking revokes the origin.
     fn use_transcription_server(&mut self, cx: &mut Context<Self>) {
         let settings = self.data.read(cx).settings.clone();
         let draft = self.server_draft(&settings, cx);
@@ -381,7 +359,6 @@ impl SettingsPage {
         cx.notify();
     }
 
-    /// Language & vocabulary (`ModelTranscriptionOptionsSheet`).
     pub(super) fn transcription_options_page(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -528,9 +505,6 @@ impl SettingsPage {
         ]
     }
 
-    /// The server form (`remoteTranscriptionSetup`).
-    /// Reads whether the transcription server has a key saved, off the main
-    /// thread: a locked credential store answers only after its prompt.
     fn load_server_key_state(&mut self, cx: &mut Context<Self>) {
         let options = &mut self.models.options;
         if options.server_key_saved.is_some() {
@@ -545,7 +519,6 @@ impl SettingsPage {
                 })
                 .await;
             let _ = this.update(cx, |this, cx| {
-                // A key saved or forgotten meanwhile is the newer answer.
                 let options = &mut this.models.options;
                 if options.server_key_loading {
                     options.server_key_loading = false;
@@ -709,7 +682,6 @@ impl SettingsPage {
         ]
     }
 
-    /// Where the audio goes and its per-origin approval (`remoteTranscriptionAccess`).
     fn server_access(&self, draft: &RemoteTranscription, cx: &mut Context<Self>) -> Option<Div> {
         let lb = cx.lb().clone();
         let Some(endpoint) = draft.endpoint() else {
@@ -901,7 +873,6 @@ impl SettingsPage {
                     } else {
                         SpeechCommand::Read {
                             key: SAMPLE_KEY.into(),
-                            // Spoken by an English voice in every interface language.
                             text: "Here is a sample of LokalBot's voice. Your summaries can be read aloud on this PC.".to_string(),
                         }
                     };
@@ -992,8 +963,6 @@ impl SettingsPage {
         ]
     }
 
-    /// Read aloud's model in Model Storage, once there is something to show
-    /// (`ModelDownloadsView.speechRow`).
     pub(super) fn read_aloud_storage_row(&mut self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let lb = cx.lb().clone();
         let (installed, download) = {

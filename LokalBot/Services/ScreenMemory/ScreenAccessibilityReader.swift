@@ -11,13 +11,9 @@ struct ScreenAccessibilitySnapshot: Codable, Equatable, Sendable {
     var windowFrame: CGRect?
     var hasWebContent: Bool = false
     var containsSecureField: Bool = false
-    /// Other sites' pages framed inside the window, sanitized; nil when none.
     var framedURLs: [String]?
-    /// Some web content's address could not be read; nil when all could.
     var hasUnattributedWebContent: Bool?
-    /// Elements the read inspected; nil for recorded reads.
     var inspectedNodes: Int?
-    /// The focused element's selected text. Only whole-document reads keep it.
     var selectedText: String?
 
     func privacyObservation(appName: String, bundleIdentifier: String?) -> ScreenContextPrivacy.Observation {
@@ -37,10 +33,6 @@ struct ScreenAccessibilityCaptureResult: Equatable, Sendable {
 }
 
 enum ScreenVisibleTextPolicy {
-    /// Whole AXValue/selected-text/help strings can contain a complete hidden
-    /// document. Only visible-range text or fully visible static labels qualify.
-    /// Whether `text` can return anything, checked before reading the
-    /// element's text from the other app.
     static func mayShowText(frame: CGRect?, viewport: CGRect?, hidden: Bool) -> Bool {
         guard !hidden, let frame, let viewport else { return false }
         return !frame.isEmpty && !frame.isNull && frame.intersects(viewport)
@@ -62,9 +54,6 @@ enum ScreenVisibleTextPolicy {
     }
 }
 
-/// Hand off reads a whole document on an explicit press: every text element
-/// of the focused window, including what is scrolled out of view, in reading
-/// order. Screen memory never uses it.
 enum ScreenDocumentTextPolicy {
     static let maximumCharacters = 100_000
     static let textRoles: Set<String> = ["AXStaticText", "AXTextArea", "AXTextField", "AXComboBox", "AXHeading"]
@@ -75,24 +64,16 @@ enum ScreenDocumentTextPolicy {
     }
 }
 
-/// A bounded, single-flight reader for visible Accessibility text. Cross-process
-/// AX calls never run on the main actor, and a wedged target can occupy only one
-/// worker rather than creating an unbounded queue of blocked snapshots.
 final class ScreenAccessibilityReader: @unchecked Sendable {
     typealias Resolver = @Sendable (pid_t) -> ScreenAccessibilitySnapshot?
 
     static let shared = ScreenAccessibilityReader()
-    /// Activity-only sampling inspects privacy metadata, never document text.
     static let metadataOnly = ScreenAccessibilityReader {
         CaptureEnvironment.current.accessibility.read(processID: $0, includeText: false).snapshot
     }
-    /// Metadata without the walk for web pages, for samples that need no page
-    /// address (no site exclusions are configured).
     static let windowOnly = ScreenAccessibilityReader {
         CaptureEnvironment.current.accessibility.readWindow(processID: $0).snapshot
     }
-    /// Rechecks a capture's window: secure fields and page addresses, no text,
-    /// over at most `nodeLimit()` elements.
     static func privacyRecheck(nodeLimit: @escaping @Sendable () -> Int?) -> ScreenAccessibilityReader {
         ScreenAccessibilityReader {
             CaptureEnvironment.current.accessibility.readPrivacy(processID: $0, nodeLimit: nodeLimit()).snapshot
@@ -190,62 +171,40 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         }
     }
 
-    /// macOS answers an app's accessibility queries about itself in-process,
-    /// on the calling thread. From these background workers that walks
-    /// LokalBot's SwiftUI hierarchy off the main actor, which traps. LokalBot
-    /// never records its own window as screen context anyway.
     static func isOwnProcess(_ processID: pid_t) -> Bool {
         processID == ProcessInfo.processInfo.processIdentifier
     }
 
-    /// Why a text read produced no snapshot. Names the failed check, never
-    /// window contents.
     struct TextReadFailure: Codable, Equatable, Sendable {
         let reason: String
-        /// The window was readable but changed while it was read, as during
-        /// a tab switch or page load; a read moments later can succeed.
         let isTransient: Bool
     }
 
     private static let failureLock = NSLock()
     private nonisolated(unsafe) static var textReadFailures: [pid_t: TextReadFailure] = [:]
 
-    /// Why the most recent text read of `processID` produced no snapshot.
     static func lastTextReadFailure(for processID: pid_t) -> TextReadFailure? {
         failureLock.lock()
         defer { failureLock.unlock() }
         return textReadFailures[processID]
     }
 
-    /// Replay and recording environments report a read's failure reason the
-    /// same way a live read does, so capture retry logic sees it.
     static func recordTextReadFailure(_ failure: TextReadFailure?, processID: pid_t) {
         noteTextReadFailure(failure, processID: processID, includeText: true)
     }
 
     private static func noteTextReadFailure(_ reason: TextReadFailure?, processID: pid_t, includeText: Bool) {
-        // Metadata-only activity sampling runs every few seconds; only the
-        // screen-capture read is diagnosed.
         guard includeText else { return }
         failureLock.lock()
         defer { failureLock.unlock() }
         textReadFailures[processID] = reason
     }
 
-    /// What a read takes from each element of the focused window.
     enum Reading: Sendable {
-        /// Visible text, secure fields and web pages: what a capture stores.
         case text
-        /// Secure fields and web pages without any text, to recheck a
-        /// capture's window after its pixels were taken.
         case privacy
-        /// Web pages only: activity samples that apply site exclusions.
         case metadata
-        /// The window and its focused element, without walking its contents.
         case window
-        /// Hand off, on an explicit press: every text element of the focused
-        /// window in reading order, including what is scrolled out of view.
-        /// Screen memory never uses it.
         case document
 
         var checksSecureFields: Bool { self == .text || self == .privacy || self == .document }
@@ -255,8 +214,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         var maximumChildren: Int { self == .document ? 800 : 80 }
         var maximumElementCharacters: Int { self == .document ? ScreenDocumentTextPolicy.maximumCharacters : 8_000 }
 
-        /// Read in one cross-process call per element. Values a node rarely
-        /// needs or that can be large (`AXValue`, `AXChildren`) stay separate.
         var nodeAttributes: [String] {
             let secureField = ScreenAccessibilityReader.secureFieldAttributes
             let walk = ["AXHidden", kAXURLAttribute as String, kAXVisibleChildrenAttribute as String]
@@ -265,7 +222,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                 return secureField + walk + [kAXPositionAttribute as String, kAXSizeAttribute as String,
                                              kAXVisibleCharacterRangeAttribute as String]
             case .privacy: return secureField + walk
-            // A document read walks every child, which it reads separately.
             case .document: return secureField + ["AXHidden", kAXURLAttribute as String]
             case .metadata: return [kAXRoleAttribute as String] + walk
             case .window: return []
@@ -273,10 +229,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         }
     }
 
-    /// `nodeLimit` caps the elements visited; a privacy recheck passes the
-    /// count the capture's own read inspected, so both judge the same part
-    /// of the window even though the recheck reads faster. A document read
-    /// visits up to 6,000 elements instead.
     static func resolve(processID: pid_t, reading: Reading = .text,
                         nodeLimit: Int = 320) -> ScreenAccessibilitySnapshot? {
         let diagnosed = reading == .text
@@ -324,7 +276,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
               started.duration(to: .now) < maximumDuration {
             let next: (element: AXUIElement, viewport: CGRect?)
             if reading == .document {
-                // A document is read depth first, so its text keeps reading order.
                 next = queue.removeLast()
             } else {
                 next = queue[head]
@@ -353,7 +304,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                             of: element, range: node.value(kAXVisibleCharacterRangeAttribute as String)),
                         staticValue: role == "AXStaticText" ? textualAttribute(element, kAXValueAttribute as String) : nil)
                 case .document:
-                    // Only text roles are worth a separate call for their value.
                     ScreenDocumentTextPolicy.text(
                         role: role, hidden: hidden,
                         value: ScreenDocumentTextPolicy.textRoles.contains(role ?? "")
@@ -374,11 +324,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
 
             if role == "AXWebArea" {
                 hasWebContent = true
-                // A link URL is not the document's origin. Only a web area's
-                // own URL (or the window document) can establish that origin.
                 webAreaURLs.append(urlString(node.value(kAXURLAttribute as String)))
             }
-            // Only a document read walks children that are out of view.
             var rawChildren: CFTypeRef?
             if !hidden {
                 rawChildren = reading == .document
@@ -391,13 +338,10 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                     ? elementFrame.flatMap { next.viewport?.intersection($0) } : next.viewport
                 let kept: [(element: AXUIElement, viewport: CGRect?)] =
                     children.prefix(reading.maximumChildren).map { ($0, viewport) }
-                // Popped from the end, so the first child is read first.
                 queue.append(contentsOf: reading == .document ? Array(kept.reversed()) : kept)
             }
         }
 
-        // AX calls are asynchronous with respect to the other application.
-        // Never attach one window's text to a different focused window.
         guard let currentWindow = elementAttribute(app, kAXFocusedWindowAttribute as String),
               CFEqual(window, currentWindow) else {
             return fail("focused window changed during read", transient: true)
@@ -439,9 +383,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             selectedText: selectedText)
     }
 
-    /// One element's attributes from a single cross-process call. A walk used
-    /// to make 12–14 separate calls per element, each a round trip to the
-    /// other app. Attributes the element lacks come back as errors.
     struct NodeAttributes {
         private var values: [String: CFTypeRef] = [:]
         private var errors: [String: AXError] = [:]
@@ -458,7 +399,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
             decode(names: names, values: array)
         }
 
-        /// The decoding half, separate so tests can check it without a target app.
         init(names: [String], values array: [AnyObject]) {
             decode(names: names, values: array)
         }
@@ -482,19 +422,11 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
     }
 
     struct PageAddress: Equatable, Sendable {
-        /// The page's own address, as read.
         var sourceURL: String?
-        /// Other sites' pages framed inside it, sanitized.
         var framedURLs: [String]
-        /// A web area whose address could not be read.
         var hasUnattributedWebContent: Bool
     }
 
-    /// Chrome exposes every frame of a page as its own web area: the page,
-    /// about:blank editors, and other sites' embeds. The window's document,
-    /// else the outermost web area, is the page; other addresses are kept for
-    /// site exclusions instead of making the page's own address unknown.
-    /// `webAreaURLs` lists web areas outermost first.
     static func pageAddress(document: String?, webAreaURLs: [String?]) -> PageAddress {
         var page = document.flatMap { ScreenContextPrivacy.sanitizedURL($0) == nil ? nil : $0 }
         var framed: [String] = []
@@ -504,11 +436,8 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
                 unattributed = true
                 continue
             }
-            // about:blank and about:srcdoc frames take their embedder's
-            // origin, and a data: frame holds content its embedder supplied.
             let scheme = URL(string: raw)?.scheme?.lowercased() ?? ""
             if scheme == "about" || scheme == "data" { continue }
-            // A blob: address carries the origin that created it.
             let address = scheme == "blob" ? String(raw.dropFirst("blob:".count)) : raw
             guard let sanitized = ScreenContextPrivacy.sanitizedURL(address) else {
                 unattributed = true
@@ -525,20 +454,12 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         return PageAddress(sourceURL: page, framedURLs: framed, hasUnattributedWebContent: unattributed)
     }
 
-    /// The focused-field state across one read. Chrome reports no focused
-    /// element until reading its page builds its accessibility tree, so an
-    /// unknown focus that turns out to be a plain field keeps the read. Any
-    /// other change, including into or out of a secure field, discards it.
     static func settledFocus(before: Bool?, after: Bool?) -> (accepted: Bool, focus: Bool?) {
         if before == after { return (true, before) }
         if before == nil, after == false { return (true, false) }
         return (false, before)
     }
 
-    /// Only an input can hold a secret. The secure-field markers also match
-    /// labels and buttons such as a browser's "Connection is secure" site
-    /// information or "Manage passwords"; those stay out of captured text but
-    /// do not make the whole window count as showing a password field.
     static func isTextEntry(role: String?) -> Bool {
         guard let role else { return false }
         return ["AXTextField", "AXSecureTextField", "AXTextArea", "AXComboBox", "AXSearchField"]
@@ -587,8 +508,6 @@ final class ScreenAccessibilityReader: @unchecked Sendable {
         secureFieldStatus(NodeAttributes(element, names: secureFieldAttributes))
     }
 
-    /// Nil (unknown) unless the role was read and the subrole was read or is
-    /// absent; a failed read must never look like a plain field.
     static func secureFieldStatus(_ node: NodeAttributes) -> Bool? {
         guard let role = textualValue(node.value(kAXRoleAttribute as String)), !role.isEmpty else {
             return nil

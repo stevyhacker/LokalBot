@@ -36,7 +36,7 @@ final class LiveMeetingTranscriberTests: XCTestCase {
         transcriber.prepare(folder: root)
         transcriber.activate()
         XCTAssertTrue(transcriber.isRunning)
-        transcriber.activate() // idempotent while running
+        transcriber.activate()
         XCTAssertTrue(transcriber.isRunning)
     }
 
@@ -68,7 +68,6 @@ final class LiveMeetingTranscriberTests: XCTestCase {
     func testCalendarStopStartPreservesActivePreview() {
         transcriber.prepare(folder: root)
         transcriber.activate()
-        // Actual handoff emits idle between the two recording states.
         transcriber.stop(preservingHandoff: true)
         XCTAssertFalse(transcriber.isRunning)
         transcriber.prepare(folder: root.appendingPathComponent("next-meeting"))
@@ -79,8 +78,6 @@ final class LiveMeetingTranscriberTests: XCTestCase {
         transcriber.prepare(folder: root)
         transcriber.activate()
         transcriber.stop(preservingHandoff: true)
-        // A starting -> idle failure must be observed even though neither
-        // state has a meeting ID.
         transcriber.stop()
         transcriber.prepare(folder: root.appendingPathComponent("unrelated-meeting"))
         XCTAssertFalse(transcriber.isRunning)
@@ -349,8 +346,6 @@ final class LiveMeetingTranscriberTests: XCTestCase {
         }
         try writeCAF(samples: samples, to: root.appendingPathComponent(AudioPreviewTee.micFileName))
     }
-
-    // MARK: - Audio preparation worker
 
     func testWorkerSkipsSnapshotWhenFreshAudioIsBelowMinimum() async throws {
         let source = root.appendingPathComponent(AudioPreviewTee.micFileName)

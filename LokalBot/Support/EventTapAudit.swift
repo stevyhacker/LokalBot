@@ -1,13 +1,6 @@
 import AppKit
 import CoreGraphics
 
-/// Keyboard and mouse hooks (event taps) on this Mac, grouped by the process
-/// that holds them. An app that leaves an old tap behind each time it restarts
-/// part of itself slows every keystroke once enough pile up, and autocomplete,
-/// which draws while you type, takes the blame; Cotypist 2026.4 traced such
-/// reports to Karabiner-Elements and Mos. `LokalBot --event-taps` prints this
-/// as JSON while the app runs, so a leak, LokalBot's own or another app's, can
-/// be checked from a script.
 struct EventTapAudit: Encodable, Equatable {
     struct Tap: Equatable, Sendable {
         var processID: pid_t
@@ -21,12 +14,9 @@ struct EventTapAudit: Encodable, Equatable {
         var taps: Int
         var enabled: Int
         var isLokalBot: Bool
-        /// More taps than one app plausibly needs, so most were likely left behind.
         var likelyLeaking: Bool
     }
 
-    /// Autocomplete's key listener, its Tab tap while a suggestion shows, and
-    /// dictation's shortcut.
     static let lokalBotMaximum = 3
     static let likelyLeakThreshold = 5
 
@@ -69,7 +59,6 @@ struct EventTapAudit: Encodable, Equatable {
         return list.prefix(Int(count)).map { Tap(processID: $0.tappingProcess, enabled: $0.enabled) }
     }
 
-    /// `--event-taps`: print the taps installed right now, as JSON.
     static func printCurrent() -> Int32 {
         let audit = EventTapAudit(
             taps: installedTaps(),

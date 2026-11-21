@@ -1,5 +1,3 @@
-//! Ask conversations (`chats/<UUID>.json.enc`, see `crate::chats`).
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -8,7 +6,6 @@ use super::ask_scope::{AskSourceScope, QuestionScope, canonical_scope_key, is_ca
 use crate::ids::uuid_upper_serde;
 use crate::time::iso_seconds;
 
-/// The title of a conversation with no question yet.
 pub const NEW_CONVERSATION_TITLE: &str = "New conversation";
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -25,8 +22,6 @@ pub struct Conversation {
     pub messages: Vec<ChatMessage>,
 }
 
-/// What `Conversation.init(from:)` reads: every field may be missing, and turns
-/// saved before question scopes existed are migrated here.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RawConversation {
@@ -69,16 +64,12 @@ pub enum ChatRole {
 
 const CURRENT_SOURCE_SCOPE_SCHEMA_VERSION: u32 = 2;
 
-/// One turn, stored under the Mac's key names (`ChatMessage` in
-/// `ChatViewModel.swift`) so a conversation opens on either computer.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", from = "RawChatMessage")]
 pub struct ChatMessage {
     #[serde(with = "uuid_upper_serde")]
     pub id: Uuid,
     pub role: ChatRole,
-    /// Assistant text keeps citations inline as `[meeting:<UUID>@m:ss]`,
-    /// `[meeting:<UUID>]` or `[screen:<id>]`; the UI renders them as `[n]`.
     pub text: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub activity: Vec<ChatActivity>,
@@ -88,22 +79,14 @@ pub struct ChatMessage {
         skip_serializing_if = "Option::is_none"
     )]
     pub created_at: Option<DateTime<Utc>>,
-    /// An older turn dated from its conversation: the UI shows no time for it.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub created_at_is_estimated: bool,
-    /// Sources enabled for this question. Empty on legacy turns.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub source_scopes: Vec<AskSourceScope>,
-    /// The civil day or range this question was limited to: `YYYY-MM-DD` or
-    /// `YYYY-MM-DD...YYYY-MM-DD` (`AskDateScope.storageKey`). Kept apart from the
-    /// sources so a date filter never grants one.
     #[serde(default, rename = "dayScope", skip_serializing_if = "Option::is_none")]
     pub day_scope_key: Option<String>,
-    /// Civil days of screens attached to the question. The captured text itself
-    /// stays out of the conversation; these preserve where it came from.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub attached_screen_day_keys: Vec<String>,
-    /// Meetings the question was bound to. `Some` with none is still a boundary.
     #[serde(
         default,
         rename = "meetingIDs",
@@ -111,30 +94,22 @@ pub struct ChatMessage {
         skip_serializing_if = "Option::is_none"
     )]
     pub meeting_ids: Option<Vec<Uuid>>,
-    /// Screen moments the question was bound to.
     #[serde(
         default,
         rename = "screenSnapshotIDs",
         skip_serializing_if = "Option::is_none"
     )]
     pub screen_snapshot_ids: Option<Vec<i64>>,
-    /// The app a question's screen search was limited to.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub screen_app: Option<String>,
-    /// Always written as the current version, as on the Mac.
     #[serde(serialize_with = "serialize_schema_version")]
     pub source_scope_schema_version: u32,
-    /// Version-1 turns didn't save enough to be reused or retried under a
-    /// narrower question.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub legacy_scope_is_ambiguous: bool,
-    /// The turn failed or was stopped: shown as an error, with Retry.
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub is_error: bool,
-    /// On the turn that answers a "Remember …" message.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub remember_receipt: Option<RememberReceipt>,
-    /// The Personal Context items given to the model for this answer.
     #[serde(
         default,
         rename = "usedClaimIDs",
@@ -151,7 +126,6 @@ fn serialize_schema_version<S: serde::Serializer>(
     serializer.serialize_u32(CURRENT_SOURCE_SCOPE_SCHEMA_VERSION)
 }
 
-/// What `ChatMessage.init(from:)` reads.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RawChatMessage {
@@ -167,8 +141,6 @@ struct RawChatMessage {
     created_at_is_estimated: Option<bool>,
     #[serde(default)]
     source_scopes: Vec<AskSourceScope>,
-    /// A string on current turns; older builds saved an instant, or a key that
-    /// no longer parses. Kept raw so a dropped value can mark the turn ambiguous.
     #[serde(default, rename = "dayScope", deserialize_with = "present_value")]
     day_scope: Option<serde_json::Value>,
     #[serde(default)]
@@ -191,7 +163,6 @@ struct RawChatMessage {
     used_claim_ids: Option<Vec<Uuid>>,
 }
 
-/// Tells a present `null` from a missing key.
 fn present_value<'de, D: serde::Deserializer<'de>>(
     deserializer: D,
 ) -> Result<Option<serde_json::Value>, D::Error> {
@@ -206,9 +177,6 @@ impl From<RawChatMessage> for ChatMessage {
             .as_ref()
             .and_then(|value| value.as_str())
             .and_then(canonical_scope_key);
-        // An absolute date from an older build: its time zone was never saved,
-        // so turning it into a civil day could move the boundary. Drop the day
-        // and keep a retry from silently widening the old request.
         if raw.day_scope.is_some() && day_scope_key.is_none() {
             legacy_scope_is_ambiguous = true;
         }
@@ -241,7 +209,6 @@ impl From<RawChatMessage> for ChatMessage {
 }
 
 impl ChatMessage {
-    /// A new turn at this moment, with no question scope.
     pub fn new(role: ChatRole, text: impl Into<String>) -> Self {
         Self {
             id: Uuid::new_v4(),
@@ -264,7 +231,6 @@ impl ChatMessage {
         }
     }
 
-    /// Records the boundary of the question this turn belongs to.
     pub fn with_scope(mut self, scope: &QuestionScope) -> Self {
         self.source_scopes = scope.sources.clone();
         self.day_scope_key = scope.day_scope_key.clone();
@@ -275,20 +241,13 @@ impl ChatMessage {
         self
     }
 
-    /// `Conversation.init(from:)`: a turn with no date takes its conversation's,
-    /// marked estimated, and version-1 scopes are never trusted for reuse.
     fn migrated(mut self, conversation_created_at: DateTime<Utc>) -> Self {
         if self.created_at.is_none() {
             self.created_at = Some(conversation_created_at);
             self.created_at_is_estimated = true;
         }
         if self.source_scope_schema_version < CURRENT_SOURCE_SCOPE_SCHEMA_VERSION {
-            // Version 1 also omitted pinned-screen provenance, so even a
-            // Meetings-only label could have hidden captured text in its prompt.
             self.legacy_scope_is_ambiguous = true;
-            // Version 1 overloaded Today as a source and, selected alone, as a
-            // one-day grant to every source. Restore source types without
-            // inventing a civil day; the old answer stays history for full scope.
             if self.source_scopes.contains(&AskSourceScope::Today) {
                 let selected: std::collections::BTreeSet<_> =
                     self.source_scopes.iter().copied().collect();
@@ -303,10 +262,8 @@ impl ChatMessage {
     }
 }
 
-/// `ChatMessage.RememberReceipt`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct RememberReceipt {
-    /// The saved claim, or `None` when the statement was refused.
     #[serde(
         default,
         rename = "claimID",
@@ -316,7 +273,6 @@ pub struct RememberReceipt {
     pub claim_id: Option<Uuid>,
 }
 
-/// One tool step shown as "worked: searched transcripts · read summary".
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ChatActivity {
     #[serde(with = "uuid_upper_serde")]
@@ -329,7 +285,6 @@ pub struct ChatActivity {
     pub done: bool,
 }
 
-/// A citation parsed from assistant text.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Citation {
     Meeting { meeting_id: Uuid, at: Option<f64> },
@@ -337,8 +292,6 @@ pub enum Citation {
 }
 
 impl Citation {
-    /// Parses every `[meeting:…]`/`[screen:…]` marker in order of appearance,
-    /// keeping the first occurrence of each.
     pub fn parse_all(text: &str) -> Vec<(std::ops::Range<usize>, Citation)> {
         let mut out = Vec::new();
         let mut cursor = 0;

@@ -1,7 +1,5 @@
 import Foundation
 
-/// Resolve the citation format used by both saved and newly generated dreams
-/// against the current library without rewriting the persisted evidence.
 enum DreamBriefPresentation {
     static let linkScheme = "lokalbot-dream"
 
@@ -10,7 +8,6 @@ enum DreamBriefPresentation {
         let pattern = #"`([0-9a-fA-F]{8}|[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})`"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return source }
         var result = source
-        // Reverse replacement keeps all ranges anchored to the original text.
         for match in regex.matches(in: source, range: NSRange(source.startIndex..., in: source)).reversed() {
             guard let range = Range(match.range, in: result),
                   let idRange = Range(match.range(at: 1), in: result) else { continue }
@@ -25,8 +22,6 @@ enum DreamBriefPresentation {
             }
             let title = meeting.displayTitle
             var replacementRange = range
-            // Older briefs sometimes say "Demo Day `12345678`". Turn the
-            // existing title into the link instead of repeating it.
             let prefix = String(result[..<range.lowerBound])
             let trimmed = prefix.trimmingCharacters(in: .whitespaces)
             if trimmed.lowercased().hasSuffix(title.lowercased()),

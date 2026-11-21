@@ -1,10 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Settings → Overview, opened from the LokalBot row at the top of the list.
-/// A status page: what needs the person, each with its own fix, then where
-/// the data is, the keyboard shortcuts and the version. Features are turned
-/// on and off on their own pages, beside what explains them.
 struct SettingsOverview: View {
     @EnvironmentObject private var app: AppState
     let status: SettingsStatus
@@ -38,8 +34,6 @@ struct SettingsOverview: View {
             libraryBytes = await SettingsLibrarySize.measure(root: app.storage.rootURL)
         }
     }
-
-    // MARK: - What needs you
 
     private var headline: some View {
         let text = status.headline
@@ -129,7 +123,6 @@ struct SettingsOverview: View {
         .accessibilityIdentifier("settings.overview.downloading")
     }
 
-    /// What LokalBot learned waits for a look, but stops nothing from working.
     @ViewBuilder private var learnedRow: some View {
         let learned = personalModel.suggestions.count
         if learned > 0 {
@@ -144,8 +137,6 @@ struct SettingsOverview: View {
             }
         }
     }
-
-    // MARK: - Your data
 
     private var dataRow: some View {
         HStack(spacing: 12) {
@@ -169,7 +160,6 @@ struct SettingsOverview: View {
         .accessibilityIdentifier("settings.overview.data")
     }
 
-    /// Where things go: each AI server, then phones and tablets.
     private var leaving: String {
         var places = status.remoteHosts
         if status.sharesWithDevices { places.append(localized("Phones & tablets")) }
@@ -198,8 +188,6 @@ struct SettingsOverview: View {
         .accessibilityIdentifier("settings.overview.models")
     }
 
-    // MARK: - Shortcuts
-
     private var shortcuts: some View {
         let settings = app.settings
         let rows: [(LocalizedStringKey, String, Bool, AppState.SettingsTab?)] = [
@@ -225,7 +213,6 @@ struct SettingsOverview: View {
         }
     }
 
-    /// A shortcut opens the page that sets it. One that is off says so.
     @ViewBuilder
     private func shortcutRow(_ title: LocalizedStringKey, keys: String, on: Bool, page: AppState.SettingsTab?) -> some View {
         let row = HStack(spacing: 10) {
@@ -250,13 +237,9 @@ struct SettingsOverview: View {
     }
 }
 
-/// Where the library is and how much it holds, with a way to see it in
-/// Finder. Overview and Privacy & permissions share it.
 struct SettingsLibraryRow: View {
     @EnvironmentObject private var app: AppState
-    /// Nil until the library has been measured.
     let bytes: Int64?
-    /// Privacy & permissions names the folder; Overview says what is in it.
     let showsPath: Bool
 
     var body: some View {

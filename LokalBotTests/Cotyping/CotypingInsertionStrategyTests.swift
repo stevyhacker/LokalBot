@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - IME composition input modes
-
 final class CotypingCompositionModeClassifierTests: XCTestCase {
     func testPlainKeyboardLayoutIsNotComposing() {
         XCTAssertFalse(

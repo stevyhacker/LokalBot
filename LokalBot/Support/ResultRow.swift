@@ -1,12 +1,10 @@
 import SwiftUI
 
-/// One run of an FTS5 snippet: matched runs render bold/primary.
 struct SnippetSegment: Equatable {
     let text: String
     let isMatch: Bool
 }
 
-/// Splits an FTS5 snippet on «» match markers into runs. Pure; unit-tested.
 enum SnippetHighlighter {
     static func segments(_ snippet: String) -> [SnippetSegment] {
         var result: [SnippetSegment] = []
@@ -22,7 +20,6 @@ enum SnippetHighlighter {
                 }
                 rest = rest[rest.index(after: close)...]
             } else {
-                // Unmatched « — drop the marker, emit the tail as plain text.
                 break
             }
         }
@@ -33,10 +30,6 @@ enum SnippetHighlighter {
     }
 }
 
-/// Screen OCR usually re-captures the window chrome, so an FTS snippet's
-/// leading line often just repeats the row title shown directly above it.
-/// Drops those echo lines and collapses whitespace; «» markers survive so
-/// `SnippetHighlighter` still finds the matches. Pure; unit-tested.
 enum SnippetCleaner {
     static func withoutTitleEcho(_ snippet: String, title: String) -> String? {
         let normalizedTitle = normalize(title)
@@ -52,8 +45,6 @@ enum SnippetCleaner {
         return joined.isEmpty ? nil : joined
     }
 
-    /// Containment counts as an echo only above a length floor; short lines
-    /// like an app name must match the title exactly before they're dropped.
     private static func echoes(_ line: String, _ title: String) -> Bool {
         if line.isEmpty || line == title { return true }
         guard min(line.count, title.count) >= 12 else { return false }

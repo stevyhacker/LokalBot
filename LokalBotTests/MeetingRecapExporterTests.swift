@@ -79,7 +79,6 @@ final class MeetingRecapExporterTests: XCTestCase {
         XCTAssertTrue(html.contains("Full transcript (1 segments)"))
         XCTAssertTrue(html.contains("Let&#39;s keep it &lt;local&gt;."))
         XCTAssertTrue(html.contains("https://www.lokalbot.com/"))
-        // Zero external scripts, stylesheets, or images.
         XCTAssertFalse(html.contains("<script"))
         XCTAssertFalse(html.contains("<link"))
     }

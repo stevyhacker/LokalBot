@@ -1,9 +1,3 @@
-//! Grouped settings forms (`SettingsLabel`, `SettingsHelp`, `SettingsDetails`
-//! and the grouped `Form` sections of `SettingsView.swift`).
-//!
-//! A section is a bold title over a rounded panel; each row puts the label and
-//! its help text on the left and the control on the right.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
@@ -19,7 +13,6 @@ use gpui_kit::{
 use super::{Ico, icon};
 use crate::theme::{LbThemeExt as _, metric, ty};
 
-/// One section: optional title, then rows in a grouped panel.
 pub fn section(title: Option<SharedString>, rows: Vec<AnyElement>, cx: &App) -> Div {
     let lb = cx.lb();
     let count = rows.len();
@@ -51,7 +44,6 @@ pub fn section(title: Option<SharedString>, rows: Vec<AnyElement>, cx: &App) -> 
         .child(panel)
 }
 
-/// Label with help text underneath (`SettingsLabel`).
 pub fn label(title: impl Into<SharedString>, help: Option<SharedString>, cx: &App) -> Div {
     let lb = cx.lb();
     v_flex()
@@ -74,7 +66,6 @@ pub fn label(title: impl Into<SharedString>, help: Option<SharedString>, cx: &Ap
         })
 }
 
-/// A row with the label on the left and `control` on the right.
 pub fn row(
     id: impl Into<ElementId>,
     title: impl Into<SharedString>,
@@ -83,7 +74,6 @@ pub fn row(
     highlighted: bool,
     cx: &App,
 ) -> Stateful<Div> {
-    // A wide control drops under its label instead of squeezing it.
     row_frame(id, highlighted, cx).child(
         h_flex()
             .w_full()
@@ -96,7 +86,6 @@ pub fn row(
     )
 }
 
-/// A row whose content sits under the label, full width (editors, lists).
 pub fn stacked_row(
     id: impl Into<ElementId>,
     title: impl Into<SharedString>,
@@ -114,7 +103,6 @@ pub fn stacked_row(
     )
 }
 
-/// A row of free content (help paragraphs, button rows).
 pub fn content_row(
     id: impl Into<ElementId>,
     content: impl IntoElement,
@@ -135,7 +123,6 @@ fn row_frame(id: impl Into<ElementId>, highlighted: bool, cx: &App) -> Stateful<
         .when(highlighted, |this| this.bg(lb.accent_fill.opacity(0.14)))
 }
 
-/// Quiet explanatory text (`SettingsHelp`).
 pub fn help(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .text_size(ty::SECONDARY)
@@ -144,7 +131,6 @@ pub fn help(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(super::text::paragraph(text))
 }
 
-/// Secondary value text on the right of a row ("0.1.0", "Granted").
 pub fn value(text: impl Into<SharedString>, cx: &App) -> Div {
     div()
         .text_size(ty::BODY)
@@ -152,7 +138,6 @@ pub fn value(text: impl Into<SharedString>, cx: &App) -> Div {
         .child(text.into())
 }
 
-/// A teal switch bound to a boolean.
 pub fn switch(
     id: impl Into<ElementId>,
     checked: bool,
@@ -163,8 +148,6 @@ pub fn switch(
         .on_click(move |checked, window, cx| on_change(*checked, window, cx))
 }
 
-/// A segmented control (`.pickerStyle(.segmented)`): a quiet track with the
-/// selected segment raised, in both light and dark windows.
 pub fn segmented(
     id: impl Into<ElementId>,
     labels: &[&'static str],
@@ -211,7 +194,6 @@ pub fn segmented(
         }))
 }
 
-/// A pop-up picker: the current choice with a caret, options with a check.
 pub fn picker(
     id: impl Into<ElementId>,
     current: impl Into<SharedString>,
@@ -225,8 +207,6 @@ pub fn picker(
         .label(current)
         .dropdown_caret(true)
         .dropdown_menu(move |mut menu, _, _| {
-            // The language list is taller than onboarding's window. GPUI
-            // only enables scrolling automatically for with_menu_items().
             menu = menu.scrollable(options.len() > 12);
             for (index, (label, checked)) in options.iter().enumerate() {
                 let on_select = on_select.clone();
@@ -240,7 +220,6 @@ pub fn picker(
         })
 }
 
-/// "value [−|+]" stepper (`Stepper`).
 pub fn stepper(
     id: &'static str,
     text: impl Into<SharedString>,
@@ -298,7 +277,6 @@ pub fn stepper(
         )
 }
 
-/// A collapsed "How this works" disclosure (`SettingsDetails`).
 pub fn details(
     id: impl Into<ElementId>,
     title: impl Into<SharedString>,
@@ -335,7 +313,6 @@ pub fn details(
         .when(expanded, |this| this.child(help(text, cx).pl(px(18.))))
 }
 
-/// A teal text button ("Choose…", "Manage in Models…" as a link).
 pub fn link_button(
     id: impl Into<ElementId>,
     label: impl Into<SharedString>,

@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// `npx lokalbot`: your year with Claude Code and Codex, counted from
-// the session logs on this computer. Nothing is sent anywhere.
 
 import { spawn } from 'node:child_process';
 import fs from 'node:fs';
@@ -187,7 +185,6 @@ async function main() {
   process.stdout.write(`  Give Claude Code & Codex local memory of your meetings: ${WEBSITE} (${REPOSITORY})\n\n`);
 }
 
-/** One line on stderr that says how far the reading has got. */
 function progressLine(enabled) {
   let shown = false;
   let last = 0;
@@ -217,7 +214,6 @@ function open(file) {
     child.on('error', () => {});
     child.unref();
   } catch {
-    // The path is printed above; opening it is a convenience.
   }
 }
 

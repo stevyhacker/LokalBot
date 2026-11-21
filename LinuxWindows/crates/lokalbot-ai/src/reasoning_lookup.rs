@@ -1,9 +1,3 @@
-//! What a server publishes about a model's reasoning levels
-//! (`ReasoningSupport.resolve`, `OpenRouterModelCatalog.reasoningSupport`,
-//! `OllamaEngine.reasoningSupport`): OpenRouter's model list and Ollama's
-//! capabilities. Both are read only from origins already allowed for inference, and
-//! carry no key and no content. Callers check that the origin is allowed.
-
 use std::collections::HashMap;
 use std::sync::LazyLock;
 use std::time::{Duration, Instant};
@@ -15,15 +9,11 @@ use serde_json::{Map, Value, json};
 use crate::http;
 use crate::think::ReasoningSupport;
 
-/// `OpenRouterModelCatalog.refreshInterval`: a running app looks again once a day.
 const REFRESH_INTERVAL: Duration = Duration::from_secs(86_400);
-/// A failed list read waits this long, so an offline computer doesn't add a timeout
-/// to every Think request.
 const RETRY_INTERVAL: Duration = Duration::from_secs(600);
 const LIST_TIMEOUT: Duration = Duration::from_secs(10);
 const SHOW_TIMEOUT: Duration = Duration::from_secs(3);
 
-/// `reasoning_effort` and OpenRouter `effort` spell Off as "none".
 fn level_for_effort(effort: &str) -> Option<ReasoningLevel> {
     use ReasoningLevel::*;
     Some(match effort {
@@ -38,9 +28,6 @@ fn level_for_effort(effort: &str) -> Option<ReasoningLevel> {
     })
 }
 
-/// A model's `reasoning` object: `supported_efforts`, whether reasoning is
-/// `mandatory` (no Off), and its defaults. No object: the model doesn't reason.
-/// Without listed efforts, reasoning can only be switched off.
 fn support_of(reasoning: Option<&Map<String, Value>>) -> ReasoningSupport {
     let Some(reasoning) = reasoning else {
         return ReasoningSupport::new(&[], None);
@@ -73,7 +60,6 @@ fn support_of(reasoning: Option<&Map<String, Value>>) -> ReasoningSupport {
     ReasoningSupport::sorted(levels, default_level)
 }
 
-/// Every listed model's levels, by lowercase id. `None` for a body that isn't a list.
 fn support_in_models(json: &Value) -> Option<HashMap<String, ReasoningSupport>> {
     let models = json.get("data")?.as_array()?;
     let mut out = HashMap::new();
@@ -97,8 +83,6 @@ struct ModelList {
 }
 
 impl ModelList {
-    /// Whether to read the list now: it's a day old, or missing and not just
-    /// tried. Saying yes counts as the try.
     fn due(&mut self, now: Instant) -> bool {
         let stale = self
             .fetched_at
@@ -113,13 +97,11 @@ impl ModelList {
         true
     }
 
-    /// Keeps what a read that began at `now` returned.
     fn store(&mut self, now: Instant, parsed: HashMap<String, ReasoningSupport>) {
         self.by_model = parsed;
         self.fetched_at = Some(now);
     }
 
-    /// Reads the list when it is [`due`](Self::due).
     #[cfg(test)]
     fn refresh(
         &mut self,
@@ -135,16 +117,9 @@ impl ModelList {
 }
 
 static OPENROUTER: LazyLock<Mutex<ModelList>> = LazyLock::new(Default::default);
-/// Held for a read of OpenRouter's list, so callers that arrive during one wait
-/// for it. The list has its own lock, held only to look at it: the interface
-/// asks [`openrouter_cached`] while drawing and must never wait for the network.
 static OPENROUTER_READ: Mutex<()> = Mutex::new(());
-/// Ollama's last answers, by server and model. A server that stops answering loses
-/// its entry, and what LokalBot knows without asking applies again.
 static OLLAMA: LazyLock<Mutex<HashMap<String, ReasoningSupport>>> = LazyLock::new(Default::default);
 
-/// The selected model's levels from OpenRouter's list, read at most daily (`GET
-/// <base>/models`). `None` when the model isn't listed.
 pub(crate) fn openrouter(base: &str, model: &str) -> Option<ReasoningSupport> {
     let reading = OPENROUTER_READ.lock();
     let now = Instant::now();
@@ -165,7 +140,6 @@ pub(crate) fn openrouter(base: &str, model: &str) -> Option<ReasoningSupport> {
     openrouter_cached(model)
 }
 
-/// What the list said, without reading it.
 pub(crate) fn openrouter_cached(model: &str) -> Option<ReasoningSupport> {
     OPENROUTER
         .lock()
@@ -178,7 +152,6 @@ fn ollama_key(base: &str, model: &str) -> String {
     format!("{base}|{model}")
 }
 
-/// Whether Ollama says the model thinks: no capability means nothing to set.
 fn support_of_capabilities(capabilities: &[Value], known: ReasoningSupport) -> ReasoningSupport {
     if capabilities
         .iter()
@@ -190,8 +163,6 @@ fn support_of_capabilities(capabilities: &[Value], known: ReasoningSupport) -> R
     }
 }
 
-/// The model's levels from `POST /api/show` capabilities. `None` if the server
-/// doesn't answer. The request carries only the model name.
 pub(crate) fn ollama(base: &str, model: &str, known: ReasoningSupport) -> Option<ReasoningSupport> {
     let agent = http::agent(base, SHOW_TIMEOUT);
     let answer = http::post_json(
@@ -220,7 +191,6 @@ pub(crate) fn ollama(base: &str, model: &str, known: ReasoningSupport) -> Option
     answer
 }
 
-/// What the server last said, without asking.
 pub(crate) fn ollama_cached(base: &str, model: &str) -> Option<ReasoningSupport> {
     OLLAMA.lock().get(&ollama_key(base, model)).cloned()
 }
@@ -313,13 +283,11 @@ mod tests {
         };
         list.refresh(start, fails);
         assert_eq!(calls.get(), 1);
-        // A failed read isn't tried again for ten minutes.
         list.refresh(start + Duration::from_secs(599), fails);
         assert_eq!(calls.get(), 1);
         list.refresh(start + RETRY_INTERVAL, answers);
         assert_eq!(calls.get(), 2);
         assert!(list.by_model.contains_key("m"));
-        // A good read lasts a day, and a later failure keeps what it knew.
         list.refresh(start + RETRY_INTERVAL + Duration::from_secs(60), answers);
         assert_eq!(calls.get(), 2);
         let later = start + RETRY_INTERVAL + REFRESH_INTERVAL;
@@ -328,8 +296,6 @@ mod tests {
         assert!(list.by_model.contains_key("m"));
     }
 
-    /// The interface reads the cached list while drawing, and a read of the
-    /// list can take ten seconds on a bad network.
     #[test]
     fn a_read_of_the_list_leaves_the_cached_answers_free() {
         let (release, held) = std::sync::mpsc::channel::<()>();
@@ -351,7 +317,6 @@ mod tests {
             assert!(asked.elapsed() < Duration::from_secs(10), "never asked");
             std::thread::sleep(Duration::from_millis(5));
         }
-        // The request is out and unanswered.
         let free = OPENROUTER.try_lock().is_some();
         release.send(()).unwrap();
         let found = reading.join().unwrap();

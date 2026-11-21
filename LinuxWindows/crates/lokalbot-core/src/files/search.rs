@@ -1,10 +1,3 @@
-//! Hybrid search over the file index (`Searcher`): meaning (EmbeddingGemma's
-//! vectors) and words (FTS5).
-//!
-//! Meaning is the model's cosine similarity put on one scale per query, and only
-//! segments that stand out count, which also gives an honest "nothing found".
-//! Words rescue what a vector can't hold exactly: codes, IDs and names.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, LazyLock};
@@ -22,14 +15,12 @@ use super::{
     real_path,
 };
 
-/// Every float16 as float32, so scoring stays a plain product.
 static HALVES: LazyLock<Box<[f32]>> = LazyLock::new(|| (0..=u16::MAX).map(f32_from_half).collect());
 
 const Z_GATE: f64 = 2.0;
 const WORD_WEIGHT: f64 = 2.0;
 const MINIMUM_DEVIATION: f64 = 0.02;
 
-/// A file that matched, before it becomes a `FileHit` (`SearchHit`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct SearchHit {
     pub path: String,
@@ -37,7 +28,6 @@ pub struct SearchHit {
     pub score: f64,
     pub z: Option<f64>,
     pub cosine: Option<f64>,
-    /// 1-based rank among keyword matches.
     pub keyword_rank: Option<usize>,
     pub segment_id: i64,
     pub loc: Option<f64>,
@@ -71,18 +61,13 @@ impl SearchHit {
 
 #[derive(Default)]
 struct Vectors {
-    /// Rows × 768 float16s, row-major, as stored.
     halves: Vec<u16>,
     row_file: Vec<i64>,
     row_segment: Vec<i64>,
     row_modality: Vec<Modality>,
-    /// False for the later pages of long files: scored, but they don't set the
-    /// scale.
     row_sets_scale: Vec<bool>,
 }
 
-/// Search over one index. With `load_vectors` off only keyword search is ready;
-/// vectors load on the first meaning search, about 1.5 KB each.
 pub struct Searcher {
     index: FileIndex,
     vectors: Option<Vectors>,
@@ -112,8 +97,6 @@ impl Searcher {
         self.vectors = None;
     }
 
-    /// Reads the files again (after indexing added some), and the vectors when
-    /// they were loaded.
     pub fn refresh(&mut self) -> Result<()> {
         self.reload_files()?;
         if self.vectors.is_some() {
@@ -177,9 +160,6 @@ impl Searcher {
         Ok(())
     }
 
-    /// The hits for `text`, best first. Kinds narrow the result, not the scale.
-    /// Words are looked for in the best thousand passages, which is more than
-    /// a page of results needs.
     pub fn search(
         &mut self,
         text_query: &str,
@@ -190,9 +170,6 @@ impl Searcher {
         self.search_passages(text_query, query_vector, kinds, limit, false)
     }
 
-    /// [`Self::search`] for a caller that drops hits afterwards and asks
-    /// again for more: every matching passage is read until `limit` files
-    /// are found, so fewer hits than `limit` means no other file matches.
     pub fn search_through(
         &mut self,
         text_query: &str,
@@ -219,7 +196,6 @@ impl Searcher {
             kinds.is_none_or(|kinds| file_kind.get(&file).is_some_and(|k| kinds.contains(k)))
         };
 
-        // Meaning: every vector on this query's scale; each file's best segment.
         let mut best: HashMap<i64, (f64, f64, usize)> = HashMap::new();
         if let (Some(query), Some(vectors)) = (query_vector, self.vectors.as_ref())
             && query.len() == DIMENSION
@@ -235,12 +211,8 @@ impl Searcher {
             }
         }
 
-        // Words: FTS5 with stemming over names, folders, screenshots' text,
-        // pages and documents.
         let query_terms = terms(text_query);
         let mut patterns = patterns(&query_terms);
-        // A word in no file as typed matches as the start of longer words. One
-        // that is in the index stays whole, and so does a word of two letters.
         for (index, term) in query_terms.iter().enumerate() {
             if term.chars().count() >= 3
                 && !patterns[index].ends_with('*')
@@ -260,7 +232,6 @@ impl Searcher {
                 if every_passage { "" } else { " LIMIT 1000" }
             ))?;
             let mut rows = statement.query([patterns.join(" OR ")])?;
-            // A caller looking further down the ranking gets more files.
             let most_files = limit.max(100);
             while let Some(row) = rows.next()? {
                 if words.len() >= most_files {
@@ -270,7 +241,6 @@ impl Searcher {
                 if !allowed(file) || !seen.insert(file) {
                     continue;
                 }
-                // Text normalizing changed is quoted as it's written.
                 let original: Option<String> = row.get(3)?;
                 let snippet = original
                     .and_then(|o| text::snippet(&o, &query_terms, 12))
@@ -295,9 +265,6 @@ impl Searcher {
             }
         }
 
-        // A file qualifies by standing out in meaning, or by holding at least
-        // half of the query's words. Score: meaning z + a bonus that grows with
-        // word coverage, + 1 for the kind the query asks for.
         let lookup = is_lookup(&query_terms);
         let (meaning_weight, words_weight) = if lookup {
             (0.5, WORD_WEIGHT * 2.0)
@@ -344,8 +311,6 @@ impl Searcher {
         for (file, score) in scored.into_iter().take(limit) {
             let semantic = best.get(&file);
             let keyword = word_rank.get(&file);
-            // Point at the best meaning segment if it stands out; else at the
-            // segment the words matched.
             let use_meaning = semantic.is_some_and(|(z, _, _)| *z >= Z_GATE || keyword.is_none());
             let segment_id = if use_meaning {
                 self.vectors
@@ -376,11 +341,6 @@ impl Searcher {
                 [segment_id],
                 |row| Ok((row.get(0)?, row.get(1)?)),
             )?;
-            // Quote the matched words only when they come from the segment we
-            // point at, so a PDF hit on page 5 never shows page 2's words. A
-            // segment with no place and no text of its own (a screenshot's image
-            // vector) can borrow them from its file's text, unless they matched
-            // only the name.
             let mut snippet = keyword
                 .filter(|(_, segment, _)| *segment == segment_id)
                 .and_then(|(_, _, snippet)| snippet.as_deref())
@@ -425,7 +385,6 @@ impl Searcher {
         Ok(hits)
     }
 
-    /// The text of a page, a passage or a screenshot's words, as written.
     pub fn text_of_segment(&self, id: i64) -> Result<Option<String>> {
         Ok(self
             .index
@@ -439,8 +398,6 @@ impl Searcher {
             .flatten())
     }
 
-    /// A passage cited by an earlier answer, by its id; `None` once its file left
-    /// the index.
     pub fn hit(&self, segment: i64) -> Result<Option<FileHit>> {
         Ok(self
             .index
@@ -487,7 +444,6 @@ impl Searcher {
     }
 }
 
-/// Cosine similarity with every stored vector (all are L2-normalized).
 fn score(halves: &[u16], query: &[f32]) -> Vec<f32> {
     let table: &[f32] = &HALVES;
     halves
@@ -503,9 +459,6 @@ fn score(halves: &[u16], query: &[f32]) -> Vec<f32> {
         .collect()
 }
 
-/// Each vector's cosine minus the average of its modality, in standard
-/// deviations of all of them together. The scale comes from `sets_scale`, so a
-/// book's hundreds of later pages don't move it (`Searcher.meaning`).
 pub fn meaning(scores: &[f32], modality: &[Modality], sets_scale: &[bool]) -> Vec<f64> {
     let means = modality_means(scores, modality, sets_scale);
     let centered: Vec<f64> = scores
@@ -536,8 +489,6 @@ pub fn meaning(scores: &[f32], modality: &[Modality], sets_scale: &[bool]) -> Ve
         .collect()
 }
 
-/// The average score of each modality for this query. Fewer than 20 vectors take
-/// the average of all.
 fn modality_means(
     scores: &[f32],
     modality: &[Modality],
@@ -622,7 +573,6 @@ const STOPWORDS: &[&str] = &[
     "document",
     "documents",
     "recording",
-    // Bengali and Arabic (normalized, as `terms` sees them)
     "এবং",
     "ও",
     "এই",
@@ -665,8 +615,6 @@ const STOPWORDS: &[&str] = &[
     "مستند",
 ];
 
-/// The content words of a query, normalized as keyword search keeps its text.
-/// Kind words and stopwords describe what to look for, not what's in it.
 pub fn terms(query: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     text::normalized(query)
@@ -678,8 +626,6 @@ pub fn terms(query: &str) -> Vec<String> {
         .collect()
 }
 
-/// FTS5 patterns for the query's words: quoted, and as prefixes for words of
-/// languages that attach endings.
 fn patterns(terms: &[String]) -> Vec<String> {
     terms
         .iter()
@@ -690,9 +636,6 @@ fn patterns(terms: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// Codes and IDs ("K7Q2LM") and long numbers mean nothing to an embedding but
-/// everything to keyword search: such a query weighs words double and meaning
-/// half.
 pub fn is_lookup(terms: &[String]) -> bool {
     !terms.is_empty()
         && terms.iter().all(|term| {
@@ -747,7 +690,6 @@ const KIND_WORDS: &[(&str, FileKind)] = &[
     ("اغنية", FileKind::Audio),
 ];
 
-/// Kinds the query asks for: a soft boost, not a filter.
 fn kind_hints(query: &str) -> HashSet<FileKind> {
     let normalized = text::normalized(query).to_lowercase();
     normalized
@@ -767,9 +709,6 @@ fn kind_hints(query: &str) -> HashSet<FileKind> {
         .collect()
 }
 
-// ---------------------------------------------------------------- the reader
-
-/// How long vectors stay in memory after a search by meaning.
 const VECTOR_IDLE_SECONDS: u64 = 600;
 
 struct ReaderState {
@@ -778,18 +717,14 @@ struct ReaderState {
     last_search: Option<Instant>,
 }
 
-/// Owns the searcher: its own connection, so a search never waits for indexing
-/// (`FileSearchReader`). Shared between the app's search, Ask and the engine.
 pub struct FileReader {
     directory: PathBuf,
     state: Mutex<ReaderState>,
 }
 
-/// One reader per library.
 static READERS: LazyLock<Mutex<HashMap<PathBuf, Arc<FileReader>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// The folders a search may return, and when (`FileSearchService.search`).
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct FileInterval {
     pub since: Option<DateTime<Utc>>,
@@ -867,9 +802,6 @@ impl FileReader {
         }
     }
 
-    /// Files that match `query`, best first, only under `folders` and only ones
-    /// that still exist. With a query vector it searches by meaning and by words;
-    /// without one, by words only.
     pub fn search(
         &self,
         query: &str,
@@ -881,12 +813,10 @@ impl FileReader {
         if folders.is_empty() || query.trim().is_empty() {
             return Vec::new();
         }
-        // A walk reports a folder as its real path, so a file matches either.
         let roots: Vec<String> = folders
             .iter()
             .flat_map(|folder| [folder.clone(), real_path(folder)])
             .collect();
-        // Ask enough to fill the list after the date filter drops some.
         let wanted = if interval.is_open() { limit } else { limit * 4 };
         let found = self
             .with_searcher(true, |searcher| {
@@ -903,24 +833,20 @@ impl FileReader {
             .collect()
     }
 
-    /// The stored text of a matched passage, for the assistant to read.
     pub fn passage(&self, segment: i64) -> Option<String> {
         self.with_searcher(false, |searcher| searcher.text_of_segment(segment))
             .flatten()
     }
 
-    /// A passage cited by an earlier answer; `None` once its file left the index.
     pub fn hit(&self, segment: i64) -> Option<FileHit> {
         self.with_searcher(false, |searcher| searcher.hit(segment))
             .flatten()
     }
 
-    /// New files were indexed: the next search reads them.
     pub fn mark_stale(&self) {
         self.state.lock().stale = true;
     }
 
-    /// Frees the vectors when nothing searched for a while.
     pub fn release_if_idle(&self) {
         let mut state = self.state.lock();
         let idle = state
@@ -934,7 +860,6 @@ impl FileReader {
         }
     }
 
-    /// Lets go of the connection, before the index is deleted.
     pub fn close(&self) {
         let mut state = self.state.lock();
         state.searcher = None;
@@ -1019,8 +944,6 @@ mod tests {
         let mut searcher = Searcher::new(index).unwrap();
         let hits = searcher.search("roadmap", None, None, 10).unwrap();
         assert_eq!(hits.len(), 2);
-        // The name counts three times the body in the keyword order; equal scores
-        // then go by file.
         let named = hits.iter().find(|h| h.path == "/x/roadmap.md").unwrap();
         assert_eq!(named.keyword_rank, Some(1));
         let body = hits.iter().find(|h| h.path == "/x/plan.md").unwrap();
@@ -1030,7 +953,6 @@ mod tests {
             searcher.search("zebra", None, None, 10).unwrap().is_empty(),
             "nothing found stays nothing"
         );
-        // A word in no file as typed matches as a prefix.
         assert_eq!(searcher.search("roadma", None, None, 10).unwrap().len(), 2);
     }
 
@@ -1061,7 +983,6 @@ mod tests {
     fn meaning_needs_to_stand_out() {
         let dir = tempfile::tempdir().unwrap();
         let index = FileIndex::open(dir.path()).unwrap();
-        // Many files far from the query, one close to it.
         for i in 0..30 {
             add_doc(
                 &index,
@@ -1102,12 +1023,10 @@ mod tests {
         let all = (0.9f32 as f64 + 0.1f32 as f64 + 0.1f32 as f64) / 3.0;
         assert!((means[&Modality::Image] - all).abs() < 1e-9);
         assert!((means[&Modality::Text] - all).abs() < 1e-9);
-        // The later pages don't move the scale.
         let scaled = meaning(&[0.5, 0.5, 0.9], &[Modality::Text; 3], &[true, true, false]);
         assert!(scaled[2] > 2.0, "{scaled:?}");
     }
 
-    /// A row the way the Mac's DigUpKit writes it: raw SQL and hand-made blobs.
     #[test]
     fn reads_the_macs_format() {
         let dir = tempfile::tempdir().unwrap();
@@ -1192,7 +1111,6 @@ mod tests {
                 .search("zebra", None, &[], FileInterval::default(), 10)
                 .is_empty()
         );
-        // The date filter uses the file's date.
         let later = crate::time::from_epoch(1000.0);
         let window = FileInterval {
             since: Some(later),

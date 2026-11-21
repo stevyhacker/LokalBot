@@ -1,7 +1,3 @@
-//! Friendly app names from `.desktop` files, the Linux counterpart of an
-//! app's `localizedName`: `StartupWMClass`, the desktop-file id or the
-//! executable picks the entry, whose `Name` (localized) is shown.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -12,7 +8,6 @@ use super::linux::FocusedWindow;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(super) struct ResolvedApp {
     pub name: String,
-    /// Desktop-file id when known, else the app id, `WM_CLASS` or executable.
     pub id: String,
 }
 
@@ -22,8 +17,6 @@ struct Entry {
     name: String,
 }
 
-/// Lookup tables over every visible `.desktop` file, first match wins in
-/// XDG precedence (user folders before system ones).
 #[derive(Debug, Default)]
 pub(super) struct DesktopEntries {
     by_id: HashMap<String, Entry>,
@@ -93,7 +86,6 @@ impl DesktopEntries {
             .or_else(|| class.as_deref().and_then(by_id))
             .or_else(|| instance.as_deref().and_then(by_id))
             .or_else(|| {
-                // "firefox" → org.mozilla.firefox.desktop
                 class.as_deref().and_then(|c| {
                     self.by_id
                         .iter()
@@ -112,7 +104,6 @@ struct Parsed {
     exec: Option<String>,
 }
 
-/// Reads the `[Desktop Entry]` group of an application entry.
 fn parse(text: &str, locales: &[String]) -> Option<Parsed> {
     let mut in_entry = false;
     let mut values: HashMap<&str, &str> = HashMap::new();
@@ -152,8 +143,6 @@ fn parse(text: &str, locales: &[String]) -> Option<Parsed> {
     })
 }
 
-/// The program an `Exec=` line runs: skips `env VAR=…`, honors quotes, and
-/// drops the folder. Flatpak launchers are matched by id instead.
 fn exec_basename(exec: &str) -> Option<String> {
     let tokens = exec_tokens(exec);
     let mut tokens = tokens.iter().map(String::as_str);
@@ -191,8 +180,6 @@ fn exec_tokens(exec: &str) -> Vec<String> {
     tokens
 }
 
-/// `XDG_DATA_HOME` and `XDG_DATA_DIRS` application folders plus Flatpak and
-/// Snap exports.
 pub(super) fn application_dirs() -> Vec<PathBuf> {
     let home = std::env::var_os("HOME").map(PathBuf::from);
     let data_home = std::env::var_os("XDG_DATA_HOME")
@@ -225,7 +212,6 @@ pub(super) fn application_dirs() -> Vec<PathBuf> {
     unique
 }
 
-/// `de_DE.UTF-8@euro` → `["de_DE@euro", "de_DE", "de@euro", "de"]`.
 pub(super) fn locale_keys() -> Vec<String> {
     let raw = ["LC_ALL", "LC_MESSAGES", "LANG"]
         .iter()
@@ -261,12 +247,10 @@ fn locale_keys_for(raw: &str) -> Vec<String> {
     keys
 }
 
-/// The executable's file name for a process: `/proc/<pid>/exe`, else `comm`.
 fn process_name(pid: u32) -> Option<String> {
     if let Ok(target) = std::fs::read_link(format!("/proc/{pid}/exe"))
         && let Some(name) = target.file_name().and_then(|n| n.to_str())
     {
-        // A replaced binary reads "name (deleted)".
         return Some(name.trim_end_matches(" (deleted)").to_string());
     }
     std::fs::read_to_string(format!("/proc/{pid}/comm"))
@@ -275,15 +259,12 @@ fn process_name(pid: u32) -> Option<String> {
         .filter(|comm| !comm.is_empty())
 }
 
-/// Resolves windows to app names, re-reading the `.desktop` folders at most
-/// once a minute when an app is not found (it may have just been installed).
 pub(super) struct AppNames {
     entries: Option<DesktopEntries>,
     loaded_at: Option<Instant>,
     cache: HashMap<CacheKey, ResolvedApp>,
 }
 
-/// Class, instance, desktop-file hint and executable of a window.
 type CacheKey = (
     Option<String>,
     Option<String>,
@@ -361,7 +342,6 @@ fn resolve_with(entry: Option<Entry>, window: &FocusedWindow, exe: Option<&str>)
         .unwrap_or_default();
     let name = class
         .map(|c| {
-            // Wayland ids like "org.gnome.Nautilus": keep the last part.
             let last = c.rsplit('.').next().unwrap_or(c);
             capitalized(last)
         })
@@ -427,13 +407,11 @@ mod tests {
                 id: "code".into()
             }
         );
-        // Wayland app id matching the desktop-file id, localized.
         let nautilus = FocusedWindow {
             class: Some("org.gnome.Nautilus".into()),
             ..Default::default()
         };
         assert_eq!(names.resolve(&nautilus).name, "Dateien");
-        // X11 class "firefox" → org.mozilla.firefox.desktop.
         assert_eq!(
             names.resolve(&window("firefox", "Navigator")).name,
             "Firefox-Browser"

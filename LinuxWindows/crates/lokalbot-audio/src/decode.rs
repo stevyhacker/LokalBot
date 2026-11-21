@@ -1,11 +1,3 @@
-//! Meeting tracks in any format the library selects, read as the 16 kHz mono
-//! stream the WAV tracks this app records give. A library recorded on macOS
-//! keeps AAC in `mic.m4a`/`system.m4a`; FLAC tracks read the same way.
-//! Symphonia decodes them. It does not trim the priming an AAC encoder adds,
-//! so that happens here, from the MP4's edit list or the `iTunSMPB` tag
-//! AVFoundation writes instead, as AVFoundation does on macOS: transcript
-//! times then line up with the audio on both platforms.
-
 use std::fs::File;
 use std::io::{self, Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -22,21 +14,15 @@ use symphonia::core::units::Timestamp;
 use crate::resample::Resampler;
 use crate::wav::{SAMPLE_RATE, WavReader};
 
-/// Source frames decoded and dropped before a seek target. AAC frames
-/// overlap, so a frame only decodes right after the one before it.
 const PRE_ROLL: u64 = 2048;
-/// An MP4 header larger than this is not read for its edit list.
 const MAX_MOOV_BYTES: u64 = 64 << 20;
 
-/// A meeting track as mono samples: WAV as recorded, anything else decoded
-/// to 16 kHz.
 pub enum TrackReader {
     Wav(WavReader),
     Compressed(Box<CompressedReader>),
 }
 
 impl TrackReader {
-    /// WAV by its extension; any other file goes to the decoder.
     pub fn open(path: &Path) -> io::Result<Self> {
         let wav = path
             .extension()
@@ -48,7 +34,6 @@ impl TrackReader {
         }
     }
 
-    /// The rate `read_mono` returns: a WAV file's own, 16 kHz otherwise.
     pub fn sample_rate(&self) -> u32 {
         match self {
             Self::Wav(reader) => reader.info().sample_rate,
@@ -74,7 +59,6 @@ impl TrackReader {
         }
     }
 
-    /// Appends up to `max_frames` samples to `out`; fewer only at the end.
     pub fn read_mono(&mut self, max_frames: usize, out: &mut Vec<f32>) -> io::Result<usize> {
         match self {
             Self::Wav(reader) => reader.read_mono(max_frames, out),
@@ -83,24 +67,15 @@ impl TrackReader {
     }
 }
 
-/// An AAC or FLAC track decoded to 16 kHz mono, resampled when the file has
-/// another rate.
 pub struct CompressedReader {
     path: PathBuf,
     stream: Stream,
-    /// Encoder priming at the start of the stream, in source frames.
     delay: u64,
-    /// Source frames that play after the priming.
     playable: u64,
-    /// The track's length at 16 kHz.
     frames: u64,
-    /// The next frame `read_mono` returns, at 16 kHz.
     position: u64,
-    /// Source frames before this one are dropped: the priming, or a seek's
-    /// pre-roll.
     skip_until: u64,
     resampler: Option<Resampler>,
-    /// Decoded 16 kHz samples, `taken` of them already returned.
     pending: Vec<f32>,
     taken: usize,
     ended: bool,
@@ -113,12 +88,9 @@ impl CompressedReader {
         Self::open_track(path, None)
     }
 
-    /// One audio track of a file with several, such as a screen recording's
-    /// microphone and system audio; `None` is the default track.
     pub fn open_track(path: &Path, track: Option<u32>) -> io::Result<Self> {
         let stream = Stream::open(path, track)?;
         let rate = stream.rate;
-        // The MP4 edit list read here describes the first audio track.
         let edit = (is_mp4(path) && (track.is_none() || stream.is_default))
             .then(|| mp4_edit(path, rate))
             .flatten();
@@ -155,8 +127,6 @@ impl CompressedReader {
     pub fn seek_frame(&mut self, frame: u64) -> io::Result<()> {
         let frame = frame.min(self.frames);
         let target = self.delay + to_source(frame, self.stream.rate);
-        // A fresh reader every time: Symphonia's MP4 reader cannot seek once
-        // it has read to the end, and the decoder starts clean.
         self.stream = Stream::open(&self.path, Some(self.stream.track_id))?;
         let from = target.saturating_sub(PRE_ROLL);
         if from > 0 {
@@ -165,7 +135,6 @@ impl CompressedReader {
                 track_id: self.stream.track_id,
             };
             if let Err(err) = self.stream.format.seek(SeekMode::Accurate, to) {
-                // Decoding from the start reaches the target too, only slower.
                 log::debug!(
                     "{}: seek failed ({err}), decoding from the start",
                     self.path.display()
@@ -182,7 +151,6 @@ impl CompressedReader {
         Ok(())
     }
 
-    /// Appends up to `max_frames` samples to `out`; fewer only at the end.
     pub fn read_mono(&mut self, max_frames: usize, out: &mut Vec<f32>) -> io::Result<usize> {
         let wanted = (max_frames as u64).min(self.frames.saturating_sub(self.position)) as usize;
         let mut written = 0;
@@ -204,7 +172,6 @@ impl CompressedReader {
         Ok(written)
     }
 
-    /// Decodes until samples are pending; false once the track has no more.
     fn decode_more(&mut self) -> io::Result<bool> {
         let end = self.delay + self.playable;
         while !self.ended {
@@ -232,7 +199,6 @@ impl CompressedReader {
                             .map(|frame| frame.iter().sum::<f32>() / channels as f32),
                     );
                 }
-                // A damaged packet passes as silence, so the tracks stay in step.
                 Err(Error::DecodeError(reason)) => {
                     log::debug!("{}: damaged packet: {reason}", self.path.display());
                     self.mono.resize(packet.dur.get() as usize, 0.0);
@@ -253,7 +219,6 @@ impl CompressedReader {
         Ok(self.taken < self.pending.len())
     }
 
-    /// Moves the decoded source frames in `skip_until..end` into `pending`.
     fn keep(&mut self, start: u64, end: u64) {
         let len = self.mono.len() as u64;
         let from = self.skip_until.saturating_sub(start).min(len) as usize;
@@ -269,15 +234,12 @@ impl CompressedReader {
     }
 }
 
-/// An open demuxer and decoder for one file's audio track.
 struct Stream {
     format: Box<dyn FormatReader>,
     decoder: Box<dyn AudioDecoder>,
     track_id: u32,
-    /// The container's default audio track.
     is_default: bool,
     rate: u32,
-    /// Frames in the stream, priming included, when the container says.
     total: Option<u64>,
 }
 
@@ -301,23 +263,15 @@ fn probe(path: &Path) -> io::Result<Box<dyn FormatReader>> {
         .map_err(invalid)
 }
 
-/// A CAF whose writer never closed it, which is what a Mac's crash audio
-/// (`mic.live.caf`) looks like: its data chunk says -1 for "to the end of the
-/// file", and the file may stop inside a sample. Symphonia's reader takes that
-/// -1 and then reads the audio as if it were more chunks, so this presents the
-/// file as the closed one it would have been.
 struct UnfinishedCaf {
     file: File,
-    /// Where the data chunk's size field is, and what it should have said.
     size_at: u64,
     size: [u8; 8],
-    /// The end of the last whole packet.
     length: u64,
     position: u64,
 }
 
 impl UnfinishedCaf {
-    /// `None` for any other file, which is read as it is.
     fn open(path: &Path) -> io::Result<Option<Self>> {
         let caf = path
             .extension()
@@ -330,7 +284,6 @@ impl UnfinishedCaf {
             return Ok(None);
         };
         let file_length = file.metadata()?.len();
-        // The size counts the data chunk's four-byte edit count too.
         let body = size_at + 8;
         let audio = file_length.saturating_sub(body + 4);
         if u64::try_from(declared).is_ok_and(|declared| body + declared <= file_length) {
@@ -381,8 +334,6 @@ impl MediaSource for UnfinishedCaf {
     }
 }
 
-/// Where a fixed-packet CAF's data chunk keeps its size, what the size says, and
-/// the bytes per packet.
 fn caf_data_chunk(file: &mut File) -> Option<(u64, i64, u64)> {
     fn bytes<const N: usize>(file: &mut File) -> Option<[u8; N]> {
         let mut read = [0; N];
@@ -392,7 +343,7 @@ fn caf_data_chunk(file: &mut File) -> Option<(u64, i64, u64)> {
     if &bytes::<4>(file)? != b"caff" {
         return None;
     }
-    bytes::<4>(file)?; // version and flags
+    bytes::<4>(file)?;
     let mut packet = None;
     loop {
         let kind = bytes::<4>(file)?;
@@ -400,7 +351,7 @@ fn caf_data_chunk(file: &mut File) -> Option<(u64, i64, u64)> {
         let size = i64::from_be_bytes(bytes::<8>(file)?);
         match &kind {
             b"desc" => {
-                bytes::<16>(file)?; // rate, format and its flags
+                bytes::<16>(file)?;
                 packet = Some(u64::from(u32::from_be_bytes(bytes::<4>(file)?)));
             }
             b"data" => return Some((size_at, size, packet.filter(|bytes| *bytes > 0)?)),
@@ -411,8 +362,6 @@ fn caf_data_chunk(file: &mut File) -> Option<(u64, i64, u64)> {
     }
 }
 
-/// The IDs of a file's audio tracks that can be decoded, the default first.
-/// Commentary and described-video tracks are left out.
 pub fn audio_track_ids(path: &Path) -> io::Result<Vec<u32>> {
     use symphonia::core::formats::TrackFlags;
     let format = probe(path)?;
@@ -468,8 +417,6 @@ impl Stream {
             let decoder = symphonia::default::get_codecs()
                 .make_audio_decoder(params, &AudioDecoderOptions::default())
                 .map_err(invalid)?;
-            // ADTS doesn't say how long it is. Symphonia's figure is a guess
-            // from a few hundred frames, and reading stops where the length says.
             let total = track
                 .num_frames
                 .filter(|_| format.format_info().format != FORMAT_ID_ADTS);
@@ -486,7 +433,6 @@ impl Stream {
     }
 }
 
-/// Frames in a stream whose container doesn't say, from its packets.
 fn count_frames(path: &Path, track: u32) -> io::Result<u64> {
     let mut stream = Stream::open(path, Some(track))?;
     let mut frames = 0;
@@ -528,13 +474,8 @@ fn invalid(err: impl std::fmt::Display) -> io::Error {
     io::Error::new(io::ErrorKind::InvalidData, err.to_string())
 }
 
-// ------------------------------------------------------------ MP4 gapless info
-
-/// Where an MP4 audio track's sound starts and how long it plays, in source
-/// frames.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct Edit {
-    /// Encoder priming to skip.
     delay: u64,
     playable: Option<u64>,
 }
@@ -547,14 +488,11 @@ fn is_mp4(path: &Path) -> bool {
     })
 }
 
-/// The audio track's gapless info: its edit list, or Apple's `iTunSMPB` tag.
-/// `None` leaves the stream untrimmed.
 fn mp4_edit(path: &Path, rate: u32) -> Option<Edit> {
     let moov = read_moov(path)?;
     edit_list(&moov, rate).or_else(|| itunes_gapless(&moov))
 }
 
-/// The first audio track's edit list (`moov/trak/edts/elst`).
 fn edit_list(moov: &[u8], rate: u32) -> Option<Edit> {
     let movie_scale = timescale(child(moov, b"mvhd")?)?;
     for (kind, trak) in boxes(moov) {
@@ -577,14 +515,10 @@ fn edit_list(moov: &[u8], rate: u32) -> Option<Edit> {
     None
 }
 
-/// Apple's gapless tag, which AVFoundation writes for AAC in place of an edit
-/// list: a `----` item named `iTunSMPB` under `moov/udta/meta/ilst`, holding
-/// hex fields (reserved, priming, padding, frames that play, ...).
 fn itunes_gapless(moov: &[u8]) -> Option<Edit> {
     let meta = child(moov, b"udta")
         .and_then(|udta| child(udta, b"meta"))
         .or_else(|| child(moov, b"meta"))?;
-    // `meta` is a full box: its version and flags come before the children.
     let ilst = child(meta.get(4..)?, b"ilst").or_else(|| child(meta, b"ilst"))?;
     for (kind, item) in boxes(ilst) {
         if &kind != b"----"
@@ -592,7 +526,6 @@ fn itunes_gapless(moov: &[u8]) -> Option<Edit> {
         {
             continue;
         }
-        // The value follows a type indicator and a locale.
         let text = std::str::from_utf8(child(item, b"data")?.get(8..)?).ok()?;
         let fields = text
             .split_whitespace()
@@ -607,10 +540,6 @@ fn itunes_gapless(moov: &[u8]) -> Option<Edit> {
     None
 }
 
-/// The body of the top-level `moov` box, wherever it sits in the file.
-/// When an MP4 or QuickTime file says it was recorded: the movie header's
-/// creation time, which `AVAsset.creationDate` reports on macOS. Zero
-/// means unset.
 pub fn mp4_creation_time(path: &Path) -> Option<std::time::SystemTime> {
     if !is_mp4(path) {
         return None;
@@ -623,7 +552,6 @@ pub fn mp4_creation_time(path: &Path) -> Option<std::time::SystemTime> {
     } else {
         u64::from(u32::from_be_bytes(mvhd.get(4..8)?.try_into().ok()?))
     };
-    // Seconds since 1904-01-01 UTC.
     let unix = seconds.checked_sub(2_082_844_800).filter(|_| seconds > 0)?;
     Some(std::time::UNIX_EPOCH + std::time::Duration::from_secs(unix))
 }
@@ -660,7 +588,6 @@ fn read_moov(path: &Path) -> Option<Vec<u8>> {
     None
 }
 
-/// The boxes directly inside `data`, as (type, body).
 fn boxes(data: &[u8]) -> impl Iterator<Item = ([u8; 4], &[u8])> {
     let mut rest = data;
     std::iter::from_fn(move || {
@@ -686,15 +613,11 @@ fn child<'a>(data: &'a [u8], kind: &[u8; 4]) -> Option<&'a [u8]> {
     boxes(data).find(|(k, _)| k == kind).map(|(_, body)| body)
 }
 
-/// The timescale of an `mvhd` or `mdhd` box.
 fn timescale(body: &[u8]) -> Option<u32> {
     let at = if *body.first()? == 1 { 20 } else { 12 };
     Some(u32::from_be_bytes(body.get(at..at + 4)?.try_into().ok()?)).filter(|scale| *scale > 0)
 }
 
-/// The first edit that plays media, as (segment duration in the movie's
-/// timescale, media time in the track's). An empty edit (media time -1) only
-/// delays the presentation, so it is passed over.
 fn first_edit(elst: &[u8]) -> Option<(u64, u64)> {
     let version = *elst.first()?;
     let count = u32::from_be_bytes(elst.get(4..8)?.try_into().ok()?) as usize;
@@ -724,8 +647,6 @@ fn first_edit(elst: &[u8]) -> Option<(u64, u64)> {
 mod tests {
     use super::*;
 
-    /// A track the macOS app recorded: AAC-LC, mono, 16 kHz, 140 s, with
-    /// 2112 frames of encoder priming and 448 of padding around it.
     fn macos_track() -> Option<PathBuf> {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(
             "../../../LokalBotTests/Fixtures/upgrade/0.10.9/library/meetings/2026/10/17-design-review/mic.m4a",
@@ -744,20 +665,18 @@ mod tests {
         samples
     }
 
-    /// `mic.live.caf`: 16 kHz mono Float32. A recorder that crashed never wrote
-    /// the data chunk's size (-1), and may have stopped inside a sample.
     fn crash_tee(samples: &[f32], data_size: i64, torn_bytes: usize) -> Vec<u8> {
         let mut bytes = b"caff\0\x01\0\0desc".to_vec();
         bytes.extend_from_slice(&32i64.to_be_bytes());
         bytes.extend_from_slice(&16_000f64.to_be_bytes());
         bytes.extend_from_slice(b"lpcm");
-        bytes.extend_from_slice(&3u32.to_be_bytes()); // float, little-endian
+        bytes.extend_from_slice(&3u32.to_be_bytes());
         for field in [4u32, 1, 1, 32] {
             bytes.extend_from_slice(&field.to_be_bytes());
         }
         bytes.extend_from_slice(b"data");
         bytes.extend_from_slice(&data_size.to_be_bytes());
-        bytes.extend_from_slice(&0u32.to_be_bytes()); // edit count
+        bytes.extend_from_slice(&0u32.to_be_bytes());
         for sample in samples {
             bytes.extend_from_slice(&sample.to_le_bytes());
         }
@@ -784,7 +703,6 @@ mod tests {
             for (got, want) in decoded.iter().zip(&samples) {
                 assert!((got - want).abs() < 0.001, "{name}: {got} vs {want}");
             }
-            // The player and the waveform seek.
             reader.seek_frame(24_000).unwrap();
             let mut rest = Vec::new();
             reader.read_mono(10, &mut rest).unwrap();
@@ -811,7 +729,6 @@ mod tests {
         out
     }
 
-    /// A version 0 `mvhd`/`mdhd` body with the given timescale.
     fn header_box(timescale: u32) -> Vec<u8> {
         let mut body = vec![0u8; 12];
         body.extend_from_slice(&timescale.to_be_bytes());
@@ -823,7 +740,6 @@ mod tests {
     fn reads_an_edit_list_in_the_movie_and_track_timescales() {
         let hdlr = [&[0u8; 8][..], b"soun", &[0u8; 12]].concat();
         let mut elst = vec![0, 0, 0, 0, 0, 0, 0, 2];
-        // An empty edit first, then 140 s (ms timescale) from frame 2112.
         elst.extend_from_slice(&1_000u32.to_be_bytes());
         elst.extend_from_slice(&(-1i32).to_be_bytes());
         elst.extend_from_slice(&[0, 1, 0, 0]);
@@ -851,7 +767,6 @@ mod tests {
                 playable: Some(2_240_000)
             })
         );
-        // At 48 kHz the same edit is three times as many frames.
         assert_eq!(edit_list(&moov, 48_000).unwrap().playable, Some(6_720_000));
     }
 
@@ -875,7 +790,6 @@ mod tests {
         let Some(path) = macos_track() else { return };
         let all = read_all(&mut TrackReader::open(&path).unwrap());
         let mut reader = TrackReader::open(&path).unwrap();
-        // Out of order, after the end, and back to the start.
         for at in [1_120_123u64, 37, 2_239_000, 2_000_000, 0, 5_000] {
             reader.seek_frame(at).unwrap();
             let mut got = Vec::new();
@@ -895,7 +809,6 @@ mod tests {
 
     #[test]
     fn reads_flac_at_another_rate_as_16_khz_mono() {
-        // 0.5 s of a 440 Hz tone, 44.1 kHz stereo.
         let path =
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/data/tone-44100-stereo.flac");
         let mut reader = TrackReader::open(&path).unwrap();
@@ -907,7 +820,6 @@ mod tests {
             "{} samples",
             samples.len()
         );
-        // A 440 Hz tone crosses zero about 880 times a second.
         let crossings = samples
             .windows(2)
             .filter(|pair| (pair[0] < 0.0) != (pair[1] < 0.0))

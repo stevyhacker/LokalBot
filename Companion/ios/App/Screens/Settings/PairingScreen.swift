@@ -2,12 +2,9 @@ import AVFoundation
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Pairing: scan the code the Mac shows (or paste its link), confirm the
-/// Mac's name, then wait while the person allows it on the Mac.
 struct PairingScreen: View {
     @Environment(CompanionSession.self) private var session
     @Environment(\.dismiss) private var dismiss
-    /// A link to start from (debug screenshots); otherwise the person scans or pastes one.
     var initialLink: String?
 
     private enum Step: Equatable {
@@ -63,8 +60,6 @@ struct PairingScreen: View {
     private var stepIsPaired: Bool { if case .paired = step { true } else { false } }
     private var isWaiting: Bool { if case .waiting = step { true } else { false } }
 
-    // MARK: Steps
-
     @ViewBuilder private var scan: some View {
         Text("On your computer, open LokalBot Settings → Phones & tablets → Add a Device, then point the camera at the code.")
             .font(LBTokens.Typography.body)
@@ -92,7 +87,6 @@ struct PairingScreen: View {
         .frame(height: 300)
         .clipShape(RoundedRectangle(cornerRadius: LBTokens.Radius.card, style: .continuous))
         .lbGroupedSurface()
-        // Ask for the camera only when there is something to scan.
         .task { if cameraAllowed == nil { cameraAllowed = await Self.requestCamera() } }
         VStack(alignment: .leading, spacing: 8) {
             Text("Or paste the link").font(LBTokens.Typography.section)
@@ -198,8 +192,6 @@ struct PairingScreen: View {
         }
     }
 
-    // MARK: Actions
-
     private func read(_ text: String) {
         step = Self.step(reading: text)
     }
@@ -208,7 +200,6 @@ struct PairingScreen: View {
         do {
             let payload = try PairingPayload.parse(text)
             if payload.isExpired() { return .failed(CompanionStoreError.pairingExpired.errorDescription ?? "") }
-            // The sync core takes the link alone, not the text it was pasted in.
             return .confirm(payload, link: PairingPayload.link(in: text) ?? text)
         } catch {
             return .failed(error.localizedDescription)

@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Stale-field guard (continuation)
-
 final class CotypingContinuationTests: XCTestCase {
     private func field(
         _ preceding: String,
@@ -33,12 +31,10 @@ final class CotypingContinuationTests: XCTestCase {
     }
 
     func testFieldGrownByAcceptedWordsIsContinuation() {
-        // After accepting a word, the live preceding text only grows.
         XCTAssertTrue(CotypingSessionReconciler.isContinuation(of: session("I wanted to follow"), liveField: field("I wanted to follow up")))
     }
 
     func testDifferentFieldSameProcessIsNotContinuation() {
-        // Another compose box in the same app (same PID) must NOT match.
         XCTAssertFalse(CotypingSessionReconciler.isContinuation(of: session("I wanted to follow"), liveField: field("Reply to the thread")))
     }
 
@@ -454,8 +450,6 @@ final class CotypingContinuationTests: XCTestCase {
             acceptedPrecedingText: "what's on your mind"))
     }
 
-    /// Typing the suggested words and accepting them are the same to the
-    /// top-up: both keep the suggestion open, so the ghost stays ahead.
     func testTypingThroughKeepsTheTopUpThatAcceptingKeeps() throws {
         var open = session("I wanted to follow")
         open.isOpenEnded = true

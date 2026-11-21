@@ -3,11 +3,6 @@ import SwiftUI
 import XCTest
 @testable import LokalBot
 
-/// Hosts the main window's NavigationSplitView structure in an off-screen
-/// full-size-content window, with no autosaved split, and checks how far the
-/// window shrinks. From macOS 26 an `HSplitView` in the detail counted the
-/// sidebar twice in the minimum width, and the titlebar and toolbar are counted
-/// twice in the minimum height.
 @MainActor
 final class MainWindowMinimumSizeTests: XCTestCase {
     private func sidebar() -> some View {
@@ -17,7 +12,6 @@ final class MainWindowMinimumSizeTests: XCTestCase {
                                             ideal: LBTokens.Metric.sidebarWidth, max: 260)
     }
 
-    /// Shrinks the hosted view toward `target` and returns the window and host.
     private func shrink(_ root: some View, to target: NSSize) -> (NSWindow, NSView) {
         let window = NSWindow(
             contentRect: NSRect(x: -20_000, y: -20_000, width: 1180, height: 740),
@@ -50,8 +44,6 @@ final class MainWindowMinimumSizeTests: XCTestCase {
         }, to: NSSize(width: 700, height: 600))
         defer { window.close() }
 
-        // macOS 26.6 settles about 8 pt wider than macOS 27 (885 vs 877);
-        // counting the sidebar twice added its whole 216 pt width.
         let panesAndDivider = panes.reduce(0, +) + 1
         XCTAssertLessThanOrEqual(window.frame.width, LBTokens.Metric.sidebarWidth + panesAndDivider + 16,
                                  "The window must shrink to the sidebar plus the split's panes")

@@ -1,18 +1,11 @@
-//! Opening files, folders and links with the user's default apps, and showing
-//! a file in the file manager ("Show in Files" / "Show in Explorer").
-
 use std::path::Path;
 
 use anyhow::Context as _;
 
-/// Opens a file or folder in its default app.
 pub fn open_path(path: &Path) -> anyhow::Result<()> {
     open::that_detached(path).with_context(|| format!("could not open {}", path.display()))
 }
 
-/// Opens a web or mail link in the default browser or mail app. Other
-/// schemes are refused, so text from meetings or models cannot launch
-/// arbitrary handlers.
 pub fn open_url(url: &str) -> anyhow::Result<()> {
     let parsed = url::Url::parse(url).context("not a link")?;
     anyhow::ensure!(
@@ -22,8 +15,6 @@ pub fn open_url(url: &str) -> anyhow::Result<()> {
     open::that_detached(parsed.as_str()).context("could not open the link")
 }
 
-/// Shows `path` selected in the file manager, or opens its folder when the
-/// file manager cannot select items.
 pub fn reveal_in_file_manager(path: &Path) -> anyhow::Result<()> {
     anyhow::ensure!(path.exists(), "{} does not exist", path.display());
     if reveal(path).is_ok() {
@@ -61,8 +52,6 @@ fn reveal(path: &Path) -> anyhow::Result<()> {
     use std::os::windows::process::CommandExt as _;
 
     let absolute = std::path::absolute(path)?;
-    // explorer.exe parses its own command line: the path must follow
-    // "/select," inside quotes, so the argument is passed verbatim.
     std::process::Command::new("explorer.exe")
         .raw_arg(format!("/select,\"{}\"", absolute.display()))
         .spawn()?;

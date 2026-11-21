@@ -1,18 +1,3 @@
-//! On-device text recognition for screen context, the counterpart of the
-//! Vision `VNRecognizeTextRequest` the Mac app runs on screenshots
-//! (`ScreenshotImageProcessing.recognizeText`).
-//!
-//! Three engines, chosen by [`plan`] from what this computer has:
-//!
-//! - [ocrs](https://github.com/robertknight/ocrs), a pure-Rust engine that reads
-//!   unaccented Latin letters. Its two models are pinned by size and SHA-256 and
-//!   download only when the person asks, into `<library>/models/ocrs/`.
-//! - Tesseract on Linux, a separate program that reads every other script. It
-//!   uses the language data it already has, or pinned `tessdata_fast` files
-//!   that download only when the person asks, into `<library>/models/tesseract/`.
-//!   Pixels reach it over a pipe; see [`tesseract`].
-//! - `Windows.Media.Ocr` on Windows, built in, with the languages installed there.
-
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use std::sync::atomic::AtomicBool;
@@ -31,13 +16,10 @@ pub mod windows_media;
 
 use languages::Language;
 
-/// Id the engine and the Models page use for the pair of files.
 pub const OCR_MODEL_ID: &str = "ocrs-text";
 pub const OCR_DISPLAY_NAME: &str = "Screen text recognition (ocrs)";
-/// The models' license (the engine is MIT or Apache 2.0).
 pub const OCR_MODEL_LICENSE: &str = "CC BY-SA 4.0";
 
-/// One pinned model file.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OcrFile {
     pub name: &'static str,
@@ -46,8 +28,6 @@ pub struct OcrFile {
     pub sha256: &'static str,
 }
 
-/// Detection first, then recognition. These are the files `ocrs-cli` 0.13
-/// loads by default.
 pub const OCR_FILES: [OcrFile; 2] = [
     OcrFile {
         name: "text-detection.onnx",
@@ -63,12 +43,10 @@ pub const OCR_FILES: [OcrFile; 2] = [
     },
 ];
 
-/// Both files together.
 pub fn total_size() -> u64 {
     OCR_FILES.iter().map(|file| file.size).sum()
 }
 
-/// `<library>/models/ocrs`.
 pub fn model_dir(paths: &LibraryPaths) -> PathBuf {
     paths.models_dir().join("ocrs")
 }
@@ -77,8 +55,6 @@ pub fn file_path(paths: &LibraryPaths, file: &OcrFile) -> PathBuf {
     model_dir(paths).join(file.name)
 }
 
-/// Both files are present with their pinned size and a matching sidecar
-/// digest (written by the verified download).
 pub fn is_installed(paths: &LibraryPaths) -> bool {
     OCR_FILES.iter().all(|file| {
         let path = file_path(paths, file);
@@ -87,7 +63,6 @@ pub fn is_installed(paths: &LibraryPaths) -> bool {
     })
 }
 
-/// The verified downloads of both files.
 pub fn download_specs(paths: &LibraryPaths) -> Vec<DownloadSpec> {
     OCR_FILES
         .iter()
@@ -100,7 +75,6 @@ pub fn download_specs(paths: &LibraryPaths) -> Vec<DownloadSpec> {
         .collect()
 }
 
-/// Downloads whatever is missing. `progress(done, total)` covers both files.
 pub fn download(
     paths: &LibraryPaths,
     cancel: &AtomicBool,
@@ -119,7 +93,6 @@ pub fn download(
     Ok(())
 }
 
-/// Removes both files, their sidecars and the folder.
 pub fn delete(paths: &LibraryPaths) -> std::io::Result<()> {
     for file in &OCR_FILES {
         let path = file_path(paths, file);
@@ -134,13 +107,10 @@ pub fn delete(paths: &LibraryPaths) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Id the engine and the Models page use for Tesseract's language data.
 pub const OCR_LANGUAGES_ID: &str = "tesseract-languages";
 pub const OCR_LANGUAGES_DISPLAY_NAME: &str = "Screen text languages (Tesseract)";
-/// The `tessdata_fast` files' license.
 pub const OCR_LANGUAGES_LICENSE: &str = "Apache-2.0";
 
-/// `<library>/models/tesseract`.
 pub fn language_dir(paths: &LibraryPaths) -> PathBuf {
     paths.models_dir().join("tesseract")
 }
@@ -149,7 +119,6 @@ fn language_path(paths: &LibraryPaths, language: &Language) -> PathBuf {
     language_dir(paths).join(format!("{}.traineddata", language.name))
 }
 
-/// This language's file is present with its pinned size and a matching digest.
 fn has_language(paths: &LibraryPaths, language: &Language) -> bool {
     let path = language_path(paths, language);
     std::fs::metadata(&path).is_ok_and(|meta| meta.len() == language.size)
@@ -169,14 +138,12 @@ fn language_spec(paths: &LibraryPaths, language: &Language) -> DownloadSpec {
     }
 }
 
-/// Any language data was downloaded.
 pub fn has_language_data(paths: &LibraryPaths) -> bool {
     languages::LANGUAGES
         .iter()
         .any(|language| has_language(paths, language))
 }
 
-/// What the languages wanted here take. Some of it may already be downloaded.
 pub fn languages_size() -> u64 {
     languages::wanted_here()
         .iter()
@@ -184,8 +151,6 @@ pub fn languages_size() -> u64 {
         .sum()
 }
 
-/// The languages wanted here that the library lacks. One Tesseract run reads
-/// from one folder, so this counts what the system has as lacking too.
 fn languages_to_download(paths: &LibraryPaths) -> Vec<&'static Language> {
     languages::wanted_here()
         .into_iter()
@@ -193,7 +158,6 @@ fn languages_to_download(paths: &LibraryPaths) -> Vec<&'static Language> {
         .collect()
 }
 
-/// Downloads the language data wanted here. `progress(done, total)` covers it all.
 pub fn download_languages(
     paths: &LibraryPaths,
     cancel: &AtomicBool,
@@ -214,7 +178,6 @@ pub fn download_languages(
     Ok(())
 }
 
-/// Removes every downloaded language.
 pub fn delete_languages(paths: &LibraryPaths) -> std::io::Result<()> {
     match std::fs::remove_dir_all(language_dir(paths)) {
         Err(err) if err.kind() != std::io::ErrorKind::NotFound => Err(err),
@@ -222,7 +185,6 @@ pub fn delete_languages(paths: &LibraryPaths) -> std::io::Result<()> {
     }
 }
 
-/// The plan for this computer as it is now.
 #[cfg(not(windows))]
 fn current_plan(paths: &LibraryPaths) -> plan::Plan {
     let wanted = languages::wanted_here();
@@ -241,7 +203,6 @@ fn current_plan(paths: &LibraryPaths) -> plan::Plan {
     })
 }
 
-/// The plan for this computer as it is now.
 #[cfg(windows)]
 fn current_plan(paths: &LibraryPaths) -> plan::Plan {
     plan::with_windows(
@@ -251,7 +212,6 @@ fn current_plan(paths: &LibraryPaths) -> plan::Plan {
     )
 }
 
-/// The engine reading now.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum OcrBackend {
     #[default]
@@ -261,34 +221,27 @@ pub enum OcrBackend {
     Windows,
 }
 
-/// A download that would help, for the person to start.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct OcrDownload {
     pub id: &'static str,
     pub bytes: u64,
 }
 
-/// What recognition can do on this computer, and what would make it do more.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct OcrStatus {
     pub backend: OcrBackend,
-    /// What the engine reads, by the languages' own names.
     pub reading: Vec<String>,
-    /// What this app and system want that nothing here reads yet.
     pub missing: Vec<String>,
     pub download: Option<OcrDownload>,
-    /// Reading `missing` needs the Tesseract program.
     pub needs_program: bool,
 }
 
 impl OcrStatus {
-    /// Some engine can read now.
     pub fn is_ready(&self) -> bool {
         self.backend != OcrBackend::None
     }
 }
 
-/// What recognition can do here now. Cheap enough to ask often.
 pub fn status(paths: &LibraryPaths) -> OcrStatus {
     let plan = current_plan(paths);
     let autonyms = |languages: &[&'static Language]| -> Vec<String> {
@@ -302,7 +255,6 @@ pub fn status(paths: &LibraryPaths) -> OcrStatus {
         }
     };
     let mut reading = autonyms(&plan.reading);
-    // A recognizer outside the pinned languages is still worth naming.
     if let (plan::Reader::Windows { tag }, true) = (&plan.reader, reading.is_empty()) {
         reading.push(tag.clone());
     }
@@ -323,23 +275,19 @@ pub fn status(paths: &LibraryPaths) -> OcrStatus {
     }
 }
 
-/// Some engine can read now.
 pub fn is_ready(paths: &LibraryPaths) -> bool {
     current_plan(paths).reader != plan::Reader::None
 }
 
-/// Spaces between words of Chinese, Japanese or Thai, which are written without
-/// them. Tesseract and Windows both put them there; the Mac's Vision doesn't, and
-/// search needs the words whole. Korean does use spaces, and keeps them.
 fn collapse_cjk_spaces(text: &str) -> String {
     let unspaced = |c: char| {
         matches!(c,
-            '\u{0E00}'..='\u{0E7F}'   // Thai
-            | '\u{3000}'..='\u{30FF}' // CJK punctuation, kana
+            '\u{0E00}'..='\u{0E7F}'
+            | '\u{3000}'..='\u{30FF}'
             | '\u{3400}'..='\u{4DBF}'
             | '\u{4E00}'..='\u{9FFF}'
             | '\u{F900}'..='\u{FAFF}'
-            | '\u{FF00}'..='\u{FFEF}' // Full-width forms
+            | '\u{FF00}'..='\u{FFEF}'
             | '\u{20000}'..='\u{2FFFF}')
     };
     let chars: Vec<char> = text.chars().collect();
@@ -357,7 +305,6 @@ fn collapse_cjk_spaces(text: &str) -> String {
     out
 }
 
-/// One recognized line and where it is in the image, in pixels.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OcrLine {
     pub text: String,
@@ -375,19 +322,14 @@ enum Loaded {
     Windows(windows_media::Recognizer),
 }
 
-/// A loaded recognizer, whichever engine it is. ocrs loads about 12 MB of model
-/// weights, so keep one and reuse it, and ask [`Self::is_current`] whether what
-/// this computer has still leads to it.
 pub struct OcrEngine {
     loaded: Loaded,
     choice: plan::Reader,
     paths: LibraryPaths,
-    /// ocrs, when another engine can't read this time and it is installed.
     stand_in: OnceLock<Option<ocrs::OcrEngine>>,
 }
 
 impl OcrEngine {
-    /// Loads what the plan chooses, or fails when nothing here can read.
     pub fn load(paths: &LibraryPaths) -> Result<Self> {
         let choice = current_plan(paths).reader;
         let loaded = match &choice {
@@ -422,13 +364,10 @@ impl OcrEngine {
         })
     }
 
-    /// What this computer has still leads to this engine. A download, a removal
-    /// or a new language in Settings can change that.
     pub fn is_current(&self, paths: &LibraryPaths) -> bool {
         current_plan(paths).reader == self.choice
     }
 
-    /// The text in an RGBA image, one recognized line per line, top to bottom.
     pub fn recognize(&self, rgba: &[u8], width: u32, height: u32) -> Result<String> {
         check_image(rgba, width, height)?;
         if let Some(lines) = self.read_without_ocrs(rgba, width, height)? {
@@ -443,8 +382,6 @@ impl OcrEngine {
         )
     }
 
-    /// The lines in an RGBA image with their places, for telling what is near
-    /// a text field.
     pub fn recognize_lines(&self, rgba: &[u8], width: u32, height: u32) -> Result<Vec<OcrLine>> {
         check_image(rgba, width, height)?;
         if let Some(lines) = self.read_without_ocrs(rgba, width, height)? {
@@ -458,8 +395,6 @@ impl OcrEngine {
         )
     }
 
-    /// What Tesseract or Windows read. `None` means ocrs is to read: it is the
-    /// engine, or it stands in because the engine failed.
     fn read_without_ocrs(
         &self,
         rgba: &[u8],
@@ -493,7 +428,6 @@ impl OcrEngine {
     }
 }
 
-/// Loads the installed ocrs models, or fails when they are not downloaded.
 fn load_ocrs(paths: &LibraryPaths) -> Result<ocrs::OcrEngine> {
     anyhow::ensure!(
         is_installed(paths),
@@ -573,9 +507,6 @@ fn display_name(path: &Path) -> String {
 mod tests {
     use super::*;
 
-    /// How long one window takes, for judging autocomplete's window text.
-    /// `LOKALBOT_OCR_ROOT` is a scratch library the models download into;
-    /// `LOKALBOT_OCR_IMAGE` is raw RGBA named `<name>-<width>x<height>.rgba`.
     #[test]
     #[ignore = "downloads the models; run by hand"]
     fn recognize_lines_timing() {
@@ -671,17 +602,14 @@ mod tests {
         let path = language_path(&paths, chinese);
         let handle = std::fs::File::create(&path).unwrap();
         handle.set_len(chinese.size).unwrap();
-        // No digest yet.
         assert!(!has_language(&paths, chinese));
         download::write_sidecar(&path, chinese.sha256).unwrap();
         assert!(has_language(&paths, chinese));
         assert!(has_language_data(&paths));
-        // Another size.
         handle.set_len(chinese.size - 1).unwrap();
         assert!(!has_language(&paths, chinese));
         delete_languages(&paths).unwrap();
         assert!(!language_dir(&paths).exists());
-        // Nothing left to remove is not a failure.
         delete_languages(&paths).unwrap();
     }
 
@@ -691,7 +619,6 @@ mod tests {
         let paths = LibraryPaths::new(dir.path());
         let status = status(&paths);
         assert_eq!(status.is_ready(), is_ready(&paths));
-        // An offer at most; nothing was fetched or created to make it.
         assert!(!paths.models_dir().exists());
         assert!(!is_installed(&paths));
         assert!(!has_language_data(&paths));
@@ -711,7 +638,6 @@ mod tests {
             ("季度 审查 ， 改到", "季度审查，改到"),
             ("受信 トレイ", "受信トレイ"),
             ("ไทย ภาษา", "ไทยภาษา"),
-            // Latin next to Han keeps its space, as does Korean.
             ("使用 Rust 编写", "使用 Rust 编写"),
             ("한국어 문서", "한국어 문서"),
             ("plain english text", "plain english text"),
@@ -722,7 +648,6 @@ mod tests {
         }
     }
 
-    /// Downloads the real models (about 12 MB) and reads rendered text.
     #[test]
     #[ignore = "downloads the OCR models"]
     fn reads_rendered_text() {
@@ -734,11 +659,9 @@ mod tests {
         let text = ocrs_text(&engine, &rgba, width, height)
             .unwrap()
             .to_uppercase();
-        // The blocky test font's K can read as E.
         assert!(text.starts_with("LO") && text.ends_with("ALBOT"), "{text}");
     }
 
-    /// "LOKALBOT" in a 5×7 bitmap font, scaled up, black on white.
     pub(crate) fn banner() -> (u32, u32, Vec<u8>) {
         const GLYPHS: [[&str; 7]; 8] = [
             [

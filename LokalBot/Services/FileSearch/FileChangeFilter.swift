@@ -3,21 +3,12 @@ import DigUpKit
 import Foundation
 import UniformTypeIdentifiers
 
-/// Which changes FSEvents reports can alter what a sync finds. Every sync walks
-/// the chosen folders again (on a developer's Mac 459,000 entries and 18 s of
-/// CPU to find nothing), so a change the crawl would leave out never starts one:
-/// in a place it doesn't walk, of a type it doesn't read, or inside a code
-/// project, where it keeps only screenshots.
-///
-/// When in doubt it says yes: an extra sync costs seconds, a missed one leaves a
-/// new file out of search until something else changes.
 struct FileChangeFilter: Sendable {
     struct Change: Sendable {
         let path: String
         let flags: FSEventStreamEventFlags
     }
 
-    /// Each chosen folder as chosen and as FSEvents reports it (/private/var where the chosen path says /var).
     private let roots: [String]
     private let options: IndexOptions
     private let home: String
@@ -29,16 +20,12 @@ struct FileChangeFilter: Sendable {
         self.home = home
     }
 
-    /// The first change in a batch that can alter what a sync finds. A build reports thousands at a time, so what a
-    /// batch learns about a folder or a type is asked of the file system once, for each chosen folder (nested ones
-    /// answer differently: one's project can be the other's whole).
     func firstThatMatters(_ changes: [Change]) -> String? {
         var batches = roots.map { _ in Batch() }
         return changes.first { matters($0, &batches) }?.path
     }
 
     private func matters(_ change: Change, _ batches: inout [Batch]) -> Bool {
-        // FSEvents lost track of what happened here, or doesn't say what it is: only a sync can tell.
         if change.flags & Self.lostTrack != 0 || change.flags & Self.itemKinds == 0 { return true }
         var placed = false
         for (index, root) in roots.enumerated()
@@ -46,13 +33,11 @@ struct FileChangeFilter: Sendable {
             placed = true
             if matters(change, under: root, &batches[index]) { return true }
         }
-        // A spelling of the path that can't be placed in a chosen folder is no reason to miss a change.
         return !placed
     }
 
     private func matters(_ change: Change, under root: String, _ batch: inout Batch) -> Bool {
         let path = change.path
-        // Most of what a busy Mac reports is in hidden folders: no need to ask the file system.
         if path.dropFirst(root.count).contains("/.") { return false }
         let isFolder = change.flags & Self.isFolder != 0
         let parent = (path as NSString).deletingLastPathComponent
@@ -65,12 +50,9 @@ struct FileChangeFilter: Sendable {
         }
         guard walked else { return false }
 
-        // A project's only marker appearing or going decides what the crawl keeps around it, unless a project above
-        // it already does. Editing one changes nothing.
         if change.flags & Self.cameOrWent != 0, Rules.decidesProject(path), !inProject(parent, root, &batch) {
             return true
         }
-        // A folder's contents report themselves, unless it moved or was cloned: then this is all FSEvents says.
         if isFolder, change.flags & Self.arrivedWhole == 0 { return false }
 
         let mayMatter: Bool
@@ -85,8 +67,6 @@ struct FileChangeFilter: Sendable {
         guard mayMatter else { return false }
         if isFolder { return true }
 
-        // Only screenshots count in a code project. A file that's gone goes by its name (the mark went with it); if
-        // that's wrong, search still hides a missing file and the next sync drops it.
         guard inProject(path, root, &batch) else { return true }
         let url = URL(fileURLWithPath: path)
         return Rules.classify(url, type: UTType(filenameExtension: url.pathExtension), options: options)
@@ -109,7 +89,6 @@ struct FileChangeFilter: Sendable {
     private static let cameOrWent = arrivedWhole | FSEventStreamEventFlags(
         kFSEventStreamEventFlagItemCreated | kFSEventStreamEventFlagItemRemoved)
 
-    /// Answers kept for one batch: folders and markers can change between batches.
     private struct Batch {
         private var walked: [String: Bool] = [:]
         private var types: [String: Bool] = [:]

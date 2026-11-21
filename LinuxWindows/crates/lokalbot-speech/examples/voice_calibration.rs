@@ -1,15 +1,3 @@
-//! Measures the voice model on labeled speech, for the matching rules in
-//! `lokalbot_core::voice`.
-//!
-//! `cargo run -p lokalbot-speech --example voice_calibration -- <titanet.onnx> <dir>`
-//!
-//! `<dir>` holds `<speaker>/<recording>/*.wav` (or any format the app reads).
-//! Each speaker/recording pair stands for one meeting: its files are cut into
-//! 6 s chunks, up to 16 chunks are averaged as `voice::voiceprint` does, and
-//! every meeting is scored against the average of each person's other
-//! meetings. Prints JSON: score distributions, and what the Mac's rules would
-//! decide when the person is remembered and when they are a stranger.
-
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
@@ -55,7 +43,6 @@ fn main() -> Result<()> {
         }
     }
 
-    // One voiceprint per meeting, plus how well its chunks agree.
     let mut prints: Vec<(String, String, Vec<f32>)> = Vec::new();
     let mut consistency = Vec::new();
     for ((speaker, recording), vectors) in &meetings {
@@ -65,13 +52,10 @@ fn main() -> Result<()> {
         prints.push((speaker.clone(), recording.clone(), print.vector));
     }
 
-    // A single meeting against a person remembered from their other meetings.
     let mut same = Vec::new();
     let mut different = Vec::new();
     let mut speakers: Vec<&String> = prints.iter().map(|(s, _, _)| s).collect();
     speakers.dedup();
-    // Closed set: the person is remembered. Open set: they are a stranger, the
-    // case where naming anyone is wrong.
     let mut known = Decisions::default();
     let mut stranger = Decisions::default();
     for (index, (speaker, _, vector)) in prints.iter().enumerate() {
@@ -121,7 +105,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// What the Mac's rules would decide (`SpeakerVoiceMatcher.callMatches`).
 #[derive(Default)]
 struct Decisions {
     queries: usize,

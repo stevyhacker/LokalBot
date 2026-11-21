@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { AskOutcome, CliMissingError, CliOutdatedError, runAsk } from "./cli";
 
-/** One `ask` or `reply` run: the CLI arguments and optional standard input. */
 export interface AskRequest {
   args: string[];
   input?: string;
@@ -13,16 +12,11 @@ export type AnswerState =
   | { kind: "done"; outcome: AskOutcome }
   | { kind: "failed"; title: string; message: string };
 
-/**
- * Runs `request` whenever it or `revision` changes, and stops the CLI when
- * the command closes. A null request waits.
- */
 export function useLokalBotAnswer(
   request: AskRequest | null,
   revision: number,
 ): AnswerState {
   const [state, setState] = useState<AnswerState>({ kind: "idle" });
-  // A string key keeps the effect from re-running on every render.
   const key = request ? JSON.stringify({ ...request, revision }) : null;
 
   useEffect(() => {

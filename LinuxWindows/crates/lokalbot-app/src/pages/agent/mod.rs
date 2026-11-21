@@ -1,13 +1,3 @@
-//! Agent (`AgentView.swift`): a local coding and file agent powered by the
-//! selected Think model. Before setup the page explains Agent Mode and offers
-//! "Set Up Agent Mode"; afterwards it shows the task list grouped by day, the
-//! task (a new task's composer mid-page, or the conversation with its folded
-//! steps, approval card and composer), and an optional results panel. The
-//! task's title and status sit in the toolbar.
-//!
-//! The work happens in [`model::AgentModel`] (the installer and the
-//! `lokalbot-agent` task list); this view owns only presentation state.
-
 mod approval;
 mod composer;
 mod conversation;
@@ -61,7 +51,6 @@ actions!(
 const KEY_CONTEXT: &str = "Agent";
 const DEFAULT_TEXT_SIZE: f32 = 15.;
 
-/// `AgentCommands.swift`, with Ctrl for ⌘.
 fn bind_keys(cx: &mut App) {
     let context = Some(KEY_CONTEXT);
     cx.bind_keys([
@@ -79,9 +68,6 @@ fn bind_keys(cx: &mut App) {
     ]);
 }
 
-/// The draft without its @, when an @ was just typed where a word starts
-/// (`AgentComposer`: at the start, after a space or a new line). An address
-/// such as me@example.com stays text.
 fn context_trigger(draft: &str) -> Option<&str> {
     if draft == "@" || draft.ends_with(" @") || draft.ends_with("\n@") {
         draft.strip_suffix('@')
@@ -91,12 +77,10 @@ fn context_trigger(draft: &str) -> Option<&str> {
 }
 
 pub struct AgentPage {
-    /// The model last asked about for its reasoning levels.
     reasoning_asked: Option<String>,
     data: Entity<AppData>,
     model: Option<Entity<AgentModel>>,
     composer: Entity<TextareaState>,
-    /// The task whose draft the composer shows, and that draft as last synced.
     composer_task: Option<Uuid>,
     synced_draft: String,
     composer_placeholder: &'static str,
@@ -113,13 +97,10 @@ pub struct AgentPage {
     transcript_scroll: ScrollHandle,
     follow_output: bool,
     last_item_count: usize,
-    /// Runs of steps opened to a row per step.
     expanded_steps: HashSet<String>,
-    /// Approval requests whose whole preview is open.
     approval_previews: HashSet<String>,
     text_size: f32,
     copied: Option<String>,
-    /// Parsed responses by item id, with the hash of the text they came from.
     answers: HashMap<String, (u64, Rc<crate::ui::answer_text::Answer>)>,
     last_section: Section,
     _subscriptions: Vec<Subscription>,
@@ -169,7 +150,6 @@ impl AgentPage {
                 |this, input, event: &InputEvent, window, cx| match event {
                     InputEvent::Change => {
                         let value = input.read(cx).value().to_string();
-                        // Typing @ asks for context instead of typing it.
                         if let Some(kept) = context_trigger(&value) {
                             let kept = kept.to_string();
                             input.update(cx, |input, cx| input.set_value(kept, window, cx));
@@ -246,14 +226,11 @@ impl AgentPage {
         if last_section == Section::Agent {
             page.ensure_model(window, cx);
             page.take_request(window, cx);
-            // `AgentComposer.onAppear`: the composer is ready for typing.
             page.focus_composer(window, cx);
         }
         page
     }
 
-    /// The controller is created on the first visit, so a library that
-    /// never uses Agent Mode never touches its files.
     fn ensure_model(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if self.model.is_some() {
             return;
@@ -271,9 +248,6 @@ impl AgentPage {
         self.model = Some(model);
     }
 
-    /// Acts on what another page or the palette asked for. A prompt goes into
-    /// the selected task's draft (`AppState.openAgent`), waits for setup, and is
-    /// never sent.
     fn take_request(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let waiting_for_setup = self.selected_id(cx).is_none();
         let Some(request) = self.data.update(cx, |data, _| match data.agent_request {
@@ -302,8 +276,6 @@ impl AgentPage {
         }
     }
 
-    // ------------------------------------------------------------ helpers
-
     fn model<'a>(&self, cx: &'a App) -> Option<&'a AgentModel> {
         self.model.as_ref().map(|m| m.read(cx))
     }
@@ -312,7 +284,6 @@ impl AgentPage {
         self.model(cx)?.tasks.as_ref().map(|t| t.selected_id)
     }
 
-    /// Changes the selected task's session.
     fn with_session(
         &mut self,
         cx: &mut Context<Self>,
@@ -326,7 +297,6 @@ impl AgentPage {
         });
     }
 
-    /// Changes the task list (and schedules a save).
     fn with_tasks(
         &mut self,
         cx: &mut Context<Self>,
@@ -339,9 +309,6 @@ impl AgentPage {
         }
     }
 
-    /// Keeps the composer showing the selected task's draft. Typing writes
-    /// the draft; a change made by the task (sent, restored, edited from the
-    /// queue) is written back into the composer.
     fn sync_composer(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some((id, draft)) = self.model(cx).and_then(|m| {
             let tab = m.tasks.as_ref()?.selected()?;
@@ -378,8 +345,6 @@ impl AgentPage {
             .update(cx, |state, cx| state.focus(window, cx));
     }
 
-    /// Send, or while the agent works queue the message; with `steer`
-    /// (Ctrl+Enter) a message steers the running turn instead.
     fn submit(&mut self, steer: bool, _window: &mut Window, cx: &mut Context<Self>) {
         self.follow_output = true;
         self.with_tasks(cx, |tasks| {
@@ -449,7 +414,6 @@ impl Page for AgentPage {
         lokalbot_i18n::tr("Agent").into()
     }
 
-    /// The task's own title and where it stands replace the section name.
     fn title_control(
         &mut self,
         _window: &mut Window,
@@ -463,7 +427,6 @@ impl Page for AgentPage {
         let title = task_title(tab);
         let status = task_status(tab);
         let lb = cx.lb().clone();
-        // A new task needs no word beside its title; the list row says "Not started".
         let word = (status != TaskStatus::NotStarted)
             .then(|| words::status_title(status))
             .flatten();
@@ -488,7 +451,6 @@ impl Page for AgentPage {
         )
     }
 
-    /// Find and the results panel (`taskActions`).
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let model = self.model(cx)?;
         if model.phase != InstallPhase::Installed {
@@ -530,7 +492,6 @@ impl Page for AgentPage {
     }
 }
 
-/// The task's name: its own, the conversation's, the saved one's, or "New task".
 fn task_title(tab: &Tab) -> String {
     tab.record
         .title
@@ -540,7 +501,6 @@ fn task_title(tab: &Tab) -> String {
         .unwrap_or_else(|| lokalbot_i18n::tr("New task").to_string())
 }
 
-/// The files the given steps wrote or edited in a task.
 fn changed_files(tab: &Tab, steps: &[lokalbot_agent::TranscriptItem]) -> Vec<ChangedFile> {
     let session = &tab.session;
     ChangedFile::list(
@@ -551,8 +511,6 @@ fn changed_files(tab: &Tab, steps: &[lokalbot_agent::TranscriptItem]) -> Vec<Cha
     )
 }
 
-/// Where a task stands. Only a finished task counts its changed files;
-/// counting reads the disk.
 fn task_status(tab: &Tab) -> TaskStatus {
     let session = &tab.session;
     let approvals = session.pending_approvals().len();
@@ -572,8 +530,6 @@ fn task_status(tab: &Tab) -> TaskStatus {
     )
 }
 
-/// The task's status beside its title: amber when it needs an answer, teal
-/// with a spinner while it works, a quiet word otherwise.
 fn status_pill(status: TaskStatus, word: &'static str, cx: &App) -> impl IntoElement + use<> {
     use gpui_kit::component::Sizable as _;
     let lb = cx.lb();
@@ -614,12 +570,10 @@ fn status_pill(status: TaskStatus, word: &'static str, cx: &App) -> impl IntoEle
         )
 }
 
-/// The live page, so the palette can list its tasks.
 struct AgentPageHandle(gpui_kit::WeakEntity<AgentPage>);
 
 impl gpui_kit::Global for AgentPageHandle {}
 
-/// Unarchived tasks, in their order, with their workspace names.
 pub fn palette_tasks(cx: &App) -> Vec<(Uuid, String, String)> {
     let Some(page) = cx
         .try_global::<AgentPageHandle>()
@@ -722,7 +676,6 @@ impl Render for AgentPage {
             }))
             .on_action(
                 cx.listener(|this, _: &gpui_kit::component::input::Escape, _, cx| {
-                    // Escape denies the approval on screen (`.cancelAction`).
                     if !this.deny_visible_approval(cx) {
                         cx.propagate();
                     }
@@ -732,13 +685,11 @@ impl Render for AgentPage {
     }
 }
 
-/// A 64-bit element key derived from a UUID.
 fn key(id: Uuid) -> u64 {
     let (high, low) = id.as_u64_pair();
     high ^ low
 }
 
-/// An icon button for small inline actions.
 fn small_icon_button(
     id: impl Into<gpui_kit::ElementId>,
     icon: Ico,

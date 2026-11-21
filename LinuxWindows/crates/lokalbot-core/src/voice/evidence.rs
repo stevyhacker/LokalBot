@@ -1,16 +1,9 @@
-//! Which voice samples may count (`AttributedTrackTranscriber.turns/samples`,
-//! `SpeakerMicrophoneEvidence.swift`). A microphone is an audio source, not a
-//! person: its samples count only when nothing from the call could have
-//! reached it.
-
 use std::collections::{BTreeMap, BTreeSet};
 
 use crate::model::{AttributionMethod, AttributionSource, Transcript};
 
 use super::{AudioTurn, TrackClock, TurnAnchor, VoiceSample, union};
 
-/// A transcript label backing `range`: one label, all of it from speaker
-/// separation, covering at least `coverage` of the range.
 fn supported_speaker(
     range: &TurnAnchor,
     transcript: &Transcript,
@@ -46,8 +39,6 @@ fn supported_speaker(
     (covered >= range.duration() * coverage).then(|| label.to_string())
 }
 
-/// Raw diarizer turns as turns of transcript labels. A turn another voice
-/// overlaps is left out.
 pub fn label_turns(
     raw: &[(String, TurnAnchor)],
     transcript: &Transcript,
@@ -71,9 +62,6 @@ pub fn label_turns(
         .collect()
 }
 
-/// Samples renamed to the transcript's labels. Call speech pauses between
-/// sentences, and the voice model hears only the speaker's own frames, so a
-/// pause is not another person.
 pub fn label_samples(
     samples: &[VoiceSample],
     transcript: &Transcript,
@@ -97,16 +85,12 @@ pub fn label_samples(
         .collect()
 }
 
-/// What `select_microphone_samples` kept, and why each microphone sample
-/// was or was not kept.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MicrophoneEvidence {
     pub samples: Vec<VoiceSample>,
     pub counts: BTreeMap<String, u32>,
 }
 
-/// Microphone samples pass the echo checks; call samples pass through.
-/// `remote_pcm` reads the call track's 16 kHz samples for a range.
 pub fn select_microphone_samples(
     samples: &[VoiceSample],
     transcript: &Transcript,
@@ -173,8 +157,6 @@ pub fn select_microphone_samples(
             .reference_range((sample.range.start - 0.5).max(0.0), sample.range.end + 0.25)
             .filter(|_| has_remote_track)
         {
-            // The padding includes plausible playback-to-microphone delay. A
-            // diarizer miss is not silence; verify the actual waveform too.
             if remote_turns.iter().any(|t| t.overlap(&reference) > 0.0) {
                 "remoteSpeech"
             } else if remote_pcm(reference.start, reference.end)
@@ -193,8 +175,6 @@ pub fn select_microphone_samples(
     result
 }
 
-/// Tests short windows as well as the peak, so a brief remote syllable cannot
-/// disappear in the mean of a long silent interval.
 pub(crate) fn reference_is_quiet(samples: &[f32], expected_duration: f64) -> bool {
     if !expected_duration.is_finite()
         || expected_duration < 3.0

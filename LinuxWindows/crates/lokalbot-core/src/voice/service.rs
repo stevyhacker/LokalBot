@@ -1,7 +1,3 @@
-//! Meeting speaker identity (`MeetingSpeakerIdentityService.swift`): one
-//! object per library that keeps a durable journal for each meeting, and only
-//! ever lets a person's choice decide a name.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fs;
 use std::io::Read as _;
@@ -23,7 +19,6 @@ use super::{
     can_enroll, eligible, legacy_source, matches, name_key, remap, union,
 };
 
-/// A track's SHA-256, hex.
 pub fn audio_revision(path: &Path) -> std::io::Result<String> {
     let mut file = fs::File::open(path)?;
     let mut hash = Sha256::new();
@@ -38,7 +33,6 @@ pub fn audio_revision(path: &Path) -> std::io::Result<String> {
     Ok(hex::encode(hash.finalize()))
 }
 
-/// `mic:<sha>|system:<sha>` for the tracks that exist, or `fallback`'s hash.
 pub fn recording_revision(
     mic: Option<&Path>,
     system: Option<&Path>,
@@ -58,7 +52,6 @@ pub fn recording_revision(
     Ok(parts.join("|"))
 }
 
-/// Swift's `Double.description`: `1.0`, `0.5`, `1e-05`, `1e+16`.
 fn swift_double(value: f64) -> String {
     let text = format!("{value:?}");
     let Some((mantissa, exponent)) = text.split_once('e') else {
@@ -69,7 +62,6 @@ fn swift_double(value: f64) -> String {
     format!("{mantissa}e{sign}{:02}", exponent.abs())
 }
 
-/// Identifies the speaker timeline a state's labels were made for.
 pub fn transcript_signature(transcript: &Transcript) -> String {
     let turns = transcript
         .segments
@@ -135,7 +127,6 @@ fn projection(state: &IdentityState, transcript: &Transcript) -> Transcript {
     result
 }
 
-/// A name the user gave a call voice, or a legacy name the transcript still carries.
 fn is_saved_call_name(assignment: &Assignment) -> bool {
     assignment.origin.is_protected()
         && assignment.name.is_some()
@@ -145,7 +136,6 @@ fn is_saved_call_name(assignment: &Assignment) -> bool {
         && assignment.resolved_source() == AttributionSource::System
 }
 
-/// An unnamed call voice that automatic naming may still fill.
 fn awaits_call_name(assignment: &Assignment) -> bool {
     assignment.name.is_none()
         && !assignment.origin.is_protected()
@@ -154,7 +144,6 @@ fn awaits_call_name(assignment: &Assignment) -> bool {
         && assignment.resolved_source() == AttributionSource::System
 }
 
-/// Unnamed call speakers whose voice clearly matches one remembered person.
 pub fn recognized_speakers(
     state: Option<&IdentityState>,
     transcript: &Transcript,
@@ -184,9 +173,6 @@ pub fn recognized_speakers(
         .collect()
 }
 
-/// The remembered person a newly named voice belongs to: same name and an
-/// agreeing voice, so naming someone again never splits them in two. A person
-/// known only from the other source has nothing to compare and is reused.
 pub fn same_person(name: &str, samples: &[VoiceSample], profiles: &[VoiceProfile]) -> Option<Uuid> {
     let key = name_key(name);
     let named: Vec<VoiceProfile> = profiles
@@ -217,7 +203,6 @@ pub fn same_person(name: &str, samples: &[VoiceSample], profiles: &[VoiceProfile
         .map(|p| p.id)
 }
 
-/// A speaker change is newer than the notes (`speakerSummaryNeedsRefresh`).
 pub fn summary_needs_refresh(
     state: &IdentityState,
     summary_modified: Option<DateTime<Utc>>,
@@ -228,7 +213,6 @@ pub fn summary_needs_refresh(
     }
 }
 
-/// A person's decision about one speaker (`MeetingSpeakerIdentityService.Choice`).
 #[derive(Clone, Debug)]
 pub struct Choice {
     pub id: Uuid,
@@ -254,26 +238,19 @@ impl Choice {
     }
 }
 
-/// One finished transcription to identify.
 pub struct ProcessRequest<'a> {
     pub transcript: &'a Transcript,
     pub meeting: &'a Meeting,
     pub turns: &'a [AudioTurn],
-    /// Labeled samples after the microphone checks.
     pub evidence: MicrophoneEvidence,
     pub mic: Option<&'a Path>,
     pub system: Option<&'a Path>,
-    /// What was saved before: its names carry over when no journal exists yet.
     pub previous: Option<&'a Transcript>,
-    /// `false` keeps automatic matches as suggestions, for saved meetings
-    /// whose notes were written from the current names.
     pub name_automatically: bool,
 }
 
-/// What learning from saved meetings needs from the engine.
 pub trait SavedMeetingAccess {
     fn transcript(&self, meeting: &Meeting) -> Option<Transcript>;
-    /// Analyzes a meeting's call track; `Err` means analysis can't run now.
     fn call_samples(
         &self,
         meeting: &Meeting,
@@ -281,7 +258,6 @@ pub trait SavedMeetingAccess {
     ) -> anyhow::Result<Vec<VoiceSample>>;
     fn is_busy(&self, meeting: &Meeting) -> bool;
     fn cancelled(&self) -> bool;
-    /// The microphone checks for samples kept from an earlier analysis.
     fn select(
         &self,
         meeting: &Meeting,
@@ -298,8 +274,6 @@ pub enum Revisit {
     AnalysisFailed,
 }
 
-/// `MeetingSpeakerIdentityService`. Errors never fail audio transcription: a
-/// caller keeps its transcript and shows [`Self::notice`].
 pub struct VoiceMemory {
     library: Library,
     key: Box<dyn Fn() -> Result<[u8; 32], String> + Send + Sync>,
@@ -309,7 +283,6 @@ pub struct VoiceMemory {
     deleted: Mutex<HashSet<Uuid>>,
     latest: Mutex<HashMap<Uuid, IdentityState>>,
     unverified: Mutex<HashSet<Uuid>>,
-    /// Profile database revision each recent meeting was last matched against.
     matched_revision: Mutex<HashMap<Uuid, u64>>,
 }
 
@@ -347,12 +320,10 @@ impl VoiceMemory {
         Ok(store)
     }
 
-    /// The latest problem, if any.
     pub fn notice(&self) -> Option<String> {
         self.notice.lock().as_ref().map(|(_, text)| text.clone())
     }
 
-    /// The latest problem to show beside this meeting's speakers.
     pub fn notice_for(&self, meeting_id: Uuid) -> Option<String> {
         self.notice
             .lock()
@@ -365,7 +336,6 @@ impl VoiceMemory {
         *self.notice.lock() = notice.map(|text| (Some(meeting_id), text));
     }
 
-    /// Why this meeting's speakers weren't identified.
     pub fn note_unavailable(&self, meeting_id: Uuid, failure: &Failure) {
         self.set_notice(
             meeting_id,
@@ -373,7 +343,6 @@ impl VoiceMemory {
         );
     }
 
-    /// A name went on the transcript without teaching a voice.
     pub fn note_not_remembered(&self, meeting_id: Uuid, failure: &Failure) {
         self.set_notice(
             meeting_id,
@@ -383,7 +352,6 @@ impl VoiceMemory {
         );
     }
 
-    /// Whether the saved speaker journal was made for this transcript.
     pub fn matches_transcript(&self, meeting: &Meeting, transcript: &Transcript) -> bool {
         self.state(meeting).is_ok_and(|state| {
             state
@@ -406,8 +374,6 @@ impl VoiceMemory {
         }
     }
 
-    /// The final projection immediately before a transcript write: an
-    /// automatic result finishing after a human correction cannot overwrite it.
     pub fn applying_latest_decision(
         &self,
         transcript: &Transcript,
@@ -434,8 +400,6 @@ impl VoiceMemory {
         self.library.audio(meeting)
     }
 
-    /// Recovers an interrupted sidecar/transcript pair without applying a
-    /// stale ordinal mapping to a different transcription.
     pub fn recover(
         &self,
         meeting: &Meeting,
@@ -459,8 +423,6 @@ impl VoiceMemory {
         Ok(projection(&recovery, transcript))
     }
 
-    /// Names a finished transcription from remembered voices, carrying over
-    /// what people decided before. Returns the transcript to save.
     pub fn process(&self, request: ProcessRequest<'_>) -> Result<Transcript, Failure> {
         let meeting = request.meeting;
         let transcript = request.transcript;
@@ -470,7 +432,6 @@ impl VoiceMemory {
             recording_revision(request.mic, request.system, request.mic.or(request.system))?;
         let usable = timeline(transcript);
         let mut evidence_revision = store.state(meeting)?.evidence_revision;
-        // The sample meeting's synthetic voices are never remembered or matched.
         let mut remembered = !meeting.is_sample();
         let mut database = if remembered {
             store.profiles()?
@@ -510,8 +471,6 @@ impl VoiceMemory {
             next.call_voices_analyzed = Some(CALL_VOICES_VERSION);
             next.suggestions = BTreeMap::new();
             next.analyzed_at = Utc::now();
-            // Legacy aliases have human authority, but only use their old
-            // turns to carry them across retranscription.
             if previous.revision == 0
                 && let Some(old) = request.previous
             {
@@ -585,7 +544,6 @@ impl VoiceMemory {
                     apply_candidates(&candidates, &mut preview, &database.profiles)
                 };
                 next.suggestions.insert(label.to_string(), offered);
-                // Calendar is a fallback only; reliable disagreement is reviewable.
                 let assignment = &mut next.assignments[index];
                 if assignment.name.is_none()
                     && !assignment.origin.is_protected()
@@ -600,8 +558,6 @@ impl VoiceMemory {
                     assignment.origin = Origin::CalendarAutomatic;
                 }
             }
-            // Preserve detached decisions for manual reassignment when a merge
-            // prevents a safe remap. They cannot project onto a current label.
             let retained: HashSet<Uuid> = next.assignments.iter().map(|a| a.id).collect();
             let mut detached: BTreeMap<Uuid, Vec<&Assignment>> = BTreeMap::new();
             for assignment in previous
@@ -627,7 +583,6 @@ impl VoiceMemory {
                 Some(evidence_revision),
             ) {
                 Ok(committed) => {
-                    // The pipeline reapplies this cache right before writing.
                     self.remember_state(&committed);
                     self.unverified.lock().remove(&meeting.id);
                     log::info!(
@@ -652,8 +607,6 @@ impl VoiceMemory {
                     );
                     return Ok(self.applying_latest_decision(transcript, meeting.id));
                 }
-                // Keep durable human choices and historical aliases when a
-                // deletion races processing, but discard all pending evidence.
                 Err(Failure::EvidenceExpired) => {
                     compatible.clear();
                     remembered = false;
@@ -677,8 +630,6 @@ impl VoiceMemory {
         Ok(transcript.clone())
     }
 
-    /// Applies a person's choice and teaches the voice. The returned
-    /// transcript is the one to save.
     pub fn choose(
         &self,
         choice: &Choice,
@@ -779,8 +730,6 @@ impl VoiceMemory {
                         });
                     }
                 } else if let Some(profile_id) = choice.profile_id {
-                    // Choosing a suggested profile is an explicit confirmation
-                    // of that person, including a confirmed local user.
                     let database = store.profiles()?;
                     let wanted = name_key(choice.name.as_deref().unwrap_or(""));
                     let Some(profile) = database.profiles.iter().find(|p| {
@@ -825,8 +774,6 @@ impl VoiceMemory {
                     || a.automatic_disabled != assignment.automatic_disabled
                     || a.is_local_user != assignment.is_local_user)
         }) {
-            // A human distinguished two labels previously inferred to be a
-            // clean split. Preserve that distinction on subsequent remapping.
             assignment.id = Uuid::new_v4();
         }
         if choice.action == DecisionAction::Resume {
@@ -851,8 +798,6 @@ impl VoiceMemory {
             name: choice.name.clone(),
             confirmed_at: Utc::now(),
         };
-        // Revoke an old confirmation before recording a correction. A failure
-        // leaves a visible pending state instead of training on the wrong person.
         if choice.action != DecisionAction::Dismiss && store.profiles_exist() {
             store.revoke(meeting.id, Some(enrollment_speaker), false)?;
         }
@@ -867,7 +812,6 @@ impl VoiceMemory {
         self.remember_state(&committed);
         self.unverified.lock().remove(&meeting.id);
         self.set_notice(meeting.id, None);
-        // Every name the user gives teaches LokalBot that voice.
         if (choice.action == DecisionAction::Assign || choice.action.confirms_identity())
             && !meeting.is_sample()
             && let Some(name) = assignment.name.as_deref()
@@ -902,15 +846,11 @@ impl VoiceMemory {
                 );
             }
         }
-        // Another correction could arrive while enrollment ran.
         let latest = store.state(meeting)?;
         self.remember_state(&latest);
         Ok(self.applying_latest_decision(transcript, meeting.id))
     }
 
-    /// A meeting can be deleted while remembered voices can't be opened (the
-    /// credential store was out of reach, say). Its contributions leave them
-    /// the next time they can.
     pub fn revoke_removed_meetings(&self, meetings: &[Meeting]) {
         if !self
             .library
@@ -939,7 +879,6 @@ impl VoiceMemory {
         }
     }
 
-    /// Expires evidence by the screen retention window, even with capture off.
     pub fn expire(&self, meetings: &[Meeting], retention_days: u32, now: DateTime<Utc>) {
         let root = self.library.paths().root();
         if !meetings.iter().any(|m| {
@@ -963,7 +902,6 @@ impl VoiceMemory {
         Ok(())
     }
 
-    /// Before a meeting is deleted: its contributions leave every profile.
     pub fn prepare_deletion(&self, meeting: &Meeting) -> Result<(), Failure> {
         self.deleted.lock().insert(meeting.id);
         self.latest.lock().remove(&meeting.id);
@@ -1000,8 +938,6 @@ impl VoiceMemory {
         if saved.revision > 0 {
             return saved.assignments.iter().any(is_saved_call_name);
         }
-        // Meetings named before speaker review existed keep their names only
-        // in the transcript.
         access.transcript(meeting).is_some_and(|transcript| {
             transcript
                 .speaker_aliases
@@ -1010,9 +946,6 @@ impl VoiceMemory {
         })
     }
 
-    /// Re-runs identification for a saved transcript, analyzing its call
-    /// track first when needed. Matches become suggestions; nothing is saved
-    /// to the transcript.
     fn reidentify(
         &self,
         meeting: &Meeting,
@@ -1028,7 +961,6 @@ impl VoiceMemory {
         ) else {
             return Revisit::Skipped;
         };
-        // Saved names follow audio turns of the same recording only.
         if saved.revision > 0 {
             let current = recording_revision(audio.mic.as_deref(), audio.system.as_deref(), None);
             if current.ok().as_deref() != Some(saved.audio_revision.as_str()) {
@@ -1074,7 +1006,6 @@ impl VoiceMemory {
         Revisit::Done
     }
 
-    /// Enrolls the call voices the user named in one meeting; returns how many.
     fn enroll_saved_names(&self, meeting: &Meeting) -> usize {
         let Ok(store) = self.store() else { return 0 };
         let Ok(saved) = store.state(meeting) else {
@@ -1114,10 +1045,6 @@ impl VoiceMemory {
         enrolled
     }
 
-    /// Names given before call voices were remembered teach those voices
-    /// once, then recent meetings get suggestions from every remembered voice.
-    /// Saved transcripts never change here: a new name would mark their notes
-    /// for refresh, so the meeting offers the names to apply instead.
     pub fn learn_from_saved_meetings(
         &self,
         meetings: &[Meeting],
@@ -1130,12 +1057,10 @@ impl VoiceMemory {
             .iter()
             .filter(|m| !m.is_sample() && !m.is_live() && self.track_paths(m).system.is_some())
             .collect();
-        // Without the key nothing can open; don't ask the store per meeting.
         if candidates.is_empty() || self.store().is_err() {
             return;
         }
         let (mut analyzed, mut named, mut renamed) = (0, 0, 0);
-        // One failed analysis (no voice model yet) stops analysis for this pass.
         let mut can_analyze = true;
         for meeting in &candidates {
             if !can_analyze || access.cancelled() {
@@ -1195,7 +1120,6 @@ impl VoiceMemory {
     }
 }
 
-/// Why a choice was not applied.
 #[derive(Debug, thiserror::Error)]
 pub enum ChooseError {
     #[error(

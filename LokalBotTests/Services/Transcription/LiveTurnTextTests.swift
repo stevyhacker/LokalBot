@@ -2,9 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// Turn-by-turn live text on this Mac: the preview cuts each track at pauses
-/// and transcribes one turn at a time. Speech detection and the model are
-/// stand-ins; a tone is speech and digital silence is a pause.
 @MainActor
 final class LiveTurnTextTests: XCTestCase {
 
@@ -24,7 +21,6 @@ final class LiveTurnTextTests: XCTestCase {
     }
 
     func testEachPauseDeliversItsTurn() async throws {
-        // 2 s of speech, a pause, 5 s of speech, a pause.
         try write(track(seconds: 12, speech: [(1, 3), (5, 10)]), to: AudioPreviewTee.micFileName)
         var heard: [Double] = []
         start { url, _ in
@@ -37,10 +33,8 @@ final class LiveTurnTextTests: XCTestCase {
 
         XCTAssertEqual(transcriber.lines.map(\.text), ["turn 1", "turn 2"])
         XCTAssertEqual(transcriber.lines.map(\.speaker), ["local", "local"])
-        // A turn starts up to one 256 ms chunk and 0.1 s of padding before its first word.
         XCTAssertEqual(transcriber.lines[0].time, 1, accuracy: 0.4)
         XCTAssertEqual(transcriber.lines[1].time, 5, accuracy: 0.4)
-        // The model was handed each turn alone, not a window across both.
         XCTAssertEqual(heard.count, 2)
         XCTAssertEqual(heard[0], 2, accuracy: 0.8)
         XCTAssertEqual(heard[1], 5, accuracy: 0.8)
@@ -142,7 +136,6 @@ final class LiveTurnTextTests: XCTestCase {
     }
 
     func testATurnStillBeingSpokenIsShownThenReplacedByItsText() async throws {
-        // A short turn, then one that is still going when the file ends.
         let speech: [(Double, Double)] = [(0.5, 1.5), (3, 11)]
         try write(track(seconds: 11, speech: speech), to: AudioPreviewTee.micFileName)
         var calls = 0
@@ -156,7 +149,6 @@ final class LiveTurnTextTests: XCTestCase {
         XCTAssertEqual(transcriber.partials.first?.time ?? 0, 3, accuracy: 0.4)
         XCTAssertEqual(transcriber.partials.first?.text, "answer 2")
 
-        // The speaker stops: the turn's own text takes the partial's place.
         try write(track(seconds: 13, speech: speech), to: AudioPreviewTee.micFileName)
         try await waitUntil { self.transcriber.lines.count == 2 }
         XCTAssertTrue(transcriber.partials.isEmpty)
@@ -194,8 +186,6 @@ final class LiveTurnTextTests: XCTestCase {
         XCTAssertTrue(transcriber.partials.isEmpty)
         XCTAssertEqual(calls, 1, "a turn still being spoken is not uploaded")
     }
-
-    // MARK: - Audio preparation worker
 
     func testWorkerHandsOverWholeChunksOnly() async throws {
         let source = root.appendingPathComponent(AudioPreviewTee.micFileName)
@@ -245,14 +235,11 @@ final class LiveTurnTextTests: XCTestCase {
         } catch {}
     }
 
-    // MARK: - Helpers
-
     private enum TestError: Error { case unavailable, timeout }
 
     private static let fast = LiveMeetingTranscriber.Timing(idlePoll: .milliseconds(2), retryBaseSeconds: 0.002,
                                                             turnPoll: .milliseconds(2))
 
-    /// A tone is speech; anything quieter is a pause.
     private static let toneIsSpeech: LiveMeetingTranscriber.VoiceActivity = { chunk, state in
         let energy = chunk.reduce(Float(0)) { $0 + $1 * $1 } / Float(max(1, chunk.count))
         return (energy.squareRoot() > 0.01 ? 0.95 : 0.02, state)
@@ -264,8 +251,6 @@ final class LiveTurnTextTests: XCTestCase {
         return settings
     }
 
-    /// Starts a preview from the beginning of the recording: turn by turn,
-    /// polling every 2 ms, with a tone for speech, unless told otherwise.
     private func start(settings: AppSettings? = nil,
                        timing: LiveMeetingTranscriber.Timing? = nil,
                        detectSpeech: LiveMeetingTranscriber.SpeechDetector? = nil,
@@ -289,7 +274,6 @@ final class LiveTurnTextTests: XCTestCase {
         return Double(file.length) / file.processingFormat.sampleRate
     }
 
-    /// Silence with a 400 Hz tone wherever someone speaks.
     private func track(seconds: Double, speech: [(Double, Double)]) -> [Float] {
         var samples = [Float](repeating: 0, count: Int(seconds * rate))
         for (from, to) in speech {
@@ -310,8 +294,6 @@ final class LiveTurnTextTests: XCTestCase {
             AVLinearPCMIsBigEndianKey: false,
             AVLinearPCMIsNonInterleaved: true,
         ]
-        // Written beside the track and moved into place, so a preview that
-        // is already running never opens a half-written file.
         let draft = root.appendingPathComponent("draft-\(UUID().uuidString).caf")
         do {
             let file = try AVAudioFile(forWriting: draft, settings: settings,

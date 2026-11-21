@@ -1,21 +1,5 @@
 import Foundation
 
-/// Qwen3-ASR on the bundled llama.cpp server, both tiers: 1.7B
-/// (`LlamaServerRole.qwenASR`) and 0.6B (`LlamaServerRole.qwenASRCompact`).
-///
-/// Benchmarks/transcribe/QwenLlamaCpp measured ggml-org's Q8_0 GGUFs against
-/// speech-swift's MLX builds on identical windows:
-/// - 1.7B: AMI WER 17.76% vs 17.80%, Serbian with `sr` and a vocabulary list
-///   12.4% vs 13.4%, about 10–17% slower, a 2.3 GB server instead of up to
-///   8.5 GB of MLX allocations.
-/// - 0.6B (against MLX 4-bit): AMI WER 19.47% vs 20.90%, cpWER −0.74, FLEURS
-///   3–4 points better and Serbian 11 points better, about 30% slower, a
-///   1.6 GB server instead of a 2.5 GB process.
-///
-/// llama-server's own `/v1/audio/transcriptions` is not used: it puts the
-/// language in a user instruction, ignores the system turn and leaves the
-/// `language X<asr_text>` prefix in the text. Each window goes to `/completion`
-/// with speech-swift's prompt instead, token for token.
 enum QwenLlamaASR {
     struct File: Sendable, Equatable {
         let name: String
@@ -23,7 +7,6 @@ enum QwenLlamaASR {
         let sha256: String
     }
 
-    /// One tier's pinned GGUF pair, its server role, and the MLX weights it replaced.
     struct Weights: Sendable, Equatable {
         let repository: String
         let revision: String
@@ -31,7 +14,6 @@ enum QwenLlamaASR {
         let projector: File
         let folderName: String
         let role: LlamaServerRole
-        /// The speech-swift MLX snapshot this tier used before (Hub-style folder).
         let legacyMLXRepository: String
 
         var files: [File] { [model, projector] }
@@ -55,14 +37,12 @@ enum QwenLlamaASR {
             files.allSatisfy { ModelFileValidator.looksLikeGGUF(url(for: $0, appSupport: appSupport)) }
         }
 
-        /// The MLX weights this tier replaced, deleted once the GGUFs are in.
         func legacyMLXDirectory(appSupport: URL) -> URL {
             QwenASREngine.hubStyleCacheDir(
                 base: appSupport.appendingPathComponent("qwen3-asr-models", isDirectory: true),
                 modelID: legacyMLXRepository)
         }
 
-        /// The tier's llama-server, as `QwenASREngine` starts it.
         func makeServer(projector: URL) -> LlamaServer {
             LlamaServer(
                 role: role, contextTokens: QwenLlamaASR.contextTokens,
@@ -71,8 +51,6 @@ enum QwenLlamaASR {
                 runtimeAllowanceBytes: 768 * 1_048_576)
         }
 
-        /// Fetches both GGUFs through the shared download stack (mirrors, ranged
-        /// parts, SHA-256 verification) and installs them atomically.
         func prepareFiles(appSupport: URL, progress: ModelPreparationProgressHandler?) async throws -> (model: URL, projector: URL) {
             try FileManager.default.createDirectory(at: modelRoot(appSupport: appSupport),
                                                     withIntermediateDirectories: true)
@@ -98,7 +76,6 @@ enum QwenLlamaASR {
         }
     }
 
-    // Source: Hugging Face tree API at these revisions (LFS oids).
     static let accuracy = Weights(
         repository: "ggml-org/Qwen3-ASR-1.7B-GGUF",
         revision: "36a678687ba7d07a74ca70ccb0e36902e005fb80",
@@ -119,27 +96,18 @@ enum QwenLlamaASR {
         folderName: "Qwen3-ASR-0.6B-Q8_0", role: .qwenASRCompact,
         legacyMLXRepository: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit")
 
-    /// llama.cpp randomizes its media marker per process unless this is set;
-    /// the prompt must contain the server's marker exactly once.
     static let mediaMarker = "<__media__>"
     static let serverEnvironment = ["LLAMA_MEDIA_MARKER": mediaMarker]
 
-    /// A 30 s merged window is about 390 audio tokens, plus at most 768
-    /// generated tokens and the vocabulary context.
     static let contextTokens = 4_096
-    /// The default 8 GiB host prompt cache grew the benchmark server to 14 GB.
     static let serverArguments = ["--parallel", "1", "--cache-ram", "256"]
 
-    /// speech-swift's Qwen3ASRModel prompt: system = context, user = audio
-    /// (mtmd wraps the marker in <|audio_start|>/<|audio_end|>), assistant =
-    /// optional "language X", then <asr_text>.
     static func prompt(language: String?, context: String?) -> String {
         "<|im_start|>system\n\(context ?? "")<|im_end|>\n<|im_start|>user\n\(mediaMarker)<|im_end|>\n"
             + "<|im_start|>assistant\n\(language.map { "language \($0)" } ?? "")<asr_text>"
     }
 
     static func completionURL(serverBaseURL: URL) -> URL {
-        // `LlamaServer.baseURL` ends in /v1; /completion lives at the root.
         serverBaseURL.deletingLastPathComponent().appendingPathComponent("completion")
     }
 
@@ -156,9 +124,6 @@ enum QwenLlamaASR {
                 "prompt_string": prompt(language: language, context: context),
                 "multimodal_data": [floatWAV(samples, sampleRate: sampleRate).base64EncodedString()],
             ],
-            // Greedy with no penalties, like speech-swift. llama.cpp has no
-            // n-gram block; the app never enables speech-swift's either (merged
-            // windows switch it off, and ≤15 s windows never reach it).
             "n_predict": maxTokens, "temperature": 0, "top_k": 1, "samplers": ["top_k"],
             "repeat_penalty": 1.0, "cache_prompt": false, "stream": false,
         ]
@@ -166,8 +131,6 @@ enum QwenLlamaASR {
         return request
     }
 
-    /// Keeps what follows <asr_text> when the model emits it again after
-    /// detecting the language itself, as speech-swift does.
     static func transcript(fromCompletion data: Data) throws -> String {
         guard let object = try JSONSerialization.jsonObject(with: data) as? [String: Any],
               let content = object["content"] as? String else {
@@ -180,7 +143,6 @@ enum QwenLlamaASR {
         return text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// 16 kHz mono IEEE-float WAV, so the server hears the exact samples.
     static func floatWAV(_ samples: [Float], sampleRate: Int) -> Data {
         var data = Data()
         func u32(_ value: UInt32) { withUnsafeBytes(of: value.littleEndian) { data.append(contentsOf: $0) } }
@@ -193,8 +155,6 @@ enum QwenLlamaASR {
         samples.withUnsafeBufferPointer { data.append(UnsafeBufferPointer(start: $0.baseAddress, count: $0.count)) }
         return data
     }
-
-    // MARK: - Download
 
     fileprivate static func downloadIfNeeded(_ file: File, from source: URL, to destination: URL, status: String,
                                              progress: ModelPreparationProgressHandler?) async throws {

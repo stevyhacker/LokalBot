@@ -1,5 +1,3 @@
-//! `transcript.json` (`LokalBot/Models/Transcription/Transcript.swift`, `SpeakerAttribution.swift`).
-
 use std::collections::BTreeMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -11,10 +9,8 @@ pub struct Transcript {
     pub segments: Vec<Segment>,
     #[serde(default)]
     pub engine: String,
-    /// Canonical speaker key (trimmed, lowercase) to the name the user gave it.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub speaker_aliases: BTreeMap<String, String>,
-    /// Canonical speaker key to an opaque calendar participant ID.
     #[serde(
         default,
         skip_serializing_if = "BTreeMap::is_empty",
@@ -28,10 +24,8 @@ pub struct Transcript {
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Segment {
-    /// Seconds from the start of the recording.
     pub start: f64,
     pub end: f64,
-    /// `me`/`them` (legacy), `local`/`them`, or diarized `local N`/`them N`.
     pub speaker: String,
     pub text: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -57,13 +51,9 @@ pub struct SpeakerAttribution {
     pub method: AttributionMethod,
 }
 
-/// Settings → "My microphone is me" (`SpeakerAttribution.microphoneIsUser`).
-/// One value for the whole process, as on macOS, so the meeting view,
-/// `transcript.md`, search and Ask all label microphone speech the same way.
 static MICROPHONE_IS_USER: AtomicBool = AtomicBool::new(true);
 
 impl SpeakerAttribution {
-    /// Whether this speech can be confirmed as one person (`canConfirmIdentity`).
     pub fn can_confirm_identity(&self) -> bool {
         matches!(
             self.method,
@@ -77,13 +67,10 @@ impl SpeakerAttribution {
             ))
     }
 
-    /// On by default: the personal microphone belongs to this computer's user.
     pub fn microphone_is_user() -> bool {
         MICROPHONE_IS_USER.load(Ordering::Relaxed)
     }
 
-    /// Shared-room recordings turn it off, so unconfirmed microphone voices
-    /// stay unidentified instead of being labelled as the user.
     pub fn set_microphone_is_user(value: bool) {
         MICROPHONE_IS_USER.store(value, Ordering::Relaxed);
     }
@@ -144,14 +131,10 @@ pub enum EchoStatus {
 }
 
 impl Transcript {
-    /// Trimmed, lowercased key used for aliases and colors.
     pub fn canonical_speaker_key(speaker: &str) -> String {
         speaker.trim().to_lowercase()
     }
 
-    /// Default names when no alias exists (`Transcript.defaultSpeakerName`):
-    /// Them, Me, Local speaker, Speaker unclear; anything else capitalized
-    /// ("them 2" → "Them 2").
     pub fn default_speaker_name(speaker: &str) -> String {
         let trimmed = speaker.trim();
         if trimmed.is_empty() {
@@ -177,13 +160,10 @@ impl Transcript {
         }
     }
 
-    /// A segment's attribution, or the legacy one implied by its label, with
-    /// the "my microphone is me" default applied (`resolvedAttribution`).
     pub fn resolved_attribution(segment: &Segment) -> SpeakerAttribution {
         Self::resolved_attribution_with(segment, SpeakerAttribution::microphone_is_user())
     }
 
-    /// [`Self::resolved_attribution`] for a given "my microphone is me".
     pub fn resolved_attribution_with(
         segment: &Segment,
         microphone_is_user: bool,
@@ -221,8 +201,6 @@ impl Transcript {
         attribution
     }
 
-    /// One identity for every segment of a speaker key, else unresolved;
-    /// overlapping speech and suspected echo never decide it.
     pub fn speaker_identity(&self, key: &str) -> SpeakerIdentity {
         let mut identities = self
             .segments
@@ -256,14 +234,11 @@ impl Transcript {
         }
     }
 
-    /// Display name for a speaker: the user's alias, "Me" for the user's own
-    /// voice, else the default name (`displaySpeaker(for:)`).
     pub fn speaker_name(&self, speaker: &str) -> String {
         let key = Self::canonical_speaker_key(speaker);
         self.name_for_key(&key, self.speaker_identity(&key))
     }
 
-    /// Every speaker key's display name, computed once (`speakerRoster`).
     pub fn speaker_roster(&self) -> std::collections::HashMap<String, String> {
         let mut identities: std::collections::HashMap<String, Option<SpeakerIdentity>> =
             std::collections::HashMap::new();
@@ -292,8 +267,6 @@ impl Transcript {
             .collect()
     }
 
-    /// Whether every turn of a speaker may be confirmed as one person
-    /// (`canConfirmSpeaker`): mixed voices and suspected echo never can.
     pub fn can_confirm_speaker(&self, speaker: &str) -> bool {
         let key = Self::canonical_speaker_key(speaker);
         let mut turns = self
@@ -305,8 +278,6 @@ impl Transcript {
             && turns.all(|s| Self::resolved_attribution(s).can_confirm_identity())
     }
 
-    /// Records who a speaker is (`confirmSpeaker`). `None` withdraws a
-    /// confirmation and returns the speaker to its diarization identity.
     pub fn confirm_speaker(&mut self, speaker: &str, is_user: Option<bool>) {
         let key = Self::canonical_speaker_key(speaker);
         for segment in &mut self.segments {
@@ -331,8 +302,6 @@ impl Transcript {
         }
     }
 
-    /// Sets or clears a speaker's name (`setSpeakerAlias`). A name equal to
-    /// the speaker's default is no name.
     pub fn set_speaker_alias(
         &mut self,
         alias: Option<&str>,
@@ -370,13 +339,6 @@ impl Transcript {
         }
     }
 
-    /// Carries the names the user gave speakers in `previous`, an earlier
-    /// transcription of the same audio, onto this one
-    /// (`SpeakerIdentityResolver.remap`). Diarization labels can change
-    /// between runs, so a speaker takes a name by time, not by label: at
-    /// least 80% of its speech must overlap one named speaker on the same
-    /// track, and no other named speaker. Ambiguous and unnamed speakers keep
-    /// their defaults, so a name the user removed stays removed.
     pub fn carry_speaker_names_from(&mut self, previous: &Transcript) {
         let named: Vec<_> = previous
             .speaker_turns()
@@ -417,8 +379,6 @@ impl Transcript {
         }
     }
 
-    /// Each speaker key's track and merged speaking time
-    /// (`SpeakerAudioTurn`, with `legacySource` for unattributed segments).
     fn speaker_turns(&self) -> BTreeMap<String, (AttributionSource, Vec<(f64, f64)>)> {
         let mut turns: BTreeMap<String, (AttributionSource, Vec<(f64, f64)>)> = BTreeMap::new();
         for segment in &self.segments {
@@ -451,7 +411,6 @@ impl Transcript {
         turns
     }
 
-    /// One `transcript.md` entry, or `None` for a segment without text.
     pub fn markdown_line(
         segment: &Segment,
         roster: &std::collections::HashMap<String, String>,
@@ -472,7 +431,6 @@ impl Transcript {
         ))
     }
 
-    /// `segment-%04d-%010lld-%010lld`: index, start ms, end ms.
     pub fn segment_id(index: usize, segment: &Segment) -> String {
         format!(
             "segment-{:04}-{:010}-{:010}",
@@ -482,7 +440,6 @@ impl Transcript {
         )
     }
 
-    /// Text with Whisper-style `<|…|>` control tokens removed and whitespace collapsed.
     pub fn display_text(text: &str) -> String {
         let mut out = String::with_capacity(text.len());
         let mut rest = text;
@@ -499,7 +456,6 @@ impl Transcript {
         out.split_whitespace().collect::<Vec<_>>().join(" ")
     }
 
-    /// `transcript.md`: `**[HH:MM:SS] Name:** text`, blank-line separated.
     pub fn markdown(&self) -> String {
         let roster = self.speaker_roster();
         self.segments
@@ -539,7 +495,6 @@ impl SpeakerAttribution {
     }
 }
 
-/// Seconds two sorted, disjoint range lists have in common.
 fn overlap_seconds(a: &[(f64, f64)], b: &[(f64, f64)]) -> f64 {
     let (mut i, mut j, mut total) = (0, 0, 0.0);
     while i < a.len() && j < b.len() {
@@ -607,8 +562,6 @@ mod tests {
             .speaker_aliases
             .insert("local 1".into(), "Marko".into());
 
-        // Diarization swapped the labels and found a short speaker that only
-        // partly overlaps Ana.
         let mut next = Transcript {
             segments: vec![
                 segment(0.0, 10.0, "them 2", System),
@@ -638,9 +591,7 @@ mod tests {
             .insert("them 1".into(), "Ana".into());
         let mut next = Transcript {
             segments: vec![
-                // Half of this speaker's time is new speech.
                 segment(5.0, 15.0, "them 1", System),
-                // Same time, but the microphone track.
                 segment(0.0, 10.0, "local 1", Microphone),
             ],
             ..Default::default()
@@ -648,7 +599,6 @@ mod tests {
         next.carry_speaker_names_from(&previous);
         assert!(next.speaker_aliases.is_empty());
 
-        // An alias the user already gave this transcript wins.
         let mut renamed = previous.clone();
         renamed
             .speaker_aliases

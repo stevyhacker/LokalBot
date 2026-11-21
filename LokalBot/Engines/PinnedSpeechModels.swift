@@ -1,8 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// Prepare the reviewed snapshot ourselves before local dependency loaders
-/// can open it. Both cached bytes and fresh downloads must match the manifest.
 struct PinnedModelSnapshot: Sendable, Decodable {
     struct File: Sendable, Decodable {
         let path: String
@@ -79,16 +77,12 @@ struct PinnedModelSnapshot: Sendable, Decodable {
     }
 
     private func validateDiscoveredFiles(in directory: URL) throws {
-        // The MLX loader discovers safetensors by extension. Do not let an
-        // unreviewed leftover shard silently join the pinned weights.
         let expectedWeights = Set(files.filter { $0.path.hasSuffix(".safetensors") }.map(\.path))
         if !expectedWeights.isEmpty {
             let actualWeights = Set(try FileManager.default.contentsOfDirectory(atPath: directory.path)
                 .filter { $0.hasSuffix(".safetensors") })
             guard actualWeights == expectedWeights else { throw SnapshotError.unexpectedWeights }
         }
-        // CoreML consumes whole compiled directories, including any files not
-        // named in the manifest. Reject leftovers inside those components.
         let components = Set(files.compactMap { file in
             file.path.split(separator: "/").first.map(String.init)
         }.filter { $0.hasSuffix(".mlmodelc") })
@@ -150,8 +144,6 @@ struct PinnedModelSnapshot: Sendable, Decodable {
 
     private static func destination(for path: String, in directory: URL) throws -> URL {
         guard safePath(path) else { throw SnapshotError.invalidPath }
-        // The storage root may itself be relocated by the user. Once resolved,
-        // no model-owned child may redirect a read or write through a symlink.
         var destination = directory.standardizedFileURL.resolvingSymlinksInPath()
         for component in path.split(separator: "/") {
             destination.appendPathComponent(String(component))
@@ -179,12 +171,7 @@ struct PinnedModelSnapshot: Sendable, Decodable {
     }
 }
 
-// Source: Hugging Face model metadata, including immutable commit and LFS/Git digests.
 extension PinnedModelSnapshot {
-    /// speech-swift's CoreML Qwen3 forced aligner (INT8-palettized encoder and
-    /// decoder, fp16 embedding table). It times the words of a whole-track
-    /// transcript for speaker attribution. Only the compiled `.mlmodelc`
-    /// bundles are fetched, so loading never compiles a package.
     static let qwenAligner = Self(repository: "aufklarer/Qwen3-ForcedAligner-0.6B-CoreML-INT8", revision: "a9d6ec64612e3d764cd0addfac0749e43b72dc07", files: [
         .init(path: "audio_encoder.mlmodelc/analytics/coremldata.bin", bytes: 243,
               digest: "c3cff651be40392d81b73d1c5a449a43a68eb7f5d4a642f0a2efaf315aa4d17e", isGitBlob: false),

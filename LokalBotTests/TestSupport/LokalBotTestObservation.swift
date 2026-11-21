@@ -1,13 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The test bundle's principal class (`NSPrincipalClass` in project.yml), so
-/// XCTest creates it before the first test runs.
-///
-/// Unit tests share the app's code but must stay off the network. A model
-/// download a test reaches is refused (`UITestRuntime.refuseDownloadInUnitTests`)
-/// and fails that test here. Background work can outlive the test that started
-/// it, so a refusal can also surface in the next test to finish.
 final class LokalBotTestObservation: NSObject, XCTestObservation {
     override init() {
         super.init()

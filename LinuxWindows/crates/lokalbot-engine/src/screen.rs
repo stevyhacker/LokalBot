@@ -1,22 +1,3 @@
-//! Screen context (`ScreenshotService.swift`): when the user turns it on,
-//! day memory also keeps the focused window's visible text and, in "Text +
-//! visual context", an encrypted image of it.
-//!
-//! Captures follow interaction boundaries: app and window changes from the
-//! day-memory sampler, a pause after typing or pointer input, a clipboard
-//! change, an idle interval (Settings: "at least every N min"), and "Capture
-//! Screen Now". Event triggers share a 20 s cooldown and unchanged screens
-//! are skipped. Text comes from accessibility first, then on-device OCR when
-//! it is thin; secrets are redacted before anything is stored, and a capture
-//! with a redaction keeps no pixels. Nothing is captured while tracking is
-//! off, day memory is paused, the session is locked, or LokalBot, an
-//! excluded app or site, a private window or a password field is in front.
-//!
-//! Differences from macOS: "Text context" may read the window's pixels in
-//! memory for OCR when accessibility has little text (the pixels are never
-//! stored), because many Linux and Windows apps expose less through
-//! accessibility; and private browser windows are skipped.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -39,30 +20,18 @@ use lokalbot_platform::{ActivitySource, SampleDisposition};
 
 use crate::{EngineEvent, ScreenStatus, Shared};
 
-/// Minimum time between event-driven captures (`ScreenCapturePolicy.eventCooldown`).
 const EVENT_COOLDOWN: Duration = Duration::from_secs(20);
-/// Frames during a meeting come at most once a minute.
 const MEETING_CAPTURE_COOLDOWN: Duration = Duration::from_secs(60);
-/// Inactivity after which nothing is captured.
 const IDLE_LIMIT_SECONDS: f64 = 180.0;
-/// The first capture after screen context turns on.
 const FIRST_CAPTURE_DELAY: Duration = Duration::from_secs(20);
-/// How often the idle-interval trigger is considered.
 const INTERVAL_TICK: Duration = Duration::from_secs(60);
-/// Longest side of a processed frame (`ScreenshotCaptureDimensions.maximumDimension`).
 const MAX_DIMENSION: u32 = 1_500;
-/// Most screen text kept per capture.
 const MAX_TEXT_CHARS: usize = 36_000;
-/// Accessibility reads are bounded like `ScreenAccessibilityReader`.
 const READ_DEADLINE: Duration = Duration::from_millis(250);
-/// A tab switch or page load can change the window during a read.
 const SETTLE_DELAY: Duration = Duration::from_millis(750);
-/// "Capture Screen Now" waits this long for a window other than LokalBot.
 const MANUAL_WAIT: Duration = Duration::from_secs(10);
 const JPEG_QUALITY: u8 = 80;
 
-/// What caused a capture; the raw value is `screenshots.capture_trigger`
-/// (`ScreenCaptureTrigger`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Trigger {
     AppSwitch,
@@ -86,10 +55,6 @@ impl Trigger {
     }
 }
 
-/// Rate limiting (`ScreenCapturePolicy`): event triggers respect the
-/// cooldown, the interval trigger waits for the idle window, manual always
-/// wins. `last_check` is also set when a capture was skipped as unchanged or
-/// private, so those do not retry on every event.
 #[derive(Debug, Default)]
 pub(crate) struct CapturePolicy {
     last_check: Option<Instant>,
@@ -118,7 +83,6 @@ impl CapturePolicy {
     }
 }
 
-/// The idle interval from Settings, at least a minute.
 fn idle_interval(settings: &Settings) -> Duration {
     Duration::from_secs_f64((settings.screenshot_interval_minutes * 60.0).max(60.0))
 }
@@ -133,8 +97,6 @@ fn captures_text(settings: &Settings) -> bool {
         && settings.screen_context_capture_mode != ScreenContextMode::ActivityOnly
 }
 
-/// The settings a capture was started under (`ScreenshotCaptureConsent`).
-/// Anything that changes them while a capture runs discards it.
 #[derive(Clone, Debug, PartialEq)]
 struct Consent {
     tracking: bool,
@@ -160,18 +122,11 @@ impl Consent {
     }
 }
 
-// --------------------------------------------------------------- processing
-
-/// One frame to turn into stored context (`ScreenshotProcessingRequest`).
 pub(crate) struct Request<'a> {
     pub image: &'a CapturedImage,
     pub trigger: Trigger,
-    /// Visible accessibility text, already redacted.
     pub accessible_text: &'a str,
-    /// Redactions made so far (text, title, address, document name).
     pub prior_redactions: usize,
-    /// Whether this capture may keep pixels at all ("Text + visual context"
-    /// with an image key).
     pub may_keep_pixels: bool,
 }
 
@@ -184,7 +139,6 @@ pub(crate) struct Processed {
     pub privacy_redactions: usize,
     pub used_ocr: bool,
     pub perceptual_hash: u64,
-    /// The bounded frame, for encoding when `keep_pixels`.
     pub frame: CapturedImage,
 }
 
@@ -194,9 +148,6 @@ pub(crate) enum Outcome {
     Stored(Box<Processed>),
 }
 
-/// Hash, text-source choice, OCR and redaction in one order
-/// (`ScreenshotProcessingWorker`). The content hash is compared with the
-/// last frame that was stored, so an identical screen is skipped.
 #[derive(Default)]
 pub(crate) struct Processor {
     last_content_hash: Option<[u8; 32]>,
@@ -250,8 +201,6 @@ impl Processor {
             (ocr, format!("ocr{}", suffix(ocr_count > 0)))
         };
         let privacy_redactions = accessibility_redactions + ocr_count;
-        // A detected credential keeps only its redacted text: dropping the
-        // pixels is safer than guessing where on screen it was.
         let keep_pixels = request.may_keep_pixels && privacy_redactions == 0;
         Outcome::Stored(Box::new(Processed {
             content_hash,
@@ -265,7 +214,6 @@ impl Processor {
         }))
     }
 
-    /// Records a frame as stored once its rows commit.
     pub(crate) fn commit(&mut self, content_hash: [u8; 32]) {
         self.last_content_hash = Some(content_hash);
     }
@@ -275,7 +223,6 @@ fn redaction(text: &str) -> (String, usize) {
     lokalbot_ai::sanitize::redaction(text)
 }
 
-/// SHA-256 of the frame's size and pixels (`ScreenshotImageProcessing.contentHash`).
 fn content_hash(frame: &CapturedImage) -> [u8; 32] {
     let mut hasher = Sha256::new();
     hasher.update(u64::from(frame.width).to_le_bytes());
@@ -284,8 +231,6 @@ fn content_hash(frame: &CapturedImage) -> [u8; 32] {
     hasher.finalize().into()
 }
 
-/// A text-only capture's identity, so an unchanged window is not stored
-/// again (`ScreenshotService.storeTextContext`).
 fn text_fingerprint(app: &str, title: &str, text: &str) -> [u8; 32] {
     Sha256::digest(format!("{app}\u{1f}{title}\u{1f}{text}").as_bytes()).into()
 }
@@ -310,8 +255,6 @@ fn encode_jpeg(frame: &CapturedImage) -> Result<Vec<u8>> {
     Ok(out)
 }
 
-// ------------------------------------------------------------------- worker
-
 enum Message {
     Boundary { app_changed: bool },
     CaptureNow,
@@ -319,7 +262,6 @@ enum Message {
     Stop,
 }
 
-/// Handle to the capture worker.
 pub(crate) struct ScreenContext {
     sender: Sender<Message>,
     receiver: Mutex<Option<Receiver<Message>>>,
@@ -336,7 +278,6 @@ impl ScreenContext {
         }
     }
 
-    /// Called by the day-memory sampler when a new activity block begins.
     pub(crate) fn boundary_hook(&self) -> impl Fn(bool) + Send + 'static {
         let sender = self.sender.clone();
         move |app_changed| {
@@ -344,7 +285,6 @@ impl ScreenContext {
         }
     }
 
-    /// Starts the worker; `paused` is day memory's pause switch.
     pub(crate) fn start(&self, paused: Arc<AtomicBool>) {
         let Some(receiver) = self.receiver.lock().take() else {
             return;
@@ -362,8 +302,6 @@ impl ScreenContext {
         let _ = self.sender.send(Message::CaptureNow);
     }
 
-    /// Closes the capture devices and opens them afresh on the next look, and asks
-    /// the credential store for the image key again.
     pub(crate) fn restart(&self) {
         let _ = self.sender.send(Message::Restart);
     }
@@ -373,13 +311,11 @@ impl ScreenContext {
     }
 }
 
-/// Why a capture attempt kept nothing. `Note` also starts the cooldown.
 enum Skip {
     Quiet(&'static str),
     Note(String),
 }
 
-/// What was stored, for the log and the status.
 struct Stored {
     app: String,
     text_source: String,
@@ -399,7 +335,6 @@ struct Worker {
     paused: Arc<AtomicBool>,
     devices: Option<Devices>,
     ocr: Option<lokalbot_ai::ocr::OcrEngine>,
-    /// What recognition could do when last looked.
     ocr_status: Option<lokalbot_ai::ocr::OcrStatus>,
     processor: Processor,
     policy: CapturePolicy,
@@ -412,7 +347,6 @@ struct Worker {
     last_interval_tick: Instant,
     manual_until: Option<Instant>,
     last_probe: Option<Instant>,
-    /// When a frame was last kept for the meeting being recorded.
     last_meeting_capture: Option<Instant>,
 }
 
@@ -524,8 +458,6 @@ impl Worker {
         self.enabled_since = None;
     }
 
-    /// Opens or releases the capture devices as screen context turns on or
-    /// off, and publishes the status when it changes.
     fn refresh(&mut self, settings: &Settings) {
         let enabled = captures_text(settings);
         if enabled && self.devices.is_none() {
@@ -548,7 +480,6 @@ impl Worker {
         } else if !enabled && self.devices.is_some() {
             self.release_devices();
         }
-        // The model files and the backend's limits change rarely.
         if self
             .last_probe
             .is_none_or(|at| at.elapsed() >= Duration::from_secs(5))
@@ -572,8 +503,6 @@ impl Worker {
         }
     }
 
-    /// A pending "Capture Screen Now" runs once a window other than
-    /// LokalBot is in front, or gives up after [`MANUAL_WAIT`].
     fn poll_manual(&mut self, settings: &Settings) {
         let Some(until) = self.manual_until else {
             return;
@@ -654,7 +583,6 @@ impl Worker {
         self.refresh(settings);
     }
 
-    /// `ScreenshotService.captureIfAppropriate`.
     fn capture(&mut self, settings: &Settings, trigger: Trigger) -> Result<Stored, CaptureError> {
         use CaptureError::Skipped;
         if !captures_text(settings) {
@@ -665,7 +593,6 @@ impl Worker {
         }
         let recording = self.shared.recording_active.load(Ordering::Relaxed);
         if trigger != Trigger::Manual {
-            // Off by default: low-frequency frames linked to the meeting.
             if recording && !(settings.meeting_visual_context_enabled && captures_pixels(settings))
             {
                 return Err(Skipped(Skip::Quiet("a meeting is being recorded")));
@@ -681,8 +608,6 @@ impl Worker {
                 return Err(Skipped(Skip::Quiet("dictation has priority")));
             }
         }
-        // X11 cannot leave the ghost-text window out of a screen grab (Windows
-        // excludes it from capture), so no capture while a suggestion shows.
         if cfg!(target_os = "linux")
             && settings.cotyping_enabled
             && self.shared.autocomplete_visible.load(Ordering::Relaxed)
@@ -810,7 +735,6 @@ impl Worker {
         }
 
         if image_key.is_none() && !ocr_available {
-            // Accessibility text only (`storeTextContext`).
             let text: String = accessible_text.chars().take(MAX_TEXT_CHARS).collect();
             if text.trim().is_empty() {
                 return Err(Skipped(Skip::Note("no readable text".into())));
@@ -850,7 +774,6 @@ impl Worker {
             });
         }
 
-        // Pixels are needed: for the image, or for OCR.
         let devices = self
             .devices
             .as_mut()
@@ -859,10 +782,6 @@ impl Worker {
             .capture
             .capture(&window)
             .map_err(CaptureError::Failed)?;
-        // The window, its address or its password-field state can change
-        // while the pixels are read; any change discards them. The activity
-        // sample is read again too: some backends (the portal) cannot name
-        // the window they captured.
         let recheck = read_accessibility(devices.reader.as_mut(), &window, false)?;
         let same_app = devices
             .activity
@@ -936,7 +855,6 @@ impl Worker {
             file = Some(path);
         }
         if let Err(err) = self.shared.library.insert_screen_capture(&capture) {
-            // A file is not a capture until its rows commit.
             if let Some(path) = file
                 && let Err(cleanup) = std::fs::remove_file(&path)
             {
@@ -963,8 +881,6 @@ impl Worker {
         })
     }
 
-    /// The image key, created on first use. Without a credential store no
-    /// image is kept; that is reported once in the status.
     fn image_key(&mut self) -> Option<[u8; IMAGE_KEY_BYTES]> {
         if self.image_key.is_none() {
             let key = crate::secrets::screen_image_key(true).map_err(|err| format!("{err:#}"));
@@ -983,8 +899,6 @@ impl Worker {
     }
 }
 
-/// The OCR engine, loaded on first use and kept while screen context is on and
-/// this computer still calls for it.
 fn load_ocr<'a>(
     slot: &'a mut Option<lokalbot_ai::ocr::OcrEngine>,
     paths: &lokalbot_core::LibraryPaths,
@@ -1007,9 +921,6 @@ enum CaptureError {
     Failed(anyhow::Error),
 }
 
-/// Reads accessibility once, and once more after a moment when the window
-/// was changing (`lastTextReadFailure(...).isTransient`). `None` when this
-/// desktop or app offers no accessibility; a timeout fails closed.
 fn read_accessibility(
     reader: &mut dyn TextReader,
     window: &FocusedWindow,
@@ -1035,9 +946,6 @@ fn read_accessibility(
     }
 }
 
-/// What is known about the window for [`privacy::permits_content`]. Without
-/// accessibility the focus is unknown and no password field is known to be
-/// visible.
 fn observation(
     sample: &ActivitySample,
     window: &FocusedWindow,
@@ -1070,8 +978,6 @@ fn observation(
     }
 }
 
-/// `ScreenshotWindowFocusValidation.matches`: the same window is still in
-/// front with the same title, address and password-field state.
 fn focus_still_matches(
     window: &FocusedWindow,
     before: Option<&AccessibleWindow>,
@@ -1194,7 +1100,6 @@ mod tests {
         assert_eq!(first.text, "Quarterly report revenue grew");
         assert_eq!(first.text_source, "ocr");
         assert!(first.keep_pixels && first.used_ocr);
-        // Not committed (the rows failed): the same screen may retry.
         assert!(matches!(
             processor.process(&request(&image, Trigger::WindowChange, ""), &mut ocr),
             Outcome::Stored(_)

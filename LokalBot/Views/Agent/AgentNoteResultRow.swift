@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Opens the agent's own file for a note in its default app. LokalBot keeps a
-/// copy for search only and never edits the file.
 @MainActor
 enum AgentNoteOpener {
     static func open(_ hit: AgentNoteHit) {

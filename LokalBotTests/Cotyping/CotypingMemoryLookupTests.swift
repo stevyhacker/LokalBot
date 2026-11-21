@@ -11,8 +11,6 @@ final class CotypingMemoryLookupTests: XCTestCase {
         XCTAssertEqual(CotypingMemoryLookup.finishedWords(of: ""), "")
     }
 
-    /// Typing inside a word asks for nothing new; a finished word that could
-    /// name something does, and only the newest lookup is kept.
     func testOnlyTheNewestLookupForTheFieldIsKept() {
         var lookup = CotypingMemoryLookup()
         let first = CotypingMemoryContext.Query(draft: "Following up on ")
@@ -33,7 +31,6 @@ final class CotypingMemoryLookupTests: XCTestCase {
         lookup.finish(newer, with: found)
         XCTAssertEqual(lookup.snapshot.selection.items.map(\.id), ["a"])
 
-        // Another field never sees this one's facts.
         _ = lookup.begin(anchor: "other field", query: second)
         XCTAssertTrue(lookup.snapshot.selection.items.isEmpty)
     }

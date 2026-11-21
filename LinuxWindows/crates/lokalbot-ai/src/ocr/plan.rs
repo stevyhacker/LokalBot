@@ -1,42 +1,28 @@
-//! Which engine reads, from what this computer has. No I/O here, so both
-//! platforms' rules are tested on either.
-
 use super::languages::{self, Language};
 use super::{OCR_LANGUAGES_ID, OCR_MODEL_ID};
 
-/// The engine that reads now.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Reader {
     None,
     Ocrs,
-    /// The system's `tesseract`, with language data from its own folder or, if
-    /// `library`, from `<library>/models/tesseract`.
     Tesseract {
         library: bool,
         languages: Vec<&'static str>,
     },
-    /// `Windows.Media.Ocr`, with the recognizer of this language tag.
     Windows {
         tag: String,
     },
 }
 
-/// What to do with what this computer has.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Plan {
     pub reader: Reader,
-    /// What the reader reads, where it can say.
     pub reading: Vec<&'static Language>,
-    /// What this app and system want that nothing here reads yet.
     pub missing: Vec<&'static Language>,
-    /// The download that would help, which only the person can start.
     pub download: Option<&'static str>,
-    /// Reading `missing` needs the Tesseract program.
     pub needs_program: bool,
 }
 
-/// What Linux has: the `tesseract` program, the languages it lists, the language
-/// data in the library, and the ocrs models.
 #[derive(Clone, Copy, Debug)]
 pub struct TesseractSetup<'a> {
     pub wanted: &'a [&'static Language],
@@ -46,11 +32,6 @@ pub struct TesseractSetup<'a> {
     pub ocrs: bool,
 }
 
-/// The Linux rules. English with the ocrs models stays with ocrs: Tesseract is
-/// faster there, yet reads coloured interfaces worse (83% against 98% measured).
-/// Anything else goes to Tesseract, which reads it and ocrs can't. Without
-/// Tesseract, or the data it needs, whatever can read does so until the person
-/// downloads the rest.
 pub fn with_tesseract(setup: TesseractSetup<'_>) -> Plan {
     let TesseractSetup {
         wanted,
@@ -96,7 +77,6 @@ pub fn with_tesseract(setup: TesseractSetup<'_>) -> Plan {
         .copied()
         .filter(|language| library.contains(&language.name))
         .collect();
-    // One run reads from one folder, so the fuller one wins.
     let library_is_fuller = in_library.len() > in_system.len();
     let best = if library_is_fuller {
         &in_library
@@ -110,7 +90,6 @@ pub fn with_tesseract(setup: TesseractSetup<'_>) -> Plan {
         .collect();
     let latin_only_with_ocrs = ocrs && best.iter().all(|language| *language == languages::ENGLISH);
     if best.is_empty() || (latin_only_with_ocrs && !missing.is_empty()) {
-        // Data for no wanted language, but English still reads Latin letters.
         if !ocrs && system.iter().any(|name| name == languages::ENGLISH.name) {
             return Plan {
                 reader: Reader::Tesseract {
@@ -143,9 +122,6 @@ pub fn with_tesseract(setup: TesseractSetup<'_>) -> Plan {
     }
 }
 
-/// The Windows rules: the recognizer built into Windows for a language wanted
-/// here, otherwise ocrs, otherwise any recognizer installed, since it needs no
-/// download. Nothing at all offers the ocrs download.
 pub fn with_windows(wanted: &[&'static Language], recognizers: &[String], ocrs: bool) -> Plan {
     let missing: Vec<&'static Language> = wanted
         .iter()
@@ -267,16 +243,13 @@ mod tests {
     #[test]
     fn missing_language_data_is_offered_while_latin_is_read() {
         let russian = wanted("ru", NOTHING);
-        // No ocrs: Tesseract reads what it has.
         let plan = setup(&russian, true, &system(&["eng"]), &[], false);
         assert_eq!(plan.reader, tesseract(false, &["eng"]));
         assert_eq!(plan.download, Some(OCR_LANGUAGES_ID));
         assert_eq!(plan.missing[0].name, "rus");
-        // With ocrs: it stays until the data arrives.
         let plan = setup(&russian, true, &system(&["eng"]), &[], true);
         assert_eq!(plan.reader, Reader::Ocrs);
         assert_eq!(plan.download, Some(OCR_LANGUAGES_ID));
-        // Nothing yet: no engine, and the download is offered.
         let plan = setup(&russian, true, &[], &[], false);
         assert_eq!(plan.reader, Reader::None);
         assert_eq!(plan.download, Some(OCR_LANGUAGES_ID));
@@ -299,14 +272,12 @@ mod tests {
 
     #[test]
     fn accented_latin_prefers_tesseract_over_ocrs() {
-        // ocrs reads only ASCII, so German needs its own data.
         let german = wanted("de", NOTHING);
         let plan = setup(&german, true, &system(&["deu"]), &[], true);
         assert_eq!(plan.reader, tesseract(false, &["deu"]));
         let plan = setup(&german, true, &[], &[], true);
         assert_eq!(plan.reader, Reader::Ocrs);
         assert_eq!(plan.download, Some(OCR_LANGUAGES_ID));
-        // Without ocrs, the English data that came with the program still reads.
         let plan = setup(&german, true, &system(&["eng", "osd"]), &[], false);
         assert_eq!(plan.reader, tesseract(false, &["eng"]));
         assert_eq!(plan.download, Some(OCR_LANGUAGES_ID));

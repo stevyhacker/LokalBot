@@ -1,9 +1,3 @@
-//! One row of the Quick Recall window (`QuickRecallRowModel.swift`,
-//! `QuickRecallRow.swift`): a meeting, a screen moment, a file, a saved agent
-//! note or a command. Line one is the title, a grey qualifier (the app, the
-//! folder, a meeting's length) and when; line two is the matching line,
-//! starting with who said it for a meeting.
-
 use chrono::{DateTime, Local, Utc};
 use gpui_kit::component::v_flex;
 use gpui_kit::prelude::FluentBuilder as _;
@@ -25,31 +19,20 @@ use crate::ui::screen_thumbnail;
 use crate::ui::{self, Ico, result_row};
 use crate::windows::screen_image::ScreenImage;
 
-/// A row's leading tile (`QuickRecallLeadView.size`).
 pub const LEAD_WIDTH: f32 = 44.;
 pub const LEAD_HEIGHT: f32 = 30.;
 
-/// What leads a row.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Lead {
-    /// A screen moment's thumbnail.
     Thumbnail(Box<ScreenMoment>),
-    /// A tile with an icon: a meeting's waveform, a command's icon.
     Symbol(Ico),
-    /// The red dot of Record now.
     Recording,
 }
 
-/// What Return or a click on a row does.
 #[derive(Clone, Debug)]
 pub enum Destination {
     Screen(ScreenMoment),
-    /// A meeting search hit: the transcript at its moment, or the summary.
-    Meeting {
-        id: Uuid,
-        at: Option<f64>,
-    },
-    /// A recent meeting, opened at its start.
+    Meeting { id: Uuid, at: Option<f64> },
     RecentMeeting(Uuid),
     File(FileHit),
     Note(lokalbot_core::agent_notes::NoteHit),
@@ -61,14 +44,10 @@ pub struct RowModel {
     pub id: String,
     pub lead: Lead,
     pub title: String,
-    /// Grey text after the title.
     pub qualifier: Option<String>,
-    /// Who said the matching line, or which part of the meeting it is from.
     pub speaker: Option<String>,
-    /// The matching line, with «matched» words.
     pub snippet: Option<String>,
     pub timestamp: Option<DateTime<Utc>>,
-    /// A command's keyboard shortcut, shown where a result shows when.
     pub shortcut: Option<String>,
     pub saved: bool,
     pub destination: Destination,
@@ -79,7 +58,6 @@ fn non_empty(text: Option<String>) -> Option<String> {
 }
 
 impl RowModel {
-    /// A command's row: its icon, title, detail ("2 open") and shortcut.
     pub fn command(command: PaletteCommand) -> Self {
         Self {
             id: format!("command.{}", command.id),
@@ -99,7 +77,6 @@ impl RowModel {
         }
     }
 
-    /// A meeting found by its words: the best match, led by who said it.
     pub fn meeting(group: &MeetingGroup) -> Self {
         let hit = &group.hits[0];
         let title = group.meeting.display_title();
@@ -130,13 +107,11 @@ impl RowModel {
         }
     }
 
-    /// A recent meeting before anything is typed: its title, length and start.
     pub fn recent_meeting(meeting: &Meeting) -> Self {
         Self {
             id: format!("recent.meeting.{}", meeting.id),
             lead: Lead::Symbol(Ico::AudioLines),
             title: meeting.display_title(),
-            // Nothing while it is still recording.
             qualifier: meeting
                 .ended_at
                 .is_some()
@@ -150,9 +125,6 @@ impl RowModel {
         }
     }
 
-    /// A screen moment: a saved one by its note, otherwise its window. A
-    /// window without a title is named by its app, which is then not said
-    /// twice.
     pub fn screen(moment: &ScreenMoment, snippet: Option<&str>) -> Self {
         let window = if moment.window_title.trim().is_empty() {
             moment.app.clone()
@@ -212,7 +184,6 @@ impl RowModel {
         }
     }
 
-    /// A command's shortcut, or when a result happened.
     fn trailing(&self, now: DateTime<Local>) -> Option<String> {
         self.shortcut
             .clone()
@@ -220,9 +191,6 @@ impl RowModel {
     }
 }
 
-/// What starts a meeting's matching line: the speaker of a transcript line
-/// when the hit names one, otherwise where the words are. A title match
-/// needs neither (`QuickRecallRowModel.meetingLead`).
 pub fn meeting_lead(hit: &search::Hit) -> Option<String> {
     match hit.kind {
         DocKind::Segment => hit
@@ -237,8 +205,6 @@ pub fn meeting_lead(hit: &search::Hit) -> Option<String> {
     }
 }
 
-/// Where in the file the matching line is: a PDF's page, or the time in a
-/// recording or video (`QuickRecallRowModel.fileLead`).
 pub fn file_lead(hit: &FileHit) -> Option<String> {
     if let Some(page) = hit.page {
         return Some(lokalbot_i18n::fill(
@@ -249,14 +215,10 @@ pub fn file_lead(hit: &FileHit) -> Option<String> {
     hit.seconds.map(ui::action_row::short_stamp)
 }
 
-/// The rows of `groups` in list order, which is the keyboard's order.
 pub fn flatten(groups: &[Group<RowModel>]) -> Vec<&RowModel> {
     groups.iter().flat_map(|group| group.rows.iter()).collect()
 }
 
-// ---------------------------------------------------------------- drawing
-
-/// The colors of a row's text: white on the selected row's fill.
 #[derive(Clone, Copy)]
 pub struct RowColors {
     pub strong: Hsla,
@@ -281,8 +243,6 @@ impl RowColors {
     }
 }
 
-/// The matching line's text, how long its "Speaker: " lead is, and where the
-/// matched words are.
 pub fn line_parts(
     speaker: Option<&str>,
     snippet: &str,
@@ -300,8 +260,6 @@ pub fn line_parts(
     (format!("{lead}{text}"), offset, matches)
 }
 
-/// Who said it, then the line with the matched words in bold
-/// (`QuickRecallRowText.matchingLine`).
 pub fn matching_line(speaker: Option<&str>, snippet: &str, strong: Hsla) -> StyledText {
     let (text, lead, matches) = line_parts(speaker, snippet);
     let mut highlights = Vec::new();
@@ -327,8 +285,6 @@ pub fn matching_line(speaker: Option<&str>, snippet: &str, strong: Hsla) -> Styl
     StyledText::new(text).with_highlights(highlights)
 }
 
-/// The two text lines of a row. An answer's sources use the same lines, with
-/// a meeting's time after the title (`accessory`).
 #[allow(clippy::too_many_arguments)]
 pub fn row_text(
     title: &str,
@@ -395,7 +351,6 @@ pub fn row_text(
         })
 }
 
-/// A tile with an icon or the record dot (`QuickRecallLeadView.tile`).
 fn tile(selected: bool, cx: &App) -> Div {
     let lb = cx.lb();
     let white: Hsla = gpui_kit::white();
@@ -415,8 +370,6 @@ fn tile(selected: bool, cx: &App) -> Div {
         })
 }
 
-/// What leads a row: a screen moment's thumbnail (with a badge when it is
-/// saved) or a tile.
 pub fn lead(lead: &Lead, saved: bool, selected: bool, image: Option<ScreenImage>, cx: &App) -> Div {
     let lb = cx.lb();
     let white: Hsla = gpui_kit::white();
@@ -465,8 +418,6 @@ pub fn lead(lead: &Lead, saved: bool, selected: bool, image: Option<ScreenImage>
     }
 }
 
-/// The Return mark at the end of the selected row. Its slot is always
-/// reserved, so selection never reflows a line.
 pub fn return_hint(visible: bool) -> Div {
     div()
         .w(px(14.))
@@ -478,7 +429,6 @@ pub fn return_hint(visible: bool) -> Div {
         })
 }
 
-/// A row's padding, and its fill when it is selected or under the pointer.
 pub fn chrome(id: impl Into<gpui_kit::ElementId>, selected: bool, cx: &App) -> Stateful<Div> {
     let lb = cx.lb();
     h_flex()
@@ -498,7 +448,6 @@ pub fn chrome(id: impl Into<gpui_kit::ElementId>, selected: bool, cx: &App) -> S
         })
 }
 
-/// A result, a recent item or a command.
 pub fn row(row: &RowModel, selected: bool, image: Option<ScreenImage>, cx: &App) -> Stateful<Div> {
     let colors = RowColors::new(selected, cx);
     chrome(
@@ -519,7 +468,6 @@ pub fn row(row: &RowModel, selected: bool, image: Option<ScreenImage>, cx: &App)
     .child(return_hint(selected))
 }
 
-/// A group's heading, with "Show all N" when more were found than are shown.
 pub fn group_header(
     group: &Group<RowModel>,
     on_show_all: impl Fn(&gpui_kit::ClickEvent, &mut gpui_kit::Window, &mut App) + 'static,
@@ -533,7 +481,6 @@ pub fn group_header(
         .items_center()
         .gap(px(8.))
         .pl(px(20.))
-        // Ends where a row's "when" ends.
         .pr(px(44.))
         .pt(px(8.))
         .pb(px(3.))
@@ -566,8 +513,6 @@ pub fn group_header(
         })
 }
 
-/// The quiet row pinned under the results (`QuickRecallAskRow`). Ctrl+Return
-/// asks from anywhere; Return asks once the arrow keys are on this row.
 pub fn ask_row(query: &str, detail: &str, selected: bool, cx: &App) -> Stateful<Div> {
     let lb = cx.lb();
     let colors = RowColors::new(selected, cx);
@@ -708,9 +653,7 @@ mod tests {
         let row = RowModel::screen(&titled, Some("«Delivery» checklist\nEvery «video»"));
         assert_eq!(row.title, "Delivery checklist");
         assert_eq!(row.qualifier.as_deref(), Some("Pages"));
-        // The title is not repeated as the matching line.
         assert_eq!(row.snippet.as_deref(), Some("Every «video»"));
-        // A saved moment is named by its note.
         let saved = ScreenMoment {
             saved_note: Some("Budget for laptops".into()),
             is_saved: true,

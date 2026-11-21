@@ -1,9 +1,3 @@
-//! What Ask decides and shows, without drawing it (`AskRouting.swift`,
-//! `AskPresentation.swift`): where matches sit, what Return does, what an
-//! answer reads, what the sources menu says, how citations group into an
-//! answer's sources list, and which questions an empty page suggests. Nothing
-//! here changes what a question may read beyond `AnswerScope`.
-
 use chrono::{DateTime, Datelike as _, Local, Utc};
 use lokalbot_core::{ChatMessage, ChatRole, QuestionScope};
 use lokalbot_i18n::{interface_directional, mac, mac_count};
@@ -13,33 +7,25 @@ use super::scope::{Offered, Source, Sources};
 use super::search::Facet;
 use crate::ui::citations::CitationSource;
 
-// ------------------------------------------------------------ the page
-
-/// `AskPhase.Page`: a new question has the field mid-page; a conversation
-/// docks it below the thread.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum PageKind {
     NewQuestion,
     Conversation,
 }
 
-/// `AskPhase.MatchesPlacement`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MatchesPlacement {
     UnderField,
     TrayAboveField,
 }
 
-/// `AskPhase`: typing never replaces the conversation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AskPhase {
     pub page: PageKind,
-    /// The field holds text, so its matches are listed.
     pub typing: bool,
 }
 
 impl AskPhase {
-    /// `AskRouter.phase`.
     pub fn new(query: &str, has_messages: bool) -> Self {
         Self {
             page: if has_messages {
@@ -63,8 +49,6 @@ impl AskPhase {
     }
 }
 
-/// `AskIntent.isQuestion`: two or more words ending in "?", or three or more
-/// that start with a question or request word.
 pub fn is_question(query: &str) -> bool {
     const STARTS: &[&str] = &[
         "what",
@@ -113,8 +97,6 @@ pub fn is_question(query: &str) -> bool {
     words.len() >= 3 && STARTS.contains(&lead.as_str())
 }
 
-/// What Return does in Ask (`AskReturnAction`): it asks. Only after the arrow
-/// keys moved onto a match does it open that match.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReturnAction {
     OpenResult,
@@ -132,13 +114,6 @@ pub fn return_action(query: &str, results: usize, picked_with_keyboard: bool) ->
     }
 }
 
-/// What an answer asked from the field reads (`AskAnswerScope`). A full
-/// question reads everything in the sources and dates the two menus show,
-/// whether or not matches are listed. A word or short phrase is a search the
-/// person then asks about, so its answer reads the listed matches. A
-/// "Remember …" statement is saved as it is and limits nothing. Scope already
-/// set on purpose (a meeting handed over, an attached screen, the menu's
-/// "Only …" state) is not this type's to change.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AnswerScope {
     ChosenSources,
@@ -146,8 +121,6 @@ pub enum AnswerScope {
 }
 
 impl AnswerScope {
-    /// Anything longer than a short phrase is a question in any language:
-    /// `is_question` only knows English question words.
     pub const FULL_QUESTION_WORDS: usize = 4;
 
     pub fn is_full_question(query: &str) -> bool {
@@ -163,8 +136,6 @@ impl AnswerScope {
     }
 }
 
-/// Where the keyboard is (`AskMatchCursor`): in the field (`None`), where
-/// Return asks, or on a match, where Return opens it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct MatchCursor {
     index: Option<usize>,
@@ -179,9 +150,6 @@ impl MatchCursor {
         self.index.is_some()
     }
 
-    /// Down moves from the field into the matches and along them; Up from the
-    /// first match returns to the field. `false` when the key isn't the
-    /// cursor's to handle, so the field keeps it.
     pub fn step(&mut self, down: bool, count: usize) -> bool {
         if count == 0 {
             self.index = None;
@@ -196,7 +164,6 @@ impl MatchCursor {
         true
     }
 
-    /// Matches that arrive or leave never strand the cursor past the list.
     pub fn clamp(&mut self, count: usize) {
         if let Some(current) = self.index {
             self.index = (count > 0).then(|| current.min(count - 1));
@@ -208,8 +175,6 @@ impl MatchCursor {
     }
 }
 
-/// "3 in 1 meeting" when only meetings matched, else the number of sources;
-/// a list that was cut says "40+" (`AskMatches.countLabel`).
 pub fn matches_count_label(
     meetings: usize,
     passages: usize,
@@ -236,34 +201,21 @@ pub fn matches_count_label(
     })
 }
 
-// ------------------------------------------------------- the sources menu
-
-/// The sources menu's button and first rows (`AskScopeSummary`): the chosen
-/// sources and finer filters, or, when the question is limited to earlier
-/// matches or to evidence another page handed over, what that is.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ScopeSummary {
     pub title: String,
-    /// Limited to particular meetings or screen moments.
     pub narrowed: bool,
-    /// A match-type or screen-app filter is on.
     pub has_filters: bool,
-    /// What the question is limited to, for the checked "Only …" row.
     pub narrowed_to: Option<String>,
-    /// The row that widens it again.
     pub widen_title: Option<String>,
 }
 
 pub struct ScopeInput<'a> {
-    /// The sources chosen in the menu.
     pub sources: Sources,
-    /// What the bound question still reads, for a limit that holds no meeting
-    /// and no screen moment.
     pub effective: Sources,
     pub offered: Offered,
     pub meeting_ids: Option<&'a [Uuid]>,
     pub screen_ids: Option<&'a [i64]>,
-    /// What widening goes back to.
     pub widen_to: Sources,
     pub facet: Facet,
     pub screen_app: Option<&'a str>,
@@ -298,7 +250,6 @@ pub fn scope_summary(
     }
 }
 
-/// One meeting by its title; otherwise how many meetings and screen moments.
 fn narrowed_label(
     input: &ScopeInput,
     meeting_title: &impl Fn(Uuid) -> Option<String>,
@@ -326,7 +277,6 @@ fn narrowed_label(
     (!parts.is_empty()).then(|| interface_directional(&parts.join(", ")))
 }
 
-/// A limit that holds no meeting and no screen moment names what remains.
 fn remaining_sources(input: &ScopeInput) -> String {
     let mut remaining = input.effective;
     if input.meeting_ids.is_some_and(<[Uuid]>::is_empty) {
@@ -354,9 +304,6 @@ fn shortened(text: &str) -> String {
     format!("{}…", cut.trim())
 }
 
-// ------------------------------------------------------ answer sources
-
-/// The kind of source a row of the sources list stands for.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SourceKind {
     Meeting,
@@ -365,13 +312,10 @@ pub enum SourceKind {
     Note,
 }
 
-/// One source an answer cited, with the numbers in the answer that point at
-/// it (`AnswerSourceGroup`). Grouping never renumbers.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SourceGroup {
     pub kind: SourceKind,
     pub key: String,
-    /// 1-based numbers as the answer shows them, with their citations.
     pub entries: Vec<(usize, CitationSource)>,
 }
 
@@ -381,10 +325,6 @@ impl SourceGroup {
     }
 }
 
-/// A row per meeting, screen moment, file or note, in the order the answer
-/// first cites them (`AnswerSources.groups`). `meeting_key` names the meeting
-/// a citation resolves to, so a short id and a full one share a row;
-/// `file_key` names a cited passage's file, so two passages of one file do.
 pub fn source_groups(
     citations: &[CitationSource],
     meeting_key: impl Fn(&str) -> Option<String>,
@@ -417,7 +357,6 @@ pub fn source_groups(
     groups
 }
 
-/// A transcript line a citation can quote (`CitationPassage.Line`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct PassageLine {
     pub start: f64,
@@ -426,9 +365,6 @@ pub struct PassageLine {
     pub text: String,
 }
 
-/// The line a meeting citation names (`CitationPassage.line`). Citations carry
-/// whole seconds, so the line that starts in that second wins; otherwise the
-/// line being said then, otherwise the last one before it.
 pub fn passage_line(seconds: f64, lines: &[PassageLine]) -> Option<&PassageLine> {
     if !seconds.is_finite() || seconds < 0. {
         return None;
@@ -445,9 +381,6 @@ pub fn passage_line(seconds: f64, lines: &[PassageLine]) -> Option<&PassageLine>
         .or_else(|| lines.iter().rev().find(|line| line.start <= seconds))
 }
 
-/// A matched passage as reading text: a summary's Markdown headings, bullets
-/// and emphasis marks dropped and its lines joined, the «matched» markers kept
-/// (what `RecallPassage.excerpt` leaves on the Mac).
 pub fn plain_snippet(snippet: &str) -> String {
     let lines: Vec<&str> = snippet
         .lines()
@@ -472,8 +405,6 @@ pub fn plain_snippet(snippet: &str) -> String {
 
 pub const QUOTE_LIMIT: usize = 420;
 
-/// Stored text as a short quote (`CitationPassage.quote`): search markers and
-/// line breaks removed, cut at a word once it runs long.
 pub fn quote(text: Option<&str>, limit: usize) -> Option<String> {
     let plain = text?
         .replace(['«', '»'], "")
@@ -495,10 +426,6 @@ pub fn quote(text: Option<&str>, limit: usize) -> Option<String> {
     Some(format!("{}…", cut.trim_end()))
 }
 
-/// `ChatViewModel.askAgainQuestion`: a finished answer's question, and the
-/// sources, dates and evidence limits it was asked within. Not for a failed or
-/// "Remember …" turn, a question whose scope is unknown, or one with attached
-/// screens (their captured text never reached disk).
 pub fn ask_again(messages: &[ChatMessage], assistant_id: Uuid) -> Option<(String, QuestionScope)> {
     let index = messages.iter().position(|m| m.id == assistant_id)?;
     let answer = &messages[index];
@@ -518,8 +445,6 @@ pub fn ask_again(messages: &[ChatMessage], assistant_id: Uuid) -> Option<(String
     lokalbot_core::retry_question(messages, assistant_id)
 }
 
-// ---------------------------------------------------------- an empty page
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SuggestionKind {
     Project,
@@ -529,23 +454,18 @@ pub enum SuggestionKind {
     Keyword,
 }
 
-/// A question, or a single word, offered on an empty Ask page.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Suggestion {
     pub kind: SuggestionKind,
     pub text: String,
 }
 
-/// The app's general questions, when nothing of the person's own can be named.
 pub const SUGGESTIONS: [&str; 3] = [
     "What did we decide in my last meeting?",
     "List my recent meetings",
     "Search my meetings for action items",
 ];
 
-/// Questions about the person's own project, latest meeting and a colleague,
-/// then one word to search for (`AskSuggestions.build`). With none of those
-/// to name, the general questions stand in and no word is offered.
 pub fn suggestions(
     latest_meeting: Option<&str>,
     person: Option<&str>,
@@ -615,8 +535,6 @@ const GENERIC_WORDS: [&str; 20] = [
     "the",
 ];
 
-/// One word worth searching for: the first name that is a single word, else
-/// the longest distinctive word in the names.
 pub fn keyword(names: &[String]) -> Option<String> {
     let candidates: Vec<Vec<&str>> = names
         .iter()
@@ -654,10 +572,6 @@ fn named(value: Option<&str>) -> Option<String> {
     Some(name.to_string())
 }
 
-// ----------------------------------------------------------------- dates
-
-/// "Nov 12 at 11:00 AM", with the year only once it isn't this year
-/// (`AskDateLabel.moment`).
 pub fn moment_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     let local = at.with_timezone(&Local);
     let full = "%b %-d, %Y at %-I:%M %p";
@@ -673,13 +587,10 @@ pub fn moment_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
         .to_string()
 }
 
-/// "Nov 12", with the year only once it isn't this year (`AskDateLabel.day`).
 pub fn day_label(at: DateTime<Utc>, now: DateTime<Local>) -> String {
     lokalbot_i18n::short_date(at.with_timezone(&Local).date_naive(), now.date_naive())
 }
 
-/// The divider a question shows above it (`visibleDateDividerTitle`): a
-/// conversation that starts today needs none, as each question has its time.
 pub fn visible_date_divider(
     created_at: Option<DateTime<Utc>>,
     previous: Option<Option<DateTime<Utc>>>,
@@ -702,15 +613,12 @@ mod tests {
     #[test]
     fn return_asks_unless_a_match_was_picked() {
         use ReturnAction::*;
-        // The approved key rule: keywords and questions alike are asked.
         assert_eq!(return_action("redis cluster", 3, false), Ask);
         assert_eq!(return_action("redis", 0, false), Ask);
         assert_eq!(return_action("What did we decide?", 3, false), Ask);
         assert_eq!(return_action("Remember that I like tea", 3, false), Ask);
-        // Arrow keys picked a row: Return opens it.
         assert_eq!(return_action("redis cluster", 3, true), OpenResult);
         assert_eq!(return_action("What did we decide?", 3, true), OpenResult);
-        // Nothing to open and nothing typed.
         assert_eq!(return_action("redis", 0, true), Ask);
         assert_eq!(return_action("   ", 0, false), Nothing);
     }
@@ -727,13 +635,11 @@ mod tests {
     #[test]
     fn a_full_question_reads_the_chosen_sources() {
         use AnswerScope::*;
-        // A word or a short phrase is answered from its matches.
         assert_eq!(AnswerScope::resolve("failover", true, false), ListedMatches);
         assert_eq!(
             AnswerScope::resolve("redis cluster mode", true, false),
             ListedMatches
         );
-        // A question, or four words in any language, reads everything chosen.
         assert_eq!(
             AnswerScope::resolve("failover benchmark?", true, false),
             ChosenSources
@@ -746,7 +652,6 @@ mod tests {
             AnswerScope::resolve("list my recent meetings", true, false),
             ChosenSources
         );
-        // Nothing listed, or a statement to remember: nothing to narrow to.
         assert_eq!(
             AnswerScope::resolve("failover", false, false),
             ChosenSources
@@ -843,7 +748,6 @@ mod tests {
         let counted = scope_summary(&input(Some(&two), Some(&[4])), title);
         assert_eq!(counted.title, "2 meetings, 1 screen moment");
 
-        // Only files matched: the limit names what still reads.
         let mut files_only = input(Some(&[]), Some(&[]));
         files_only.offered = Offered {
             files: true,
@@ -911,7 +815,6 @@ mod tests {
             [2, 5]
         );
         assert_eq!(groups[2].entries[0].0, 4);
-        // A file not known yet keeps its passage on its own row.
         let unknown = source_groups(&[file, same_file], |_| None, |_| None);
         assert_eq!(unknown.len(), 2);
     }

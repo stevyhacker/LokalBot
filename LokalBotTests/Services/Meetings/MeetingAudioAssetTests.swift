@@ -13,8 +13,6 @@ final class MeetingAudioAssetTests: XCTestCase {
         try writeTone(to: folder.appendingPathComponent("mic.m4a"), frequency: 440,
                       duration: 6, sampleRate: 44_100)
 
-        // Every reader continues to use ordinary file time. No consumer may
-        // compensate with another offset or skip the newly attached live CAF.
         for source in [system, preview] {
             XCTAssertEqual(try audioDuration(source), 6, accuracy: 0.03)
             XCTAssertLessThan(try rms(source, from: 1, duration: 1), 0.0001)
@@ -32,8 +30,6 @@ final class MeetingAudioAssetTests: XCTestCase {
         XCTAssertLessThan(try rms(output, from: 1, duration: 1), 0.0001)
         XCTAssertGreaterThan(try rms(output, from: 4.5, duration: 1), 0.1)
 
-        // Clock anchors use the padded frame positions too, so visual speaker
-        // evidence and echo-reference ranges stay on the transcript timeline.
         let timing = RecordingAudioTiming(version: 2,
             microphone: [.init(hostStart: 100, hostEnd: 106, startFrame: 0,
                 endFrame: 96_000, sampleRate: 16_000, generation: 1)],
@@ -102,8 +98,6 @@ final class MeetingAudioAssetTests: XCTestCase {
     func testMeetingClockPreservesSleepTimeAndExcludesCallbackLatency() {
         let start = ContinuousClock.now
         let timeline = RecordingAudioTimeline(originHostTime: 100, originInstant: start)
-        // 90 seconds of sleep pass on the continuous clock while the audio
-        // host clock pauses. The resumed callback arrives 0.1s after its data.
         let placed = timeline.hostTimeOnTimeline(bufferHostTime: 101,
             callbackHostTime: 101.1, callbackInstant: start.advanced(by: .seconds(91.1)))
         XCTAssertEqual(placed, 191, accuracy: 0.0001)
@@ -152,12 +146,10 @@ final class MeetingAudioAssetTests: XCTestCase {
         try writeTone(to: folder.appendingPathComponent("mic.m4a"), frequency: 440, duration: 0.1)
         try writeTone(to: folder.appendingPathComponent("system.m4a"), frequency: 660, duration: 0.1)
 
-        // Both tracks: system kept dominant, mic attenuated to tame bleed.
         let both = MeetingAudioAsset.playbackSources(folder: folder, hasSystemTrack: true)
         XCTAssertEqual(both.map(\.url.lastPathComponent), ["system.m4a", "mic.m4a"])
         XCTAssertEqual(both.map(\.gain), [0.85, 0.55])
 
-        // System present on disk but not flagged for this meeting: mic only, full gain.
         let micOnly = MeetingAudioAsset.playbackSources(folder: folder, hasSystemTrack: false)
         XCTAssertEqual(micOnly.map(\.url.lastPathComponent), ["mic.m4a"])
         XCTAssertEqual(micOnly.map(\.gain), [1.0])
@@ -174,9 +166,6 @@ final class MeetingAudioAssetTests: XCTestCase {
                                                         hasSystemTrack: true).isEmpty)
     }
 
-    /// A process crash can leave an MP4 container on disk but unreadable. The
-    /// append-only CAF tee is then the only copy of the meeting and must remain
-    /// the source for playback and transcription until the user deletes it.
     func testUnreadablePrimaryFallsBackToCrashSafeCAFWithoutDeletingIt() throws {
         let folder = try temporaryFolder()
         let primary = folder.appendingPathComponent("mic.m4a")
@@ -224,9 +213,6 @@ final class MeetingAudioAssetTests: XCTestCase {
                       "a decodable but truncated primary must not destroy fuller recovery audio")
     }
 
-    /// The Windows and Linux app records, imports and merges into 16 kHz
-    /// 16-bit `mic.wav` / `system.wav`. A library shared with a Mac must still
-    /// play and transcribe those meetings.
     func testWindowsAndLinuxWAVTracksAreReadWhenNoAACTrackExists() throws {
         let folder = try temporaryFolder()
         let mic = folder.appendingPathComponent("mic.wav")
@@ -247,10 +233,6 @@ final class MeetingAudioAssetTests: XCTestCase {
                        "a Mac recording keeps its own AAC track")
     }
 
-    /// The mic and system files routinely differ in sample rate and channel
-    /// count; the player must load both and report the longer duration. The
-    /// previous composition-based player garbled mismatched tracks during
-    /// real-time playback — this guards the per-file engine that replaced it.
     @MainActor
     func testPlayerLoadsMismatchedFormatTracks() throws {
         let folder = try temporaryFolder()
@@ -264,7 +246,7 @@ final class MeetingAudioAssetTests: XCTestCase {
 
         XCTAssertTrue(player.isLoaded, "player should load both tracks despite differing formats")
         XCTAssertEqual(player.currentTime, 0)
-        XCTAssertEqual(player.duration, 0.5, accuracy: 0.15)   // the longer (system) track
+        XCTAssertEqual(player.duration, 0.5, accuracy: 0.15)
         XCTAssertEqual(player.waveformSources.count, 2)
         XCTAssertEqual(Set(player.waveformSources.map { $0.url.lastPathComponent }), ["mic.m4a", "system.m4a"])
         player.stop()
@@ -289,8 +271,6 @@ final class MeetingAudioAssetTests: XCTestCase {
         return folder
     }
 
-    /// Uses the same planner and bounded silence writer as both capture paths,
-    /// with synthetic host times and tones; no microphone or output is opened.
     private func writeTimelineFixture(to url: URL, preview: URL, timeline: RecordingAudioTimeline,
                                       buffers: [(hostStart: Double, duration: Double)],
                                       sampleRate: Double = 16_000,
@@ -375,7 +355,6 @@ final class MeetingAudioAssetTests: XCTestCase {
         try file.write(from: buffer)
     }
 
-    /// Matches the port's `WavWriter`: 16 kHz, mono, 16-bit little-endian PCM.
     private func writeInt16WAVTone(to url: URL, duration: TimeInterval) throws {
         let sampleRate = 16_000.0
         let frameCount = AVAudioFrameCount(sampleRate * duration)

@@ -34,7 +34,6 @@ final class AudioPreviewTeeTests: XCTestCase {
         let url = dir.appendingPathComponent("tee.caf")
         let tee = try XCTUnwrap(AudioPreviewTee(url: url, sourceFormat: source))
 
-        // One second of 48 kHz stereo, written in recorder-sized slices.
         for _ in 0..<10 {
             tee.write(makeSourceBuffer(format: source, frames: 4_800))
         }
@@ -43,15 +42,10 @@ final class AudioPreviewTeeTests: XCTestCase {
         let reader = try AVAudioFile(forReading: url)
         XCTAssertEqual(reader.fileFormat.sampleRate, 16_000)
         XCTAssertEqual(reader.fileFormat.channelCount, 1)
-        // The resampler may hold back a few frames of latency; the point is
-        // that ~1 s in yields ~1 s out.
         XCTAssertEqual(Double(reader.length), 16_000, accuracy: 1_600)
     }
 
     func testSnapshotOfOpenTeeIsReadable() throws {
-        // The property the live transcript depends on: a mid-write copy of the
-        // CAF must decode even though the writer is still open (the AAC .m4a
-        // tracks fail exactly this).
         let source = AVAudioFormat(commonFormat: .pcmFormatFloat32,
                                    sampleRate: 48_000, channels: 1, interleaved: false)!
         let url = dir.appendingPathComponent("growing.caf")

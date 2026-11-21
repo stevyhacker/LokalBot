@@ -195,8 +195,6 @@ class MergedPullRequestUITests(unittest.TestCase):
         self.refused()
 
     def test_the_suite_must_have_run_and_passed_in_the_newest_run(self):
-        # A draft or UI-irrelevant pull request passes the aggregate check
-        # with the suite skipped.
         self.jobs = [dict(name='XCUITest (macOS)', conclusion='success'), dict(name='UI build (macOS)', conclusion='skipped')]
         self.refused()
         self.setUp()
@@ -351,8 +349,6 @@ class LaterWebsiteCommitsTests(unittest.TestCase):
         self.assertIn('exit 0', prepare[moved:prepare.index('gh workflow run release.yml')])
 
     def test_a_website_push_starts_nothing_that_cancels_a_candidates_gates(self):
-        # A new run cancels the same group's running one, so a website push must
-        # either start no run or land in a group of its own.
         for workflow in ['build.yml', 'ci-helpers.yml']:
             with self.subTest(workflow=workflow):
                 text = (ROOT / '.github/workflows' / workflow).read_text()
@@ -421,7 +417,6 @@ class CompleteCoverageTests(unittest.TestCase):
             self.verify()
 
     def test_reports_from_an_earlier_attempt_of_the_same_run_pass(self):
-        # A failed-jobs-only rerun keeps the passing runner's reports.
         with patch.dict(os.environ, GITHUB_RUN_ATTEMPT='3'):
             self.verify()
             path = self.root / 'smoke.json'
@@ -498,7 +493,6 @@ class ParallelGateTests(unittest.TestCase):
                 plan = shards.plan()
         self.assertEqual(plan['background'], ['BackgroundFlowUITests/testA'])
         self.assertNotIn('BackgroundFlowUITests/testA', plan['functional-1'] + plan['functional-2'])
-        # The model stub's Bun is fetched only on the runner that has the background phase.
         workflow = (ROOT / '.github/workflows/ui-tests.yml').read_text()
         self.assertIn('background', shards.GROUPS['runner-2'])
         self.assertIn('fetch-bun.sh', workflow.split('\n  shards:\n', 1)[1].split('\n  complete:\n', 1)[0])
@@ -570,7 +564,6 @@ class NightlyTests(unittest.TestCase):
         self.assertIn('products_only:', build.split('workflow_call:', 1)[1].split('pull_request:', 1)[0])
         tests = build.split('\n  tests:\n', 1)[1].split('    steps:', 1)[0]
         self.assertIn('if: ${{ !inputs.products_only }}', tests)
-        # The workday check reports from the tests job, so it is skipped with it.
         report = build.split('\n  day-in-the-life:\n', 1)[1].split('    steps:', 1)[0]
         self.assertIn('needs: tests', report)
         self.assertIn("needs.tests.result != 'skipped'", report)
@@ -585,7 +578,6 @@ class NightlyTests(unittest.TestCase):
         nightly = (ROOT / '.github/workflows/nightly.yml').read_text()
         job = nightly.split('\n  model-drift:\n', 1)[1].split('\n  day-in-the-life-real:\n', 1)[0]
         compare = job.split('      - name: Compare with committed recordings\n', 1)[1].split('      - ', 1)[0]
-        # The comparison's exit code is what fails the job; nothing may mask it.
         self.assertNotIn('continue-on-error', job)
         self.assertNotIn('|| true', compare)
         unchecked = job.split('      - name: Open or update the unchecked-drift issue\n', 1)[1]
@@ -599,16 +591,13 @@ class NightlyTests(unittest.TestCase):
         def key_step(key, event):
             return run_step(job, 'Check for the recording key', OPENROUTER_API_KEY=key, GITHUB_EVENT_NAME=event)
 
-        # With a key, every kind of run records, and an empty recording then fails the comparison.
         for event in ['schedule', 'pull_request', 'workflow_dispatch']:
             with self.subTest(event=event):
                 self.assertEqual(key_step('sk-or-fixture', event)[:2], (0, 'available=true'))
-        # A pull request from a fork has no secrets: its author gets a notice, not a failure.
         code, output, printed = key_step('', 'pull_request')
         self.assertEqual((code, output), (0, 'available=false'))
         self.assertIn('::notice', printed)
         self.assertIn('was not checked', printed)
-        # A nightly or manual run without the key has the check switched off: that fails.
         for event in ['schedule', 'workflow_dispatch']:
             with self.subTest(event=event):
                 code, output, printed = key_step('', event)
@@ -616,14 +605,12 @@ class NightlyTests(unittest.TestCase):
                 self.assertEqual(output, '')
                 self.assertIn('::error', printed)
 
-        # Recording, comparing and the upload wait on that answer; the key check comes first.
         for name in ['Record fresh responses', 'Compare with committed recordings']:
             step = job.split(f'      - name: {name}\n', 1)[1].split('      - ', 1)[0]
             self.assertIn("        if: steps.key.outputs.available == 'true'\n", step)
         self.assertLess(job.index('- name: Check for the recording key'), job.index('- name: Record fresh responses'))
         upload = job.split('actions/upload-artifact@', 1)[1].split('      - ', 1)[0]
         self.assertIn("steps.key.outputs.available == 'true'", upload)
-        # A secret in an `if:` is not readable there; presence travels through env.
         for line in nightly.splitlines():
             if line.strip().startswith('if:'):
                 self.assertNotIn('secrets.', line)
@@ -655,11 +642,9 @@ class ReleaseBundleAndRegistryTests(unittest.TestCase):
         steps = self.bundle.split('    steps:\n', 1)[1]
         self.assertIn('./Scripts/release/build-mcpb.sh', steps)
         self.assertIn('gh release upload "$TAG"', steps)
-        # A step-level condition here is how the bundle went missing from releases.
         self.assertNotIn('        if:', steps)
 
     def test_listing_is_on_until_the_variable_says_false(self):
-        # No repository variable is set, so an unset one has to mean yes.
         self.assertEqual(self.gate('v1.2.3', ''), (0, 'publish=true'))
         self.assertEqual(self.gate('v1.2.3', 'true'), (0, 'publish=true'))
         self.assertEqual(self.gate('v1.2.3', 'false'), (0, 'publish=false'))
@@ -679,7 +664,6 @@ class WorkdayBesideUnitTestsTests(unittest.TestCase):
         tests = build.split('\n  tests:\n', 1)[1].split('\n  day-in-the-life:\n', 1)[0]
         self.assertIn('workday: ${{ steps.workday.outcome }}', tests)
         workday = tests.split('id: workday\n', 1)[1].split('      - name:', 1)[0]
-        # A failed workday must not fail the unit-test check, and must not hang it.
         for setting in ['background: true', 'continue-on-error: true', 'timeout-minutes:']:
             self.assertIn(setting, workday)
         wait = tests.index('wait: [workday, audio-recovery, macos-helpers]')
@@ -838,7 +822,6 @@ class TimingTests(unittest.TestCase):
 
 class TestArtifactTests(unittest.TestCase):
     def test_identity_ignores_only_runner_location_job_and_attempt(self):
-        # A failed-jobs-only rerun consumes products from an earlier attempt of the same run.
         identity = dict(root='/producer', job='build', commit='sha', xcode='26.3', lock='hash',
                         architecture='arm64', signing='NO', run='42', attempt='1')
         with patch.object(products.stamp, 'identity', return_value=dict(identity)):

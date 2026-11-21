@@ -127,7 +127,6 @@ class StandInHost:
         self.folder = Path(folder)
         self.port = port
         self.name = name
-        # Whether it asks before allowing a device, as a person's computer does; allow() answers.
         self.asks = asks
         self.log = self.folder / "host.log"
         self.process = None

@@ -1,9 +1,6 @@
 import SwiftUI
 import LaunchAtLogin
 
-/// Opt-in diagnostics for the dedicated hosted UI-test process. Production
-/// targets compile this to a no-op, and the UI-test host emits nothing unless
-/// the launch explicitly sets `LOKALBOT_UI_TEST_DIAGNOSTICS=1`.
 func uiTestDiagnosticLog(_ message: @autoclosure () -> String) {
 #if LOKALBOT_UI_TEST_HOST
     guard ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_DIAGNOSTICS"] == "1" else {
@@ -13,12 +10,6 @@ func uiTestDiagnosticLog(_ message: @autoclosure () -> String) {
 #endif
 }
 
-/// Whether this launch should come up menu-bar-only (accessory: no Dock icon,
-/// no window). Computed identically in the pre-launch entry point (to disable
-/// window restoration before AppKit reads the flag) and in the app delegate (to
-/// set the activation policy). "Established" = has seen onboarding OR already
-/// granted every permission, so upgrades that predate the onboarding flag still
-/// go menu-bar-only; only a genuinely-new user (and UI tests) stays windowed.
 func lokalbotLaunchesMenuBarOnly() -> Bool {
     guard !AppState.isUITesting else { return false }
     let onboarded = UserDefaults.standard.bool(forKey: AppState.onboardingShownKey)
@@ -26,24 +17,14 @@ func lokalbotLaunchesMenuBarOnly() -> Bool {
     return AppSettings.load().menuBarOnly && onboarded
 }
 
-// MARK: - Menu-bar-only plumbing
-
-/// Bridges AppKit launch + window lifecycle into the menu-bar-only experience.
-/// SwiftUI alone can't suppress the launch window on macOS 14, so the Dock /
-/// activation policy is driven from here.
 final class AppDelegate: NSObject, NSApplicationDelegate {
     @MainActor static var appState: AppState?
 
     private var uiTestWindow: NSWindow?
-    /// Settings, when it was opened beside the UI-test host's launch window.
     private var uiTestSettingsWindow: NSWindow?
     private var terminationCleanupStarted = false
     private var terminationCleanupFinished = false
 
-    /// Hides the Dock icon for a menu-bar-only start. Setting `.accessory` this
-    /// early also stops SwiftUI from auto-opening the launch window; restoration
-    /// was already disabled in `LokalBotMain`. UI tests and not-yet-onboarded
-    /// users stay windowed — see `lokalbotLaunchesMenuBarOnly()`.
     func applicationWillFinishLaunching(_ notification: Notification) {
         if AppState.isUITesting {
             NSApp.setActivationPolicy(.regular)
@@ -54,9 +35,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Keep the Dock icon in sync with what's on screen: a real (titled) window
-    /// → show the Dock icon + app menu for full window UX; nothing open → fall
-    /// back to a pure menu-bar accessory.
     func applicationDidFinishLaunching(_ notification: Notification) {
         if let settings = Self.appState?.settings {
             AppAppearance.apply(theme: settings.appTheme)
@@ -72,8 +50,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             applyCaptureEnvironment(to: app)
 #endif
             openUITestWindow(app: app)
-            // Settings opened later (the sidebar row, ⌘, or a deep link) gets a
-            // window built the same way, beside the launch window.
             WindowAccess.shared.hostOpener = { [weak self, weak app] id in
                 guard id == WindowAccess.settingsID, let self, let app else { return false }
                 self.openUITestWindow(app: app, kind: "settings", secondary: true)
@@ -82,23 +58,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             forceActivateForUITests()
             return
         }
-        // The unit-test host shares the release app's folders; never touch them there.
         if !UITestRuntime.isUnitTesting {
             Task.detached(priority: .utility) {
                 TranscriptionModelStore.removeRetiredModels(appSupport: AppDirectories.applicationSupport)
             }
         }
-        // Menu-bar-only *start* is gated on HOW we launched. Only a login
-        // auto-start (the "Launch at login" item firing) should come up silent
-        // in the menu bar; a manual open (Finder/Launchpad/Dock/`open`) must
-        // show the main window. `willFinishLaunching` already set `.accessory`
-        // to avoid a window-flash, so for a manual open we explicitly bring the
-        // window back up as a regular, Dock-visible app. `wasLaunchedAtLogin`
-        // is only reliable here in `applicationDidFinishLaunching`.
-        // `lokalbot-cli` starting the app for a terminal request counts as a
-        // background launch too: the person asked for a setting, not a window.
         if lokalbotLaunchesMenuBarOnly() {
-            // An agent's setup launch opens only its request window.
             if LaunchAtLogin.wasLaunchedAtLogin || AppControlProtocol.isBackgroundLaunch() || AgentSetup.isLaunch() {
                 DispatchQueue.main.async { DockPolicy.beginLaunchSuppression() }
             } else {
@@ -108,7 +73,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 #if LOKALBOT_TEST_HOOKS
         if let app = Self.appState { FilmDirector.startIfRequested(app: app) }
 #endif
-        // Read off the main thread now so General's toggle opens on the real value.
         LaunchAtLoginState.shared.refresh()
         let center = NotificationCenter.default
         for name: NSNotification.Name in [
@@ -116,23 +80,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSWindow.willCloseNotification,
         ] {
             center.addObserver(forName: name, object: nil, queue: .main) { _ in
-                // `willClose` fires while the window still reports visible —
-                // re-evaluate on the next tick once it's actually gone.
                 DispatchQueue.main.async { DockPolicy.sync() }
             }
         }
     }
 
-    /// A day counts toward the GitHub star request when LokalBot becomes the
-    /// active app, not when it only runs in the menu bar after a login launch.
     func applicationDidBecomeActive(_ notification: Notification) {
         Self.appState?.githubStar.recordActiveDay()
     }
 
-    /// Reopening the app (Finder/Launchpad relaunch, Dock click) brings the main
-    /// window back: nothing on screen → open it; visible but buried behind other
-    /// apps' windows → raise it. Returning true keeps AppKit's default
-    /// un-miniaturize behavior.
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         if !hasVisibleWindows {
             WindowAccess.shared.open("main")
@@ -142,18 +98,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
-    /// The main scene is a single SwiftUI `Window`, and SwiftUI quits the app
-    /// when that window closes unless the delegate answers here. LokalBot keeps
-    /// capturing in the background, so closing the window must leave it running:
-    /// `DockPolicy.sync()` drops to the menu bar when menu-bar-only, and a Dock
-    /// click reopens the window otherwise.
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
     }
 
-    /// Give the in-process llama runtime a real shutdown window before AppKit
-    /// calls exit(). Letting C++ static destructors run while Metal buffers are
-    /// still resident trips ggml-metal's residency-set assertion on quit.
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
         if terminationCleanupFinished { return .terminateNow }
         guard !terminationCleanupStarted else { return .terminateLater }
@@ -180,8 +128,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         return .terminateLater
     }
 
-    /// The launch window, or with `secondary` a Settings window opened beside
-    /// it. Captures and the readiness handshake follow the launch window.
     @MainActor
     private func openUITestWindow(app: AppState, kind: String? = nil, secondary: Bool = false) {
         let environment = ProcessInfo.processInfo.environment
@@ -202,9 +148,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } else if showsQuickRecall {
             contentSize = NSSize(width: QuickRecallView.size.width, height: QuickRecallView.size.height)
         } else {
-            // GitHub's hosted macOS desktop is narrower than the production
-            // default. Keep the synthetic host inside the visible frame so
-            // right-edge controls remain genuinely hittable by XCUITest.
             let visible = NSScreen.main?.visibleFrame.size
                 ?? NSSize(width: 1180, height: 740)
             let ideal = showsSettings ? SettingsView.defaultSize : CGSize(width: 1180, height: 740)
@@ -212,9 +155,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 width: min(ideal.width, max(900, visible.width - 40)),
                 height: min(ideal.height, max(620, visible.height - 40)))
         }
-        // Match a SwiftUI window's titlebar safe area. In particular, the
-        // native compact sidebar on macOS 26 draws its toolbar background
-        // inside the full-size content view.
         let window = MeetingFindWindow(
             contentRect: NSRect(origin: .zero, size: contentSize),
             styleMask: [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView],
@@ -222,10 +162,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false)
         window.meetingFindAction = { [weak app] in
             guard let app, app.canSearchSelectedMeeting else { return false }
-            // AppKit invokes key-equivalent handling inside its event dispatch.
-            // Let that dispatch unwind before publishing the SwiftUI request;
-            // otherwise the host can consume Command-F without invalidating the
-            // meeting detail's state on macOS 15.
             let revision = app.meetingPageSearchRequestRevision
             uiTestDiagnosticLog("meetingFindAction schedule revision=\(revision)")
             DispatchQueue.main.async { [weak app] in
@@ -239,22 +175,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         window.title = showsOnboarding ? "Welcome to LokalBot"
             : (showsQuickRecall ? "Quick Recall" : (showsSettings ? "Settings" : "LokalBot"))
-        // Quick Recall has no title bar; setup's stepper and Settings' page
-        // title are their own top bars.
         if showsQuickRecall || showsOnboarding || showsSettings {
             window.titleVisibility = .hidden
             window.titlebarAppearsTransparent = true
         } else {
-            // The same toolbar height as the app's main window scene
-            // (`.windowToolbarStyle(.unified)`), whether or not a section
-            // removes the system title.
             window.toolbarStyle = .unified
         }
         window.identifier = NSUserInterfaceItemIdentifier("\(windowKind).window")
 #if LOKALBOT_UI_TEST_HOST
-        // A capture size is an outer-window size. Apply it before the content
-        // exists so the first layout happens at the final size; macOS 15 grows
-        // split panes proportionally when a window is widened afterwards.
         let captureSize = secondary ? [] : (ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_SIZE"] ?? "")
             .split(separator: "x").compactMap { Double($0) }
         if captureSize.count == 2 {
@@ -267,10 +195,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         hostingView.setAccessibilityLabel(showsOnboarding ? "LokalBot setup"
             : (showsQuickRecall ? "Quick Recall" : (showsSettings ? "LokalBot settings" : "LokalBot workspace")))
 #if LOKALBOT_UI_TEST_HOST
-        // This full-size-content window counts the 52 pt titlebar and toolbar
-        // twice when the SwiftUI minimum becomes a window minimum, so Settings'
-        // 600 pt minimum grew 1000x700 captures to 704 pt. A requested capture
-        // size is authoritative; keep the content minimum out of the window.
         if captureSize.count == 2 {
             hostingView.sizingOptions.remove(.minSize)
         }
@@ -283,9 +207,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         window.makeMain()
         window.orderFrontRegardless()
         if showsQuickRecall {
-            // The compact host has no menu-bar scene to register the normal
-            // window opener. Its explicit handoff must still create a main
-            // host before the compact window dismisses.
             WindowAccess.shared.register { [weak self, weak app] id in
                 guard id == "main", let app else { return }
                 self?.openUITestWindow(app: app, kind: "main")
@@ -293,9 +214,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// Launching on a Settings page ("settings", "models", "dictation", …)
-    /// makes Settings the launch window, as those names once made it the
-    /// main window's section.
     static func launchWindowKind(_ environment: [String: String]) -> String {
 #if LOKALBOT_UI_TEST_HOST
         if let raw = environment["LOKALBOT_INITIAL_SECTION"],
@@ -320,8 +238,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     .environmentObject(app)
                     .brandTinted()
             } else if windowKind == "menu-bar" {
-                // Synthetic in-process documentation capture; the production
-                // menu extra continues to own its normal presentation.
                 MenuBarView(dictation: app.dictation)
                     .environmentObject(app)
                     .brandTinted()
@@ -341,19 +257,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
 #if LOKALBOT_UI_TEST_HOST
-    /// Screenshot/scripting hook for the UI-test host: a few env vars let an
-    /// external capture script land the window on a specific section with a
-    /// meeting preselected, without synthetic input (no Accessibility needed).
-    /// A no-op unless the vars are set, so the XCUITest suite is unaffected, and
-    /// compiled out of every non-host build.
     @MainActor
     private func applyCaptureEnvironment(to app: AppState) {
         let env = ProcessInfo.processInfo.environment
         if let style = env["LOKALBOT_CAPTURE_APPEARANCE"] {
-            // Marketing captures must not depend on the host machine's
-            // appearance: the committed README set is dark, and the scripted
-            // sidebar colors resolve per scheme. Pin the app-level appearance
-            // before the capture window exists so exports are reproducible.
             NSApp.appearance = NSAppearance(
                 named: style == "contrast-dark" ? .accessibilityHighContrastDarkAqua : (style == "dark" ? .darkAqua : .aqua))
         }
@@ -361,12 +268,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             if let section = AppState.NavSection(captureName: raw) {
                 app.navSection = section
             } else if AppState.SettingsTab.opensSettings(sectionName: raw) {
-                // Settings is the launch window here (`launchWindowKind`), so
-                // only its page and highlighted setting are chosen.
                 if ["write", "type"].contains(raw.lowercased()) { app.settingsTab = .writing }
                 if let tab = AppState.SettingsTab(captureName: raw) { app.settingsTab = tab }
-                // The page itself, not its "Try it…" sheet, which the
-                // Autocomplete and Dictation commands open (`openType`).
                 if let tab = AppState.TypeTab(captureName: raw) {
                     app.settingsTab = tab == .cotyping ? .writing : .dictation
                 }
@@ -376,10 +279,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyRedesignCaptureState(to: app, environment: env)
         if env["LOKALBOT_CAPTURE_READY_FILE"] == nil,
            env["LOKALBOT_SELECT_FIRST"] == "1" || env["LOKALBOT_SELECT_INDEX"] != nil {
-            // Storage discovery and NavigationSplitView restoration can both
-            // update the selection after AppState is created. Reapply once the
-            // synthetic library and list have settled so marketing captures
-            // always show the requested meeting.
             DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) { [weak self, weak app] in
                 guard let self, let app else { return }
                 self.applyCaptureMeetingSelection(to: app, environment: env)
@@ -390,9 +289,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             UserDefaults.standard.set(true, forKey: "lokalbotv3.gettingStartedDismissed")
         }
         #if LOKALBOT_UI_TEST_HOST
-        // Native split views autosave divider positions in this host's own
-        // defaults, shared by every test. A fresh test launch starts from each
-        // pane's opening width; windows are created after this point.
         if env["LOKALBOT_RESET_SPLIT_VIEWS"] == "1" {
             for key in UserDefaults.standard.dictionaryRepresentation().keys
             where key.hasPrefix("NSSplitView Subview Frames") {
@@ -419,12 +315,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return
         }
         if env["LOKALBOT_CAPTURE_SIZE"] != nil {
-            // Window creation happens immediately after this method. Resize on
-            // the next settled turn, before the scripted rasterization delay.
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
                 if let raw = env["LOKALBOT_CAPTURE_SIZE"] {
-                    // These are outer-window dimensions, matching the frame
-                    // view exported below (including its native titlebar).
                     let parts = raw.split(separator: "x").compactMap { Double($0) }
                     if parts.count == 2, let window = self?.uiTestWindow {
                         window.setFrame(NSRect(origin: window.frame.origin,
@@ -435,28 +327,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         if let path = env["LOKALBOT_CAPTURE_FILE"] {
-            // Self-capture: render the window to a PNG in-process and quit.
-            // Needs no Screen Recording grant, and renders at a fixed 2x so
-            // README assets are Retina-crisp regardless of the display.
             let delay = Double(env["LOKALBOT_CAPTURE_DELAY"] ?? "") ?? 5.0
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
                 guard let window = self?.uiTestWindow else {
                     NSApp.terminate(nil)
                     return
                 }
-                // Repeated background launches can lose key status even after
-                // the normal UI-test activation retries. Re-key immediately
-                // before rasterization so active selections and titlebar
-                // controls match what a person sees while using the app.
                 window.makeKeyAndOrderFront(nil)
                 window.makeMain()
                 window.orderFrontRegardless()
                 NSApp.activate(ignoringOtherApps: true)
                 Self.focusQuickRecallField(in: window)
                 Self.raiseCaptureDensity(of: window)
-                // Sidebar vibrancy redraws asynchronously after key-state
-                // changes. A full second prevents the active material from
-                // being captured between its mask and compositing passes.
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
                     Self.writeWindowCapture(window, to: path)
                     NSApp.terminate(nil)
@@ -465,8 +347,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// The harness acknowledges populated route content after the window reaches
-    /// its requested geometry. Keep the existing material settle after activation.
     @MainActor
     private func awaitCaptureReadiness(app: AppState, environment env: [String: String],
                                        readyPath: String, capturePath: String, deadline: Date) {
@@ -535,15 +415,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    /// LOKALBOT_CAPTURE_SCALE, clamped to 1...4. README captures default to 2x.
     private static var captureScale: CGFloat {
         let requested = Double(ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_SCALE"] ?? "") ?? 2
         return CGFloat(min(max(requested, 1), 4))
     }
 
-    /// Quick Recall opens with its search field focused. Re-keying the window
-    /// for a capture can hand focus to the first key view, the clear button,
-    /// which then draws a focus ring, so return focus to the field.
     @MainActor
     private static func focusQuickRecallField(in window: NSWindow) {
         guard ProcessInfo.processInfo.environment["LOKALBOT_UI_TEST_WINDOW"] == "quick-recall",
@@ -553,15 +429,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             return view.subviews.lazy.compactMap(editableField).first
         }
         guard let field = editableField(in: content), window.makeFirstResponder(field) else { return }
-        // Focusing selects the query; a person typing it has the caret at the end.
         field.currentEditor()?.selectedRange = NSRange(location: (field.stringValue as NSString).length, length: 0)
     }
 
-    /// `cacheDisplay` copies each layer's backing store, which AppKit sizes for
-    /// the display's backing scale. Above that scale it would only enlarge the
-    /// 2x pixels, so first redraw the layers that draw their own content (text,
-    /// shapes) at the requested density. Layers whose contents are assigned,
-    /// such as icons and thumbnails, are left as they are.
     @MainActor
     private static func raiseCaptureDensity(of window: NSWindow) {
         let scale = captureScale
@@ -583,13 +453,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             layer.sublayers?.forEach(raise)
         }
-        // Outside AppKit's display pass no drawing appearance is current, and
-        // controls would redraw in their default colors.
         window.effectiveAppearance.performAsCurrentDrawingAppearance { raise(root) }
     }
 
-    /// A sheet is a window of its own, so the parent's capture leaves it out.
-    /// Draw it where it sits, over a dimmed parent, as a person sees it.
     @MainActor
     private static func drawAttachedSheet(of window: NSWindow, into rep: NSBitmapImageRep) {
         guard let sheet = window.attachedSheet, let content = sheet.contentView else { return }
@@ -610,10 +476,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSGraphicsContext.restoreGraphicsState()
     }
 
-    /// Render the window's frame view (titlebar + content) into a configurable
-    /// high-density PNG via `cacheDisplay`, independent of the display's
-    /// backing scale. README captures default to 2x; website and video
-    /// captures can ask for up to 4x through LOKALBOT_CAPTURE_SCALE.
     @MainActor
     private static func writeWindowCapture(_ window: NSWindow?, to path: String) {
         guard let window, let content = window.contentView else { return }
@@ -631,13 +493,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         rep.size = bounds.size
         view.cacheDisplay(in: bounds, to: rep)
         drawAttachedSheet(of: window, into: rep)
-        // cacheDisplay renders through the current display profile. Convert the
-        // samples before tagging the web asset so P3 captures are not mislabeled.
         guard let export = rep.converting(to: .sRGB,
                                           renderingIntent: .relativeColorimetric) else { return }
         export.size = bounds.size
         if let png = export.representation(using: .png, properties: [:]) {
-            // Readers treat the destination's appearance as completion.
             try? png.write(to: URL(fileURLWithPath: path), options: .atomic)
         }
     }
@@ -659,20 +518,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 }
 
-/// The UI-test host owns an explicit AppKit window rather than a SwiftUI
-/// `Window` scene, so scene commands are intentionally absent there. Handle
-/// the meeting-local key equivalent at the same window boundary AppKit uses
-/// for synthesized and physical keyboard events. Production keeps its visible
-/// Edit-menu command in `LokalBotApp`.
 final class MeetingFindWindow: NSWindow {
     var meetingFindAction: (() -> Bool)?
 
 #if LOKALBOT_UI_TEST_HOST
     override func constrainFrameRect(_ frameRect: NSRect, to screen: NSScreen?) -> NSRect {
-        // Self-captures rasterize the native frame view, including portions
-        // beyond the hosted desktop. Preserve the requested layout instead of
-        // silently clipping every large-window fixture to the runner's screen.
-        // Interactive UI tests retain ordinary on-screen window constraints.
         if ProcessInfo.processInfo.environment["LOKALBOT_CAPTURE_FILE"] != nil {
             return frameRect
         }
@@ -688,10 +538,6 @@ final class MeetingFindWindow: NSWindow {
                 "window.sendEvent window=\(NSStringFromClass(type(of: self))) "
                     + "canHandle=\(Self.isMeetingFindKeyEquivalent(event))")
         }
-        // `XCUIApplication.typeKey` and physical keyboard input arrive here as
-        // key-down events. `performKeyEquivalent` is still needed for AppKit's
-        // menu/responder traversal, but NSWindow does not route every key-down
-        // through that method before dispatching it to the first responder.
         if event.type == .keyDown,
            Self.isMeetingFindKeyEquivalent(event),
            meetingFindAction?() == true {
@@ -722,23 +568,10 @@ final class MeetingFindWindow: NSWindow {
     }
 }
 
-/// Drives the Dock/menu-bar activation policy from the current setting and the
-/// windows on screen: accessory (menu-bar-only) unless the user opted into a
-/// Dock icon or a real window is open. Also the launch-time backstop that evicts
-/// windows macOS restores behind a menu-bar-only start.
 @MainActor
 enum DockPolicy {
-    /// True from a menu-bar-only launch until the first explicit user-initiated
-    /// open. While set, any titled window on screen was restored or auto-opened
-    /// by macOS (the user hasn't asked for one yet) and is evicted — `.accessory`
-    /// and `ApplePersistenceIgnoreState` don't reliably stop that restore, so
-    /// this is the deterministic backstop. Cleared by `WindowAccess.open`.
     static var evictRestoredWindows = false
 
-    /// Start evicting restored/auto windows after a menu-bar-only launch. Sweeps
-    /// a few times to catch windows SwiftUI restores asynchronously (or without
-    /// firing a key notification); the flag itself persists until the first real
-    /// open, so even a late restore is caught.
     static func beginLaunchSuppression() {
         evictRestoredWindows = true
         for delay: Double in [0, 0.3, 1.0, 2.5] {
@@ -752,14 +585,12 @@ enum DockPolicy {
 
         if menuBarOnly {
             for window in NSApp.windows where isContentWindow(window) {
-                window.isRestorable = false                 // never restore in menu-bar mode
-                if evictRestoredWindows { window.close() }   // restored/auto → evict
+                window.isRestorable = false
+                if evictRestoredWindows { window.close() }
             }
             if evictRestoredWindows { setPolicy(.accessory); return }
         }
 
-        // The menu bar popover is a borderless, non-normal-level panel; only
-        // titled, normal-level windows (main / onboarding / settings) count.
         let hasWindow = NSApp.windows.contains(where: isContentWindow)
         setPolicy((!menuBarOnly || hasWindow) ? .regular : .accessory)
     }
@@ -774,9 +605,6 @@ enum DockPolicy {
     }
 }
 
-/// Opens SwiftUI windows from non-View code (AppDelegate, AppState). SwiftUI's
-/// `openWindow` only exists inside the View tree, so views register it here and
-/// requests made before a view is alive are queued and flushed on registration.
 @MainActor
 final class WindowAccess {
     static let shared = WindowAccess()
@@ -784,8 +612,6 @@ final class WindowAccess {
     private var opener: ((String) -> Void)?
     private var pending: [String] = []
 
-    /// Called from the first view that comes alive (the menu bar label at
-    /// launch, then the popover/window). Flushes anything queued before now.
     func register(_ opener: @escaping (String) -> Void) {
         self.opener = opener
         let queued = pending
@@ -793,18 +619,11 @@ final class WindowAccess {
         queued.forEach(open)
     }
 
-    /// The Settings window's scene identifier.
     static let settingsID = "settings"
 
-    /// The UI-test host builds its windows by hand. It answers true for the
-    /// identifiers it opens itself, so those never reach the SwiftUI scenes.
     var hostOpener: ((String) -> Bool)?
 
     func open(_ id: String) {
-        // An explicit, user-initiated open: cancel any launch-time window
-        // eviction, then switch to a regular, Dock-visible app so the window
-        // gets standard chrome and the app menu. `willClose` drops back to
-        // accessory afterwards when menu-bar-only.
         DockPolicy.evictRestoredWindows = false
         guard let application = NSApp else {
             pending.append(id)
@@ -812,7 +631,6 @@ final class WindowAccess {
         }
         application.setActivationPolicy(.regular)
         application.activate()
-        // Main and Settings are single windows: one on screen comes forward.
         if id == "main" || id == Self.settingsID, let existing = Self.visibleWindow(id, in: application) {
             existing.makeKeyAndOrderFront(nil)
             return
@@ -825,10 +643,6 @@ final class WindowAccess {
         }
     }
 
-    /// The visible main SwiftUI window, matched by its scene identifier —
-    /// `navigationTitle` retitles the window per tab (e.g. "Timeline"), so
-    /// matching on the title silently stops finding it.
-    /// Closes a window scene by its identifier when it is open.
     func close(_ id: String) {
         NSApp?.windows.filter { $0.identifier?.rawValue == id }.forEach { $0.close() }
     }
@@ -837,8 +651,6 @@ final class WindowAccess {
         visibleWindow("main", in: application)
     }
 
-    /// The visible window of a single-window scene. The UI-test host names
-    /// the windows it builds by hand "<id>.window".
     static func visibleWindow(_ id: String, in application: NSApplication) -> NSWindow? {
         application.windows.first { window in
             guard window.isVisible else { return false }

@@ -1,6 +1,5 @@
 import SwiftUI
 
-/// Shares of a whole, folding everything past `cap` into "Other".
 public enum ProportionBarMath {
     public struct Segment: Equatable, Sendable {
         public let label: String
@@ -20,8 +19,6 @@ public enum ProportionBarMath {
     }
 }
 
-/// One rounded track whose segments show each project's or app's share of the
-/// tracked day, colored by name like the Mac's Timeline.
 public struct ProportionBar: View {
     let segments: [ProportionBarMath.Segment]
     var height: CGFloat
@@ -52,7 +49,6 @@ public struct ProportionBar: View {
     }
 }
 
-/// Dots, names and times under a proportion bar.
 public struct ProportionLegend: View {
     let segments: [ProportionBarMath.Segment]
 
@@ -73,7 +69,6 @@ public struct ProportionLegend: View {
     }
 }
 
-/// Wraps children onto new lines, leading-aligned.
 public struct FlowLayout: Layout {
     var spacing: CGFloat
     var lineSpacing: CGFloat
@@ -116,7 +111,6 @@ public struct FlowLayout: Layout {
         for (index, subview) in subviews.enumerated() {
             var size = subview.sizeThatFits(.unspecified)
             if size.width > width {
-                // Too wide for a line of its own: let it wrap at the available width.
                 size = subview.sizeThatFits(ProposedViewSize(width: width, height: nil))
                 size.width = min(size.width, width)
             }

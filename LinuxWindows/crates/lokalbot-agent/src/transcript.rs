@@ -1,7 +1,3 @@
-//! The display transcript (`AgentTranscript.swift`): a pure state machine
-//! that folds pi events into ordered items, so every folding rule is unit
-//! tested without a process or UI.
-
 use crate::messages::{AssistantDelta, PiEvent, terminal_failure};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -11,16 +7,12 @@ pub enum ToolStatus {
     Failed,
 }
 
-/// One edit of an `edit` request.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Edit {
     pub old_text: String,
     pub new_text: String,
 }
 
-/// An app-owned, structured description of a tool request, so the approval
-/// card shows the exact command or content rather than a model-written
-/// summary.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApprovalRequest {
     pub id: String,
@@ -32,8 +24,6 @@ pub struct ApprovalRequest {
     pub edits: Vec<Edit>,
     pub summary: Option<String>,
     pub is_truncated: bool,
-    /// Exact JSON arguments of a tool without a dedicated preview (MCP tools,
-    /// codemode, tools later pi releases add).
     pub arguments: Option<String>,
 }
 
@@ -47,9 +37,6 @@ pub fn is_shell_tool(tool: &str) -> bool {
 }
 
 impl ApprovalRequest {
-    /// Also enforced by the extension before it asks. The host stays fail
-    /// closed for old, malformed or locally bounded payloads. Lengths are
-    /// UTF-16 units, as JavaScript counts them.
     pub fn can_approve(&self) -> bool {
         if let Some(arguments) = &self.arguments {
             return !self.is_truncated
@@ -163,7 +150,6 @@ impl TranscriptItem {
     }
 }
 
-/// Folds pi events into display items.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct TranscriptFolder {
     items: Vec<TranscriptItem>,
@@ -200,8 +186,6 @@ impl TranscriptFolder {
         self.items.iter().position(|item| item.id() == id)
     }
 
-    // ------------------------------------------------- local inserts
-
     pub fn note_user_prompt(&mut self, text: &str) {
         let id = self.next_id("user");
         self.append(TranscriptItem::User {
@@ -232,7 +216,6 @@ impl TranscriptFolder {
         self.pending_approval_ids().len() < Self::MAX_PENDING_APPROVALS
     }
 
-    /// False when too many approvals are waiting or the id is oversized.
     pub fn add_approval(&mut self, request: ApprovalRequest) -> bool {
         if !self.can_accept_approval()
             || request.id.chars().count() > Self::MAX_APPROVAL_ID_CHARACTERS
@@ -283,8 +266,6 @@ impl TranscriptFolder {
         }
     }
 
-    /// Drops the oldest non-approval items until within the item and
-    /// character budgets.
     pub fn enforce_resource_limits(&mut self) {
         while self.items.len() > Self::MAX_ITEMS
             || self.retained_characters > Self::MAX_TOTAL_CHARACTERS
@@ -299,8 +280,6 @@ impl TranscriptFolder {
             self.remove(index);
         }
     }
-
-    // --------------------------------------------------------- folding
 
     pub fn fold(&mut self, event: &PiEvent) {
         match event {
@@ -319,8 +298,6 @@ impl TranscriptFolder {
                 if role != "assistant" {
                     return;
                 }
-                // A fresh attempt can recover from pi's automatic retry; only
-                // the outcome left at agent_settled is terminal.
                 self.terminal_failure = None;
                 let id = self.next_id("assistant");
                 self.append(TranscriptItem::Assistant {
@@ -355,7 +332,7 @@ impl TranscriptFolder {
                             Self::MAX_MESSAGE_CHARACTERS,
                         );
                         if final_text.is_empty() {
-                            self.remove(index); // tool-call-only turn
+                            self.remove(index);
                         } else {
                             self.replace(
                                 index,
@@ -413,8 +390,6 @@ impl TranscriptFolder {
             | PiEvent::Unknown { .. } => {}
         }
     }
-
-    // --------------------------------------------------------- helpers
 
     fn next_id(&mut self, prefix: &str) -> String {
         self.counter += 1;
@@ -513,8 +488,6 @@ fn bounded(text: &str, limit: usize) -> String {
     }
 }
 
-/// Bounds a card's preview fields to one shared budget; anything cut marks
-/// it truncated, which also blocks approving a shell command or arguments.
 fn bounded_approval(request: ApprovalRequest) -> ApprovalRequest {
     struct Budget {
         remaining: usize,
@@ -866,7 +839,6 @@ mod tests {
     fn shell_approval_requires_the_complete_command_in_utf16_units() {
         let mut request = approval("a", &"#".repeat(MAX_APPROVAL_TEXT_UTF16));
         assert!(request.can_approve());
-        // 32,768 emoji are 65,536 UTF-16 units; one more character is over.
         request.command = Some(format!("{}x", "😀".repeat(32_768)));
         assert!(!request.can_approve());
         request.command = None;

@@ -1,6 +1,3 @@
-//! `lokalbot-cli`: read-only access to the LokalBot library, a stdio MCP server,
-//! and settings through the running app.
-
 use clap::Parser as _;
 use lokalbot_cli::{Cli, CliError, Command, run};
 

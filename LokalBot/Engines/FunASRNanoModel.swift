@@ -1,8 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// The sherpa-onnx export of FunAudioLLM/Fun-ASR-Nano-2512. These files
-/// remain owned by the user: validation never writes receipts or moves them.
 struct FunASRNanoModel: Sendable {
     let directory: URL
     let encoder: URL
@@ -13,8 +11,6 @@ struct FunASRNanoModel: Sendable {
 
     var weights: [URL] { [encoder, decoder, embedding] + (externalData.map { [$0] } ?? []) }
 
-    /// Include the resolved files and their revisions without reading gigabytes
-    /// of weights on every resume. Tokenizer changes also invalidate transcripts.
     var checkpointIdentity: String {
         get throws {
             let files = weights + ["tokenizer.json", "vocab.json", "merges.txt"].map {
@@ -61,8 +57,6 @@ struct FunASRNanoModel: Sendable {
                     tokenizer: root.appendingPathComponent("Qwen3-0.6B", isDirectory: true), externalData: externalData)
     }
 
-    /// Lightweight readiness check; the runtime checks actual ONNX graphs
-    /// during preparation. Support symlinks used by local model caches.
     private static func usableFile(_ url: URL) -> Bool {
         let file = url.resolvingSymlinksInPath()
         guard let values = try? file.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
@@ -85,7 +79,6 @@ struct FunASRNanoModel: Sendable {
             "--funasr-nano-max-new-tokens=512",
             "--funasr-nano-itn=true"
         ]
-        // The runtime takes language names, not the app's ISO language codes.
         if let name = ["zh": "中文", "yue": "粤语", "en": "英文", "ja": "日文"][language ?? ""] {
             args.append("--funasr-nano-language=\(name)")
         }

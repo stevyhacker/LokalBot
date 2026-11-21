@@ -1,32 +1,17 @@
 import Foundation
 
-/// Cotyping usage + latency metrics. A pure, `Codable` value type (the counters
-/// and their derivation) wrapped by `CotypingStatsStore` for persistence.
-/// Inspired by Cotabby's `PerformanceMetricsStore`, trimmed to the metrics that
-/// matter for a local continuer and that record cleanly at unambiguous pipeline
-/// points (an LLM generation completing, an accept tap succeeding).
 struct CotypingStats: Codable, Equatable, Sendable {
-    /// LLM continuations that completed (regardless of whether they produced text).
     var generations: Int = 0
-    /// Generations that failed (network error, bad response, …).
     var errors: Int = 0
-    /// Continuation accepts (a phrase chunk or a full accept).
     var accepts: Int = 0
-    /// Total characters inserted via accept.
     var charsAccepted: Int = 0
-    /// Rolling window of generation latencies, newest last.
     var latenciesMs: [Int] = []
-    /// What happened in other apps, by kind of writing surface (a
-    /// `CotypingSurfaceClass` raw value). See `CotypingLiveMeasure`.
     var live: [String: CotypingLiveMeasure] = [:]
 
-    /// Cap on retained latency samples — a rolling window for the averages.
     static let maxLatencies = 50
 
     init() {}
 
-    /// Counters saved before a field existed keep their values instead of
-    /// resetting the whole record.
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         generations = try container.decodeIfPresent(Int.self, forKey: .generations) ?? 0
@@ -37,9 +22,6 @@ struct CotypingStats: Codable, Equatable, Sendable {
         live = try container.decodeIfPresent([String: CotypingLiveMeasure].self, forKey: .live) ?? [:]
     }
 
-    /// Accepts per generation. Phrase acceptance can push this above 1.0 (one
-    /// generation accepted in multiple word chunks), which is itself a useful
-    /// "how much of each suggestion do I keep" signal.
     var acceptsPerGeneration: Double {
         generations > 0 ? Double(accepts) / Double(generations) : 0
     }
@@ -51,7 +33,6 @@ struct CotypingStats: Codable, Equatable, Sendable {
     var p95LatencyMs: Int? { percentile(0.95) }
     var maxLatencyMs: Int? { latenciesMs.max() }
 
-    /// Nearest-rank percentile over the (small) window. Pure and deterministic.
     private func percentile(_ p: Double) -> Int? {
         guard !latenciesMs.isEmpty else { return nil }
         let sorted = latenciesMs.sorted()
@@ -85,9 +66,6 @@ struct CotypingStats: Codable, Equatable, Sendable {
     mutating func reset() { self = CotypingStats() }
 }
 
-/// Async persistence seam so JSON encoding and UserDefaults writes never run
-/// on the UI actor. Actor implementations also give queued snapshots a single
-/// deterministic writer.
 protocol CotypingStatsPersisting: Sendable {
     func persist(_ stats: CotypingStats) async
     func remove() async
@@ -125,20 +103,11 @@ actor UserDefaultsCotypingStatsPersistence: CotypingStatsPersisting {
     }
 }
 
-/// Owns the persisted `CotypingStats` and `CotypingUsageHistory` and records
-/// into them from the coordinator. `@MainActor` + `ObservableObject` keeps UI
-/// state immediately observable, but persistence is delegated to an actor.
-/// Local only — written to UserDefaults as two small JSON blobs; never leaves
-/// the device.
 @MainActor
 final class CotypingStatsStore: ObservableObject {
     static let shared = CotypingStatsStore()
 
     @Published private(set) var stats: CotypingStats
-    /// Day-by-day use for the statistics. Not `@Published`: typed characters
-    /// arrive with every keystroke in other apps, and an open Settings window
-    /// need not redraw for each. Other changes announce themselves, and the
-    /// next generation or accept shows the typing.
     private(set) var usage: CotypingUsageHistory
 
     private let persistence: any CotypingStatsPersisting
@@ -178,15 +147,11 @@ final class CotypingStatsStore: ObservableObject {
         enqueuePersistence()
     }
 
-    /// Accept counters stay live in the UI for every chunk, but disk remains
-    /// dirty until the coordinator closes that suggestion.
     func recordAccept(charsAccepted: Int, surface: String? = nil) {
         stats.recordAccept(charsAccepted: charsAccepted, surface: surface)
         revision &+= 1
     }
 
-    /// Live measurements share the accept counters' persistence boundary: they
-    /// are written with the next generation or completed suggestion.
     func recordShown(latencyMs: Int, surface: String) {
         stats.recordShown(latencyMs: latencyMs, surface: surface)
         revision &+= 1
@@ -203,15 +168,12 @@ final class CotypingStatsStore: ObservableObject {
         revision &+= 1
     }
 
-    // MARK: - Usage history
-
     func recordSuggestionShown(surface: String, model: String) {
         objectWillChange.send()
         usage.recordShown(surface: surface, model: model, at: now(), calendar: calendar)
         usageRevision &+= 1
     }
 
-    /// Saved with the suggestion, like the accept counters.
     func recordSuggestionAccept(words: Int, characters: Int, firstOfSuggestion: Bool, surface: String, model: String) {
         objectWillChange.send()
         usage.recordAccept(
@@ -233,8 +195,6 @@ final class CotypingStatsStore: ObservableObject {
         enqueuePersistence()
     }
 
-    /// Called for each key typed where autocomplete works, so it neither
-    /// redraws nor writes; see `usage`.
     func recordTyped(characters: Int, gapMilliseconds: Int?) {
         usage.recordTyped(characters: characters, gapMilliseconds: gapMilliseconds, at: now(), calendar: calendar)
         usageRevision &+= 1
@@ -254,7 +214,6 @@ final class CotypingStatsStore: ObservableObject {
         }
     }
 
-    /// One persistence boundary for all chunks accepted from one suggestion.
     func suggestionCompleted() {
         guard revision != enqueuedRevision || usageRevision != enqueuedUsageRevision else { return }
         enqueuePersistence()
@@ -273,21 +232,17 @@ final class CotypingStatsStore: ObservableObject {
         }
     }
 
-    /// Persists any dirty counters and awaits all background writes. This is
-    /// the termination safety net for an in-flight/partially accepted session.
     func flushPersistence() async {
         if revision != enqueuedRevision || usageRevision != enqueuedUsageRevision { enqueuePersistence() }
         let pending = persistenceTask
         await pending?.value
     }
 
-    /// Waits only for work already scheduled by a completed suggestion.
     func waitForPendingPersistence() async {
         let pending = persistenceTask
         await pending?.value
     }
 
-    /// Writes the counters, and the usage history only when it changed.
     private func enqueuePersistence() {
         let persistedStats = stats
         let persistedUsage = usageRevision != enqueuedUsageRevision ? usage : nil
@@ -302,8 +257,6 @@ final class CotypingStatsStore: ObservableObject {
         }
     }
 
-    /// `--cotyping-measurements`: print what is saved, as JSON, so a script
-    /// that drove real apps can check how suggestions and accepts went.
     static func printSaved(defaults: UserDefaults = .standard) -> Int32 {
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]

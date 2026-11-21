@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import me.dotenv.lokalbot.companion.data.CompanionRepository
 
-/** A screen's state, loaded from the library and reloaded whenever the library changes. */
 abstract class LibraryViewModel(protected val repository: CompanionRepository) : ViewModel() {
 
     @OptIn(ExperimentalCoroutinesApi::class)

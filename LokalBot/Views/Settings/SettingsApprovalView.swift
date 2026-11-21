@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// The approval window: one card for each terminal request waiting for the
-/// person, listing every change it makes in full. Approve applies exactly
-/// those changes through the same paths as Settings; Deny changes nothing.
 struct SettingsApprovalView: View {
     @EnvironmentObject private var app: AppState
 
@@ -40,7 +37,6 @@ private struct SettingsApprovalList: View {
             }
         }
         .onAppear { approvals.expireStale() }
-        // The window goes away with the last request it was showing.
         .onChange(of: approvals.pending.isEmpty) { _, empty in
             if empty { dismissWindow(id: "settings-approval") }
         }
@@ -78,7 +74,6 @@ private struct SettingsApprovalCard: View {
                             if let detail = row.detail {
                                 Text(verbatim: detail).settingsSecondary()
                             }
-                            // Every value in full: this is what the person approves.
                             ForEach(row.change, id: \.self) { line in
                                 Text(verbatim: line)
                                     .fixedSize(horizontal: false, vertical: true)
@@ -103,7 +98,6 @@ private struct SettingsApprovalCard: View {
                     .accessibilityIdentifier("settingsApproval.deny")
                 Button(request.retention == nil ? approveTitle : cleanupTitle,
                        role: request.retention == nil ? nil : .destructive) {
-                    // A failure stays on the card as its problem.
                     try? app.approveSettingsRequest(request.id)
                 }
                 .primaryActionButton()
@@ -155,8 +149,6 @@ private struct SettingsApprovalCard: View {
         }
     }
 
-    /// What an import adds, in full: where from, how many, and what stays
-    /// untouched.
     private static func importRow(_ request: SettingsApprovals.MeetingImportRequest, plan: JSONValue?) -> Row {
         let count = { (key: String) in plan?[key]?.intValue ?? 0 }
         var lines = request.paths
@@ -180,8 +172,6 @@ private struct SettingsApprovalCard: View {
     }
 }
 
-/// The same counts the retention review in Settings shows. Approving deletes
-/// exactly this.
 private struct SettingsApprovalRetention: View {
     let review: RetentionReview
 
@@ -205,8 +195,6 @@ private struct SettingsApprovalRetention: View {
 }
 
 extension SettingSpec {
-    /// What the approval card says a change does, in full. Lists name every
-    /// entry added and removed; other values show before and after.
     func changeLines(from old: JSONValue?, to new: JSONValue?, language: AppLanguage = .english) -> [String] {
         if let before = listEntries(old), let after = listEntries(new) {
             let beforeKeys = Set(before.map { $0.lowercased() })
@@ -225,13 +213,10 @@ extension SettingSpec {
         let before = displayText(old, language: language)
         let after = displayText(new, language: language)
         guard before == after, old != new else { return ["\(before) → \(after)"] }
-        // A URL's user info or query, or a structured value, changed.
         return ["\(before) → \(after)",
                 language.localized("Changes details that are hidden here, such as a URL's password or query.")]
     }
 
-    /// A setting's whole value as the person reads it. URLs leave out user
-    /// info and query.
     func displayText(_ value: JSONValue?, language: AppLanguage = .english) -> String {
         guard let value else { return language.localized("Default") }
         switch value {
@@ -243,7 +228,6 @@ extension SettingSpec {
         case .string(let string):
             if case .text(.url) = kind { return DiagnosticsSettingsSanitizer.redactURL(string) }
             if string.isEmpty { return language.localized("Not set") }
-            // Choices stored as display names read better than tokens.
             if case .choice = kind { return language.localized(string) }
             return string
         case .array(let items):
@@ -254,7 +238,6 @@ extension SettingSpec {
         }
     }
 
-    /// The entries of a list setting, or nil for other settings.
     private func listEntries(_ value: JSONValue?) -> [String]? {
         switch kind {
         case .textList, .choiceList:

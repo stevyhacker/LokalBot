@@ -1,7 +1,3 @@
-//! `search_files` for MCP and `lokalbot-cli search-files` (`FilesSearchTool`): word
-//! search over the Files index, which works while the app is closed. Search by
-//! meaning needs LokalBot's embedding model, so it stays in Ask.
-
 use std::collections::HashSet;
 use std::path::Path;
 
@@ -17,10 +13,7 @@ use crate::search::MAXIMUM_QUERY_CHARACTERS;
 pub const NAME: &str = "search_files";
 pub const DEFAULT_LIMIT: i64 = 10;
 pub const MAXIMUM_LIMIT: i64 = 50;
-/// The most ranked matches one search looks through for ones inside the
-/// chosen folders and dates.
 const WIDEST_SEARCH: usize = 4_096;
-/// A passage longer than this is cut, with an ellipsis.
 const PASSAGE_CHARACTERS: usize = 1_500;
 
 pub const KINDS: [&str; 6] = ["screenshot", "image", "pdf", "doc", "audio", "video"];
@@ -48,7 +41,6 @@ impl Failure {
 
 #[derive(Debug, Serialize)]
 pub struct Item {
-    /// The matched passage's id in the index.
     pub id: i64,
     pub path: String,
     pub name: String,
@@ -58,7 +50,6 @@ pub struct Item {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub seconds: Option<f64>,
     pub modified: String,
-    /// When a photo was taken, if it says.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub taken: Option<String>,
     pub size: i64,
@@ -101,8 +92,6 @@ fn clipped(text: &str) -> String {
     out
 }
 
-/// Arguments first, so a bad call says so with or without the grant; then the
-/// grant, the folder list and the index.
 pub fn report(
     paths: &LibraryPaths,
     query: &str,
@@ -158,13 +147,11 @@ pub fn report(
     let mut searcher = FileIndex::open_read_only(&directory)
         .and_then(Searcher::new)
         .map_err(|_| Failure::Unavailable)?;
-    // A walk reports a folder by its real path.
     let roots: Vec<String> = projection
         .folders
         .iter()
         .flat_map(|folder| [folder.clone(), real_path(folder)])
         .collect();
-    // The hits inside the chosen folders and dates, best first, up to `count`.
     let kept = |found: Vec<SearchHit>| {
         let mut kept = Vec::new();
         for hit in found {
@@ -186,10 +173,6 @@ pub fn report(
         }
         kept
     };
-    // The folders and dates are applied after ranking, so the best few
-    // matches can all fall outside them: forty older invoices hid the one
-    // from this month. Look further down the ranking until enough are
-    // inside, or there is nothing more to look at.
     let mut window = count * 4;
     let matches = loop {
         let found = searcher
@@ -237,7 +220,6 @@ pub fn report(
     })
 }
 
-/// A plain-text table for `search-files --table`.
 pub fn table(report: &Report) -> String {
     if report.results.is_empty() {
         return format!("No files matched \"{}\".", report.query);
@@ -413,9 +395,6 @@ mod tests {
         let fixture = fixture();
         access::set_enabled(&fixture.paths, true).unwrap();
         access::refresh(&fixture.paths, Some(std::slice::from_ref(&fixture.folder))).unwrap();
-        // Files with both words rank above the one in the chosen folder,
-        // which has one. All are outside it, and there are more of them than
-        // a search for one result looks at first, or used to look at in all.
         let index = FileIndex::open(&files::index_dir(fixture.paths.root())).unwrap();
         for number in 0..120 {
             let id = index
@@ -448,8 +427,6 @@ mod tests {
         assert_eq!(found.results[0].name, "plan.md");
     }
 
-    /// A few long documents outside the chosen folder hold more matching
-    /// passages than a search used to read at all.
     #[test]
     fn a_match_below_a_thousand_passages_outside_the_chosen_folders_is_still_found() {
         let fixture = fixture();

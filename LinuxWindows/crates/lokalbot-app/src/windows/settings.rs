@@ -1,10 +1,3 @@
-//! Settings in its own window, as on the Mac (`Window("Settings", id:
-//! "settings")`): Ctrl+, the sidebar's Settings row, the tray, the command
-//! palette, links from pages, notifications and `lokalbot-cli open settings`
-//! open it or bring it forward, so the main window stays on your work. There
-//! is one at a time. It opens on `AppData::settings_category`; everything
-//! reaches it through `AppData::open_settings`.
-
 use gpui_kit::component::{TitleBar, v_flex};
 use gpui_kit::{
     App, AppContext as _, Bounds, Context, Entity, IntoElement, ParentElement as _, Render, Size,
@@ -15,14 +8,11 @@ use crate::pages::settings::SettingsPage;
 use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, UiFont as _};
 
-/// `SettingsView.defaultSize` and its minimum.
 const WIDTH: f32 = 1020.;
 const HEIGHT: f32 = 816.;
 const MIN_WIDTH: f32 = 780.;
 const MIN_HEIGHT: f32 = 520.;
 
-/// Opens the Settings window, or brings it forward. Call
-/// `AppData::open_settings` instead, which also picks the page.
 pub fn open(cx: &mut App) {
     let existing = super::secondary(cx).settings;
     if super::activate(existing, cx) {
@@ -82,9 +72,6 @@ pub fn open(cx: &mut App) {
     }
 }
 
-/// Runs `action` on the Settings window, opening it first when it is closed:
-/// for a question that belongs beside a Settings page, such as a phone
-/// asking to pair.
 pub fn with_window(cx: &mut App, action: impl FnOnce(&mut Window, &mut App)) {
     open(cx);
     if let Some(handle) = super::secondary(cx).settings {
@@ -92,14 +79,12 @@ pub fn with_window(cx: &mut App, action: impl FnOnce(&mut Window, &mut App)) {
     }
 }
 
-/// Runs `action` on the Settings window if it is open.
 pub fn if_open(cx: &mut App, action: impl FnOnce(&mut Window, &mut App)) {
     if let Some(handle) = super::secondary(cx).settings {
         let _ = handle.update(cx, |_, window, cx| action(window, cx));
     }
 }
 
-/// The window's root: a title bar over the Settings page.
 pub struct SettingsWindow {
     data: Entity<AppData>,
     page: Entity<SettingsPage>,
@@ -108,7 +93,6 @@ pub struct SettingsWindow {
 impl SettingsWindow {
     fn new(window: &mut Window, cx: &mut Context<Self>) -> Self {
         let data = AppData::global(cx);
-        // Closing the window, by its button or the window manager, ends it.
         let closed = data.clone();
         cx.on_release(move |_, cx| {
             super::secondary(cx).settings = None;
@@ -130,10 +114,6 @@ impl Render for SettingsWindow {
     fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
         let toast = crate::shell::toast(&self.data, cx);
-        // The page draws the window's bar itself, over its right side, as
-        // the Mac's runs to the top edge beside the category list: back,
-        // forward and the page's name, with the window's buttons. The strip
-        // above the list's search moves the window too.
         v_flex()
             .size_full()
             .bg(lb.window)

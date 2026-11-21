@@ -1,21 +1,9 @@
-//! Which file holds a meeting's track (`MeetingAudioFiles.swift`). A Mac keeps
-//! AAC in `mic.m4a`/`system.m4a` beside an append-only PCM copy in
-//! `mic.live.caf`/`system.live.caf`. A crash can leave the AAC unreadable or
-//! short while the copy stays readable, and then the copy is the recording.
-//!
-//! The Mac decodes the AAC to prove it is whole. This crate has no decoder, so
-//! it reads the files' structure instead: an MP4 without a complete `moov`, or
-//! with a box that runs past the end of the file, doesn't count as readable.
-
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
-/// Container finalization and the PCM copy can differ by a small encoder tail.
-/// A larger gap means the AAC was cut short and the copy is more complete.
 const COMPLETENESS_TOLERANCE_SECONDS: f64 = 0.1;
 
-/// Top-level boxes read before giving up on a damaged MP4.
 const MAX_MP4_BOXES: usize = 64;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -34,17 +22,14 @@ impl Track {
         }
     }
 
-    /// `mic.live.caf`: what the Mac's recorder was still writing.
     pub fn recovery_file(self) -> String {
         format!("{}.live.caf", self.name())
     }
 
-    /// `mic.live.recovered.caf`: rebuilt by the Mac from its checkpoints.
     fn recovered_file(self) -> String {
         format!("{}.live.recovered.caf", self.name())
     }
 
-    /// `mic.live.recovery`: the Mac's checkpoint folder.
     fn journal_folder(self) -> String {
         format!("{}.live.recovery", self.name())
     }
@@ -54,11 +39,9 @@ impl Track {
     }
 }
 
-/// The file to play and transcribe for a track, if the folder has one.
 pub fn track_file(folder: &Path, track: Track) -> Option<PathBuf> {
     let name = track.name();
     let existing = |file: String| Some(folder.join(file)).filter(|path| path.is_file());
-    // What this app records and imports.
     if let Some(path) = existing(format!("{name}.wav")).or_else(|| existing(format!("{name}.flac")))
     {
         return Some(path);
@@ -81,13 +64,10 @@ pub fn track_file(folder: &Path, track: Track) -> Option<PathBuf> {
             Some(copy)
         }
         (None, Some((copy, _))) => Some(copy),
-        // An AAC this can't read still goes to the decoder, which says why.
         _ => primary,
     }
 }
 
-/// Checkpoints from a Mac recording that were never verified as complete. The
-/// meeting's page warns from this (`recoveryNeedsAttention`).
 pub fn recovery_needs_attention(folder: &Path) -> bool {
     #[derive(serde::Deserialize)]
     struct Receipt {
@@ -108,15 +88,13 @@ fn read_exact<const N: usize>(file: &mut File) -> Option<[u8; N]> {
     Some(bytes)
 }
 
-/// Seconds of audio in a CAF of fixed-size packets, from its header and size.
-/// A data chunk of size -1 was still being written and runs to the end.
 fn caf_duration(path: &Path) -> Option<f64> {
     let mut file = File::open(path).ok()?;
     let length = file.metadata().ok()?.len();
     if &read_exact::<4>(&mut file)? != b"caff" {
         return None;
     }
-    read_exact::<4>(&mut file)?; // version and flags
+    read_exact::<4>(&mut file)?;
     let mut packet: Option<(f64, u64, u64)> = None;
     loop {
         let kind = read_exact::<4>(&mut file)?;
@@ -125,7 +103,7 @@ fn caf_duration(path: &Path) -> Option<f64> {
         match &kind {
             b"desc" => {
                 let rate = f64::from_be_bytes(read_exact::<8>(&mut file)?);
-                read_exact::<8>(&mut file)?; // format and its flags
+                read_exact::<8>(&mut file)?;
                 let bytes = u32::from_be_bytes(read_exact::<4>(&mut file)?);
                 let frames = u32::from_be_bytes(read_exact::<4>(&mut file)?);
                 packet = Some((rate, u64::from(bytes), u64::from(frames)));
@@ -137,7 +115,6 @@ fn caf_duration(path: &Path) -> Option<f64> {
                 }
                 let available = length.saturating_sub(start);
                 let declared = u64::try_from(size).unwrap_or(available);
-                // The chunk opens with a four-byte edit count.
                 let audio = declared.min(available).saturating_sub(4);
                 return Some((audio / bytes * frames) as f64 / rate);
             }
@@ -148,8 +125,6 @@ fn caf_duration(path: &Path) -> Option<f64> {
     }
 }
 
-/// The length an MP4 says it has. `None` when it has no complete `moov`, which
-/// is what a recording cut off by a crash looks like, or a box past the end.
 fn mp4_duration(path: &Path) -> Option<f64> {
     let mut file = File::open(path).ok()?;
     let length = file.metadata().ok()?.len();
@@ -173,7 +148,6 @@ fn mp4_duration(path: &Path) -> Option<f64> {
     seconds
 }
 
-/// A box's type, where its body starts and where it ends.
 fn mp4_box(file: &mut File, position: u64, length: u64) -> Option<([u8; 4], u64, u64)> {
     file.seek(SeekFrom::Start(position)).ok()?;
     let size = u32::from_be_bytes(read_exact::<4>(file)?);
@@ -197,7 +171,7 @@ fn mvhd_duration(file: &mut File, start: u64, end: u64) -> Option<f64> {
             file.seek(SeekFrom::Start(body)).ok()?;
             let version = read_exact::<4>(file)?[0];
             let (scale, duration) = if version == 1 {
-                read_exact::<16>(file)?; // creation and modification times
+                read_exact::<16>(file)?;
                 (
                     u32::from_be_bytes(read_exact::<4>(file)?),
                     u64::from_be_bytes(read_exact::<8>(file)?),
@@ -220,7 +194,6 @@ fn mvhd_duration(file: &mut File, start: u64, end: u64) -> Option<f64> {
 mod tests {
     use super::*;
 
-    /// The header `AVAudioFile` writes for the tee: 16 kHz mono Float32 LE.
     fn caf_header(data_size: i64) -> Vec<u8> {
         let mut bytes = Vec::new();
         bytes.extend_from_slice(b"caff");
@@ -230,18 +203,17 @@ mod tests {
         bytes.extend_from_slice(&32i64.to_be_bytes());
         bytes.extend_from_slice(&16_000f64.to_be_bytes());
         bytes.extend_from_slice(b"lpcm");
-        bytes.extend_from_slice(&3u32.to_be_bytes()); // float, little-endian
+        bytes.extend_from_slice(&3u32.to_be_bytes());
         bytes.extend_from_slice(&4u32.to_be_bytes());
         bytes.extend_from_slice(&1u32.to_be_bytes());
         bytes.extend_from_slice(&1u32.to_be_bytes());
         bytes.extend_from_slice(&32u32.to_be_bytes());
         bytes.extend_from_slice(b"data");
         bytes.extend_from_slice(&data_size.to_be_bytes());
-        bytes.extend_from_slice(&0u32.to_be_bytes()); // edit count
+        bytes.extend_from_slice(&0u32.to_be_bytes());
         bytes
     }
 
-    /// A tee the crashed recorder never closed.
     fn growing_caf(path: &Path, seconds: f64) {
         let mut bytes = caf_header(-1);
         bytes.resize(bytes.len() + (seconds * 16_000.0) as usize * 4, 0);
@@ -255,7 +227,6 @@ mod tests {
         bytes
     }
 
-    /// `ftyp`, `mdat` and, when finished, a `moov` with this length.
     fn m4a(path: &Path, seconds: Option<u32>) {
         let mut bytes = mp4_box_bytes(b"ftyp", b"M4A \0\0\0\0");
         bytes.extend(mp4_box_bytes(b"mdat", &[0; 64]));
@@ -330,7 +301,6 @@ mod tests {
     fn this_apps_tracks_and_an_unreadable_aac_stay_as_they_were() {
         let dir = folder();
         std::fs::write(file(&dir, "mic.m4a"), b"not an mp4").unwrap();
-        // Nothing better: the decoder gets it and says why it failed.
         assert_eq!(
             track_file(dir.path(), Track::Mic),
             Some(file(&dir, "mic.m4a"))
@@ -364,7 +334,6 @@ mod tests {
     fn a_closed_caf_reports_its_declared_length() {
         let dir = folder();
         let path = file(&dir, "mic.live.caf");
-        // 8,000 frames plus the edit count, then bytes that belong to no audio.
         let mut bytes = caf_header(8_000 * 4 + 4);
         bytes.resize(bytes.len() + 8_000 * 4 + 100, 0);
         std::fs::write(&path, bytes).unwrap();

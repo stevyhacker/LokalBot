@@ -1,12 +1,3 @@
-//! The frontmost app and window title, and how long the user has been idle
-//! (`ActivitySampler` in `ActivityTracker.swift`).
-//!
-//! [`activity_source`] picks the backend at runtime: Win32 on Windows; on
-//! Linux, X11 (EWMH) or the Wayland compositor's own interface (Hyprland,
-//! Sway, KDE Plasma, GNOME with a window-information extension). The engine
-//! samples every 5 s from a background thread and runs [`crate::disposition`]
-//! on each sample before storing it.
-
 use lokalbot_core::ActivitySample;
 
 #[cfg(target_os = "linux")]
@@ -29,24 +20,13 @@ pub use win32::friendly_name as executable_display_name;
 #[cfg(windows)]
 pub(crate) use win32::{app_for_pid, foreground_pid};
 
-/// One way of reading the focused window. Implementations must not block for
-/// long: each call is bounded by short timeouts.
 pub trait ActivitySource: Send {
-    /// The frontmost window now, or `None` when nothing is focused (the
-    /// desktop, a lock screen, a headless session). LokalBot's own windows
-    /// come back as app "LokalBot" with [`crate::privacy::SELF_APP_ID`] and no
-    /// title. Errors mean the backend itself failed.
     fn sample(&mut self) -> anyhow::Result<Option<ActivitySample>>;
-    /// Seconds since the last keyboard or pointer input, if known.
     fn idle_seconds(&mut self) -> Option<f64>;
-    /// Short name for diagnostics: `win32`, `x11`, `hyprland`, `sway`, `kwin`,
-    /// `gnome-extension`, `unavailable`.
     fn backend_name(&self) -> &'static str;
-    /// What this desktop cannot provide, worded for Settings, or `None`.
     fn limitation(&self) -> Option<String>;
 }
 
-/// The best source for this session.
 pub fn activity_source() -> Box<dyn ActivitySource> {
     #[cfg(windows)]
     {
@@ -64,9 +44,6 @@ pub fn activity_source() -> Box<dyn ActivitySource> {
     }
 }
 
-/// A quick, lowercase identifier for the focused app (executable, `WM_CLASS`
-/// or app id), for choosing how to paste. `None` where the desktop cannot
-/// tell cheaply (GNOME and KDE on Wayland).
 pub(crate) fn focused_app_hint() -> Option<String> {
     #[cfg(windows)]
     {
@@ -82,7 +59,6 @@ pub(crate) fn focused_app_hint() -> Option<String> {
     }
 }
 
-/// A source that never sees anything, with the reason why.
 pub struct Unavailable {
     reason: String,
 }
@@ -111,7 +87,6 @@ impl ActivitySource for Unavailable {
     }
 }
 
-/// The sample for LokalBot's own windows: app name only.
 pub(crate) fn own_window_sample(idle_seconds: f64) -> ActivitySample {
     ActivitySample {
         at: chrono::Utc::now(),
@@ -123,8 +98,6 @@ pub(crate) fn own_window_sample(idle_seconds: f64) -> ActivitySample {
     }
 }
 
-/// Turns "gnome-terminal-server" into "Gnome-terminal-server" when nothing
-/// better is known.
 pub(crate) fn capitalized(name: &str) -> String {
     let mut chars = name.chars();
     match chars.next() {

@@ -1,24 +1,4 @@
 #!/usr/bin/env bash
-# Builds Linux distribution packages from the folder scripts/package.sh staged
-# in dist/, with nfpm (https://nfpm.goreleaser.com):
-#   dist/LokalBot-<version>-linux-amd64.deb          Debian, Ubuntu
-#   dist/LokalBot-<version>-linux-x86_64.rpm         Fedora, openSUSE, RHEL
-#   dist/LokalBot-<version>-linux-x86_64.pkg.tar.zst Arch
-# Run scripts/package.sh first.
-#
-# NFPM: the nfpm binary to use (default: nfpm on PATH).
-# PACKAGE_VERSION, STAGE, LINUX_REPO_PUBLIC_KEY: another version, staged
-# folder or repository key, for scripts/ci/check-linux-repos.sh.
-#
-# The packages install lokalbot and lokalbot-cli into /usr/bin, the desktop
-# entry and icons into /usr/share. LokalBot does not replace a package's
-# files. It finds the package that owns it, and for one named lokalbot (these
-# packages, lokalbot-update's package::RELEASE_PACKAGE) shows the command that
-# installs the new package; the file names below are in that command too.
-# Once the repository key is in packaging/linux, the .deb and .rpm also add
-# the apt and dnf repositories at pkg.lokalbot.com (scripts/linux-repos.sh)
-# with that key, so later versions come with `apt upgrade` and `dnf upgrade`,
-# which LokalBot then suggests (package::repository_file).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=${PACKAGE_VERSION:-$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)}
@@ -89,7 +69,6 @@ contents:
     dst: /usr/share/doc/lokalbot/THIRD_PARTY_NOTICES.md
     file_info: {mode: 0644}
 EOF
-  # Every license text the notices name, at the paths they give.
   for license in "$STAGE"/LICENSES/*; do
     cat <<EOF
   - src: $license
@@ -104,7 +83,6 @@ EOF
     file_info: {mode: 0644}
 EOF
   done
-  # The repository files are config files: an edited copy survives upgrades.
   if [ -f "$REPO_KEY" ]; then
     cat <<EOF
   - src: $ROOT/packaging/linux/lokalbot.sources
@@ -127,15 +105,6 @@ EOF
     file_info: {mode: 0644}
 EOF
   fi
-  # The binaries need glibc 2.39 (built on Ubuntu 24.04). The app links ALSA,
-  # xcb and xkbcommon and loads Vulkan and the Wayland client at run time.
-  # The llama.cpp runtime it downloads (llama-server) links the GCC OpenMP
-  # runtime, libgomp.so.1, which minimal installs lack.
-  # Arch's gcc-libs is a meta package of every GCC runtime; namcap asks for
-  # libgcc and libstdc++, and for hicolor-icon-theme, which owns the icon folders.
-  # System audio uses PulseAudio or PipeWire's PulseAudio server; the
-  # suggested tools enable typing and screenshots on some desktops. Tesseract
-  # reads screen text in scripts other than Latin; without it, ocrs reads Latin.
   cat <<'EOF'
 overrides:
   deb:

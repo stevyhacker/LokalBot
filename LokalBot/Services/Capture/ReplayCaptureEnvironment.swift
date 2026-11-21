@@ -2,9 +2,6 @@
 import CoreGraphics
 import Foundation
 
-/// Virtual time for replay. `sleep` warps time forward (flows that wait, like
-/// the 750 ms capture retry, run instantly and deterministically); timers
-/// fire when a test advances the clock.
 final class VirtualCaptureClock: CaptureClock, @unchecked Sendable {
     private let lock = NSLock()
     private let start: Date
@@ -76,8 +73,6 @@ final class VirtualCaptureClock: CaptureClock, @unchecked Sendable {
         await advance(to: elapsed + max(0, seconds))
     }
 
-    /// Fires due timers in time order (ties by creation order), letting work
-    /// they start run between firings.
     @MainActor
     func advance(to target: TimeInterval) async {
         while let next = timers.filter({ !$0.cancelled && $0.fireAt <= target })
@@ -97,8 +92,6 @@ final class VirtualCaptureClock: CaptureClock, @unchecked Sendable {
     }
 }
 
-/// Wall-clock replay for the UI background host: trace time advances with
-/// real time × speed; timers and sleeps use the live clock, scaled.
 final class RealTimeReplayClock: CaptureClock, @unchecked Sendable {
     private let start: Date
     private let speed: Double
@@ -125,7 +118,6 @@ final class RealTimeReplayClock: CaptureClock, @unchecked Sendable {
     }
 }
 
-/// Answers every capture-environment query from a trace in virtual time.
 final class ReplayCaptureEnvironment: @unchecked Sendable {
     let trace: CaptureTrace
     let clock: VirtualCaptureClock
@@ -196,8 +188,6 @@ final class ReplayCaptureEnvironment: @unchecked Sendable {
         }
         func browserMeetingSnapshot(processID: pid_t, expectedURL: URL?) -> BrowserMeetingSession.Snapshot? {
             guard var snapshot = replay.answer(.browserSnapshot, processID: processID)?.browser else { return nil }
-            // Like the live reader, only a supported room document answers, under
-            // its canonical URL, and a read for one room never answers with another.
             guard let room = BrowserMeetingSession.roomURL(snapshot.url.absoluteString),
                   let canonical = URL(string: room) else { return nil }
             snapshot.url = canonical

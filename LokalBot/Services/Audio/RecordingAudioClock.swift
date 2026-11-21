@@ -1,11 +1,6 @@
 import AudioToolbox
 import Foundation
 
-/// Meeting files use elapsed meeting time, including periods with no captured
-/// audio. Each recorder fills to the same monotonic origin before writing a
-/// buffer; late attachments and recovered devices therefore cannot move later
-/// speech to the beginning of a file. Small clock/resampler jitter is tolerated
-/// without repeatedly inserting sub-buffer silence.
 struct RecordingAudioTimeline: Sendable {
     let originHostTime: Double
     let originInstant: ContinuousClock.Instant
@@ -16,10 +11,6 @@ struct RecordingAudioTimeline: Sendable {
         self.originInstant = originInstant
     }
 
-    /// Core Audio host time can pause during sleep. The continuous meeting
-    /// clock retains that gap, while the buffer's age on the host clock keeps
-    /// callback/queue latency out of the placement. Capture both observations
-    /// together in the callback and perform this work on the writer queue.
     func hostTimeOnTimeline(bufferHostTime: Double, callbackHostTime: Double,
                             callbackInstant: ContinuousClock.Instant) -> Double {
         let elapsed = originInstant.duration(to: callbackInstant).components
@@ -46,8 +37,6 @@ struct AudioClockSpan: Codable, Equatable, Sendable {
     var generation: Int
 }
 
-/// Receives anchors on the audio writer queue, only AFTER successful writes.
-/// No locks, allocations, conversion or I/O are added to the real-time callback.
 final class RecordingAudioClock: @unchecked Sendable {
     private let lock = NSLock()
     private var spans: [AudioClockSpan] = []
@@ -71,15 +60,11 @@ final class RecordingAudioClock: @unchecked Sendable {
         let end = start + Double(frames) / sampleRate
         guard start.isFinite, end > start else { generation += 1; return }
         if let fileSampleRate, fileSampleRate != sampleRate {
-            // The recorder rejects incompatible reattachments. If a caller
-            // nevertheless supplies one, never reinterpret old file frames.
             generation += 1
             return
         }
         fileSampleRate = sampleRate
         if let last = spans.last, start < last.hostEnd - 0.002 {
-            // Retain historical file anchors for offline alignment, but a
-            // backwards clock must never reuse them for a live observation.
             liveStartIndex = spans.count
             generation += 1
             return
@@ -92,8 +77,6 @@ final class RecordingAudioClock: @unchecked Sendable {
             spans[spans.count - 1].endFrame = startFrame + frames
         } else {
             generation += 1
-            // Retain the compact map for post-recording alignment. On an
-            // excessively fragmented capture, missing coverage fails closed.
             guard spans.count < 65_536 else { return }
             spans.append(AudioClockSpan(hostStart: start, hostEnd: end, startFrame: startFrame,
                                         endFrame: startFrame + frames, sampleRate: sampleRate, generation: generation))
@@ -124,7 +107,6 @@ final class RecordingAudioClock: @unchecked Sendable {
         return spans
     }
 
-    /// Both bounds must lie within a single contiguous span. Never extrapolate.
     func map(hostStart: Double, hostEnd: Double) -> SpeakerTurnAnchor? {
         lock.lock()
         defer { lock.unlock() }
@@ -142,10 +124,6 @@ struct RecordingAudioTiming: Codable, Sendable {
     var version = 1
     var microphone: [AudioClockSpan]
     var system: [AudioClockSpan]
-    /// Version 2 captures pad both primary audio and preview CAFs to this
-    /// origin. Version 1 remains decodable: its spans still map raw file time
-    /// for echo/identity evidence. Never reinterpret those existing files or
-    /// their saved transcripts as padded audio merely by loading the sidecar.
     var timelineOriginHostTime: Double?
 
     func nextBoundary(after position: Double) -> Double? {
@@ -172,8 +150,6 @@ struct RecordingAudioTiming: Codable, Sendable {
         return boundary.isFinite ? boundary : nil
     }
 
-    /// Map both bounds through one continuous span on each track. Padding and
-    /// device gaps have no anchors, so this never extrapolates across them.
     func referenceRange(start: Double, end: Double) -> SpeakerTurnAnchor? {
         guard start.isFinite, end.isFinite, end > start,
               let mic = microphone.first(where: { Self.covers($0, start: start, end: end) }) else { return nil }

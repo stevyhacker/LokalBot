@@ -6,20 +6,11 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.util.Log
 
-/**
- * ADTS AAC straight to the file: every frame carries its own header, so a
- * killed process or a dead battery leaves a readable file. An MP4 or M4A
- * container would need finishing on stop and must not be used here.
- */
 class MediaRecorderCapture(private val context: Context) : AudioCapture {
     private var recorder: MediaRecorder? = null
 
     @Synchronized
     override fun start(path: String, onError: () -> Unit) {
-        // VOICE_RECOGNITION is held by the Android compatibility rules to a flat
-        // response, with noise reduction and automatic gain off by default, so the
-        // file keeps what the room said for the computer's transcription. What MIC
-        // does varies by maker. Not every device offers it, so MIC is the fallback.
         recorder = try {
             started(MediaRecorder.AudioSource.VOICE_RECOGNITION, path, onError)
         } catch (e: Exception) {
@@ -28,7 +19,6 @@ class MediaRecorderCapture(private val context: Context) : AudioCapture {
         }
     }
 
-    // RecordingService checks the permission before it asks for this.
     @SuppressLint("MissingPermission")
     private fun started(source: Int, path: String, onError: () -> Unit): MediaRecorder {
         val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) MediaRecorder(context) else @Suppress("DEPRECATION") MediaRecorder()
@@ -60,7 +50,6 @@ class MediaRecorderCapture(private val context: Context) : AudioCapture {
     override fun stop() {
         val current = recorder ?: return
         recorder = null
-        // Throws when nothing was captured yet; the file is what it is either way.
         runCatching { current.stop() }
         current.release()
     }

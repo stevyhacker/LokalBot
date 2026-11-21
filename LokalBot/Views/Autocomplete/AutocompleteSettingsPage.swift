@@ -1,19 +1,12 @@
 import SwiftUI
 
-/// Settings › Autocomplete, under the shared header: the settings in groups,
-/// then rows that open the writing profile, the apps and sites to skip, the
-/// usage numbers and the advanced settings. The rehearsal is the header's
-/// "Try it…" sheet.
 struct AutocompleteSettingsSections: View {
     @EnvironmentObject private var app: AppState
-    /// Autocomplete on a chosen server, for its last problem.
     @ObservedObject var server: RemoteCotypingEngine
     @ObservedObject private var permissions = PermissionManager.shared
     @ObservedObject private var stats = CotypingStatsStore.shared
-    /// The page a row opened, when one is open.
     let subpage: SettingsSubpage?
     let open: (SettingsSubpage) -> Void
-    /// Opens the model picker over the page.
     let changeModel: () -> Void
 
     @State private var forgettingLearning = false
@@ -38,8 +31,6 @@ struct AutocompleteSettingsSections: View {
         extrasSection
         moreSection
     }
-
-    // MARK: - Suggestions
 
     private var suggestionsSection: some View {
         Section("Suggestions") {
@@ -99,9 +90,6 @@ struct AutocompleteSettingsSections: View {
         }
     }
 
-    // MARK: - What it can read
-
-    /// What each optional context source can do right now.
     private var context: CotypingContextAvailability {
         app.cotypingContextAvailability(accessibilityGranted: permissions.granted[.accessibility] ?? false,
                                         screenRecordingGranted: permissions.granted[.screenRecording] ?? false)
@@ -148,8 +136,6 @@ struct AutocompleteSettingsSections: View {
         } header: {
             Text("What it can read")
         } footer: {
-            // A server receives what is turned on here; only this Mac can
-            // promise that nothing it reads is kept.
             if app.settings.cotypingLeavesThisMac, let host = app.settings.cotypingConfiguredServerURL?.host {
                 Label("Context you turn on here is sent to \(host) with what you type.", systemImage: "network")
                     .font(AppFont.scaled(.callout))
@@ -160,8 +146,6 @@ struct AutocompleteSettingsSections: View {
             }
         }
     }
-
-    // MARK: - Extras
 
     private var extrasSection: some View {
         Section("Extras") {
@@ -176,11 +160,8 @@ struct AutocompleteSettingsSections: View {
         }
     }
 
-    // MARK: - More
-
     private var moreSection: some View {
         Section("More") {
-            // The model, or a server, is chosen in the same picker Models uses.
             LabeledContent {
                 HStack(spacing: 10) {
                     Text(verbatim: app.settings.cotypingModelDisplayName)
@@ -211,8 +192,6 @@ struct AutocompleteSettingsSections: View {
         let count = ExclusionRuleCount.count(app.settings.cotypingExcludedApps, app.settings.cotypingExcludedDomains)
         return count == 0 ? localized("None") : String(count)
     }
-
-    // MARK: - The pages the rows open
 
     private var profileSection: some View {
         Section {
@@ -257,7 +236,6 @@ struct AutocompleteSettingsSections: View {
         }
     }
 
-    /// The statistics and the timings, which were two blocks on the page.
     @ViewBuilder private var usageSections: some View {
         AutocompleteStatisticsView()
         Section("How quickly suggestions arrive") {

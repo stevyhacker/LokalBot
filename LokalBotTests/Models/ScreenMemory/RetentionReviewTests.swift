@@ -35,9 +35,6 @@ final class RetentionReviewTests: XCTestCase {
         XCTAssertEqual(store.blocks(in: DateInterval(start: old, end: now.addingTimeInterval(120))).map(\.title), ["", "new activity"])
     }
 
-    /// Nightly scale check 2026-10-01: the startup sweep blocked the main
-    /// thread for 2.3 s on a 180-day library, in part by handing evidence
-    /// revocation one date per row (101,521 for 166 days).
     func testScheduledSweepRevokesEachDayOnceRatherThanEachRow() throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("sweep-days-\(UUID())")
         defer { try? FileManager.default.removeItem(at: root) }
@@ -74,7 +71,7 @@ final class RetentionReviewTests: XCTestCase {
     }
 
     func testDistinctEvidenceDaysInvalidateTheSameLocalAndUTCDays() throws {
-        let base = Date(timeIntervalSince1970: 1_772_323_200) // 2026-03-01 00:00 UTC
+        let base = Date(timeIntervalSince1970: 1_772_323_200)
         var stamps: [Date] = []
         for day in 0..<12 {
             for hour in [0.0, 0.5, 4.75, 11.9, 12.1, 19.5, 23.5, 23.99] {
@@ -85,7 +82,6 @@ final class RetentionReviewTests: XCTestCase {
             RetentionReview.Candidate(id: Int64(index + 1), timestamp: stamp, path: "", removeText: true, removeVector: false)
         }
         let titles = stamps.enumerated().map { index, stamp in
-            // Every fifth block runs for 30 hours and crosses local midnights.
             RetentionReview.ActivityTitle(id: Int64(index + 1), start: stamp,
                                           end: stamp.addingTimeInterval(index % 5 == 0 ? 30 * 3_600 : 90), title: "t")
         }

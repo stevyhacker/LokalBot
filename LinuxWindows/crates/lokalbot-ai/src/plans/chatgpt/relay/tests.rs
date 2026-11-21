@@ -1,7 +1,3 @@
-//! The relay Agent Mode's pi talks to for the ChatGPT plan, over real
-//! loopback HTTP with a fake OpenAI upstream and token source
-//! (`ChatGPTPlanRelayTests.swift`).
-
 use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
@@ -14,8 +10,6 @@ struct FakeReply {
     status: u16,
     headers: Vec<(&'static str, &'static str)>,
     chunks: Vec<String>,
-    /// Keeps the body open after the chunks, like a model still thinking.
-    /// It sends SSE comments meanwhile, so it notices the relay hanging up.
     stays_open: bool,
 }
 
@@ -59,12 +53,10 @@ impl Recorded {
     }
 }
 
-/// Records upstream requests and answers them from a queue.
 struct FakeOpenAi {
     port: u16,
     replies: Mutex<VecDeque<FakeReply>>,
     requests: Mutex<Vec<Recorded>>,
-    /// Open bodies that ended because the relay went away.
     endings: AtomicUsize,
 }
 
@@ -160,7 +152,6 @@ impl FakeOpenAi {
     }
 }
 
-/// Hands out `plan-token-1`, then `plan-token-2` after a rejection.
 #[derive(Default)]
 struct FakeTokens {
     requests: Mutex<Vec<Option<String>>>,
@@ -220,7 +211,6 @@ impl Answer {
     }
 }
 
-/// One request as pi's fetch sends it.
 fn post(relay: &Relay, key: &str) -> Answer {
     let url = format!("{}/responses", relay.base_url());
     let agent = http::agent(&url, Duration::from_secs(10));
@@ -242,7 +232,6 @@ fn post(relay: &Relay, key: &str) -> Answer {
     }
 }
 
-/// A raw connection with the request written, for hanging up mid-reply.
 fn open(relay: &Relay) -> TcpStream {
     let body = pi_body().to_string();
     let mut stream = TcpStream::connect(("127.0.0.1", relay.port())).unwrap();
@@ -271,8 +260,6 @@ fn wait_for(what: &str, condition: impl Fn() -> bool) {
 fn head(lines: &[&str], body: &str) -> Vec<u8> {
     format!("{}\r\n\r\n{body}", lines.join("\r\n")).into_bytes()
 }
-
-// ------------------------------------------------------------ request reading
 
 #[test]
 fn the_key_is_checked_before_the_body_is_buffered() {
@@ -387,8 +374,6 @@ fn only_pi_shaped_requests_are_relayed() {
     assert!(!constant_time_eq(b"Bearer k", b"Bearer kk"));
 }
 
-// ----------------------------------------------------------------- plan rules
-
 #[test]
 fn the_body_follows_the_plan_routes_rules() {
     let body: Value =
@@ -436,8 +421,6 @@ fn plan_limits_are_not_retried_but_outages_are() {
     assert_eq!(should_retry(Some("rate_limit_exceeded"), None, None), None);
     assert_eq!(should_retry(None, Some("anything"), None), None);
 }
-
-// ------------------------------------------------------------------- relaying
 
 #[test]
 fn streams_openais_reply_with_the_plan_token_not_pis_key() {
@@ -564,7 +547,6 @@ fn a_signed_out_plan_asks_to_sign_in() {
 
 #[test]
 fn an_unreachable_openai_keeps_pis_own_retry_rules() {
-    // A port that was free a moment ago.
     let closed = TcpListener::bind("127.0.0.1:0").unwrap();
     let url = format!(
         "http://127.0.0.1:{}/v1/responses",
@@ -633,7 +615,6 @@ fn stopping_ends_open_requests_and_listening() {
     wait_for("the upstream body to end", || {
         openai.endings.load(Ordering::SeqCst) == 1
     });
-    // pi's connection was closed, not left hanging.
     let mut rest = Vec::new();
     let _ = stream.read_to_end(&mut rest);
     let port = relay.port();

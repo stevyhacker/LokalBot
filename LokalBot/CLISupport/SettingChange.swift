@@ -1,7 +1,5 @@
 import Foundation
 
-/// How one requested change is authorized. Only `preference` and `narrowing`
-/// changes apply directly; `widening` needs the person's approval in the app.
 enum SettingChangeClass: String, Codable {
     case unchanged
     case preference
@@ -11,9 +9,6 @@ enum SettingChangeClass: String, Codable {
 }
 
 extension SettingSpec {
-    /// Reads a value typed on the command line into the form `config get`
-    /// prints: tokens for choices, numbers, booleans, lists. Lists and
-    /// structured values also accept JSON.
     func parse(_ text: String) throws -> JSONValue {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         switch kind {
@@ -45,8 +40,6 @@ extension SettingSpec {
         }
     }
 
-    /// The value `AppSettings` stores for a presented value, after type,
-    /// range, and choice checks. The app's decoder still has the last word.
     func stored(fromPresented value: JSONValue) throws -> JSONValue {
         switch kind {
         case .bool:
@@ -97,9 +90,6 @@ extension SettingSpec {
         }
     }
 
-    /// Whether a change from `old` to `new` (both stored values) can apply
-    /// directly. A consent setting widens when it captures, reads, records,
-    /// keeps, or sends more; narrowing it is always allowed.
     func classify(from old: JSONValue?, to new: JSONValue) -> SettingChangeClass {
         if old == new { return .unchanged }
         switch tier {
@@ -112,11 +102,8 @@ extension SettingSpec {
     private func widens(from old: JSONValue?, to new: JSONValue) -> Bool {
         switch key {
         case "requireCalendarForBrowser":
-            // Requiring a calendar match narrows auto-recording; dropping it widens.
             return new == .bool(false)
         case "retentionDays", "keepOCRTextForever":
-            // Longer retention keeps more; shorter deletes, which goes through
-            // the reviewed cleanup. Either way the person decides.
             return true
         case "autoRecordMode":
             return new == choiceStored("automatic")
@@ -125,13 +112,8 @@ extension SettingSpec {
         case "openRouterDataPolicy":
             return new == choiceStored("accountPolicy")
         case "modelDownloadSource":
-            // Each later source puts another third-party host ahead of the
-            // earlier ones (ModelScope, then HF-Mirror, then Hugging Face), so
-            // only moving back toward Hugging Face narrows.
             return choiceRank(new) > choiceRank(old)
         case "companionHistory":
-            // Choices run from the shortest window to all history, so a later
-            // choice shares more with paired devices.
             return choiceRank(new) > choiceRank(old)
         default:
             break
@@ -140,14 +122,11 @@ extension SettingSpec {
         case .bool:
             return new == .bool(true)
         case .text(.commaSeparated):
-            // Exclusions: removing an entry captures or suggests in more places.
             let before = Self.entries(old?.stringValue ?? "")
             return !before.subtracting(Self.entries(new.stringValue ?? "")).isEmpty
         case .text(.path):
-            // A new export or routine folder writes outside the library.
             return !(new.stringValue ?? "").isEmpty
         case .textList:
-            // Approved origins: adding one sends data to a new place.
             let before = Set((old.flatMap(Self.strings) ?? []).map { $0.lowercased() })
             return !Set((Self.strings(new) ?? []).map { $0.lowercased() }).subtracting(before).isEmpty
         default:
@@ -191,8 +170,6 @@ extension SettingSpec {
     }
 }
 
-/// A `settings.set` request: values as `config get` prints them, keys to
-/// reset to their defaults, and whether to only report what would happen.
 struct SettingsChangeRequest: Equatable {
     var changes: [String: JSONValue]
     var reset: [String]
@@ -238,14 +215,10 @@ struct SettingsChangeRequest: Equatable {
     }
 }
 
-/// What a `settings.set` request would do to the current settings: the
-/// stored value each key gets and how each change is authorized. Pure, so the
-/// app and the tests share it; the app then decodes and applies the result.
 struct SettingsChangePlan: Equatable {
     struct Item: Equatable {
         let spec: SettingSpec
         let previous: JSONValue?
-        /// Nil removes the key, for an optional setting reset to its default.
         let stored: JSONValue?
         let change: SettingChangeClass
     }
@@ -266,8 +239,6 @@ struct SettingsChangePlan: Equatable {
         for (key, value) in request.changes {
             guard let spec = SettingRegistry.spec(for: key) else { throw AppControlError.unknownKey(key) }
             var stored = try spec.stored(fromPresented: value)
-            // `config list` and `export` show URLs without user info or query.
-            // Writing that form back must not strip them from the real value.
             if case .text(.url) = spec.kind, let existing = current[key]?.stringValue,
                stored.stringValue == redactURL(existing) {
                 stored = .string(existing)
@@ -287,8 +258,6 @@ struct SettingsChangePlan: Equatable {
         return SettingsChangePlan(items: items.values.sorted { order[$0.spec.key, default: 0] < order[$1.spec.key, default: 0] })
     }
 
-    /// Reviewed items again, from the settings as they are now: the same keys
-    /// and values, each classified from its current value.
     static func rebasing(_ items: [Item], on current: [String: JSONValue]) -> SettingsChangePlan {
         SettingsChangePlan(items: items.map { item in
             let previous = current[item.spec.key]
@@ -299,8 +268,6 @@ struct SettingsChangePlan: Equatable {
         })
     }
 
-    /// Whether this plan widens something `reviewed` did not show: a widening
-    /// change that was not on it, or one that now starts from another value.
     func widens(beyond reviewed: [Item]) -> Bool {
         widening.contains { item in
             guard let shown = reviewed.first(where: { $0.spec.key == item.spec.key }) else { return true }
@@ -308,7 +275,6 @@ struct SettingsChangePlan: Equatable {
         }
     }
 
-    /// The report each item gets in a `settings.set` reply.
     func entries(redactURL: (String) -> String = { $0 }) -> [JSONValue] {
         items.map { item in
             [

@@ -1,7 +1,3 @@
-//! Windows: one process tree's sound through WASAPI process loopback, the
-//! counterpart of `CoreAudioProcessTap`. It needs Windows 10 build 20348 or
-//! later, which is checked at run time; older systems record the whole output.
-
 use std::collections::HashMap;
 use std::mem::ManuallyDrop;
 use std::sync::Arc;
@@ -43,37 +39,28 @@ use crate::app_audio::{AppStream, build_has_process_loopback};
 use crate::capture::StreamFlags;
 use crate::track::ChunkSink;
 
-/// How long Windows may take to activate the client.
 const ACTIVATION_TIMEOUT: Duration = Duration::from_secs(5);
-/// Windows' own process loopback sample records this format; it mixes down
-/// whatever the process plays. Process loopback has no mix format to ask for.
 const SAMPLE_RATE: u32 = 44_100;
 const CHANNELS: u16 = 2;
 const BITS: u16 = 16;
-/// 200 ms, in 100 ns units.
 const BUFFER_DURATION: i64 = 2_000_000;
 const WAIT_MS: u32 = 100;
 
-/// Whether this Windows has process loopback.
 pub(crate) fn supported() -> bool {
     let mut info = OSVERSIONINFOW {
         dwOSVersionInfoSize: size_of::<OSVERSIONINFOW>() as u32,
         ..Default::default()
     };
-    // SAFETY: `info` is valid and its size field is set, as the call requires.
     let status = unsafe { RtlGetVersion(&mut info) };
     status.is_ok() && build_has_process_loopback(info.dwBuildNumber)
 }
 
-/// Balances `CoInitializeEx` on this thread.
 struct ComScope {
     initialized: bool,
 }
 
 impl ComScope {
     fn enter() -> Self {
-        // SAFETY: plain COM initialization for the calling thread; balanced
-        // in `drop` when it succeeded.
         let result = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) };
         Self {
             initialized: result.is_ok(),
@@ -84,17 +71,13 @@ impl ComScope {
 impl Drop for ComScope {
     fn drop(&mut self) {
         if self.initialized {
-            // SAFETY: matches the successful CoInitializeEx above.
             unsafe { CoUninitialize() };
         }
     }
 }
 
-/// Parents of every process.
 fn process_parents() -> HashMap<u32, u32> {
     let mut parents = HashMap::new();
-    // SAFETY: the snapshot handle is closed below; `entry` has dwSize set as
-    // Process32FirstW requires.
     unsafe {
         let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
             return parents;
@@ -116,7 +99,6 @@ fn process_parents() -> HashMap<u32, u32> {
     parents
 }
 
-/// Whether `pid` is `root` or one of its descendants.
 fn in_tree(pid: u32, root: u32, parents: &HashMap<u32, u32>) -> bool {
     let mut current = pid;
     for _ in 0..16 {
@@ -131,8 +113,6 @@ fn in_tree(pid: u32, root: u32, parents: &HashMap<u32, u32>) -> bool {
     false
 }
 
-/// The processes of `root`'s tree with an active session on any output.
-/// `None` when the sessions can't be read.
 pub(crate) fn playing_processes(root: u32) -> Option<Vec<AppStream>> {
     let _com = ComScope::enter();
     let parents = process_parents();
@@ -140,8 +120,6 @@ pub(crate) fn playing_processes(root: u32) -> Option<Vec<AppStream>> {
         return None;
     }
     let mut streams = Vec::new();
-    // SAFETY: COM calls on interfaces this function owns; COM is initialized
-    // by the scope above.
     unsafe {
         let enumerator: IMMDeviceEnumerator =
             CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL).ok()?;
@@ -199,7 +177,6 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for Activation_Impl {
         let result = operation.ok().and_then(|operation| {
             let mut status = windows::core::HRESULT::default();
             let mut interface: Option<IUnknown> = None;
-            // SAFETY: both out parameters live for the call.
             unsafe { operation.GetActivateResult(&mut status, &mut interface)? };
             status.ok()?;
             interface.ok_or_else(windows::core::Error::empty)
@@ -209,9 +186,6 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for Activation_Impl {
     }
 }
 
-/// The activation blob borrows its caller's parameters. `PROPVARIANT::drop`
-/// calls `PropVariantClear`, which would free that stack memory as a VT_BLOB.
-/// The union's inner ManuallyDrop does not disable the outer destructor.
 fn with_activation_blob<T>(
     parameters: &mut AUDIOCLIENT_ACTIVATION_PARAMS,
     use_blob: impl FnOnce(&PROPVARIANT) -> T,
@@ -235,7 +209,6 @@ fn with_activation_blob<T>(
     use_blob(&variant)
 }
 
-/// Asks Windows for an audio client that hears only `pid`'s process tree.
 fn activate(pid: u32) -> Result<IAudioClient> {
     let mut parameters = AUDIOCLIENT_ACTIVATION_PARAMS {
         ActivationType: AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK,
@@ -248,7 +221,6 @@ fn activate(pid: u32) -> Result<IAudioClient> {
     };
     let (tx, rx) = mpsc::channel();
     let handler: IActivateAudioInterfaceCompletionHandler = Activation(tx).into();
-    // SAFETY: `variant` and `parameters` outlive the call, which copies them.
     with_activation_blob(&mut parameters, |variant| unsafe {
         ActivateAudioInterfaceAsync(
             VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
@@ -265,7 +237,6 @@ fn activate(pid: u32) -> Result<IAudioClient> {
     interface.cast().context("process loopback gave no client")
 }
 
-/// A running client and the event that says a buffer is ready.
 struct Session {
     client: IAudioClient,
     capture: IAudioCaptureClient,
@@ -285,7 +256,6 @@ impl Session {
             wBitsPerSample: BITS,
             cbSize: 0,
         };
-        // SAFETY: `format` outlives the calls; the event is closed in `drop`.
         unsafe {
             client
                 .Initialize(
@@ -309,10 +279,7 @@ impl Session {
         }
     }
 
-    /// Passes every waiting packet to `sink` as mono.
     fn drain(&self, sink: &ChunkSink) -> windows::core::Result<()> {
-        // SAFETY: the buffer is read only between GetBuffer and ReleaseBuffer,
-        // and holds `frames` frames of the format `open` set.
         unsafe {
             while self.capture.GetNextPacketSize()? > 0 {
                 let mut data = std::ptr::null_mut();
@@ -344,7 +311,6 @@ impl Session {
 
 impl Drop for Session {
     fn drop(&mut self) {
-        // SAFETY: the client and event are this session's own.
         unsafe {
             let _ = self.client.Stop();
             let _ = CloseHandle(self.ready);
@@ -352,14 +318,12 @@ impl Drop for Session {
     }
 }
 
-/// A running tap. Dropping it stops the capture.
 pub(crate) struct ProcessLoopback {
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
 }
 
 impl ProcessLoopback {
-    /// Returns once the tap records, or with the reason it can't.
     pub fn start(pid: u32, sink: ChunkSink, flags: Arc<StreamFlags>) -> Result<Self> {
         let stop = Arc::new(AtomicBool::new(false));
         let (ready_tx, ready_rx) = mpsc::channel();
@@ -379,7 +343,6 @@ impl ProcessLoopback {
                     }
                 };
                 while !thread_stop.load(Ordering::Relaxed) {
-                    // SAFETY: the event lives as long as `session`.
                     let woken = unsafe { WaitForSingleObject(session.ready, WAIT_MS) };
                     if woken != WAIT_OBJECT_0 {
                         continue;
@@ -426,16 +389,12 @@ impl Drop for ProcessLoopback {
 mod tests {
     use super::*;
 
-    /// Exercises the real Windows variant's destructor without an audio device.
-    /// With an owning PROPVARIANT, either return path frees the stack and aborts.
     #[test]
     fn activation_blob_borrows_parameters_on_success_and_error() {
         let mut parameters = AUDIOCLIENT_ACTIVATION_PARAMS::default();
         let pointer = (&raw mut parameters).cast::<u8>();
         for outcome in [Ok(42), Err(())] {
             let result = with_activation_blob(&mut parameters, |variant| {
-                // SAFETY: the helper initialized this VT_BLOB and borrows the
-                // parameters for the whole callback.
                 unsafe {
                     let fields = &*variant.Anonymous.Anonymous;
                     assert_eq!(fields.vt, VT_BLOB);

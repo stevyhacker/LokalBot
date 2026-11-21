@@ -1,8 +1,3 @@
-//! Recordings made on the phone, on their way to the Mac (protocol.md, Flow
-//! for `purpose: "upload"`). The platform's recorder writes an ADTS AAC file
-//! here, which is readable however it ends, so a crash or a dead battery
-//! loses only the last moments. The file goes once the Mac confirms it has it.
-
 use std::fs::{self, File};
 use std::io::{Read as _, Seek as _, SeekFrom};
 use std::path::{Path, PathBuf};
@@ -23,43 +18,29 @@ use crate::wire::{Channel, Inbox, Tuning};
 
 pub(super) const DIRECTORY: &str = "recordings";
 
-/// What `format` says in an upload. Only this exists so far.
 const FORMAT: &str = "aac-adts";
-/// How long a recording that reached the Mac stays listed when its meeting
-/// never comes back, as when the Mac doesn't share meetings.
 const UPLOADED_LISTED_FOR: Duration = Duration::from_secs(7 * 24 * 60 * 60);
 
-/// A recording this device holds or just sent.
 #[derive(Clone, Debug, PartialEq, uniffi::Record)]
 pub struct RecordingInfo {
-    /// A UUID; the meeting it becomes on the Mac has the same id.
     pub id: String,
-    /// Empty until the person names it; the Mac then picks one.
     pub title: String,
-    /// `recording`, `waiting`, `failed` or `uploaded`.
     pub state: String,
-    /// ISO 8601 UTC.
     pub started_at: String,
     pub duration_seconds: Option<f64>,
     pub byte_count: u64,
     pub sent_bytes: u64,
-    /// Why it hasn't reached the Mac, or what went wrong.
     pub message: Option<String>,
-    /// Where the recorder writes. Gone once the Mac has it.
     pub file_path: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct UploadReport {
-    /// Recordings the Mac confirmed during this pass.
     pub uploaded: u32,
-    /// Recordings still to go, whatever kept them.
     pub waiting: u32,
-    /// Recordings the Mac refused; they stay until retried or discarded.
     pub failed: u32,
 }
 
-/// Hears how far an upload got.
 #[uniffi::export(callback_interface)]
 pub trait UploadListener: Send + Sync {
     fn on_progress(&self, recording_id: String, sent_bytes: u64, total_bytes: u64);
@@ -86,7 +67,6 @@ fn file_sha256(path: &Path) -> std::io::Result<String> {
     }
 }
 
-/// The description the Mac gets with the audio.
 fn description(row: &RecordingRow) -> Value {
     let mut recording = Map::new();
     recording.insert("format".into(), FORMAT.into());
@@ -100,22 +80,16 @@ fn description(row: &RecordingRow) -> Value {
     Value::Object(recording)
 }
 
-/// How one recording's trip ended.
 enum Trip {
     Uploaded,
-    /// The Mac can't take it now; `message` says why.
     Deferred(Option<String>),
     Refused(Option<String>),
-    /// This device no longer has the audio.
     Missing,
-    /// The person deleted it on the way, so the rest stays here.
     Withdrawn,
 }
 
 #[uniffi::export]
 impl SyncClient {
-    /// Starts a recording: returns where the recorder writes. It needs a
-    /// paired Mac, because that is the only place it can go.
     pub fn begin_recording(&self, title: Option<String>) -> Result<RecordingInfo> {
         let store = self.store.lock();
         if store.pairing()?.is_none() {
@@ -130,8 +104,6 @@ impl SyncClient {
         Ok(self.info(row))
     }
 
-    /// The recorder stopped: the recording can go to the Mac. A file with
-    /// nothing in it leaves no recording and fails with `InvalidInput`.
     pub fn finish_recording(&self, id: String, duration_seconds: f64) -> Result<RecordingInfo> {
         let store = self.store.lock();
         let Some(row) = store.recording(&id)? else {
@@ -155,10 +127,6 @@ impl SyncClient {
         Ok(self.info(row))
     }
 
-    /// Recordings left `recording` by an app that stopped without finishing
-    /// them: the file holds everything up to then, so they go to the Mac like
-    /// any other. Call at launch, never while a recorder runs. Returns how
-    /// many were kept.
     pub fn recover_recordings(&self) -> Result<u32> {
         let store = self.store.lock();
         let mut kept = 0;
@@ -176,25 +144,20 @@ impl SyncClient {
         Ok(kept)
     }
 
-    /// Deletes a recording and its file, whatever its state.
     pub fn discard_recording(&self, id: String) -> Result<()> {
         self.store.lock().delete_recording(&id)?;
         let _ = fs::remove_file(recording_path(&self.recordings_dir, &id));
         Ok(())
     }
 
-    /// Empty leaves the name to the Mac.
     pub fn set_recording_title(&self, id: String, title: String) -> Result<()> {
         self.store.lock().set_recording_title(&id, title.trim())
     }
 
-    /// A recording the Mac refused goes round again.
     pub fn retry_recording(&self, id: String) -> Result<()> {
         self.store.lock().retry_recording(&id)
     }
 
-    /// Recordings on this device or just sent, newest first. One that reached
-    /// the Mac stays listed until its meeting arrives here.
     pub fn recordings(&self) -> Result<Vec<RecordingInfo>> {
         let cutoff = Utc::now()
             - chrono::Duration::from_std(UPLOADED_LISTED_FOR).unwrap_or(chrono::Duration::zero());
@@ -205,12 +168,6 @@ impl SyncClient {
         Ok(rows.into_iter().map(|row| self.info(row)).collect())
     }
 
-    /// Sends every waiting recording, oldest first, picking up where an
-    /// earlier attempt stopped. Blocks for as long as that takes and returns
-    /// at once when another pass is running or nothing waits. Whatever
-    /// doesn't get through stays waiting; a dropped connection fails with
-    /// `Io`, an absent Mac with `Unreachable`. Call `sync` afterwards to fetch
-    /// the new meetings.
     pub fn upload_recordings(
         &self,
         extra_addresses: Vec<String>,
@@ -279,7 +236,6 @@ impl SyncClient {
         waiting: &[RecordingRow],
         listener: &dyn UploadListener,
     ) -> Result<u32> {
-        // A Mac from before uploads says `welcome`, then refuses the purpose.
         let result = self
             .hello(channel, inbox, tuning, 0, "upload")
             .and_then(|_| self.upload_each(channel, inbox, tuning, waiting, listener));
@@ -304,7 +260,6 @@ impl SyncClient {
     ) -> Result<u32> {
         let mut uploaded = 0;
         for row in waiting {
-            // A title set since this pass began goes along.
             let row = self.store.lock().recording(&row.id)?;
             let Some(row) = row.filter(|row| row.state == RECORDING_WAITING) else {
                 continue;
@@ -360,7 +315,6 @@ impl SyncClient {
         };
         let mut buffer = vec![0u8; tuning.upload_chunk_bytes];
         loop {
-            // Deleted here means deleted: the Mac makes no meeting of what's left.
             if !self.is_waiting(&row.id)? {
                 return Ok(Trip::Withdrawn);
             }
@@ -378,7 +332,6 @@ impl SyncClient {
             file.seek(SeekFrom::Start(sent))?;
             let read = file.read(&mut buffer)?;
             if read == 0 {
-                // The file got shorter under us; it can't be sent as described.
                 return Ok(Trip::Missing);
             }
             channel.send(&Message::UploadChunk {
@@ -399,13 +352,10 @@ impl SyncClient {
 }
 
 enum Reply {
-    /// Carry on from this byte.
     Position(u64),
     Done(Trip),
 }
 
-/// The Mac's next word about this recording. `inbox.recv` itself closes after
-/// the idle timeout, which is the only limit while chunks are moving.
 fn await_reply(
     channel: &Channel,
     inbox: &mut Inbox,

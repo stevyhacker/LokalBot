@@ -1,7 +1,3 @@
-//! The follow-up draft (`FollowUpDraftSheet.swift`): review the outline
-//! built from a meeting's outcomes, rewrite it with the local Think model,
-//! copy it, or save it with the meeting. LokalBot never sends it.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputState, Textarea, TextareaState};
@@ -21,11 +17,9 @@ pub(crate) struct FollowUpSheet {
     data: Entity<AppData>,
     meeting: Meeting,
     outcomes: Option<MeetingOutcomes>,
-    /// The saved draft, or the outline; edits are saved onto it.
     draft: Option<FollowUpDraft>,
     subject: Entity<InputState>,
     body: Entity<TextareaState>,
-    /// This sheet asked Think for a draft and waits for the result.
     requested: bool,
     status: Option<SharedString>,
     error: Option<SharedString>,
@@ -33,8 +27,6 @@ pub(crate) struct FollowUpSheet {
 }
 
 impl FollowUpSheet {
-    /// Reads the outcomes and any saved draft off the UI thread, then opens
-    /// the sheet.
     pub(crate) fn open(data: Entity<AppData>, meeting: Meeting, window: &mut Window, cx: &mut App) {
         let library = data.read(cx).library.clone();
         let loading = meeting.clone();
@@ -90,7 +82,6 @@ impl FollowUpSheet {
                         this.apply_writing(window, cx)
                     }),
                 ];
-            // A rewrite started before the sheet was reopened still lands here.
             let requested = matches!(
                 &data.read(cx).follow_up,
                 Some((id, FollowUpWriting::Writing)) if *id == meeting.id
@@ -121,7 +112,6 @@ impl FollowUpSheet {
             )
     }
 
-    /// Applies a Think result meant for this meeting, once.
     fn apply_writing(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if !self.requested {
             return;

@@ -2,11 +2,6 @@ package me.dotenv.lokalbot.companion.ui.text
 
 import me.dotenv.lokalbot.companion.data.model.AskCitation
 
-/**
- * The small Markdown subset the Mac writes into summaries, digests, notes and
- * answers: headings, bullet and numbered lists, paragraphs, **bold**,
- * *italic*, `code` and `[n]` citation markers.
- */
 object Markdown {
 
     sealed interface Block {
@@ -49,7 +44,6 @@ object Markdown {
         return blocks
     }
 
-    /** The Markdown under the heading [title] (any level), up to the next heading at that level or above. */
     fun section(markdown: String, title: String): String? {
         val lines = markdown.lines()
         val start = lines.indexOfFirst { headingPattern.matchEntire(it.trim())?.groupValues?.get(2)?.trim().equals(title, ignoreCase = true) }
@@ -61,7 +55,6 @@ object Markdown {
         return lines.subList(start + 1, end).joinToString("\n").trim().takeIf { it.isNotEmpty() }
     }
 
-    /** Inline runs; `[n]` becomes a citation only when [citations] contains n. */
     fun inline(text: String, citations: Set<Int> = emptySet(), bold: Boolean = false, italic: Boolean = false): List<Inline> {
         val out = mutableListOf<Inline>()
         var last = 0
@@ -93,7 +86,6 @@ object Markdown {
         acc
     }
 
-    /** Plain text for previews and accessibility: no markers. */
     fun plainText(markdown: String): String = blocks(markdown).joinToString(" ") { block ->
         val text = when (block) {
             is Block.Heading -> block.text
@@ -104,11 +96,6 @@ object Markdown {
     }
 }
 
-/**
- * Normalises an answer's citation markers: `[1, 2]` becomes `[1][2]`, and
- * the Mac's `[meeting:ID@HH:MM:SS]` markers become numbered citations that
- * open the meeting at that moment.
- */
 object Citations {
     data class Parsed(val answer: String, val citations: List<AskCitation>)
 

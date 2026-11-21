@@ -4,18 +4,6 @@ import CoreGraphics
 import Foundation
 import ScreenCaptureKit
 
-/// `RunningApp` values for NSWorkspace's running applications. Each property
-/// read on an `NSRunningApplication` is a synchronous LaunchServices round
-/// trip, and NSWorkspace hands back fresh objects on every call for the
-/// ~100 processes without a bundle id. The meeting detector mapped all ~200
-/// apps twice per 2-second tick on the main thread, which a live profile on
-/// 2026-10-01 showed as 40–70 ms stalls every tick.
-///
-/// The list is now read once and kept until an app launches or quits
-/// (NSWorkspace posts both), or at most `maximumAge`. Every caller looks apps
-/// up by bundle id; the processes that churn have none. Values are also kept
-/// per application object, retained while cached so an identifier is never
-/// reused, so a refresh only reads apps it has not seen.
 final class RunningApplicationCache: @unchecked Sendable {
     static let shared = RunningApplicationCache(observeWorkspace: true)
     static let maximumAge: TimeInterval = 30
@@ -42,8 +30,6 @@ final class RunningApplicationCache: @unchecked Sendable {
         }
     }
 
-    /// The running applications, re-read only after a launch, a quit, or
-    /// `maximumAge`.
     func runningApplications(_ read: () -> [NSRunningApplication] = { NSWorkspace.shared.runningApplications })
         -> [RunningApp] {
         let now = uptime()
@@ -154,8 +140,6 @@ struct LiveAccessibilitySource: AccessibilitySource {
     }
 }
 
-/// Keeps the last ScreenCaptureKit window list so a capture uses the same
-/// `SCWindow` the selection came from, exactly as before the seam existed.
 final class LiveWindowSource: WindowSource, @unchecked Sendable {
     private let lock = NSLock()
     private var windows: [CGWindowID: SCWindow] = [:]
@@ -180,12 +164,7 @@ final class LiveWindowSource: WindowSource, @unchecked Sendable {
         let window = windows[windowID]
         lock.unlock()
         guard let window else { throw CaptureEnvironmentError.windowUnavailable(windowID) }
-        // Bound the source frame before ScreenCaptureKit allocates it. Vision
-        // receives this same readable 1,500 px frame in the worker; requesting
-        // a native 5K/6K IOSurface only inflated transient memory.
         let configuration = SCStreamConfiguration()
-        // This filter contains only the AX-checked window. Display capture,
-        // even with app exclusions, can include unchecked background domains.
         let filter = SCContentFilter(desktopIndependentWindow: window)
         let dimensions = ScreenshotCaptureDimensions.bounded(
             pixelWidth: Int(filter.contentRect.width * CGFloat(filter.pointPixelScale)),

@@ -1,12 +1,3 @@
-//! Applies the retention window from Privacy settings: at startup, then every
-//! six hours (`ScreenshotService.performRetentionPrune`). Window titles older
-//! than the window are cleared; meetings are never touched.
-//!
-//! A scheduled pass isn't a deletion: nobody deleted or corrected what expired,
-//! so digests and overnight memory stay. Exports and routines still look again,
-//! and answers reused from those days are forgotten
-//! (`AppState.withScheduledRetention`).
-
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
@@ -59,7 +50,6 @@ fn run_pass(shared: &Shared) {
     shared.emit(EngineEvent::Retention(status));
 }
 
-/// "Run retention now".
 pub fn run_now(shared: Arc<Shared>) {
     let spawned = std::thread::Builder::new()
         .name("lokalbot-retention-now".into())
@@ -73,7 +63,6 @@ pub fn start(shared: Arc<Shared>) {
     let spawned = std::thread::Builder::new()
         .name("lokalbot-retention".into())
         .spawn(move || {
-            // A pass from before this launch still counts for Settings.
             shared.emit(EngineEvent::Retention(RetentionStatus {
                 last_run: shared.library.last_retention_pass(),
                 last_error: None,

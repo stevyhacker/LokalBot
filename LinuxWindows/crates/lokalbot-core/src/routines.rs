@@ -1,7 +1,3 @@
-//! The audit trail for every routine attempt (`MemoryRoutineRunStore`). A
-//! `running` row left by a crash is intentionally not success, so the scheduler
-//! can retry it after the next launch instead of silently losing a due output.
-
 use anyhow::{Context as _, Result, bail};
 use chrono::{DateTime, Utc};
 use rusqlite::{OptionalExtension as _, params};
@@ -13,7 +9,6 @@ use crate::time::{from_epoch, to_epoch};
 use crate::timeline::table_exists;
 
 impl MemoryRoutineKind {
-    /// The stored raw value, shared with the Mac.
     pub fn raw_value(self) -> &'static str {
         match self {
             Self::PostMeetingFollowUp => "postMeetingFollowUp",
@@ -67,7 +62,6 @@ impl MemoryRoutineKind {
     }
 }
 
-/// One row of `memory_routine_runs`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RoutineRun {
     pub id: i64,
@@ -75,7 +69,6 @@ pub struct RoutineRun {
     pub run_token: String,
     pub started_at: DateTime<Utc>,
     pub completed_at: Option<DateTime<Utc>>,
-    /// `running`, `succeeded`, `failed` or `cancelled`.
     pub status: String,
     pub output_path: Option<String>,
     pub error: Option<String>,
@@ -87,10 +80,6 @@ fn optional(text: String) -> Option<String> {
 }
 
 impl Library {
-    /// A scheduled token is terminal after either success or failure, so a bad
-    /// destination or malformed source never becomes a tight retry loop. Manual
-    /// runs use unique tokens and stay available. A stale `running` row is
-    /// deliberately not terminal, so launch recovery can retry.
     pub fn routine_has_finished(&self, run_token: &str) -> Result<bool> {
         self.with_db(|db| {
             if !table_exists(db, "memory_routine_runs")? {
@@ -108,8 +97,6 @@ impl Library {
         })
     }
 
-    /// Reuses only the latest revision in this scope. A correction can be
-    /// reverted (A -> B -> A), so an older success for A must not suppress it.
     pub fn routine_revision_token(&self, scope: &str, fingerprint: &str) -> Result<String> {
         let prefix = format!("{scope}:revision:");
         let latest: Option<String> = self.with_db(|db| {
@@ -224,7 +211,6 @@ impl Library {
             let mut runs = Vec::new();
             for row in rows {
                 let (kind, mut run) = row?;
-                // A kind a newer app wrote stays out of this list.
                 if let Some(kind) = kind {
                     run.kind = kind;
                     runs.push(run);
@@ -287,7 +273,6 @@ mod tests {
         assert_eq!(runs[0].error.as_deref(), Some("the folder is gone"));
         assert_eq!(runs[0].output_path, None);
 
-        // Retrying the same token reuses its row.
         let again = library
             .begin_routine_run(MemoryRoutineKind::PostMeetingFollowUp, "token", None, now)
             .unwrap();
@@ -311,7 +296,6 @@ mod tests {
         library
             .finish_routine_run(id, "succeeded", Some("/tmp/a.md"), None, now)
             .unwrap();
-        // Unchanged bytes reuse the finished token, so nothing runs again.
         assert_eq!(
             library.routine_revision_token("scope", "aaa").unwrap(),
             first
@@ -324,7 +308,6 @@ mod tests {
         library
             .finish_routine_run(id, "succeeded", Some("/tmp/a.md"), None, now)
             .unwrap();
-        // A -> B -> A writes again.
         let third = library.routine_revision_token("scope", "aaa").unwrap();
         assert_ne!(third, first);
         assert!(!library.routine_has_finished(&third).unwrap());

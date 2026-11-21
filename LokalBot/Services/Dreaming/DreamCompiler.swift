@@ -1,9 +1,5 @@
 import Foundation
 
-/// Everything one dream reads, gathered up front so the synthesis step is a
-/// pure function of this value: the analyzed day's meetings with extracted
-/// outcomes, the day digest, screen-memory stats, plus a bounded comparison
-/// window of prior meetings and still-open action candidates.
 struct DreamEvidence: Equatable, Sendable {
     struct MeetingEvidence: Equatable, Sendable {
         var shortID: String
@@ -26,46 +22,22 @@ struct DreamEvidence: Equatable, Sendable {
     var appUsage: [ScreenMemoryAppUsage]
     var stats: ScreenMemoryDaySummary
     var savedMoments: [ScreenMemorySavedMoment]
-    /// Meetings from the preceding comparison window (titles + days only),
-    /// so the model can spot recurring themes without re-reading transcripts.
     var priorMeetings: [PriorMeeting]
-    /// Pre-rendered action-candidate lines from the window, `- [ ] [A1] …`
-    /// style. Each handle indexes `openActionThreadIDs`.
     var openActions: [String]
-    /// Thread ids for the rendered candidates, in handle order, so a model's
-    /// top action can be tied back to the real, checkable action thread.
     var openActionThreadIDs: [String] = []
-    /// Complete, app-owned dependency set for the rendered input, including
-    /// comparison-window actions and day-level screen/digest evidence. It may
-    /// conservatively include truncated inputs; it never omits a read source.
     var sources: [DreamEvidenceSource] = []
 
-    /// True when the analyzed day itself produced nothing worth a model pass:
-    /// no meetings, no digest, no saved moments, and less tracked time than a
-    /// brief wake-and-glance. The comparison window never counts — it is
-    /// context about other days, not evidence of this one.
     var isSubstantivelyEmpty: Bool {
         meetings.isEmpty && digest == nil && savedMoments.isEmpty
             && stats.trackedSeconds < DreamCompiler.emptyDayTrackedSecondsFloor
     }
 }
 
-/// Deterministic evidence gathering for one dreamed day plus the model-free
-/// fallback brief. Read-only over the local library; pure enough that every
-/// piece is unit-testable without an engine or a live database.
 enum DreamCompiler {
-    /// The retrospective looks back at most this many days (the dreamed day
-    /// included) for recurring patterns — a comparison window, never new
-    /// primary material.
     static let comparisonWindowDays = 14
     static let evidenceCharacterLimit = 24_000
-    /// The journal's share of the pack. Its raw activity log can run to
-    /// hundreds of KB; unbounded, it pushed app totals, saved moments, the
-    /// comparison window, and action handles past `evidenceCharacterLimit`.
     static let digestCharacterLimit = 12_000
     static let maxOpenActions = 30
-    /// Under five tracked minutes a day is treated as empty rather than worth
-    /// waking a model for.
     static let emptyDayTrackedSecondsFloor: TimeInterval = 300
 
     static func compile(day: Date, storageRoot: URL,
@@ -73,8 +45,6 @@ enum DreamCompiler {
         let start = calendar.startOfDay(for: day)
         let end = calendar.date(byAdding: .day, value: 1, to: start)
             ?? start.addingTimeInterval(86_400)
-        // The sample meeting is made up: it is no prior meeting, and its
-        // actions are nobody's to follow up.
         let all = try SessionLookup.loadAllMeetings(root: storageRoot).filter { !$0.isSample }
         let snapshot = try FileDailyEvidenceSource(
             root: storageRoot,
@@ -150,9 +120,6 @@ enum DreamCompiler {
             sources: sources)
     }
 
-    /// The journal's grounded sections (day summary, meetings, agent sessions,
-    /// time allocation), then as much of its raw activity log as still fits
-    /// `digestCharacterLimit`.
     static func digestForDream(_ journal: String) -> String {
         let marker = "\n## Full activity log"
         let head = journal.range(of: marker).map { String(journal[..<$0.lowerBound]) } ?? journal
@@ -165,9 +132,6 @@ enum DreamCompiler {
         return head + String(journal.dropFirst(head.count).prefix(room)) + notice
     }
 
-    /// The prompt material: every evidence section rendered as labeled plain
-    /// text, then sanitized and hard-capped like the summarizer's transcript
-    /// input so an OCR-heavy day can't blow the context window.
     static func evidencePack(_ evidence: DreamEvidence) -> String {
         var sections: [String] = []
 
@@ -235,9 +199,6 @@ enum DreamCompiler {
             sections.joined(separator: "\n\n"), maxCharacters: evidenceCharacterLimit)
     }
 
-    /// The model-free brief: only restates evidence — counts, the day's open
-    /// questions, and carry-forward action candidates. It never analyzes,
-    /// so it can never invent.
     static func fallbackReport(from evidence: DreamEvidence, generatedAt: Date,
                                reason: DreamFallbackReason, note: String) -> DreamReport {
         let meetingCount = evidence.meetings.count
@@ -256,7 +217,6 @@ enum DreamCompiler {
         let userActions: [String]
         var userActionThreadIDs: [String?] = []
         if projectedUserActions.isEmpty {
-            // Compatibility for tests and legacy in-memory evidence values.
             userActions = evidence.meetings.flatMap { meeting in
                 meeting.outcomes.userActionItems.map {
                     actionDescription($0, shortID: meeting.shortID)

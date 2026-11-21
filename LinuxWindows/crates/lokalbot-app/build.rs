@@ -1,7 +1,3 @@
-//! Embeds the app icon and version details into the Windows executable.
-//! GPUI already embeds the application manifest (per-monitor DPI awareness,
-//! common controls v6), so this adds no manifest of its own.
-
 fn main() {
     println!("cargo:rerun-if-changed=build.rs");
     if std::env::var("CARGO_CFG_TARGET_OS").as_deref() == Ok("windows") {

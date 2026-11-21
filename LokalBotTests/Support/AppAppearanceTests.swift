@@ -27,8 +27,6 @@ final class AppAppearanceTests: XCTestCase {
         XCTAssertEqual(AppTextSize.allCases.map(\.scale), AppTextSize.allCases.map(\.scale).sorted())
     }
 
-    /// The menu bar panel at Default read a point larger than the system's
-    /// own menu bar extras. It keeps macOS sizes until a larger setting.
     func testMenuBarPanelUsesSystemSizesAtDefault() {
         XCTAssertEqual(AppTextSize.standard.menuBarScale, 1)
         XCTAssertEqual(AppTextSize.small.menuBarScale, 1)

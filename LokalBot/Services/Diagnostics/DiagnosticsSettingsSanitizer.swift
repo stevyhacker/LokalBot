@@ -1,8 +1,5 @@
 import Foundation
 
-/// Removes secrets from encoded settings before they leave the Mac in a
-/// diagnostics archive: any key that names a credential is dropped, and URLs
-/// lose their user info and query.
 enum DiagnosticsSettingsSanitizer {
     private static let secretKeyFragments = ["apikey", "token", "secret", "password", "credential", "authorization"]
 

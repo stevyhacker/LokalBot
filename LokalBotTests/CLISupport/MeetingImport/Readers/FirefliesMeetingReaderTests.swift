@@ -1,12 +1,7 @@
 import XCTest
 @testable import LokalBot
 
-/// Every fixture is synthetic: made-up meetings in the shapes Fireflies'
-/// downloads and API take, written to a temporary folder by the test.
 final class FirefliesMeetingReaderTests: XCTestCase {
-    // MARK: - Fixtures
-
-    /// The Fireflies API's `transcript`, as API backup tools save it.
     static let apiTranscript = """
         {"data": {"transcript": {
           "id": "01JABCDEF0123456789XYZ",
@@ -94,8 +89,6 @@ final class FirefliesMeetingReaderTests: XCTestCase {
 
         """
 
-    // MARK: - Helpers
-
     private func temporaryFolder(_ name: String = "fireflies") throws -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("\(name)-\(UUID().uuidString)", isDirectory: true)
@@ -115,8 +108,6 @@ final class FirefliesMeetingReaderTests: XCTestCase {
     private func meeting(titled title: String, in scan: ExternalImportScan) throws -> ExternalMeeting {
         try XCTUnwrap(scan.meetings.first { $0.title == title }, "no meeting titled \(title)")
     }
-
-    // MARK: - Tests
 
     func testAPITranscriptWithSummaryAndAudioRoundTrip() throws {
         let folder = try temporaryFolder()
@@ -251,7 +242,6 @@ final class FirefliesMeetingReaderTests: XCTestCase {
         let scan = try FirefliesMeetingReader.read(folder)
 
         XCTAssertEqual(scan.meetings.map(\.title), ["Standup"])
-        // The folder walk resolves /var to /private/var.
         XCTAssertEqual(scan.problems.map { URL(fileURLWithPath: $0.path).resolvingSymlinksInPath().path },
                        [broken.resolvingSymlinksInPath().path])
         XCTAssertEqual(scan.problems.first?.reason, "it isn't valid JSON")

@@ -1,17 +1,11 @@
-//! The CLI's requests to the running app (`AppControlProtocol.swift`): one JSON
-//! object per line, one request per connection.
-
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 
 pub const VERSION: i64 = 1;
 pub const MAXIMUM_MESSAGE_BYTES: usize = 1_048_576;
 
-/// `lokalbot-cli` starting the app for a request comes up in the tray like a
-/// login launch, with no window. The same flag the autostart entry passes.
 pub const BACKGROUND_LAUNCH_ARGUMENT: &str = "--autostart";
 
-/// Settings sections `open settings <name>` accepts besides setting keys.
 pub const SETTINGS_DESTINATIONS: [&str; 12] = [
     "models",
     "permissions",
@@ -27,8 +21,6 @@ pub const SETTINGS_DESTINATIONS: [&str; 12] = [
     "dictationWritingProfile",
 ];
 
-/// Names `permissions request` accepts: the Mac's, plus the window in front
-/// and the credential store, which Linux and Windows check on their own.
 pub const PERMISSION_NAMES: [&str; 7] = [
     "microphone",
     "window-titles",
@@ -39,7 +31,6 @@ pub const PERMISSION_NAMES: [&str; 7] = [
     "calendar",
 ];
 
-/// Model presets `models preset` and setup plans accept.
 pub const MODEL_PRESETS: [&str; 2] = ["recommended", "lightweight"];
 
 pub const METHOD_HELLO: &str = "hello";
@@ -82,14 +73,10 @@ impl Request {
     }
 }
 
-/// A stable error the CLI prints as `[code] message`, like the MCP tools'
-/// `[access_disabled]`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct ControlError {
     pub code: String,
     pub message: String,
-    /// Structured detail an agent can act on, such as the changes that need
-    /// approval.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub details: Option<Value>,
 }
@@ -145,8 +132,6 @@ impl ControlError {
         }
     }
 
-    /// A widening change, or a new API key, waits for the person in LokalBot.
-    /// `details` is the request as `settings.request` reports it.
     pub fn needs_approval(request: Value, asking: &str) -> Self {
         let id = request["id"].as_str().unwrap_or("<id>").to_string();
         Self {
@@ -258,7 +243,6 @@ impl Response {
     }
 }
 
-/// Where a request that needs the person stands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum RequestState {
@@ -289,8 +273,6 @@ impl RequestState {
     }
 }
 
-/// The API keys `lokalbot-cli secret` can set. Keys are write-only from the
-/// terminal: the CLI can say whether one is saved, never read it back.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AppSecret {
     OpenAICompatible,
@@ -339,8 +321,6 @@ impl AppSecret {
         }
     }
 
-    /// The last four characters, so the person can tell which key they are
-    /// approving without seeing it.
     pub fn hint(value: &str) -> String {
         let characters: Vec<char> = value.chars().collect();
         if characters.len() > 8 {
@@ -356,7 +336,6 @@ impl AppSecret {
     }
 }
 
-/// An API key held only until its request is answered. It never prints.
 #[derive(Clone, PartialEq, Eq, Default)]
 pub struct SecretValue(String);
 
@@ -380,7 +359,6 @@ impl std::fmt::Debug for SecretValue {
     }
 }
 
-/// Reads a key from `secret.set`: one line of at most 4 KiB.
 pub fn validated_secret_value(raw: &str) -> Option<String> {
     let value = raw.trim();
     (!value.is_empty() && value.len() <= 4096 && !value.contains(['\n', '\r']))

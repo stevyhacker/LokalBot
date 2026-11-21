@@ -72,8 +72,6 @@ final class CaptureTraceScrubberTests: XCTestCase {
         }
     }
 
-    /// Helpers outside their host's namespace need their own entries, or a
-    /// recorded Feishu or DingTalk trace loses the process that carries the call.
     func testForeignMeetingHelpersSurviveScrubbing() {
         for helper in ["com.bytedance.lark.helper", "com.bytedance.lark.helper.Renderer",
                        "com.alibaba.DingTalk-Helper", "Cisco-Systems.SparkHelper"] {
@@ -91,7 +89,6 @@ final class CaptureTraceScrubberTests: XCTestCase {
     }
 
     func testSwiftAllowlistMatchesTheSharedJSON() throws {
-        // A copy of Scripts/test/record-capture/scrub-allowlist.json; see project.yml.
         let json = try XCTUnwrap(Bundle(for: Self.self).url(
             forResource: "scrub-allowlist", withExtension: "json"))
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: json)) as? [String: Any])

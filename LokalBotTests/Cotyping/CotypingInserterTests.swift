@@ -2,14 +2,7 @@ import CoreGraphics
 import XCTest
 @testable import LokalBot
 
-/// The inserter posts real CGEvents into whatever has focus, so only its
-/// non-posting surface is testable: the synthetic-event marker and the
-/// scrub-then-bail guards that must reject no-op inserts before any event
-/// exists. Everything past those guards types into the frontmost app and is
-/// covered by the Cotyping UI test instead.
 final class CotypingInserterTests: XCTestCase {
-    // MARK: - Synthetic marker
-
     func testMarkerTagsAnEventAndRecognizesIt() throws {
         let event = try XCTUnwrap(
             CGEvent(keyboardEventSource: nil, virtualKey: 0, keyDown: true))
@@ -29,8 +22,6 @@ final class CotypingInserterTests: XCTestCase {
         controller.markSynthetic(event)
         XCTAssertTrue(controller.isSynthetic(event))
     }
-
-    // MARK: - No-op guards (must return false before any event is created)
 
     @MainActor
     func testInsertRejectsEmptyAndCarriageReturnOnlyText() {

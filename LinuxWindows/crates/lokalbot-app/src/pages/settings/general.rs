@@ -1,6 +1,3 @@
-//! General (startup, appearance, updates and about) and Ask (the Ask
-//! shortcut, selection actions and what Ask can search).
-
 use crate::i18n::h_flex;
 use crate::updates;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -160,9 +157,6 @@ impl SettingsPage {
         vec![general, appearance, updates, about]
     }
 
-    /// Ask from any app, act on selected text, and what answers use
-    /// (`SettingsTab.ask`): the Ask shortcut, selection actions and what Ask
-    /// can search, which General held before.
     pub(super) fn ask_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let settings = self.data.read(cx).settings.clone();
         let data = self.data.clone();
@@ -251,8 +245,6 @@ impl SettingsPage {
         vec![shortcut, selection_actions, sources]
     }
 
-    /// What Ask can search, each row leading to the page that decides it
-    /// (`askSourcesSection`). Email isn't ported, so it has no row.
     fn ask_sources_section(
         &mut self,
         settings: &lokalbot_core::Settings,
@@ -313,8 +305,6 @@ impl SettingsPage {
         section
     }
 
-    /// Mirrors macOS Settings → General → Updates: the automatic-check
-    /// switch, the version with Check for Updates…, and the update on offer.
     fn updates_section(
         &mut self,
         settings: &lokalbot_core::Settings,
@@ -384,7 +374,6 @@ impl SettingsPage {
         if let Some((help, route, release)) = offer {
             let install = entity.clone();
             let notes = release.feed.release_notes_url.clone();
-            // A package manager's copy has nothing to download here.
             let action = match route {
                 updates::Route::Install => Some(
                     Button::new("settings-install-update")

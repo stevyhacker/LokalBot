@@ -1,13 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Opt-in: replays typing one keystroke at a time through the in-process model
-/// and reports how long each suggestion takes and how many prompt tokens had to
-/// be decoded again. Skipped unless a model is named:
-///
-///     TEST_RUNNER_LOKALBOT_COTYPING_LATENCY_MODEL=/path/to/model.gguf \
-///     xcodebuild test-without-building ... \
-///       -only-testing:LokalBotTests/CotypingTypingLatencyBenchmarkTests
 @MainActor
 final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
     private static let reply = "Hi Marko, thanks for sending the quarterly numbers over. I looked through the revenue section and I think we should move the launch review to Thursday so the design team has time to finish the onboarding flow before we"
@@ -39,7 +32,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
             "I'll follow up with the design team",
         ]
 
-        // A comma-separated subset, e.g. "bare,long", runs only those cases.
         let only = environment["LOKALBOT_COTYPING_LATENCY_CASES"].map { Set($0.split(separator: ",").map(String.init)) }
         func wanted(_ key: String) -> Bool { only?.contains(key) ?? true }
         var report: [String] = []
@@ -112,8 +104,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
             + "re-decoded >32 tokens on \(heavy) keystrokes, median \(prefills.sorted()[prefills.count / 2]) tokens"
     }
 
-    /// Saved-memory lookups against a real library, read only, as each
-    /// keystroke ran them.
     private func memoryLookupReport(root: URL) -> String {
         let meetings = StorageManager(rootURL: root).loadMeetings()
         var settings = AppSettings()
@@ -136,25 +126,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
             + "p90 \(Int(sorted[sorted.count * 9 / 10])) max \(Int(sorted.last ?? 0)) ms"
     }
 
-    /// Opt-in: how long the first suggestion takes after the person stops
-    /// typing for a while, against a keystroke while typing. For each pause in
-    /// `LOKALBOT_COTYPING_IDLE_GAPS` (seconds, e.g. `0,60,300,1800`) it types a
-    /// short burst, waits, times the next keystroke, then the same request
-    /// again as the warm reference. The run takes as long as the pauses add
-    /// up to, per warm-up mode.
-    ///
-    /// `LOKALBOT_COTYPING_IDLE_WARMUP` lists warm-up modes (default `none`):
-    /// - `none`: nothing runs between the burst and the key.
-    /// - `key`: `touch` starts when the key lands and the suggestion is asked
-    ///   for 45 ms later, about the app's wait for the field to update plus its
-    ///   debounce. Timed from the request, like the others.
-    /// - `ahead`: `touch` finishes before the key, as it would from a focus
-    ///   change or unlock a moment earlier. Its own time is reported apart.
-    /// - `every<N>`: `touch` every N seconds during the pause, e.g. `every120`.
-    ///
-    /// Use a copy of the GGUF (`cp -c`) that the installed app does not map:
-    /// the page cache is per file, and the app's own typing would keep it warm.
-    /// `LOKALBOT_COTYPING_IDLE_OUT` appends the report to a file.
     func testFirstSuggestionAfterIdle() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let modelPath = environment["LOKALBOT_COTYPING_LATENCY_MODEL"],
@@ -171,10 +142,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
         var lines = ["cotyping-idle model \(URL(fileURLWithPath: modelPath).lastPathComponent), "
             + "metal keep_alive \(keepAlive), \(Self.osVersion)"]
         let characters = Array(Self.reply)
-        // Every pause ends on the same keystroke ("…design team has time",
-        // suggesting " to review the numbers."), so the work after it is the
-        // same in every mode and pause, and the same request right after it is
-        // the warm reference. `LOKALBOT_COTYPING_IDLE_KEY` moves it.
         let key = environment["LOKALBOT_COTYPING_IDLE_KEY"].flatMap { Int($0) } ?? 178
         for mode in modes {
             for gap in gaps {
@@ -202,8 +169,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
                 let first: (ms: Double, text: String)
                 switch mode {
                 case "key":
-                    // Timed from the request, as in the other modes: the 45 ms
-                    // before it are spent waiting either way.
                     let touch = Task { await runtime.touch() }
                     try await Task.sleep(for: .milliseconds(45))
                     first = try await timedSuggestion(engine, characters, key)
@@ -244,8 +209,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
         }
     }
 
-    /// One keystroke of `reply` typed up to `end` characters, with the
-    /// "stable context" prompt, timed through the engine as the app calls it.
     private func timedSuggestion(
         _ engine: LocalLlamaCotypingEngine, _ characters: [Character], _ end: Int
     ) async throws -> (ms: Double, text: String) {
@@ -274,7 +237,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
         return "macOS \(version.majorVersion).\(version.minorVersion).\(version.patchVersion)"
     }
 
-    /// CPU energy the system has charged to this process so far, in mJ.
     private static func processEnergy() -> Double {
         var usage = rusage_info_v6()
         let result = withUnsafeMutablePointer(to: &usage) { pointer in
@@ -285,7 +247,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
         return result == 0 ? Double(usage.ri_energy_nj) / 1e6 : 0
     }
 
-    /// Memory the system cannot page out or compress, all processes.
     private static func wiredGigabytes() -> Double {
         var stats = vm_statistics64()
         var count = mach_msg_type_number_t(MemoryLayout<vm_statistics64>.size / MemoryLayout<integer_t>.size)
@@ -298,9 +259,6 @@ final class CotypingTypingLatencyBenchmarkTests: XCTestCase {
         return Double(stats.wire_count) * Double(getpagesize()) / 1e9
     }
 
-    /// Share of the file's pages in memory now. A fresh read-only mapping
-    /// shares the file's cached pages and `mincore` reads them without
-    /// faulting any in.
     private static func residentFraction(ofFileAt path: String) -> Double {
         let descriptor = open(path, O_RDONLY)
         guard descriptor >= 0 else { return 0 }

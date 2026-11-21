@@ -1,8 +1,3 @@
-//! "Search by meaning" for meetings (`Services/Search/EmbeddingIndex.swift`).
-//!
-//! Chunking, storage and brute-force scoring live in `lokalbot_core::embeddings`;
-//! this layer computes the vectors on the local embedder server.
-
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use anyhow::Result;
@@ -15,12 +10,10 @@ use crate::error::AiError;
 use crate::runtime::RuntimeManager;
 use crate::think::EmbeddingClient;
 
-/// Embeds one meeting's transcript, summary and notes chunks and stores them.
 pub fn index_meeting(runtime: &RuntimeManager, library: &Library, meeting: &Meeting) -> Result<()> {
     index_with(&EmbeddingClient::new(runtime), library, meeting).map(|_| ())
 }
 
-/// Like [`index_meeting`] with a given client; returns the chunk count.
 pub fn index_with(
     embedder: &EmbeddingClient,
     library: &Library,
@@ -39,8 +32,6 @@ pub fn index_with(
     Ok(rows.len())
 }
 
-/// Indexes every meeting whose embeddings are missing or stale, oldest
-/// vectors from another model first purged. Returns how many were indexed.
 pub fn index_pending(
     runtime: &RuntimeManager,
     library: &Library,
@@ -69,17 +60,14 @@ pub fn index_pending(
     Ok(done)
 }
 
-/// One meeting passage related by meaning.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SemanticHit {
     pub meeting_id: Uuid,
-    /// Seconds into the recording (0 for summary and notes chunks).
     pub start: f64,
     pub text: String,
     pub score: f32,
 }
 
-/// The best meeting passages for `query` above the meeting similarity floor.
 pub fn semantic_meeting_hits(
     embedder: &EmbeddingClient,
     library: &Library,
@@ -109,7 +97,6 @@ mod tests {
     use crate::http::testing::{Reply, StubServer};
     use serde_json::{Value, json};
 
-    /// A deterministic embedder: one dimension per keyword.
     fn embedder() -> (StubServer, EmbeddingClient) {
         let server = StubServer::start(|request| {
             let inputs = request.json()["input"]

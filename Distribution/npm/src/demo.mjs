@@ -1,6 +1,3 @@
-// A made-up year, for screenshots and for trying the cards without logs.
-// The same seed always produces the same year.
-
 import { addModelTokens, createCollector } from './collector.mjs';
 import { computeStats, yearWindow } from './stats.mjs';
 
@@ -18,7 +15,6 @@ export function demoYear(year, seed = 7) {
   for (let day = 0; day < days; day += 1) {
     const date = new Date(year, 0, 1 + day);
     const weekend = date.getDay() === 0 || date.getDay() === 6;
-    // A two-week break in August, and a year that gets busier.
     if (date.getMonth() === 7 && date.getDate() >= 8 && date.getDate() <= 21) continue;
     const appetite = 0.45 + 0.5 * (day / days);
     if (random() > (weekend ? 0.35 : 0.9) * appetite + 0.1) continue;
@@ -51,7 +47,6 @@ function addSession(collector, { agent, id, start, minutes, project, random }) {
   while (at < end && at >= collector.start) {
     session.times.push(at);
     at += (20 + random() * 200) * 1000;
-    // Waiting on the person now and then.
     if (random() < 0.03) at += (4 + random() * 9) * MINUTE;
     steps += 1;
   }

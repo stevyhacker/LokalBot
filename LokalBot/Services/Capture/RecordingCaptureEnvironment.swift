@@ -2,10 +2,7 @@
 import CoreGraphics
 import Foundation
 
-/// Wraps the live environment and records every answer with its time.
-/// `finish(to:)` scrubs and writes the trace; nothing unscrubbed is written.
 final class CaptureTraceRecorder: @unchecked Sendable {
-    /// The recorder a `--record-capture` launch or the Debug menu installed.
     @MainActor static var active: CaptureTraceRecorder?
 
     private let lock = NSLock()
@@ -92,13 +89,11 @@ final class CaptureTraceRecorder: @unchecked Sendable {
             recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: includeText, read: value) }
             return value
         }
-        /// Recorded as a metadata read, which is what replay answers it with.
         func readWindow(processID: pid_t) -> AccessibilityRead {
             let value = base.readWindow(processID: processID)
             recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: false, read: value) }
             return value
         }
-        /// Recorded as a full read, which is what replay answers it with.
         func readPrivacy(processID: pid_t, nodeLimit: Int?) -> AccessibilityRead {
             let value = base.readPrivacy(processID: processID, nodeLimit: nodeLimit)
             recorder.record { .init(t: $0, query: .axRead, processID: processID, includeText: true, read: value) }
@@ -140,7 +135,7 @@ final class CaptureTraceRecorder: @unchecked Sendable {
             return value
         }
         func captureImage(windowID: CGWindowID) async throws -> CGImage {
-            try await base.captureImage(windowID: windowID) // pixels are never recorded
+            try await base.captureImage(windowID: windowID)
         }
     }
 

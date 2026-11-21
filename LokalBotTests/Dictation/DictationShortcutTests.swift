@@ -3,7 +3,6 @@ import Carbon.HIToolbox
 import XCTest
 @testable import LokalBot
 
-/// The dictation shortcut can be changed in Settings.
 final class DictationShortcutTests: XCTestCase {
     private let controlShiftD = DictationShortcut(
         keyCode: CGKeyCode(kVK_ANSI_D), modifiers: [.maskControl, .maskShift])
@@ -107,8 +106,6 @@ final class DictationShortcutTests: XCTestCase {
         XCTAssertEqual(toggles, 1)
     }
 
-    // MARK: - Modifier-only shortcuts (⌃⌥, as in Wispr Flow)
-
     private let controlOption = DictationShortcut(keyCode: nil, modifiers: [.maskControl, .maskAlternate])
 
     func testModifierOnlyShortcutNeedsTwoModifiers() throws {
@@ -195,8 +192,6 @@ final class DictationShortcutTests: XCTestCase {
                        [.maskAlternate, .maskCommand])
     }
 
-    /// The start fires on the main queue after the hold delay; a fixed sleep
-    /// only just longer than the delay loses to a busy runner.
     @MainActor
     private func waitForStart(_ calls: ChordCalls) async throws {
         let deadline = ContinuousClock.now + .seconds(3)

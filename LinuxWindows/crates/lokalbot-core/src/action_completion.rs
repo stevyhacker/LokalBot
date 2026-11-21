@@ -1,9 +1,3 @@
-//! "Looks done?" (`ActionCompletionHints.swift`): a suggestion, never a status
-//! change. A later screen capture that looks like the user finished one of
-//! their open actions needs at least two of the action's distinctive words and
-//! a completion phrase that fits the action's verb. Only locally retained
-//! screen text and titles are read.
-
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
@@ -172,8 +166,6 @@ const GENERAL_CUES: [&str; 8] = [
     "published",
 ];
 
-/// Distinctive words: not stop words or generic task verbs, and either four
-/// or more letters, containing a digit, or capitalized in the source.
 pub fn distinctive_terms(text: &str) -> Vec<String> {
     let mut seen = HashSet::new();
     text.split(|c: char| !c.is_alphanumeric())
@@ -196,7 +188,6 @@ pub fn distinctive_terms(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Completion phrases for the action's verb, falling back to a general set.
 pub fn cues(action_text: &str) -> Vec<&'static str> {
     let lower = action_text.to_lowercase();
     let words: HashSet<&str> = lower
@@ -216,7 +207,6 @@ pub fn cues(action_text: &str) -> Vec<&'static str> {
     }
 }
 
-/// The phrase with no letter or digit touching either end.
 fn contains_phrase(haystack: &str, phrase: &str) -> bool {
     let mut from = 0;
     while let Some(found) = haystack[from..].find(phrase) {
@@ -256,7 +246,6 @@ fn matches_terms(capture: &Capture, terms: &[String]) -> bool {
         >= MINIMUM_MATCHING_TERMS
 }
 
-/// Evaluates a thread against captures already fetched for it.
 pub fn hint(
     thread: &ActionThread,
     captures: &[Capture],
@@ -295,7 +284,6 @@ pub fn hint(
 }
 
 impl Library {
-    /// Hints for open actions of the user, from retained screen text.
     pub fn action_completion_hints(
         &self,
         threads: &[ActionThread],
@@ -349,7 +337,6 @@ impl Library {
         result
     }
 
-    /// Text captured with one screen row, at most `max_chars`.
     pub fn screen_text(&self, snapshot_id: i64, max_chars: usize) -> Option<String> {
         self.with_db(|db| {
             let text: Option<String> = db
@@ -372,7 +359,6 @@ impl Library {
             .unwrap_or_default()
     }
 
-    /// "Not Yet": the same capture isn't offered again.
     pub fn dismiss_completion_hint(&self, found: &CompletionHint) -> anyhow::Result<()> {
         let mut dismissed = self.dismissed_completion_hints();
         dismissed.push(found.dismissal_key());
@@ -456,7 +442,6 @@ mod tests {
     fn a_hint_needs_the_words_and_the_phrase_after_the_meeting() {
         let open = thread("Send the security overview to Ana", "open", true);
         let dismissed = HashSet::new();
-        // Words and phrase together, in a capture after the meeting.
         let after = (open.latest().meeting_started_at
             - DateTime::from_timestamp(1_800_000_000, 0).unwrap())
         .num_seconds()
@@ -468,12 +453,10 @@ mod tests {
                 .cue,
             "message sent"
         );
-        // Words without a phrase, or a phrase without the words.
         let words_only = capture(2, "Mail", "Security overview for Ana", after);
         assert!(hint(&open, &[words_only], &dismissed).is_none());
         let phrase_only = capture(3, "Mail", "Message sent. Lunch plans", after);
         assert!(hint(&open, &[phrase_only], &dismissed).is_none());
-        // Before the meeting doesn't count.
         let early = capture(
             4,
             "Mail",
@@ -481,11 +464,9 @@ mod tests {
             after - 120,
         );
         assert!(hint(&open, &[early], &dismissed).is_none());
-        // A dismissed capture isn't offered again.
         let found = hint(&open, std::slice::from_ref(&good), &dismissed).unwrap();
         let gone: HashSet<String> = [found.dismissal_key()].into();
         assert!(hint(&open, std::slice::from_ref(&good), &gone).is_none());
-        // Only the user's open actions.
         let done = thread("Send the security overview to Ana", "done", true);
         assert!(hint(&done, std::slice::from_ref(&good), &dismissed).is_none());
         let theirs = thread("Send the security overview to Ana", "open", false);

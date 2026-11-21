@@ -14,8 +14,6 @@ final class AgentMemoryReaderTests: XCTestCase {
         try? FileManager.default.removeItem(at: home)
     }
 
-    // MARK: - Claude Code
-
     func testClaudeNotesCarryTitleDescriptionTypeAndProject() throws {
         try writeClaudeProject("/Users/me/GitHub/app", session: true, notes: [
             "release-gotchas.md": """
@@ -88,15 +86,12 @@ final class AgentMemoryReaderTests: XCTestCase {
 
     func testWorkingDirectoryIsTakenOnlyFromASessionThatMatchesTheProjectFolder() throws {
         let project = try writeClaudeProject("/Users/me/GitHub/app", session: false, notes: ["a.md": "Note."])
-        // A session that later moved elsewhere still names its start folder first.
         try #"{"type":"user","cwd":"/Users/me/Other"}"#.appending("\n")
             .appending(#"{"type":"user","cwd":"/Users/me/GitHub/app"}"#)
             .write(to: project.appendingPathComponent("S1.jsonl"), atomically: true, encoding: .utf8)
 
         XCTAssertEqual(ClaudeCodeMemoryReader.workingDirectory(ofProject: project), "/Users/me/GitHub/app")
     }
-
-    // MARK: - Codex
 
     func testCodexTaskGroupsBecomeNotesWithScopeAndFolder() throws {
         try writeCodex("MEMORY.md", """
@@ -201,8 +196,6 @@ final class AgentMemoryReaderTests: XCTestCase {
         XCTAssertTrue(body.hasSuffix("one line of the note\n…"))
     }
 
-    // MARK: - Exclusions
-
     func testFolderMentionsMatchTheFolderAndItsContentsButNotSiblings() {
         let exclusions = AgentMemoryExclusions(folders: ["/Users/me/GitHub/app/"])
 
@@ -215,8 +208,6 @@ final class AgentMemoryReaderTests: XCTestCase {
         XCTAssertFalse(exclusions.excludes(workingDirectory: "/Users/me/GitHub/application"))
         XCTAssertTrue(AgentMemoryExclusions(folders: ["/", "  "]).folders.isEmpty)
     }
-
-    // MARK: - Fixtures
 
     private func scanner(excluded: [String] = []) -> AgentMemoryScanner {
         AgentMemoryScanner.standard(home: home, excludedFolders: excluded)

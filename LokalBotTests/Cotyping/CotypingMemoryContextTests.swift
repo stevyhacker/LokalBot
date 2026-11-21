@@ -54,8 +54,6 @@ final class CotypingMemoryContextTests: XCTestCase {
             policy: .init(meetings: true, screenDerived: true), now: now).text)
     }
 
-    /// Reading what is already saved is granted by the writing switches alone.
-    /// The Overnight review switch only schedules new reviews.
     @MainActor
     func testSavedWorkMemoryIsReadUnderTheWritingGrantsAlone() {
         var settings = AppSettings()
@@ -165,9 +163,6 @@ final class CotypingMemoryContextProviderTests: XCTestCase {
                                                   settings: selected ?? settings)
     }
 
-    /// Reproduces the escaped retrieval: a generic sentence picked up
-    /// "you on Friday" from a meeting it had nothing to do with, because the
-    /// two shared a pair of everyday words.
     func testEverydayWordingDoesNotBorrowAnUnrelatedMeetingsDate() throws {
         meeting.title = "Weekly sync"
         try storage.saveMeta(meeting)
@@ -175,7 +170,6 @@ final class CotypingMemoryContextProviderTests: XCTestCase {
         SearchIndex(databaseURL: root.appendingPathComponent("lokalbotv3.sqlite")).reindex(meeting, storage: storage)
         XCTAssertNil(load(draft: "I'll get back to ").selection.text)
         XCTAssertNil(load(draft: "I will get back to you on ").selection.text)
-        // The same notes still answer a draft that names their topic.
         XCTAssertEqual(load(draft: "The Atlas release owner is ").selection.text, "Atlas release owner is Priya.")
     }
 

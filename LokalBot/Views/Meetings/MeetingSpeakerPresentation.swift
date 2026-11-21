@@ -1,14 +1,9 @@
 import Foundation
 
-/// Friendlier labels for LokalBot's placeholder speaker names. Stored keys,
-/// aliases, owners, prompts, and exports keep the canonical names ("Me",
-/// "Them 2"); "Local speaker" stays because that voice is not yet confirmed
-/// as the user.
 enum SpeakerDisplayName {
     static func label(_ name: String) -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         switch trimmed.lowercased() {
-        // A free-form alias/owner called "Me" is not evidence of self identity.
         case "me": return name
         case "them": return "Other speaker"
         default:
@@ -25,8 +20,6 @@ enum SpeakerDisplayName {
     }
 }
 
-/// Display-only names for a combined meeting. Source-scoped keys, confirmed
-/// identities, and persisted aliases remain untouched for edits and evidence.
 struct MeetingSpeakerPresentation {
     private var names: [String: String] = [:]
     private var replacements: [String: String] = [:]
@@ -83,12 +76,10 @@ struct MeetingSpeakerPresentation {
             identity: identities[Transcript.canonicalSpeakerKey(key)] ?? .unresolved)
     }
 
-    /// Stable across alias edits and the action-prioritized review ordering.
     func colorIndex(for key: String) -> Int {
         colorIndices[Transcript.canonicalSpeakerKey(key)] ?? 1
     }
 
-    /// An action owner as people should read it ("You", "Other speaker").
     func owner(_ value: String, isForUser: Bool) -> String {
         let key = value.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let identity = isForUser ? SpeakerAttribution.Identity.user : ownerIdentities[key] ?? .unresolved
@@ -96,7 +87,6 @@ struct MeetingSpeakerPresentation {
     }
 
     func text(_ value: String) -> String {
-        // Longest first protects nested merges and source 1 versus source 10.
         replacements.keys.sorted { $0.count > $1.count }.reduce(value) { text, original in
             guard let replacement = replacements[original],
                   let regex = try? NSRegularExpression(pattern:

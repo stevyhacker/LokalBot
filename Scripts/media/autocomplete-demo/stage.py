@@ -34,10 +34,6 @@ SETTINGS = dict(prepare_filming.SETTINGS)
 SETTINGS.update({
     "cotypingAcceptGranularity": "word",
     "menuBarOnly": True,
-    # Dictation's shortcut tap sits in the keystroke path on the app's main
-    # thread; on a busy hosted runner the rig's keys came out lost and out of
-    # order. Reading the visible window walks TextEdit's accessibility tree,
-    # which took 9 s there. Neither is part of this demo.
     "dictationEnabled": False,
     "cotypingUseVisibleContext": False,
 })
@@ -83,7 +79,6 @@ def library(root, model_path):
     _, name, _, digest = default_model()
     models = root / "models"
     models.mkdir(exist_ok=True)
-    # A clone where the filesystem offers one, else a hard link: no second copy.
     target = models / name
     if subprocess.run(["cp", "-c", str(model_path), str(target)], capture_output=True).returncode != 0:
         try:

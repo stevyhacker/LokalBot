@@ -10,7 +10,6 @@ fn arguments_carry_the_mac_isolation_flags() {
     let args = arguments("sonnet", ReasoningLevel::Automatic, &request, false);
     let expected: Vec<String> = [
         "-p",
-        // A request with a schema reads it from stdin and answers in lines.
         "--input-format",
         "stream-json",
         "--output-format",
@@ -30,7 +29,6 @@ fn arguments_carry_the_mac_isolation_flags() {
         "system-prompt.txt",
         "--model",
         "sonnet",
-        // Notes (budget 0) run at the lowest effort on a thinking model.
         "--effort",
         "low",
     ]
@@ -78,7 +76,6 @@ fn arguments_carry_the_mac_isolation_flags() {
         &ChatRequest::new("s", "u"),
         false,
     );
-    // Claude Haiku 4.5 takes no effort control.
     assert!(!chosen.contains(&"--effort".to_string()));
     let capped = arguments(
         "opus",
@@ -99,8 +96,6 @@ fn content_goes_over_stdin_without_blank_blocks() {
     assert_eq!(input(&request), "Transcript\n\nQuestion?");
 }
 
-/// A command line is readable by every process of the same user, and the
-/// notes repair puts the meeting's action items in its schema.
 #[test]
 fn a_schema_travels_on_stdin_never_in_the_arguments() {
     let schema = json!({
@@ -218,7 +213,6 @@ fn npm_shims_resolve_to_their_script() {
     let bundled = Launch::for_executable(&shim);
     assert_eq!(bundled.program, dir.path().join("node.exe"));
     assert_eq!(bundled.prefix, vec![script.clone().into_os_string()]);
-    // A package that ships a native binary behind the shim.
     let native_target = dir
         .path()
         .join("node_modules/@anthropic-ai/claude-code/bin/claude.exe");
@@ -233,7 +227,6 @@ fn npm_shims_resolve_to_their_script() {
     let launch = Launch::for_executable(&native_shim);
     assert_eq!(launch.program, native_target);
     assert!(launch.prefix.is_empty());
-    // A native install runs as it is.
     let native = dir.path().join("claude");
     assert_eq!(Launch::for_executable(&native).program, native);
 }
@@ -323,8 +316,6 @@ fn stream_lines_carry_deltas_and_the_result() {
     assert_eq!(parse_stream_line("garbage"), (None, None));
 }
 
-/// A stand-in `claude` that records how it was run and answers like Claude
-/// Code's print mode.
 #[cfg(unix)]
 fn fake_claude(dir: &Path, stdout: &str) -> PathBuf {
     use std::os::unix::fs::PermissionsExt as _;
@@ -373,7 +364,6 @@ fn runs_claude_in_a_private_empty_folder_with_content_on_stdin() {
         .reasoning_budget(0)
         .json_schema(json!({"type": "object"}));
     request.context = vec!["Secret transcript".into()];
-    // SAFETY: tests in this binary do not read CLAUDECODE concurrently.
     unsafe { std::env::set_var("CLAUDECODE", "1") };
     let completion = engine.respond(&request, None, None).unwrap();
     unsafe { std::env::remove_var("CLAUDECODE") };
@@ -385,7 +375,6 @@ fn runs_claude_in_a_private_empty_folder_with_content_on_stdin() {
         args,
         arguments("sonnet", ReasoningLevel::Automatic, &request, false)
     );
-    // Content never appears on the command line.
     assert!(!read("args").contains("Secret transcript"));
     assert!(!read("args").contains("System prompt here."));
     assert!(!read("args").contains("--json-schema"));
@@ -395,7 +384,6 @@ fn runs_claude_in_a_private_empty_folder_with_content_on_stdin() {
     assert_eq!(read("mode").trim(), "600");
     assert_eq!(read("listing").trim(), "system-prompt.txt");
     assert_eq!(read("claudecode"), "unset");
-    // The folder is gone afterwards.
     assert!(!Path::new(read("cwd").trim()).exists());
 }
 
@@ -431,7 +419,6 @@ fn streams_deltas_and_reports_cancellation() {
     let system = std::fs::read_to_string(dir.path().join("record/system")).unwrap();
     assert_eq!(system, "You are a helpful assistant.");
 
-    // A run that never ends stops when cancelled.
     use std::os::unix::fs::PermissionsExt as _;
     let slow = dir.path().join("slow-claude");
     std::fs::write(&slow, "#!/bin/sh\ncat > /dev/null\nsleep 30\n").unwrap();

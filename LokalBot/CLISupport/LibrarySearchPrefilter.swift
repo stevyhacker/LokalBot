@@ -1,21 +1,7 @@
 import Foundation
 
-/// A conservative byte-level test that tells `LibrarySearch.hits` which
-/// transcripts and texts cannot match, so it skips decoding and folding them.
-///
-/// It folds each character on its own, the way `LibrarySearch.folded` folds
-/// whole text (case and accents), and decomposes the result. Of that, it keeps
-/// only letters and digits. ASCII spaces and punctuation, which folding never
-/// removes, become a separator. Every other character, such as a combining
-/// mark, is dropped, which only joins its neighbors. The result therefore
-/// holds every run of letters and digits the real matcher could find, so a
-/// "no" is certain and a "yes" just runs the matcher as before.
 struct LibrarySearchPrefilter {
-    /// For each search term, the words of it that must all appear.
     private let terms: [[[UInt8]]]
-    /// What each non-ASCII character becomes, filled as characters appear.
-    /// Nil for a combining mark whose own fold is a letter (U+0345 folds to
-    /// "ι" alone but vanishes after a letter), which the test cannot place.
     private var foldedScalars: [UInt32: [UInt8]?] = [:]
     private let output = Output()
 
@@ -26,8 +12,6 @@ struct LibrarySearchPrefilter {
     private static let textKey = Array("text".utf8)
     private static let unicodeEscape = Array(#"\u"#.utf8)
 
-    /// What each ASCII byte becomes: lowercase letters and digits as they are,
-    /// anything else the separator.
     private static let asciiFold: [UInt8] = (0..<128).map { value in
         let byte = UInt8(value)
         switch byte {
@@ -37,8 +21,6 @@ struct LibrarySearchPrefilter {
         }
     }
 
-    /// Nil when a term has a character the test cannot reason about, such as
-    /// a combining mark or punctuation only, so nothing may be skipped.
     init?(terms: [String]) {
         var groups: [[[UInt8]]] = []
         for term in terms {
@@ -56,7 +38,6 @@ struct LibrarySearchPrefilter {
         self.terms = groups
     }
 
-    /// Whether `text` could contain one of the terms.
     mutating func mayMatch(_ text: String) -> Bool {
         output.count = 0
         var text = text
@@ -64,14 +45,10 @@ struct LibrarySearchPrefilter {
         return !readable || containsATerm()
     }
 
-    /// Whether a `"text"` value in transcript JSON could contain one of the
-    /// terms. Answers yes for anything it cannot read as plain UTF-8 JSON,
-    /// such as UTF-16 or a `\u` escape, since the decoder may still read it.
     mutating func mayMatch(transcriptJSON data: Data) -> Bool {
         output.count = 0
         let readable = data.withUnsafeBytes { raw -> Bool in
             guard let base = raw.baseAddress else { return true }
-            // UTF-16 and UTF-32 JSON always holds zero bytes; UTF-8 never does.
             guard memchr(base, 0, raw.count) == nil,
                   memmem(base, raw.count, Self.unicodeEscape, Self.unicodeEscape.count) == nil else { return false }
             return appendTextValues(raw.bindMemory(to: UInt8.self))
@@ -79,10 +56,6 @@ struct LibrarySearchPrefilter {
         return !readable || containsATerm()
     }
 
-    // MARK: - JSON
-
-    /// Appends every string value whose key is `"text"`. False when the bytes
-    /// hold something the test cannot reason about.
     private mutating func appendTextValues(_ bytes: UnsafeBufferPointer<UInt8>) -> Bool {
         guard let base = bytes.baseAddress else { return true }
         let origin = UnsafeRawPointer(base)
@@ -91,7 +64,6 @@ struct LibrarySearchPrefilter {
         var valueIsText = false
         while index < count, let opening = memchr(base + index, Int32(Self.quote), count - index) {
             let start = origin.distance(to: opening) + 1
-            // The closing quote is the first one after an even run of backslashes.
             var end = start
             while true {
                 guard end < count, let found = memchr(base + end, Int32(Self.quote), count - end) else { return false }
@@ -122,15 +94,8 @@ struct LibrarySearchPrefilter {
         byte == 0x20 || byte == 0x0A || byte == 0x0D || byte == 0x09
     }
 
-    // MARK: - Folding
-
-    /// Appends what `bytes[start..<end]` folds to. With `jsonEscapes`, a
-    /// backslash starts a two-byte escape (`\u` excluded by the caller), each
-    /// of which stands for ASCII punctuation or whitespace. False when the
-    /// bytes are not UTF-8 or hold a character the test cannot place.
     private mutating func appendText(_ bytes: UnsafeBufferPointer<UInt8>, from start: Int, to end: Int,
                                      jsonEscapes: Bool) -> Bool {
-        // ASCII and escapes write at most one byte per byte read.
         output.reserve(end - start)
         var out = output.bytes
         var written = output.count
@@ -162,7 +127,6 @@ struct LibrarySearchPrefilter {
         return true
     }
 
-    /// A well-formed UTF-8 sequence and its length; nil for anything else.
     private static func decodeUTF8(_ bytes: UnsafeBufferPointer<UInt8>, at index: Int, end: Int)
         -> (Unicode.Scalar, Int)? {
         let lead = bytes[index]
@@ -192,10 +156,6 @@ struct LibrarySearchPrefilter {
         return folded
     }
 
-    /// The letters and digits `scalar` folds to on its own, decomposed. Never
-    /// a separator: a character outside ASCII may vanish in context. A
-    /// combining mark folds with the letter before it, usually to nothing, so
-    /// it adds nothing; nil when its own fold is a letter.
     private static func fold(_ scalar: Unicode.Scalar) -> [UInt8]? {
         let folded = String(scalar)
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
@@ -218,8 +178,6 @@ struct LibrarySearchPrefilter {
         return bytes
     }
 
-    /// Lowercase ASCII letters and digits, and other letters and digits that
-    /// do not attach to the character before them.
     private static func isKeptInNeedle(_ scalar: Unicode.Scalar) -> Bool {
         if scalar.isASCII {
             let byte = UInt8(scalar.value)
@@ -246,8 +204,6 @@ struct LibrarySearchPrefilter {
         }
     }
 
-    // MARK: - Search
-
     private func containsATerm() -> Bool {
         let haystack = output.bytes
         let count = output.count
@@ -260,7 +216,6 @@ struct LibrarySearchPrefilter {
         }
     }
 
-    /// Growable bytes the folded text is written to, reused for every text.
     private final class Output {
         private(set) var bytes: UnsafeMutablePointer<UInt8>
         private var capacity: Int

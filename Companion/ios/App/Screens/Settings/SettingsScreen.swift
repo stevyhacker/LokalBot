@@ -1,8 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// The paired Mac and how it's reached, what this device receives, App Lock,
-/// and removing this device.
 struct SettingsScreen: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppLock.self) private var appLock
@@ -68,7 +66,6 @@ struct SettingsScreen: View {
         }
     }
 
-    /// Recordings that haven't arrived exist nowhere else, so this says so.
     private var removalMessage: String {
         let unsent = session.recordings.filter(\.isOnlyCopy).count
         let base = "Meetings, actions and answers on this device are erased. Your computer keeps everything."

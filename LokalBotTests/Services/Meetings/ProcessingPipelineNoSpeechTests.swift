@@ -2,9 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// Three silent recordings (June 25, June 30, July 16) stayed in the failed
-/// list for months as "No audio tracks found", were re-run through the speech
-/// model on every launch, and came back each time the person pressed Retry.
 @MainActor
 final class ProcessingPipelineNoSpeechTests: XCTestCase {
     func testSilentRecordingFinishesWithAnEmptyTranscript() async throws {

@@ -1,6 +1,3 @@
-//! `CotypingDecodeStopPolicy`: where a streamed completion stops early, at
-//! the same visible boundary the in-process macOS runtime stops its decode.
-
 use super::normalize::STOP_MARKERS;
 use super::text::{is_cjk_closing_punctuation, is_terminal_period};
 
@@ -10,7 +7,6 @@ pub enum StopReason {
     ScaffoldingMarker,
 }
 
-/// A chat control token stops at once; a sentence end once two tokens are in.
 pub fn verdict(accumulated: &str, tokens_generated: usize) -> Option<StopReason> {
     verdict_with_minimum(accumulated, tokens_generated, 2)
 }
@@ -29,9 +25,6 @@ pub fn verdict_with_minimum(
     ends_sentence(accumulated).then_some(StopReason::SentenceBoundary)
 }
 
-/// `CotypingSentenceBoundary.endsSentence`: `!`, `?`, a CJK terminator, or a
-/// period that ends a sentence, optionally followed by closing quotes or
-/// brackets and whitespace.
 pub fn ends_sentence(text: &str) -> bool {
     let body = text.trim_end();
     let body = body.trim_end_matches(is_sentence_closing_punctuation);

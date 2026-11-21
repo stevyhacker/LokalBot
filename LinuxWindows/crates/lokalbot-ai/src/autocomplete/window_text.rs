@@ -1,13 +1,3 @@
-//! Text read from the focused window's pixels for the "Use the focused window
-//! as context" grant (`CotypingWindowText`, `CotypingWindowTextCapture`), the
-//! pure half: which recognized lines enter the prompt, in what order, and
-//! when a newer read replaces the one in use. The engine does the reading,
-//! never on a keystroke: the first request in a field goes without it, later
-//! ones use the result, reread in the background every few seconds. New text
-//! waits for a pause in typing, because it starts the prompt and changing it
-//! makes the model read the whole prompt again. The text is held for the
-//! focused field only and never logged.
-
 use std::collections::HashSet;
 use std::time::{Duration, Instant};
 
@@ -15,25 +5,16 @@ use sha2::{Digest as _, Sha256};
 
 use super::prompt::{is_sensitive, sanitized_context};
 
-/// About 500–700 prompt tokens: a typical chat or mail pane whole.
 pub const MAXIMUM_CHARACTERS: usize = 2_000;
 pub const MAXIMUM_LINE_CHARACTERS: usize = 300;
-/// Lines this close to the field are its border, label or placeholder.
 pub const FIELD_MARGIN: f64 = 4.0;
-/// Message bubbles sit a little inside or outside the field's edges.
 pub const COLUMN_SLACK: f64 = 24.0;
-/// How long text that scrolled out of view may stay in use.
 pub const MAXIMUM_HELD_AGE: Duration = Duration::from_secs(60);
-/// Shorter new text (a timestamp, a typing indicator) does not replace the
-/// text in use, which would make the model read it all again.
 pub const MINIMUM_ADDED_CHARACTERS: usize = 12;
 pub const REFRESH_INTERVAL: Duration = Duration::from_secs(4);
-/// New text from a reread is used once typing has stopped this long.
 pub const TYPING_PAUSE: Duration = Duration::from_secs(1);
-/// Width of the image a fingerprint hashes.
 const FINGERPRINT_WIDTH: usize = 512;
 
-/// A rectangle in screen pixels, top-left origin.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Frame {
     pub x: f64,
@@ -94,22 +75,18 @@ impl Frame {
     }
 }
 
-/// One recognized line.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Line {
     pub text: String,
     pub frame: Frame,
 }
 
-/// A line that may enter the prompt.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Excerpt {
     pub frame: Frame,
     pub text: String,
 }
 
-/// Drops credential-bearing lines rather than teaching the model to complete
-/// a redaction marker, and lines with no letters or digits.
 pub fn cleaned(raw: &str) -> Option<String> {
     if is_sensitive(raw) {
         return None;
@@ -120,7 +97,6 @@ pub fn cleaned(raw: &str) -> Option<String> {
         .then(|| text.chars().take(MAXIMUM_LINE_CHARACTERS).collect())
 }
 
-/// The draft is never prompt context, so its lines are not kept for reuse.
 pub fn outside_field(lines: Vec<Line>, field: Frame) -> Vec<Line> {
     let around_field = field.inset(-FIELD_MARGIN);
     lines
@@ -129,11 +105,6 @@ pub fn outside_field(lines: Vec<Line>, field: Frame) -> Vec<Line> {
         .collect()
 }
 
-/// The lines a prompt gets, in reading order. The draft never enters: it is
-/// already the text before the caret. Lines in the field's column above it
-/// come first, nearest first, so a long conversation keeps its newest
-/// messages; the rest of the window fills what is left and is placed before
-/// them, so the conversation ends right where the draft begins.
 pub fn excerpts(lines: &[Line], field: Frame, window: Frame, maximum: usize) -> Vec<Excerpt> {
     let around_field = field.inset(-FIELD_MARGIN);
     let column = (field.x - COLUMN_SLACK)..=(field.max_x() + COLUMN_SLACK);
@@ -174,7 +145,6 @@ pub fn excerpts(lines: &[Line], field: Frame, window: Frame, maximum: usize) -> 
     above.sort_by(nearest_first);
     rest.sort_by(reading_order);
     let mut remaining = maximum;
-    // Stops at the first line that does not fit, so the kept part has no holes.
     let mut take = |ordered: Vec<Excerpt>| {
         let mut kept = Vec::new();
         for excerpt in ordered {
@@ -194,7 +164,6 @@ pub fn excerpts(lines: &[Line], field: Frame, window: Frame, maximum: usize) -> 
     surroundings
 }
 
-/// Text in use, for one window.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Snapshot {
     pub title: String,
@@ -203,7 +172,6 @@ pub struct Snapshot {
 }
 
 impl Snapshot {
-    /// Window text keeps its line breaks: a conversation reads line by line.
     pub fn text(&self) -> Option<String> {
         (!self.excerpts.is_empty()).then(|| {
             self.excerpts
@@ -222,9 +190,6 @@ fn comparable(text: &str) -> String {
         .join(" ")
 }
 
-/// Whether a newer read replaces the text in use. Rereading an unchanged
-/// window changes nothing, and lines that only scrolled away stay for a
-/// while; new text replaces it at once.
 pub fn should_replace(current: Option<&Snapshot>, new: &Snapshot, held_for: Duration) -> bool {
     let Some(current) = current else {
         return true;
@@ -250,9 +215,6 @@ pub fn should_replace(current: Option<&Snapshot>, new: &Snapshot, held_for: Dura
     added >= MINIMUM_ADDED_CHARACTERS
 }
 
-/// Identifies one field's window between reads. Field height and position are
-/// left out because a reply box grows as you type; another title is another
-/// document, tab or conversation, whose text is not reused.
 pub fn key(pid: u32, role: &str, title: &str, field: Frame) -> String {
     [
         pid.to_string(),
@@ -264,10 +226,6 @@ pub fn key(pid: u32, role: &str, title: &str, field: Frame) -> String {
     .join("\u{1f}")
 }
 
-/// What recognition would read from a window image apart from the field being
-/// typed in, whose draft and blinking caret a prompt never uses. Equal
-/// fingerprints reuse the last lines instead of recognizing the window again.
-/// `rgba` is `image_width` × `image_height` pixels showing `window`.
 pub fn fingerprint(
     rgba: &[u8],
     image_width: usize,
@@ -287,7 +245,6 @@ pub fn fingerprint(
     let height = (image_height as f64 * width as f64 / image_width as f64)
         .round()
         .max(1.0) as usize;
-    // Area-averaged, a changed word still changes pixels.
     let mut pixels = vec![0u8; width * height];
     for y in 0..height {
         let y0 = y * image_height / height;
@@ -343,23 +300,18 @@ pub fn fingerprint(
 struct Entry {
     key: String,
     snapshot: Option<Snapshot>,
-    /// A newer read with new text, held until typing pauses.
     pending: Option<Snapshot>,
     started_at: Instant,
     adopted_at: Instant,
 }
 
-/// What a finished read changed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Finished {
-    /// The text in use changed: the prompt's start must be read again.
     Changed,
-    /// New text waits for a pause in typing.
     Held,
     Unchanged,
 }
 
-/// The state of `CotypingWindowTextCapture`, without its thread or clock.
 #[derive(Clone, Debug, Default)]
 pub struct Capture {
     entry: Option<Entry>,
@@ -368,20 +320,14 @@ pub struct Capture {
     generation: u64,
 }
 
-/// A read to start. `finish` must get its `generation` back.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Ticket {
     pub generation: u64,
 }
 
 impl Capture {
-    /// The text for `key`, or `None` until the first read finishes, and a
-    /// ticket when a read should start: none is running and the last one is
-    /// old. Counted from the start, so a read that fails is not retried on
-    /// every keystroke.
     pub fn snapshot(&mut self, key: &str, now: Instant) -> (Option<&Snapshot>, Option<Ticket>) {
         if self.entry.as_ref().is_some_and(|entry| entry.key != key) {
-            // Another field, window or document: forget the old text.
             self.entry = None;
             self.generation += 1;
         }
@@ -414,7 +360,6 @@ impl Capture {
         )
     }
 
-    /// A key that changes the text was pressed.
     pub fn note_typing(&mut self, now: Instant) {
         self.last_typing = Some(now);
     }
@@ -424,8 +369,6 @@ impl Capture {
             .is_some_and(|at| now.saturating_duration_since(at) < TYPING_PAUSE)
     }
 
-    /// A read came back. `snapshot` is `None` when it failed or was refused.
-    /// A read older than the text's last forgetting cannot put it back.
     pub fn finish(
         &mut self,
         ticket: Ticket,
@@ -446,7 +389,6 @@ impl Capture {
         }
         let held_for = now.saturating_duration_since(entry.adopted_at);
         if !should_replace(entry.snapshot.as_ref(), &snapshot, held_for) {
-            // The text in use is still right, so anything held is out of date.
             entry.pending = None;
             return Finished::Unchanged;
         }
@@ -457,7 +399,6 @@ impl Capture {
         adopt(entry, snapshot, now)
     }
 
-    /// When held text can be used, if nothing is typed meanwhile.
     pub fn adoption_due(&self) -> Option<Instant> {
         self.entry.as_ref()?.pending.as_ref()?;
         Some(
@@ -466,7 +407,6 @@ impl Capture {
         )
     }
 
-    /// Uses the held text if typing has paused long enough.
     pub fn adopt_pending_if_quiet(&mut self, now: Instant) -> Finished {
         if self.typing_recently(now) {
             return Finished::Unchanged;
@@ -480,7 +420,6 @@ impl Capture {
         adopt(entry, pending, now)
     }
 
-    /// Forgets the text in use. A read already running cannot put it back.
     pub fn remove_all(&mut self) {
         self.entry = None;
         self.generation += 1;
@@ -585,7 +524,6 @@ mod tests {
         let age = Duration::from_secs(1);
         assert!(should_replace(None, &held, age));
         assert!(!should_replace(Some(&held), &held, age));
-        // A timestamp is too little; scrolling out of view keeps the text.
         assert!(!should_replace(
             Some(&held),
             &snapshot(&["hello  THERE", "10:45"]),
@@ -624,13 +562,11 @@ mod tests {
         let mut image = vec![255u8; w * h * 4];
         let print = |image: &[u8]| fingerprint(image, w, h, WINDOW, FIELD).unwrap();
         let clean = print(&image);
-        // Typing in the field changes nothing.
         for x in 120..200 {
             let at = (510 * w + x) * 4;
             image[at..at + 3].fill(0);
         }
         assert_eq!(print(&image), clean);
-        // A new word above it does.
         for x in 120..200 {
             let at = (300 * w + x) * 4;
             image[at..at + 3].fill(0);
@@ -643,11 +579,9 @@ mod tests {
     fn reads_are_spaced_and_held_while_typing() {
         let start = Instant::now();
         let mut capture = Capture::default();
-        // The first request starts a read and goes without text.
         let (text, ticket) = capture.snapshot("k", start);
         assert!(text.is_none());
         let ticket = ticket.unwrap();
-        // One read at a time, and no retry on every keystroke.
         assert!(capture.snapshot("k", start).1.is_none());
         assert_eq!(
             capture.finish(ticket, "k", Some(snapshot(&["First conversation"])), start),
@@ -659,7 +593,6 @@ mod tests {
         assert!(ticket.is_none());
         let due = start + REFRESH_INTERVAL;
         let ticket = capture.snapshot("k", due).1.unwrap();
-        // New text waits while typing, and comes once typing pauses.
         capture.note_typing(due);
         let reply = snapshot(&["First conversation", "A reply has arrived"]);
         assert_eq!(
@@ -680,7 +613,6 @@ mod tests {
         let now = Instant::now();
         let mut capture = Capture::default();
         let ticket = capture.snapshot("a", now).1.unwrap();
-        // Focus moved while the read ran.
         assert!(capture.snapshot("b", now).0.is_none());
         assert_eq!(
             capture.finish(ticket, "a", Some(snapshot(&["Old window text"])), now),
@@ -693,7 +625,6 @@ mod tests {
         let (forgotten, ticket) = capture.snapshot("b", now);
         assert!(forgotten.is_none());
         capture.finish(ticket.unwrap(), "b", None, now);
-        // A failed read keeps nothing and is not retried at once.
         let failing = capture.snapshot("c", now).1.unwrap();
         assert_eq!(capture.finish(failing, "c", None, now), Finished::Unchanged);
         assert!(capture.snapshot("c", now).1.is_none());

@@ -3,18 +3,7 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
-/// Sizes a picture for EmbeddingGemma 2's vision encoder the way the model's
-/// reference processor does, so the media embedder sees the pixels DigUp's
-/// reference vectors were made from. Ported from DigUp's `ImageSizing`
-/// (github.com/ARahim3/DigUp, MIT; see THIRD_PARTY_NOTICES.md).
-///
-/// The media embedder runs llama-server with `--image-min-tokens 1
-/// --image-max-tokens 1120`, so llama.cpp never rescales an image that already
-/// has its final size: each image's token budget is set here. Left to size
-/// images itself, llama.cpp spends about twice the tokens and the vectors
-/// drift from the reference (Benchmarks/search/EmbeddingGemma2/2026-10-30-media-embedder).
 enum FileImageSizing {
-    /// Soft-token budgets the encoder accepts.
     static let budgets = [70, 140, 280, 560, 1120]
 
     enum SizingError: Error, Equatable {
@@ -23,9 +12,6 @@ enum FileImageSizing {
         case unsupportedBudget(Int)
     }
 
-    /// transformers' Gemma 4 image processor: scale to fill `budget` soft
-    /// tokens (each 3 × 3 patches of 16 px) keeping the aspect ratio, each side
-    /// rounded down to a multiple of 48 px. Nil for an image with no area.
     static func targetSize(height: Int, width: Int, budget: Int) -> (height: Int, width: Int)? {
         guard height > 0, width > 0 else { return nil }
         let patch = 16, pooling = 3
@@ -46,9 +32,6 @@ enum FileImageSizing {
         return (targetHeight, targetWidth)
     }
 
-    /// The image at `url` as a PNG resized for `budget`. Pixels keep the file's
-    /// own colour values, as llama.cpp's decoder reads them: no colour-space
-    /// conversion unless the file is not RGB.
     static func png(ofImageAt url: URL, budget: Int) throws -> Data {
         guard budgets.contains(budget) else { throw SizingError.unsupportedBudget(budget) }
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
@@ -58,8 +41,6 @@ enum FileImageSizing {
         return try png(of: image, budget: budget)
     }
 
-    /// An image already in memory (a decrypted screen capture), the same way:
-    /// nothing is written to disk.
     static func png(of image: CGImage, budget: Int) throws -> Data {
         guard budgets.contains(budget) else { throw SizingError.unsupportedBudget(budget) }
         guard let target = targetSize(height: image.height, width: image.width, budget: budget) else {
@@ -77,7 +58,6 @@ enum FileImageSizing {
         return try pngData(rgb: sized, width: target.width, height: target.height, space: space)
     }
 
-    /// Packed 8-bit RGB, drawn in `space` so RGB files are not converted.
     private static func rgbPixels(of image: CGImage, space: CGColorSpace) throws -> [UInt8] {
         let width = image.width, height = image.height
         var rgba = [UInt8](repeating: 0, count: width * height * 4)
@@ -116,11 +96,6 @@ enum FileImageSizing {
         return data as Data
     }
 
-    // MARK: - Pillow's bicubic resampling
-
-    /// Pillow's bicubic resampling of packed RGB (a = −0.5, the kernel widened
-    /// when shrinking, 22-bit fixed point): what the reference gets from PIL's
-    /// `Image.resize`. Bit-for-bit with Pillow (see FileImageSizingTests).
     static func resizeBicubic(_ source: UnsafePointer<UInt8>, width: Int, height: Int,
                               toWidth: Int, toHeight: Int) -> [UInt8] {
         switch (toWidth != width, toHeight != height) {
@@ -142,8 +117,6 @@ enum FileImageSizing {
         return 0
     }
 
-    /// For each output pixel: the first contributing input pixel, how many
-    /// contribute, and their weights.
     private static func coefficients(_ inSize: Int, _ outSize: Int) -> (bounds: [Int], weights: [Int32], size: Int) {
         let scale = Double(inSize) / Double(outSize)
         let filterScale = max(scale, 1)

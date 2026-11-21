@@ -2,7 +2,6 @@ import Foundation
 import Testing
 @testable import LokalBotCompanionKit
 
-/// Dates come from the fixture: "today" is its manifest's generatedAt.
 @Suite("Actions")
 struct ActionTests {
     static let today = DayKey(SampleLibrary.referenceDate)
@@ -90,7 +89,6 @@ struct ActionTests {
         let row = try #require(await store.actions(.all).first { $0.id == overdue.id })
         #expect(row.action.status == .done && row.pending)
         #expect(await store.status().pendingOps == 1)
-        // People and projects reflect the change before the Mac rebuilds them.
         #expect(await store.person(id: "person:maya-chen")?.openWork.contains { $0.actionId == overdue.action.id } == false)
         #expect(await store.project(id: "7a1d0c55-2b8f-4f3a-a6c4-5e6f7a8b9c02")?
             .yourActions.first { $0.actionId == overdue.action.id }?.status == .done)

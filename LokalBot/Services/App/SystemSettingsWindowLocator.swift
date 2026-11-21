@@ -2,15 +2,12 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-/// The frontmost System Settings window converted into AppKit screen space.
 struct SystemSettingsWindowSnapshot: Equatable {
     let processIdentifier: pid_t
     let frame: CGRect
     let visibleFrame: CGRect
 }
 
-/// Locates the privacy window so permission guidance can follow it across
-/// displays and remain visually attached while it moves or resizes.
 enum SystemSettingsWindowLocator {
     static let bundleIdentifier = "com.apple.systempreferences"
 

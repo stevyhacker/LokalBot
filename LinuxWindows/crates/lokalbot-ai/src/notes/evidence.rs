@@ -1,8 +1,3 @@
-//! Compact evidence and its validation (`MeetingNotesEvidence.swift`).
-//!
-//! Model IDs (`s#`, `p#`) are local to one transcript snapshot; accepted
-//! records carry the stable `segment-…` IDs.
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::sync::LazyLock;
 
@@ -23,7 +18,6 @@ use crate::json;
 
 pub const OWNERSHIP_POLICY_VERSION: &str = "action-evidence-v4";
 
-/// One evidence row: `s#|p#|text`.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Unit {
     pub source: String,
@@ -39,7 +33,6 @@ impl Unit {
     }
 }
 
-/// A record the model returned that did not pass a check, queued for repair.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Rejection {
     pub sources: Vec<String>,
@@ -47,12 +40,10 @@ pub struct Rejection {
     pub reason: String,
     #[serde(default)]
     pub text: Option<String>,
-    /// An unresolved action that a successful ownership repair replaces.
     #[serde(default)]
     pub action_id: Option<String>,
 }
 
-/// An accepted record, listed on continuation pages so the model does not repeat it.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Record {
     pub kind: String,
@@ -71,7 +62,6 @@ impl Record {
     }
 }
 
-/// A narrative fact, reported speech of one speaker (`SummaryClaimEvidence.Claim`).
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Claim {
     pub section: String,
@@ -93,7 +83,6 @@ pub struct Validated {
     pub records: Vec<Record>,
 }
 
-/// `OutcomeTextSimilarity.normalized`: case- and diacritic-folded alphanumeric words.
 pub fn similarity_normalized(text: &str) -> String {
     lokalbot_core::ids::fold(text)
         .split(|c: char| !c.is_alphanumeric())
@@ -110,7 +99,6 @@ pub fn similarity_tokens(text: &str) -> BTreeSet<String> {
         .collect()
 }
 
-/// Jaccard similarity of the token sets ≥ `threshold`.
 pub fn is_similar(lhs: &str, rhs: &str, threshold: f64) -> bool {
     let left = similarity_tokens(lhs);
     let right = similarity_tokens(rhs);
@@ -118,7 +106,6 @@ pub fn is_similar(lhs: &str, rhs: &str, threshold: f64) -> bool {
     union > 0 && left.intersection(&right).count() as f64 / union as f64 >= threshold
 }
 
-/// Rendered sections per template (`SummaryClaimEvidence.sections(for:)`).
 pub fn claim_sections(template: NoteTemplate) -> Vec<&'static str> {
     match template {
         NoteTemplate::Meeting => vec!["TL;DR", "Key points", "Decisions", "Open questions"],
@@ -137,7 +124,6 @@ pub fn claim_sections(template: NoteTemplate) -> Vec<&'static str> {
     }
 }
 
-/// Sections the model may use: the template's plus Decisions and Open questions.
 pub fn sections(template: NoteTemplate) -> Vec<&'static str> {
     let mut sections = claim_sections(template);
     for name in ["Decisions", "Open questions"] {
@@ -148,11 +134,9 @@ pub fn sections(template: NoteTemplate) -> Vec<&'static str> {
     sections
 }
 
-/// The evidence of one transcript snapshot.
 pub struct Evidence<'a> {
     pub view: View<'a>,
     pub units: Vec<Unit>,
-    /// `p#` → canonical speaker key.
     pub speakers: BTreeMap<String, String>,
     pub roster_json: String,
     pub is_english: bool,
@@ -183,7 +167,6 @@ impl<'a> Evidence<'a> {
         let mut units: Vec<Unit> = view
             .prompt_turns(1_000)
             .into_iter()
-            // Suspected echo repeats a remote participant, whose own row carries the words.
             .filter(|(index, _)| {
                 view.attributions[*index].method
                     != lokalbot_core::model::AttributionMethod::SuspectedEcho
@@ -207,7 +190,6 @@ impl<'a> Evidence<'a> {
             is_english,
             meeting_id,
         };
-        // The user's own undertakings are listed for the model.
         let texts = evidence.joined_texts(&units);
         let ownership = evidence.ownership(&texts);
         let mut flagged = BTreeSet::new();
@@ -236,7 +218,6 @@ impl<'a> Evidence<'a> {
         evidence
     }
 
-    /// Each source's visible text (its pieces joined).
     fn joined_texts(&self, units: &[Unit]) -> HashMap<String, String> {
         let mut texts: HashMap<String, String> = HashMap::new();
         for unit in units {
@@ -263,7 +244,6 @@ impl<'a> Evidence<'a> {
         }
     }
 
-    /// The user prompt for some units (`MeetingNotesGenerator.prompt`).
     pub fn prompt(&self, units: &[Unit]) -> String {
         let commitments: BTreeSet<&str> = units
             .iter()
@@ -292,7 +272,6 @@ impl<'a> Evidence<'a> {
         self.speakers.keys().cloned().collect()
     }
 
-    /// The structured-output schema for some units.
     pub fn schema(
         &self,
         units: &[Unit],
@@ -311,7 +290,6 @@ impl<'a> Evidence<'a> {
         )
     }
 
-    /// `MeetingNotesEvidence.validate`.
     pub fn validate(
         &self,
         output: &str,
@@ -561,7 +539,6 @@ impl<'a> Evidence<'a> {
                 reject(&mut result, item, "invalid_action", "actions");
                 continue;
             }
-            // A quote found word for word in one cited row re-anchors the task there.
             let mut anchor = primary.to_string();
             if let Some(quote) = quote.as_deref().filter(|q| !q.is_empty()) {
                 let matches: Vec<&String> = ids
@@ -656,7 +633,6 @@ impl<'a> Evidence<'a> {
                 reject(&mut result, item, "speaker_reference", "actions");
                 continue;
             };
-            // A past/status report is not a pending task.
             if STATUS_PREFIX.is_match(&text) && !FORWARD_WORDS.is_match(&text) {
                 reject(&mut result, item, "status_not_task", "actions");
                 continue;
@@ -703,7 +679,6 @@ impl<'a> Evidence<'a> {
         result
     }
 
-    /// The user's key when the user speaks the next turn after a request.
     fn user_reply(&self, index: usize) -> Option<String> {
         let segments = &self.view.transcript.segments;
         let requester = &self.view.keys[index];
@@ -730,7 +705,6 @@ impl<'a> Evidence<'a> {
         None
     }
 
-    /// Model text as stored prose, or `None` when it names a speaker ID.
     fn prose(&self, text: &str, expected_speaker: Option<&str>) -> Option<String> {
         let mut value = crate::sanitize::collapse(text);
         if let Some(expected) = expected_speaker {
@@ -787,8 +761,6 @@ fn valid_section(section: &str, template: NoteTemplate) -> bool {
     sections(template).contains(&section)
 }
 
-/// The due date as spoken, or "" (`MeetingNotesEvidence.spokenDue`): a copied
-/// source ID or a year nobody said is dropped.
 pub fn spoken_due(raw: &str, source_ids: &BTreeSet<String>, cited_text: Option<&str>) -> String {
     let value = raw.trim();
     let bare = value.trim_matches(|c| "[]()".contains(c));
@@ -805,7 +777,6 @@ pub fn spoken_due(raw: &str, source_ids: &BTreeSet<String>, cited_text: Option<&
     value.to_string()
 }
 
-/// Every enum value in a schema, counted per occurrence.
 pub fn enum_value_count(schema: &Value) -> usize {
     match schema {
         Value::Object(map) => {
@@ -837,7 +808,6 @@ fn object(properties: Value) -> Value {
     json!({"type": "object", "additionalProperties": false, "required": required, "properties": properties})
 }
 
-/// `MeetingNotesEvidence.schema`.
 pub fn schema(
     units: &[Unit],
     speakers: &[String],
@@ -950,7 +920,6 @@ mod tests {
             json!(["source", "unknown", "p1", "p2"])
         );
         assert_eq!(schema["required"], json!(["actions", "has_more", "notes"]));
-        // section 4 + source 3, then source 3 + context 3 + owner 4 + basis 4 + importance 5.
         assert_eq!(enum_value_count(&schema), 26);
     }
 

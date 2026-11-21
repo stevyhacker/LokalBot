@@ -1,8 +1,5 @@
 import Foundation
 
-/// The block structure of the Markdown the Mac sends (summaries, notes,
-/// digests, answers): headings, paragraphs, lists and quotes. Inline styling
-/// is left to `AttributedString(markdown:)`.
 public struct MarkdownDocument: Sendable, Hashable {
     public enum Block: Sendable, Hashable {
         case heading(level: Int, text: String)
@@ -62,8 +59,6 @@ public struct MarkdownDocument: Sendable, Hashable {
 
     public var isEmpty: Bool { blocks.isEmpty }
 
-    /// The blocks under the first heading named one of `titles`, up to the
-    /// next heading of the same or a higher level.
     public func section(named titles: Set<String>) -> MarkdownDocument? {
         guard let start = blocks.firstIndex(where: {
             if case .heading(_, let text) = $0 { return titles.contains(Self.normalizedTitle(text)) }
@@ -74,7 +69,6 @@ public struct MarkdownDocument: Sendable, Hashable {
         return MarkdownDocument(blocks: Array(blocks[(start + 1)..<end]))
     }
 
-    /// Everything except the sections named `titles`.
     public func removingSections(named titles: Set<String>) -> MarkdownDocument {
         var kept: [Block] = []
         var skippingLevel: Int?
@@ -117,9 +111,6 @@ public struct MarkdownDocument: Sendable, Hashable {
     }
 }
 
-/// What the Summary tab shows as Recap: the summary's Recap section. Action
-/// items, decisions and open questions come from the meeting's structured
-/// fields, so those sections are left out of a summary without one.
 public enum SummaryPresentation {
     static let recapTitles: Set<String> = ["recap", "summary", "overview"]
     static let structuredTitles: Set<String> = [
@@ -136,8 +127,6 @@ public enum SummaryPresentation {
 }
 
 public enum MarkdownInline {
-    /// Inline Markdown (bold, italics, code, links) as styled text; plain text
-    /// when it doesn't parse.
     public static func attributed(_ text: String) -> AttributedString {
         (try? AttributedString(
             markdown: text,

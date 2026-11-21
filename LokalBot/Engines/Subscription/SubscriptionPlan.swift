@@ -1,14 +1,5 @@
 import Foundation
 
-/// Think backends that run on the user's own ChatGPT, Claude, Antigravity,
-/// or Gemini plan instead of an API key. Requests count toward that plan's
-/// usage limits.
-///
-/// Each plan has its own approval entry in
-/// `AppSettings.approvedRemoteInferenceOrigins`. The entries are not URL
-/// origins, so approving an API server (`https://api.openai.com` with a key)
-/// never approves plan usage, and the reverse: the two run under different
-/// provider terms.
 enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
     case chatGPT
     case claude
@@ -54,9 +45,6 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Where Think content goes. Claude, Antigravity, and Gemini requests
-    /// travel through the user's own CLI installation, which sends them to
-    /// that provider.
     var destinationHost: String {
         switch self {
         case .chatGPT: "api.openai.com"
@@ -66,7 +54,6 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The approval entry, also used as the request gate's origin.
     var consentKey: String {
         switch self {
         case .chatGPT: "chatgpt-plan://api.openai.com"
@@ -76,7 +63,6 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The provider's own page for checking and capping plan usage.
     var manageUsageURL: URL {
         switch self {
         case .chatGPT: URL(string: "https://chatgpt.com/settings/usage")!
@@ -103,7 +89,6 @@ enum SubscriptionPlan: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The approval list shows a plan entry by name rather than its key.
     static func approvalDisplayName(_ entry: String) -> String {
         guard let plan = plan(forConsentKey: entry) else { return entry }
         return "\(plan.title) · \(plan.destinationHost)"

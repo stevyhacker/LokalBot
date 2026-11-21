@@ -1,6 +1,3 @@
-//! Keyword search over meetings (`SearchIndex.swift`) and screen text
-//! (`ActivityStore.searchOCR`), both SQLite FTS5 in `lokalbotv3.sqlite`.
-
 use std::path::Path;
 
 use anyhow::{Result, bail};
@@ -14,7 +11,6 @@ use crate::model::*;
 use crate::time::to_epoch;
 use crate::timeline::table_exists;
 
-/// Files whose contents become documents; any newer write reindexes.
 pub const SOURCE_FILES: &[&str] = &[
     "meta.json",
     "transcript.json",
@@ -24,8 +20,6 @@ pub const SOURCE_FILES: &[&str] = &[
     "outcome-state.json",
 ];
 
-/// Source file behind each removable document kind: deleting one cannot
-/// raise the newest modification time, so its rows are checked separately.
 const DOCUMENT_SOURCES: &[(DocKind, &str)] = &[
     (DocKind::Segment, "transcript.json"),
     (DocKind::Summary, "summary.md"),
@@ -36,7 +30,6 @@ const DOCUMENT_SOURCES: &[(DocKind, &str)] = &[
 const DOCUMENT_ROWS_MIGRATION: &str = "search-document-rows-v1";
 const NOTES_OUTCOMES_MIGRATION: &str = "search-notes-outcomes-v1";
 
-/// Function words dropped from natural-language queries in OR mode.
 pub const STOP_WORDS: &[&str] = &[
     "a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "for", "with",
     "about", "as", "by", "from", "into", "is", "are", "was", "were", "be", "been", "being", "do",
@@ -46,7 +39,6 @@ pub const STOP_WORDS: &[&str] = &[
     "may", "might", "must", "any", "some", "there",
 ];
 
-/// The kind of an indexed document (`docs.kind`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum DocKind {
     Title,
@@ -80,8 +72,6 @@ impl DocKind {
     }
 }
 
-/// A keyword search. `kinds`/`meeting_ids` restrict the documents;
-/// `since`/`until` restrict meetings by start time (`until` exclusive).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct SearchQuery {
     pub text: String,
@@ -102,34 +92,23 @@ impl SearchQuery {
     }
 }
 
-/// One matching document.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SearchHit {
     pub meeting_id: Uuid,
     pub kind: DocKind,
-    /// Segment start in seconds (transcript hits only).
     pub start: Option<f64>,
-    /// Display name of the segment's speaker.
     pub speaker: Option<String>,
-    /// A few words around the match, matched terms wrapped in « ».
     pub snippet: String,
-    /// The whole document row.
     pub text: String,
-    /// FTS5 bm25 rank; lower is better.
     pub rank: f64,
 }
 
-/// How query terms combine.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MatchMode {
-    /// Every term, the last one as a prefix (search as you type).
     All,
-    /// Any term, stop words dropped unless every term is one.
     Any,
 }
 
-/// The FTS5 expression for `raw` (`SearchIndex.ftsQuery`): terms quoted so
-/// punctuation cannot cause syntax errors.
 pub fn fts_query(raw: &str, mode: MatchMode) -> Option<String> {
     let mut terms: Vec<String> = raw
         .split_whitespace()
@@ -185,7 +164,6 @@ fn mtime(path: &Path) -> Option<f64> {
     Some(to_epoch(DateTime::<Utc>::from(modified)))
 }
 
-/// Newest modification time among the meeting's source files, epoch seconds.
 pub fn source_mtime(folder: &Path) -> f64 {
     SOURCE_FILES
         .iter()
@@ -193,8 +171,6 @@ pub fn source_mtime(folder: &Path) -> f64 {
         .fold(0.0, f64::max)
 }
 
-/// Creates the search tables' migrations for libraries indexed by older
-/// app versions (`backfillDocumentRowsIfNeeded`, notes/outcomes backfill).
 pub(crate) fn migrate(db: &Connection) -> Result<()> {
     let done = |name: &str| -> Result<bool> {
         Ok(db
@@ -233,7 +209,6 @@ pub(crate) fn migrate(db: &Connection) -> Result<()> {
     Ok(())
 }
 
-/// Finishes cleanup for tombstoned meetings (`reconcileDeletedMeetings`).
 fn reconcile_deleted(db: &Connection) -> Result<()> {
     let tx = db.unchecked_transaction()?;
     tx.execute(
@@ -300,8 +275,6 @@ fn is_tombstoned(db: &Connection, meeting_id: &str) -> Result<bool> {
 }
 
 impl Library {
-    /// One searchable row per decision, action (with the user's corrections)
-    /// and open question (`SearchIndex.outcomeTexts`).
     pub fn outcome_search_texts(&self, meeting: &Meeting) -> Result<Vec<String>> {
         let Some(projection) = self.outcome_projection(meeting)? else {
             return Ok(Vec::new());
@@ -347,7 +320,6 @@ impl Library {
         Ok(out)
     }
 
-    /// Re-indexes one meeting when its files changed since the last pass.
     pub fn reindex_meeting(&self, meeting: &Meeting) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -420,8 +392,6 @@ impl Library {
 
         self.with_db(|db| {
             let tx = rusqlite::Transaction::new_unchecked(db, rusqlite::TransactionBehavior::Immediate)?;
-            // A deletion that committed first wins; an older snapshot never
-            // overwrites a newer one.
             if is_tombstoned(&tx, &id)? || !folder.exists() {
                 return Ok(());
             }
@@ -450,8 +420,6 @@ impl Library {
         })
     }
 
-    /// Re-indexes every changed meeting and drops rows of meetings that no
-    /// longer exist on disk. Returns how many meetings were (re)indexed.
     pub fn reindex_stale(&self) -> Result<usize> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -488,8 +456,6 @@ impl Library {
         Ok(count)
     }
 
-    /// Keyword search: every term (the last as a prefix), falling back to
-    /// any term with stop words dropped when nothing matches.
     pub fn search(&self, query: &SearchQuery) -> Result<Vec<SearchHit>> {
         let hits = self.search_with_mode(query, MatchMode::All)?;
         if !hits.is_empty() {
@@ -498,7 +464,6 @@ impl Library {
         self.search_with_mode(query, MatchMode::Any)
     }
 
-    /// Keyword search in one explicit mode, ordered by bm25 rank.
     pub fn search_with_mode(&self, query: &SearchQuery, mode: MatchMode) -> Result<Vec<SearchHit>> {
         if query.limit == 0 {
             return Ok(Vec::new());
@@ -593,9 +558,6 @@ impl Library {
         })
     }
 
-    /// The searchable passage behind a meaning match (`semanticPassage`): the
-    /// summary or notes that hold the chunk, else the transcript rows in the two
-    /// minutes it covers. `None` when neither holds a readable passage.
     pub fn semantic_passage(
         &self,
         meeting_id: Uuid,
@@ -683,7 +645,6 @@ impl Library {
         Ok(hits.into_iter().next().map(|(_, _, hit)| hit))
     }
 
-    /// Every meeting with a document matching all terms (Meetings list filter).
     pub fn matching_meeting_ids(&self, text: &str) -> Result<Vec<Uuid>> {
         let Some(expression) = fts_query(text, MatchMode::All) else {
             return Ok(Vec::new());
@@ -701,8 +662,6 @@ impl Library {
         })
     }
 
-    /// Screen text search, one result per window and day (or similarity
-    /// group), best match first. All terms first, then any term.
     pub fn search_screen(
         &self,
         text: &str,
@@ -717,7 +676,6 @@ impl Library {
             .collect())
     }
 
-    /// `search_screen` with snippets, ranks and duplicate counts.
     pub fn search_screen_hits(
         &self,
         text: &str,
@@ -733,8 +691,6 @@ impl Library {
         self.search_ocr(text, MatchMode::Any, interval, app, limit)
     }
 
-    /// `ActivityStore.searchOCR` in grouped mode; `interval` is half-open and
-    /// `app` matches the stored name case-insensitively.
     pub fn search_ocr(
         &self,
         text: &str,
@@ -808,7 +764,6 @@ impl Library {
         })
     }
 
-    /// Saved moments, newest first.
     pub fn saved_moments(&self) -> Result<Vec<ScreenMoment>> {
         self.with_db(|db| {
             if !table_exists(db, "screen_bookmarks")? {
@@ -825,14 +780,11 @@ impl Library {
     }
 }
 
-/// A screen search result.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScreenHit {
     pub moment: ScreenMoment,
-    /// Matched words wrapped in « ».
     pub snippet: String,
     pub rank: f64,
-    /// Captures of the same window and text folded into this one.
     pub capture_count: usize,
 }
 
@@ -905,7 +857,6 @@ mod tests {
     #[test]
     fn a_meaning_match_finds_the_transcript_rows_it_covers() {
         let (_dir, library, meeting) = semantic_library();
-        // A transcript chunk: "speaker: text" lines, starting at the first row.
         let chunk =
             "them: We should keep the launch small.\nthem: Pricing stays the same until spring.";
         let hit = library
@@ -913,7 +864,6 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(hit.kind, DocKind::Segment);
-        // The row with the query's word, of the two the chunk covers.
         assert_eq!(hit.start, Some(20.0));
         assert!(hit.snippet.contains("Pricing stays"), "{}", hit.snippet);
         assert_eq!(hit.meeting_id, meeting.id);
@@ -1004,7 +954,6 @@ mod tests {
         assert_eq!(hits[0].speaker.as_deref(), Some("Maya Chen"));
         assert!(hits[0].snippet.contains("«Redis»"), "{}", hits[0].snippet);
 
-        // Diacritics fold, kinds filter, OR fallback.
         assert_eq!(
             library.search(&SearchQuery::new("cafe decor", 10)).unwrap()[0].kind,
             DocKind::Notes
@@ -1022,7 +971,6 @@ mod tests {
             1
         );
 
-        // Clearing notes removes their row even though no mtime advanced.
         library.save_notes(&meeting, "").unwrap();
         library.reindex_meeting(&meeting).unwrap();
         assert!(

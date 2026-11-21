@@ -144,16 +144,12 @@ def source_keys():
     at their source; their presentation adapters are listed here instead.
     """
     keys = set()
-    # Every crate: an error from core or the engine is shown as it is, and a key
-    # with no entry would stay in English in every language.
     paths = [path for path in CRATES.glob("*/src/**/*.rs") if path.name != "catalogs.rs"]
-    # `mac(…)` fills a macOS catalog entry's %@ fields after looking it up.
     calls = re.compile(r'(?:lokalbot_i18n::(?:tr|format)|crate::i18n::placeholder|\btr|\bmac)\s*\(')
     for path in paths:
         source = without_tests(path.read_text())
         for call in calls.finditer(source):
             keys.update(strings(first_argument(source, call.end())))
-    # Static settings descriptors and names are looked up as they render.
     catalog = (APP / "pages/settings/catalog.rs").read_text()
     keys.update(json.loads(m[1]) for m in re.finditer(r'title:\s*("(?:[^"\\]|\\.)*")', catalog))
     for file, constant in [
@@ -171,7 +167,6 @@ def source_keys():
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
     source = (APP / "component_i18n.rs").read_text().split("struct ComponentTranslations")[0]
     keys.update(json.loads(m[1]) for m in re.finditer(r'\("[^"\n]+",\s*("[^"\n]+")\)', source))
-    # Ask's suggested questions are looked up as they render.
     source = (APP / "pages/ask/model.rs").read_text()
     keys.update(strings(re.search(r'const SUGGESTIONS[^=]*=\s*\[(.*?)\];', source, re.S)[1]))
     providers = [
@@ -239,7 +234,6 @@ class LocalizationTests(unittest.TestCase):
             self.assertIn(text, kept)
         for text in ['Only in a test helper', 'Flush', 'Test text']:
             self.assertNotIn(text, kept)
-        # personal/mod.rs declares its tests near the top; its messages follow.
         self.assertIn("There's nothing to remember.", source_keys())
 
     def test_command_syntax_is_never_a_translation_key(self):
@@ -268,7 +262,6 @@ class LocalizationTests(unittest.TestCase):
                     sync.read_desktop_catalogs(['en', 'zh-Hans'])
 
     def test_invisible_characters_never_reach_the_rust_catalog(self):
-        # Clippy denies a literal zero-width space, soft hyphen or word joiner.
         self.assertEqual(sync.rust_string('a\u200bb\u00adc\u2060d'), '"a\\u{200b}b\\u{ad}c\\u{2060}d"')
         self.assertIsNone(sync.INVISIBLE.search(sync.OUTPUT.read_text()))
         with tempfile.TemporaryDirectory() as temporary:

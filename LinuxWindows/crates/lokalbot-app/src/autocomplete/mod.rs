@@ -3,28 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 18 October 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Autocomplete in other apps (`CotypingCoordinator*.swift`): the field
-//! watcher's snapshots go to the engine as [`FieldContext`]s, the engine's
-//! suggestions come back as ghost text after the caret, the accept keys type
-//! the next word or phrase or the rest (Tab and the key left of 1 unless
-//! changed), and Esc dismisses.
-//!
-//! Invariant, as on macOS: a session exists exactly while ghost text is on
-//! screen, and only then are those keys taken from other apps. Typing the
-//! ghost's next characters, or the app showing what an accept typed, shortens
-//! it at once; anything else leaves it behind.
-//!
-//! On a Wayland input method the field draws the ghost itself, in preedit, and
-//! an accept goes in together with what is left of it; LokalBot's overlay stays
-//! closed.
-//!
-//! Autocomplete stays quiet while dictation runs or a meeting records, in a
-//! field for ten seconds after Esc, in LokalBot's own windows (the practice
-//! editor in Settings → Autocomplete feeds the engine itself), and whenever
-//! `cotyping_enabled` is off. `LOKALBOT_FAKE_AUTOCOMPLETE=<text>` makes the
-//! app suggest `<text>` itself instead of asking the engine, for checking the
-//! desktop side without a model; it is a development switch, off unless set.
-
 mod layout;
 pub mod overlay;
 
@@ -53,17 +31,10 @@ use lokalbot_platform::autocomplete::{
 
 use crate::state::{AppData, DictationHud};
 
-/// The practice editor's field id. Real fields count up from 1.
 pub const PRACTICE_FIELD_ID: u64 = u64::MAX;
 
-/// How long after a taken key a loss of focus waits before the ghost goes.
-/// An X11 key grab gives the focused app a short focus loss, which GTK 4
-/// reports as no focused field until the key is released.
 const KEY_FOCUS_GRACE: Duration = Duration::from_millis(500);
 
-/// The sample exchange above the practice editor
-/// (`CotypingRehearsalConversation.sample`), offered as the text above the
-/// field.
 pub const PRACTICE_CONVERSATION: [(&str, &str); 2] = [
     (
         "Sarah",
@@ -75,12 +46,6 @@ pub const PRACTICE_CONVERSATION: [(&str, &str); 2] = [
     ),
 ];
 
-/// What one accept key press does: the chunk the suggestion gives up, what is
-/// typed, and what is deleted around the caret first (the engine's
-/// `plan_acceptance`, `CotypingContinuationAcceptance`): a space the field
-/// already has is not typed twice, a new sentence gets its space, the rest of
-/// a word the caret is inside of is replaced, and an emoji, a `/macro` or a
-/// misspelled word is replaced whole.
 struct Acceptance {
     chunk: String,
     edit: Edit,
@@ -120,9 +85,6 @@ fn plan_acceptance(
     })
 }
 
-/// The text to draw for a session and the part of it the next accept takes:
-/// an emoji shows with its shortcode ("🚀 :rocket:"), a calculation as "= 10",
-/// and those and a correction go in one press.
 fn drawn_ghost(
     session: &GhostSession,
     kind: &SuggestionKind,
@@ -160,14 +122,12 @@ enum Event {
     Inserted { field_id: u64, ok: bool },
 }
 
-/// The field the user is typing in.
 struct Current {
     id: u64,
     identity: String,
     field: FieldSnapshot,
 }
 
-/// The practice editor's suggestion (`CotypingRehearsal`).
 #[derive(Default)]
 pub struct Practice {
     pub session: Option<GhostSession>,
@@ -178,8 +138,6 @@ pub struct Practice {
 }
 
 impl Practice {
-    /// The ghost to draw after the practice caret and how many characters
-    /// the next Tab takes.
     pub fn ghost(&self, settings: &Settings) -> Option<(String, usize)> {
         let session = self.session.as_ref()?;
         if session.remaining.is_empty() {
@@ -191,8 +149,6 @@ impl Practice {
     }
 }
 
-/// Inserts accepted chunks one after another on a thread of their own, so
-/// two quick Tabs land in order and the UI never waits on the other app.
 struct Inserter {
     jobs: crossbeam_channel::Sender<(u64, FieldSnapshot, Edit)>,
 }
@@ -226,9 +182,7 @@ pub struct Autocomplete {
     watcher: Option<FieldWatcher>,
     keys: Option<Arc<KeyInterceptor>>,
     inserter: Option<Inserter>,
-    /// Set where the field draws the ghost instead of the overlay.
     inline: Option<InlineGhost>,
-    /// The field is drawing a ghost right now.
     inline_shown: bool,
     running: bool,
     paused: bool,
@@ -236,43 +190,29 @@ pub struct Autocomplete {
     current: Option<Current>,
     next_id: u64,
     session: Option<GhostSession>,
-    /// What the session's suggestion does when accepted.
     session_kind: SuggestionKind,
-    /// The saved facts behind the session's suggestion, checked again before
-    /// an accept (`discardRevokedMemoryContext`).
     session_guard: Option<Arc<MemoryGuard>>,
-    /// The text after the caret when the suggestion was shown; a change
-    /// there leaves the suggestion behind.
     session_after: String,
-    /// Where the caret will be once the app shows an accept.
     predicted_caret: Option<Rect>,
     sent: SentContexts,
     last_context: Option<FieldContext>,
     escape: EscapePause,
     overlay: overlay::Overlay,
     keys_active: bool,
-    /// Which keys accept, as last given to the interceptor.
     accept_keys: AcceptKeys,
-    /// When a key was last taken from the focused app.
     last_key: Option<Instant>,
-    /// Bumped by every focus report, so a deferred leave knows it is stale.
     focus_generation: u64,
-    /// Pixels behind the ghost, sampled once per app with no colors reported.
     luminance: std::collections::HashMap<String, f32>,
     fake: Option<String>,
     fake_task: Option<Task<()>>,
     pub practice: Practice,
-    /// Counters for Settings, kept by the engine.
     pub measures: AutocompleteMeasures,
     pub learning: AutocompleteLearning,
-    /// What the last suggestion's saved-memory lookup found.
     pub memory_use: (Vec<String>, bool),
     pub server_problem: Option<ServerProblem>,
-    /// What the practice editor's last request drew on, until its text changes.
     pub rehearsal: Option<lokalbot_engine::AutocompleteRehearsal>,
 }
 
-/// Starts autocomplete's desktop side; it follows the settings from then on.
 pub fn start(data: &Entity<AppData>, cx: &mut App) {
     let (events, receiver) = smol::channel::unbounded::<Event>();
     let fake = std::env::var("LOKALBOT_FAKE_AUTOCOMPLETE")
@@ -339,8 +279,6 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
     );
 }
 
-/// An engine update, from `bridge.rs`. Applied after the current update so
-/// the app state can be read.
 pub fn engine_update(update: AutocompleteUpdate, cx: &mut App) {
     cx.defer(move |cx| {
         if let Some(entity) = global(cx) {
@@ -350,12 +288,10 @@ pub fn engine_update(update: AutocompleteUpdate, cx: &mut App) {
 }
 
 impl Autocomplete {
-    /// Whether autocomplete can work in other apps here, worded for Settings.
     pub fn support(&self) -> &Support {
         &self.support
     }
 
-    /// What the field watcher cannot read on this desktop, if anything.
     pub fn limitation(&self) -> Option<String> {
         self.watcher.as_ref().and_then(FieldWatcher::limitation)
     }
@@ -364,8 +300,6 @@ impl Autocomplete {
         &self.data.read(cx).settings
     }
 
-    /// Follows settings, dictation and recording: starts or stops the
-    /// watcher, applies exclusions, pauses and resumes.
     fn sync(&mut self, cx: &mut Context<Self>) {
         let (enabled, paused, policy, accept_keys) = {
             let data = self.data.read(cx);
@@ -384,7 +318,6 @@ impl Autocomplete {
         if paused != self.paused {
             self.paused = paused;
             if paused {
-                // No ghost appears while dictation runs or a meeting records.
                 self.dismiss_everything(cx);
             }
         }
@@ -395,7 +328,6 @@ impl Autocomplete {
             self.stop_watching(cx);
         }
         if !enabled && (self.practice.session.is_some() || self.last_context.is_some()) {
-            // Turned off: no ghost lingers anywhere.
             self.dismiss_everything(cx);
         }
         if policy != self.policy {
@@ -470,7 +402,6 @@ impl Autocomplete {
         cx.notify();
     }
 
-    /// Hides every ghost and tells the engine to drop its work.
     fn dismiss_everything(&mut self, cx: &mut Context<Self>) {
         self.leave_field(cx);
         self.practice.session = None;
@@ -526,8 +457,6 @@ impl Autocomplete {
                         .last_key
                         .is_some_and(|at| at.elapsed() < KEY_FOCUS_GRACE)
                 {
-                    // Probably the grab of the key just taken: the ghost
-                    // stays unless the field is still gone after a moment.
                     log::debug!("autocomplete: focus left right after a taken key; waiting");
                     let generation = self.focus_generation;
                     cx.spawn(async move |this, cx| {
@@ -581,7 +510,6 @@ impl Autocomplete {
         self.send_context(id, &field, cx);
     }
 
-    /// Moves or shortens the visible ghost for the field's new state.
     fn reconcile_session(&mut self, field: &FieldSnapshot, cx: &mut Context<Self>) {
         let Some(session) = self.session.as_mut() else {
             return;
@@ -589,7 +517,6 @@ impl Autocomplete {
         let awaiting = session.awaiting.is_some();
         let outcome = session.reconcile(&field.before, field.before_truncated);
         let after_changed = field.after != self.session_after && !awaiting;
-        // Only a continuation is typed through; anything else goes.
         let replacement = self.session_kind != SuggestionKind::Continuation
             && !matches!(outcome, Reconcile::Unchanged);
         match outcome {
@@ -603,7 +530,6 @@ impl Autocomplete {
                 if self.session.as_ref().is_some_and(|s| s.awaiting.is_some()) {
                     return;
                 }
-                // Every accept is in the field: follow the app's own caret.
                 self.predicted_caret = None;
                 self.session_after = field.after.clone();
                 self.present(cx);
@@ -646,8 +572,6 @@ impl Autocomplete {
         );
     }
 
-    /// The development stand-in for the engine: after the pause before
-    /// suggesting, the configured text, unless a ghost already shows.
     fn fake_suggestion(&mut self, context: &FieldContext, cx: &mut Context<Self>) {
         let Some(text) = self.fake.clone() else {
             return;
@@ -731,8 +655,6 @@ impl Autocomplete {
                     self.session_guard = guard;
                     return;
                 }
-                // A suggestion that grows the visible one keeps its anchor;
-                // anything else starts from the field as it is now.
                 let same_kind = self.session_kind == kind;
                 let session = match self.session.take() {
                     Some(mut session)
@@ -789,8 +711,6 @@ impl Autocomplete {
         }
     }
 
-    /// `text` fitted to a field that typing has moved on from. A replacement
-    /// is checked against the live text when accepted, so it stays as it is.
     fn fitted(&mut self, field_id: u64, before: &str, text: &str, kind: &SuggestionKind) -> String {
         match kind {
             SuggestionKind::Continuation | SuggestionKind::Emoji => self
@@ -801,8 +721,6 @@ impl Autocomplete {
         }
     }
 
-    /// Draws the session's ghost at the field's caret, or drops it when it
-    /// has nowhere to go.
     fn present(&mut self, cx: &mut Context<Self>) {
         let settings = self.settings(cx).clone();
         let target = match (&self.session, &self.current) {
@@ -810,7 +728,6 @@ impl Autocomplete {
                 if session.field_id == current.id && !session.remaining.is_empty() =>
             {
                 let (drawn, emphasis) = drawn_ghost(session, &self.session_kind, &settings);
-                // A correction, emoji or calculation shows whole or not at all.
                 let whole = self.session_kind != SuggestionKind::Continuation;
                 Some((current.field.clone(), drawn, emphasis, whole))
             }
@@ -825,7 +742,6 @@ impl Autocomplete {
                 self.clear_session(cx);
                 return;
             };
-            // Accept never takes words the user could not see.
             if !whole
                 && shown.len() < remaining.len()
                 && let Some(session) = self.session.as_mut()
@@ -858,7 +774,6 @@ impl Autocomplete {
                 &appearance,
                 cx,
             ) else {
-                // No place on screen that covers no text.
                 log::debug!("autocomplete: no room for the suggestion at {caret:?}");
                 self.clear_session(cx);
                 return;
@@ -874,7 +789,6 @@ impl Autocomplete {
                     self.clear_session(cx);
                     return;
                 }
-                // Accept never takes words the user could not see.
                 if let Some(session) = self.session.as_mut() {
                     session.remaining = placement.shown.clone();
                 }
@@ -883,14 +797,12 @@ impl Autocomplete {
             if (now - scale).abs() < 0.01 {
                 break;
             }
-            // The window landed on a monitor with another scale.
             scale = now;
         }
         self.set_keys_active(true);
     }
 
     fn appearance(&self, cx: &App) -> layout::Appearance {
-        // Running in the tray, no window has set the theme yet.
         let fallback;
         let lb = match cx.try_global::<crate::theme::LbTheme>() {
             Some(theme) => &theme.0,
@@ -915,8 +827,6 @@ impl Autocomplete {
         }
     }
 
-    /// Fields that report no colors are read from the screen once per app,
-    /// before the ghost covers the spot (`CotypingBackgroundSampler`).
     fn background_luminance(&mut self, field: &FieldSnapshot, caret: Rect) -> Option<f32> {
         let reported = field
             .style
@@ -943,8 +853,6 @@ impl Autocomplete {
             return;
         };
         let settings = self.settings(cx).clone();
-        // Saved facts withdrawn or edited since the suggestion was made: it
-        // goes, and the app gets its key.
         let revoked = self
             .session_guard
             .as_ref()
@@ -959,7 +867,6 @@ impl Autocomplete {
             if session.field_id != current.id || !self.ghost_visible() {
                 return None;
             }
-            // The field must read as the ghost expects, or an accept is on its way.
             if current.field.before != session.anchor && session.awaiting.is_none() {
                 return None;
             }
@@ -973,7 +880,6 @@ impl Autocomplete {
             )
         })();
         let Some(plan) = plan else {
-            // Fail open: the app gets its key.
             keys.pass_through(key);
             self.clear_session(cx);
             if revoked {
@@ -995,13 +901,10 @@ impl Autocomplete {
         }
         session.accept(&plan.chunk, &plan.edit.text, plan.edit.backward);
         if let Some(inline) = &self.inline {
-            // What is left goes in with the accept, so the field never shows
-            // the accepted words twice.
             let (drawn, _) = drawn_ghost(session, &self.session_kind, &settings);
             let next = inline_text(&drawn, false).unwrap_or_default();
             inline.accept(&current.field, &around.0, &around.1, &plan.edit, &next);
         }
-        // The rest of a word the caret was inside of goes with the insert.
         self.session_after = drop_graphemes(&self.session_after, plan.edit.forward);
         crate::bridge::send(
             Command::Autocomplete(AutocompleteCommand::Accepted {
@@ -1015,13 +918,10 @@ impl Autocomplete {
             self.clear_session(cx);
             return;
         }
-        // Move the ghost past the accepted text before the app shows it.
         self.predicted_caret = self.caret_after(&plan.edit.text, cx);
         self.present(cx);
     }
 
-    /// Where the caret will be once `typed` is in the field, measured in the
-    /// ghost's font, or `None` when only the app can tell.
     fn caret_after(&self, typed: &str, cx: &App) -> Option<Rect> {
         let current = self.current.as_ref()?;
         let field = &current.field;
@@ -1079,9 +979,6 @@ impl Autocomplete {
             keys.pass_through(InterceptedKey::Escape);
             return;
         }
-        // By default Esc stops here, so it does not also close a dialog in the
-        // app, and the field stays quiet for a while
-        // (`CotypingEscapeBehavior.pause`). Otherwise the app gets it too.
         match self.settings(cx).cotyping_escape_behavior {
             CotypingEscapeBehavior::Pause => {
                 if let Some(current) = &self.current {
@@ -1094,7 +991,6 @@ impl Autocomplete {
         crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
     }
 
-    /// Focus left the field: its ghost and context go.
     fn leave_field(&mut self, cx: &mut Context<Self>) {
         let had = self.session.is_some() || self.current.is_some();
         self.clear_session(cx);
@@ -1119,7 +1015,6 @@ impl Autocomplete {
         self.set_keys_active(false);
     }
 
-    /// Whether a ghost is on screen, by whichever way this desktop draws it.
     fn ghost_visible(&self) -> bool {
         self.inline_shown || self.overlay.is_visible()
     }
@@ -1135,10 +1030,6 @@ impl Autocomplete {
         }
     }
 
-    // ----------------------------------------------------------- practice
-
-    /// The practice editor's text changed; `before` and `after` are the text
-    /// on either side of its caret.
     pub fn practice_changed(&mut self, before: String, after: String, cx: &mut Context<Self>) {
         let unchanged = self.practice.before == before && self.practice.after == after;
         let after_changed = self.practice.after != after;
@@ -1184,8 +1075,6 @@ impl Autocomplete {
                 field_id: PRACTICE_FIELD_ID,
                 app_name: "LokalBot".into(),
                 app_id: lokalbot_platform::privacy::SELF_APP_ID.into(),
-                // No window title, as on macOS: "Settings" would steer the
-                // model toward settings talk.
                 window_title: String::new(),
                 before,
                 after,
@@ -1200,8 +1089,6 @@ impl Autocomplete {
         );
     }
 
-    /// One accept in the practice editor: returns the edit to make at its
-    /// caret.
     pub fn practice_accept(&mut self, whole: bool, cx: &mut Context<Self>) -> Option<Edit> {
         let settings = self.settings(cx).clone();
         let kind = self
@@ -1237,8 +1124,6 @@ impl Autocomplete {
         Some(plan.edit)
     }
 
-    /// An arrow key in the practice editor drops the ghost, even with the
-    /// caret at the end of the text.
     pub fn practice_drop(&mut self, cx: &mut Context<Self>) {
         if self.practice.session.take().is_some() {
             crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
@@ -1246,7 +1131,6 @@ impl Autocomplete {
         }
     }
 
-    /// Esc in the practice editor.
     pub fn practice_dismiss(&mut self, cx: &mut Context<Self>) -> bool {
         if self.practice.session.take().is_none() {
             return false;

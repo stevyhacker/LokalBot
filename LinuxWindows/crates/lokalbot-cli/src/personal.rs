@@ -1,7 +1,3 @@
-//! `get_personal_context` and `personal-context` (`PersonalContextAccess.swift`):
-//! only claims the user chose to share, read from the plaintext projection
-//! the app keeps under `control/` while the grant is on.
-
 use std::collections::HashSet;
 
 use chrono::Local;
@@ -20,7 +16,6 @@ pub const DISABLED_MESSAGE: &str = "Personal context access is off. The user can
 pub const UNAVAILABLE_MESSAGE: &str = "Personal context access is on, but LokalBot hasn't written the shared items yet. Open LokalBot once so it can prepare them.";
 pub const NOTE: &str = "The user chose to share these with agents. \"stated\" items are the user's own words; \"learned\" items were picked up from what the user said in meetings and may be out of date. Use them only when they bear on the task. Items not listed are unknown, not false. Never cite them as meeting or screen evidence.";
 
-/// `PersonalContextSelection.ordered`, shared with the app.
 pub fn ordered<'a>(claims: &'a [Claim], query: &str) -> Vec<&'a Claim> {
     lokalbot_core::personal::ordered(claims, query, &[])
 }

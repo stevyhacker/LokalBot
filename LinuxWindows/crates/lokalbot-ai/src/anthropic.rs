@@ -1,14 +1,3 @@
-//! Claude through Anthropic's Messages API (`Engines/AnthropicEngine.swift`).
-//!
-//! Think uses it when the OpenAI-compatible server URL names
-//! `api.anthropic.com`: Anthropic's OpenAI compatibility layer rejects
-//! LokalBot's notes schemas (`maxItems`) and has no prompt caching.
-//!
-//! Prompt caching: the system prompt and the shared context (a meeting's
-//! transcript) carry cache breakpoints and the varying instruction comes
-//! last, so the next request over the same material reads the prefix from
-//! Anthropic's 5-minute prompt cache instead of paying the full input price.
-
 use std::collections::BTreeSet;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
@@ -27,25 +16,18 @@ use crate::think::{
 
 pub const HOST: &str = "api.anthropic.com";
 const VERSION: &str = "2023-06-01";
-/// Gates `fallbacks: "default"`: a safety decline is retried server-side on
-/// the model Anthropic recommends for the decline's category.
 const SERVER_FALLBACK_BETA: &str = "server-side-fallback-2026-07-01";
 const DEFAULT_ANSWER_TOKENS: u32 = 8_192;
-/// A whole reply must arrive within the request timeout even at about 25
-/// tokens per second.
 const MAXIMUM_WHOLE_RESPONSE_TOKENS: u32 = 20_000;
 const MAXIMUM_STREAMED_TOKENS: u32 = 64_000;
 const TIMEOUT: Duration = Duration::from_secs(900);
 
-/// Whether `url` is Anthropic's API.
 pub fn is_anthropic(url: &str) -> bool {
     lokalbot_core::access::origin_of(url)
         .and_then(|origin| origin.split_once("://").map(|(_, host)| host.to_string()))
         .is_some_and(|authority| authority.split(':').next() == Some(HOST))
 }
 
-/// `https://api.anthropic.com` and `…/v1` name the same API, so every
-/// request is built from the origin.
 pub fn versioned_root(base: &str) -> String {
     match lokalbot_core::access::origin_of(base) {
         Some(origin) => format!("{origin}/v1"),
@@ -53,18 +35,11 @@ pub fn versioned_root(base: &str) -> String {
     }
 }
 
-/// What LokalBot relies on for one Claude model id, from Anthropic's model
-/// documentation (2026-10). Ids it cannot parse (aliases, Claude 3) get no
-/// effort control; unknown newer generations are treated like Claude 5.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModelTraits {
-    /// `output_config.effort` values, least first. Empty: send no effort.
     pub effort_levels: Vec<ReasoningLevel>,
     pub default_effort: Option<ReasoningLevel>,
-    /// Leaving `thinking` unset runs adaptive thinking, whose tokens count
-    /// toward `max_tokens`.
     pub thinks_by_default: bool,
-    /// Accepts `fallbacks: "default"`.
     pub server_fallback: bool,
     pub context_tokens: Option<u32>,
 }
@@ -97,7 +72,6 @@ impl ModelTraits {
                 context_tokens: None,
             };
         };
-        // A dated snapshot ("claude-sonnet-4-20250514") has no minor version.
         let minor = parts
             .get(3)
             .filter(|p| p.len() <= 2)
@@ -113,7 +87,6 @@ impl ModelTraits {
         } else {
             Vec::new()
         };
-        // Claude Opus 5.5 and Claude Haiku 5.5 default to medium effort.
         let medium_default = major == 5 && minor == 5 && (family == "opus" || family == "haiku");
         let default_effort =
             (!effort_levels.is_empty()).then_some(if medium_default { Medium } else { High });
@@ -134,11 +107,6 @@ impl ModelTraits {
         ReasoningSupport::new(&self.effort_levels, self.default_effort)
     }
 
-    /// The effort for one request. A chosen level is capped by the task's
-    /// budget, as on other servers. On Automatic, a model that thinks by
-    /// default gets the level its task budget implies, so notes and digests
-    /// (budget 0) run at the lowest effort instead of spending their output
-    /// allowance on thinking.
     pub(crate) fn effort(
         &self,
         level: ReasoningLevel,
@@ -152,8 +120,6 @@ impl ModelTraits {
         support.clamp(ceiling_for_budget(budget))
     }
 
-    /// Thinking shares `max_tokens` with the answer, so a model that thinks
-    /// by default gets room for both.
     fn max_tokens(
         &self,
         requested: Option<u32>,
@@ -178,10 +144,6 @@ impl ModelTraits {
     }
 }
 
-/// Anthropic's structured outputs accept a JSON Schema subset. Like the
-/// official SDKs, each unsupported constraint moves into the field's
-/// description, where the model still reads it, instead of failing the
-/// request with a 400. LokalBot's parsers keep enforcing the real limits.
 pub fn adapt_schema(schema: &Value) -> Value {
     const FORMATS: [&str; 10] = [
         "date-time",
@@ -297,15 +259,12 @@ fn note_value(value: &Value) -> String {
     }
 }
 
-/// Request fields a model may reject. A 400 naming one retries once without
-/// it; generation never started.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum OptionalField {
     Effort,
     Fallbacks,
 }
 
-/// One Claude model on Anthropic's API.
 #[derive(Clone, Debug)]
 pub(crate) struct Engine {
     pub base: String,
@@ -334,7 +293,6 @@ impl Engine {
         fields
     }
 
-    /// Request headers. The key goes only to Anthropic's API.
     fn headers(&self, fallbacks: bool) -> Vec<(&'static str, String)> {
         let mut headers = vec![("anthropic-version", VERSION.to_string())];
         if let Some(key) = self.api_key.as_deref().filter(|k| !k.trim().is_empty()) {
@@ -346,10 +304,6 @@ impl Engine {
         headers
     }
 
-    /// Pure request construction, covered offline without credentials.
-    /// Temperature is never sent: current Claude models reject non-default
-    /// sampling. Keys are sorted so the schema's bytes, and with them the
-    /// compiled grammar and the cached prefix, stay stable.
     fn body(
         &self,
         request: &ChatRequest,
@@ -404,8 +358,6 @@ impl Engine {
         format!("{}/messages", versioned_root(&self.base))
     }
 
-    /// One whole reply. A 400 naming an optional field gets one retry without it;
-    /// transient failures replay through the origin's gate, in the caller.
     pub fn complete(&self, request: &ChatRequest) -> Result<Completion> {
         let attempt = |omitted: &BTreeSet<OptionalField>| -> Result<Completion> {
             let (body, fallbacks) = self.body(request, false, omitted)?;
@@ -434,8 +386,6 @@ impl Engine {
         }
     }
 
-    /// Streams answer text. A 400 naming an optional field retries once
-    /// without it; streams are otherwise never replayed.
     pub fn stream(
         &self,
         request: &ChatRequest,
@@ -534,8 +484,6 @@ impl Engine {
         })
     }
 
-    /// `max_input_tokens` of the selected model from Anthropic's model list,
-    /// else the documented window. Carries the key and no content.
     pub fn discover_context(&self) -> Option<u32> {
         let agent = http::agent(&self.base, Duration::from_secs(5));
         let url = format!(
@@ -554,8 +502,6 @@ impl Engine {
     }
 }
 
-/// Shared material first with a breakpoint after it, the varying instruction
-/// last. Blank blocks are dropped; the API rejects them.
 fn user_content(request: &ChatRequest) -> Vec<Value> {
     let mut blocks: Vec<Value> = request
         .context
@@ -572,7 +518,6 @@ fn user_content(request: &ChatRequest) -> Vec<Value> {
     blocks
 }
 
-/// The optional fields a 400 names, limited to those the request sent.
 fn rejected_fields(err: &anyhow::Error, sent: &BTreeSet<OptionalField>) -> BTreeSet<OptionalField> {
     let Some(AiError::HttpStatus {
         code: 400, detail, ..
@@ -600,7 +545,6 @@ struct CacheUsage {
 }
 
 impl CacheUsage {
-    /// A streamed `message_delta` carries only the counts that changed.
     fn merge(&mut self, json: &Value) {
         let read = |key: &str| json.get(key).and_then(Value::as_u64);
         if let Some(value) = read("input_tokens") {
@@ -617,7 +561,6 @@ impl CacheUsage {
         }
     }
 
-    /// The whole prompt, cached or not, as other engines report it.
     fn usage(&self) -> Usage {
         Usage {
             prompt_tokens: Some(self.input + self.cache_write + self.cache_read),
@@ -652,9 +595,6 @@ fn refusal(details: &Value) -> AiError {
     AiError::BadResponse(format!("model refusal: {detail}"))
 }
 
-/// Text blocks joined in order; thinking and fallback marker blocks are not
-/// part of the answer. A server-side fallback's text continues the declined
-/// partial, so joining keeps the whole reply.
 pub(crate) fn parse_message(json: &Value) -> Result<Completion> {
     let content = json
         .get("content")
@@ -697,7 +637,6 @@ pub(crate) fn parse_message(json: &Value) -> Result<Completion> {
 pub(crate) enum StreamEvent {
     Text(String),
     Usage(Value),
-    /// The final counts arrive with the stop reason.
     Stop {
         reason: Option<String>,
         details: Value,
@@ -707,8 +646,6 @@ pub(crate) enum StreamEvent {
     Failure(String),
 }
 
-/// One line of a Messages stream. `event:` lines repeat the payload's `type`
-/// and are skipped, as are pings and block boundaries.
 pub(crate) fn parse_stream_line(line: &str) -> Option<StreamEvent> {
     let payload = line.strip_prefix("data:")?.trim();
     let event: Value = serde_json::from_str(payload).ok()?;
@@ -831,8 +768,6 @@ mod tests {
             ModelTraits::new("claude-3-haiku")
         );
         assert!(ModelTraits::new("claude-fable-5-1").server_fallback);
-        // Automatic: a thinking model runs no-reasoning tasks at the lowest
-        // effort; a chosen level is capped by the task's budget.
         assert_eq!(opus.effort(Automatic, Some(0)), Some(Low));
         assert_eq!(opus.effort(Automatic, None), None);
         assert_eq!(opus.effort(Max, Some(4_096)), Some(Medium));
@@ -918,7 +853,6 @@ mod tests {
         );
         assert_eq!(body["output_config"]["effort"], "low");
         assert_eq!(body["fallbacks"], "default");
-        // Room for adaptive thinking beside the answer.
         assert_eq!(body["max_tokens"], 2_000 + 4_096);
         assert!(body.get("temperature").is_none());
         assert!(body.get("stream").is_none());
@@ -1080,7 +1014,6 @@ mod tests {
         let sent = server.requests().pop().unwrap();
         assert_eq!(sent.header("x-api-key").as_deref(), Some("sk-ant-test"));
         assert!(sent.body.is_empty(), "no content");
-        // Unknown on the server: the documented window.
         assert_eq!(
             engine(
                 &server.url(""),

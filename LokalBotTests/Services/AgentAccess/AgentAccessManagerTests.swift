@@ -99,8 +99,6 @@ final class AgentAccessManagerTests: XCTestCase {
         await fulfillment(of: [woke], timeout: 1)
     }
 
-    // MARK: - Wake lease
-
     private actor BrokerHookRecorder {
         private(set) var events: [String] = []
         func record(_ event: String) { events.append(event) }
@@ -124,8 +122,6 @@ final class AgentAccessManagerTests: XCTestCase {
         }
     }
 
-    /// The manager finishes handling a wake just after the engine answers;
-    /// wait for that instead of sleeping a fixed 200 ms on a busy runner.
     private func waitUntil(_ condition: () -> Bool) async throws {
         let deadline = ContinuousClock.now + .seconds(3)
         while !condition(), ContinuousClock.now < deadline {
@@ -172,7 +168,6 @@ final class AgentAccessManagerTests: XCTestCase {
         XCTAssertEqual(active, 1)
 
         manager.setEnabled(false)
-        // releaseAgentLease is fire-and-forget from the MainActor; poll briefly.
         let deadline = Date().addingTimeInterval(3)
         while Date() < deadline {
             active = await broker.activeLeaseCount(.mainLLM)

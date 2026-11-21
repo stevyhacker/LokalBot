@@ -1,24 +1,14 @@
 import Foundation
 
-/// A project joined to the evidence behind it: meetings, open action threads,
-/// decisions, overnight review notes, people, and tracked window time.
-/// Tracked projects are the ones the person chose to follow; suggestions are
-/// names that recur across meetings and overnight review projects nobody
-/// tracks yet. Matching is deterministic word matching on the project's
-/// names; no model decides what belongs to a project.
 struct ProjectProfile: Identifiable, Equatable, Sendable {
     enum Kind: Equatable, Sendable {
         case tracked(UUID)
-        /// A name that recurs across meetings.
         case suggestedTopic
-        /// An overnight review project no tracked project covers.
         case suggestedReview
     }
 
-    /// A line that names the project, cut to fit around the name.
     struct Mention: Equatable, Sendable {
         let text: String
-        /// Transcript time to open the meeting at, for transcript lines.
         let seek: TimeInterval?
     }
 
@@ -26,8 +16,6 @@ struct ProjectProfile: Identifiable, Equatable, Sendable {
         let id: UUID
         let title: String
         let startedAt: Date
-        /// Summary lines naming the project, else transcript lines, else the
-        /// action or decision that names it.
         var mentions: [Mention]
 
         var mention: Mention? { mentions.first }
@@ -58,23 +46,15 @@ struct ProjectProfile: Identifiable, Equatable, Sendable {
     let kind: Kind
     let otherNames: [String]
     var meetings: [MeetingRef]
-    /// The user's open work on the project.
     var myActions: [ActionThread]
-    /// Other people's open work mentioned recently or due ahead.
     var othersActions: [ActionThread]
-    /// Other people's open work last mentioned long ago; shown on request.
     var olderOthersActions: [ActionThread]
     var decisions: [PersonProfile.DecisionRef]
-    /// Overnight review entries about this project.
     var reviewNotes: [ReviewNote]
-    /// Tracked time in the reviewed window, newest day first.
     var days: [DayTime]
     var windows: [WindowTime]
     var people: [String]
-    /// The newest meeting, review note, or tracked window time.
     var lastActive: Date?
-    /// Every window with tracked time in the reviewed days; `windows` lists
-    /// only the longest.
     var windowCount = 0
 
     var trackedID: UUID? {
@@ -86,7 +66,6 @@ struct ProjectProfile: Identifiable, Equatable, Sendable {
     var trackedSeconds: TimeInterval { days.reduce(0) { $0 + $1.seconds } }
     var meetingIDs: Set<UUID> { Set(meetings.map(\.id)) }
 
-    /// This suggestion as the tracked project it just became.
     func tracked(as trackedID: UUID, selectionID: String) -> ProjectProfile {
         ProjectProfile(id: selectionID, name: name, kind: .tracked(trackedID), otherNames: otherNames,
                        meetings: meetings, myActions: myActions, othersActions: othersActions,
@@ -102,27 +81,20 @@ enum ProjectLinks {
     static let maximumDecisions = 8
     static let maximumMentionCharacters = 180
     static let maximumMentionsPerMeeting = 3
-    /// Other people's open actions move behind "Show older" when their last
-    /// mention is older than this and no due day lies ahead.
     static let recentOthersActionDays = 14
 
-    /// One rendered transcript line ("**[00:13:21] Them 3:** text").
     struct TranscriptLine: Equatable, Sendable {
         let start: TimeInterval
         let text: String
     }
 
-    /// A meeting's transcript lines and their normalized words, cached by the
-    /// caller so a refresh does not re-read and re-fold every transcript.
     struct TranscriptText: Equatable, Sendable {
         let lines: [TranscriptLine]
-        /// Each line case- and diacritic-folded, for a quick substring check.
         let foldedLines: [String]
         let words: Set<String>
 
         init(lines: [TranscriptLine]) {
             self.lines = lines
-            // One fold over the whole transcript is far cheaper than one per line.
             let folded: String = lines.map(\.text).joined(separator: "\n")
                 .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             var foldedLines: [String] = folded.components(separatedBy: "\n")
@@ -145,24 +117,18 @@ enum ProjectLinks {
         var projections: [MeetingOutcomeProjection] = []
         var activity: [ActivityBlock] = []
         var people: [PersonProfile] = []
-        /// Words never offered as topics (people, the user, apps in use).
         var excludedTopicWords: Set<String> = []
     }
 
-    /// A meeting's searchable text, folded once per build.
     private struct MeetingText {
         let meeting: Meeting
-        /// Title and calendar title.
         let titleWords: Set<String>
-        /// Title, calendar title, summary, and outcome text.
         let words: Set<String>
         let summary: FoldedLines
         let outcomeTexts: [String]
         let transcript: TranscriptText?
     }
 
-    /// Text split into lines, with a case- and diacritic-folded copy for a
-    /// quick substring check before the costlier word match.
     struct FoldedLines: Sendable {
         let lines: [String]
         let folded: [String]
@@ -210,7 +176,6 @@ enum ProjectLinks {
         let curation: ProjectCuration = input.curation
         let reviewProjects: [DreamMemory.Project] = input.memory?.activeProjects ?? []
 
-        // Tracked projects, each with the review entries its names cover.
         var result: [ProjectProfile] = []
         var attachedReviewNames: Set<String> = []
         var trackedTermSets: [Set<String>] = []
@@ -224,14 +189,11 @@ enum ProjectLinks {
                 otherNames: project.otherNames, termSets: termSets, reviewNotes: notes, context: context))
         }
 
-        // Overnight review projects nobody tracks yet.
         let reviewSuggestions: [DreamMemory.Project] = reviewProjects.filter { project in
             !attachedReviewNames.contains(project.name) && !curation.isHidden(project.name)
         }
         let reviewTerms: [Set<String>] = reviewSuggestions.map { significantTerms($0.name) }
 
-        // Names that recur across meetings, unless tracked, hidden, or
-        // already offered as a review suggestion.
         var excluded: Set<String> = input.excludedTopicWords
         for name in curation.hiddenNames where !name.contains(" ") { excluded.insert(name) }
         for terms in trackedTermSets where terms.count == 1 { excluded.formUnion(terms) }
@@ -247,7 +209,6 @@ enum ProjectLinks {
                 id: "topic:" + key, name: topic.name, kind: .suggestedTopic,
                 otherNames: [], termSets: [[key]], reviewNotes: [], context: context))
         }
-        // Ordered by the meeting count each row shows.
         result.append(contentsOf: topicProfiles.sorted { (lhs: ProjectProfile, rhs: ProjectProfile) -> Bool in
             if lhs.meetings.count != rhs.meetings.count { return lhs.meetings.count > rhs.meetings.count }
             return (lhs.lastActive ?? .distantPast) > (rhs.lastActive ?? .distantPast)
@@ -261,16 +222,12 @@ enum ProjectLinks {
         return result
     }
 
-    // MARK: - Profiles
-
     private static func profile(
         id: String, name: String, kind: ProjectProfile.Kind, otherNames: [String],
         termSets: [Set<String>], reviewNotes: [DreamMemory.Project], context: Context
     ) -> ProjectProfile {
         let linked: [LinkedMeeting] = linkedMeetings(termSets: termSets, texts: context.texts)
         let linkedIDs: Set<UUID> = Set(linked.map(\.meeting.id))
-        // A meeting named for the project owns all of its actions; any other
-        // meeting contributes only the actions that name the project.
         var titledIDs: Set<UUID> = []
         for text in context.texts where matches(termSets, words: text.titleWords) { titledIDs.insert(text.meeting.id) }
         let actions: [ActionThread] = context.threads.filter { (thread: ActionThread) -> Bool in
@@ -317,16 +274,12 @@ enum ProjectLinks {
             windowCount: time.windowCount)
     }
 
-    /// Other people's work stays in view while it was mentioned recently or
-    /// its due day is still ahead.
     static func isRecent(_ thread: ActionThread, now: Date, calendar: Calendar) -> Bool {
         let today: Date = calendar.startOfDay(for: now)
         if let due = thread.resolvedDueDate, due >= today { return true }
         let cutoff: Date = calendar.date(byAdding: .day, value: -recentOthersActionDays, to: today) ?? today
         return thread.latestReference.meetingStartedAt >= cutoff
     }
-
-    // MARK: - Evidence
 
     private static func meetingTexts(_ meetings: [Meeting], input: Input) -> [MeetingText] {
         var outcomeTexts: [UUID: [String]] = [:]
@@ -351,8 +304,6 @@ enum ProjectLinks {
         return result
     }
 
-    /// Meetings whose title, summary, outcomes, or transcript name the
-    /// project, newest first, each with the lines that do.
     private static func linkedMeetings(termSets: [Set<String>], texts: [MeetingText]) -> [LinkedMeeting] {
         var linked: [LinkedMeeting] = []
         for text in texts {
@@ -371,7 +322,6 @@ enum ProjectLinks {
         return linked.sorted { $0.meeting.startedAt > $1.meeting.startedAt }
     }
 
-    /// Decisions from the project's meetings that name it.
     private static func decisions(termSets: [Set<String>], linkedIDs: Set<UUID>,
                                   projections: [MeetingOutcomeProjection]) -> [PersonProfile.DecisionRef] {
         var result: [PersonProfile.DecisionRef] = []
@@ -421,10 +371,6 @@ enum ProjectLinks {
         return Array(ranked.prefix(8)).map(\.name)
     }
 
-    // MARK: - Mentions
-
-    /// The first summary line naming every term, without markdown markers,
-    /// transcript timestamps, or speaker labels, cut to fit around the name.
     static func mention(of terms: Set<String>, in summary: String) -> String? {
         summaryMentions(of: [terms], in: summary).first?.text
     }
@@ -445,8 +391,6 @@ enum ProjectLinks {
         return result
     }
 
-    /// Transcript lines naming the project. A short line borrows the next
-    /// lines so the excerpt reads as a sentence.
     static func transcriptMentions(of termSets: [Set<String>],
                                    in transcript: TranscriptText) -> [ProjectProfile.Mention] {
         var result: [ProjectProfile.Mention] = []
@@ -486,8 +430,6 @@ enum ProjectLinks {
         return line.trimmingCharacters(in: .whitespaces)
     }
 
-    /// The line itself when it fits; otherwise a window that starts a little
-    /// before the project's name, cut at word boundaries and marked "…".
     static func excerpt(_ line: String, around termSets: [Set<String>],
                         limit: Int = maximumMentionCharacters) -> String {
         let text: String = line.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -504,7 +446,6 @@ enum ProjectLinks {
         let count: Int = characters.count
         var start: Int = max(0, min(anchor - 50, count - (limit - 2)))
         if start > 0, characters[start - 1] != " " {
-            // Begin at the next word, but never after the name itself.
             var next: Int = start
             while next < anchor, characters[next] != " " { next += 1 }
             start = next < anchor ? next + 1 : anchor
@@ -522,9 +463,6 @@ enum ProjectLinks {
         return result
     }
 
-    /// "**[00:13:21] Them 3:** text" lines from `transcript.md`; speaker
-    /// labels are dropped because they are only meaningful inside one meeting.
-    /// Parsed by hand: a Swift regex took 1.9 s over a 31,000-line library.
     static func transcriptLines(fromMarkdown markdown: String) -> [TranscriptLine] {
         var result: [TranscriptLine] = []
         for rawLine in markdown.split(separator: "\n", omittingEmptySubsequences: true) {
@@ -542,10 +480,6 @@ enum ProjectLinks {
         return result
     }
 
-    // MARK: - Matching
-
-    /// Words of a project name that can identify it: at least three
-    /// characters and not a generic work word.
     static func significantTerms(_ name: String) -> Set<String> {
         let words = PeopleDirectory.normalized(name).split(separator: " ").map(String.init)
         let significant = words.filter { $0.count >= 3 && !genericWords.contains($0) }
@@ -556,13 +490,10 @@ enum ProjectLinks {
         Set(PeopleDirectory.normalized(text).split(separator: " ").map(String.init))
     }
 
-    /// Every significant term must appear as a whole word.
     static func matches(_ terms: Set<String>, in text: String) -> Bool {
         matches([terms], in: text)
     }
 
-    /// Any one of a project's names matches. A substring check rules most
-    /// text out before the costlier fold into words.
     static func matches(_ termSets: [Set<String>], in text: String) -> Bool {
         let possible: Bool = termSets.contains { (terms: Set<String>) -> Bool in
             !terms.isEmpty && terms.allSatisfy { text.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
@@ -580,7 +511,6 @@ enum ProjectLinks {
         "migration", "improvements", "support", "feature", "features", "app",
     ]
 
-    /// "2026-11-10", the key of `ProjectProfile.DayTime`.
     static func dayKey(_ date: Date, calendar: Calendar) -> String {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)

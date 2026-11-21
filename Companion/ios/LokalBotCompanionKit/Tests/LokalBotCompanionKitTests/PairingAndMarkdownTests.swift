@@ -26,8 +26,6 @@ struct PairingPayloadTests {
         #expect(!payload.isExpired(at: Date(timeIntervalSince1970: 1_793_439_000)))
     }
 
-    /// The sync core takes the link alone, starting `lokalbot://pair?` exactly,
-    /// so that is what goes to it, whatever was pasted around the link.
     @Test func theLinkIsLiftedOutOfPastedText() throws {
         let link = try Self.link(Self.valid)
         #expect(PairingPayload.link(in: "Pair with: \(link) (expires in 5 min)") == link)
@@ -38,8 +36,6 @@ struct PairingPayloadTests {
         #expect(PairingPayload.link(in: "https://lokalbot.app") == nil)
     }
 
-    /// The sync core allows 120 s past the expiry on this device's clock and
-    /// leaves the rest to the computer, so the check before it allows the same.
     @Test func aCodeJustPastItsExpiryStillGoesToTheComputer() throws {
         let payload = try PairingPayload.parse(try Self.link(Self.valid))
         #expect(!payload.isExpired(at: Date(timeIntervalSince1970: 1_793_440_000)))
@@ -59,7 +55,6 @@ struct PairingPayloadTests {
     }
 
     @Test func fingerprintIsTheFirst16HexOfSHA256() {
-        // SHA-256 of 32 zero bytes starts 66687aadf862bd77.
         #expect(KeyFingerprint.fingerprint(publicKey: Data(count: 32)) == "66687aadf862bd77")
         #expect(KeyFingerprint.fingerprint(base64Key: Base64URL.encode(Data(count: 32))) == "66687aadf862bd77")
         #expect(KeyFingerprint.fingerprint(base64Key: Data(count: 32).base64EncodedString()) == "66687aadf862bd77")

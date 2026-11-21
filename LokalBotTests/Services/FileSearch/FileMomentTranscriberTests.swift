@@ -2,8 +2,6 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// The assistant hears a recording's matched 30 seconds, transcribed on
-/// demand with the person's own model, and only when that model is here.
 @MainActor
 final class FileMomentTranscriberTests: XCTestCase {
     private var folder: URL!

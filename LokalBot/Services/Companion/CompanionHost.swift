@@ -3,10 +3,6 @@ import Foundation
 import os
 import SystemConfiguration
 
-/// Owns the sync host while Settings → Phones & tablets is on: the Mac's
-/// static key, the listener, the Bonjour advertisement, the publisher that
-/// keeps records current, and the device list Settings shows. With sharing
-/// off none of it exists and nothing listens.
 @MainActor
 final class CompanionHost: ObservableObject {
     enum Status: Equatable {
@@ -36,7 +32,6 @@ final class CompanionHost: ObservableObject {
     private let askResponder: CompanionAskResponder
     private let recordingReceiver: CompanionRecordingReceiver
     private let language: () -> AppLanguage
-    /// Every blocking call into the host runs here, never on the main thread.
     private let serverQueue = DispatchQueue(label: "me.dotenv.LokalBot.companion-server", qos: .userInitiated)
     private let bonjour = CompanionBonjourAdvertiser()
     private var running: Running?
@@ -67,9 +62,6 @@ final class CompanionHost: ObservableObject {
         root.appendingPathComponent("companion", isDirectory: true).appendingPathComponent("companion.sqlite")
     }
 
-    // MARK: - Lifecycle
-
-    /// Start, reconfigure, or stop to match the settings.
     func apply(_ sharing: CompanionSharing) {
         guard sharing.enabled else {
             stop()
@@ -91,8 +83,6 @@ final class CompanionHost: ObservableObject {
         start(sharing)
     }
 
-    /// With sharing off nothing can finish arriving, so audio on its way has no
-    /// reason to stay. The devices still have their copies.
     nonisolated static func discardUploads(root: URL) {
         let uploads = root.appendingPathComponent("companion", isDirectory: true)
             .appendingPathComponent("uploads", isDirectory: true)
@@ -181,8 +171,6 @@ final class CompanionHost: ObservableObject {
                                    sharing: sharing, macName: Self.macName)
     }
 
-    /// Today's record while there is activity, and a full reconcile once a
-    /// day, which also withdraws records that left the history window.
     private func periodicRefresh() {
         guard let running else { return }
         let today = CompanionJSON.day(Date())
@@ -202,15 +190,11 @@ final class CompanionHost: ObservableObject {
         bonjour.start(port: port, fingerprint: running.fingerprint)
     }
 
-    /// The computer name from Sharing settings, as the pairing QR code and
-    /// phones show it.
     static var macName: String {
         let name = (SCDynamicStoreCopyComputerName(nil, nil) as String?)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return name?.isEmpty == false ? name! : "Mac"
     }
-
-    // MARK: - Change hooks
 
     func evidenceChanged(days: [Date], meetingIDs: Set<UUID>) {
         guard let publisher = running?.publisher else { return }
@@ -229,8 +213,6 @@ final class CompanionHost: ObservableObject {
         running?.publisher.connectionsChanged()
     }
 
-    // MARK: - Devices
-
     func refreshDevices() {
         guard let server = running?.server else { return }
         serverQueue.async { [weak self] in
@@ -242,7 +224,6 @@ final class CompanionHost: ObservableObject {
                     let paired = devices.count > self.devices.count
                     self.devices = devices.sorted { ($0.pairedAt ?? .distantPast) > ($1.pairedAt ?? .distantPast) }
                     self.connectedDeviceIDs = connected
-                    // A successful pairing consumes the offer.
                     if paired { self.pairing = nil }
                 }
             }
@@ -288,8 +269,6 @@ final class CompanionHost: ObservableObject {
         }
     }
 
-    // MARK: - Host callbacks
-
     fileprivate func applyOp(_ json: String) -> (CompanionOpResult, CompanionPublisher?) {
         let outcome = opApplier.apply(json)
         return (outcome.result, outcome.result.status == .applied ? running?.publisher : nil)
@@ -314,8 +293,6 @@ final class CompanionHost: ObservableObject {
 
     fileprivate var promptLanguage: AppLanguage { language() }
 
-    /// The host's callbacks arrive on its own threads. Each one hops to the
-    /// main actor for app state and blocks only where the protocol waits.
     private final class EventsBridge: CompanionServerEvents, @unchecked Sendable {
         private weak var host: CompanionHost?
 
@@ -363,8 +340,6 @@ final class CompanionHost: ObservableObject {
             DispatchQueue.main.sync { MainActor.assumeIsolated { host?.acceptsRecordings == true } }
         }
 
-        /// The crate calls this on a thread of its own and waits, so blocking
-        /// here holds up nothing but this recording.
         func receiveRecording(_ json: String, fileURL: URL) -> CompanionUploadOutcome {
             let finished = DispatchSemaphore(value: 0)
             let outcome = OSAllocatedUnfairLock<CompanionUploadOutcome?>(initialState: nil)

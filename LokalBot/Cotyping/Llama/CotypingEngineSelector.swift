@@ -1,22 +1,12 @@
 import Foundation
 
-/// Per-completion router between the in-process `LocalLlamaCotypingEngine`
-/// (built-in GGUF on Apple Silicon, flag on), the existing HTTP
-/// `CotypingEngine` (non-GGUF backends, flag off, or in-process load failure),
-/// and a server the user chose for autocomplete (`cotypingBackend`).
-/// Conforms to `CotypingCompleting`, so `CotypingCoordinator` is unchanged.
 @MainActor
 final class CotypingEngineSelector: CotypingCompleting {
     typealias ModelVerifier = (ModelCatalog.Entry, StorageManager) async -> URL?
 
-    /// How long completions stay on HTTP after an in-process failure before
-    /// the local engine is rebuilt and retried. Long enough that a persistent
-    /// failure doesn't reload the selected model's weights on every keystroke, short
-    /// enough that a transient one (memory pressure passing) recovers soon.
     static let localRetryCooldown: TimeInterval = 60
 
     private let http: CotypingCompleting
-    /// Serves completions while `cotypingBackend` names a server.
     private let server: CotypingCompleting?
     private let makeLocal: (String) -> CotypingCompleting
     private let settings: () -> AppSettings
@@ -26,44 +16,20 @@ final class CotypingEngineSelector: CotypingCompleting {
     private var local: CotypingCompleting?
     private var localModelPath: String?
     private var localIdentity: LocalRouteIdentity?
-    /// Set after the first in-process failure so the HTTP fallback is logged
-    /// once per failure episode (spec §13), not on every keystroke. Reset on a
-    /// successful local generation or a model-path change.
     private var didLogLocalFailure = false
-    /// Non-nil while a failure cooldown is active: `localIfEligible()` routes
-    /// to HTTP (without rebuilding the local engine) until this instant.
     private var retryLocalAt: Date?
-    /// Set once both on-device routes were released for the server route, so
-    /// the model is freed once per switch rather than checked every keystroke.
     private var releasedForServer = false
 
-    /// Invalidates work that crossed an actor suspension under an older route.
-    /// `@MainActor` prevents simultaneous mutation, but async model verification
-    /// and unloads are re-entrant: an explicit `unload()` can run while an older
-    /// generate/prewarm is awaiting verification. Without a generation check,
-    /// that older operation could resume and recreate the local runtime after
-    /// shutdown completed.
     private var lifecycleGeneration: UInt64 = 0
-    /// Keeps new route resolution out until every overlapping explicit unload
-    /// has stopped both runtimes.
     private var unloadOperationsInFlight = 0
-    /// Coalesces local teardown across re-entrant route changes so a second
-    /// completion cannot start HTTP while the first is still freeing weights.
     private var localUnloadTask: Task<Void, Never>?
     private var localUnloadOperation: UInt64 = 0
 
-    /// The setting and catalog entry together identify the route being
-    /// resolved. Including the requested ID matters because an unknown ID
-    /// falls back to the recommended entry; changing between two bad IDs must
-    /// still invalidate an already-suspended lookup.
     private struct LocalRouteIdentity: Equatable {
         let requestedModelID: String
         let entry: ModelCatalog.Entry
     }
 
-    /// The actual resolved route, not merely the user's preferred setting.
-    /// A local failure clears `local` and starts a cooldown before HTTP runs,
-    /// which immediately restores the conservative model-server debounce.
     var debounceProfile: CotypingDebouncePolicy.RuntimeProfile {
         guard !Self.usesServer(settings()) else { return .modelServer }
         return local != nil && retryLocalAt == nil ? .inProcess : .modelServer
@@ -105,9 +71,6 @@ final class CotypingEngineSelector: CotypingCompleting {
         settings.cotypingBackend != .onDevice
     }
 
-    /// The server route when one is selected. Switching to it frees the
-    /// on-device model and stops the dedicated llama-server first, so a model
-    /// nobody uses does not stay resident; nil keeps the on-device routes.
     private func serverIfSelected() async throws -> CotypingCompleting? {
         guard unloadOperationsInFlight == 0 else { throw CancellationError() }
         guard Self.usesServer(settings()) else {
@@ -140,7 +103,6 @@ final class CotypingEngineSelector: CotypingCompleting {
         return LocalRouteIdentity(requestedModelID: settings.cotypingBuiltInModelID, entry: entry)
     }
 
-    /// Resolves the built-in cotyping model path the same way `makeTextEngine` does.
     private func resolvedModelURL(_ identity: LocalRouteIdentity) async -> URL? {
         await verifyModel(identity.entry, storage)
     }
@@ -186,22 +148,15 @@ final class CotypingEngineSelector: CotypingCompleting {
               localRouteIdentity(for: settings()) == nil else { throw CancellationError() }
     }
 
-    /// Returns the local engine if eligible, lazily (re)building it when the
-    /// resolved model path changes; nil → use HTTP.
     private func localIfEligible() async throws -> CotypingCompleting? {
         guard unloadOperationsInFlight == 0 else { throw CancellationError() }
         let s = settings()
-        // Short-circuit the cheap gating conditions before resolving and, for a
-        // legacy download, hashing the GGUF. Users with local cotyping disabled
-        // should not pay that integrity-check cost.
         guard s.cotypingInProcessRuntime, Self.isAppleSilicon else {
             let invalidation = invalidateLifecycle()
             await dropLocalEngine()
             try requireCurrentDisabledRoute(generation: invalidation)
             return nil
         }
-        // Failure cooldown: the engine was already dropped (weights freed) in
-        // handleLocalFailure, so just route to HTTP until the retry instant.
         if let retryLocalAt, now() < retryLocalAt { return nil }
         guard let identity = localRouteIdentity(for: s) else {
             let invalidation = invalidateLifecycle()
@@ -229,25 +184,13 @@ final class CotypingEngineSelector: CotypingCompleting {
         }
         if let local, localModelPath == url.path, localIdentity == identity { return local }
         if local == nil || localModelPath != url.path || localIdentity != identity {
-            // A model change must release the old in-process weights before a
-            // replacement is built. The old implementation overwrote `local`
-            // and leaked its runtime until deinit happened to run.
             if local != nil || localModelPath != nil {
                 generation = invalidateLifecycle()
             }
-            // Also joins an unload started by another re-entrant route change.
-            // `local == nil` only means ownership was taken, not that the old
-            // model has finished releasing its weights.
             await dropLocalEngine()
             try requireCurrentLocalRoute(generation: generation, identity: identity)
-            // The HTTP fallback may still hold the same model from a prior
-            // failure, a previous setting, or an adopted server from an older
-            // app process. Stop it before the local runtime starts loading.
             await http.unload()
             try requireCurrentLocalRoute(generation: generation, identity: identity)
-            // A concurrent lookup may have installed this exact route while
-            // this operation was suspended in `http.unload()`. Reuse it rather
-            // than overwriting a live engine and orphaning its loaded weights.
             if let local {
                 guard localModelPath == url.path, localIdentity == identity else { throw CancellationError() }
                 return local
@@ -268,15 +211,6 @@ final class CotypingEngineSelector: CotypingCompleting {
         return engine
     }
 
-    /// Drops the cached in-process engine and frees its loaded model when the
-    /// selector routes away from local (flag toggled off, Intel, or the model
-    /// stops resolving). Self-limiting: a no-op once already dropped, so it's
-    /// safe to call on every ineligible `localIfEligible()` pass. Setting
-    /// `local = nil` alone is NOT enough — the runtime actor's deinit is async
-    /// and may not run promptly, so we explicitly unload and await completion.
-    /// When the flag flips back on and the model resolves,
-    /// `localIfEligible()` rebuilds a fresh engine via `makeLocal` (cold reload
-    /// on the next generate).
     private func dropLocalEngine() async {
         if let localUnloadTask {
             let operation = localUnloadOperation
@@ -299,7 +233,6 @@ final class CotypingEngineSelector: CotypingCompleting {
     }
 
     func prewarm() async {
-        // Selecting a server frees the on-device model here, before typing.
         if Self.usesServer(settings()) {
             _ = try? await serverIfSelected()
             return
@@ -314,8 +247,6 @@ final class CotypingEngineSelector: CotypingCompleting {
         try? await engine.prewarm(for: request)
     }
 
-    /// Only an in-process engine that already exists: warming never builds
-    /// one or verifies a model, and has nothing to do on the server routes.
     func warmAfterPause() async {
         guard !Self.usesServer(settings()), retryLocalAt == nil, let local else { return }
         await local.warmAfterPause()
@@ -324,12 +255,7 @@ final class CotypingEngineSelector: CotypingCompleting {
     func unload() async {
         unloadOperationsInFlight += 1
         defer { unloadOperationsInFlight -= 1 }
-        // Invalidate before the first suspension so a verifier already in
-        // flight cannot recreate the local engine after this method returns.
         invalidateLifecycle()
-        // Always release both paths. The HTTP server may have been adopted
-        // from an earlier app process and therefore need not have generated in
-        // this selector instance to be resident.
         await dropLocalEngine()
         await http.unload()
         await server?.unload()
@@ -338,8 +264,6 @@ final class CotypingEngineSelector: CotypingCompleting {
         releasedForServer = false
     }
 
-    /// The model server is streamed even here: its client stops reading at
-    /// the same decode boundary as the in-process runtime.
     func generate(_ request: CotypingRequest) async throws -> CotypingNormalizationResult {
         if let server = try await serverIfSelected() {
             return try await server.generate(request)
@@ -382,15 +306,6 @@ final class CotypingEngineSelector: CotypingCompleting {
         retryLocalAt = nil
     }
 
-    /// In-process→HTTP fallback. The HTTP path runs the same GGUF in its own
-    /// `llama-server` process, so keeping the failed local engine loaded would
-    /// leave two copies of the selected model's weights resident. A failure here is
-    /// likely memory pressure, so the unload is AWAITED — the caller must not
-    /// start the HTTP fallback (which may cold-load the server's copy) until
-    /// the local weights are actually freed. Then route to HTTP for
-    /// `localRetryCooldown` and rebuild + retry local (a cold reload, but at
-    /// most once per cooldown — never per keystroke). Logged once per failure
-    /// episode (spec §13).
     private func handleLocalFailure(_ error: LlamaRuntimeError) async {
         invalidateLifecycle()
         if !didLogLocalFailure {
@@ -401,9 +316,6 @@ final class CotypingEngineSelector: CotypingCompleting {
             """)
         }
         retryLocalAt = now().addingTimeInterval(Self.localRetryCooldown)
-        // Join a teardown already started by a re-entrant route change. Seeing
-        // `local == nil` does not prove its weights are gone: another task may
-        // have taken ownership and still be awaiting `engine.unload()`.
         await dropLocalEngine()
     }
 }

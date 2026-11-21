@@ -1,8 +1,6 @@
 import CoreGraphics
 import Foundation
 
-/// A recorded sequence of capture-environment answers. Recorded traces are
-/// scrubbed before they are written (`CaptureTraceScrubber`).
 struct CaptureTrace: Codable, Equatable {
     static let currentSchemaVersion = 1
 

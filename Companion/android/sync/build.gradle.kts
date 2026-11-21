@@ -1,7 +1,3 @@
-// Wraps the lokalbot-sync Rust crate for Android. `Scripts/build/build-sync-android.sh`
-// writes the shared libraries and the UniFFI Kotlin bindings into build/rust;
-// this module only packages them. Running `clean` deletes them, so run the
-// script again afterwards.
 plugins {
     alias(libs.plugins.android.library)
 }
@@ -10,8 +6,6 @@ val rustOutput = layout.buildDirectory.dir("rust")
 
 android {
     namespace = "me.dotenv.lokalbot.sync"
-    // Current AndroidX releases need the Android 17 SDK to compile; runtime
-    // behavior follows targetSdk.
     compileSdk = 37
 
     defaultConfig {
@@ -40,6 +34,5 @@ kotlin {
 }
 
 dependencies {
-    // The AAR carries JNA's Android native libraries.
     api(libs.jna) { artifact { type = "aar" } }
 }

@@ -167,7 +167,6 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(common.requestLevel(.high, taskBudget: 0), .off)
         XCTAssertEqual(common.requestLevel(.low, taskBudget: 8_192), .low)
 
-        // GLM 5.3 on OpenRouter: low/high/max and no way to switch it off.
         let glm = ReasoningSupport(levels: [.max, .low, .high])
         XCTAssertEqual(glm.levels, [.low, .high, .max])
         XCTAssertEqual(glm.clamp(.medium), .low)
@@ -183,8 +182,6 @@ final class TextEngineTests: XCTestCase {
         XCTAssertNil(ThinkReasoningLevel(effort: "automatic"))
     }
 
-    /// On 2026-10-07, on Automatic, Cerebras Qwen reasoned at its default for
-    /// every notes request and returned no notes.
     func testAutomaticSwitchesReasoningOffForANoReasoningTaskOnAModelThatReasonsByDefault() throws {
         let qwen = ReasoningSupport.known(provider: .cerebras, model: "qwen-3.8-27b")
         XCTAssertEqual(qwen.requestLevel(.automatic, taskBudget: 0), .off)
@@ -209,7 +206,6 @@ final class TextEngineTests: XCTestCase {
         XCTAssertNil(try effort(nil))
     }
 
-    /// What a no-reasoning notes request sends to popular models on Automatic.
     func testPopularModelsGetNoReasoningForNotesOrTheLeastTheyAllow() throws {
         func body(_ baseURL: String, _ model: String, dialect: ChatCompletionDialect? = nil) throws -> [String: Any] {
             let url = URL(string: baseURL)!
@@ -250,23 +246,19 @@ final class TextEngineTests: XCTestCase {
         func levels(_ provider: ReasoningSupport.Provider, _ model: String) -> [ThinkReasoningLevel] {
             ReasoningSupport.known(provider: provider, model: model).levels
         }
-        // Cerebras's documented values.
         XCTAssertEqual(levels(.cerebras, "qwen-3.8-27b"), [.off, .low, .medium, .high])
         XCTAssertEqual(ReasoningSupport.known(provider: .cerebras, model: "qwen-3.8-27b").defaultLevel, .high)
         XCTAssertEqual(levels(.cerebras, "gpt-oss-120b"), [.low, .medium, .high])
         XCTAssertEqual(levels(.cerebras, "gemma-4-31b"), [.off, .low, .medium, .high])
         XCTAssertEqual(levels(.cerebras, "kimi-k2.7-code"), [])
-        // OpenAI generations.
         XCTAssertEqual(levels(.openAI, "o3-mini"), [.low, .medium, .high])
         XCTAssertEqual(levels(.openAI, "gpt-5-mini"), [.minimal, .low, .medium, .high])
         XCTAssertEqual(levels(.openAI, "gpt-5.1"), [.off, .low, .medium, .high])
         XCTAssertEqual(levels(.openAI, "gpt-5.4-mini"), [.off, .low, .medium, .high, .xhigh])
         XCTAssertEqual(levels(.openAI, "gpt-4.1-mini"), [])
-        // Built-in models.
         XCTAssertEqual(levels(.builtIn, "qwen3.5-4b"), [.off, .low, .medium, .high])
         XCTAssertEqual(levels(.builtIn, "lfm2.5-2.6b"), [.low, .medium, .high])
         XCTAssertEqual(levels(.builtIn, "ministral-3-3b-instruct-2512"), [])
-        // Unlisted servers and models.
         XCTAssertEqual(levels(.openRouter, "openai/gpt-5.4-mini"), [.off, .low, .medium, .high, .xhigh])
         XCTAssertEqual(levels(.generic, "gpt-oss-20b"), [.low, .medium, .high])
         XCTAssertEqual(levels(.generic, "some-model"), [.off, .low, .medium, .high])
@@ -275,9 +267,6 @@ final class TextEngineTests: XCTestCase {
                        .cerebras)
     }
 
-    /// OpenAI's model pages on 26 October 2026. GPT-6 models used to have no
-    /// levels, so Settings showed "Set by the model" and a chosen level never
-    /// reached the request.
     func testGPT6ModelsOfferTheirDocumentedLevels() throws {
         let upToMax: [ThinkReasoningLevel] = [.low, .medium, .high, .xhigh, .max]
         let sol = ReasoningSupport.known(provider: .openAI, model: "gpt-6.1-sol")
@@ -292,7 +281,6 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(ReasoningSupport.known(provider: .openRouter, model: "openai/gpt-6.1-sol"), sol)
         XCTAssertEqual(sol.requestLevel(.high, taskBudget: 0), .low, "6.1 Sol rejects none")
 
-        // What Settings → Models and the Agent composer offer on the plan.
         var settings = AppSettings()
         settings.summarizerBackend = .chatGPTPlan
         settings.chatGPTPlanModel = "gpt-6.1-sol"
@@ -302,8 +290,6 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(plan.levels.map(\.displayName), ["Low", "Medium", "High", "Extra high", "Max"])
         XCTAssertEqual(plan.displayed(.high), .high)
 
-        // OpenAI's API treats GPT-6 as a reasoning model: no temperature, and
-        // Automatic maps a task's budget onto an effort.
         func body(_ level: ThinkReasoningLevel) throws -> [String: Any] {
             let engine = OpenAICompatibleEngine(baseURL: URL(string: "https://api.openai.com/v1")!,
                                                 model: "gpt-6.1-sol", apiKey: "test-token", chatDialect: .openAI,
@@ -881,12 +867,8 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(retryAfter, 2)
     }
 
-    /// Pressing Stop cancels the Task mid-request; `send` must surface that as
-    /// cancellation, not a `serverUnreachable` error the chat UI renders red.
     func testGenerateMapsTaskCancellationToCancellationError() async {
         let task = Task { () -> String in
-            // Blackholed TEST-NET address (RFC 5737): the request can only resolve
-            // via cancellation, never a real connection or a fast refusal.
             let engine = OpenAICompatibleEngine(baseURL: URL(string: "http://192.0.2.1:9/")!,
                                                 model: "test", apiKey: nil)
             return try await engine.generate(system: "s", prompt: "p", context: [])
@@ -896,7 +878,6 @@ final class TextEngineTests: XCTestCase {
             _ = try await task.value
             XCTFail("a cancelled request should throw")
         } catch is CancellationError {
-            // Correct: Stop surfaces as cancellation.
         } catch let error as TextEngineError {
             XCTFail("cancellation misclassified as TextEngineError: \(error)")
         } catch {

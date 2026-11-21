@@ -3,28 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Autocomplete (`CotypingCoordinator`): turns the desktop's reads of the
-//! focused field into suggestions.
-//!
-//! The desktop sends a [`FieldContext`] on every change. A text change asks
-//! for a suggestion after the debounce; a caret move only drops the one on
-//! screen. Typing a suggestion's next characters, or accepting part of it,
-//! keeps it (shortened) and may top it up with a few more words. One request
-//! is in flight at a time; a newer field read supersedes it, and a result
-//! that arrives late is shown only if the field still continues it. A newly
-//! focused field has its prompt read ahead, so the first keystroke only adds
-//! what was typed. A field read that arrives while the server is still
-//! starting is answered once it is up, unless it was dismissed or answered
-//! some other way meanwhile.
-//!
-//! Nothing runs unless Autocomplete is on, and nothing is ever downloaded:
-//! without the Autocomplete model and the llama.cpp runtime, or a server the
-//! user set up and approved, no suggestion is made. Suggestions pause while a
-//! meeting records, and the excluded apps are checked again here. Typed text
-//! stays in memory and is never logged. What stays on disk is counts (see
-//! `autocomplete_measure`) and, when on, examples sealed under a key in the
-//! credential store (`LearningStore`).
-
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -62,85 +40,55 @@ use crate::{
     EngineEvent, FieldContext, Shared,
 };
 
-/// A suggestion left alone this long is taken down, so a Tab pressed long
-/// afterwards reaches the app (`idleSuggestionLifetimeMilliseconds`).
 const IDLE_SUGGESTION_LIFETIME: Duration = Duration::from_secs(60);
 
-/// The worker's view of the engine, so its rules run in tests without a
-/// model server.
 pub(crate) trait Host: Send + Sync + 'static {
     fn settings(&self) -> Settings;
     fn emit(&self, update: AutocompleteUpdate);
-    /// A meeting is recording: suggestions pause (`CotypingMeetingPause`).
     fn recording(&self) -> bool;
-    /// The Autocomplete model and the runtime are installed.
     fn ready(&self, settings: &Settings) -> bool;
-    /// The Autocomplete server is up: not stopped, and not still starting.
     fn server_running(&self) -> bool;
-    /// Runs one request against the Autocomplete server. Blocking; called on
-    /// the request's own thread.
     fn run(&self, job: &JobKind, settings: &Settings, cancel: &AtomicBool) -> Outcome;
-    /// Autocomplete was turned off: stop its server now.
     fn stop_server(&self);
-    /// Saved facts for `query` the grants allow. Reads the library; called
-    /// on a thread of its own.
     fn memory(&self, query: &Query, policy: Policy) -> Lookup;
-    /// Whether a focused field's prompt can be read ahead: not on a server.
     fn prefills(&self, _settings: &Settings) -> bool {
         true
     }
-    /// The clipboard now, unless concealed. Blocks only briefly.
     fn clipboard(&self) -> Option<clipboard::Snapshot> {
         None
     }
-    /// The clipboard grant was withdrawn: let go of what is held.
     fn forget_clipboard(&self) {}
-    /// The system's spell checker, once asked for.
     fn speller(&self) -> Option<Arc<Speller>> {
         None
     }
-    /// The on-device text recognition model is installed.
     fn window_text_ready(&self) -> bool {
         false
     }
-    /// Reads the focused window. Blocking; called on a thread of its own.
     fn read_window(&self, _request: &WindowRequest) -> Option<WindowRead> {
         None
     }
-    /// Lets go of window text held for reuse, and with `unload` the model.
     fn forget_window(&self, _unload: bool) {}
-    /// Opens the learned examples. Blocking; called on a thread of its own.
     fn open_learning(&self) -> LearningOpen {
         LearningOpen::Loaded(learning::Snapshot::default())
     }
-    /// Queues a write of the learned examples.
     fn save_learning(&self, _snapshot: learning::Snapshot) {}
-    /// Deletes the file after any queued writes, then reports whether it worked.
     fn forget_learning(&self, done: Box<dyn FnOnce(bool) + Send>) {
         done(true);
     }
     fn load_measures(&self) -> (CotypingStats, UsageHistory) {
         Default::default()
     }
-    /// Queues a write of the counters.
     fn save_measures(&self, _stats: CotypingStats, _usage: Option<UsageHistory>) {}
-    /// Queues the removal of the counters' files.
     fn remove_measures(&self, _stats: bool, _usage: bool) {}
-    /// Waits for queued writes.
     fn flush(&self) {}
 }
 
-/// What opening the learned examples found. If they cannot be opened they are
-/// left alone: nothing is written over them (the Mac reads them as empty and
-/// later overwrites them).
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum LearningOpen {
     Loaded(learning::Snapshot),
-    /// Why not, worded for Settings.
     Blocked(String),
 }
 
-/// One queued write, in order.
 enum Write {
     Stats(CotypingStats),
     Usage(UsageHistory),
@@ -151,15 +99,12 @@ enum Write {
     Flush(Sender<()>),
 }
 
-/// Writes off the worker, one at a time, so typing never waits on the disk or
-/// the credential store.
 fn start_writer(shared: Arc<Shared>) -> Option<Sender<Write>> {
     let (writes, receiver) = unbounded::<Write>();
     std::thread::Builder::new()
         .name("lokalbot-autocomplete-store".into())
         .spawn(move || {
             let root = shared.library.paths().root().to_path_buf();
-            // A write that failed stays memory-only until "Forget learned text".
             let mut learning_failed = false;
             while let Ok(write) = receiver.recv() {
                 let result = match write {
@@ -229,8 +174,6 @@ fn learning_blocked_message() -> String {
     .to_string()
 }
 
-/// Opens `<root>/cotyping-learning.enc`. A missing file needs no key, so the
-/// credential store is not touched until there is something to keep.
 fn open_learning_file(root: &std::path::Path) -> LearningOpen {
     let path = root.join(learning::FILE_NAME);
     let sealed = match std::fs::read(&path) {
@@ -243,9 +186,6 @@ fn open_learning_file(root: &std::path::Path) -> LearningOpen {
     open_sealed_learning(&sealed, crate::secrets::cotyping_learning_key(false).ok())
 }
 
-/// A file this key cannot open, such as one a Mac sealed with its own
-/// Keychain key, or that does not parse, is left alone rather than read as
-/// empty and overwritten.
 fn open_sealed_learning(sealed: &[u8], key: Option<[u8; 32]>) -> LearningOpen {
     let opened = key
         .and_then(|key| lokalbot_core::screen::open_image(&key, sealed).ok())
@@ -256,7 +196,6 @@ fn open_sealed_learning(sealed: &[u8], key: Option<[u8; 32]>) -> LearningOpen {
     }
 }
 
-/// The platform's spell checker as the rules see it.
 struct SystemSpelling(SpellChecker);
 
 impl SpellSource for SystemSpelling {
@@ -277,11 +216,9 @@ impl SpellSource for SystemSpelling {
     }
 }
 
-/// The engine side of [`Host`].
 struct EngineHost {
     shared: Arc<Shared>,
     models: Models,
-    /// Failures are logged once until a request succeeds again.
     failing: Mutex<bool>,
     writes: Option<Sender<Write>>,
     clipboard: Mutex<ClipboardReader>,
@@ -326,8 +263,6 @@ impl Host for EngineHost {
     }
 
     fn server_running(&self) -> bool {
-        // A chosen server is up as far as anyone here can tell: nothing waits
-        // for it to start.
         if self.shared.settings().cotyping_backend != CotypingBackend::OnDevice {
             return true;
         }
@@ -381,7 +316,6 @@ impl Host for EngineHost {
         let mut window = self.window.lock();
         if unload {
             window.unload();
-            // Autocomplete stopped: the dictionaries need not stay in memory.
             *self.speller.lock() = None;
         } else {
             window.forget();
@@ -448,8 +382,6 @@ impl Host for EngineHost {
         let Some(entry) = model_entry(settings) else {
             return Outcome::NotReady;
         };
-        // Starts the server on first use; the runtime never downloads for
-        // this role, and an unverified model is refused.
         let lease = match self.shared.runtime.autocomplete_server(entry) {
             Ok(lease) => lease,
             Err(err) => {
@@ -510,8 +442,6 @@ impl EngineHost {
         }
     }
 
-    /// Autocomplete on a chosen server. Nothing is read ahead: a server keeps
-    /// its own cache.
     fn run_on_server(
         &self,
         endpoint: &server::Endpoint,
@@ -536,8 +466,6 @@ impl EngineHost {
         }
     }
 
-    /// Publishes only a change, so a working server does not redraw Settings
-    /// on every suggestion.
     fn report_problem(&self, endpoint: &server::Endpoint, failure: Option<server::Failure>) {
         let problem = failure.map(|failure| ServerProblem {
             identity: endpoint.identity(),
@@ -552,8 +480,6 @@ impl EngineHost {
     }
 }
 
-/// `CotypingMemoryContextProvider.load`: the facts the grants allow,
-/// selected for `query`.
 pub(crate) fn look_up(library: &Library, query: &Query, policy: Policy) -> Selection {
     if !policy.enabled() || query.all.is_empty() {
         return Selection::default();
@@ -566,9 +492,6 @@ pub(crate) fn look_up(library: &Library, query: &Query, policy: Policy) -> Selec
     memory::select(&items, query, policy, now, true)
 }
 
-/// `CotypingMemoryContextProvider.load` with the stamps that later tell
-/// whether its facts still hold. Sources are stamped before they are read, so
-/// an edit made while reading still shows.
 fn look_up_guarded(library: &Library, query: &Query, policy: Policy) -> Lookup {
     if !policy.enabled() || query.all.is_empty() {
         return Lookup::default();
@@ -595,8 +518,6 @@ fn look_up_guarded(library: &Library, query: &Query, policy: Policy) -> Lookup {
         }
     }
     let guard = MemoryGuard::stamp(policy, root, paths);
-    // Unattributed memory never reaches here; an unfinished revocation reads
-    // as nothing at all.
     let mut items = work_memory_items(root);
     items.extend(items_from_meetings(library, &meetings, query));
     let lookup = Lookup {
@@ -610,7 +531,6 @@ fn look_up_guarded(library: &Library, query: &Query, policy: Policy) -> Lookup {
     }
 }
 
-/// The files a meeting's facts depend on (`meetingItems`).
 const MEETING_SOURCE_FILES: [&str; 7] = [
     "meta.json",
     "summary.md",
@@ -621,9 +541,6 @@ const MEETING_SOURCE_FILES: [&str; 7] = [
     "follow-up-draft.json",
 ];
 
-/// The memory search for `field` as autocomplete makes it: only the grants'
-/// words, nothing for integrated terminals, no title without the app context
-/// grant.
 fn query_for(field: &FieldContext, settings: &Settings, visible: &str) -> Query {
     if field.integrated_terminal {
         return Query::default();
@@ -642,9 +559,6 @@ fn query_for(field: &FieldContext, settings: &Settings, visible: &str) -> Query 
     )
 }
 
-/// The saved facts a suggestion in `field` would use now, as (source title,
-/// fact): for diagnostics and the practice editor's "what shaped this"
-/// (`memoryContextSources`). Reads the library; empty without the grant.
 pub fn saved_facts(
     library: &Library,
     field: &FieldContext,
@@ -660,8 +574,6 @@ pub fn saved_facts(
 }
 
 impl EngineHost {
-    /// Logs a failure once per episode, without the server's own message:
-    /// a request error can quote the prompt, and typed text is never logged.
     fn failed(&self, err: &anyhow::Error) -> Outcome {
         let mut failing = self.failing.lock();
         if !*failing {
@@ -679,32 +591,28 @@ impl EngineHost {
     }
 }
 
-/// The catalog entry Settings → Models chose for Autocomplete.
 fn model_entry(settings: &Settings) -> Option<&'static catalog::ModelEntry> {
     catalog::entry(&settings.cotyping_built_in_model_id).filter(|e| e.kind == ModelKind::Text)
 }
 
-/// One request to the Autocomplete server.
 #[derive(Clone, Debug)]
 pub(crate) enum JobKind {
-    /// A suggestion for `field` as it was read.
     Fresh {
         field: FieldContext,
         request: Request,
         fingerprint: String,
-        /// Saved facts or the text above the field shaped it: not learned.
         used_context: bool,
         guard: Option<Arc<MemoryGuard>>,
     },
-    /// More words for the suggestion on screen (`CotypingSuggestionExtension`).
     TopUp {
         field_id: u64,
         full_text: String,
         prefix: String,
         request: Request,
     },
-    /// Reads a newly focused field's prompt into the server's cache.
-    Prefill { request: Request },
+    Prefill {
+        request: Request,
+    },
 }
 
 pub(crate) enum Outcome {
@@ -742,7 +650,6 @@ enum Message {
     Stop,
 }
 
-/// Handle to the autocomplete worker thread.
 pub struct Autocomplete {
     sender: Sender<Message>,
     thread: Option<JoinHandle<()>>,
@@ -779,8 +686,6 @@ impl Autocomplete {
         let _ = self.sender.send(Message::Command(command));
     }
 
-    /// Settings changed: Autocomplete may have been turned off or an app
-    /// excluded.
     pub fn settings_changed(&self) {
         let _ = self.sender.send(Message::SettingsChanged);
     }
@@ -799,31 +704,22 @@ impl Drop for Autocomplete {
     }
 }
 
-/// The suggestion on screen.
 struct Shown {
     field_id: u64,
     session: Session,
     fingerprint: String,
     used_context: bool,
-    /// The saved facts it was made with, when any.
     guard: Option<Arc<MemoryGuard>>,
 }
 
-/// Whether the learned examples are usable.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum LearningState {
-    /// Nothing has needed them yet.
     Closed,
     Opening,
     Ready,
-    /// They could not be opened: stays in memory and never writes.
     Blocked(String),
 }
 
-/// The newest saved-memory lookup for the focused field
-/// (`CotypingMemoryLookup`): a keystroke never waits for one; it takes the
-/// newest finished one, and a new lookup runs when the finished words
-/// before the caret could name something new.
 #[derive(Default)]
 struct MemoryLookup {
     anchor: Option<String>,
@@ -836,7 +732,6 @@ impl MemoryLookup {
         self.anchor.as_deref() != Some(anchor) || self.requested.as_ref() != Some(query)
     }
 
-    /// A different field forgets the previous field's facts at once.
     fn begin(&mut self, anchor: &str, query: &Query) {
         if self.anchor.as_deref() != Some(anchor) {
             self.lookup = Lookup::default();
@@ -845,7 +740,6 @@ impl MemoryLookup {
         self.requested = Some(query.clone());
     }
 
-    /// Keeps a finished lookup only if it is still the one asked for last.
     fn finish(&mut self, anchor: &str, query: &Query, lookup: Lookup) -> bool {
         if self.anchor.as_deref() != Some(anchor) || self.requested.as_ref() != Some(query) {
             return false;
@@ -863,15 +757,11 @@ impl MemoryLookup {
 struct Running {
     id: u64,
     cancel: Arc<AtomicBool>,
-    /// A prefill cannot be stopped once sent, but what follows reuses it.
     prefill: bool,
-    /// For a suggestion request, the text before the caret it was made for.
     before: Option<String>,
 }
 
 impl Running {
-    /// Whether a request for `before` makes this one useless. Typing on from
-    /// where it was asked keeps it: its suggestion may still be continued.
     fn superseded_by(&self, before: Option<&str>) -> bool {
         if self.prefill {
             return false;
@@ -886,56 +776,37 @@ impl Running {
 struct Worker {
     host: Arc<dyn Host>,
     sender: Sender<Message>,
-    /// The newest read of the focused field.
     field: Option<FieldContext>,
     shown: Option<Shown>,
-    /// Whether the desktop was last told to show something.
     visible: bool,
-    /// Bumped by every field change; a debounce for an older one is dropped.
     work: u64,
-    /// When the debounced request for `work` is due.
     due: Option<(u64, Instant)>,
     running: Option<Running>,
-    /// Starts once `running` has finished: one request at a time.
     queued: Option<JobKind>,
-    /// The field whose newest read arrived while the server was starting:
-    /// that read is answered once the server is up.
     pending: Option<u64>,
     jobs: u64,
     last_latency_ms: Option<u64>,
     last_activity: Option<Instant>,
     anchors: session::AnchorCache,
-    /// The last accept that used up a suggestion, and the text before it.
     accepted_tail: Option<(String, String)>,
     memory: MemoryLookup,
     learning: LearningStore,
     learning_state: LearningState,
-    /// Bumped when the examples in memory are dropped, so an open still
-    /// running cannot bring them back.
     learning_generation: u64,
     forgetting: bool,
     forgotten: Option<bool>,
-    /// What has been accepted of the suggestion on screen.
     batch: AcceptedBatch,
-    /// Something was accepted since the suggestion went up.
     accepted_any: bool,
-    /// Autocomplete was on at the last settings change.
     enabled: bool,
-    /// The settings that say what may be read and used, as last applied.
     privacy: Option<PrivacySettings>,
     measures: Measures,
     clipboard: clipboard::Preface,
     window_text: Capture,
-    /// The saved facts the suggestion in the works or on screen uses.
     active_memory: Option<Arc<MemoryGuard>>,
-    /// The text around the field shaped it.
     active_visible: bool,
-    /// The last memory use told to Settings.
     memory_use: (Vec<String>, bool),
 }
 
-/// `CotypingPrivacySettings`: a change here cancels work and drops what was
-/// read or shaped under the old settings.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct PrivacySettings {
     read: ReadPolicy,
@@ -1007,8 +878,6 @@ impl Worker {
                     Err(_) => break,
                 },
             };
-            // Field reads first, so a finished request is checked against
-            // the newest one.
             let mut batch: Vec<Message> = first.into_iter().collect();
             batch.extend(receiver.try_iter());
             let (finished, others): (Vec<Message>, Vec<Message>) = batch
@@ -1049,7 +918,6 @@ impl Worker {
         self.shut_down();
     }
 
-    /// The last writes, and nothing left waiting.
     fn shut_down(&mut self) {
         self.cancel_all();
         self.persist();
@@ -1072,8 +940,6 @@ impl Worker {
         .flatten()
         .min()
     }
-
-    // ----------------------------------------------------------- commands
 
     fn on_command(&mut self, command: AutocompleteCommand) {
         match command {
@@ -1106,8 +972,6 @@ impl Worker {
         }
     }
 
-    /// Text read from the screen is forgotten as soon as focus leaves the
-    /// field it was read for (`handleFocusChange`).
     fn on_left_field(&mut self) {
         self.cancel_all();
         if self.active_visible {
@@ -1123,9 +987,6 @@ impl Worker {
         self.persist();
     }
 
-    /// `forgetLearnedText`: cancels what could bring the text back, clears
-    /// memory at once, then deletes after any queued writes. New learning
-    /// waits until that is done.
     fn forget_learned(&mut self) {
         self.cancel_all();
         self.batch.discard();
@@ -1147,7 +1008,6 @@ impl Worker {
         self.forgetting = false;
         self.forgotten = Some(ok);
         if ok {
-            // Nothing is left to protect from being overwritten.
             self.learning_state = LearningState::Ready;
         }
         self.emit_learning();
@@ -1163,7 +1023,6 @@ impl Worker {
                 let loaded = snapshot.examples.len();
                 self.learning.merge_loaded(snapshot, chrono::Utc::now());
                 self.learning_state = LearningState::Ready;
-                // Expired examples went, or something was learned meanwhile.
                 if had_new || self.learning.len() != loaded {
                     self.save_learning();
                 }
@@ -1181,8 +1040,6 @@ impl Worker {
         }
     }
 
-    /// Opens the learned examples the first time an identified document
-    /// needs them, so the credential store is never asked otherwise.
     fn open_learning_if_needed(&mut self, settings: &Settings, place: &Place) {
         if self.learning_state != LearningState::Closed
             || self.forgetting
@@ -1236,8 +1093,6 @@ impl Worker {
         }
     }
 
-    /// Editing or deleting a source, or withdrawing a grant, cancels what its
-    /// facts shaped (`discardRevokedMemoryContext`).
     fn discard_revoked_memory(&mut self, settings: &Settings) -> bool {
         let policy = Policy::from_settings(settings);
         let current = self
@@ -1267,7 +1122,6 @@ impl Worker {
         }
     }
 
-    /// Whether statistics count this field: never LokalBot's own editor.
     fn measured(field: &FieldContext) -> bool {
         field.app_id != SELF_APP_ID
     }
@@ -1275,8 +1129,6 @@ impl Worker {
     fn on_context(&mut self, context: FieldContext) {
         let field_id = context.field_id;
         self.read_field(context);
-        // A read that arrives while the server is still starting cannot be
-        // answered yet: the newest one is, once it is up (`serve_pending`).
         if self.field.as_ref().is_some_and(|f| f.field_id == field_id) && self.server_starting() {
             self.pending = Some(field_id);
         }
@@ -1310,13 +1162,9 @@ impl Worker {
             self.measures.note_left_field(Instant::now());
         }
         let Some(previous) = previous.filter(|p| p.field_id == context.field_id) else {
-            // A newly focused field: nothing is suggested until the user
-            // types, but its prompt is read now.
             self.cancel_all();
             self.clear_suggestion();
             self.accepted_tail = None;
-            // The saved facts for this field are looked up now, so the first
-            // suggestion can use them.
             let window = self.window_context(&context, &settings);
             let visible = surrounding_text(&context, &settings, window.as_deref());
             let _ = self.memory_text(&context, &settings, &visible);
@@ -1331,7 +1179,6 @@ impl Worker {
                 && self.running.is_none()
                 && self.due.is_none()
             {
-                // The text the prompt starts with changed: read it again now.
                 self.prefill(&settings);
             }
             return;
@@ -1358,7 +1205,6 @@ impl Worker {
             && format!("{}{}", previous.before, previous.after)
                 == format!("{}{}", context.before, context.after);
         if caret_moved {
-            // Arrow keys or a click: the suggestion goes and nothing is asked.
             self.cancel_generation(None);
             return;
         }
@@ -1388,7 +1234,6 @@ impl Worker {
                 if remaining.starts_with(text) {
                     Some(current.advanced(text.len()))
                 } else {
-                    // The accepted text left out a space the field already had.
                     let spaces = remaining.len() - remaining.trim_start().len();
                     remaining[spaces..]
                         .starts_with(text.trim_start())
@@ -1423,7 +1268,6 @@ impl Worker {
             }
             self.window_text.note_typing(Instant::now());
         } else if advanced.is_some() && matches!(current.kind, SuggestionKind::Correction { .. }) {
-            // Not a shown or accepted suggestion: only the fix is counted.
             self.measures.note_typo_fixed();
             self.persist();
             self.emit_measures();
@@ -1432,7 +1276,6 @@ impl Worker {
         match advanced {
             None => self.clear_suggestion(),
             Some(next) if next.is_exhausted() => {
-                // The next field read, with the accepted text, asks for more.
                 if current_kind_continues {
                     self.accepted_tail = Some((text.to_string(), before_accept));
                 }
@@ -1454,8 +1297,6 @@ impl Worker {
         let was_enabled = std::mem::replace(&mut self.enabled, settings.cotyping_enabled);
         let privacy = PrivacySettings::of(&settings);
         if self.privacy.as_ref() != Some(&privacy) {
-            // Nothing read or shaped under the old settings stays
-            // (`applySettings`).
             self.privacy = Some(privacy);
             self.cancel_all();
             self.batch.discard();
@@ -1474,7 +1315,6 @@ impl Worker {
             self.field = None;
             self.anchors.clear();
             self.memory.reset();
-            // In memory only: what is on disk stays until "Forget learned text".
             self.learning.clear();
             self.learning_generation += 1;
             if !matches!(self.learning_state, LearningState::Blocked(_)) {
@@ -1486,7 +1326,6 @@ impl Worker {
             self.host.forget_window(true);
             self.measures.reset_pending();
             self.persist();
-            // Turned off: the model does not stay loaded for the idle time.
             if was_enabled {
                 self.host.stop_server();
             }
@@ -1539,10 +1378,6 @@ impl Worker {
         }
     }
 
-    // ----------------------------------------------------------- requests
-
-    /// `CotypingAvailability.disabledReason`, checked again here: on, not an
-    /// excluded app, not a terminal, and no meeting recording.
     fn allowed(&self, settings: &Settings, field: &FieldContext) -> bool {
         settings.cotyping_enabled
             && !is_excluded(
@@ -1555,8 +1390,6 @@ impl Worker {
             && !self.host.recording()
     }
 
-    /// A text change: the suggestion goes, and one is asked for after the
-    /// debounce (`scheduleGeneration`).
     fn schedule(&mut self, settings: &Settings, before: &str) {
         self.clear_suggestion();
         self.cancel_generation(Some(before));
@@ -1575,8 +1408,6 @@ impl Worker {
     }
 
     fn request_suggestion(&mut self) {
-        // This answers the newest read, including one that waited for the
-        // server to start.
         self.pending = None;
         let settings = self.host.settings();
         let Some(field) = self.field.clone() else {
@@ -1585,7 +1416,6 @@ impl Worker {
         if !self.allowed(&settings, &field) {
             return;
         }
-        // An explicit `:shortcode` wins over autocorrect and the model.
         if settings.cotyping_emoji
             && let Some(hit) = emoji::match_trailing(&field.before)
         {
@@ -1603,8 +1433,6 @@ impl Worker {
             );
             return;
         }
-        // An explicit `/expr` wins too. The result is computed once, here: a
-        // random macro is not rolled again at the accept.
         if settings.cotyping_macros
             && let Some(hit) = macros::match_trailing(&field.before)
         {
@@ -1625,7 +1453,6 @@ impl Worker {
             );
             return;
         }
-        // Autocorrect: offer to fix the trailing word before spending a model call.
         let speller = self.host.speller();
         if let Some(speller) = &speller {
             match speller.typo_decision(&field.before, settings.cotyping_autocorrect) {
@@ -1709,17 +1536,12 @@ impl Worker {
         });
     }
 
-    /// `seamVerdict`: a splice that would misspell the word being typed, or a
-    /// junk run, is not shown. Spell verdicts stand down where they don't apply.
     fn seam_allows(&self, speller: Option<&Speller>, before: &str, text: &str) -> bool {
         seam::verdict(before, text, |word| {
             speller.is_none_or(|speller| speller.is_known_word(before, word))
         }) == seam::SeamVerdict::Allow
     }
 
-    /// What a request is built with besides the field. The clipboard is
-    /// resolved here for every kind of request, as on macOS; LokalBot's own
-    /// practice editor never uses it.
     fn extras(
         &mut self,
         field: &FieldContext,
@@ -1744,7 +1566,6 @@ impl Worker {
         }
     }
 
-    /// `pinnedClipboardContext`.
     fn pinned_clipboard(&mut self, field: &FieldContext, settings: &Settings) -> Option<String> {
         if !settings.cotyping_use_clipboard {
             self.clipboard.clear();
@@ -1763,9 +1584,6 @@ impl Worker {
             .resolve(snapshot.as_ref(), &prefix, &identity(field), Instant::now())
     }
 
-    /// The focused window's text once a background read of it exists. A
-    /// keystroke never waits for one; a missing or old read starts here. The
-    /// model is never downloaded for this: without it there is no window text.
     fn window_context(&mut self, field: &FieldContext, settings: &Settings) -> Option<String> {
         let policy = ReadPolicy::from_settings(settings, settings.cotyping_enabled);
         if field.app_id == SELF_APP_ID
@@ -1789,7 +1607,6 @@ impl Worker {
         );
         let key = window_text::key(field.pid, "text", &field.window_title, frame);
         let (snapshot, ticket) = self.window_text.snapshot(&key, Instant::now());
-        // Checked again for every use: `allows_window_text` ran above.
         let text = snapshot.and_then(Snapshot::text);
         if let Some(ticket) = ticket {
             let request = WindowRequest {
@@ -1842,9 +1659,6 @@ impl Worker {
         }
     }
 
-    /// New window text changes the prompt's start: with nothing being
-    /// generated, the model reads it now, so the next keystroke need not
-    /// (`windowTextDidChange`).
     fn window_text_changed(&mut self) {
         let settings = self.host.settings();
         if self.running.is_none() && self.due.is_none() {
@@ -1852,8 +1666,6 @@ impl Worker {
         }
     }
 
-    /// The newest saved facts for `field`, starting a lookup when the
-    /// finished words could name something new.
     fn memory_text(
         &mut self,
         field: &FieldContext,
@@ -1865,7 +1677,6 @@ impl Worker {
             self.memory.reset();
             return None;
         }
-        // A source changed or was withdrawn since the lookup: look again.
         if !self.memory.lookup.is_current(policy) {
             self.memory.reset();
         }
@@ -1900,16 +1711,12 @@ impl Worker {
             return;
         }
         let changed = self.memory.finish(anchor, query, lookup);
-        // New facts change the prompt's start: read it ahead while nothing
-        // else is asked for (after a prefill already running, if need be).
         let fresh_running = self.running.as_ref().is_some_and(|r| !r.prefill);
         if changed && self.shown.is_none() && !fresh_running && self.due.is_none() {
             self.prefill(&settings);
         }
     }
 
-    /// Accepted completions from the same document, ranked on the finished
-    /// words so a half-typed word does not reorder them.
     fn learned_examples(&mut self, field: &FieldContext, settings: &Settings) -> Vec<String> {
         if !settings.cotyping_use_local_learning {
             return Vec::new();
@@ -1925,8 +1732,6 @@ impl Worker {
         self.learning.examples(&where_typed, limit, now)
     }
 
-    /// Reads a field's prompt ahead of the first keystroke
-    /// (`scheduleFocusPrewarm`), unless a request is already going to.
     fn prefill(&mut self, settings: &Settings) {
         if self.queued.is_some() || !self.host.ready(settings) || !self.host.prefills(settings) {
             return;
@@ -1942,8 +1747,6 @@ impl Worker {
         }
     }
 
-    /// Tops up the suggestion on screen when it is running short and was cut
-    /// by the length limit (`extendSuggestionIfNeeded`).
     fn maybe_extend(&mut self, settings: &Settings) {
         if self.running.is_some() || self.queued.is_some() || self.due.is_some() {
             return;
@@ -1961,7 +1764,6 @@ impl Worker {
         continued.after = shown.session.after.clone();
         let (field_id, full_text) = (shown.field_id, shown.session.full_text.clone());
         let limit = session::top_up_word_limit(word_limit) as u32;
-        // The same saved facts the suggestion was made with.
         let memory = self.memory.lookup.selection.text();
         let window = self.window_context(&continued, settings);
         let extras = self.extras(&continued, settings, memory, window, false);
@@ -2098,7 +1900,6 @@ impl Worker {
         }
     }
 
-    /// What the practice editor's request drew on, for Settings.
     fn rehearsal_report(
         &self,
         field: &FieldContext,
@@ -2119,7 +1920,6 @@ impl Worker {
             titles.dedup();
             titles
         };
-        // Sources count only if the request carried them.
         let used_memory = !self.memory_use.0.is_empty();
         crate::events::AutocompleteRehearsal {
             suppression: completion.result.suppression,
@@ -2138,16 +1938,10 @@ impl Worker {
         }
     }
 
-    /// A request is on its way to a server that is not up yet: the server
-    /// is starting, the first time or again after being unloaded.
     fn server_starting(&self) -> bool {
         (self.running.is_some() || self.queued.is_some()) && !self.host.server_running()
     }
 
-    /// With nothing else in flight, answers the field read that arrived
-    /// while the server was starting, now that it is up. Not if the field
-    /// lost focus or the read was dismissed (both drop it), or a suggestion
-    /// is on screen or due after the debounce.
     fn serve_pending(&mut self) {
         let Some(field_id) = self.pending.take() else {
             return;
@@ -2158,8 +1952,6 @@ impl Worker {
         }
     }
 
-    /// Validates a finished suggestion against the newest field read and
-    /// shows it, or what is left of it when the user typed on.
     #[allow(clippy::too_many_arguments)]
     fn on_suggestion(
         &mut self,
@@ -2219,8 +2011,6 @@ impl Worker {
             Reconciled::Advanced(next) if !next.is_exhausted() => next,
             _ => return,
         };
-        // A suggestion for the field as it is now: the pending request for
-        // the keys typed meanwhile is not needed.
         self.cancel_pending();
         self.accepted_tail = None;
         self.present(asked.field_id, current, fingerprint, used_context, guard);
@@ -2278,7 +2068,6 @@ impl Worker {
             Instant::now(),
         );
         self.emit_suggestion();
-        // Only a top-up that landed is followed up, so a refused one cannot loop.
         self.maybe_extend(settings);
     }
 
@@ -2289,8 +2078,6 @@ impl Worker {
                 session::is_stale_acceptance_echo(text, chunk, before, accepted_before)
             })
     }
-
-    // ----------------------------------------------------------- display
 
     fn present(
         &mut self,
@@ -2339,14 +2126,12 @@ impl Worker {
     }
 
     fn clear_suggestion(&mut self) {
-        // What was accepted of the suggestion becomes one learned example.
         if let Some((place, text)) = self.batch.complete()
             && !self.forgetting
             && self.learning.record(&place, &text, chrono::Utc::now())
         {
             self.save_learning();
         }
-        // All chunks from one suggestion are one write.
         if std::mem::take(&mut self.accepted_any) {
             self.persist();
         }
@@ -2362,8 +2147,6 @@ impl Worker {
         self.last_activity = Some(Instant::now());
     }
 
-    /// A suggestion for the field as it is now is on screen: the pending
-    /// request for the keys typed meanwhile is not needed.
     fn cancel_pending(&mut self) {
         self.due = None;
         if matches!(self.queued, Some(JobKind::Fresh { .. })) {
@@ -2371,9 +2154,6 @@ impl Worker {
         }
     }
 
-    /// Drops the pending and in-flight suggestion requests that a field now
-    /// reading `before` makes useless (all of them for `None`); a prefill
-    /// goes on.
     fn cancel_generation(&mut self, before: Option<&str>) {
         self.due = None;
         if let Some(running) = &self.running
@@ -2396,8 +2176,6 @@ impl Worker {
     }
 }
 
-/// `CotypingAvailability.isExcluded`: a case-insensitive part of the app's
-/// name or id.
 fn is_excluded(list: &str, app_name: &str, app_id: &str) -> bool {
     let haystacks = [app_name.to_lowercase(), app_id.to_lowercase()];
     list.split(',')
@@ -2439,8 +2217,6 @@ fn build(
     )
 }
 
-/// Where an accepted suggestion was written, for learning. No window title
-/// without the app context grant.
 fn place(field: &FieldContext, before: &str, settings: &Settings) -> Place {
     Place {
         app_name: field.app_name.clone(),
@@ -2455,12 +2231,10 @@ fn place(field: &FieldContext, before: &str, settings: &Settings) -> Place {
     }
 }
 
-/// The surface raw value statistics are kept under.
 fn surface_key(field: &FieldContext) -> &'static str {
     SurfaceClass::of_field(&field.app_id, &field.app_name, field.integrated_terminal).raw_name()
 }
 
-/// The selected text around the field, for saved-memory queries.
 fn surrounding_text(field: &FieldContext, settings: &Settings, window: Option<&str>) -> String {
     if field.integrated_terminal {
         return String::new();
@@ -2474,10 +2248,6 @@ fn surrounding_text(field: &FieldContext, settings: &Settings, window: Option<&s
     }
 }
 
-/// Lines from recent meetings that a lookup may offer
-/// (`CotypingMemoryContextProvider.meetingItems`): meetings the index finds
-/// for the query's words or whose title the query names, newest first, at
-/// most four. Notes, summary and outcomes are read fresh from the files.
 fn meeting_items(
     library: &Library,
     query: &Query,
@@ -2486,7 +2256,6 @@ fn meeting_items(
     items_from_meetings(library, &meeting_candidates(library, query, now), query)
 }
 
-/// The meetings a lookup reads.
 fn meeting_candidates(
     library: &Library,
     query: &Query,
@@ -2526,7 +2295,6 @@ fn meeting_candidates(
         .collect()
 }
 
-/// Notes, summary and outcomes of `meetings`, read fresh from the files.
 fn items_from_meetings(
     library: &Library,
     meetings: &[lokalbot_core::Meeting],
@@ -2577,7 +2345,6 @@ fn items_from_meetings(
     items
 }
 
-/// Files are read up to 32 KB, as on macOS.
 fn bounded(mut text: String) -> String {
     const LIMIT: usize = 32_768;
     if text.len() > LIMIT {
@@ -2590,21 +2357,16 @@ fn bounded(mut text: String) -> String {
     text
 }
 
-/// Projects and goals from the overnight reviews a macOS library carries,
-/// without those built from meetings that changed since.
 fn work_memory_items(root: &std::path::Path) -> Vec<memory::Item> {
     lokalbot_core::evidence::read_work_memory(root)
         .map(|bytes| memory::work_memory_items(&bytes))
         .unwrap_or_default()
 }
 
-/// The field a cached suggestion belongs to (`suggestionAnchor`).
 fn identity(field: &FieldContext) -> String {
     format!("{}\u{1f}{}", field.field_id, field.app_id)
 }
 
-/// What besides the text before the caret shaped a request
-/// (`CotypingSuggestionCacheFingerprint`).
 fn fingerprint(request: &Request, settings: &Settings) -> String {
     let personalization = Personalization::from_settings(settings);
     let mut hasher = DefaultHasher::new();
@@ -2640,7 +2402,6 @@ mod tests {
     use crossbeam_channel::Receiver;
     use lokalbot_ai::autocomplete::{Normalized, Timings, normalize};
 
-    /// Answers each request with a canned model output, after `delay`.
     struct FakeHost {
         settings: Mutex<Settings>,
         events: Sender<AutocompleteUpdate>,
@@ -2652,8 +2413,6 @@ mod tests {
         prompts: Mutex<Vec<String>>,
         stopped: AtomicBool,
         facts: Mutex<Vec<memory::Item>>,
-        /// Whether the server is up; the first request waits `start_ms` for
-        /// it to start.
         server_up: AtomicBool,
         start_ms: AtomicU64,
         others: Mutex<Vec<AutocompleteUpdate>>,
@@ -2675,7 +2434,6 @@ mod tests {
             self.settings.lock().clone()
         }
         fn emit(&self, update: AutocompleteUpdate) {
-            // The tests below watch the ghost; counters are checked on their own.
             match update {
                 AutocompleteUpdate::Suggestion { .. } | AutocompleteUpdate::Clear => {
                     let _ = self.events.send(update);
@@ -2856,7 +2614,6 @@ mod tests {
             }
         }
 
-        /// The server is not up: the next request takes `ms` to start it.
         fn server_down(&self, ms: u64) {
             self.host.start_ms.store(ms, Ordering::Relaxed);
             self.host.server_up.store(false, Ordering::Relaxed);
@@ -2893,7 +2650,6 @@ mod tests {
     fn typing_asks_for_a_suggestion_after_the_debounce() {
         let h = harness(&[" up on the timeline"], 0);
         h.type_text(1, "Hi Ana, I wanted to follow");
-        // The first read of a field only prefills.
         assert_eq!(h.quiet(80), vec![]);
         h.type_text(1, "Hi Ana, I wanted to follow ");
         assert_eq!(h.suggestion(), "up on the timeline");
@@ -2910,7 +2666,6 @@ mod tests {
         assert_eq!(h.next(), Some(shown(" on the timeline", 1)));
         h.autocomplete.handle(accepted(1, " on"));
         assert_eq!(h.next(), Some(shown(" the timeline", 1)));
-        // The field shows the accepted word: the same suggestion stays.
         h.type_text(1, "I wanted to follow up on");
         assert_eq!(h.next(), Some(shown(" the timeline", 1)));
         h.autocomplete.handle(accepted(1, " the timeline"));
@@ -2934,7 +2689,6 @@ mod tests {
         h.type_text(1, "I wanted to");
         h.type_text(1, "I wanted to follow");
         std::thread::sleep(Duration::from_millis(60));
-        // Typed the suggestion's first word while the model was busy.
         h.type_text(1, "I wanted to follow up");
         assert_eq!(h.suggestion(), " on the timeline");
         let h = harness(&[" up on the timeline", " soon"], 150);
@@ -2963,7 +2717,6 @@ mod tests {
     fn a_read_while_the_server_starts_is_answered_once_it_is_up() {
         let h = harness(&[" up on the timeline"], 0);
         h.server_down(200);
-        // A click into the text, then End, while the server starts.
         let mut clicked = context(1, "Hi Sarah, I wanted to");
         clicked.after = " follow".into();
         h.send(clicked);
@@ -3067,7 +2820,6 @@ mod tests {
         assert_eq!(h.suggestion(), " between the number");
         h.autocomplete.handle(accepted(1, " between"));
         assert_eq!(h.next(), Some(shown(" the number", 1)));
-        // A top-up asks for one word fewer than a fresh suggestion.
         assert_eq!(h.next(), Some(shown(" the number of menu", 1)));
         let requests = h.host.requests.lock().clone();
         assert_eq!(
@@ -3178,7 +2930,6 @@ mod tests {
         );
     }
 
-    /// `window_text_ready` and a read's lines for a field with a frame.
     fn window_field(field_id: u64, before: &str) -> FieldContext {
         FieldContext {
             field_id,
@@ -3224,14 +2975,12 @@ mod tests {
 
     #[test]
     fn window_text_needs_its_grant_and_the_model_and_never_downloads() {
-        // No model: nothing is read.
         let h = harness(&[" soon"], 0);
         *h.host.window_lines.lock() = Some(window_read("Ana: the cutover plan"));
         h.send(window_field(1, "I will read"));
         h.send(window_field(1, "I will read it"));
         let _ = h.suggestion();
         assert_eq!(h.host.window_reads.load(Ordering::Relaxed), 0);
-        // The grant off: nothing is read either.
         let h = harness(&[" soon"], 0);
         h.host.window_ready.store(true, Ordering::Relaxed);
         h.host.settings.lock().cotyping_use_window_text = false;
@@ -3239,7 +2988,6 @@ mod tests {
         h.send(window_field(1, "I will read it"));
         let _ = h.suggestion();
         assert_eq!(h.host.window_reads.load(Ordering::Relaxed), 0);
-        // Excluded app, private window and an unknown browser page abstain.
         let h = harness(&[" soon", " soon", " soon"], 0);
         h.host.window_ready.store(true, Ordering::Relaxed);
         let private = FieldContext {
@@ -3263,7 +3011,6 @@ mod tests {
         });
         std::thread::sleep(Duration::from_millis(80));
         assert_eq!(h.host.window_reads.load(Ordering::Relaxed), 0);
-        // LokalBot's own editor never reads the screen.
         let own = FieldContext {
             app_id: SELF_APP_ID.into(),
             ..window_field(4, "I will read")
@@ -3302,7 +3049,6 @@ mod tests {
             count,
             text: "The cutover moved to Thursday".to_string(),
         };
-        // The first look is a baseline, whatever it holds.
         *h.host.clipboard_now.lock() = Some(copied(1));
         h.type_text(1, "About the cutover");
         h.type_text(1, "About the cutover ");
@@ -3368,7 +3114,6 @@ mod tests {
         assert_eq!(h.suggestion(), " and more");
     }
 
-    /// A dictionary of two words that knows nothing else.
     struct TwoWords;
     impl SpellSource for TwoWords {
         fn languages(&self) -> Vec<String> {
@@ -3419,8 +3164,6 @@ mod tests {
             Some(1)
         );
 
-        // A word still being typed goes to the model; no correction means
-        // nothing at all.
         let h = harness(&["w up"], 0);
         *h.host.spelling.lock() = Some(Arc::new(Speller::new(Arc::new(TwoWords))));
         h.type_text(1, "I");
@@ -3440,7 +3183,6 @@ mod tests {
         *h.host.spelling.lock() = Some(Arc::new(Speller::new(Arc::new(TwoWords))));
         h.type_text(1, "I");
         h.type_text(1, "I follo");
-        // "follow" is known, so the splice is shown.
         assert_eq!(h.suggestion(), "w up");
         let h = harness(&["xx up"], 0);
         *h.host.spelling.lock() = Some(Arc::new(Speller::new(Arc::new(TwoWords))));
@@ -3523,7 +3265,6 @@ mod tests {
             panic!("no suggestion");
         };
         assert!(guard.is_some(), "the desktop can check it again at accept");
-        // Withdrawing the grant, or editing the file, ends it at the next read.
         std::fs::write(&source, "It moved.").unwrap();
         h.type_text(1, "Status on the Laptop refresh: the business quote is");
         assert_eq!(h.next(), Some(AutocompleteUpdate::Clear));
@@ -3560,7 +3301,6 @@ mod tests {
             Some("the retention playbook first")
         );
 
-        // Learning off: nothing recorded, nothing saved.
         let h = harness(&[" the retention playbook first"], 0);
         h.host.settings.lock().cotyping_use_local_learning = false;
         h.send(google_doc(
@@ -3598,7 +3338,6 @@ mod tests {
                 ..
             })
         )));
-        // Forgetting is the user's choice, and clears the way.
         h.autocomplete.handle(AutocompleteCommand::ForgetLearned);
         std::thread::sleep(Duration::from_millis(30));
         assert_eq!(h.host.forget_calls.load(Ordering::Relaxed), 1);
@@ -3634,7 +3373,6 @@ mod tests {
             serde_json::to_string(&snapshot).unwrap().as_bytes(),
         )
         .unwrap();
-        // nonce, ciphertext, tag: the Mac's `AES.GCM.SealedBox.combined`.
         assert_eq!(
             sealed.len(),
             12 + serde_json::to_vec(&snapshot).unwrap().len() + 16
@@ -3644,13 +3382,11 @@ mod tests {
             LearningOpen::Loaded(snapshot)
         );
         let blocked = LearningOpen::Blocked(learning_blocked_message());
-        // Another key (a Mac's), no reachable store, or damage: never empty.
         assert_eq!(open_sealed_learning(&sealed, Some(other)), blocked);
         assert_eq!(open_sealed_learning(&sealed, None), blocked);
         assert_eq!(open_sealed_learning(b"junk", Some(key)), blocked);
         let not_json = lokalbot_core::screen::seal_image(&key, b"not json").unwrap();
         assert_eq!(open_sealed_learning(&not_json, Some(key)), blocked);
-        // No file needs no key at all.
         let dir = tempfile::tempdir().unwrap();
         assert_eq!(
             open_learning_file(dir.path()),
@@ -3737,7 +3473,6 @@ mod tests {
             usage.record_typo_fixed(chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
             (stats, usage)
         };
-        // Loaded before the first command.
         let fresh = Autocomplete::with_host(h.host.clone());
         std::thread::sleep(Duration::from_millis(20));
         let last = |h: &Harness| {

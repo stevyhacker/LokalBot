@@ -1,15 +1,8 @@
 import AppKit
 import SwiftUI
 
-/// The width a split pane keeps once it has settled. SwiftUI can re-divide an
-/// HSplitView when the sibling pane's content changes — the Timeline swapping
-/// its day column for a selection's details did, widening the sessions rail to
-/// its maximum. Only a divider drag chooses a new width; any other resize is
-/// put back.
 struct HeldPaneWidth {
     private(set) var width: CGFloat?
-    /// A width the split clamped a restore to (the window is too narrow).
-    /// Retrying at that same width would loop.
     private var unreachableWidth: CGFloat?
     private static let tolerance: CGFloat = 1
 
@@ -18,7 +11,6 @@ struct HeldPaneWidth {
         unreachableWidth = nil
     }
 
-    /// The width to restore after the pane was resized, or nil to leave it.
     mutating func resized(to paneWidth: CGFloat, byUser: Bool) -> CGFloat? {
         if byUser {
             settle(at: paneWidth)
@@ -26,8 +18,6 @@ struct HeldPaneWidth {
         }
         guard let width else { return nil }
         guard abs(paneWidth - width) > Self.tolerance else {
-            // The split reached the held width after all, so a width it once
-            // clamped a restore to says nothing about the next re-division.
             unreachableWidth = nil
             return nil
         }
@@ -40,11 +30,6 @@ struct HeldPaneWidth {
     }
 }
 
-/// Tells a divider drag from every other resize by the mouse event being
-/// handled. The resize notification can't: from macOS 26 at least, plain layout
-/// passes name a divider too, so a re-division looked like a drag and the pane
-/// kept the width SwiftUI gave it. A click is not a drag, so selecting a row
-/// never counts, and the drag's own last step can land on its mouse-up.
 struct DividerDragDetector {
     private var dragging = false
 
@@ -63,9 +48,6 @@ struct DividerDragDetector {
     }
 }
 
-/// SwiftUI labels a column's content, but macOS also exposes the native split
-/// item's hosting view as a separate group. Name that boundary without
-/// replacing the native split view, its children, or its keyboard behavior.
 private struct SplitPaneAccessibility: NSViewRepresentable {
     let label: String
     var autosaveName: String?
@@ -91,17 +73,9 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
         var label = ""
         var autosaveName: String?
         var initialWidth: CGFloat?
-        /// Cleared once the pane has its opening width, or once a divider
-        /// position the user saved earlier has been restored instead.
         private var initialWidthPending = true
-        /// SwiftUI can even out the split after the first placement, for
-        /// example when a window is resized right after opening. Placement is
-        /// retried until the pane measures its opening width, a bounded number
-        /// of times so it never fights a divider the user is dragging.
         private var initialWidthAttempts = 0
         private static let maximumInitialWidthAttempts = 12
-        /// Later run-loop turns a missed restore is retried on before the
-        /// width counts as one the split cannot reach.
         private static let maximumRestoreRetries = 2
         private var held = HeldPaneWidth()
         private var dividerDrag = DividerDragDetector()
@@ -125,37 +99,24 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             updatePaneLabel()
         }
 
-        /// The split can attach before it has its final width. Keep retrying
-        /// as the pane lays out until the opening width lands, instead of
-        /// leaving (and saving) HSplitView's even split.
         override func setFrameSize(_ newSize: NSSize) {
             super.setFrameSize(newSize)
             if initialWidth != nil, initialWidthPending { updatePaneLabel() }
         }
 
         func updatePaneLabel() {
-            // Defer until SwiftUI has attached the hosting view to its split
-            // item. Only this anchor's nearest pane is ever modified.
             DispatchQueue.main.async { [weak self] in
                 guard let self, self.window != nil else { return }
                 var child: NSView = self
                 while let parent = child.superview {
                     if let split = parent as? NSSplitView {
-                        // HSplitView's idealWidth is only a layout proposal.
-                        // Give each workspace its own native divider storage;
-                        // never borrow a sibling workspace's split position.
                         if let name = self.autosaveName,
                            split.autosaveName != name {
-                            // Check before naming: assigning the name restores
-                            // a saved position, which must win over the default.
                             if Self.hasSavedFrames(name) { self.initialWidthPending = false }
                             split.autosaveName = name
                         }
                         self.applyInitialWidth(of: child, in: split)
                         child.setAccessibilityLabel(self.label)
-                        // NSSplitView exposes pane proxies separately from
-                        // its arranged NSViews. The proxy, rather than the
-                        // child hosting view, is the group VoiceOver enters.
                         let panes: [any NSAccessibilityProtocol] = (split.accessibilityChildren() ?? [])
                             .compactMap { $0 as? any NSAccessibilityProtocol }
                             .filter { $0.accessibilityRole() == .group }
@@ -171,15 +132,10 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             }
         }
 
-        /// HSplitView splits two flexible panes evenly. A pane with an opening
-        /// width gets it once, and then holds its width while the window
-        /// resizes so the sibling pane absorbs the change instead.
         private func applyInitialWidth(of pane: NSView, in split: NSSplitView) {
             guard let width = initialWidth, split.isVertical, split.arrangedSubviews.count == 2,
                   let index = split.arrangedSubviews.firstIndex(where: { $0 === pane }) else { return }
             observeResizes(of: split, pane: pane)
-            // HSplitView's split view belongs to a split view controller, which
-            // owns holding priorities through its items.
             let holding = NSLayoutConstraint.Priority.defaultLow + 10
             if let controller = split.delegate as? NSSplitViewController {
                 if controller.splitViewItems.indices.contains(index),
@@ -191,7 +147,6 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             }
             let shown = Self.shownWidth(of: pane)
             guard initialWidthPending else {
-                // A restored divider position counts as settled too.
                 if held.width == nil { held.settle(at: shown) }
                 return
             }
@@ -204,18 +159,11 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             initialWidthAttempts += 1
             split.setPosition(Self.dividerPosition(showing: width, of: pane, at: index, in: split), ofDividerAt: 0)
             if initialWidthAttempts >= Self.maximumInitialWidthAttempts {
-                // Out of attempts: hold what this placement reached. Waiting for
-                // the next layout pass would hold whatever a re-division left.
                 initialWidthPending = false
                 held.settle(at: Self.shownWidth(of: pane))
             }
         }
 
-        /// The part of a pane that lies under the main window's sidebar. From
-        /// macOS 26 the detail column runs under the sidebar, so the pane beside
-        /// it is wider than what shows; AppKit reports the hidden part as the
-        /// pane's safe-area inset. Widths are chosen, held and compared as the
-        /// person sees them.
         private static func coveredWidth(of pane: NSView) -> CGFloat {
             pane.safeAreaInsets.left + pane.safeAreaInsets.right
         }
@@ -224,16 +172,12 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             pane.frame.width - coveredWidth(of: pane)
         }
 
-        /// The divider position that shows `width` of `pane`. Positions run
-        /// from the first pane's outer edge in both layout directions.
         private static func dividerPosition(showing width: CGFloat, of pane: NSView, at index: Int,
                                             in split: NSSplitView) -> CGFloat {
             let paneWidth = width + coveredWidth(of: pane)
             return index == 0 ? paneWidth : split.bounds.width - paneWidth - split.dividerThickness
         }
 
-        /// Only a divider drag chooses a width; every other resize is a
-        /// re-division to undo.
         private func observeResizes(of split: NSSplitView, pane: NSView) {
             guard observedSplit !== split else { return }
             if let resizeObserver { NotificationCenter.default.removeObserver(resizeObserver) }
@@ -256,11 +200,6 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             restore(pane, to: target, in: split, retries: Self.maximumRestoreRetries)
         }
 
-        /// SwiftUI can re-divide the split again in the same update that
-        /// reported the first re-division, overriding the position just set:
-        /// selecting a project left its list at the column's maximum. A width
-        /// is only given up on, as one the split cannot reach, once a restore
-        /// on a later turn of the run loop, after that update, still misses it.
         private func restore(_ pane: NSView, to target: CGFloat, in split: NSSplitView, retries: Int) {
             guard let index = split.arrangedSubviews.firstIndex(where: { $0 === pane }) else { return }
             restoringHeldWidth = true
@@ -274,7 +213,6 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
             }
             DispatchQueue.main.async { [weak self, weak pane, weak split] in
                 guard let self, let pane, let split, self.observedSplit === split,
-                      // A divider drag in between chose a new width.
                       self.held.width == target,
                       abs(Self.shownWidth(of: pane) - target) > 1 else { return }
                 self.restore(pane, to: target, in: split, retries: retries - 1)
@@ -287,13 +225,6 @@ private struct SplitPaneAccessibility: NSViewRepresentable {
     }
 }
 
-/// macOS 26 mirrors the main window's NavigationSplitView for a right-to-left
-/// interface with the detail's toolbar squeezed into the sidebar's strip, and
-/// a split view that then appears in the detail never finishes updating its
-/// constraints: AppKit throws, and opening Settings in Arabic or Urdu quit the
-/// app. A split built left-to-right has neither problem, and is what changing
-/// the language in a running app leaves. So on macOS 26 the splits stay
-/// left-to-right and every pane's content takes the interface's direction back.
 enum SplitStructureDirection {
     static func isHeldLeftToRight(
         onMacOS majorVersion: Int = ProcessInfo.processInfo.operatingSystemVersion.majorVersion
@@ -311,15 +242,11 @@ private struct SplitPaneContentDirectionKey: EnvironmentKey {
 }
 
 extension EnvironmentValues {
-    /// Whether split views are built left-to-right whatever the interface's
-    /// direction. Tests set it to check either arrangement on any macOS.
     var holdsSplitStructureLeftToRight: Bool {
         get { self[HoldsSplitStructureLeftToRightKey.self] }
         set { self[HoldsSplitStructureLeftToRightKey.self] = newValue }
     }
 
-    /// The interface's direction, handed past a split that is held
-    /// left-to-right to the panes inside it.
     var splitPaneContentDirection: LayoutDirection? {
         get { self[SplitPaneContentDirectionKey.self] }
         set { self[SplitPaneContentDirectionKey.self] = newValue }
@@ -347,10 +274,6 @@ private struct SplitPaneContentDirection: ViewModifier {
 }
 
 extension View {
-    /// Names a split pane for VoiceOver. `autosaveName` gives the split its own
-    /// saved divider position; `initialWidth` sets this pane's width the first
-    /// time the split appears without one. The pane's content follows the
-    /// interface's direction even where the split itself is held left-to-right.
     func splitPaneAccessibilityLabel(
         _ label: String,
         autosaveName: String? = nil,
@@ -361,18 +284,10 @@ extension View {
         }
     }
 
-    /// Apply to every split view in the main window, the NavigationSplitView
-    /// included. See `SplitStructureDirection`.
     func splitStructureDirection() -> some View {
         modifier(HeldSplitStructure())
     }
 
-    /// The minimum width of an `HSplitView` in the main window's detail column:
-    /// its visible panes' minimums plus their 1 pt dividers. From macOS 26 the
-    /// detail column runs under the sidebar, an AppKit split adds the sidebar's
-    /// width to its own minimum, and NavigationSplitView then adds the sidebar
-    /// again, so Meetings could not shrink below about 1,100 pt. Stating the
-    /// panes' real minimum keeps the window resizable down to sidebar + panes.
     func detailSplitMinimumWidth(_ paneMinimums: [CGFloat]) -> some View {
         splitStructureDirection()
             .frame(minWidth: paneMinimums.reduce(0, +) + CGFloat(max(paneMinimums.count - 1, 0)))

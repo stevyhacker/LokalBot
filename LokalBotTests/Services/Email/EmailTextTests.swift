@@ -2,8 +2,6 @@ import XCTest
 @testable import LokalBot
 
 final class EmailTextTests: XCTestCase {
-    // MARK: Addresses
-
     func testAddressListsKeepQuotedCommasAndFlattenGroups() {
         let parsed = EmailText.addresses(
             #""Petrović, Ana" <Ana.Petrovic@Example.com>, bob@example.com, Team: carol@x.org, dan@y.org;, not-an-address"#)
@@ -22,11 +20,8 @@ final class EmailTextTests: XCTestCase {
         XCTAssertNil(EmailText.address("<@example.com>"))
     }
 
-    // MARK: Encoded words
-
     func testEncodedWordsInBothEncodingsAndCharsets() {
         XCTAssertEqual(EmailText.decodeEncodedWords("=?utf-8?Q?Sastanak_u_=C4=8Detvrtak?="), "Sastanak u četvrtak")
-        // Adjacent encoded words join without the space between them.
         XCTAssertEqual(EmailText.decodeEncodedWords("=?UTF-8?Q?Pla?= =?UTF-8?Q?n?= for Q4"), "Plan for Q4")
         XCTAssertEqual(EmailText.decodeEncodedWords("=?windows-1250?Q?=E8ovek?="), "čovek")
         XCTAssertEqual(EmailText.decodeEncodedWords("=?ISO-8859-2?B?xOjl?="), "Äčĺ")
@@ -38,12 +33,9 @@ final class EmailTextTests: XCTestCase {
         XCTAssertEqual(EmailText.decode(windows1250, charset: "windows-1250"), "Šta ćemo?")
         XCTAssertEqual(EmailText.charset(fromContentType: #"text/plain; format=flowed; charset="ISO-8859-2""#),
                        "ISO-8859-2")
-        // An unknown charset falls back to UTF-8, then Latin-1, never to nothing.
         XCTAssertEqual(EmailText.decode(Data("ok".utf8), charset: "x-unknown"), "ok")
         XCTAssertEqual(EmailText.decode(Data([0xE9]), charset: nil), "é")
     }
-
-    // MARK: New text in a message
 
     func testReplyHistoryAndSignaturesAreLeftOut() {
         XCTAssertEqual(EmailText.conversationText("""
@@ -56,7 +48,6 @@ final class EmailTextTests: XCTestCase {
             On Mon, Oct 26, 2026 at 10:00 AM Stevan <me@example.com> wrote:
             > Can we move it to Friday?
             """), "Friday works. I'll bring the numbers.")
-        // Gmail wraps a long header onto a second line.
         XCTAssertEqual(EmailText.conversationText("""
             Sounds good.
             On Mon, Oct 26, 2026 at 10:00 AM Stevan Bogosavljevic <me@example.com>
@@ -78,8 +69,6 @@ final class EmailTextTests: XCTestCase {
         XCTAssertEqual(EmailText.conversationText("FYI\n\n---------- Forwarded message ---------\nFrom: Bank"),
                        "FYI")
     }
-
-    // MARK: HTML
 
     func testHTMLBecomesReadableTextWithoutScriptsOrStyles() {
         let html = """

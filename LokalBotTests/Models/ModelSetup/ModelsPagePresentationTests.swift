@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Settings › Models: what each role row says, the model set, and which
-/// downloads are checked without being asked.
 @MainActor
 final class ModelsPagePresentationTests: XCTestCase {
     private func text(_ text: SettingsText) -> String { text.string { $0 } }
@@ -14,8 +12,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         change(&settings)
         return ModelsPagePresentation(settings: settings, statuses: statuses, checks: checks)
     }
-
-    // MARK: Role rows
 
     func testEachRoleSaysItsJobItsModelWhereItRunsAndItsSize() throws {
         let page = presentation()
@@ -30,7 +26,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertFalse(think.sizeIsEstimate)
         XCTAssertEqual(text(think.placeText), "On this Mac · \(SettingsStatus.size(try XCTUnwrap(entry.sizeBytes)))")
 
-        // A speech model has no exact size, so its row says "about".
         let transcribe = try XCTUnwrap(page.row(.transcribe))
         let estimate = try XCTUnwrap(ModelSettingsPresentation.estimatedTranscriptionBytes(
             AppSettings().transcriptionModel, granite: AppSettings().graniteSpeechModel))
@@ -57,7 +52,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(unavailable.row(.transcribe)?.chip, .notSetUp)
     }
 
-    /// The sizes are the ones the download is announced with.
     func testRowSizesMatchTheDownloadPlan() {
         let settings = AppSettings()
         let plan = OnboardingDownloadPlan(settings: settings, statuses: [:], includeAutocomplete: true,
@@ -84,7 +78,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(think.name, "atlas-chat")
     }
 
-    /// A server at this Mac's own address sends nothing anywhere.
     func testAServerOnThisMacIsNotOnline() {
         let page = presentation {
             $0.summarizerBackend = .ollama
@@ -108,8 +101,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(page.row(.think).map { text($0.placeText) }, "Online")
     }
 
-    // MARK: Chips
-
     func testTheChipFollowsTheRoleStatus() {
         let page = presentation(statuses: [
             .transcribe: .ready,
@@ -131,8 +122,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(preparing.row(.transcribe).map { text($0.chip.text) }, "Downloading…")
     }
 
-    /// Nothing waits for Autocomplete's model while Autocomplete is off, so
-    /// its missing download is not drawn as a warning.
     func testAMissingModelWarnsOnlyWhenItIsNeeded() {
         let off = presentation { $0.cotypingEnabled = false }
         XCTAssertEqual(off.row(.autocomplete)?.chip, .notDownloaded)
@@ -151,12 +140,9 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(page.row(.transcribe)?.chip, .checking)
         XCTAssertEqual(page.row(.think)?.chip, .checkFailed)
         XCTAssertEqual(page.row(.think)?.problem, "No answer")
-        // A check result for a model that is no longer here says nothing.
         XCTAssertEqual(page.row(.autocomplete)?.chip, .notDownloaded)
         XCTAssertNil(page.row(.autocomplete)?.problem)
     }
-
-    // MARK: Model set
 
     func testTheModelSetIsThePresetTheChoicesMatch() throws {
         let balanced = presentation { $0 = ModelStackPreset.recommended.patch.applying(to: $0) }
@@ -178,7 +164,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertTrue(text(custom.modelSetHelp).hasPrefix("You picked your own models."))
     }
 
-    /// A set's size is the sum of the three sizes its rows would show.
     func testAModelSetWeighsWhatItsThreeModelsWeigh() throws {
         for preset in ModelStackPreset.allCases {
             let settings = preset.patch.applying(to: AppSettings())
@@ -189,11 +174,8 @@ final class ModelsPagePresentationTests: XCTestCase {
     }
 
     func testThePagesMoreRowsOpenKeepTheirSavedNames() {
-        // The page is restored from scene storage by raw value.
         XCTAssertEqual(ModelsSettingsPage.allCases.map(\.rawValue), ["active", "downloaded", "connections", "other"])
     }
-
-    // MARK: Checks without being asked
 
     func testADownloadThatFinishesInThisLaunchIsCheckedOnce() {
         var tracker = ModelAutoCheckTracker()
@@ -201,7 +183,6 @@ final class ModelsPagePresentationTests: XCTestCase {
 
         XCTAssertEqual(tracker.observe([.think: .unavailable], settings: settings), [])
         XCTAssertEqual(tracker.observe([.think: .downloading(progress: 0.1)], settings: settings), [])
-        // Between the last byte and the file being found, the role reads as missing.
         XCTAssertEqual(tracker.observe([.think: .unavailable], settings: settings), [])
         XCTAssertEqual(tracker.observe([.think: .ready], settings: settings), [.think])
         XCTAssertEqual(tracker.observe([.think: .ready], settings: settings), [], "checked once")
@@ -215,8 +196,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(tracker.observe(ready, settings: AppSettings()), [])
     }
 
-    /// A check of an online model sends it a sample, which only the sheet
-    /// that says so may do.
     func testAModelThatRunsOnlineIsNeverCheckedByItself() {
         var remote = AppSettings()
         remote.summarizerBackend = .openAICompatible
@@ -251,13 +230,10 @@ final class ModelsPagePresentationTests: XCTestCase {
         var settings = AppSettings()
         XCTAssertEqual(tracker.observe([.think: .downloading(progress: 0.5)], settings: settings), [])
 
-        // Another model, already here, becomes the Think model.
         settings.builtInModelID = ModelCatalog.compactFallbackID
         XCTAssertEqual(tracker.observe([.think: .ready], settings: settings), [])
         XCTAssertTrue(tracker.awaiting.isEmpty)
     }
-
-    // MARK: Dictation's writer
 
     func testWhoWritesDictatedTextFollowsTheModeAndWhereTheModelRuns() {
         var settings = AppSettings()
@@ -282,7 +258,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(text(writer.text),
                        "The Think model, online at ai.example.test. What you dictate is sent there.")
 
-        // A model chosen for Compose alone always runs on this Mac.
         settings.dictationCompositionBuiltInModelID = ModelCatalog.compactFallbackID
         writer = DictationWriterPresentation(settings: settings)
         XCTAssertFalse(writer.online)
@@ -293,8 +268,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         settings.approvedRemoteInferenceOrigins = []
         XCTAssertEqual(text(DictationWriterPresentation(settings: settings).text), "The Think model isn’t set up yet.")
     }
-
-    // MARK: Pages that rows open
 
     func testSearchLandsOnTheRowsPageThatHoldsASetting() {
         XCTAssertEqual(SettingsSubpage.containing(settingID: "settings.cotypingUserName", on: .writing),
@@ -307,7 +280,6 @@ final class ModelsPagePresentationTests: XCTestCase {
                        .autocompleteAdvanced)
         XCTAssertEqual(SettingsSubpage.containing(settingID: "settings.dictationWritingProfile", on: .dictation),
                        .dictationProfile)
-        // Settings on the page itself open no other page.
         XCTAssertNil(SettingsSubpage.containing(settingID: "settings.cotypingDebounceMs", on: .writing))
         XCTAssertNil(SettingsSubpage.containing(settingID: "settings.cotypingUserName", on: .dictation))
         for subpage in SettingsSubpage.allCases {
@@ -334,10 +306,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(ExclusionRuleCount.count(AppSettings().cotypingExcludedApps), 6)
     }
 
-    // MARK: Settings search
-
-    /// The rows have plainer names; their settings are still found by the
-    /// old ones, and by the same identifiers.
     func testRenamedSettingsAreFoundByTheirOldAndNewNames() {
         let expected = [
             "pause before suggesting": "settings.cotypingDebounceMs",
@@ -366,15 +334,12 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(Set(SettingDescriptor.all.map(\.id)).count, SettingDescriptor.all.count, "duplicate setting")
     }
 
-    /// A result reads like its row on the page, while the setting's own
-    /// name stays the one the CLI lists.
     func testSearchShowsTheRowsWordsAndKeepsTheSettingsName() throws {
         let wait = try XCTUnwrap(SettingDescriptor.all.first { $0.id == "settings.cotypingDebounceMs" })
         XCTAssertEqual(wait.displayTitle, "Wait after you stop typing")
         XCTAssertEqual(wait.title, SettingRegistry.spec(for: "cotypingDebounceMs")?.title)
         let macros = try XCTUnwrap(SettingDescriptor.all.first { $0.id == "settings.cotypingMacros" })
         XCTAssertEqual(macros.displayTitle, macros.title)
-        // An exact match on the row's words ranks first.
         XCTAssertEqual(SettingDescriptor.search("clipboard", language: .english).first?.id,
                        "settings.cotypingUseClipboard")
     }
@@ -389,16 +354,12 @@ final class ModelsPagePresentationTests: XCTestCase {
         XCTAssertEqual(mode.currentValue(in: settings), "Compose")
     }
 
-    // MARK: Catalog
-
-    /// Every sentence these types put together has an entry in the catalog.
     func testPresentationTextIsInTheCatalog() throws {
         let url = try XCTUnwrap(Bundle(for: AppState.self).url(
             forResource: "Localizable", withExtension: "strings", subdirectory: nil, localization: "en"))
         let catalog = try XCTUnwrap(NSDictionary(contentsOf: url) as? [String: String])
         var keys = Set<String>()
         func collect(_ text: SettingsText) {
-            // "%@ · %@" only joins a place and a size or host.
             if text.key != "%@ · %@" { keys.insert(text.key) }
             for case .key(let key) in text.arguments { keys.insert(key) }
         }
@@ -432,7 +393,6 @@ final class ModelsPagePresentationTests: XCTestCase {
         writers[5] = writers[4]
         writers[5].dictationCompositionBuiltInModelID = ModelCatalog.compactFallbackID
         writers.forEach { collect(DictationWriterPresentation(settings: $0).text) }
-        // An approved transcription server, for the "online at" sentence.
         collect(SettingsText("The Transcribe model, online at %@. What you say is sent there."))
         keys.formUnion(ModelStackPreset.allCases.flatMap { [$0.title, $0.subtitle] })
         keys.formUnion(ModelsSettingsPage.allCases.map(\.title))

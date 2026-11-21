@@ -1,10 +1,3 @@
-//! The day's work and decisions as panels on Timeline's page
-//! (`DayDigestView` in its timeline mode). A digest that gives its tasks a
-//! status groups them: Blocked and In progress in full where a task has a
-//! next step, the rest of the open work as one-line rows, and finished work
-//! folded into a single Done line across the panel. An older digest lists
-//! its entries.
-
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
@@ -23,30 +16,22 @@ use crate::ui::section_panel::SectionPanel;
 use crate::ui::{self, Ico};
 use lokalbot_i18n::mac;
 
-/// Toggles a task's details by index, or one of the keys below.
 pub(super) type TaskToggle = Rc<dyn Fn(usize, &mut Window, &mut App)>;
-/// Opens the session (`WorkSession::id`) a task's time range covers.
 pub(super) type OpenSession = Rc<dyn Fn(String, &mut Window, &mut App)>;
 
-/// Toggle keys past the task indices: follow-up rows, a group's "Show N
-/// more" (plus the group's status), and the Done line.
 const FOLLOW_UP_KEY: usize = 10_000;
 const SHOW_ALL_KEY: usize = 20_000;
 const DONE_KEY: usize = 30_000;
-/// The status column of a task row plus its gap; details align to it.
 const TASK_TEXT_INSET: f32 = 26.;
 
-/// What the panels need besides the digest.
 pub(super) struct WorkSummary<'a> {
     pub digest: &'a DayDigest,
     pub expanded: &'a HashSet<usize>,
     pub on_toggle: TaskToggle,
-    /// A task's "09:00–10:30" and the session it covers most.
     pub sessions: &'a HashMap<String, String>,
     pub open_session: OpenSession,
 }
 
-/// Anything the page shows under the highlights and the day's actions.
 pub(super) fn has_body_below_highlights(digest: &DayDigest) -> bool {
     !digest.blockers.is_empty()
         || !digest.decisions.is_empty()
@@ -55,7 +40,6 @@ pub(super) fn has_body_below_highlights(digest: &DayDigest) -> bool {
         || !digest.follow_up_tasks.is_empty()
 }
 
-/// The day's work as one panel; `None` when the digest has none.
 pub(super) fn work_summary_panel(summary: &WorkSummary, cx: &App) -> Option<AnyElement> {
     let digest = summary.digest;
     let has_follow_ups = !digest.follow_up_tasks.is_empty() || !digest.follow_ups.is_empty();
@@ -129,7 +113,6 @@ pub(super) fn work_summary_panel(summary: &WorkSummary, cx: &App) -> Option<AnyE
     Some(panel.into_any_element())
 }
 
-/// The day's decisions, one per row under a check.
 pub(super) fn decisions_panel(decisions: &[String], cx: &App) -> Option<AnyElement> {
     if decisions.is_empty() {
         return None;
@@ -167,7 +150,6 @@ pub(super) fn decisions_panel(decisions: &[String], cx: &App) -> Option<AnyEleme
     )
 }
 
-/// "Blocked 2": a small bold label over a group of tasks.
 fn group_label(status: TaskStatus, count: usize, cx: &App) -> Div {
     let lb = cx.lb();
     let title = match status {
@@ -190,7 +172,6 @@ fn group_label(status: TaskStatus, count: usize, cx: &App) -> Div {
         .child(lokalbot_i18n::number(count))
 }
 
-/// Blockers lead the work: they are what stops the day's open tasks.
 fn blockers_callout(digest: &DayDigest, cx: &App) -> AnyElement {
     let lb = cx.lb();
     let title = if digest.blockers.len() == 1 {
@@ -234,7 +215,6 @@ fn bullet_list(items: &[String], cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// Full task rows with tags, by index into `digest.tasks`.
 fn full_rows(summary: &WorkSummary, indices: &[usize], cx: &App) -> AnyElement {
     let lb = cx.lb();
     let count = indices.len();
@@ -253,7 +233,6 @@ fn full_rows(summary: &WorkSummary, indices: &[usize], cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// Follow-ups as task rows, or as bullets when they have no rows.
 fn follow_up_rows(summary: &WorkSummary, cx: &App) -> AnyElement {
     let digest = summary.digest;
     if digest.follow_up_tasks.is_empty() {
@@ -286,8 +265,6 @@ fn follow_up_rows(summary: &WorkSummary, cx: &App) -> AnyElement {
         .into_any_element()
 }
 
-/// One-line rows for open tasks without a next step. A long list shows its
-/// first rows until asked for the rest.
 fn brief_list(
     summary: &WorkSummary,
     indices: &[usize],
@@ -306,7 +283,6 @@ fn brief_list(
     let toggle = summary.on_toggle.clone();
     v_flex()
         .when(follows_full_rows, |this| {
-            // Below full rows, a heading says what these rows are.
             this.child(
                 div()
                     .pt(px(12.))
@@ -350,8 +326,6 @@ fn brief_list(
         .into_any_element()
 }
 
-/// Finished tasks fold into one line across the panel that names them;
-/// opening it lists each.
 fn done_section(
     summary: &WorkSummary,
     indices: &[usize],
@@ -384,8 +358,6 @@ fn done_section(
                 .items_center()
                 .pl(metric::PANEL_INSET)
                 .pr(metric::PANEL_INSET - px(2.))
-                // The footer strip's fill: the supporting colour stays above
-                // 4.5:1 on it.
                 .bg(lb.group_fill)
                 .when(closes_panel && !open, |this| {
                     this.rounded_b(metric::GROUP_RADIUS - px(1.))
@@ -441,7 +413,6 @@ fn done_section(
         .into_any_element()
 }
 
-/// A project or pull request split off a task title.
 fn task_tag(tag: &str, cx: &App) -> Div {
     let lb = cx.lb();
     div()
@@ -456,7 +427,6 @@ fn task_tag(tag: &str, cx: &App) -> Div {
         .child(tag.to_string())
 }
 
-/// One line for a task without a next step; what was done opens in place.
 fn brief_row(
     summary: &WorkSummary,
     task: &DigestTask,
@@ -547,7 +517,6 @@ fn brief_row(
         .into_any_element()
 }
 
-/// The screens a task cites, each opening on Timeline (`DayDigestSourceLinks`).
 fn source_links(task: &DigestTask, ix: usize, cx: &App) -> Vec<AnyElement> {
     let lb = cx.lb();
     let data = crate::state::AppData::global(cx);
@@ -584,8 +553,6 @@ fn source_links(task: &DigestTask, ix: usize, cx: &App) -> Vec<AnyElement> {
         .collect()
 }
 
-/// Status mark, title with its time range and tag, the "Next" step and the
-/// details. An older digest's "09:00–10:30" opens the session it covers.
 fn task_row(summary: &WorkSummary, task: &DigestTask, ix: usize, cx: &App) -> AnyElement {
     let lb = cx.lb();
     let expanded = summary.expanded.contains(&ix);

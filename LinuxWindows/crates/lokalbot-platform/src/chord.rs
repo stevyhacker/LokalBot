@@ -1,10 +1,3 @@
-//! Dictation shortcuts made only of modifier keys, like Ctrl+Alt
-//! (`DictationInputMonitor`'s chords). They are watched, never taken: reading the
-//! keyboard's state consumes nothing, so other shortcuts that start with the same
-//! modifiers keep working. X11 and Windows can both report that state. A Wayland
-//! desktop tells an app about keys only through a shortcut with a real key, so
-//! chords aren't offered there.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
@@ -14,33 +7,24 @@ use lokalbot_core::settings::DictationTriggerMode;
 
 use crate::shortcuts::{Handler, Shortcut, ShortcutError, ShortcutEvent};
 
-/// How often the keyboard's state is read. A chord can't be missed at this rate:
-/// nobody holds two modifiers for under 30 ms on purpose.
 const POLL: Duration = Duration::from_millis(30);
-/// How long a chord is held before push to talk starts, so Ctrl+Alt followed
-/// quickly by another key never opens the microphone (`chordHoldDelay`).
 const HOLD_DELAY: Duration = Duration::from_millis(200);
-/// Tap or hold: a press shorter than this keeps recording after release.
 const TAP_THRESHOLD: Duration = Duration::from_millis(300);
 
-/// What a chord asks dictation to do.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ChordAction {
     Start,
     Stop,
     Toggle,
-    /// It turned out to be part of another shortcut (Ctrl+Alt then T).
     Cancel,
 }
 
-/// The keyboard at one moment.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct Held {
     pub ctrl: bool,
     pub alt: bool,
     pub shift: bool,
     pub logo: bool,
-    /// Any key that isn't a modifier.
     pub other_key: bool,
 }
 
@@ -60,16 +44,13 @@ impl Held {
     }
 }
 
-/// The chord state machine (`handleModifiers`, `interruptChord`, `releaseChord`).
 pub(crate) struct ChordTracker {
     chord: Held,
     mode: DictationTriggerMode,
-    /// The chord is down.
     held: bool,
     interrupted: bool,
     started: bool,
     pressed_at: Option<Instant>,
-    /// Tap or hold: pressed while dictating, so a clean release finishes.
     finishes_on_release: bool,
     start_at: Option<Instant>,
 }
@@ -94,8 +75,6 @@ impl ChordTracker {
         }
     }
 
-    /// One reading of the keyboard. `active` says whether a dictation is
-    /// starting or recording.
     pub fn update(&mut self, now_held: Held, active: bool, now: Instant) -> Option<ChordAction> {
         if !self.held {
             if now_held.same_modifiers(&self.chord) && !now_held.other_key {
@@ -106,8 +85,6 @@ impl ChordTracker {
         if !now_held.is_superset_of(&self.chord) {
             return self.release(now);
         }
-        // Another key or another modifier: a different shortcut, unless this
-        // hold already started a dictation and it's just a modifier joining.
         let extra_modifier = !now_held.same_modifiers(&self.chord);
         if now_held.other_key || (extra_modifier && !self.started) {
             return self.interrupt();
@@ -173,10 +150,8 @@ impl ChordTracker {
                 if finishes {
                     clean.then_some(ChordAction::Stop)
                 } else if started {
-                    // A hold finishes on release; a tap keeps recording.
                     (held_for >= TAP_THRESHOLD).then_some(ChordAction::Stop)
                 } else {
-                    // Released before the hold delay: a tap, so start now.
                     clean.then_some(ChordAction::Start)
                 }
             }
@@ -184,24 +159,20 @@ impl ChordTracker {
     }
 }
 
-/// Reads the keyboard. `None` when it can't any more, which ends the watcher.
 pub(crate) trait KeyState: Send {
     fn read(&mut self) -> Option<Held>;
 }
 
-/// Whether this desktop can watch modifier keys alone.
 #[cfg(target_os = "linux")]
 pub fn chords_available() -> bool {
     !crate::session::is_wayland() && crate::session::has_x11_display()
 }
 
-/// Whether this desktop can watch modifier keys alone.
 #[cfg(not(target_os = "linux"))]
 pub fn chords_available() -> bool {
     cfg!(windows)
 }
 
-/// Watches the keyboard for one chord until dropped.
 pub(crate) struct Watcher {
     stop: Arc<AtomicBool>,
     thread: Option<JoinHandle<()>>,
@@ -292,17 +263,14 @@ mod x11_keys {
 
     use super::{Held, KeyState};
 
-    /// A keyboard layout can move modifiers around while LokalBot runs.
     const MAPPING_LIFETIME: Duration = Duration::from_secs(5);
 
-    /// Which keycodes count as what, from the server's modifier mapping.
     #[derive(Default)]
     struct Mapping {
         ctrl: Vec<u8>,
         alt: Vec<u8>,
         shift: Vec<u8>,
         logo: Vec<u8>,
-        /// Caps Lock, Num Lock and the rest, which don't interrupt a chord.
         ignored: Vec<u8>,
     }
 
@@ -410,7 +378,6 @@ mod x11_keys {
             assert!(held.ctrl && held.alt && !held.shift && !held.logo && !held.other_key);
             let held = held_from_keymap(&keymap(&[105, 64, 28]), &mapping());
             assert!(held.ctrl && held.alt && held.other_key);
-            // Caps Lock and Num Lock aren't another shortcut.
             let held = held_from_keymap(&keymap(&[37, 64, 66, 77]), &mapping());
             assert!(!held.other_key);
         }
@@ -429,15 +396,12 @@ mod win_keys {
     pub(super) struct WinKeys;
 
     fn down(key: u16) -> bool {
-        // SAFETY: takes only a virtual-key code.
         (unsafe { GetAsyncKeyState(i32::from(key)) } as u16) & 0x8000 != 0
     }
 
     impl KeyState for WinKeys {
         fn read(&mut self) -> Option<Held> {
             let ctrl = down(VK_LCONTROL.0) || down(VK_RCONTROL.0);
-            // AltGr reports as Left Ctrl + Right Alt on many layouts: pressing
-            // it alone must not read as Ctrl+Alt.
             let alt = down(VK_LMENU.0) || (down(VK_RMENU.0) && !down(VK_LCONTROL.0));
             let modifiers = [
                 VK_SHIFT.0,
@@ -452,8 +416,6 @@ mod win_keys {
                 VK_LWIN.0,
                 VK_RWIN.0,
             ];
-            // 0x08 is Backspace: below it are the mouse buttons. The lock keys
-            // at 0x14, 0x90 and 0x91 aren't another shortcut.
             let other_key = (0x08..=0xFEu16)
                 .filter(|key| !modifiers.contains(key) && ![0x14, 0x90, 0x91].contains(key))
                 .any(down);
@@ -501,7 +463,6 @@ mod tests {
         ..CHORD
     };
 
-    /// Feeds readings at `at` milliseconds and collects what they asked for.
     fn play(
         tracker: &mut ChordTracker,
         active: bool,
@@ -593,7 +554,6 @@ mod tests {
             play(&mut chord, false, &[(0, CHORD), (500, ONE), (510, NOTHING)]),
             vec![(500, ChordAction::Toggle)]
         );
-        // Ctrl+Alt+T used as its own shortcut.
         let mut chord = tracker(DictationTriggerMode::Toggle);
         assert_eq!(
             play(
@@ -607,13 +567,11 @@ mod tests {
 
     #[test]
     fn tap_or_hold_follows_how_long_it_was_held() {
-        // A tap before the delay starts and keeps recording.
         let mut chord = tracker(DictationTriggerMode::TapOrHold);
         assert_eq!(
             play(&mut chord, false, &[(0, CHORD), (100, NOTHING)]),
             vec![(100, ChordAction::Start)]
         );
-        // A tap just past the delay has started, and doesn't stop on release.
         let mut chord = tracker(DictationTriggerMode::TapOrHold);
         assert_eq!(
             play(
@@ -623,7 +581,6 @@ mod tests {
             ),
             vec![(210, ChordAction::Start)]
         );
-        // A hold stops on release.
         let mut chord = tracker(DictationTriggerMode::TapOrHold);
         assert_eq!(
             play(
@@ -633,7 +590,6 @@ mod tests {
             ),
             vec![(210, ChordAction::Start), (700, ChordAction::Stop)]
         );
-        // Pressed while dictating: a clean release finishes.
         let mut chord = tracker(DictationTriggerMode::TapOrHold);
         assert_eq!(
             play(&mut chord, true, &[(0, CHORD), (900, NOTHING)]),

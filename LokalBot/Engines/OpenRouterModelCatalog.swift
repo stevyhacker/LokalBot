@@ -1,16 +1,10 @@
 import Foundation
 
-/// The context window OpenRouter publishes for the selected model. It is read
-/// only from an OpenRouter origin the user approved for inference, and the
-/// request carries the model id in its path and nothing else: no API key and
-/// no meeting content. The last answer is kept so a failed lookup cannot
-/// change a meeting's part plan and discard its partial notes.
 actor OpenRouterModelCatalog {
     typealias Fetch = @Sendable (URLRequest) async throws -> (Data, URLResponse)
 
     static let shared = OpenRouterModelCatalog()
     static let defaultsKey = "lokalbotv3.openRouterContextTokens"
-    /// Endpoint lists change; a running app looks again once a day.
     static let refreshInterval: TimeInterval = 86_400
 
     private static let session = InferenceURLSession.make(requestTimeout: 5, resourceTimeout: 10)
@@ -23,8 +17,6 @@ actor OpenRouterModelCatalog {
     private var reasoningFetchedAt: Date?
     private var reasoningAttemptedAt: Date?
     private var reasoningLookup: Task<Void, Never>?
-    /// A failed list read waits this long, so an offline Mac does not add a
-    /// timeout to every Think request.
     static let reasoningRetryInterval: TimeInterval = 600
 
     init(fetch: Fetch? = nil, defaults: UserDefaults? = nil, now: @escaping @Sendable () -> Date = { Date() }) {
@@ -33,8 +25,6 @@ actor OpenRouterModelCatalog {
         self.now = now
     }
 
-    /// Nil when the server is not an approved OpenRouter origin, or OpenRouter
-    /// has never published a usable window for this model.
     func contextTokens(model: String, baseURL: URL, approvedOrigins: [String]) async -> Int? {
         guard ChatCompletionDialect.inferred(from: baseURL) == .openRouter,
               (try? InferenceEndpointPolicy.validate(baseURL, approvedOrigins: approvedOrigins)) != nil,
@@ -57,15 +47,6 @@ actor OpenRouterModelCatalog {
         return fetched[key]?.tokens ?? stored()[key]
     }
 
-    /// The selected model's reasoning levels from OpenRouter's model list
-    /// (`GET <base>/models`, read at most daily). Same rules as the context
-    /// window: an approved OpenRouter origin, no key, no content. Nil when
-    /// the origin does not qualify or the model is not listed.
-    ///
-    /// Callers that arrive during a read wait for it, and the read runs apart
-    /// from its caller, so a Settings view that disappears cannot cancel it
-    /// into a failed attempt. Either miss would leave the menu on the generic
-    /// levels for ten minutes, without the model's own Max.
     func reasoningSupport(model: String, baseURL: URL, approvedOrigins: [String]) async -> ReasoningSupport? {
         guard ChatCompletionDialect.inferred(from: baseURL) == .openRouter,
               (try? InferenceEndpointPolicy.validate(baseURL, approvedOrigins: approvedOrigins)) != nil
@@ -105,9 +86,6 @@ actor OpenRouterModelCatalog {
         return result
     }
 
-    /// A model's `reasoning` object: `supported_efforts`, whether reasoning is
-    /// `mandatory` (no Off), and its defaults. No object: the model does not
-    /// reason. Without listed efforts, reasoning can only be switched off.
     static func reasoningSupport(_ reasoning: [String: Any]?) -> ReasoningSupport {
         guard let reasoning else { return .unavailable }
         let mandatory = reasoning["mandatory"] as? Bool ?? false
@@ -119,8 +97,6 @@ actor OpenRouterModelCatalog {
         return ReasoningSupport(levels: Array(levels), defaultLevel: defaultLevel)
     }
 
-    /// `<base>/models/<author>/<slug>/endpoints`. Ids that are not a plain
-    /// author/slug pair are never sent.
     static func endpointsURL(baseURL: URL, model: String) -> URL? {
         let allowed = CharacterSet(charactersIn: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.:")
         let parts = model.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
@@ -131,9 +107,6 @@ actor OpenRouterModelCatalog {
             .appendingPathComponent("endpoints")
     }
 
-    /// The smallest window any endpoint may route to, including endpoints
-    /// that cap the prompt below their context. One endpoint without a window
-    /// makes the answer unknown rather than optimistic.
     static func smallestWindow(inEndpoints data: Data) -> Int? {
         guard let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
               let model = object["data"] as? [String: Any],

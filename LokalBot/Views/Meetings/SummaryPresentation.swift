@@ -1,10 +1,5 @@
 import SwiftUI
 
-/// The pipeline writes a bold inline provenance line under the summary title
-/// ("**Duration:** 32m · **App:** Zoom · … · **Model:** …"). Rendered as body
-/// markdown it reads like debug output. These helpers lift that line out so
-/// views can show it as a quiet metadata row while the raw `summary.md`
-/// (exports, CLI, MCP) keeps the full header.
 enum SummaryPresentation {
     struct MetadataItem: Equatable {
         let label: String
@@ -16,10 +11,6 @@ enum SummaryPresentation {
         var body: String
     }
 
-    /// Extracts the provenance line: the first non-empty, non-heading line
-    /// among the leading lines, consisting of at least two `**Label:** value`
-    /// pairs joined by "·". Requiring two pairs keeps a body that opens with
-    /// ordinary bold text ("**Next steps:** …") intact.
     static func split(_ markdown: String) -> Parts {
         var lines = markdown.components(separatedBy: "\n")
         for (index, line) in lines.enumerated().prefix(4) {
@@ -41,8 +32,6 @@ enum SummaryPresentation {
     static func meetingBody(_ markdown: String, meeting: Meeting) -> String {
         guard meeting.isMergedMeeting else { return markdown }
         return markdown.components(separatedBy: "\n").enumerated().compactMap { index, line in
-            // Older merge drafts start with implementation details instead of
-            // meeting content. They remain available in the saved Markdown.
             if line.hasPrefix("This is a non-destructive merge. Source evidence remains on disk for provenance,") {
                 return nil
             }
@@ -54,8 +43,6 @@ enum SummaryPresentation {
         }.joined(separator: "\n")
     }
 
-    /// Extract a reading preview without changing the stored/exported Markdown.
-    /// Headings may share a paragraph with their content in older summaries.
     static func recap(_ markdown: String) -> String? {
         let body = split(markdown).body
         let lines = body.components(separatedBy: "\n")
@@ -74,8 +61,6 @@ enum SummaryPresentation {
         }.first
     }
 
-    /// The recap is reading copy. Speaker attribution and playback citations
-    /// remain in Full Summary and the transcript, not in this compact preview.
     private static func recapText(_ section: String) -> String? {
         let text = section.components(separatedBy: "\n").map { line in
             line
@@ -105,10 +90,8 @@ enum SummaryPresentation {
     }
 }
 
-/// Collapse whole points rather than truncating the middle of the recap.
 struct MeetingRecapView: View {
     let text: String
-    /// The recap leads the page, one step above body text.
     var font: AppFont = .scaledSystem(size: 15)
     @State private var isExpanded = false
 
@@ -141,7 +124,6 @@ struct MeetingRecapView: View {
     }
 }
 
-/// One quiet, wrapping metadata line for a generated summary's provenance.
 struct SummaryMetadataRow: View {
     let items: [SummaryPresentation.MetadataItem]
     var searchQuery = ""

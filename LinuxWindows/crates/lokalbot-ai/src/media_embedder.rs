@@ -1,12 +1,3 @@
-//! EmbeddingGemma 2 with its image and audio projector, on the media
-//! llama-server (`FileMediaEmbedder`). One caller at a time, one thread, and it
-//! waits: Files' indexer and the picture vectors of saved screens both use it.
-//!
-//! Inputs travel the way the Mac's parity run qualified them: texts as given
-//! (cut to one batch when longer), images as PNG sized for their budget, audio
-//! as WAV, each medium as a typed content part. Searches never use this server;
-//! they embed their words on the small text-only embedder.
-
 use std::time::Duration;
 
 use base64::Engine as _;
@@ -16,38 +7,25 @@ use crate::http;
 use crate::runtime::{Lease, RuntimeManager};
 use crate::think::vectors_from_response;
 
-/// Which vectors this pipeline makes: the model files, the llama.cpp build, the
-/// image sizing and the request shapes. Bump it when any of them changes the
-/// vectors; every file index then embeds again.
 pub const VECTOR_VERSION: u32 = 1;
-/// What the index calls its vectors (`WorkerInfo.vectorSource`).
 pub fn vector_source() -> String {
     format!(
         "google/embeddinggemma-2@bfcd298 lokalbot-llama-server-vectors{VECTOR_VERSION} text-q8_0+mmproj-q8_0"
     )
 }
 
-/// What pictures of saved screens are called: model, projector, sizing and request
-/// shapes. Any change embeds every retained capture again.
 pub fn picture_model_id() -> String {
     format!("embeddinggemma-2-q8-mmproj-q8-image280-v{VECTOR_VERSION}")
 }
 
-/// Texts per request. One request is one llama-server batch; this keeps a long
-/// document from becoming a single multi-minute request.
 const TEXTS_PER_REQUEST: usize = 16;
-/// The most tokens one input may have, `<bos>` and `<eos>` included.
 const MAX_INPUT_TOKENS: usize = 2_048;
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 const MODEL_NAME: &str = "embeddinggemma-2-q8";
 
-/// Why there's no vector.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MediaError {
-    /// The server answered, but not with vectors for this input (a broken
-    /// picture, one too large for its batch): the file fails alone.
     Rejected(String),
-    /// The server can't answer: files stay pending for the next pass.
     Unavailable(String),
 }
 
@@ -61,7 +39,6 @@ impl std::fmt::Display for MediaError {
 
 impl std::error::Error for MediaError {}
 
-/// The server for one pass. Dropping it lets the model go after its idle time.
 pub struct MediaEmbedder {
     base: String,
     token: Option<String>,
@@ -78,7 +55,6 @@ impl MediaEmbedder {
         })
     }
 
-    /// A server reached directly (tests).
     pub fn for_server(base: &str, token: Option<String>) -> Self {
         Self {
             base: base.trim_end_matches('/').to_string(),
@@ -87,7 +63,6 @@ impl MediaEmbedder {
         }
     }
 
-    /// One vector per text, in order.
     pub fn embed_texts(&self, texts: &[String]) -> Result<Vec<Vec<f32>>, MediaError> {
         let mut vectors = Vec::with_capacity(texts.len());
         for slice in texts.chunks(TEXTS_PER_REQUEST) {
@@ -108,12 +83,10 @@ impl MediaEmbedder {
         Ok(vectors)
     }
 
-    /// One picture already sized and encoded as a PNG.
     pub fn embed_image(&self, png: &[u8]) -> Result<Vec<f32>, MediaError> {
         self.embed_one(image_part(png))
     }
 
-    /// One piece of sound as a WAV.
     pub fn embed_audio(&self, wav: &[u8]) -> Result<Vec<f32>, MediaError> {
         self.embed_one(audio_part(wav))
     }
@@ -125,10 +98,6 @@ impl MediaEmbedder {
             .ok_or_else(|| MediaError::Unavailable("the media embedder returned no vector".into()))
     }
 
-    /// A text as it is sent: itself when it fits one batch, otherwise its tokens
-    /// cut the way transformers cuts, the first 2,047 and `<eos>`. llama-server
-    /// refuses a longer input with HTTP 500 instead of cutting it. No token is
-    /// shorter than a byte, so shorter texts skip the tokenizer.
     fn fitted(&self, text: &str) -> Result<Value, MediaError> {
         if text.len() + 2 <= MAX_INPUT_TOKENS {
             return Ok(Value::String(text.to_string()));
@@ -207,9 +176,6 @@ enum Status {
     Unavailable,
 }
 
-/// llama-server answers an input longer than its batch with HTTP 500, though the
-/// server is fine; a picture or recording that still doesn't fit fails alone
-/// instead of stopping every pass at the same file.
 fn classify_status(status: u16, body: &[u8]) -> Status {
     match status {
         200 => Status::Vectors,
@@ -228,8 +194,6 @@ fn request_body(inputs: Vec<Value>) -> Value {
     json!({"input": inputs, "model": MODEL_NAME, "cache_prompt": false})
 }
 
-/// A typed content part nested one level inside the input item; a flat
-/// `input: [{type: image_url}]` is rejected (ggml-org/llama.cpp#30082).
 fn image_part(png: &[u8]) -> Value {
     let data = base64::engine::general_purpose::STANDARD.encode(png);
     json!({"content": [{"type": "image_url",
@@ -304,7 +268,6 @@ mod tests {
             audio["input"][0]["content"][0]["input_audio"]["data"],
             "d2F2"
         );
-        // Sixteen texts a request.
         assert_eq!(requests.len(), 4);
         assert_eq!(requests[2].json()["input"].as_array().unwrap().len(), 16);
         assert_eq!(requests[3].json()["input"].as_array().unwrap().len(), 1);

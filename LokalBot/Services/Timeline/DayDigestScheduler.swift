@@ -1,21 +1,5 @@
 import Foundation
 
-/// Wall-clock scheduler for the automatic day digest. Same minute-tick design
-/// as `DailyMemoryExportScheduler` (correct across sleep/wake and DST), with
-/// two digest-specific twists:
-///
-/// - the durable marker is the journal file's modification time:
-///   written at/after today's scheduled hour means done (survives relaunch,
-///   and a manual regenerate after the hour counts too), while a digest the
-///   user generated in the morning is refreshed at the scheduled hour with
-///   the fuller day;
-/// - past days are finalized once after the local date changes, oldest first
-///   and at most `catchUpDays` back. Rewriting a journal after its day ended
-///   makes the mtime a durable finalization marker, so late work after the
-///   evening preview is included without an extra database flag;
-/// - a day with nothing to digest yet is not a failure — the generate closure
-///   reports it and the scheduler simply retries on a later tick, so a
-///   meeting that ends at 19:00 still gets digested the same evening.
 @MainActor
 final class DayDigestScheduler {
     enum GenerationOutcome: Equatable, Sendable {
@@ -24,12 +8,9 @@ final class DayDigestScheduler {
         case needsRepair
     }
 
-    /// Yesterday plus the six days before it.
     nonisolated static let catchUpDays = 7
-    /// Wait before retrying a failed or degraded generation.
     nonisolated static let failureBackoff: TimeInterval = 15 * 60
 
-    /// A local day before today, with the markers the policy needs.
     struct PastDay: Equatable, Sendable {
         var day: Date
         var latestEvidenceAt: Date?
@@ -38,16 +19,11 @@ final class DayDigestScheduler {
 
     struct Configuration: Equatable, Sendable {
         var enabled: Bool
-        /// Local wall-clock hour (0...23) after which today's digest is
-        /// generated.
         var hour: Int
 
         var normalizedHour: Int { min(23, max(0, hour)) }
     }
 
-    /// Generates and persists the digest for the day containing `date`. A
-    /// degraded journal remains readable but receives a quiet later repair
-    /// under the same backoff as a failed generation.
     typealias Generate = @MainActor (Date) async throws -> GenerationOutcome
 
     private let calendar: Calendar
@@ -62,25 +38,12 @@ final class DayDigestScheduler {
     private var generateTask: Task<Void, Never>?
     private var lastFailure: Date?
     private var generation = 0
-    /// Oldest day before yesterday not yet proven final, for the current
-    /// `scanToday`. Days before it are skipped without re-reading evidence;
-    /// yesterday is always re-evaluated because its evidence may still settle.
     private var scanCursorDay: Date?
     private var scanToday: Date?
-    /// Past days whose generation deferred (no usable evidence). Skipped until
-    /// evidence changes, so one empty day cannot block later days or today.
     private var deferredDays: Set<Date> = []
-    /// Past days whose digest needs a quiet repair, with the time the repair
-    /// may run. Other missed days proceed meanwhile instead of waiting behind
-    /// the shared failure backoff.
     private var repairAfter: [Date: Date] = [:]
-    /// A past day that just finished, so the chained catch-up tick cannot
-    /// select it again before its durable marker is observed.
     private var justFinishedDay: Date?
 
-    /// Quiet period after an evidence change before a fresh run starts, so a
-    /// meeting finishing (notes, outcomes, search index) produces one rerun
-    /// instead of a start-cancel-start burst.
     private let evidenceSettleDelay: TimeInterval
     private var settleUntil: Date?
     private var settleTimer: Timer?
@@ -137,11 +100,6 @@ final class DayDigestScheduler {
         resetScan()
     }
 
-    /// Primary evidence changed while the scheduler may have been awaiting a
-    /// model. Cancel that snapshot-bound run and let policy choose a fresh one.
-    ///
-    /// A recent model failure keeps its backoff: on 2026-10-01 every finished
-    /// meeting cleared it, so a rate-limited provider was asked again at once.
     func reconsiderEvidence() {
         generation &+= 1
         generateTask?.cancel()
@@ -216,12 +174,7 @@ final class DayDigestScheduler {
             currentDayDigestModifiedAt: digestModifiedAt(current),
             calendar: calendar) else { return }
         if let finishedDay, calendar.isDate(day, inSameDayAs: finishedDay) { return }
-        // A failed generation (model unreachable, disk error) should be
-        // visible but not retried every minute; generation itself can take a
-        // while, so give the system room between attempts.
         if let lastFailure, current.timeIntervalSince(lastFailure) < Self.failureBackoff { return }
-        // Not downtime yet — recording, processing, dictation, or cotyping is
-        // active. Don't burn the backoff; just wait for a quieter tick.
         guard canRun() else { return }
         let runGeneration = generation
         generateTask = Task { @MainActor [weak self] in
@@ -239,10 +192,6 @@ final class DayDigestScheduler {
                         lastFailure = nil
                         if runDay < todayStart { deferredDays.insert(runDay) }
                     case .needsRepair:
-                        // The fallback/partial journal stays visible. Its
-                        // sidecar keeps the durable completion marker absent,
-                        // and the backoff prevents a retry every minute. A
-                        // past day backs off alone so later days still run.
                         if runDay < todayStart {
                             lastFailure = nil
                             repairAfter[runDay] = self.now().addingTimeInterval(Self.failureBackoff)
@@ -260,7 +209,6 @@ final class DayDigestScheduler {
             }
             guard generation == runGeneration else { return }
             generateTask = nil
-            // Finish the missed-day backlog without waiting a minute per day.
             if continueCatchUp {
                 justFinishedDay = runDay
                 tick()
@@ -268,10 +216,6 @@ final class DayDigestScheduler {
         }
     }
 
-    /// Pure policy: run once the clock passes today's configured hour, unless
-    /// the journal file was already written at/after that time. A morning
-    /// manual digest (mtime before the target) is refreshed; an evening one
-    /// (manual or scheduled) suppresses the run for the rest of the day.
     nonisolated static func shouldRun(
         at date: Date,
         hour: Int,
@@ -286,10 +230,6 @@ final class DayDigestScheduler {
         return true
     }
 
-    /// Past days (oldest first) take priority until each has been rewritten
-    /// after its own midnight. Afterwards the normal scheduled preview policy
-    /// applies to today. Pure so DST and durable-marker behavior stay
-    /// regression-tested.
     nonisolated static func generationDay(
         at date: Date,
         hour: Int,
@@ -310,8 +250,6 @@ final class DayDigestScheduler {
             calendar: calendar) ? date : nil
     }
 
-    /// A past day with evidence is final once its journal was written at or
-    /// after the start of the following day.
     nonisolated static func needsFinalization(_ past: PastDay, calendar: Calendar) -> Bool {
         guard past.latestEvidenceAt != nil else { return false }
         let dayStart = calendar.startOfDay(for: past.day)

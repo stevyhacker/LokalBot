@@ -1,10 +1,3 @@
-//! Merging finished meetings into one (`MeetingMergeService.swift`).
-//!
-//! The merged meeting is the selected part of each source laid end to end.
-//! Source folders are never changed beyond a marker that folds them into the
-//! merged meeting, so Undo can bring them back. Speaker keys are prefixed with
-//! their source, so "Me" in one recording can't claim a voice in another.
-
 use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -18,7 +11,6 @@ use crate::library::{Library, TRANSCRIPT_FILE, read_json, write_json};
 use crate::model::{Meeting, Transcript};
 
 pub const MANIFEST_FILE: &str = "merge-manifest.json";
-/// Shown where a recorded meeting shows its meeting app.
 pub const MERGED_APP_NAME: &str = "Merged meetings";
 
 #[derive(Debug, thiserror::Error)]
@@ -44,7 +36,6 @@ pub enum MergeError {
 }
 
 impl MergeError {
-    /// The message in the interface language.
     pub fn localized(&self) -> String {
         let title = |title: &String| [("title", title.clone())];
         match self {
@@ -86,9 +77,6 @@ impl MergeError {
     }
 }
 
-/// One source track's part of the merged timeline: `source` (when it has
-/// that track) from `start` to `end` seconds, padded with silence to
-/// `end - start` when the track is shorter.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Slice {
     pub source: Option<PathBuf>,
@@ -96,8 +84,6 @@ pub struct Slice {
     pub end: f64,
 }
 
-/// Writes one merged track from `slices`, in order, and returns which slices
-/// contributed audio. Nothing is written when none did.
 pub type Splice<'a> = dyn Fn(&[Slice], &Path) -> std::io::Result<Vec<bool>> + 'a;
 
 #[derive(Clone, Debug)]
@@ -105,8 +91,6 @@ pub struct MergeResult {
     pub meeting: Meeting,
     pub sources: Vec<Meeting>,
     pub transcript_segments: usize,
-    /// False when a source part contributed no transcript; a requested
-    /// summary must then transcribe the merged audio first.
     pub transcript_coverage_complete: bool,
 }
 
@@ -135,14 +119,12 @@ pub struct ManifestSource {
     #[serde(with = "crate::time::iso_seconds")]
     pub started_at: DateTime<Utc>,
     pub duration: f64,
-    /// Version 2. Older manifests stay readable without claiming coverage.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub has_audio: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub has_transcript: Option<bool>,
 }
 
-/// Whether `meetings` can be merged as selected (the selection bar's check).
 pub fn can_merge(meetings: &[Meeting], processing: impl Fn(Uuid) -> bool) -> bool {
     meetings.len() >= 2
         && meetings
@@ -150,8 +132,6 @@ pub fn can_merge(meetings: &[Meeting], processing: impl Fn(Uuid) -> bool) -> boo
             .all(|m| !m.is_live() && m.is_own_work() && !processing(m.id))
 }
 
-/// Builds the merged meeting. On any failure the sources are left unfolded
-/// and the half-made meeting is removed.
 pub fn merge_meetings(
     library: &Library,
     meetings: &[Meeting],
@@ -206,8 +186,6 @@ fn build(
     merged.ended_at = Some(started_at + Duration::milliseconds((total * 1000.0).round() as i64));
     merged.recorded_duration = Some(total);
     merged.merged_source_meeting_ids = Some(sources.iter().map(|s| s.meeting.id).collect());
-    // Screen context reads this marker: an imported source's span shows
-    // unrelated screen activity, so the merge stays imported.
     merged.imported_file_names = (!imported.is_empty()).then_some(imported);
 
     let (transcript, transcript_sources) = merged_transcript(sources)?;
@@ -360,8 +338,6 @@ fn normalized_title(title: &str, sources: &[Source]) -> String {
     }
 }
 
-/// The sources' segments inside their ranges, shifted onto the merged
-/// timeline, with source-scoped speakers. Also returns which sources had any.
 fn merged_transcript(
     sources: &[Source],
 ) -> Result<(Option<Transcript>, BTreeSet<usize>), MergeError> {
@@ -499,9 +475,6 @@ impl UndoError {
     }
 }
 
-/// Removes a merged meeting and restores its sources (`AppState.undoMerge`).
-/// The merged meeting goes first; a source whose restore fails keeps its
-/// marker, and the next library load restores it.
 pub fn undo_merge(library: &Library, merged: &Meeting) -> Result<Vec<Meeting>, UndoError> {
     let ids: BTreeSet<Uuid> = merged
         .merged_source_meeting_ids
@@ -525,7 +498,6 @@ pub fn undo_merge(library: &Library, merged: &Meeting) -> Result<Vec<Meeting>, U
     {
         return Err(UndoError::SourcesMissing);
     }
-    // Deleting the merged meeting alone: its sources are about to come back.
     let mut detached = merged.clone();
     detached.merged_source_meeting_ids = None;
     crate::evidence::with_meeting_removal(library.paths().root(), &[merged], || {
@@ -545,10 +517,6 @@ pub fn undo_merge(library: &Library, merged: &Meeting) -> Result<Vec<Meeting>, U
     Ok(restored)
 }
 
-/// Re-transcribing a merged meeting covers only sources that had audio.
-/// Keeps the earlier transcript in the parts of sources that had text but
-/// no audio, which would otherwise come back silent
-/// (`MeetingMergeService.preservingTranscriptOnlySources`).
 pub fn preserve_transcript_only_sources(
     previous: Option<&Transcript>,
     folder: &Path,

@@ -1,5 +1,3 @@
-//! Meetings: detection, processing, summaries, speakers and note export.
-
 #[cfg(windows)]
 use crate::{
     i18n::h_flex,
@@ -27,7 +25,6 @@ use super::{Section, SettingsPage};
 use crate::state::SettingsCategory;
 use crate::ui::settings_row;
 
-/// `LanguageCode.summaryPresets` with their display names.
 pub const SUMMARY_LANGUAGES: [(&str, &str); 24] = [
     ("en", "English"),
     ("zh", "Simplified Chinese (Mandarin)"),
@@ -91,7 +88,6 @@ fn template_description(template: NoteTemplate) -> &'static str {
     }
 }
 
-/// Apps whose calls LokalBot notices on Linux and Windows.
 #[cfg(not(windows))]
 const DETECTED_APPS: &str = "Zoom, Microsoft Teams, Slack, Webex, and Google Meet in a browser";
 #[cfg(windows)]

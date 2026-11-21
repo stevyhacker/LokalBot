@@ -1,11 +1,3 @@
-//! Plain interface paragraphs with logical-order line breaking.
-//!
-//! GPUI 0.3.9 wraps an already-shaped line in glyph order. That order is not
-//! logical text order for Arabic/Urdu and can produce overflowing, reversed
-//! rows. Break at Unicode opportunities before shaping each display line.
-//! This adapter leaves the source string, input editors and dependency pins
-//! intact. Single-line/truncated controls retain GPUI's native text element.
-
 use std::{cell::RefCell, ops::Range, rc::Rc};
 
 use gpui_kit::{
@@ -87,9 +79,6 @@ impl Element for Paragraph {
                 });
                 let mut shaped = Vec::new();
                 for source in text.split('\n') {
-                    // Preserve the paragraph's base direction when a wrapped row
-                    // happens to begin with a Latin product name or a number.
-                    // The mark is for shaping only; it is never stored or copied.
                     let direction = if lokalbot_i18n::content_is_rtl(source) {
                         '\u{200f}'
                     } else {
@@ -169,8 +158,6 @@ impl Element for Paragraph {
     }
 }
 
-/// Contiguous source ranges: no reordering, lost spaces or split graphemes.
-// One line covering the whole text is a single range, not the range's items.
 #[allow(clippy::single_range_in_vec_init)]
 fn wrap_ranges(
     text: &str,
@@ -197,7 +184,6 @@ fn wrap_ranges(
             end = next;
         }
         if end == start {
-            // An overlong token still progresses at whole grapheme boundaries.
             for (offset, grapheme) in text[start..].grapheme_indices(true) {
                 let next = start + offset + grapheme.len();
                 if end > start && measure(&text[start..next]) > width {

@@ -1,7 +1,3 @@
-//! What LokalBot and its helpers use right now, and which models are in memory
-//! (`ResourceMonitorSection`, `ModelResidency`, `ModelRuntimeRegistry`). Local
-//! figures only; nothing is stored or sent.
-
 use std::collections::VecDeque;
 use std::time::Instant;
 
@@ -15,25 +11,18 @@ use crate::Engine;
 pub struct LoadedModel {
     pub role: String,
     pub label: String,
-    /// `None` for a model inside LokalBot's own process, whose share of the
-    /// total can't be told apart.
     pub memory_bytes: Option<u64>,
-    /// A request is using it.
     pub in_use: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ResourceSnapshot {
-    /// Across all cores, 0–100; unknown until a second reading.
     pub cpu_percent: Option<f64>,
-    /// LokalBot and its helper processes.
     pub memory_bytes: Option<u64>,
     pub models: Vec<LoadedModel>,
-    /// Newest first.
     pub generations: Vec<GenerationMetric>,
 }
 
-/// One summary's timing (`GenerationMetric`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GenerationMetric {
     pub label: String,
@@ -42,7 +31,6 @@ pub struct GenerationMetric {
 }
 
 impl GenerationMetric {
-    /// Guards the divide, so a zero duration reads as 0.
     pub fn tokens_per_second(&self) -> f64 {
         if self.seconds > 0.0 {
             self.approx_tokens as f64 / self.seconds
@@ -52,8 +40,6 @@ impl GenerationMetric {
     }
 }
 
-/// The last generations, in memory only (`GenerationMetricsStore`): these
-/// numbers matter only while someone is watching them.
 #[derive(Default)]
 pub struct GenerationMetrics {
     recent: Mutex<VecDeque<GenerationMetric>>,
@@ -77,7 +63,6 @@ impl GenerationMetrics {
     }
 }
 
-/// `TokenCountEstimator`: per word, characters / 4, at least 1.
 fn estimated_tokens(text: &str) -> usize {
     text.split(|c: char| !c.is_alphanumeric())
         .filter(|word| !word.is_empty())
@@ -86,13 +71,11 @@ fn estimated_tokens(text: &str) -> usize {
 }
 
 impl ResourceSnapshot {
-    /// The memory of the models whose share is known.
     pub fn model_memory_bytes(&self) -> u64 {
         self.models.iter().filter_map(|m| m.memory_bytes).sum()
     }
 }
 
-/// Keeps the last CPU reading, so each sample covers the time since the one before.
 #[derive(Default)]
 pub struct ResourceSampler {
     last: Option<(Instant, f64)>,
@@ -167,7 +150,6 @@ impl ResourceSampler {
     }
 }
 
-/// A helper that exited makes the total fall; that reading says nothing.
 fn cpu_percent(before: f64, after: f64, elapsed: f64, cores: f64) -> Option<f64> {
     if elapsed <= 0.0 || after < before {
         return None;

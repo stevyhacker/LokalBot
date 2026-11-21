@@ -1,10 +1,3 @@
-//! One line per past week and month, condensed from the overnight reviews
-//! (`DreamRollupFormat.swift`, the deterministic half of `DreamRollupService`).
-//! A rollup is a cache over the daily reviews: it records a stamp of the reviews
-//! it was made from, and anyone reading it recomputes that stamp, so a deleted,
-//! retracted or regenerated review makes it stale at once. Stale lines are never
-//! shown. Clear work memory removes them with the reviews (`dreams/rollups`).
-
 use std::collections::{BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -19,8 +12,6 @@ use crate::time::{iso_seconds, parse_iso};
 pub const WEEKS_KEPT: i64 = 8;
 pub const MONTHS_KEPT: u32 = 6;
 pub const MAXIMUM_PER_NIGHT: usize = 3;
-/// New lines are written at most this often: a night that rebuilds several
-/// reviews runs this after each one.
 pub const MINIMUM_GENERATION_INTERVAL_SECONDS: i64 = 20 * 60 * 60;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -34,7 +25,6 @@ pub enum Kind {
 #[serde(rename_all = "camelCase")]
 pub struct Rollup {
     pub kind: Kind,
-    /// "2026-W41" or "2026-09".
     pub key: String,
     pub first_day: String,
     pub last_day: String,
@@ -44,7 +34,6 @@ pub struct Rollup {
     pub generated_at: DateTime<Utc>,
 }
 
-/// The fields of a stored review the briefing and rollups use.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DayReview {
@@ -82,8 +71,6 @@ fn is_day_key(text: &str) -> bool {
         })
 }
 
-/// Every readable review, by day. One whose day doesn't match its name is
-/// ignored, as the store does.
 pub fn reviews(root: &Path) -> HashMap<String, DayReview> {
     let mut result = HashMap::new();
     let Ok(entries) = fs::read_dir(root.join("dreams")) else {
@@ -124,7 +111,6 @@ pub fn rollups(root: &Path) -> Vec<Rollup> {
         .collect()
 }
 
-/// Reviews inside the period, oldest first.
 pub fn reviews_in<'a>(
     first_day: &str,
     last_day: &str,
@@ -138,7 +124,6 @@ pub fn reviews_in<'a>(
     inside
 }
 
-/// Changes whenever a review in the period appears, disappears or is regenerated.
 pub fn stamp(reviews: &[&DayReview]) -> String {
     let mut sorted = reviews.to_vec();
     sorted.sort_by(|a, b| a.day.cmp(&b.day));
@@ -163,7 +148,6 @@ pub fn is_valid(rollup: &Rollup, reviews: &HashMap<String, DayReview>) -> bool {
     !inside.is_empty() && stamp(&inside) == rollup.stamp
 }
 
-/// The Monday-to-Sunday week containing `day`.
 pub fn week_containing(day: NaiveDate) -> Period {
     let week = day.iso_week();
     let start = NaiveDate::from_isoywd_opt(week.year(), week.week(), Weekday::Mon).unwrap_or(day);
@@ -177,7 +161,6 @@ pub fn week_containing(day: NaiveDate) -> Period {
     }
 }
 
-/// The calendar month containing `day`.
 pub fn month_containing(day: NaiveDate) -> Period {
     let start = day.with_day(1).unwrap_or(day);
     let next = start.checked_add_months(Months::new(1)).unwrap_or(start);
@@ -191,7 +174,6 @@ pub fn month_containing(day: NaiveDate) -> Period {
     }
 }
 
-/// The finished weeks and months the briefing can show, newest first.
 pub fn periods(today: NaiveDate) -> Vec<Period> {
     let today_key = day_key(today);
     let mut periods: Vec<Period> = (1..=WEEKS_KEPT)
@@ -212,7 +194,6 @@ pub fn periods(today: NaiveDate) -> Vec<Period> {
     periods
 }
 
-/// Periods with reviews but no current line, newest first.
 pub fn due(
     reviews: &HashMap<String, DayReview>,
     rollups: &[Rollup],
@@ -247,7 +228,6 @@ pub fn record_generation(root: &Path, at: DateTime<Utc>) {
     }
 }
 
-/// Removes every line covering `day_key`, for when that review goes.
 pub fn remove_covering(day_key: &str, root: &Path) {
     for rollup in rollups(root) {
         if rollup.first_day.as_str() <= day_key && day_key <= rollup.last_day.as_str() {
@@ -260,7 +240,6 @@ pub fn write(rollup: &Rollup, root: &Path) -> anyhow::Result<()> {
     write_json(&rollup_path(root, &rollup.key), rollup)
 }
 
-/// The first `count` sentences of a review's narrative, on one line.
 pub fn sentences(text: &str, count: usize, max_characters: usize) -> String {
     let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
     let mut taken = 0;

@@ -1,4 +1,3 @@
-/* LokalBot landing page interactions. Vanilla, no dependencies. */
 (function () {
   "use strict";
 
@@ -6,7 +5,6 @@
   var $ = function (sel, ctx) { return (ctx || document).querySelector(sel); };
   var $$ = function (sel, ctx) { return Array.prototype.slice.call((ctx || document).querySelectorAll(sel)); };
 
-  /* ---------- phones: the nav links collapse into a menu (CSS shows the button) ---------- */
   var navBar = $(".nav");
   var navLinks = navBar ? $(".nav__links", navBar) : null;
   var navActions = navBar ? $(".nav__actions", navBar) : null;
@@ -43,7 +41,6 @@
     navBar.appendChild(menu);
   }
 
-  /* ---------- scroll reveal (IntersectionObserver, no scroll listeners) ---------- */
   var reveals = $$(".reveal");
   if (reduce || !("IntersectionObserver" in window)) {
     reveals.forEach(function (el) { el.classList.add("in"); });
@@ -56,9 +53,7 @@
     reveals.forEach(function (el) { io.observe(el); });
   }
 
-  /* ---------- silent loops: GIFs in all but file format, so no controls; stills under reduced motion or Save-Data ---------- */
   var loops = $$(".home-loop");
-  /* a clip with both appearances follows the visitor's */
   if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
     loops.forEach(function (video) {
       var name = video.getAttribute("data-clip");
@@ -82,9 +77,6 @@
     loops.forEach(function (video) { loopIO.observe(video); });
   }
 
-  /* ---------- home hero: one short film, and the tabs are its chapters ---------- */
-  /* Loops muted while on screen. With reduced motion or Save-Data nothing starts by itself:
-     the tabs choose where the film starts and the browser's own controls play it. */
   var demoStage = $("[data-demo-stage]");
   if (demoStage) {
     var demoTabs = $$(".demo-tab", demoStage);
@@ -123,13 +115,11 @@
       demoNotes.forEach(function (note) {
         note.classList.toggle("is-active", note.getAttribute("data-demo-note") === name);
       });
-      /* keep the active tab in view when the row scrolls; never moves the page */
       var tab = demoTabs[index];
       if (demoTabList.scrollWidth > demoTabList.clientWidth) {
         demoTabList.scrollTo({ left: tab.offsetLeft - (demoTabList.clientWidth - tab.offsetWidth) / 2, behavior: reduce ? "auto" : "smooth" });
       }
     };
-    /* a new file for the viewer's width and appearance, from the same point in the film */
     var demoLoad = function (time) {
       var src = demoFile("full", ".mp4");
       if (demoVideo.getAttribute("src") !== src) {
@@ -173,7 +163,6 @@
         if (demoHeld || !demoOnScreen || document.hidden) { return; }
         var p = demoVideo.play();
         if (p && p.catch) {
-          /* Low Power Mode and some browsers refuse: leave the still up with a play button */
           p.catch(function (error) {
             if (error && error.name === "NotAllowedError") { demoHeld = true; demoShowHeld(); }
           });
@@ -234,14 +223,12 @@
       };
     }
 
-    /* a different appearance or a phone rotated past the breakpoint needs its own cut */
     [demoPhone, demoDark].forEach(function (query) {
       if (query.addEventListener) { query.addEventListener("change", demoRecut); } else if (query.addListener) { query.addListener(demoRecut); }
     });
     demoStage.classList.add("is-ready");
   }
 
-  /* the visible label is the last non-empty text node; icons stay put */
   var labelNode = function (el) {
     var last = null;
     for (var i = 0; i < el.childNodes.length; i++) {
@@ -257,16 +244,12 @@
     if (glyph && icon) glyph.className = "ph " + icon;
   };
 
-  /* ---------- phones and tablets: an installer is no use here, so hand the link to a computer ---------- */
   var ua = navigator.userAgent || "";
   var handheld = /iPhone|iPad|iPod|Android/i.test(ua) ||
     (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ||
     !!(navigator.userAgentData && navigator.userAgentData.mobile);
   var dmgLinks = $$('a[data-asset="mac"]:not([data-download-alt])');
 
-  /* ---------- downloads: each file carries the version in its name ---------- */
-  /* (LokalBot-0.11.2-macos-arm64.dmg, LokalBot-0.11.2-windows-x86_64-setup.exe), so a link
-     points at the latest release and a click looks up the current file. */
   var RELEASE_PAGE = "https://github.com/stevyhacker/lokalbot/releases/latest";
   var RELEASE_API = "https://api.github.com/repos/stevyhacker/lokalbot/releases/latest";
   var ASSETS = {
@@ -275,7 +258,6 @@
     linux: { pattern: /^LokalBot-[0-9.]+-linux-x86_64\.tar\.gz$/, name: "Linux", icon: "ph-linux-logo" }
   };
 
-  /* ---------- Windows and Linux desktops: offer their own download ---------- */
   var desktop = (function () {
     if (handheld) return "";
     var platform = (navigator.userAgentData && navigator.userAgentData.platform) || "";
@@ -312,7 +294,6 @@
     });
   };
   $$("a[data-asset]").forEach(function (link) {
-    // On a phone the Mac buttons send the site to a computer instead (below).
     if (handheld && dmgLinks.indexOf(link) !== -1) return;
     link.addEventListener("click", function (e) {
       var os = link.getAttribute("data-asset");
@@ -416,17 +397,19 @@
       } else if (/Android/i.test(ua) && methods) {
         methods.textContent = "email or a chat app";
       }
+      var isAndroid = /Android/i.test(ua);
+      var isIOS = /iPhone|iPad|iPod/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
       var androidApp = $("[data-handoff-android]", hint);
-      if (androidApp && /Android/i.test(ua)) androidApp.hidden = false;
+      if (androidApp && isAndroid) androidApp.hidden = false;
+      var iosApp = $("[data-handoff-ios]", hint);
+      if (iosApp && isIOS) iosApp.hidden = false;
       hint.hidden = false;
     }
   }
-  /* desktop install lines (Homebrew, other downloads) mean nothing on a phone */
   if (handheld) {
     $$("[data-desktop-only]").forEach(function (el) { el.hidden = true; });
   }
 
-  /* ---------- copy a command, such as the Homebrew line ---------- */
   $$("[data-copy-text]").forEach(function (button) {
     button.addEventListener("click", function () {
       var text = button.getAttribute("data-copy-text");
@@ -443,7 +426,6 @@
         glyph.className = "ph ph-check";
         setTimeout(function () { glyph.className = before; delete button.dataset.copying; }, 2000);
       };
-      /* the clipboard API can be refused (no focus, permissions); fall back to a selected textarea */
       var fallback = function () {
         var ta = document.createElement("textarea");
         ta.value = text;
@@ -467,13 +449,11 @@
     });
   });
 
-  /* ---------- "Watch the demo": scroll to it (the link's own job) and start it from the top ---------- */
   $$("[data-play-demo]").forEach(function (link) {
     link.addEventListener("click", function () {
       var first = $("[data-demo-stage] .demo-tab");
       if (first) first.click();
       var video = $("[data-demo-stage] video");
-      /* without autoplay the film keeps its controls; a click is permission to play it */
       if (video && video.hasAttribute("controls") && video.paused) {
         var p = video.play();
         if (p && p.catch) p.catch(function () {});
@@ -481,7 +461,6 @@
     });
   });
 
-  /* ---------- full-size screenshot links open the appearance on screen ---------- */
   $$(".home-image-link").forEach(function (link) {
     var source = $("source[media]", link);
     var img = $("img", link);
@@ -492,7 +471,6 @@
     if (mq.addEventListener) { mq.addEventListener("change", sync); } else if (mq.addListener) { mq.addListener(sync); }
   });
 
-  /* ---------- /guides: filter cards as you type; every word must match ---------- */
   var filterBox = $("[data-guide-filter]");
   var filterInput = filterBox ? $("input", filterBox) : null;
   if (filterInput) {
@@ -501,7 +479,6 @@
     var filterStatus = $("[data-guide-filter-status]");
     var filterEmpty = $("[data-guide-filter-empty]");
     var filterClear = $("[data-guide-filter-clear]");
-    /* visible card text plus the page's FAQ questions */
     var haystacks = filterCards.map(function (card) {
       return (card.textContent + " " + (card.getAttribute("data-terms") || "")).toLowerCase();
     });
@@ -529,7 +506,6 @@
         filterInput.focus();
       });
     }
-    /* browsers can restore the typed text when you come back to the page */
     window.addEventListener("pageshow", function () { if (filterInput.value) applyFilter(); });
     filterBox.hidden = false;
   }

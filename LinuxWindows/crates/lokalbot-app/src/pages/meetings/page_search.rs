@@ -1,12 +1,6 @@
-//! Matching for Find on a meeting page (`MeetingPageSearch.swift`): one source
-//! per visible text node, in reading order. Matching ignores case, diacritics
-//! and character width. Keeping the location beside the exact text makes
-//! matching and scrolling agree.
-
 use unicode_normalization::UnicodeNormalization as _;
 use unicode_normalization::char::is_combining_mark;
 
-/// The tab a location lives on.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Section {
     MeetingDetails,
@@ -60,14 +54,12 @@ pub(crate) enum Location {
     Metadata(MetadataField),
     Status,
     EmptyState(Section),
-    /// An action's field, by its index among the actions the page shows.
     Action(usize, ActionField),
     Decision(usize, DecisionField),
     Notes,
     SummaryMeta,
     Summary,
     TranscriptEngine,
-    /// A transcript row's text, by index.
     Row(usize),
     RowTime(usize),
     RowSpeaker(usize),
@@ -89,7 +81,6 @@ impl Location {
         }
     }
 
-    /// `MeetingWorkspaceTab.containing`.
     pub(crate) fn tab(&self) -> crate::state::MeetingTab {
         use crate::state::MeetingTab;
         match self.section() {
@@ -99,12 +90,10 @@ impl Location {
         }
     }
 
-    /// Lives in the Summary tab's collapsed full notes.
     pub(crate) fn needs_full_notes(&self) -> bool {
         self.section() == Section::Summary
     }
 
-    /// The row a transcript location scrolls to.
     pub(crate) fn transcript_row(&self) -> Option<usize> {
         match self {
             Self::Row(row) | Self::RowTime(row) | Self::RowSpeaker(row) => Some(*row),
@@ -112,7 +101,6 @@ impl Location {
         }
     }
 
-    /// Lives in the scrolling overview, not the fixed header or another view.
     pub(crate) fn scrolls_overview(&self) -> bool {
         !matches!(self, Self::Title | Self::Metadata(_) | Self::Notes)
             && self.tab() == crate::state::MeetingTab::Summary
@@ -125,14 +113,12 @@ pub(crate) struct Source {
     pub text: String,
 }
 
-/// One occurrence: where, and which bytes of that source's text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct PageMatch {
     pub location: Location,
     pub range: std::ops::Range<usize>,
 }
 
-/// Fullwidth forms as their ASCII, the part of width folding meetings show.
 fn narrow(c: char) -> char {
     match c {
         '\u{FF01}'..='\u{FF5E}' => char::from_u32(c as u32 - 0xFEE0).unwrap_or(c),
@@ -141,7 +127,6 @@ fn narrow(c: char) -> char {
     }
 }
 
-/// The folded text, and the byte offset in `text` each folded char came from.
 fn folded(text: &str) -> (Vec<char>, Vec<(usize, usize)>) {
     let mut chars = Vec::with_capacity(text.len());
     let mut spans = Vec::with_capacity(text.len());
@@ -159,7 +144,6 @@ fn folded(text: &str) -> (Vec<char>, Vec<(usize, usize)>) {
     (chars, spans)
 }
 
-/// Every non-overlapping occurrence of `query` in `text`, as byte ranges.
 pub(crate) fn ranges(text: &str, query: &str) -> Vec<std::ops::Range<usize>> {
     let needle: Vec<char> = folded(query.trim()).0;
     if needle.is_empty() || text.is_empty() {
@@ -179,10 +163,6 @@ pub(crate) fn ranges(text: &str, query: &str) -> Vec<std::ops::Range<usize>> {
     out
 }
 
-/// `searchSources`: every visible text node in reading order. The field in
-/// the Transcript panel searches only that tab; Ctrl+F searches the page.
-/// `notes` is the editor's text, which can be newer than `doc`. Panel titles
-/// are not searched: a panel's header can't mark its words.
 pub(crate) fn sources(
     doc: &super::model::MeetingDoc,
     stage: Option<String>,
@@ -201,7 +181,6 @@ pub(crate) fn sources(
     if whole_page {
         let meeting = &doc.meeting;
         push(meeting.display_title(), Location::Title);
-        // As the page shows them, each its own line (`render_date_line`).
         let shown = |text: String| lokalbot_i18n::directional(text);
         push(
             shown(super::presentation::date_text(
@@ -298,7 +277,6 @@ pub(crate) fn sources(
         push(line, Location::TranscriptEngine);
     }
     for (index, row) in doc.rows.iter().enumerate() {
-        // A speaker's name is shown once, where the turn begins.
         if row.begins_turn {
             push(row.name.to_string(), Location::RowSpeaker(index));
         }
@@ -308,7 +286,6 @@ pub(crate) fn sources(
     out
 }
 
-/// The app chip beside the date, where one shows.
 pub(crate) fn app_chip(meeting: &lokalbot_core::Meeting) -> Option<String> {
     if meeting.is_sample() {
         Some(lokalbot_i18n::tr("Sample meeting").to_string())
@@ -319,14 +296,10 @@ pub(crate) fn app_chip(meeting: &lokalbot_core::Meeting) -> Option<String> {
     }
 }
 
-/// "Mic only", the date line's one capture limitation. An imported file's
-/// audio came from neither this PC's microphone nor its system audio, so it
-/// carries none.
 pub(crate) fn audio_chip(meeting: &lokalbot_core::Meeting) -> Option<&'static str> {
     (!meeting.is_imported() && !meeting.has_system_track).then(|| lokalbot_i18n::tr("Mic only"))
 }
 
-/// "Transcribed with …", where the transcript shows it.
 pub(crate) fn engine_line(doc: &super::model::MeetingDoc) -> Option<String> {
     let engine = doc.transcript.as_ref()?.engine.as_str();
     (!engine.is_empty() && engine != "merged").then(|| {
@@ -372,7 +345,6 @@ mod tests {
 
     #[test]
     fn ranges_cut_on_character_boundaries_when_lengths_change() {
-        // "İ" lowercases to two chars and changes byte length.
         let text = "İstanbul plan";
         let found = ranges(text, "plan");
         assert_eq!(&text[found[0].clone()], "plan");
@@ -403,7 +375,6 @@ mod tests {
 
     #[test]
     fn fields_of_one_action_keep_their_own_ranges() {
-        // An owner's match must not mark the same bytes of the action's text.
         let sources = vec![
             Source {
                 location: Location::Action(0, ActionField::Text),

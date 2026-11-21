@@ -1,34 +1,17 @@
 import Foundation
 import SQLite3
 
-/// Persists the post-meeting processing queue in lokalbotv3.sqlite so a crash,
-/// force-quit, or reboot mid-transcription doesn't silently drop the job — the
-/// in-memory queue in `ProcessingPipeline` used to be the only record of what
-/// still needed processing.
-///
-/// Own connection to the shared database file, same pattern as `SearchIndex` /
-/// `ActivityStore` / `EmbeddingIndex`. A row lives for the duration of a job:
-/// inserted on enqueue, deleted on success. `attempts` counts processing
-/// *starts* (not failures), so a job that crashes the app mid-flight still
-/// burns an attempt and a poison-pill meeting can't crash-loop launch resume
-/// forever.
 final class PipelineJobStore {
 
     struct PendingJob: Equatable {
         let meetingID: UUID
         let transcribe: Bool
-        /// True only after this durable job committed its requested transcript.
-        /// A transcript left by an older job does not satisfy this phase.
         let transcriptionCompleted: Bool
         let summarize: Bool
-        /// Automatic summary intent follows the current setting when a job is
-        /// restored. Explicit toolbar/headless intent survives unchanged.
         let summaryFollowsSetting: Bool
         let attempts: Int
     }
 
-    /// Launch auto-resume gives up after this many processing starts; an
-    /// explicit user re-enqueue resets the counter and tries again.
     static let maxAutoResumeAttempts = 3
 
     private let database: SQLiteDatabase?
@@ -59,15 +42,11 @@ final class PipelineJobStore {
                     "ALTER TABLE pipeline_jobs ADD COLUMN last_error TEXT")
             }
             if !columns.contains("summary_follows_setting") {
-                // Rows written by older builds had no provenance. Treat their
-                // summary bit as automatic so a current opt-out takes effect.
                 try database.runChecked(
                     "ALTER TABLE pipeline_jobs ADD COLUMN "
                         + "summary_follows_setting INTEGER NOT NULL DEFAULT 1")
             }
             if !columns.contains("transcription_completed") {
-                // An older row cannot prove that this job produced the
-                // transcript currently on disk. Conservatively resume ASR.
                 try database.runChecked(
                     "ALTER TABLE pipeline_jobs ADD COLUMN "
                         + "transcription_completed INTEGER NOT NULL DEFAULT 0")
@@ -84,8 +63,6 @@ final class PipelineJobStore {
         return database
     }
 
-    /// Record a fresh enqueue. Resets `attempts`: an explicit re-enqueue is a
-    /// deliberate retry, not a crash-loop continuation.
     @discardableResult
     func enqueue(meetingID: UUID, transcribe: Bool, summarize: Bool,
                  summaryFollowsSetting: Bool = false,
@@ -115,9 +92,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Update a job that is already running without resetting its crash-loop
-    /// attempt count. This makes an active toolbar choice durable if the app
-    /// quits before the current transcription reaches the summary boundary.
     @discardableResult
     func updateIntent(meetingID: UUID, transcribe: Bool, summarize: Bool,
                       summaryFollowsSetting: Bool) -> Bool {
@@ -141,8 +115,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Burn one attempt the moment processing starts, so a crash mid-job is
-    /// already counted when the row is read back on the next launch.
     @discardableResult
     func markStarted(meetingID: UUID) -> Bool {
         write("mark started") { database in
@@ -152,9 +124,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Persist the transcription phase immediately after the transcript
-    /// commit. Crash recovery must use this marker rather than the existence of
-    /// a transcript that may predate the current request.
     @discardableResult
     func markTranscriptionCompleted(meetingID: UUID) -> Bool {
         write("mark transcription completed") { database in
@@ -173,8 +142,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Persist why the last processing attempt failed, so a job that ends up
-    /// parked (attempts exhausted) can still explain itself after a relaunch.
     @discardableResult
     func markFailed(meetingID: UUID, message: String) -> Bool {
         write("mark failed") { database in
@@ -189,9 +156,6 @@ final class PipelineJobStore {
         let lastError: String?
     }
 
-    /// Jobs that burned through the auto-resume attempt cap. They never
-    /// re-enter the launch queue, but the UI surfaces them as failed rows so
-    /// the user can retry explicitly.
     func parkedJobs() -> [ParkedJob] {
         do {
             return try requiredDatabase().queryChecked("""
@@ -209,7 +173,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Jobs eligible for launch auto-resume, oldest first.
     func pendingJobs() -> [PendingJob] {
         do {
             return try requiredDatabase().queryChecked("""
@@ -235,9 +198,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Read one durable intent regardless of its automatic-resume attempt
-    /// count. An explicit Retry must recover even a parked job's exact scope
-    /// before `enqueue` resets that row.
     func job(meetingID: UUID) -> PendingJob? {
         do {
             return try requiredDatabase().queryChecked("""
@@ -263,8 +223,6 @@ final class PipelineJobStore {
         }
     }
 
-    /// Drop rows whose meeting no longer exists (deleted from the library
-    /// between the crash and this launch).
     @discardableResult
     func prune(existing meetingIDs: Set<UUID>) -> Bool {
         do {

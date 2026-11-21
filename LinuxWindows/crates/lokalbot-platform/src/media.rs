@@ -1,19 +1,11 @@
-//! Pausing what is playing while dictation listens, then resuming exactly that
-//! (`MediaPlaybackController.swift`). Linux uses MPRIS over the session bus,
-//! Windows the System Media Transport Controls. Every call is bounded, so a
-//! player that doesn't answer can never hold up push-to-talk.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use parking_lot::Mutex;
 
-/// How long the microphone waits for players to answer.
 const PAUSE_DEADLINE: Duration = Duration::from_millis(1500);
 
-/// Calls and conference pages are never paused, whatever the desktop reports
-/// about them (`pauseHTMLMediaJavaScript`).
 const CONFERENCE_HOSTS: &[&str] = &[
     "meet.google.com",
     "teams.microsoft.com",
@@ -24,11 +16,8 @@ const CONFERENCE_HOSTS: &[&str] = &[
     "discord.com",
 ];
 
-/// Conference apps that can publish a media session of their own.
 const CONFERENCE_PLAYERS: &[&str] = &["teams", "zoom", "webex", "slack", "discord"];
 
-/// Browsers publish one player per page. A page with no known length is a live
-/// stream or a call, which pausing would lose (`pauseHTMLMediaJavaScript`).
 const BROWSER_PLAYERS: &[&str] = &[
     "chrome",
     "chromium",
@@ -42,17 +31,13 @@ const BROWSER_PLAYERS: &[&str] = &[
     "arc",
 ];
 
-/// One media session the desktop knows about.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Player {
-    /// The MPRIS bus name, or Windows' app id for the session.
     pub id: String,
     pub playing: bool,
     pub paused: bool,
     pub can_pause: bool,
-    /// The page or file it is playing, when it says.
     pub url: Option<String>,
-    /// Whether it reports a finite length.
     pub has_length: bool,
 }
 
@@ -62,7 +47,6 @@ pub(crate) trait Players {
     fn play(&mut self, id: &str) -> bool;
 }
 
-/// Whether dictation may pause this player.
 fn may_pause(player: &Player) -> bool {
     if !player.playing || !player.can_pause {
         return false;
@@ -89,11 +73,9 @@ fn url_host(url: &str) -> Option<String> {
         .map(|host| host.to_lowercase())
 }
 
-/// What one dictation paused. Dropping it resumes nothing.
 #[derive(Clone, Debug, Default)]
 pub struct PausedMedia {
     players: Arc<Mutex<Vec<String>>>,
-    /// Stops a pause still going through players past its deadline.
     stop: Arc<AtomicBool>,
 }
 
@@ -107,8 +89,6 @@ impl PausedMedia {
     }
 }
 
-/// Pauses what is playing. Returns within [`PAUSE_DEADLINE`], and a player
-/// that answers later still counts as paused by this dictation.
 pub fn pause_playing() -> PausedMedia {
     let paused = PausedMedia::default();
     let (done, finished) = crossbeam_channel::bounded(1);
@@ -129,7 +109,6 @@ pub fn pause_playing() -> PausedMedia {
     paused
 }
 
-/// Resumes what [`pause_playing`] paused, unless the person changed it since.
 pub fn resume(paused: PausedMedia) {
     paused.stop.store(true, Ordering::SeqCst);
     if paused.is_empty() {
@@ -174,7 +153,6 @@ mod mpris {
     const PREFIX: &str = "org.mpris.MediaPlayer2.";
     const OBJECT: &str = "/org/mpris/MediaPlayer2";
     const INTERFACE: &str = "org.mpris.MediaPlayer2.Player";
-    /// A player that doesn't answer this quickly is skipped.
     const CALL_TIMEOUT: Duration = Duration::from_millis(400);
 
     pub(super) struct Mpris {
@@ -313,8 +291,6 @@ mod smtc {
             paused: status == Status::Paused,
             can_pause: controls.IsPauseEnabled().unwrap_or(false),
             url: None,
-            // Windows doesn't say which page a browser's session is for, or
-            // whether it has an end.
             has_length: true,
         })
     }
@@ -349,14 +325,12 @@ fn with_players(run: impl FnOnce(&mut dyn Players)) {
 #[cfg(windows)]
 fn with_players(run: impl FnOnce(&mut dyn Players)) {
     use windows::Win32::System::Com::{COINIT_MULTITHREADED, CoInitializeEx, CoUninitialize};
-    // SAFETY: balanced below; this runs on a thread of its own or the caller's.
     let initialized = unsafe { CoInitializeEx(None, COINIT_MULTITHREADED) }.is_ok();
     match smtc::Smtc::connect() {
         Ok(mut players) => run(&mut players),
         Err(err) => log::debug!("no media session manager: {err}"),
     }
     if initialized {
-        // SAFETY: matches the CoInitializeEx above; the manager is gone.
         unsafe { CoUninitialize() };
     }
 }
@@ -426,7 +400,6 @@ mod tests {
         pause_with(&mut fake, &paused);
         assert!(!paused.is_empty());
         resume_with(&mut fake, &paused);
-        // VLC was already paused, by the person: it stays that way.
         assert_eq!(fake.calls, vec!["pause spotify", "play spotify"]);
         assert!(paused.is_empty());
     }
@@ -473,7 +446,6 @@ mod tests {
             ..playing("org.mpris.MediaPlayer2.vlc")
         }));
         assert!(!may_pause(&playing("MSTeams_8wekyb3d8bbwe!MSTeams")));
-        // A browser page with a length, on a video site and on a call.
         let page = |url: &str| Player {
             url: Some(url.into()),
             ..playing("org.mpris.MediaPlayer2.chromium.instance42")
@@ -481,14 +453,12 @@ mod tests {
         assert!(may_pause(&page("https://www.youtube.com/watch?v=1")));
         assert!(!may_pause(&page("https://meet.google.com/abc-defg-hij")));
         assert!(!may_pause(&page("https://us02web.zoom.us/j/1")));
-        // No length: a live stream, or a call on a site this list doesn't know.
         assert!(!may_pause(&Player {
             has_length: false,
             ..page("https://example.com/live")
         }));
     }
 
-    /// A real MPRIS player on the session bus.
     #[cfg(target_os = "linux")]
     mod over_dbus {
         use super::super::*;
@@ -564,7 +534,6 @@ mod tests {
 
             resume(paused);
             assert_eq!(*playing.lock(), "Playing");
-            // Already paused before dictation began.
             assert_eq!(*stopped.lock(), "Paused");
         }
     }

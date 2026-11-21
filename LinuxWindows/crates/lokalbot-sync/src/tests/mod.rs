@@ -1,6 +1,3 @@
-//! Tests for the protocol, both stores and whole sessions between an
-//! in-process host and client over loopback.
-
 mod address;
 mod client_queries;
 mod host_store;
@@ -36,10 +33,6 @@ pub(crate) fn fixture() -> Vec<Value> {
     serde_json::from_str::<Vec<Value>>(FIXTURE).expect("the fixture is a JSON array")
 }
 
-// Dates come from the fixture rather than being written into the tests, so
-// moving the sample library in time needs no test changes.
-
-/// A fixture record's body.
 pub(crate) fn fixture_body(kind: &str, key: &str) -> Value {
     fixture()
         .into_iter()
@@ -48,7 +41,6 @@ pub(crate) fn fixture_body(kind: &str, key: &str) -> Value {
         .clone()
 }
 
-/// A text field of a fixture meeting, e.g. its `day` or `startedAt`.
 pub(crate) fn meeting_field(id: &str, field: &str) -> String {
     fixture_body("meeting", id)[field]
         .as_str()
@@ -56,7 +48,6 @@ pub(crate) fn meeting_field(id: &str, field: &str) -> String {
         .to_owned()
 }
 
-/// An action's `dueDate` in the fixture.
 pub(crate) fn due_date(meeting_id: &str, action_id: &str) -> String {
     fixture_body("meeting", meeting_id)["actions"]
         .as_array()
@@ -68,7 +59,6 @@ pub(crate) fn due_date(meeting_id: &str, action_id: &str) -> String {
         .to_owned()
 }
 
-/// The fixture's day keys, newest first.
 pub(crate) fn fixture_days() -> Vec<String> {
     let mut days: Vec<String> = fixture()
         .into_iter()
@@ -79,7 +69,6 @@ pub(crate) fn fixture_days() -> Vec<String> {
     days
 }
 
-/// The day `offset` days after the newest fixture day, as "today".
 pub(crate) fn days_after_latest(offset: i64) -> String {
     let latest = chrono::NaiveDate::parse_from_str(&fixture_days()[0], "%Y-%m-%d").unwrap();
     (latest + chrono::Duration::days(offset))
@@ -87,7 +76,6 @@ pub(crate) fn days_after_latest(offset: i64) -> String {
         .to_string()
 }
 
-/// Short timeouts so failure paths finish quickly.
 pub(crate) fn fast_tuning() -> Tuning {
     Tuning {
         ping_interval: Duration::from_millis(400),
@@ -108,7 +96,6 @@ type OpHandler = Box<dyn Fn(&SyncServer, Value) -> OpOutcome + Send + Sync>;
 type AskHandler = Box<dyn Fn(Value, Arc<AskSink>) + Send + Sync>;
 type RecordingHandler = Box<dyn Fn(&Value, &str) -> UploadOutcome + Send + Sync>;
 
-/// A scriptable Mac app.
 pub(crate) struct TestDelegate {
     pub approve: AtomicBool,
     pub approval_delay: Mutex<Duration>,
@@ -118,7 +105,6 @@ pub(crate) struct TestDelegate {
     on_op: Mutex<Option<OpHandler>>,
     on_ask: Mutex<Option<AskHandler>>,
     pub accepts_recordings: AtomicBool,
-    /// Each recording the Mac was handed: its description and bytes.
     pub recordings: Mutex<Vec<(Value, Vec<u8>)>>,
     on_recording: Mutex<Option<RecordingHandler>>,
     server: OnceLock<Weak<SyncServer>>,
@@ -207,7 +193,6 @@ pub(crate) struct Host {
 }
 
 impl Host {
-    /// A running loopback host serving the fixture library.
     pub fn new() -> Self {
         let host = Self::empty();
         for envelope in fixture() {
@@ -226,7 +211,6 @@ impl Host {
         Self::on_port(0).unwrap()
     }
 
-    /// An empty loopback host on `port`, or why it couldn't start.
     pub fn on_port(port: u16) -> crate::error::Result<Self> {
         let dir = TempDir::new().unwrap();
         let delegate = Arc::new(TestDelegate {
@@ -277,12 +261,10 @@ impl Host {
             .qr_payload
     }
 
-    /// The host database. Don't hold it across calls into the server.
     pub fn server_store(&self) -> parking_lot::MutexGuard<'_, crate::server::store::HostStore> {
         self.server.store()
     }
 
-    /// Republishes a fixture meeting with one action's status changed.
     pub fn set_status(
         server: &SyncServer,
         meeting_id: &str,
@@ -344,7 +326,6 @@ impl Phone {
         }
     }
 
-    /// A phone paired with `host`.
     pub fn paired(host: &Host) -> Self {
         let phone = Self::new();
         phone.client.pair(host.offer()).unwrap();

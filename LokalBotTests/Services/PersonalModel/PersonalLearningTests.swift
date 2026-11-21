@@ -2,9 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Phase 3 of the personal world model: learning facts and goals from the
-/// person's own meeting lines, review of learned preferences, and retraction
-/// when the meeting is deleted or corrected.
 final class PersonalLearningLinesTests: XCTestCase {
     private func segment(_ speaker: String, _ text: String) -> Transcript.Segment {
         Transcript.Segment(start: 0, end: 1, speaker: speaker, text: text, confidence: nil)
@@ -150,7 +147,6 @@ final class PersonalLearningCrossLanguageTests: XCTestCase {
             revision: 1)
     }
 
-    /// Two unit vectors whose dot product is `similarity`.
     private func pair(_ similarity: Float) -> [[Float]] {
         [[1, 0], [similarity, (1 - similarity * similarity).squareRoot()]]
     }
@@ -281,7 +277,6 @@ final class PersonalModelLearningRulesTests: XCTestCase {
         XCTAssertEqual(again.saved.count + again.proposed.count, 0)
         XCTAssertFalse(model.tombstones.contains { $0.key.contains("kids") }, "tombstones keep only a hash")
 
-        // Retraction (the meeting was deleted) leaves no tombstone.
         let learned = model.learn([candidate("I lead the platform team.", .fact)], now: now).saved
         model.retract(ids: Set(learned.map(\.id)))
         XCTAssertEqual(model.tombstones.count, 2)

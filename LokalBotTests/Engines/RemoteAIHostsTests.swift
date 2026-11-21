@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The sidebar's privacy summary lists every server AI content goes to.
 final class RemoteAIHostsTests: XCTestCase {
     func testAutocompleteOnAServerIsNotOnThisMac() {
         var settings = AppSettings()

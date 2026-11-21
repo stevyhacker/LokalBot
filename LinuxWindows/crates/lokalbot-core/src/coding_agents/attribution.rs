@@ -1,10 +1,3 @@
-//! Splits the day's foreground activity across the projects its coding-agent
-//! sessions worked in (`TimelineProjectAttribution.swift`). A window whose
-//! title names a project counts toward it. Time in an app where an agent runs
-//! (Claude, Codex, a terminal, an editor) goes to the agent bursts it overlaps,
-//! and only for the part those bursts cover. Everything else stays
-//! unattributed. Deterministic matching on names; no model decides.
-
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use chrono::{DateTime, Utc};
@@ -13,8 +6,6 @@ use super::{CodingAgentAction, CodingAgentBurst, CodingAgentKind};
 use crate::model::ActivityBlock;
 use crate::projects::{matches_words, significant_terms, words};
 
-/// Agent activity counts for a window this close to a burst's edges: a burst
-/// starts with the request, which the person typed just before.
 const EDGE_MARGIN_SECONDS: i64 = 2 * 60;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -23,7 +14,6 @@ pub struct Share {
     pub seconds: f64,
 }
 
-/// The day's tracked time by project, plus the time no project claims.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DaySplit {
     pub projects: Vec<Share>,
@@ -32,7 +22,6 @@ pub struct DaySplit {
 
 #[derive(Clone, Debug, Default)]
 pub struct Attribution {
-    /// Bursts the person started, not scheduled runs, oldest first.
     pub bursts: Vec<CodingAgentBurst>,
     projects: Vec<(String, Vec<HashSet<String>>)>,
     burst_projects: Vec<Option<String>>,
@@ -42,7 +31,6 @@ fn seconds(delta: chrono::Duration) -> f64 {
     delta.num_milliseconds() as f64 / 1000.0
 }
 
-/// Busiest first; equal times by name, so the order never flickers.
 pub fn ranked(mut shares: Vec<Share>) -> Vec<Share> {
     shares.sort_by(|a, b| {
         b.seconds
@@ -69,7 +57,6 @@ impl Attribution {
         bursts.sort_by_key(|b| b.start);
         let burst_projects: Vec<Option<String>> =
             bursts.iter().map(CodingAgentBurst::work_project).collect();
-        // The busiest project wins a title that names two.
         let mut active: HashMap<String, f64> = HashMap::new();
         let mut links: BTreeMap<Vec<String>, BTreeMap<String, usize>> = BTreeMap::new();
         for (burst, project) in bursts.iter().zip(&burst_projects) {
@@ -95,10 +82,6 @@ impl Attribution {
             .iter()
             .map(|name| (name.clone(), vec![significant_terms(name)]))
             .collect();
-        // A repository a session linked names its project too, as when the
-        // folder is "alpha" and the repository "logic-onchain". One named after
-        // a project of the day stays that project's; any other goes to the
-        // project that linked it most.
         let project_names: HashSet<Vec<String>> = names
             .iter()
             .map(|name| sorted_terms(&significant_terms(name)))
@@ -146,15 +129,11 @@ impl Attribution {
         self.projects.is_empty()
     }
 
-    /// The block's time per project, busiest first. The shares never add up to
-    /// more than the block's duration; the remainder is unattributed.
     pub fn shares(&self, block: &ActivityBlock) -> Vec<Share> {
         let named = self.named_project(&block.title, &block.app);
         self.shares_with(block, named.as_deref())
     }
 
-    /// Each block's shares, in order. A day repeats the same window titles many
-    /// times, so each distinct one is matched against the projects once.
     pub fn shares_of(&self, blocks: &[&ActivityBlock]) -> Vec<Vec<Share>> {
         let mut named: HashMap<(&str, &str), Option<String>> = HashMap::new();
         blocks
@@ -168,7 +147,6 @@ impl Attribution {
             .collect()
     }
 
-    /// Tracked time per project for the day, busiest first.
     pub fn split(&self, blocks: &[ActivityBlock]) -> DaySplit {
         let counted: Vec<&ActivityBlock> = blocks
             .iter()
@@ -211,7 +189,6 @@ impl Attribution {
         self.agent_shares(block, duration)
     }
 
-    /// The busiest project whose name or repository the window title names.
     fn named_project(&self, title: &str, app: &str) -> Option<String> {
         if self.projects.is_empty() {
             return None;
@@ -235,7 +212,6 @@ impl Attribution {
         let mut weights: HashMap<&str, f64> = HashMap::new();
         let mut covered: Vec<(DateTime<Utc>, DateTime<Utc>)> = Vec::new();
         for (burst, project) in self.bursts.iter().zip(&self.burst_projects) {
-            // Bursts are in start order, so none after this one can overlap.
             if burst.start - margin >= window_end {
                 break;
             }
@@ -252,7 +228,6 @@ impl Attribution {
                 continue;
             }
             *weights.entry(project).or_default() += seconds(end - start);
-            // The covered part is measured inside the block itself.
             let (covered_start, covered_end) = (start.max(block.start), end.min(block.end));
             if covered_end > covered_start {
                 covered.push((covered_start, covered_end));
@@ -292,8 +267,6 @@ fn merged_duration(mut intervals: Vec<(DateTime<Utc>, DateTime<Utc>)>) -> f64 {
     total + seconds(end - start)
 }
 
-/// The first nineteen are the Mac's list; the rest are the terminals and
-/// editors agents run in on Linux and Windows.
 const SHARED_HOSTS: &[&str] = &[
     "terminal",
     "iterm",
@@ -314,7 +287,6 @@ const SHARED_HOSTS: &[&str] = &[
     "conductor",
     "herdr",
     "opencodex",
-    // Linux
     "gnome-terminal",
     "gnome-terminal-server",
     "gnome terminal",
@@ -330,7 +302,6 @@ const SHARED_HOSTS: &[&str] = &[
     "code - oss",
     "code-oss",
     "vscodium",
-    // Windows
     "windows terminal",
     "windowsterminal",
     "command prompt",
@@ -339,12 +310,8 @@ const SHARED_HOSTS: &[&str] = &[
     "pwsh",
 ];
 
-/// Apps whose name carries a channel, such as "T3 Code (Nightly)".
 const SHARED_HOST_PREFIXES: &[&str] = &["t3 code", "zed "];
 
-/// Whether `app` can be where the person drives this agent: its own app, a
-/// terminal, or an editor. A chat app with no coding agent never counts, so
-/// time spent elsewhere while agents work stays unattributed.
 pub fn hosts(app: &str, agent: CodingAgentKind) -> bool {
     let name = app.trim().to_lowercase();
     if SHARED_HOSTS.contains(&name.as_str())
@@ -358,7 +325,6 @@ pub fn hosts(app: &str, agent: CodingAgentKind) -> bool {
     }
 }
 
-/// What a session's agent bursts recorded doing (`TimelineAgentOutcomes`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Outcomes {
     pub opened_pull_requests: Vec<String>,
@@ -391,16 +357,12 @@ impl Outcomes {
     }
 }
 
-/// One agent session's work inside a work session. An agent session that
-/// pauses and resumes leaves several bursts; they read as one task
-/// (`TimelineAgentTask`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct AgentTask {
     pub bursts: Vec<CodingAgentBurst>,
 }
 
 impl AgentTask {
-    /// Bursts grouped by agent session, in the order each session first ran.
     pub fn from_bursts(bursts: &[CodingAgentBurst]) -> Vec<Self> {
         super::sessions(bursts)
             .into_iter()
@@ -408,7 +370,6 @@ impl AgentTask {
             .collect()
     }
 
-    /// The latest name: a session can be renamed as the work takes shape.
     pub fn title(&self) -> String {
         self.bursts
             .last()

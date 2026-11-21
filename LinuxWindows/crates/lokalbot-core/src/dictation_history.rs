@@ -1,16 +1,3 @@
-//! Recent dictations (`DictationHistory.swift`): the latest results, so a
-//! dictation left on the clipboard can be copied again after the next copy
-//! replaced it, even after a crash, a power cut or a restart.
-//!
-//! # File
-//!
-//! `<root>/recent-dictations.json.enc` is JSON sealed with AES-256-GCM as
-//! `nonce (12 bytes) ‖ ciphertext ‖ tag (16 bytes)`, like screen images. The
-//! key is created per install and kept in the system credential store. A Mac
-//! seals the same file name with its own Keychain key, so neither app reads
-//! the other's: it reads as empty and the next save replaces it. Writes are
-//! owner-only on Unix and reach the drive before they replace the old file.
-
 use std::fs;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -21,28 +8,20 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 pub const FILE_NAME: &str = "recent-dictations.json.enc";
-/// How many results are kept.
 pub const LIMIT: usize = 10;
-/// How long a result is kept.
 pub const MAXIMUM_AGE_DAYS: i64 = 7;
 pub const KEY_BYTES: usize = 32;
 
-/// Where a dictation's text went.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Outcome {
-    /// Typed or pasted into the focused app.
     Inserted,
-    /// Left on the clipboard instead.
     Copied,
-    /// Shown in LokalBot only.
     Shown,
-    /// Transcribed, but Compose failed, so nothing was delivered.
     NotInserted,
 }
 
 impl Outcome {
-    /// The catalog key for the outcome's label.
     pub fn label(self) -> &'static str {
         match self {
             Self::Inserted => "Pasted",
@@ -53,7 +32,6 @@ impl Outcome {
     }
 }
 
-/// One finished dictation.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Entry {
@@ -61,13 +39,11 @@ pub struct Entry {
     pub text: String,
     pub date: DateTime<Utc>,
     pub outcome: Outcome,
-    /// The app dictation started in, when known.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_name: Option<String>,
 }
 
 impl Entry {
-    /// The text on one line.
     pub fn preview(&self) -> String {
         self.text
             .lines()
@@ -77,7 +53,6 @@ impl Entry {
             .join(" ")
     }
 
-    /// Time and the start of the text, such as "2:20 PM — Can you check…".
     pub fn menu_title(&self) -> String {
         const LIMIT: usize = 60;
         let line = self.preview();
@@ -92,8 +67,6 @@ impl Entry {
     }
 }
 
-/// The latest dictations, newest first: at most [`LIMIT`], none older than
-/// [`MAXIMUM_AGE_DAYS`].
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct DictationHistory {
     entries: Vec<Entry>,
@@ -111,7 +84,6 @@ impl DictationHistory {
         &self.entries
     }
 
-    /// The newest one, or the one with `id`.
     pub fn find(&self, id: Option<Uuid>) -> Option<&Entry> {
         match id {
             Some(id) => self.entries.iter().find(|entry| entry.id == id),
@@ -119,8 +91,6 @@ impl DictationHistory {
         }
     }
 
-    /// Adds a result at the top. The same words again (a retry) move to the
-    /// top instead of repeating; blank text is not kept.
     pub fn record(
         &mut self,
         text: &str,
@@ -156,7 +126,6 @@ fn is_fresh(entry: &Entry, now: DateTime<Utc>) -> bool {
     now.signed_duration_since(entry.date) < Duration::days(MAXIMUM_AGE_DAYS)
 }
 
-/// The file under the library root.
 pub fn path(root: &Path) -> PathBuf {
     root.join(FILE_NAME)
 }
@@ -181,14 +150,11 @@ pub fn seal(key: &[u8; KEY_BYTES], entries: &[Entry]) -> Result<Vec<u8>> {
         .map_err(|_| anyhow::anyhow!("could not encrypt the recent dictations"))
 }
 
-/// `None` for another key, a damaged file or one this version can't read.
 pub fn open(key: &[u8; KEY_BYTES], sealed: &[u8]) -> Option<Vec<Entry>> {
     let json = crate::sealed::open(key, sealed)?;
     Some(serde_json::from_slice::<Saved>(&json).ok()?.entries)
 }
 
-/// What was saved. A missing, damaged or foreign file reads as empty, and
-/// expired results leave the file too, not just the list.
 pub fn load(path: &Path, key: &[u8; KEY_BYTES], now: DateTime<Utc>) -> DictationHistory {
     let saved = fs::read(path)
         .ok()
@@ -204,9 +170,6 @@ pub fn load(path: &Path, key: &[u8; KEY_BYTES], now: DateTime<Utc>) -> Dictation
     history
 }
 
-/// Replaces the file with `entries`; none deletes it. The new version is
-/// written to a temporary file, flushed to the drive and renamed over the old
-/// one, so a power cut leaves one whole version.
 pub fn save(path: &Path, key: &[u8; KEY_BYTES], entries: &[Entry]) -> Result<()> {
     if entries.is_empty() {
         return delete(path);
@@ -247,7 +210,6 @@ fn replace_with(tmp: &Path, path: &Path, bytes: &[u8]) -> std::io::Result<()> {
     file.sync_all()?;
     drop(file);
     fs::rename(tmp, path)?;
-    // The rename reaches the drive once the folder is flushed too.
     #[cfg(unix)]
     {
         if let Some(dir) = path.parent()
@@ -402,7 +364,6 @@ mod tests {
             load(&path, &KEY, now).entries(),
             std::slice::from_ref(&recent)
         );
-        // Read as of a time when the old one was still fresh: it is gone from the file.
         assert_eq!(load(&path, &KEY, old.date).entries(), [recent]);
 
         assert!(

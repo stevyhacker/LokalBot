@@ -9,8 +9,6 @@ struct SystemAudioSamePIDRetryBudget: Equatable {
 
     var canRetry: Bool { attempts < Self.maximumAttempts }
 
-    /// Claims one retry before the reattach is attempted, so failed Core Audio
-    /// setup cannot bypass the bound and retry forever on every watchdog tick.
     mutating func beginRetry() -> Bool {
         guard canRetry else { return false }
         recordRetry()
@@ -43,20 +41,10 @@ enum RecordingSystemAudioPolicy: Equatable {
     }
 }
 
-/// Where system audio comes from when no detected app started the recording.
-/// Static, so a replayed capture environment can check the choice without an
-/// audio device.
 enum RecordingSystemAudioSource: Equatable {
-    /// Evidence of the call: an emitting meeting app, a verified browser call,
-    /// or the idle app the recording is already bound to. Attaching binds.
     case verified(MeetingDetector.DetectedApp)
-    /// An always-open stream, which an idle app holds too. Tapped without
-    /// binding the recording; see `MeetingDetector.alwaysOpenCaptureCandidate`.
     case held(MeetingDetector.DetectedApp)
 
-    /// Audible audio a held tap must carry before the recording binds to its
-    /// app. The detector sets the same bar before a communication app's sound
-    /// counts as a call rather than a notification or a launch blip.
     static let bindingAudibleDuration = MeetingDetector.nativeAudioMinimumConfirmationDuration
 
     static func find(for intent: Meeting.CaptureIntent) -> Self? {
@@ -80,39 +68,16 @@ enum SystemAudioRecoveryCandidatePolicy {
     }
 }
 
-/// What the watchdog has learned about the processes it tapped during one
-/// recording. Two facts, both earned rather than assumed.
-///
-/// A tap that has written audible audio *of its own* is pointed at the process
-/// the call comes out of, and is worth being patient with. A tap that has not
-/// delivered one buffer since it attached is pointed at a process with no open
-/// output stream; no amount of waiting turns that into audio, and nothing
-/// should send the tap back there.
-///
-/// Excluding only the tap in hand is not enough, because the exclusion lasts
-/// one tick. Measured on a real call (log, 2026-08-25 10:36–10:57) the watchdog
-/// alternated between two Teams siblings every 10–15 s for 21 minutes: an
-/// ordinary pause moved the tap off the process carrying audio onto a helper
-/// that delivered nothing, the empty helper moved it straight back, and the
-/// audible total grew 28 s in those 21 minutes because each swap discards the
-/// audio in flight.
 struct SystemAudioTapLedger: Equatable {
-    /// The tap known to carry this call's audio, if one has proved itself.
     private(set) var provenPID: pid_t?
-    /// Taps that delivered nothing at all while attached.
     private(set) var retiredPIDs: Set<pid_t> = []
-    /// The session's audible total when the current tap attached. `CaptureHealth`
-    /// counts the whole file, so only growth past this mark belongs to this
-    /// attachment — without the mark, a tap inherits its predecessor's proof.
     private var audibleAtAttach: TimeInterval = 0
 
     mutating func attached(to pid: pid_t, audibleDuration: TimeInterval) {
         audibleAtAttach = audibleDuration
-        // Teams reuses its processes; a fresh attachment gets a fresh hearing.
         retiredPIDs.remove(pid)
     }
 
-    /// Whether the current attachment has written audible audio itself.
     func hasProvedItself(audibleDuration: TimeInterval, minimum: TimeInterval) -> Bool {
         audibleDuration - audibleAtAttach >= minimum
     }
@@ -122,18 +87,11 @@ struct SystemAudioTapLedger: Equatable {
         provenPID = pid
     }
 
-    /// Retires a tap that delivered nothing. A PID that had proved itself on an
-    /// earlier attachment loses that standing: whatever it carried then, it is
-    /// carrying nothing now.
     mutating func retire(_ pid: pid_t) {
         retiredPIDs.insert(pid)
         if provenPID == pid { provenPID = nil }
     }
 
-    /// How long this tap may stay quiet before the watchdog goes looking. A
-    /// proven tap keeps the long grace through ordinary silence, but a different
-    /// process that is actively emitting is direct evidence that the call moved
-    /// and restores the ordinary recovery threshold.
     func silenceGrace(for pid: pid_t,
                       ordinary: TimeInterval,
                       proven: TimeInterval,
@@ -144,9 +102,6 @@ struct SystemAudioTapLedger: Equatable {
     mutating func reset() { self = SystemAudioTapLedger() }
 }
 
-/// Tracks whether the silent-system-audio advisory is currently presented.
-/// Returning a Bool from each transition lets the controller emit UI updates
-/// exactly once while keeping the state machine independently testable.
 struct SilentSystemAudioWarningState: Equatable {
     private(set) var isPresented = false
 
@@ -174,17 +129,10 @@ struct RecordingMemoryHealthSnapshot: Equatable, Sendable {
     var lastRecoveryAt: Date?
     var systemAudioLevel: Double?
 
-    /// The system-audio status of a recording with no call attached.
     static let notAttachedStatus = "Not attached"
 
-    /// Only the microphone is being recorded: there is no call to capture.
     var recordsMicrophoneOnly: Bool { isRecording && systemAudioStatus == Self.notAttachedStatus }
 
-    /// Presentation follows recent writes from each source independently.
-    /// A source that produced sound earlier can subsequently become silent;
-    /// historical audible data is not evidence that it is audible now.
-    /// A microphone that writes only digital silence is "Receiving silence",
-    /// not "Receiving audio": a quiet speaker still has a noise floor (#373).
     static func recording(
         microphone: MicRecorder.CaptureHealth,
         system: SystemAudioRecorder.CaptureHealth,
@@ -233,11 +181,6 @@ struct RecordingMemoryHealthSnapshot: Equatable, Sendable {
     }
 }
 
-/// Owns the meeting-recording lifecycle: the two recorders (mic + system tap),
-/// the start/stop state machine, the capture-health watchdog, the menu-bar
-/// timer tick, and capture recovery. `AppState` keeps a reference,
-/// republishes changes, and folds finished meetings into the library via
-/// `onMeetingFinished`.
 @MainActor
 final class RecordingController: ObservableObject {
 
@@ -248,7 +191,6 @@ final class RecordingController: ObservableObject {
     }
 
     @Published private(set) var status: Status = .idle
-    /// The live recording (shown at the top of the library while running).
     @Published private(set) var currentMeeting: Meeting?
     @Published private(set) var captureWarnings: [String] = []
     @Published private(set) var callObservationUnavailable = false
@@ -257,16 +199,9 @@ final class RecordingController: ObservableObject {
     private var lastDiskCheckAt: Date?
     private var lastHealthReportAt: Date?
     private var diskWarning: String?
-    /// Only lifecycle events from this detector session own the recording.
-    /// A recording the user started joins the session of the call it records.
     private(set) var detectorSessionID: UUID?
-    /// True for explicit starts (menu bar, Record now, notifications). It no
-    /// longer changes when a recording stops: `MeetingMatcher.action` takes
-    /// it and treats both kinds alike, neither is stopped by an uncertain end.
     private(set) var startedByUser = false
-    /// Drives `elapsed`; bumped each second by `recordingTick`.
     @Published private(set) var now = Date()
-    /// True only around the synchronous stop/start boundary of a calendar split.
     private(set) var isSplittingForCalendarHandoff = false
 
     private let storage: StorageManager
@@ -278,24 +213,15 @@ final class RecordingController: ObservableObject {
         var transcribe: Bool
         var summarize: Bool
         var metadataSaved = false
-        /// The saved-recording notification's title when it is not the usual one.
         var stopNotice: String?
     }
     private var pendingFinalizations: [UUID: PendingFinalization] = [:]
-    /// Surfaces user-facing problems (feeds `AppState.lastError`).
-    /// Exposed so the presenter can withdraw exactly this message and never a
-    /// newer, unrelated one.
     static let silentSystemAudioMessage =
         "System audio capture is silent; LokalBot is keeping the microphone "
         + "recording and will reattach if the meeting audio process changes."
-    /// `nil` withdraws ``silentSystemAudioMessage`` if it is still showing.
     private let onError: (String?) -> Void
     private let onMicPermissionDenied: () -> Void
-    /// A finished meeting leaves the controller here; the app inserts it into
-    /// the library list.
     private let onMeetingFinished: (Meeting) -> Void
-    /// Gates notifications to the real interactive launch
-    /// (not headless / UI tests).
     private let isInteractive: () -> Bool
 
     private let micRecorder = MicRecorder()
@@ -303,7 +229,6 @@ final class RecordingController: ObservableObject {
     private var speakerAudioClock: RecordingAudioClock?
     private var audioTimeline: RecordingAudioTimeline?
     private var microphoneAudioClock: RecordingAudioClock?
-    /// One per recording, fed by both writers. See `RecordingSilenceWatch`.
     private var soundMeter: RecordingSoundMeter?
     private var silenceWatch: RecordingSilenceWatch?
     static let silenceStopNotice =
@@ -313,12 +238,9 @@ final class RecordingController: ObservableObject {
         var bundleID: String
         var pid: pid_t
         var hostPID: pid_t?
-        /// Held without binding the recording; any verified source may still
-        /// replace it. See `RecordingSystemAudioSource.held`.
         var isHeld = false
     }
     private var systemAudioTarget: SystemAudioTarget?
-    /// No tap yet, or only a held one: a verified source should still attach.
     private var awaitsVerifiedSystemAudio: Bool { systemAudioTarget?.isHeld ?? true }
     private var recordingHealthWatchdog: AnyCancellable?
     private let healthSampler = RecordingHealthSampler()
@@ -333,29 +255,11 @@ final class RecordingController: ObservableObject {
     private static let micCaptureInitialGrace: TimeInterval = 5
     private static let micCaptureStallGrace: TimeInterval = 5
     private static let micCaptureRestartCooldown: TimeInterval = 10
-    /// The microphone's own fast retries stop after about ten seconds. Keep
-    /// trying at this pace for the rest of the recording, as system audio
-    /// does, so an input that settles later still records the user's voice.
     static let degradedMicRetryInterval: TimeInterval = 30
     private static let systemAudioInitialGrace: TimeInterval = 5
     private static let systemAudioSilentGrace: TimeInterval = 8
-    /// The same wait, for a tap that has already written audible audio of its
-    /// own. Eight seconds is a pause between two sentences, so on a proven tap
-    /// that threshold measures the conversation rather than the capture.
-    ///
-    /// Ninety seconds is a judgement, not a measurement: comfortably longer
-    /// than a meeting goes quiet while someone reads or shares a screen, and
-    /// short enough to still find the audio inside a couple of minutes if it
-    /// really did move. `retiredPIDs` is what stops the churn; this only keeps
-    /// a working tap from being disturbed for nothing. The microphone keeps
-    /// recording throughout either way.
     private static let provenSystemAudioSilentGrace: TimeInterval = 90
     private static let systemAudioReattachCooldown: TimeInterval = 10
-    /// Calendar event id + stop time of the last calendar-backed recording the
-    /// user stopped, so detection cannot immediately restart a meeting they
-    /// ended. A call that ended on its own clears it; brief drops and helper
-    /// churn are absorbed by the detector's stop debounce and handoff. See
-    /// `MeetingMatcher.shouldSuppressRepeat`.
     private var lastCalendarEventID: String?
     private var lastCalendarEventEndedAt: Date?
     private static let calendarRepeatCooldown: TimeInterval = 5 * 60
@@ -363,14 +267,9 @@ final class RecordingController: ObservableObject {
         "detector", "audio-monitor",
     ]
 
-    /// Ticks once a second while recording so the menu bar timer (and popover)
-    /// stay live even with no window open. Nil when idle.
     private var recordingTick: AnyCancellable?
     private var startTask: Task<Void, Never>?
     private var systemAudioHandoffTask: Task<Void, Never>?
-    /// Manual capture can begin during a transient Accessibility gap. Keep a
-    /// persistent retry alive until the browser's verified meeting document is
-    /// visible, then attach the system tap to the same meeting folder.
     private let systemAudioRecovery = MeetingAudioRecovery()
     private var activeSystemAudioPolicy: RecordingSystemAudioPolicy?
 
@@ -404,7 +303,6 @@ final class RecordingController: ObservableObject {
         return max(0, now.timeIntervalSince(m.startedAt))
     }
 
-    /// Compact "MM:SS" (or "H:MM:SS") elapsed string for the menu bar label.
     var menuBarTimer: String {
         let total = Int(elapsed)
         let (h, m, s) = (total / 3600, (total % 3600) / 60, total % 60)
@@ -463,11 +361,6 @@ final class RecordingController: ObservableObject {
         for id in meetingIDs { pendingFinalizations.removeValue(forKey: id) }
     }
 
-    // MARK: - Start / stop
-
-    /// Only automatic detector starts are protected from immediately
-    /// re-recording the same calendar event. Explicit user actions such as
-    /// Record now must always honor the user's request.
     static func shouldSuppressCalendarRepeat(
         source: String,
         eventID: String?,
@@ -493,8 +386,6 @@ final class RecordingController: ObservableObject {
         guard case .idle = status, startTask == nil else { return }
         let detectedApp = context?.detectedApp
         let calendarEvent = context?.calendarEvent
-        // Automatic detector retries must not immediately re-record the same
-        // scheduled event after one ended; explicit user starts bypass this.
         if Self.shouldSuppressCalendarRepeat(
             source: source,
             eventID: calendarEvent?.externalID,
@@ -505,8 +396,6 @@ final class RecordingController: ObservableObject {
             lokalbotLog("startRecording suppressed: calendar event \(calendarEvent?.externalID ?? "?") within cooldown")
             return
         }
-        // Refuse up front on a nearly-full volume: a recording that dies
-        // mid-meeting from ENOSPC loses the meeting; a clear refusal doesn't.
         if let advisory = DiskSpacePrecheck.recordingAdvisory(
             availableBytes: DiskSpacePrecheck.availableBytes(at: storage.rootURL)) {
             lokalbotLog("startRecording refused: low disk space")
@@ -597,9 +486,6 @@ final class RecordingController: ObservableObject {
                 created = meeting
                 speakerAudioClock = RecordingAudioClock()
                 microphoneAudioClock = RecordingAudioClock()
-                // Match meeting.startedAt once, then use monotonic capture
-                // timestamps. The same origin survives late system attachment
-                // and every microphone/process-tap recovery.
                 let elapsedSinceCreation = max(0, Date().timeIntervalSince(meeting.startedAt))
                 let timeline = RecordingAudioTimeline(
                     originHostTime: RecordingAudioClock.now - elapsedSinceCreation,
@@ -620,13 +506,6 @@ final class RecordingController: ObservableObject {
                     timeline: timeline)
                 try Task.checkCancellation()
 
-                // Meeting-intent callers may fall back to a running meeting app
-                // before it emits audio, giving the watchdog a target to repair.
-                // The fallback verifies a browser's in-call document first, so
-                // manual recovery can capture Chrome without widening scope to
-                // an arbitrary browser tab. Mic-only callers never evaluate it.
-                // With nothing verified, an unbound recording holds an
-                // always-open stream such as Teams' modulehost (#179).
                 var heldApp: MeetingDetector.DetectedApp?
                 let captureApp = systemAudioPolicy.captureApp(
                     detectedApp: detectedApp,
@@ -695,7 +574,6 @@ final class RecordingController: ObservableObject {
         return session?.state == .inCall && session?.url == app.meetingURL
     }
 
-    /// `stopNotice` replaces the title of the saved-recording notification.
     func stop(process: Bool = true, contentEndedAt: Date? = nil, deferProcessing: Bool = false,
               allowsAutomaticRestart: Bool = false, stopNotice: String? = nil) {
         if isStarting {
@@ -712,10 +590,6 @@ final class RecordingController: ObservableObject {
         systemAudioRecovery.cancel()
         systemAudioHandoffTask?.cancel()
         systemAudioHandoffTask = nil
-        // Before the watchdog goes away: it is the only thing that notices
-        // recovery, so a meeting ending between the arrival of audio and the
-        // next tick would leave the advisory standing over a recording that
-        // does have a system track.
         withdrawSilentSystemAudioWarningIfRecovered()
         updateCaptureWarnings()
         stopRecordingHealthWatchdog()
@@ -743,15 +617,10 @@ final class RecordingController: ObservableObject {
         } catch { onError("Audio retained, but the final capture-health report could not be saved.") }
         meeting.endedAt = endedAt
         let folder = meeting.folderURL(in: storage)
-        // Only discard a preview tee after its finalized AAC track is known to
-        // decode. If finalization failed, the CAF may be the sole recovery copy.
         MeetingAudioFiles.removeRedundantRecoveryFiles(in: folder)
         let micDuration = MeetingAudioFiles.duration(for: .mic, in: folder)
         let systemDuration = MeetingAudioFiles.duration(for: .system, in: folder)
         meeting.hasSystemTrack = MeetingAudioFiles.transcribableURL(for: .system, in: folder) != nil
-        // The wall-clock span can outlast the captured audio (e.g. a device
-        // disruption truncates the tracks while the session stays live), so
-        // store the actual playable length — the longest track — for the UI.
         meeting.recordedDuration = [micDuration, systemDuration].compactMap { $0 }.max()
         if let contentEndedAt, let duration = meeting.recordedDuration {
             let end = min(duration, max(0, contentEndedAt.timeIntervalSince(meeting.startedAt)))
@@ -771,12 +640,9 @@ final class RecordingController: ObservableObject {
         finalize(meeting, process: process, deferProcessing: deferProcessing, stopNotice: stopNotice)
         captureWarnings = []
         callObservationUnavailable = false
-        // The call ended on its own; rejoining the same event records again.
         if allowsAutomaticRestart { lastCalendarEventEndedAt = nil }
     }
 
-    /// A recording without a detector owner joins the verified call it is
-    /// capturing, so that call's end can stop it. Returns whether it joined.
     @discardableResult
     func joinDetectorSession(_ context: MeetingDetectionContext) -> Bool {
         guard isRecording, detectorSessionID == nil,
@@ -794,7 +660,6 @@ final class RecordingController: ObservableObject {
         if awaitsVerifiedSystemAudio {
             systemAudioRecovery.offer(app, recordingID: meeting.id)
         } else if let target = systemAudioTarget, target.hostPID != Self.hostPID(for: app.bundleID) {
-            // The detector has just verified the same call in a replacement host.
             retargetSystemAudio(to: app)
         }
     }
@@ -809,13 +674,10 @@ final class RecordingController: ObservableObject {
                                             detected: MeetingDetector.DetectedApp) -> Bool {
         guard capturedBundleID == detected.bundleID else { return false }
         guard let recordingURL, let detectedURL = detected.meetingURL else { return true }
-        // Calendar links can carry query parameters such as ?authuser=0.
         let room = { (url: URL) in BrowserMeetingSession.roomURL(url.absoluteString) ?? url.absoluteString }
         return room(recordingURL) == room(detectedURL)
     }
 
-    /// Finalization is separate from device shutdown so persistence failures
-    /// and deferred work can be verified without opening a capture device.
     @discardableResult
     func finalize(_ meeting: Meeting, process: Bool, deferProcessing: Bool = false,
                   stopNotice: String? = nil) -> Bool {
@@ -873,12 +735,9 @@ final class RecordingController: ObservableObject {
         pendingFinalizations.removeValue(forKey: meeting.id)
         guard !deferProcessing else { return true }
         let willTranscribe = pending.transcribe
-        // The pipeline parks automatic jobs whose models are missing instead
-        // of ambush-downloading them; the notification says so up front.
         let waitingForModels = willTranscribe
             && !ModelReadinessSnapshot.transcriptionReady(settings)
         if isInteractive() {
-            // A recording trimmed to its content reports the content's length.
             let content = meeting.contentRange.flatMap { $0.isValid ? $0.end - $0.start : nil }
             RecordingNotifier.shared.recordingStopped(
                 title: meeting.title,
@@ -891,9 +750,6 @@ final class RecordingController: ObservableObject {
         return true
     }
 
-    /// Reload the exact meeting before every retry. The retained value contains
-    /// stop-time facts, but its title, boundaries, and relationship metadata may
-    /// be older than edits made after the first persistence attempt failed.
     private func currentMetadata(for meeting: Meeting) -> Meeting? {
         let url = meeting.folderURL(in: storage).appendingPathComponent("meta.json")
         guard let data = try? Data(contentsOf: url) else { return nil }
@@ -905,8 +761,6 @@ final class RecordingController: ObservableObject {
         return current
     }
 
-    /// Latest durable metadata wins for user-editable fields. Finalization fills
-    /// only capture facts that an older in-progress `meta.json` cannot know yet.
     static func mergingFinalization(_ finalized: Meeting, into current: Meeting) -> Meeting {
         guard finalized.id == current.id,
               finalized.relativePath == current.relativePath else { return finalized }
@@ -947,14 +801,6 @@ final class RecordingController: ObservableObject {
             systemAudioPolicy: .meetingAppWhenAvailable)
     }
 
-    /// Starts the system tap and records the target in the same place for both
-    /// the normal start path and a late manual attachment. Keeping this update
-    /// atomic prevents metadata from claiming a system track when Core Audio
-    /// never accepted the tap.
-    ///
-    /// A `held` tap leaves the recording unbound. A verified source replaces a
-    /// held tap on the same writer, so what the held tap wrote stays in place;
-    /// one from the held tap's own app binds it where it is.
     @discardableResult
     private func startSystemAudioCapture(
         _ captureApp: MeetingDetector.DetectedApp,
@@ -968,11 +814,6 @@ final class RecordingController: ObservableObject {
         let captureProcess: AudioProcess?
         let pid: pid_t
         if let heldTarget, heldTarget.bundleID == captureApp.bundleID {
-            // The held tap's own app was verified: bind without moving the
-            // tap. Teams helpers emit short bursts during a call, which count
-            // as verification, while the call itself comes out of the held
-            // modulehost (#179). If the held process stays silent while a
-            // sibling emits, the watchdog still moves the tap.
             captureProcess = nil
             pid = heldTarget.pid
         } else {
@@ -1019,9 +860,6 @@ final class RecordingController: ObservableObject {
             }
             return true
         } catch {
-            // Degrade gracefully: the microphone remains authoritative. A
-            // meeting that began during an AX gap keeps its late retry active;
-            // a detected start still receives the existing actionable error.
             if detectedApp != nil {
                 onError("System audio tap failed (\(error.localizedDescription)) — recording mic only.")
             }
@@ -1031,12 +869,6 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    /// Accessibility snapshots are occasionally unavailable exactly when the
-    /// user presses Record. Do not freeze that first miss into a mic-only
-    /// meeting: look again for a verified browser call while the recording is
-    /// already active, with bounded backoff and no broader browser tabs.
-    /// Meanwhile an unbound recording holds an always-open stream when one
-    /// appears, and keeps looking until the held tap binds.
     private func scheduleLateSystemAudioCapture(expectedMeetingURL: URL?) {
         guard activeSystemAudioPolicy == .meetingAppWhenAvailable,
               isRecording, let meeting = currentMeeting, awaitsVerifiedSystemAudio else { return }
@@ -1063,8 +895,6 @@ final class RecordingController: ObservableObject {
         })
     }
 
-    /// Attaches a verified source in place of no tap or a held one. A held
-    /// source attaches only when there is no tap at all.
     @discardableResult
     private func attachLateSystemAudio(_ captureApp: MeetingDetector.DetectedApp, held: Bool = false) -> Bool {
         guard isRecording, held ? systemAudioTarget == nil : awaitsVerifiedSystemAudio,
@@ -1074,8 +904,6 @@ final class RecordingController: ObservableObject {
         return true
     }
 
-    /// A held tap that has carried the call binds the recording to its app,
-    /// so later sounds from other apps can no longer claim it.
     private func bindHeldSystemAudio(_ target: inout SystemAudioTarget, audible: TimeInterval) {
         guard target.isHeld, var meeting = currentMeeting else { return }
         target.isHeld = false
@@ -1120,14 +948,10 @@ final class RecordingController: ObservableObject {
         lokalbotLog("recording start cancelled")
     }
 
-    /// Startup cancellation/failure can race the first successful microphone
-    /// buffers. Remove empty folders only; retain every playable start attempt.
     private func preserveAudioFromInterruptedStart(_ created: Meeting?) {
         guard var meeting = created else { return }
         let folder = meeting.folderURL(in: storage)
         guard let duration = MeetingAudioFiles.longestDuration(in: folder), duration > 0 else {
-            // A damaged file may still have salvageable bytes. Only delete a
-            // start with no audio payload, never an unreadable recovery journal.
             let hasRecovery = MeetingAudioFiles.Track.allCases.contains {
                 FileManager.default.fileExists(atPath: AudioRecoveryJournal.directory(
                     for: MeetingAudioFiles.recoveryURL(for: $0, in: folder)).path)
@@ -1152,7 +976,6 @@ final class RecordingController: ObservableObject {
         finalize(meeting, process: false)
     }
 
-    /// Start/stop the once-a-second clock that keeps the menu bar timer live.
     private func startRecordingTick() {
         now = Date()
         recordingTick = Timer.publish(every: 1, on: .main, in: .common)
@@ -1163,12 +986,6 @@ final class RecordingController: ObservableObject {
             }
     }
 
-    /// Ends a recording that has gone `RecordingSilenceWatch.quietLimit`
-    /// without anyone talking, its content cut where the talking stopped. It
-    /// runs on the main run loop with the timer and reads the meter under a
-    /// lock, never on a Swift task: on 2026-11-17 the detector and the
-    /// capture-health watchdog both went quiet when the task pool appears to
-    /// have stalled, and this is what still has to work then.
     private func stopIfNobodyIsTalking(at date: Date) {
         guard isRecording, let meter = soundMeter, var watch = silenceWatch else { return }
         let quiet = watch.observe(soundSeconds: meter.soundSeconds, at: date)
@@ -1183,8 +1000,6 @@ final class RecordingController: ObservableObject {
         recordingTick?.cancel()
         recordingTick = nil
     }
-
-    // MARK: - Capture-health watchdog
 
     private func startRecordingHealthWatchdog() {
         recordingHealthWatchdog = Timer.publish(every: 0.2, on: .main, in: .common)
@@ -1209,8 +1024,6 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    /// Lifecycle boundaries need authoritative writes, especially the final
-    /// report at Stop. Periodic sampling uses the asynchronous path.
     private func updateCaptureWarnings() {
         updateCaptureWarnings(mic: micRecorder.captureHealth(), system: systemRecorder.captureHealth())
     }
@@ -1312,8 +1125,6 @@ final class RecordingController: ObservableObject {
         case .healthy:
             if health.isEngineRunning { didWarnAboutMicCaptureStall = false }
         case .recovering:
-            // MicRecorder owns the bounded device-reconfiguration recovery.
-            // Avoid racing it with a second graph rebuild from this watchdog.
             return
         case .degraded(let errorDescription):
             if !didWarnAboutMicCaptureStall {
@@ -1375,30 +1186,18 @@ final class RecordingController: ObservableObject {
         let silentFor = noBuffers
             ? now.timeIntervalSince(health.lastAudioWriteAt ?? meeting.startedAt)
             : health.lastAudibleWriteAt.map { now.timeIntervalSince($0) } ?? elapsed
-        // Do not enumerate process siblings during sub-threshold fluctuations.
         guard silentFor >= (noBuffers ? 5 : Self.systemAudioSilentGrace) else { return }
 
-        // A proven tap ordinarily stays put for the long grace, but it should
-        // not wait while Core Audio already shows a different process in the
-        // same app family actively emitting. Excluding both the current tap and
-        // session-retired taps makes this a real alternative, not another
-        // selection of the process whose file is currently silent.
         var emittingExclusions = systemAudioTapLedger.retiredPIDs
         emittingExclusions.insert(target.pid)
         let emittingAlternative = currentEmittingSystemAudioCandidate(
             for: target,
             excluding: emittingExclusions)
-        // Silence is the question this watchdog cannot answer on its own: a
-        // meeting between two sentences and a tap on the wrong process look
-        // identical from here. A proven tap sits out an ordinary pause unless a
-        // currently-emitting sibling answers the question directly.
         let silenceGrace = systemAudioTapLedger.silenceGrace(
             for: target.pid,
             ordinary: Self.systemAudioSilentGrace,
             proven: Self.provenSystemAudioSilentGrace,
             activelyEmittingAlternative: emittingAlternative != nil)
-        // Flowing zero samples are valid silence. Only an emitting sibling
-        // can justify switching a healthy silent tap.
         guard noBuffers || emittingAlternative != nil else { return }
         guard noBuffers || silentFor >= silenceGrace else { return }
 
@@ -1407,20 +1206,12 @@ final class RecordingController: ObservableObject {
             return
         }
 
-        // A tap that has not delivered a single buffer since it attached is not
-        // quiet: it is pointed at a process with no open output stream. Retire
-        // it — and look past everything retired earlier in this recording, not
-        // just the tap in hand, or the watchdog keeps rediscovering the same
-        // empty sibling and swapping back onto it.
         if health.framesSinceAttach == 0 {
             systemAudioTapLedger.retire(target.pid)
         }
         let alternativeCandidate = emittingAlternative ?? currentSystemAudioCandidate(
             for: target,
             excluding: systemAudioTapLedger.retiredPIDs)
-        // Rebuilding a tap on the same PID is still useful when that is the
-        // only process left: the process may have opened its stream after the
-        // original tap was created. Same-PID retries remain budgeted below.
         let candidate = alternativeCandidate
             ?? (systemAudioTapLedger.retiredPIDs.isEmpty
                 ? nil
@@ -1433,9 +1224,6 @@ final class RecordingController: ObservableObject {
             return
         }
 
-        // If the tap has never delivered audio, retry even on the same PID.
-        // Once samples exist, reattach only when Core Audio reports a different
-        // active process for the same meeting app/browser family.
         let shouldRetrySamePID = noBuffers || SystemAudioRecoveryCandidatePolicy.shouldRetrySamePID(
             framesSinceAttach: health.framesSinceAttach,
             audibleDuration: health.audibleDuration,
@@ -1505,16 +1293,11 @@ final class RecordingController: ObservableObject {
         CaptureEnvironment.current.workspace.runningApplications().first { $0.bundleIdentifier == bundleID }?.processIdentifier
     }
 
-    /// Helpers within a live authorized host may move. A new browser host must
-    /// first be verified against the same room, then offered by the detector.
     private func mayRecoverSource(_ target: SystemAudioTarget) -> Bool {
         !MeetingDetector.documentCallHosts.contains(target.bundleID)
             || (target.hostPID != nil && target.hostPID == Self.hostPID(for: target.bundleID))
     }
 
-    /// A currently-emitting sibling is stronger recovery evidence than a quiet
-    /// capture target. Unlike the broader capture lookup, this never returns an
-    /// always-open or merely-present fallback.
     private func currentEmittingSystemAudioCandidate(
         for target: SystemAudioTarget,
         excluding excludedPIDs: Set<pid_t>
@@ -1528,10 +1311,6 @@ final class RecordingController: ObservableObject {
             excluding: excludedPIDs)
     }
 
-    /// Helper processes routinely exit during a live browser/Zoom meeting.
-    /// Give Core Audio a short window to publish the replacement and reattach
-    /// the existing writer; the detector, not helper churn, owns whole-meeting
-    /// termination. Microphone recording continues throughout.
     private func handleCapturedProcessTermination(_ terminatedPID: pid_t) {
         guard isRecording, let recordingID = currentMeeting?.id, systemAudioTarget?.pid == terminatedPID else { return }
         systemAudioHandoffTask?.cancel()
@@ -1597,12 +1376,6 @@ final class RecordingController: ObservableObject {
         }
     }
 
-    /// Takes back the silent-capture advisory once a system track has in fact
-    /// been written. Without it the banner latches for the whole recording and
-    /// keeps claiming the capture is silent — indistinguishable from the
-    /// genuine "tap attached to a process that never emits" case the warning
-    /// exists for. Only a capture that stayed silent keeps its warning.
-    /// The rule itself, kept pure so it is testable without a live capture.
     static func shouldWithdrawSilentSystemAudioWarning(
         hasWarned: Bool, audibleDuration: TimeInterval) -> Bool {
         hasWarned && audibleDuration >= AudioFileInspector.minimumTranscribableDuration
@@ -1623,9 +1396,6 @@ final class RecordingController: ObservableObject {
         return true
     }
 
-    /// A successful reattach starts a new capture attempt. Withdraw the
-    /// advisory for the failed target now; if the replacement is also silent,
-    /// the watchdog can present a fresh warning after its grace period.
     private func withdrawSilentSystemAudioWarning() {
         guard silentSystemAudioWarning.withdraw() else { return }
         onError(nil)

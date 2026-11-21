@@ -3,7 +3,6 @@ import Foundation
 import QuartzCore
 import SwiftUI
 
-/// The installed app identity macOS expects as the drag payload.
 struct PermissionHostApp {
     let displayName: String
     let bundleURL: URL
@@ -22,7 +21,6 @@ struct PermissionHostApp {
     }
 }
 
-/// Reports a SwiftUI control's global frame to the AppKit overlay controller.
 struct PermissionScreenFrameReader: NSViewRepresentable {
     @Binding var frameInScreen: CGRect
 
@@ -63,7 +61,6 @@ final class PermissionScreenFrameTrackingView: NSView {
     }
 }
 
-/// Native file-URL drag source accepted by System Settings privacy lists.
 final class PermissionDragSourceView: NSView, NSDraggingSource {
     private let hostApp: PermissionHostApp
     private let rowView = NSView()
@@ -86,8 +83,6 @@ final class PermissionDragSourceView: NSView, NSDraggingSource {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
-        // NSURL supplies every native file-URL pasteboard representation that
-        // System Settings expects for a real application bundle.
         let item = NSDraggingItem(pasteboardWriter: hostApp.bundleURL as NSURL)
         item.setDraggingFrame(draggingFrame(), contents: draggingImage())
         let session = beginDraggingSession(with: [item], event: event, source: self)
@@ -199,8 +194,6 @@ final class PermissionDragSourceView: NSView, NSDraggingSource {
     }
 }
 
-/// Non-activating helper panel that flies from the pressed Allow button into
-/// System Settings and follows that window while it is open.
 final class PermissionOverlayWindowController: NSWindowController {
     private let windowSize = NSSize(width: 540, height: 112)
     private let launchAnimationDuration: TimeInterval = 0.72

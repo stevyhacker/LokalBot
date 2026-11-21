@@ -1,6 +1,5 @@
 import Foundation
 
-/// Settings › Models and the pages its "More" rows open.
 enum ModelsSettingsPage: String, CaseIterable, Identifiable {
     case active, downloaded, connections, other
 
@@ -43,8 +42,6 @@ enum ModelsSettingsSheet: String, Identifiable {
     var pickerRole: ModelPickerRole? { ModelPickerRole(rawValue: rawValue) }
 }
 
-/// A deliberately narrow patch: applying or undoing a model switch must never
-/// overwrite privacy choices, credentials, or unrelated edits made during a download.
 struct ModelSelectionPatch: Equatable {
     var transcription: TranscriptionModelChoice?
     var granite: GraniteSpeechModelConfiguration?
@@ -68,8 +65,6 @@ struct ModelSelectionPatch: Equatable {
     var cotypingServerRequestStyle: CotypingServerRequestStyle?
     var dictationModelID: String?
 
-    /// Clearing a path needs no runtime. Restoring it through Undo must still
-    /// validate the model, even when the patch changes no role assignment.
     var transcriptionToPrepare: TranscriptionModelChoice? {
         if let transcription { return transcription }
         if let funASRNanoDirectory, !funASRNanoDirectory.isEmpty { return .funASRNano }
@@ -129,8 +124,6 @@ struct ModelSelectionPatch: Equatable {
 
     func matches(_ settings: AppSettings) -> Bool { inverse(in: settings) == self }
 
-    /// IDs alone do not identify imported files or a remote destination.
-    /// Refuse activation if either changed while the replacement was preparing.
     func preparationContextMatches(_ latest: AppSettings, original: AppSettings) -> Bool {
         for id in localModelIDs(in: original) {
             guard ModelCatalog.entry(id: id, custom: original.customBuiltInModels)
@@ -183,7 +176,6 @@ enum ModelStackPreset: String, CaseIterable, Identifiable {
     var autocompleteModelID: String {
         self == .recommended ? ModelCatalog.recommendedCotypingID : ModelCatalog.lightweightCotypingID
     }
-    /// Names come from the same IDs the patch applies, so the list cannot drift.
     var modelSummary: String {
         func name(_ id: String) -> String { ModelCatalog.entry(id: id)?.displayName ?? id }
         return "Transcribe: \(transcription.displayName), Think: \(name(mainModelID)), "
@@ -221,8 +213,6 @@ enum ModelSettingsPresentation {
         }
     }
 
-    /// Where the selected transcription server is, for the Core Roles row.
-    /// A loopback server still runs on this Mac.
     static func transcriptionServerDestination(_ settings: AppSettings) -> String {
         switch settings.remoteTranscription.presentation {
         case .onDevice: "On this Mac · Local server"
@@ -268,8 +258,6 @@ enum ModelSettingsPresentation {
         return uses
     }
 
-    /// Why a model can't be switched to: it is missing and its saved source is
-    /// one the downloader refuses, so preparation could only fail.
     static func downloadBlocker(for entry: ModelCatalog.Entry, downloaded: Bool) -> String? {
         downloaded ? nil : ModelDownloadManager.sourceRefusal(for: entry)
     }
@@ -288,9 +276,6 @@ enum ModelSettingsPresentation {
         }
     }
 
-    /// Nil for catalog models. Removing a custom model only edits the list,
-    /// so it must never orphan a downloaded file or leave a saved role
-    /// choice (even an inactive on-device Think choice) pointing at nothing.
     static func customModelRemoval(_ entry: ModelCatalog.Entry, in settings: AppSettings,
                                    downloaded: Bool) -> CustomModelRemoval? {
         guard ModelCatalog.entry(id: entry.id) == nil,
@@ -329,8 +314,6 @@ enum ModelSettingsPresentation {
         return bytes > 0 ? ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file) : "Size varies"
     }
 
-    /// Roughly what a text model needs in memory to run: its size and a
-    /// third more, the estimate the picker has always shown under Advanced.
     static func memoryNeed(_ entry: ModelCatalog.Entry) -> String? {
         guard entry.sizeGB.isFinite, entry.sizeGB > 0 else { return nil }
         let bytes = entry.sizeGB * 1.3 * 1_000_000_000

@@ -1,55 +1,39 @@
 import Foundation
 
-/// What was on screen while a meeting recorded, aligned to the meeting's
-/// audio timeline. Built only from retained screen-memory rows (titles,
-/// document names, URLs, and timestamps); pixels and captured text are not
-/// read here. Captures expire with screen retention, so this can shrink.
 struct MeetingScreenContext: Equatable, Sendable {
-    /// One stretch of the same app and window, as it appeared on screen.
     struct Moment: Identifiable, Equatable, Sendable {
         let snapshotID: Int64
         let capturedAt: Date
-        /// Seconds from the start of the meeting's audio.
         let offset: TimeInterval
-        /// When the next stretch began, or the end of the recording.
         let endOffset: TimeInterval
         let app: String
         let title: String
-        /// The site or service named in a browser tab's title ("Gmail").
         let site: String?
         let sourceURL: String
         let hasPixels: Bool
-        /// The call itself (its app window or conference tab) was in front.
         let isCall: Bool
 
         var id: Int64 { snapshotID }
     }
 
-    /// A distinct document, page, or window that was referenced during the
-    /// call, in order of first appearance.
     struct Material: Identifiable, Equatable, Sendable {
         let id: String
         let title: String
         let app: String
-        /// The site name from the tab title, else a web page's host.
         let site: String?
         let firstOffset: TimeInterval
         let firstSnapshotID: Int64
-        /// Approximate time in front, from capture to the next change.
         let secondsOnScreen: TimeInterval
-        /// A web address that reopens this page, when the stored one can.
         let pageURL: URL?
     }
 
     static let maximumMaterials = 12
 
-    /// Every stretch in order, including the call's own window.
     var moments: [Moment] = []
     var materials: [Material] = []
 
     var isEmpty: Bool { materials.isEmpty }
 
-    /// The stretch in front at an audio position.
     func moment(at offset: TimeInterval) -> Moment? {
         guard let first = moments.first, offset >= first.offset - 1 else { return nil }
         var low = 0
@@ -61,8 +45,6 @@ struct MeetingScreenContext: Equatable, Sendable {
         return moments[low]
     }
 
-    /// Window and document titles for use as secondary context, never the
-    /// captured text itself.
     var materialTitles: [String] {
         materials.map { "\($0.title) (\($0.site ?? $0.app))" }
     }
@@ -114,8 +96,6 @@ struct MeetingScreenContext: Equatable, Sendable {
                 firstOffset: moment.offset, firstSnapshotID: moment.snapshotID, secondsOnScreen: seconds,
                 pageURL: reopenableURL(moment.sourceURL)))
         }
-        // A long call can touch dozens of windows; keep the ones that stayed
-        // in front longest, still listed in the order they first appeared.
         if materials.count > maximumMaterials {
             let kept = Set(materials.sorted { $0.secondsOnScreen > $1.secondsOnScreen }
                 .prefix(maximumMaterials).map(\.id))
@@ -124,10 +104,6 @@ struct MeetingScreenContext: Equatable, Sendable {
         return Self(moments: moments, materials: materials)
     }
 
-    // MARK: - Helpers
-
-    /// A readable page or document name and, for browser tabs, the site the
-    /// tab's title names.
     struct Page: Equatable, Sendable {
         let title: String
         let site: String?
@@ -135,8 +111,6 @@ struct MeetingScreenContext: Equatable, Sendable {
 
     static func page(for shot: ActivityStore.Screenshot) -> Page {
         let isBrowser = browserApps.contains(shot.app.lowercased())
-        // A browser's document name is the last piece of the page's URL
-        // ("#inbox", a message id), not something the user would recognize.
         let document = shot.documentName.trimmingCharacters(in: .whitespacesAndNewlines)
         if !isBrowser, !document.isEmpty { return Page(title: document, site: nil) }
         let title = TimelineWorkSession.strippingBrowserChrome(shot.windowTitle)
@@ -145,9 +119,6 @@ struct MeetingScreenContext: Equatable, Sendable {
         return isBrowser ? splittingSite(from: title) : Page(title: title, site: nil)
     }
 
-    /// "Weekly sync - you@example.com - Gmail" reads as the page "Weekly
-    /// sync" on "Gmail". Account addresses and unread counts are dropped so
-    /// revisits of one page group together.
     static func splittingSite(from title: String) -> Page {
         var last: (separator: String, range: Range<String.Index>)?
         for separator in [" - ", " — ", " – ", " | "] {
@@ -185,9 +156,6 @@ struct MeetingScreenContext: Equatable, Sendable {
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
-    /// Stored addresses drop their query and fragment, so a page chosen by
-    /// either (a Gmail message, a YouTube video, a search) gets no link
-    /// rather than one that opens the wrong page.
     static func reopenableURL(_ sourceURL: String) -> URL? {
         guard let host = webHost(sourceURL)?.lowercased(), !queryRoutedHosts.contains(host),
               let url = URL(string: sourceURL) else { return nil }
@@ -202,14 +170,10 @@ struct MeetingScreenContext: Equatable, Sendable {
         "mail.google.com", "google.com", "youtube.com", "m.youtube.com", "bing.com", "duckduckgo.com",
     ]
 
-    /// The call itself (the meeting app's window or a conference tab) is not
-    /// material the user referenced.
     private static func isCallWindow(_ shot: ActivityStore.Screenshot, meeting: Meeting) -> Bool {
         if let url = URL(string: shot.sourceURL), ConferenceURLDetector.isMeetingURL(url) { return true }
         let app = shot.app.lowercased()
         if browserApps.contains(app) {
-            // Captures can lack the tab's URL. A tab using the camera or
-            // microphone during the meeting is the call, and so is a Meet tab.
             let segments = shot.windowTitle.lowercased().components(separatedBy: " - ")
             if segments.contains(where: callStatusMarkers.contains) { return true }
             if segments.first == "meet" || shot.windowTitle.hasPrefix("Meet – ") { return true }
@@ -244,9 +208,6 @@ struct MeetingScreenContext: Equatable, Sendable {
             && browserApps.contains(moment.app.lowercased())
     }
 
-    /// Keyed by the readable title, not the URL: many pages share a path
-    /// (every Gmail message, every YouTube video), and captures can lack
-    /// the URL altogether.
     private static func materialKey(_ moment: Moment) -> String {
         moment.app.lowercased() + "|" + moment.title.lowercased()
     }

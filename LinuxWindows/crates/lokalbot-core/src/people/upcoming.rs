@@ -1,9 +1,3 @@
-//! Who People shows as coming up (`PeopleUpcomingMeetings.swift`): the
-//! calendar's next week matched to people through the keys the directory
-//! already registers for an attendee, the address and then the name.
-//! Nothing is stored; a match lasts as long as the page shows it, and it
-//! holds names only.
-
 use std::collections::{BTreeSet, HashMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
@@ -13,19 +7,14 @@ use crate::calendar::CalendarEvent;
 use crate::calendar::upcoming::{UpcomingKind, kind};
 use crate::model::PersonProfile;
 
-/// "Coming up" looks this many days ahead.
 pub const WINDOW_DAYS: i64 = 7;
 
-/// The next calendar meeting with one person (`PersonUpcomingMeeting`). An
-/// invited address without a display name is left out of `others`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PersonUpcomingMeeting {
     pub event_id: String,
     pub title: String,
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
-    /// Everyone else invited, by display name, in the invitation's order.
-    /// The person and the user are not listed.
     pub others: Vec<String>,
 }
 
@@ -35,9 +24,6 @@ impl PersonUpcomingMeeting {
     }
 }
 
-/// The calendar's meetings People may read: only while calendar use is on
-/// and the calendar has been read, and never a personal appointment. `None`
-/// otherwise, and then nobody has a next meeting.
 pub fn readable_events(
     calendar_enabled: bool,
     calendar_ready: bool,
@@ -55,14 +41,6 @@ pub fn readable_events(
     )
 }
 
-/// The soonest event in the next week for each person, by person ID.
-///
-/// An attendee with an address is the person registered under that address,
-/// or the one still known only by that full name. An attendee without an
-/// address is the one person carrying that full name, or, for a lone first
-/// name, the one person whose full name starts with it. Two people who share
-/// a name are never guessed between. An event already recorded (its
-/// occurrence ID in `recorded_event_ids`) or already over is left out.
 pub fn match_people(
     events: Option<&[CalendarEvent]>,
     people: &[PersonProfile],
@@ -96,7 +74,6 @@ pub fn match_people(
     let is_self = SelfMatcher::new(self_names);
     let mut result: HashMap<String, PersonUpcomingMeeting> = HashMap::new();
     for event in upcoming {
-        // Each attendee as (the person they are, the name to show).
         let mut attendees: Vec<(Option<String>, Option<String>)> = Vec::new();
         for identity in event.resolved_participant_identities() {
             let name = identity
@@ -142,14 +119,9 @@ pub fn match_people(
     result
 }
 
-/// Looks attendees up by the directory's own keys without ever holding an
-/// address: a person's IDs are hashes of those keys.
 struct Index {
-    /// Every ID folded into a person, to that person's ID.
     person_by_member_id: HashMap<String, String>,
-    /// Normalized full names (shown and other) to the people carrying them.
     people_by_name: HashMap<String, HashSet<String>>,
-    /// First word of a full name of two or more words.
     people_by_first_name: HashMap<String, HashSet<String>>,
     names: HashMap<String, String>,
 }
@@ -199,9 +171,6 @@ impl Index {
             if let Some(person) = by_key(format!("email:{}", email.to_lowercase())) {
                 return Some(person);
             }
-            // A person so far known only by this name takes the address when
-            // the directory next sees it; someone registered under another
-            // address stays a different person.
             return name_key.and_then(|key| by_key(format!("name:{key}")));
         }
         let key = name_key?;
@@ -393,7 +362,6 @@ mod tests {
 
     #[test]
     fn personal_appointments_are_not_read() {
-        // Only the user, no link, a title that names no meeting.
         let dentist = event("Dentist", 5.0, None, &[], &[]);
         let standup = event("Standup", 6.0, None, &[], &[]);
         let read = readable_events(true, true, &[dentist, standup]).unwrap();
@@ -500,10 +468,8 @@ mod tests {
             2
         );
         let dragan = id("Dragan Ilić", &people);
-        // A new address under a shared name is nobody People knows.
         let third = (Some("Ana Petrović"), Some("ana@third.example"));
         assert!(matched(&[event("Kickoff", 4.0, None, &[third], &[])], &people).is_empty());
-        // A name-only invitation cannot choose between the two either.
         assert!(
             matched(
                 &[event("Kickoff", 4.0, None, &[], &["Ana Petrović"])],
@@ -511,8 +477,6 @@ mod tests {
             )
             .is_empty()
         );
-        // Someone known only by name takes an address, a bare name, or a lone
-        // first name.
         let with_address = (Some("Dragan Ilić"), Some("dragan@example.com"));
         assert_eq!(
             matched(&[event("1:1", 4.0, None, &[with_address], &[])], &people)[&dragan].title,

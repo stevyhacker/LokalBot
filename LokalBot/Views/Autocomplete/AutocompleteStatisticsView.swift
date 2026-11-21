@@ -1,10 +1,6 @@
 import Charts
 import SwiftUI
 
-/// Settings → Autocomplete → Statistics: how much autocomplete wrote for you. It
-/// counts what was shown as well as what was taken, and what you typed
-/// yourself, so it can say how often a suggestion is used and how much of
-/// your text it wrote, and it prices keystrokes at your own typing speed.
 struct AutocompleteStatisticsView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject private var store: CotypingStatsStore
@@ -31,7 +27,6 @@ struct AutocompleteStatisticsView: View {
     }
 
     var body: some View {
-        // Nothing to show and nothing coming: autocomplete was never used and is off.
         if app.settings.cotypingEnabled || !store.usage.isEmpty {
             let summary = store.usage.summary(range)
             Section {
@@ -55,7 +50,6 @@ struct AutocompleteStatisticsView: View {
                 }
                 footer
             } header: {
-                // The period applies to everything below, so it sits with the title.
                 HStack {
                     Text("Statistics")
                     Spacer()
@@ -71,11 +65,8 @@ struct AutocompleteStatisticsView: View {
         }
     }
 
-    // MARK: - Headline numbers
-
     private var language: AppLanguage { app.settings.appLanguage }
 
-    /// Four across when they fit, otherwise two by two; tiles in a row share its height.
     private func tiles(_ summary: CotypingUsageSummary) -> some View {
         let counts = summary.total.suggestions
         let format = AutocompleteStatisticsPresentation.self
@@ -96,8 +87,6 @@ struct AutocompleteStatisticsView: View {
                                identifier: "autocomplete.statistics.timeSaved")
         }
     }
-
-    // MARK: - Chart
 
     private func chart(_ summary: CotypingUsageSummary) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -155,8 +144,6 @@ struct AutocompleteStatisticsView: View {
         .padding(.top, 4)
     }
 
-    // MARK: - Breakdowns
-
     @ViewBuilder private func breakdowns(_ summary: CotypingUsageSummary) -> some View {
         let surfaces = AutocompleteStatisticsPresentation.surfaceRows(summary.total, language)
         let models = AutocompleteStatisticsPresentation.modelRows(
@@ -166,7 +153,6 @@ struct AutocompleteStatisticsView: View {
         if surfaces.count > 1 {
             breakdown(title: "By kind of app", rows: surfaces, identifier: "surfaces")
         }
-        // A model column says something only once there is another to compare.
         if models.count > 1 {
             breakdown(title: "By model", rows: models, identifier: "models")
         }
@@ -207,8 +193,6 @@ struct AutocompleteStatisticsView: View {
         .accessibilityIdentifier("autocomplete.statistics.\(identifier)")
     }
 
-    // MARK: - Footer
-
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
             SettingsHelp("Counted on this Mac while you type in other apps: suggestions shown and accepted, the characters you type yourself where autocomplete works, and the pauses between them, by day, kind of app and model. No text, app names or window titles are kept. Time saved is the keystrokes you did not type at your measured speed, not counting time spent reading suggestions.")
@@ -223,8 +207,6 @@ struct AutocompleteStatisticsView: View {
     }
 }
 
-/// Wording and number formats for the statistics, apart from the view so
-/// they can be tested.
 enum AutocompleteStatisticsPresentation {
     struct Row: Identifiable, Equatable {
         var id: String
@@ -242,7 +224,6 @@ enum AutocompleteStatisticsPresentation {
         return value.formatted(.number.precision(.fractionLength(1)))
     }
 
-    /// "≈ 3 hr, 25 min", "≈ 41 min", "≈ 50 sec".
     static func timeSaved(_ seconds: Double) -> String {
         let rounded = seconds.rounded()
         guard rounded > 0 else { return "0" }
@@ -283,7 +264,6 @@ enum AutocompleteStatisticsPresentation {
                       keystrokes)
     }
 
-    /// "Used on 12 of 30 days · 4 typos fixed".
     static func activeDetail(_ summary: CotypingUsageSummary, _ language: AppLanguage) -> String {
         let format = summary.barUnit == .month ? "Used in %@ of %@ months" : "Used on %@ of %@ days"
         var text = String(format: language.localized(format),
@@ -294,7 +274,6 @@ enum AutocompleteStatisticsPresentation {
         return text
     }
 
-    /// Kinds of app with any suggestion shown, most words first.
     static func surfaceRows(_ bucket: CotypingUsageBucket, _ language: AppLanguage) -> [Row] {
         CotypingSurfaceClass.measured.compactMap { surface -> Row? in
             guard let counts = bucket.surfaces[surface.rawValue], counts.shown > 0 || counts.words > 0 else { return nil }
@@ -303,7 +282,6 @@ enum AutocompleteStatisticsPresentation {
         .sorted { $0.counts.words > $1.counts.words }
     }
 
-    /// Models with any suggestion shown, most shown first.
     static func modelRows(_ bucket: CotypingUsageBucket, displayName: (String) -> String) -> [Row] {
         bucket.models
             .filter { $0.value.shown > 0 }
@@ -311,7 +289,6 @@ enum AutocompleteStatisticsPresentation {
             .sorted { ($0.counts.shown, $1.title) > ($1.counts.shown, $0.title) }
     }
 
-    /// The chart spans whole periods, so the first and last bars are not cut in half.
     static func domain(_ summary: CotypingUsageSummary, calendar: Calendar = .current) -> ClosedRange<Date> {
         let start = summary.bars.first?.start ?? Date()
         let last = summary.bars.last?.start ?? start
@@ -319,7 +296,6 @@ enum AutocompleteStatisticsPresentation {
         return start...end
     }
 
-    /// Headroom above the tallest bar, and a floor so a quiet week is not drawn full height.
     static func wordCeiling(_ summary: CotypingUsageSummary) -> Int {
         let tallest = summary.bars.map(\.bucket.suggestions.words).max() ?? 0
         return max(10, tallest + (tallest + 9) / 10)

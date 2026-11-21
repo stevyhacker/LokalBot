@@ -1,8 +1,3 @@
-//! The meeting that starts within the hour, at the top of Today
-//! (`TodayNextMeetingCard` in `UpcomingMeetingView.swift`): when it is, who
-//! is in it, Join and Record, and what to know before joining. Calendar setup
-//! and access stay in Settings.
-
 use std::time::{Duration, Instant};
 
 use chrono::{DateTime, Utc};
@@ -24,26 +19,17 @@ use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, action_row};
 
-/// Preparation is gathered again this often, and whenever the library changes.
 const PREPARATION_REFRESH: Duration = Duration::from_secs(5 * 60);
 
 #[derive(Default)]
 pub(super) struct UpcomingState {
-    /// The event and library revision preparation was last requested for.
     requested: Option<(String, u64, Instant)>,
-    /// The reader's own choice for "Before you join". Without one it is open,
-    /// and folds to a count while another meeting is being recorded.
     preparation_choice: Option<bool>,
     shows_more: bool,
-    /// What the choice above was made for: the event and whether a meeting
-    /// was being recorded. A change of either forgets it.
     seen: Option<(String, bool)>,
 }
 
 impl UpcomingState {
-    /// Follows the card's event: forgets choices made for another event or
-    /// recording state, and asks the engine for the event's evidence when it
-    /// changes, when the library changes, and every few minutes.
     pub(super) fn sync(
         &mut self,
         next: Option<&CalendarEvent>,
@@ -143,9 +129,6 @@ impl TodayPage {
                 )
             });
 
-        // A solo event without a link may not be a call at all; the toolbar's
-        // Record is still there for it. Record leaves the card while
-        // something else is being recorded: the live card holds the only Stop.
         let actions = (selector::kind(event) == UpcomingKind::Meeting).then(|| {
             let id = event.external_id.clone();
             h_flex()
@@ -203,9 +186,6 @@ impl TodayPage {
             .into_any_element()
     }
 
-    /// "Before you join": the brief when the model wrote one (or when there is
-    /// nothing else), and one row of each kind of evidence, the rest a click
-    /// away.
     fn preparation(
         &self,
         preparation: &MeetingPreparation,
@@ -333,8 +313,6 @@ impl TodayPage {
         section.into_any_element()
     }
 
-    /// The model's brief is on request: it may load the Think model, and the
-    /// engine writes it only with a Think model on this computer.
     fn brief_control(
         &self,
         preparation: &MeetingPreparation,
@@ -380,8 +358,6 @@ impl TodayPage {
             .into_any_element()
     }
 
-    /// One thing to know: what it is, the words, and where it comes from. A
-    /// row with a meeting opens it.
     fn preparation_row(&self, index: usize, row: &PreparationRow, cx: &App) -> AnyElement {
         let lb = cx.lb().clone();
         let (label, icon) = match row.kind {
@@ -478,7 +454,6 @@ impl TodayPage {
     }
 }
 
-/// "11:00 AM – 11:30 AM", local time.
 pub(crate) fn interval(event: &CalendarEvent) -> String {
     if event.end <= event.start {
         return lokalbot_core::time::clock_time(event.start);
@@ -490,7 +465,6 @@ pub(crate) fn interval(event: &CalendarEvent) -> String {
     )
 }
 
-/// The engine reports these two fixed messages; show them in the interface language.
 fn translated_error(error: &str) -> String {
     match error {
         "Choose an on-device Think model to generate this brief." => {

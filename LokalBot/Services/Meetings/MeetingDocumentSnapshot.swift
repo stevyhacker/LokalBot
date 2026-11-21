@@ -1,7 +1,5 @@
 import Foundation
 
-/// Value-only result of file validation. The view publishes this after checking
-/// task cancellation, so a pipeline update cannot install an older document.
 struct MeetingDocumentSnapshot: Sendable {
     var notes: String?
     var transcript: Transcript?

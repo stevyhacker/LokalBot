@@ -1,6 +1,5 @@
 import Foundation
 
-/// Deterministic deduplication shared by the unified notes extraction pass.
 enum MeetingOutcomesGenerator {
     static func removeCheckpoint(in folder: URL) {
         try? FileManager.default.removeItem(at: folder.appendingPathComponent("outcomes.parts.partial.json"))
@@ -61,14 +60,11 @@ enum MeetingOutcomesGenerator {
         let rightDue = normalized(rhs.due ?? "")
         guard leftDue.isEmpty || rightDue.isEmpty || leftDue == rightDue else { return false }
         if normalized(lhs.text) == normalized(rhs.text) { return true }
-        // Context can support several tasks. Only the primary citation
-        // anchors the undertaking used to resolve this task's ownership.
         guard let anchor = lhs.citations.first, anchor.segmentID == rhs.citations.first?.segmentID else { return false }
         let leftQuote = normalized(lhs.attribution?.quote ?? "")
         let rightQuote = normalized(rhs.attribution?.quote ?? "")
         guard leftQuote.isEmpty || rightQuote.isEmpty || leftQuote == rightQuote else { return false }
         if duplicateText(lhs.text, rhs.text, threshold: 0.65) { return true }
-        // A repair can repeat the spoken words of an already extracted task.
         guard !leftQuote.isEmpty, leftQuote == rightQuote else { return false }
         return echoesTask(lhs, rhs) || echoesTask(rhs, lhs)
     }
@@ -79,8 +75,6 @@ enum MeetingOutcomesGenerator {
         return match.leads && match.matches >= 2
     }
 
-    /// The task text is just what its cited speaker said ("I'll ping Mira
-    /// to get that resolved"), not a task written from it.
     private static func repeatsItsSource(_ action: MeetingOutcomes.ActionItem) -> Bool {
         let text = normalized(action.text)
         let source = action.attribution?.quote ?? action.citations.first?.excerpt ?? ""
@@ -130,7 +124,6 @@ enum MeetingOutcomesGenerator {
         _ lhs: MeetingOutcomes.ActionItem,
         _ rhs: MeetingOutcomes.ActionItem
     ) -> MeetingOutcomes.ActionItem {
-        // Keep the text, owner, deadline, and primary citation together.
         let leftHasDue = !normalized(lhs.due ?? "").isEmpty
         let rightHasDue = !normalized(rhs.due ?? "").isEmpty
         if leftHasDue != rightHasDue { return leftHasDue ? lhs : rhs }

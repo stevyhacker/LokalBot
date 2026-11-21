@@ -1,7 +1,4 @@
 #!/bin/bash
-# Build dist/LokalBot.mcpb — a one-click MCP bundle for GUI clients.
-# The bundle contains no binary: its shim execs the signed helper installed
-# inside LokalBot.app, avoiding a second copy that can drift or need signing.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
@@ -14,8 +11,6 @@ VERSION=$(sed -n 's/^ *CFBundleShortVersionString: *"\(.*\)"/\1/p' project.yml |
 STAGE=$(mktemp -d /tmp/lokalbot-mcpb.XXXXXX)
 trap 'rm -rf "$STAGE"' EXIT
 
-# The current official MCPB manifest specification is 0.3. ${__dirname} is
-# substituted by the host at runtime and must remain literal in the JSON.
 cat > "$STAGE/manifest.json" <<MANIFEST
 {
   "manifest_version": "0.3",
@@ -47,7 +42,6 @@ exec "$CLI" mcp
 RUNSH
 chmod +x "$STAGE/run.sh"
 
-# 2.1.2 was published more than seven days before this script was added.
 MCPB_PACKAGE="@anthropic-ai/mcpb@2.1.2"
 npx -y "$MCPB_PACKAGE" validate "$STAGE/manifest.json"
 mkdir -p dist

@@ -1,12 +1,7 @@
-//! The person's project-folder exclusions, applied to notes
-//! (`AgentMemoryExclusions`). A note about a folder inside an excluded one
-//! never leaves the reader.
-
 use crate::coding_agents::text;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Exclusions {
-    /// Standardized absolute folder paths, with `/` separators.
     folders: Vec<String>,
     home: Option<String>,
 }
@@ -39,15 +34,9 @@ impl Exclusions {
             .any(|folder| text::is_inside(&path, folder))
     }
 
-    /// Claude Code names a project folder after its working directory with
-    /// every character that is not an ASCII letter or digit turned into "-".
-    /// That loses which dashes were separators, so a sibling such as `app-old`
-    /// reads as inside `app` and is left out too: the safe direction.
     pub fn excludes_claude_project(&self, slug: &str) -> bool {
         self.folders.iter().any(|folder| {
             let excluded = claude_project_slug(folder);
-            // Windows paths don't care about case, and a drive letter is
-            // written either way.
             let (slug, excluded) = if text::is_windows_path(folder) {
                 (slug.to_ascii_lowercase(), excluded.to_ascii_lowercase())
             } else {
@@ -58,13 +47,11 @@ impl Exclusions {
         })
     }
 
-    /// Whether `text` (a heading or a header line) names an excluded folder.
     pub fn mentions_excluded_folder(&self, text: &str) -> bool {
         self.folders.iter().any(|folder| {
             if !text::is_windows_path(folder) {
                 return mentions(text, folder);
             }
-            // A Windows folder is written with either separator, in any case.
             let lowered = text.to_ascii_lowercase();
             let folder = folder.to_ascii_lowercase();
             mentions(&lowered, &folder) || mentions(&lowered, &folder.replace('/', "\\"))
@@ -72,8 +59,6 @@ impl Exclusions {
     }
 }
 
-/// `folder` occurs in `text` as the folder itself or something inside it, not
-/// as a sibling whose name merely starts the same (`app-old`, `app.bak`).
 fn mentions(text: &str, folder: &str) -> bool {
     let mut from = 0;
     while let Some(found) = text[from..].find(folder) {
@@ -92,9 +77,6 @@ fn mentions(text: &str, folder: &str) -> bool {
     false
 }
 
-/// The name Claude Code gives a working directory's project folder. A Windows
-/// path gives the same name with either separator: `C:\Code\app` and
-/// `C:/Code/app` are both `C--Code-app`.
 pub fn claude_project_slug(path: &str) -> String {
     path.chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })

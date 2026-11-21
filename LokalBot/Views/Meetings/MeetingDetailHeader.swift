@@ -1,21 +1,16 @@
 import SwiftUI
 
-/// One searchable fact on the meeting's date line.
 struct MeetingDetailMetadataItem {
     let field: MeetingPageSearchMatch.MeetingMetadataField
     let text: String
-    /// A capture limitation people should notice, not neutral metadata.
     var warning: String?
 
-    /// When, how long, where, and a mic-only recording's limitation.
     static func items(for meeting: Meeting) -> [Self] {
         var items: [Self] = [
             .init(field: .date, text: MeetingDetailPresentation.dateText(meeting.startedAt)),
             .init(field: .duration, text: meeting.displayDuration),
         ]
         if !meeting.isMergedMeeting { items.append(.init(field: .app, text: meeting.appName)) }
-        // An imported file's audio came from neither this Mac's microphone
-        // nor its system audio, so it carries no capture limitation.
         if !meeting.hasSystemTrack, !meeting.isImported {
             items.append(.init(
                 field: .audioSource, text: "Mic only",
@@ -25,8 +20,6 @@ struct MeetingDetailMetadataItem {
     }
 }
 
-/// The meeting's one title: name, a date line, and who spoke. Unnamed voices
-/// are named from here.
 struct MeetingDetailHeader: View {
     let meeting: Meeting
     let speakers: [MeetingDetailPresentation.Speaker]
@@ -126,7 +119,6 @@ struct MeetingDetailHeader: View {
     }
 }
 
-/// The small amber control that asks for a missing name or owner.
 struct MeetingAttentionChipStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         MeetingAttentionChip(configuration: configuration)
@@ -155,8 +147,6 @@ private struct MeetingAttentionChip: View {
     }
 }
 
-/// Lays children out in reading order and wraps to further lines when the row
-/// is too narrow, as a row of speaker names or name choices does.
 struct MeetingWrappingRow: Layout {
     var spacing: CGFloat = 8
     var lineSpacing: CGFloat = 6

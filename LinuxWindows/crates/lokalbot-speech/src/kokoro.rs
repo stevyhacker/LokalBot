@@ -1,7 +1,3 @@
-//! Read aloud with Kokoro 82M (`KokoroSpeechEngine.swift`). The Mac runs
-//! sherpa-onnx's command-line tool; here the library runs in-process, so the
-//! audio stays in memory unless the user exports it.
-
 use std::sync::Arc;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -20,13 +16,10 @@ pub const MIN_SPEED: f64 = 0.5;
 pub const MAX_SPEED: f64 = 2.0;
 pub const DEFAULT_VOICE: &str = "af_heart";
 
-/// The Mac's `--num-threads=2`: reading aloud should not take over the computer.
 const THREADS: i32 = 2;
 
-/// One of the voices the Mac offers (`KokoroVoice`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Voice {
-    /// Stored in settings (`speechVoice`).
     pub id: &'static str,
     pub display_name: &'static str,
     pub speaker_id: i32,
@@ -80,7 +73,6 @@ pub const VOICES: [Voice; 9] = [
     },
 ];
 
-/// The stored voice, or Heart when a library holds one this build doesn't know.
 pub fn voice(id: &str) -> Voice {
     VOICES
         .iter()
@@ -89,7 +81,6 @@ pub fn voice(id: &str) -> Voice {
         .unwrap_or(VOICES[0])
 }
 
-/// The stored speed within what the model takes; anything unusable reads at 1×.
 pub fn clamped_speed(speed: f64) -> f64 {
     if speed.is_finite() {
         speed.clamp(MIN_SPEED, MAX_SPEED)
@@ -106,8 +97,6 @@ pub enum SynthesisError {
     Cancelled,
 }
 
-/// Markdown as text worth saying (`SpeechTextSanitizer`): code blocks go, links
-/// keep their text, citations and markup go, whitespace collapses.
 pub fn plain_text(markdown: &str) -> String {
     static RULES: OnceLock<Vec<(Regex, &'static str)>> = OnceLock::new();
     let rules = RULES.get_or_init(|| {
@@ -133,7 +122,6 @@ pub fn plain_text(markdown: &str) -> String {
     text
 }
 
-/// Speech ready to play or save: mono floats at `sample_rate`.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Speech {
     pub samples: Vec<f32>,
@@ -145,8 +133,6 @@ pub struct Kokoro {
 }
 
 impl Kokoro {
-    /// Loads the downloaded model. The Mac's configuration: both lexicons,
-    /// espeak data for other words, two threads.
     pub fn load(paths: &LibraryPaths) -> Result<Kokoro> {
         let model = models::kokoro_model();
         if !models::is_installed(paths, model) {
@@ -187,8 +173,6 @@ impl Kokoro {
         Ok(Kokoro { tts })
     }
 
-    /// Reads markdown `text` with one voice at `speed` (0.5–2.0×). `cancel`
-    /// stops it between sentences.
     pub fn synthesize(
         &self,
         text: &str,
@@ -223,8 +207,6 @@ impl Kokoro {
     }
 }
 
-/// What the model is given, or `None` when nothing is left to say. C strings
-/// end at a NUL, so one can't reach the library.
 fn synthesis_text(markdown: &str) -> Option<String> {
     let text = plain_text(&markdown.replace('\0', " "));
     let text = text.trim();
@@ -268,8 +250,6 @@ mod tests {
         assert_eq!(synthesis_text("a\0b").as_deref(), Some("a b"));
     }
 
-    /// Needs the real model: `LOKALBOT_KOKORO_ROOT=<library root with the
-    /// model> cargo test -p lokalbot-speech kokoro -- --ignored`.
     #[test]
     #[ignore]
     fn reads_with_the_real_model() {
@@ -293,7 +273,6 @@ mod tests {
             fast.samples.len(),
             normal.samples.len()
         );
-        // Words outside the lexicons, other scripts and symbols must not abort.
         for text in [
             "Ћирилица и latinica, 中文 too.",
             "The API's p99 was 3.5 ms — 🚀 great!",

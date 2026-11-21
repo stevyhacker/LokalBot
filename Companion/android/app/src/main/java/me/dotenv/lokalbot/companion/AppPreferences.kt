@@ -14,7 +14,6 @@ enum class LibraryMode { None, Sample, Paired }
 
 private val Context.settings by preferencesDataStore(name = "settings")
 
-/** Small device-local settings. The library itself lives in the sync store. */
 class AppPreferences(private val context: Context) {
 
     val mode: Flow<LibraryMode> = context.settings.data.map { prefs ->
@@ -31,7 +30,6 @@ class AppPreferences(private val context: Context) {
         context.settings.edit { it[APP_LOCK] = enabled }
     }
 
-    /** This device's id for the Mac's device list, created on first use. */
     suspend fun deviceId(): String {
         context.settings.data.first()[DEVICE_ID]?.let { return it }
         val id = UUID.randomUUID().toString()
@@ -39,7 +37,6 @@ class AppPreferences(private val context: Context) {
         return id
     }
 
-    /** The name the Mac shows for this device, as the person last set it. */
     suspend fun deviceName(): String? = context.settings.data.first()[DEVICE_NAME]
 
     suspend fun setDeviceName(name: String) {

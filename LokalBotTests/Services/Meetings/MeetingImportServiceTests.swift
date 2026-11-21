@@ -11,7 +11,6 @@ final class MeetingImportServiceTests: XCTestCase {
         return url
     }
 
-    /// A stereo 44.1 kHz WAV, shaped like a phone or desktop recorder export.
     private func writeWAV(to url: URL, seconds: Double) throws {
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 2))
         let frames = AVAudioFrameCount(44_100 * seconds)
@@ -33,8 +32,6 @@ final class MeetingImportServiceTests: XCTestCase {
         try file.write(from: buffer)
     }
 
-    /// An ADTS AAC stream, the way the phone apps write recordings: the file
-    /// type follows the `.aac` extension.
     private func writeADTS(to url: URL, seconds: Double, silentAfter: Double? = nil) throws {
         let format = try XCTUnwrap(AVAudioFormat(standardFormatWithSampleRate: 44_100, channels: 1))
         let frames = AVAudioFrameCount(44_100 * seconds)
@@ -44,7 +41,6 @@ final class MeetingImportServiceTests: XCTestCase {
         var noise = SystemRandomNumberGenerator()
         for index in 0..<Int(frames) {
             if let silentAfter {
-                // Noise costs the encoder far more bytes than silence does.
                 samples[index] = Double(index) / 44_100 < silentAfter ? Float.random(in: -0.4...0.4, using: &noise) : 0
             } else {
                 samples[index] = 0.2 * sinf(Float(index) * 2 * .pi * 220 / 44_100)
@@ -96,7 +92,6 @@ final class MeetingImportServiceTests: XCTestCase {
         let storage = StorageManager(rootURL: try temporaryDirectory("DeviceLibrary"))
         let source = try temporaryDirectory("DeviceSource").appendingPathComponent("upload.aac")
         try writeADTS(to: source, seconds: 4)
-        // A killed recorder stops mid-frame.
         let whole = try Data(contentsOf: source)
         try whole.prefix(whole.count / 2 + 7).write(to: source)
 
@@ -114,7 +109,6 @@ final class MeetingImportServiceTests: XCTestCase {
         let meeting = try await MeetingImportService.importDeviceRecording(
             from: source, origin: deviceOrigin(startedAt: nil), storage: storage)
 
-        // The phone deletes its copy after this, so all of it has to be here.
         XCTAssertEqual(try XCTUnwrap(meeting.recordedDuration), 120, accuracy: 0.5)
     }
 
@@ -159,8 +153,6 @@ final class MeetingImportServiceTests: XCTestCase {
         let source = try temporaryDirectory("ImportSource").appendingPathComponent("Design review.wav")
         try writeWAV(to: source, seconds: 2)
         let original = try Data(contentsOf: source)
-        // A copied recording: modification still marks when it stopped, while
-        // creation is when it was copied.
         let stopped = Date(timeIntervalSince1970: 1_780_000_000)
         try FileManager.default.setAttributes(
             [.creationDate: stopped.addingTimeInterval(86_400), .modificationDate: stopped],
@@ -185,8 +177,6 @@ final class MeetingImportServiceTests: XCTestCase {
             format: "meetings/%d/%02d/%02d-design-review",
             try XCTUnwrap(day.year), try XCTUnwrap(day.month), try XCTUnwrap(day.day))))
 
-        // The pipeline transcribes whatever tracks the folder holds: the file
-        // must arrive as the diarized system track with no microphone track.
         let folder = meeting.folderURL(in: storage)
         XCTAssertEqual(MeetingAudioFiles.transcribableURL(for: .system, in: folder),
                        MeetingAudioFiles.primaryURL(for: .system, in: folder))
@@ -251,8 +241,6 @@ final class MeetingImportServiceTests: XCTestCase {
         XCTAssertEqual(MeetingImportService.title(for: URL(fileURLWithPath: "/tmp/ .mp3")), "Imported recording")
     }
 
-    /// The screen during an imported file's time span shows what the user was
-    /// doing then, not that recording, so it must not reach the notes prompt.
     func testImportedMeetingsTakeNoScreenTitles() throws {
         let root = try temporaryDirectory("ImportScreenContext")
         let start = Date(timeIntervalSince1970: 1_780_000_000)

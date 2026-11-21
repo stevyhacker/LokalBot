@@ -1,11 +1,5 @@
 import SwiftUI
 
-// Building blocks of a list beside a page (People and Projects): the list
-// column's search header, a page section's heading, a decision with its
-// meeting, a page with a side column of reference blocks, and a small label
-// chip.
-
-/// The search field that heads a list column.
 struct ListColumnSearchField: View {
     let prompt: LocalizedStringKey
     @Binding var text: String
@@ -38,7 +32,6 @@ struct ListColumnSearchField: View {
     }
 }
 
-/// A page section's heading: its name, how many rows follow, and one link.
 struct PageSectionHeading<Trailing: View>: View {
     let title: LocalizedStringKey
     var count: Int?
@@ -46,8 +39,6 @@ struct PageSectionHeading<Trailing: View>: View {
 
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            // No header trait: a header becomes a different accessibility
-            // element, which static-text queries no longer find.
             Text(title).font(LBTokens.Typography.section)
             if let count {
                 Text(count, format: .number)
@@ -66,14 +57,9 @@ extension PageSectionHeading where Trailing == EmptyView {
     }
 }
 
-/// A decision with the meeting it was made in at the trailing edge. People
-/// names the meeting quietly; Projects, whose decisions come from many
-/// meetings, shows it with its date as a link.
 struct PageDecisionRow: View {
     let text: String
-    /// What the link shows.
     let link: String
-    /// The meeting with its date, on hover and for VoiceOver.
     let linkDescription: String
     var accentLink = false
     let open: () -> Void
@@ -97,7 +83,6 @@ struct PageDecisionRow: View {
                         .buttonStyle(.plain)
                 }
             }
-            // As wide as the link, up to a cap; the decision takes the rest.
             .frame(maxWidth: accentLink ? 260 : 200, alignment: .trailing)
             .fixedSize(horizontal: true, vertical: false)
             .help(linkDescription)
@@ -114,7 +99,6 @@ struct PageDecisionRow: View {
     }
 }
 
-/// One block of the side column: a quiet heading over a few links or rows.
 struct SideColumnBlock<Content: View>: View {
     let title: LocalizedStringKey
     var count: Int?
@@ -138,11 +122,8 @@ struct SideColumnBlock<Content: View>: View {
     }
 }
 
-/// Where the side column goes: beside the page while the pane has room for
-/// both, under it otherwise. Both widths grow with the text size.
 enum PageSideColumnLayout {
     static let sideWidth: CGFloat = 252
-    /// The page keeps at least this much beside the column.
     static let pageMinimumWidth: CGFloat = 388
 
     static func sideWidth(textScale: CGFloat) -> CGFloat {
@@ -154,10 +135,6 @@ enum PageSideColumnLayout {
     }
 }
 
-/// A scrolling page with a side column of reference blocks at its trailing
-/// edge, divided by a line that runs the pane's height. A narrow pane puts
-/// the blocks under the page. With nothing for the page itself, the blocks
-/// are the page.
 struct PageWithSideColumn<Main: View, Side: View>: View {
     @Environment(\.appTextScale) private var textScale
     var hasMain = true
@@ -203,8 +180,6 @@ struct PageWithSideColumn<Main: View, Side: View>: View {
     }
 }
 
-/// A capsule label: amber for what needs the reader, quiet otherwise. On a
-/// selected list row it takes the row's own foreground.
 struct LabelChip: View {
     enum Size { case regular, small }
 

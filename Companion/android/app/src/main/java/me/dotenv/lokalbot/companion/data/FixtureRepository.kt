@@ -26,11 +26,6 @@ import me.dotenv.lokalbot.companion.data.model.RecordJson
 import me.dotenv.lokalbot.companion.data.model.RecordKind
 import me.dotenv.lokalbot.companion.data.model.Transcript
 
-/**
- * The library from record envelopes held in memory: the built-in sample
- * library ("Try it without a computer"), previews and tests. Status changes stay
- * on this device and show as waiting for the Mac, since there is none.
- */
 class FixtureRepository(
     envelopes: List<RecordEnvelope>,
     private val fixedNow: Instant? = null,
@@ -51,7 +46,6 @@ class FixtureRepository(
     private val answerer: SampleAnswerer
 
     init {
-        // Keep the highest version of each record and drop tombstones.
         val live = envelopes.groupBy { it.kind to it.key }
             .mapValues { (_, versions) -> versions.maxBy { it.version } }
             .values.filterNot { it.deleted }
@@ -117,7 +111,6 @@ class FixtureRepository(
                     meetingId = meeting.id,
                     meetingTitle = meeting.title,
                     meetingStartedAt = meeting.startedAt,
-                    // As in the synced store, a row carries the flag itself.
                     action = action.copy(pending = false),
                     pending = (meeting.id to action.id) in pending,
                 )
@@ -165,10 +158,8 @@ class FixtureRepository(
 
     override suspend fun askHistory(limit: Int): List<AskExchange> = synchronized(lock) { history.take(limit) }
 
-    /** The sample library has no Mac to reach; syncing just finishes. */
     override suspend fun sync(): SyncOutcome = SyncOutcome.Synced(received = 0, deleted = 0, address = null)
 
-    /** There is no computer to send a recording to, so the sample library doesn't offer it. */
     override val canRecord: Boolean = false
 
     override val recordings: StateFlow<List<DeviceRecording>> = MutableStateFlow<List<DeviceRecording>>(emptyList()).asStateFlow()

@@ -7,7 +7,7 @@ final class ScreenMemoryReaderTests: XCTestCase {
     private var databaseURL: URL!
     private var database: ScreenReaderFixtureDatabase!
     private var reader: SQLiteScreenMemoryReader!
-    private let dayStart = Date(timeIntervalSince1970: 1_784_028_000) // 2026-07-14T06:00Z
+    private let dayStart = Date(timeIntervalSince1970: 1_784_028_000)
 
     override func setUpWithError() throws {
         root = FileManager.default.temporaryDirectory
@@ -97,8 +97,6 @@ final class ScreenMemoryReaderTests: XCTestCase {
             limit: 10)).isEmpty)
     }
 
-    /// The MCP `search_screen` reader ORs exact FTS phrases, so a Chinese word
-    /// inside a phrase found nothing at all. It now matches by substring.
     func testSearchFindsAChineseWordInsideAPhrase() throws {
         try database.run("""
             INSERT INTO screenshots (ts, path, app, window_title, capture_trigger)

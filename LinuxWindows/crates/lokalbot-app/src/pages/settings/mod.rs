@@ -1,11 +1,3 @@
-//! Settings (`SettingsView.swift`, `SettingsSidebar.swift`), in its own
-//! window (`windows::settings`). On the left: search, the LokalBot row that
-//! opens Overview with what needs you, then every page in its group, each
-//! marked "Off", "Paused" or with a count where something needs fixing
-//! (`status`). On the right: back, forward and the page's name in the
-//! window's bar, then the page: Overview's status page, or one shared header
-//! (`header`) above the page's sections. Search reaches every page.
-
 pub mod advanced;
 mod calendar;
 pub mod catalog;
@@ -71,9 +63,6 @@ use crate::ui::shortcut_field::{ShortcutEvent, ShortcutField};
 use crate::ui::{self, Ico, settings_row};
 use lokalbot_i18n::fill;
 
-/// Every page, in the order the window lists them: the LokalBot row
-/// (Overview), the pages above the first heading, each heading's pages, then
-/// Diagnostics (`SettingsTab.allCases`).
 pub const CATEGORIES: [SettingsCategory; 15] = [
     SettingsCategory::Overview,
     SettingsCategory::General,
@@ -92,20 +81,16 @@ pub const CATEGORIES: [SettingsCategory; 15] = [
     SettingsCategory::Advanced,
 ];
 
-/// The pages listed under the LokalBot row, above the first heading.
 pub const LEADING_PAGES: [SettingsCategory; 3] = [
     SettingsCategory::General,
     SettingsCategory::Models,
     SettingsCategory::Privacy,
 ];
 
-/// The pages listed after the last heading.
 pub const TRAILING_PAGES: [SettingsCategory; 1] = [SettingsCategory::Advanced];
 
-/// The headings of the list, in order (`SettingsTab.Group`).
 pub const GROUPS: [&str; 4] = ["Remember", "Assistant", "Writing", "Sharing"];
 
-/// The heading a page sits under; `None` above and below the headings.
 pub fn category_group(category: SettingsCategory) -> Option<&'static str> {
     match category {
         SettingsCategory::Meetings | SettingsCategory::DayMemory | SettingsCategory::Files => {
@@ -124,7 +109,6 @@ pub fn category_group(category: SettingsCategory) -> Option<&'static str> {
     }
 }
 
-/// The page's glyph, the Lucide closest to the Mac's symbol.
 pub fn category_icon(category: SettingsCategory) -> Ico {
     match category {
         SettingsCategory::Overview => Ico::LayoutGrid,
@@ -145,8 +129,6 @@ pub fn category_icon(category: SettingsCategory) -> Ico {
     }
 }
 
-/// One line under the page's name in its header (`SettingsTab.summary`).
-/// Overview has no header: it opens with what needs you.
 pub fn category_summary(category: SettingsCategory, settings: &Settings) -> String {
     let text = match category {
         SettingsCategory::Overview => return String::new(),
@@ -179,7 +161,6 @@ pub fn category_summary(category: SettingsCategory, settings: &Settings) -> Stri
             lokalbot_i18n::tr("Suggests the next few words as you type, in any app.")
         }
         SettingsCategory::Dictation => {
-            // Dictation's line names its shortcut.
             return fill(
                 lokalbot_i18n::tr("Press %@, speak, and the text lands where you type."),
                 &[&settings.dictation_shortcut],
@@ -198,11 +179,8 @@ pub fn category_summary(category: SettingsCategory, settings: &Settings) -> Stri
     text.to_string()
 }
 
-/// One grouped section of a category; `ids` are the rows it holds, for search jumps.
 pub struct Section {
     pub title: Option<&'static str>,
-    /// Drawn in place of the title (a disclosure, a way back). A section
-    /// with a header and no rows is the header alone, with no panel.
     pub header: Option<AnyElement>,
     pub ids: Vec<&'static str>,
     pub rows: Vec<AnyElement>,
@@ -218,8 +196,6 @@ impl Section {
         }
     }
 
-    /// An element on its own, outside any panel: a subpage's way back, the
-    /// Advanced disclosure.
     pub fn bare(element: impl IntoElement) -> Self {
         Self::new(None).header(element)
     }
@@ -237,13 +213,11 @@ impl Section {
 }
 
 pub struct SettingsPage {
-    /// The Files grant as last set here; `None` reads the marker.
     files_access: Option<bool>,
     agent_notes_access: Option<bool>,
     data: Entity<AppData>,
     search: Entity<InputState>,
     query: String,
-    /// The setting a search result jumped to; it stays highlighted.
     focused: Option<&'static str>,
     pending_scroll: Option<&'static str>,
     scroll: ScrollHandle,
@@ -257,10 +231,8 @@ pub struct SettingsPage {
     excluded_apps: Entity<RuleList>,
     excluded_sites: Entity<RuleList>,
     retention_slider: Entity<SliderState>,
-    /// Writing: the practice editor, autocomplete's exclusions and pause.
     practice: Entity<TextareaState>,
     practice_text: (String, String),
-    /// The practice editor's origin in the window, from its last paint.
     practice_origin: std::rc::Rc<std::cell::Cell<Option<gpui_kit::Point<gpui_kit::Pixels>>>>,
     cotyping_excluded_apps: Entity<RuleList>,
     cotyping_excluded_sites: Entity<RuleList>,
@@ -269,11 +241,9 @@ pub struct SettingsPage {
     writing: writing::WritingState,
     overnight: overnight_review::OvernightState,
     personal: personal_context::PersonalState,
-    /// External-agent markers, read from disk off the main thread.
     meetings_access: Option<bool>,
     screen_access: Option<Option<ScreenScope>>,
     cli_installed: Option<bool>,
-    /// Whether the command's folder is on PATH, and what the last CLI button did.
     cli_on_path: Option<bool>,
     cli_message: Option<String>,
     agent_changes_open: bool,
@@ -284,38 +254,24 @@ pub struct SettingsPage {
     #[cfg(windows)]
     call_app_error: Option<&'static str>,
     devices: devices::DevicesState,
-    /// "Never read sessions in these folders".
     coding_agent_folders: Entity<RuleList>,
-    /// Where the retention slider is while it is being dragged. Nothing changes
-    /// until it is let go and any review is applied.
     retention_draft: Option<u32>,
     retention_error: Option<String>,
     retention_completion: Option<String>,
-    /// The library's size and the free space on its drive, for Memory health.
     storage: Option<(u64, Option<u64>)>,
-    /// Read with the storage sizes, for Memory health.
     latest_activity: Option<chrono::DateTime<chrono::Utc>>,
     pending_jobs: usize,
     storage_measured_at: Option<std::time::Instant>,
     last_settings: Settings,
-    /// Back and forward through the pages shown in this window.
     history: status::PageHistory,
-    /// The page a row of Autocomplete or Dictation opened in its place.
     subpage: Option<subpage::Subpage>,
-    /// The library without its models, and the free space where the models
-    /// are, for Overview and Privacy & permissions. Measured off the main
-    /// thread now and then.
     library_size: Option<u64>,
     free_bytes: Option<u64>,
     library_measured_at: Option<std::time::Instant>,
-    /// The free space alone, which the download lines on every page's header
-    /// weigh the missing models against.
     free_measured_at: Option<std::time::Instant>,
     _subscriptions: Vec<Subscription>,
 }
 
-/// What the Ask and dictation shortcuts share: not selection actions' chord,
-/// and nothing the system or other apps hold (Ctrl+Shift+W closes tabs here).
 fn other_shortcut_problem(candidate: &str, settings: &Settings) -> Option<String> {
     use lokalbot_platform::shortcuts::ShortcutProblem;
     if settings.selection_actions_enabled && candidate == settings.selection_actions_shortcut {
@@ -485,8 +441,6 @@ impl SettingsPage {
 
         let mut subscriptions = vec![
             cx.observe_in(&data, window, Self::on_data_changed),
-            // A window closed while a shortcut field records never hears the
-            // field stop, and the global shortcuts would stay paused.
             cx.on_release(|this, cx| {
                 let was_recording = this
                     .data
@@ -515,8 +469,6 @@ impl SettingsPage {
                             data.shortcut_recording = recording;
                             cx.notify();
                         });
-                        // Unregisters the global shortcuts while the field
-                        // records, and puts them back when it stops.
                         crate::desktop::sync_shortcuts_later(cx);
                     }
                 },
@@ -535,8 +487,6 @@ impl SettingsPage {
                             data.shortcut_recording = recording;
                             cx.notify();
                         });
-                        // Unregisters the global shortcuts while the field
-                        // records, and puts them back when it stops.
                         crate::desktop::sync_shortcuts_later(cx);
                     }
                 },
@@ -555,8 +505,6 @@ impl SettingsPage {
                             data.shortcut_recording = recording;
                             cx.notify();
                         });
-                        // Unregisters the global shortcuts while the field
-                        // records, and puts them back when it stops.
                         crate::desktop::sync_shortcuts_later(cx);
                     }
                 },
@@ -634,7 +582,6 @@ impl SettingsPage {
             &retention_slider,
             window,
             |this, _, event: &SliderEvent, window, cx| match event {
-                // Dragging only previews: shortening has to go through the review.
                 SliderEvent::Change(value) => {
                     this.retention_draft = Some(value.start().round() as u32);
                     cx.notify();
@@ -655,7 +602,6 @@ impl SettingsPage {
                 this.update_settings(move |s| s.cotyping_debounce_ms = ms, cx);
             },
         ));
-        // Typing and caret moves in the practice editor go to the engine.
         subscriptions.push(cx.observe(&practice, |this, _, cx| this.practice_sync(cx)));
         if let Some(autocomplete) = crate::autocomplete::global(cx) {
             subscriptions.push(cx.observe(&autocomplete, |_, _, cx| cx.notify()));
@@ -752,7 +698,6 @@ impl SettingsPage {
             _subscriptions: subscriptions,
         };
         page.reload_access(cx);
-        // Opened from the CLI or tray with its window closed.
         let focus = page.data.update(cx, |data, _| data.settings_focus.take());
         if let Some(id) = focus {
             page.reveal(&id, window, cx);
@@ -765,7 +710,6 @@ impl SettingsPage {
             .update(cx, |data, cx| data.update_settings(change, cx));
     }
 
-    /// Keeps entity-backed controls in step with settings changed elsewhere.
     fn on_data_changed(
         &mut self,
         data: Entity<AppData>,
@@ -825,7 +769,6 @@ impl SettingsPage {
         self.coding_agent_folders.update(cx, |list, cx| {
             list.set_value(&settings.coding_agent_excluded_folders, cx)
         });
-        // A drag in progress keeps its place.
         if self.retention_draft.is_none() {
             sync_slider(
                 &self.retention_slider,
@@ -847,7 +790,6 @@ impl SettingsPage {
             cx,
         );
         if !old.cotyping_enabled && settings.cotyping_enabled {
-            // Turned on: the practice editor's text is a context to suggest for.
             self.practice_text = Default::default();
             self.practice_sync(cx);
         }
@@ -906,7 +848,6 @@ impl SettingsPage {
         self.focused = None;
         self.clear_search(window, cx);
         self.scroll.set_offset(gpui_kit::point(px(0.), px(0.)));
-        // A row's page belongs to the Settings page that opened it.
         if self.subpage.is_some_and(|sub| sub.page() != category) {
             self.subpage = None;
         }
@@ -914,13 +855,10 @@ impl SettingsPage {
             .update(cx, |data, cx| data.select_settings_category(category, cx));
     }
 
-    /// The page a row opened, while its own Settings page is the one shown.
     fn open_subpage(&self, category: SettingsCategory) -> Option<subpage::Subpage> {
         self.subpage.filter(|sub| sub.page() == category)
     }
 
-    /// Opens the page behind one of Autocomplete's or Dictation's rows, at
-    /// its top.
     fn show_subpage(&mut self, sub: subpage::Subpage, cx: &mut Context<Self>) {
         self.subpage = Some(sub);
         self.focused = None;
@@ -943,8 +881,6 @@ impl SettingsPage {
         }
     }
 
-    /// Opens a setting from search: its category, scrolled to and highlighted. A
-    /// setting that shows only behind a switch opens that switch instead.
     fn jump_to(
         &mut self,
         entry: &'static catalog::Entry,
@@ -958,7 +894,6 @@ impl SettingsPage {
             .find(|candidate| candidate.id == target)
             .unwrap_or(entry);
         self.clear_search(window, cx);
-        // The try-out opens as a sheet over its page (`SettingsSheet`).
         if entry.id == "settings.autocompletePreview" {
             self.focused = None;
             if self.subpage.is_some() {
@@ -967,7 +902,6 @@ impl SettingsPage {
             self.data.update(cx, |data, cx| {
                 data.select_settings_category(entry.category, cx)
             });
-            // After this update: the page may still be opening its window.
             cx.defer_in(window, |_, window, cx| {
                 try_sheet::open(cx.entity(), try_sheet::TryKind::Autocomplete, window, cx)
             });
@@ -979,8 +913,6 @@ impl SettingsPage {
         if entry.category == SettingsCategory::Models {
             self.models.page = models::ModelsPage::for_setting(entry.id);
         }
-        // A setting a row's page holds opens that page; one on the page
-        // itself closes it (`revealFocusedSetting`).
         self.subpage = subpage::Subpage::containing(entry.id, entry.category)
             .or(self.subpage.filter(|sub| sub.page() != entry.category));
         self.data.update(cx, |data, cx| {
@@ -989,8 +921,6 @@ impl SettingsPage {
         cx.notify();
     }
 
-    /// Opens a setting in any category, scrolled to and highlighted, as a
-    /// search result would.
     fn reveal(&mut self, id: &str, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(entry) = catalog::ENTRIES.iter().find(|e| e.id == id) {
             self.jump_to(entry, window, cx);
@@ -1005,7 +935,6 @@ impl SettingsPage {
         self.open_details.contains(id)
     }
 
-    /// A "How this works" disclosure that remembers whether it is open.
     fn details(
         &self,
         id: &'static str,
@@ -1032,7 +961,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// A row with a switch bound to one boolean setting.
     fn toggle(
         &self,
         id: &'static str,
@@ -1056,7 +984,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// A row with a pop-up picker over `options`.
     #[allow(clippy::too_many_arguments)]
     fn choice<T: Copy + PartialEq + 'static>(
         &self,
@@ -1106,7 +1033,6 @@ impl SettingsPage {
         cx: &mut Context<Self>,
     ) -> Vec<Section> {
         match category {
-            // Drawn by `render_overview`, as a status page rather than rows.
             SettingsCategory::Overview => Vec::new(),
             SettingsCategory::General => self.general_sections(cx),
             SettingsCategory::Models => self.models_sections(window, cx),
@@ -1140,8 +1066,6 @@ impl SettingsPage {
         }
     }
 
-    /// What a page adds to its shared header: "Try it…", its main switch, or
-    /// a control of its own. Pages with none of these keep the default.
     fn header_spec(
         &mut self,
         category: SettingsCategory,
@@ -1152,13 +1076,10 @@ impl SettingsPage {
         let page = cx.entity();
         let data = self.data.clone();
         match category {
-            // "Download all", or Cancel while the models arrive.
             SettingsCategory::Models => header::HeaderSpec {
                 accessory: header::download_control(status, &self.data),
                 ..Default::default()
             },
-            // The switch does what the page's own switch did: it sets the
-            // setting, with no confirmation, as before.
             SettingsCategory::Writing => header::HeaderSpec {
                 try_it: Some(std::rc::Rc::new(move |window, cx| {
                     try_sheet::open(page.clone(), try_sheet::TryKind::Autocomplete, window, cx)
@@ -1193,9 +1114,6 @@ impl SettingsPage {
         }
     }
 
-    /// What opens in place of the shared header: a row's page starts with
-    /// its way back (`SettingsSubpageBar`), and Models' own pages draw
-    /// theirs. `None` keeps the header.
     fn replaces_header(
         &self,
         category: SettingsCategory,
@@ -1215,7 +1133,6 @@ impl SettingsPage {
         )))
     }
 
-    /// Back to the page shown before (`SettingsPageHistory.goBack`).
     fn go_back(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         if let Some(page) = self.history.go_back() {
             self.select_category(page, window, cx);
@@ -1228,9 +1145,6 @@ impl SettingsPage {
         }
     }
 
-    /// The free space where the models go, for the header's download line
-    /// ("They need 3.7 GB, and this PC has 79 GB free"), measured off the main
-    /// thread at most every 30 seconds.
     fn refresh_free_space(&mut self, cx: &mut Context<Self>) {
         if self
             .free_measured_at
@@ -1257,8 +1171,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// The library's size without its models, and the free space where the
-    /// models are, measured off the main thread at most every 30 seconds.
     fn refresh_library_size(&mut self, cx: &mut Context<Self>) {
         if self
             .library_measured_at
@@ -1288,11 +1200,9 @@ impl SettingsPage {
         .detach();
     }
 
-    /// Everything the window says about each feature's state, read now.
     fn status(&self, cx: &App) -> status::SettingsStatus {
         let data = self.data.read(cx);
         let settings = data.settings.clone();
-        // Read the way setup reads it (`crate::access`), so the two agree.
         let permissions: Vec<status::Permission> = crate::control::permissions::needs(data, cx)
             .into_iter()
             .map(status::Permission::from)
@@ -1338,10 +1248,6 @@ impl SettingsPage {
         })
     }
 
-    /// The window's list (`SettingsSidebar`): search, the LokalBot row that
-    /// opens Overview, then every page in its group. Feature rows say "Off"
-    /// or "Paused" at the right, and the page where something is fixed
-    /// carries a count. The strip above the search moves the window.
     fn render_categories(
         &self,
         category: SettingsCategory,
@@ -1407,8 +1313,6 @@ impl SettingsPage {
                     .child(
                         div()
                             .w_full()
-                            // The field takes its own clicks; the strip
-                            // around it moves the window.
                             .on_mouse_down(gpui_kit::MouseButton::Left, |_, _, cx| {
                                 cx.stop_propagation()
                             })
@@ -1422,9 +1326,6 @@ impl SettingsPage {
             .child(list)
     }
 
-    /// The row at the top of the list, where System Settings puts the
-    /// account: the app, and under it how many things need you
-    /// (`SettingsIdentityRow`).
     fn render_identity_row(
         &self,
         selected: bool,
@@ -1481,8 +1382,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// One page in the list: its glyph and name, then a count where things
-    /// need fixing here, or "Paused" or "Off" (`SettingsCategoryRow`).
     fn render_category_row(
         &self,
         page: SettingsCategory,
@@ -1571,16 +1470,12 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// Back and forward through the pages visited, then the page's name
-    /// (`SettingsView.topBar`). It is the window's title bar: it moves the
-    /// window and holds its buttons.
     fn render_top_bar(
         &self,
         title: SharedString,
         cx: &mut Context<Self>,
     ) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
-        // Back points the way the interface reads.
         let (back, forward) = if lokalbot_i18n::current().rtl {
             (Ico::ChevronRight, Ico::ChevronLeft)
         } else {
@@ -1604,15 +1499,11 @@ impl SettingsPage {
                     .min_w_0()
                     .items_center()
                     .child(
-                        // The arrows take their own clicks; the rest of the
-                        // bar moves the window.
                         h_flex()
                             .h_full()
                             .pl(px(10.))
                             .gap(px(2.))
                             .items_center()
-                            // The bar under them must not see their presses:
-                            // it would start moving the window.
                             .occlude()
                             .child(
                                 arrow("settings-back", back, "Back", self.history.can_go_back())
@@ -1760,10 +1651,7 @@ impl Render for SettingsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let lb = cx.lb().clone();
         let category = self.category(cx);
-        // Pages opened from elsewhere (links, the CLI) count as visits too.
         self.history.visit(category);
-        // What this computer allows can change while Settings is open (an
-        // extension installed, a service started): read it again now and then.
         self.data
             .update(cx, |data, cx| data.refresh_access_if_stale(cx));
         self.refresh_free_space(cx);
@@ -1825,10 +1713,8 @@ impl Render for SettingsPage {
             if let Some(target) = self.pending_scroll.take()
                 && let Some(index) = sections.iter().position(|s| s.ids.contains(&target))
             {
-                // The header comes first.
                 let index = index + leading;
                 self.scroll.scroll_to_item(index);
-                // A page drawn for the first time has no layout to scroll in yet.
                 let scroll = self.scroll.clone();
                 window.on_next_frame(move |window, _| {
                     scroll.scroll_to_item(index);
@@ -1864,7 +1750,6 @@ impl Render for SettingsPage {
                     .into_any_element(),
                 };
                 reading_column()
-                    // A page without the header starts where the header would.
                     .when(index == 0 && leading == 0, |this| this.pt(px(20.)))
                     .pb(metric::SECTION_SPACING)
                     .child(body)

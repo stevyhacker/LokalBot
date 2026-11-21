@@ -11,22 +11,16 @@ struct SettingsView: View {
     @State private var cliMessage: String?
     @State private var exportingDiagnostics = false
     @State private var confirmingDreamMemoryClear = false
-    /// The page a row of Autocomplete or Dictation opened in its place.
     @State private var subpage: SettingsSubpage?
-    /// Model choices and transcription options open over the page that uses
-    /// them, so no setting sends you to another page to finish.
     @State private var sheet: SettingsSheet?
 
-    // Settings search + live system readouts.
     @State private var settingsQuery = ""
     @StateObject private var power = PowerSourceMonitor()
     @StateObject private var permissions = PermissionManager.shared
     @ObservedObject private var metrics = GenerationMetricsStore.shared
-    /// What every part of the window says about each feature's state.
     @State private var status = SettingsStatus(.init())
     @State private var history = SettingsPageHistory(current: .overview)
 
-    /// The window opens at this size and can be resized.
     static let defaultSize = CGSize(width: 1020, height: 816)
 
     var body: some View {
@@ -63,13 +57,10 @@ struct SettingsView: View {
             .accessibilityElement(children: .contain)
             .accessibilityLabel(Text(LocalizedStringKey(title)))
         }
-        // The list and the top bar run to the window's top edge, beside and
-        // under the traffic lights.
         .ignoresSafeArea(.container, edges: .top)
         .frame(minWidth: 780, minHeight: 520)
         .background(Color(nsColor: .windowBackgroundColor))
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            // Settings no longer sits above the main window's error bar.
             if let error = app.lastError {
                 ErrorToast(message: error) { app.lastError = nil }
             }
@@ -81,7 +72,6 @@ struct SettingsView: View {
             settingsControl: app.settingsControl, email: app.email, companion: app.companion,
             calendar: app.calendar, checks: app.modelChecks, status: $status))
         .task {
-            // Lets a window opened from the menu bar alone open the others.
             WindowAccess.shared.register { openWindow(id: $0) }
         }
         .onAppear {
@@ -93,7 +83,6 @@ struct SettingsView: View {
         }
         .onChange(of: app.settingsTab) { _, page in
             history.visit(page)
-            // A row's page belongs to the Settings page that opened it.
             if subpage?.page != page { subpage = nil }
         }
         .onChange(of: app.focusedSettingID, initial: true) { revealFocusedSetting() }
@@ -104,23 +93,18 @@ struct SettingsView: View {
         }
     }
 
-    /// Search and deep links land on settings that a row's page holds, and
-    /// the Autocomplete and Dictation commands open the try-out sheet.
     private func revealFocusedSetting() {
         guard let id = app.focusedSettingID else { return }
         if let sheet = SettingsSheet(focusedSettingID: id, on: app.settingsTab) {
             self.sheet = sheet
-            // Consumed, so reopening Settings does not open the sheet again.
             app.focusedSettingID = nil
         } else if let holder = SettingsSubpage.containing(settingID: id, on: app.settingsTab) {
             subpage = holder
         } else if subpage?.page == app.settingsTab {
-            // The setting is on the page itself.
             subpage = nil
         }
     }
 
-    /// The open row's page, while its own Settings page is the one shown.
     private var openSubpage: SettingsSubpage? {
         subpage.flatMap { $0.page == app.settingsTab ? $0 : nil }
     }
@@ -129,12 +113,10 @@ struct SettingsView: View {
         settingsQuery.trimmingCharacters(in: .whitespaces).isEmpty
     }
 
-    /// The window's and the top bar's title: the page, or search.
     private var title: String {
         queryIsEmpty ? app.settingsTab.displayName : "Search settings"
     }
 
-    /// Back and forward through the pages visited, then the page's name.
     private var topBar: some View {
         HStack(spacing: 2) {
             Button {
@@ -169,8 +151,6 @@ struct SettingsView: View {
         .frame(height: SettingsChrome.topBarHeight)
     }
 
-    /// Search results, or the selected page. Every page opens with the
-    /// shared header; Overview opens with what needs you instead.
     @ViewBuilder private var page: some View {
         if !queryIsEmpty {
             VStack(alignment: .leading, spacing: 0) {
@@ -197,7 +177,6 @@ struct SettingsView: View {
                 }
                 ScrollViewReader { proxy in
                     Form {
-                        // A row's page opens with the way back instead of the header.
                         if openSubpage == nil { Section { header(for: app.settingsTab) } }
                         sections(for: app.settingsTab)
                     }
@@ -212,14 +191,11 @@ struct SettingsView: View {
                         DispatchQueue.main.async { proxy.scrollTo(id, anchor: .center) }
                     }
                 }
-                // Each page, and each row's page, starts at its own top.
                 .id(openSubpage?.rawValue ?? app.settingsTab.rawValue)
             }
         }
     }
 
-    /// The shared header, with the main switch on the pages that have one
-    /// and "Try it…" where the feature can be tried, in a sheet over the page.
     @ViewBuilder private func header(for tab: AppState.SettingsTab) -> some View {
         switch tab {
         case .writing:
@@ -237,13 +213,10 @@ struct SettingsView: View {
         }
     }
 
-    /// Each page holds one feature: everything that turns it on and sets it
-    /// up, under the shared header. Models is ModelsView and Overview is
-    /// SettingsOverview.
     @ViewBuilder private func sections(for tab: AppState.SettingsTab) -> some View {
         switch tab {
         case .overview, .models:
-            EmptyView() // handled by their own branches in body
+            EmptyView()
         case .general:
             generalSection; updatesSection; aboutSection
         case .recording:
@@ -281,9 +254,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Spec §2.5: the search field filters across ALL tabs — a non-empty
-    /// query shows every matching section regardless of the selected tab,
-    /// plus a jump row into the Models tab when its keywords match.
     private var searchResults: some View {
         let results = SettingDescriptor.search(settingsQuery, language: app.settings.appLanguage)
         return List(results) { result in
@@ -319,8 +289,6 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Sections
-
     private var memoryHealthSection: some View {
         MemoryHealthSection()
             .settingTarget("settings.memoryHealth", selected: app.focusedSettingID)
@@ -344,7 +312,6 @@ struct SettingsView: View {
                     }
                     .settingTarget("settings.menuBarOnly", selected: app.focusedSettingID)
                         .onChange(of: app.settings.menuBarOnly) { _, menuBarOnly in
-                            // The Dock policy reads saved settings.
                             app.settingsStore.flush()
                             DockPolicy.sync()
                             if !menuBarOnly { openWindow(id: "main") }
@@ -380,8 +347,6 @@ struct SettingsView: View {
                         .accessibilityHidden(true)
                 }
     }
-
-    // MARK: - Ask
 
     private var askAnywhereSection: some View {
                 Section("Quick Recall") {
@@ -476,8 +441,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Where Ask's answers come from. Each source is set up on its own page,
-    /// so this summary is one of the few rows that opens another page.
     private var askSourcesSection: some View {
         Section {
             sourceRow(.recording, value: "On")
@@ -509,7 +472,6 @@ struct SettingsView: View {
         .accessibilityIdentifier("settings.askSource.\(page.rawValue)")
     }
 
-    /// A model a page uses, with its picker opening over this page.
     private func modelRow(_ role: ModelPickerRole, title: String, value: String, help: String? = nil) -> some View {
         LabeledContent {
             HStack(spacing: 10) {
@@ -725,8 +687,6 @@ struct SettingsView: View {
                 }
     }
 
-    // MARK: - Screen & Activity
-
     @ViewBuilder private var screenCaptureSection: some View {
                 Section("Activity") {
                     Toggle(isOn: Binding(
@@ -796,8 +756,6 @@ struct SettingsView: View {
             CodingAgentEvidenceSettings()
         }
     }
-
-    // MARK: - Daily Review
 
     private var dayDigestSection: some View {
                 Section("Day digest") {
@@ -888,8 +846,6 @@ struct SettingsView: View {
                 RoundedRectangle(cornerRadius: Brand.Radius.control, style: .continuous)
                     .stroke(Color(NSColor.separatorColor), lineWidth: 1.2)
             }
-            // The digest uses only the first characters of the cleaned-up
-            // text; say so instead of dropping the rest silently.
             let used = PromptContextSanitizer.sanitize(app.settings.dayDigestCustomPrompt).count
             let limit = PromptTemplates.dayDigestCustomPromptMaxCharacters
             if used > limit {
@@ -1065,8 +1021,6 @@ struct SettingsView: View {
             .disabled(app.dreaming.isDreaming)
     }
 
-    // MARK: - External Agents
-
     private var agentAccessSection: some View {
         Section("External agents") {
             AgentReadAccessRows(access: app.agentReadAccess, focusedSettingID: app.focusedSettingID)
@@ -1095,7 +1049,6 @@ struct SettingsView: View {
                 }
     }
 
-    /// The repository opens in the default browser; LokalBot itself sends nothing.
     private var aboutSection: some View {
         Section("About") {
             LabeledContent {
@@ -1156,9 +1109,6 @@ struct SettingsView: View {
         panel.allowedContentTypes = [.zip]
         panel.nameFieldStringValue = "LokalBot Diagnostics \(DreamDay.key(for: Date())).zip"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        // Copying and zipping up to 48 MB of logs takes seconds. On the main
-        // thread the whole app stood still for them, a recording's timer
-        // included.
         let sources = app.diagnosticsSources()
         exportingDiagnostics = true
         Task {
@@ -1276,7 +1226,6 @@ struct SettingsView: View {
                 }
     }
 
-    /// Release builds explain the state; only dev builds point at release setup.
     private static var inactiveUpdaterNote: String {
         #if LOKALBOT_DEV
         "Updater inactive — set the appcast feed URL and Sparkle public key before shipping (see RELEASING.md)."
@@ -1367,8 +1316,6 @@ struct SettingsView: View {
 
 }
 
-/// Binds the cached registration, never `SMAppService` itself: SwiftUI re-reads
-/// a toggle's binding on every update while it is visible.
 private struct LaunchAtLoginToggleRow: View {
     @ObservedObject var state: LaunchAtLoginState
 
@@ -1399,8 +1346,6 @@ private struct SettingsControlAccessToggleRow: View {
     }
 }
 
-/// Settings an agent changed from the terminal, newest first, with Undo while
-/// the setting still holds the agent's value.
 private struct AgentSettingsChangesList: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var changes: AgentSettingsChanges
@@ -1462,9 +1407,6 @@ private struct AgentSettingsChangesList: View {
     }
 }
 
-/// The one switch for reading LokalBot data, and a box for each kind under
-/// it (`AgentReadAccess`). Observes the coordinator, which forwards every
-/// per-kind manager's changes, so grants from agent setup show at once.
 private struct AgentReadAccessRows: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var access: AgentReadAccess

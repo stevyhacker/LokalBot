@@ -1,13 +1,5 @@
 import Foundation
 
-/// Prompt, JSON schema, and tolerant parsing for the outcomes extraction pass
-/// that runs after summarization. Pure so every piece is unit-testable
-/// without an engine; the pipeline owns the actual generate call.
-///
-/// The schema goes through `TextEngine.generate(system:prompt:context:schema:)`
-/// — llama-server compiles it to a grammar so the reply is valid by
-/// construction, while unconstrained backends (Apple Intelligence) fall back
-/// to the prompt's format instructions plus the tolerant parse here.
 enum OutcomesExtractor {
 
     struct ParseResult {
@@ -91,10 +83,6 @@ enum OutcomesExtractor {
         return prompt
     }
 
-    /// JSON schema matching `systemPrompt`'s shape, for grammar-constrained
-    /// backends. `owner`/`due` are required-but-emptyable rather than optional,
-    /// and `for_user`/`importance` are required so strict grammars keep the
-    /// object shape fixed.
     static var schema: [String: Any] {
         [
             "type": "object",
@@ -147,16 +135,11 @@ enum OutcomesExtractor {
             + "Only cite segment IDs that appear below.\n\n" + evidence
     }
 
-    /// Tolerant parse of the model's reply. Accepts fenced/prefixed JSON via
-    /// the same balanced-brace scan the chat agent uses; empty-string owner/due
-    /// collapse to nil. Nil when no parseable object is found.
     static func parse(_ output: String, userSpeakerLabel: String = "Me") -> MeetingOutcomes? {
         parseResult(output, userSpeakerLabel: userSpeakerLabel, sourceSegments: nil,
                     meetingID: nil, requireEvidence: false)?.outcomes
     }
 
-    /// Evidence-validating parse used by the processing pipeline. Unknown or
-    /// missing source IDs are never promoted into trusted action/decision rows.
     static func parse(_ output: String, userSpeakerLabel: String = "Me",
                       sourceSegments: [String: Transcript.Segment]?,
                       meetingID: Meeting.ID? = nil,

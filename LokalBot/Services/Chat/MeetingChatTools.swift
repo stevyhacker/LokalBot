@@ -1,12 +1,7 @@
 import Foundation
 
-/// Renders tool output for the chat model. Pure value-in / string-out so the
-/// formatting is unit-testable without the file system, indexes, or an engine.
-/// Kept compact on purpose — observations are fed back into a small local model.
 enum MeetingChatFormat {
 
-    /// Ambient context folded into the system prompt: how many meetings exist and
-    /// the most recent few, so list-style questions need no tool call.
     static func libraryOverview(_ meetings: [Meeting], limit: Int) -> String {
         guard !meetings.isEmpty else { return "The user has no recorded meetings yet." }
         let count = meetings.count
@@ -178,9 +173,6 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
-    /// One window of a structured transcript, starting at `start` seconds.
-    /// `nextStart` is where the following window begins when the rest did not
-    /// fit, so a long meeting is never presented to the model as complete.
     static func transcriptObservation(_ transcript: Transcript, from start: TimeInterval = 0,
                                       maximumCharacters: Int = 6_000)
         -> (text: String, seconds: [TimeInterval], nextStart: TimeInterval?) {
@@ -200,8 +192,6 @@ enum MeetingChatFormat {
                 seconds.append(segmentStart)
                 continue
             }
-            // The next window starts with this whole line. Only a line longer
-            // than a window is cut, and reading then moves past it.
             guard text.isEmpty else { return (text, seconds, segmentStart) }
             text = String(line.prefix(max(0, maximumCharacters - 1))) + "…"
             seconds.append(segmentStart)
@@ -214,8 +204,6 @@ enum MeetingChatFormat {
         "[The transcript continues at \(Transcript.stamp(next)). To read on, call get_meeting with this id, "
             + "include=transcript and from=\(Transcript.stamp(next)).]"
     }
-
-    // MARK: - Screen / activity formatters
 
     static func screenResults(query: String, hits: [ActivityStore.OCRHit]) -> String {
         guard !hits.isEmpty else {
@@ -231,8 +219,6 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
-    /// One line per file: its citation marker, name, kind and date, folder,
-    /// then the matched passage (or the words that matched, for a picture).
     static func fileResults(query: String, hits: [(hit: FileSearchHit, passage: String?)]) -> String {
         guard !hits.isEmpty else {
             return "No files matched “\(query)” in the folders chosen under Files."
@@ -250,8 +236,6 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
-    /// One block per note: its citation marker, title, agent and project,
-    /// then its text. Notes are an agent's own record, so the heading says so.
     static func agentNoteResults(query: String, hits: [(hit: AgentNoteHit, text: String?)]) -> String {
         guard !hits.isEmpty else {
             return "No coding-agent notes matched “\(query)”."
@@ -273,7 +257,6 @@ enum MeetingChatFormat {
         guard !blocks.isEmpty else {
             return "No app activity tracked on \(dayLabel)."
         }
-        // Aggregate per app: total time plus the most-used window titles.
         var totals: [String: TimeInterval] = [:]
         var titles: [String: [String: TimeInterval]] = [:]
         for block in blocks {
@@ -304,7 +287,6 @@ enum MeetingChatFormat {
         return lines.joined(separator: "\n")
     }
 
-    /// "2h 05m" / "12m" / "40s".
     static func durationLabel(_ seconds: TimeInterval) -> String {
         let total = Int(seconds)
         let (h, m) = (total / 3600, (total % 3600) / 60)
@@ -313,11 +295,6 @@ enum MeetingChatFormat {
         return "\(total)s"
     }
 
-    // MARK: - Helpers
-
-    /// The whole transcript utterance or summary line around a keyword match.
-    /// An FTS snippet keeps about 14 tokens and can cut a nearby "not" out of
-    /// the observation. A line longer than the cap keeps the snippet.
     static func keywordPassage(_ hit: SearchIndex.Hit, maximumCharacters: Int = 600) -> String {
         var anchor = hit.snippet.replacingOccurrences(of: "«", with: "").replacingOccurrences(of: "»", with: "")
         if anchor.hasPrefix("…") { anchor.removeFirst() }
@@ -332,7 +309,6 @@ enum MeetingChatFormat {
         return line.count <= maximumCharacters ? line : clean(hit.snippet)
     }
 
-    /// Strip FTS5 «»-markers, collapse whitespace, and cap a single snippet.
     static func clean(_ snippet: String) -> String {
         let collapsed = snippet
             .replacingOccurrences(of: "«", with: "")
@@ -359,11 +335,6 @@ enum MeetingChatFormat {
     }()
 }
 
-/// The chat tool surface: natural-language search, listing, and reading
-/// meetings, plus screen/activity context (OCR'd screen text and per-app time).
-/// Backed by the app's live state — the loaded meeting list, the FTS5 keyword
-/// index, the semantic embedding index, the activity store, and on-disk
-/// artifacts — so the chat reflects exactly what the rest of the app sees.
 @MainActor
 final class MeetingChatTools: ChatToolRunner {
     private let meetingsProvider: () -> [Meeting]
@@ -372,13 +343,8 @@ final class MeetingChatTools: ChatToolRunner {
     private let embeddingIndex: EmbeddingIndex
     private let activityStore: ActivityStore
     private let settingsProvider: () -> AppSettings
-    /// The Files search, while Files is on and has folders; nil otherwise, and
-    /// then `search_files` is not offered at all.
     private let filesProvider: () -> FileSearchService?
-    /// The saved coding-agent notes, while Read coding agent notes is on;
-    /// nil otherwise, and then `search_agent_notes` is not offered at all.
     private let agentNotesProvider: () -> AgentNotesIndex?
-    /// Relative days ("last 7 days", "yesterday") resolve against this clock.
     private let now: () -> Date
 
     init(meetings: @escaping () -> [Meeting],
@@ -422,7 +388,6 @@ final class MeetingChatTools: ChatToolRunner {
             .init(name: "query", description: "What to look for, in natural language or keywords.", required: true),
         ])
 
-    /// The tools without `search_files`, for callers that have no chosen folders.
     static let baseSpecs: [ChatToolSpec] = [
         ChatToolSpec(
             name: "search_meetings",
@@ -485,8 +450,6 @@ final class MeetingChatTools: ChatToolRunner {
         }
     }
 
-    // MARK: - Tools
-
     private func search(_ call: ChatToolCall) async -> ChatToolResult {
         guard let query = call.string("query") else {
             return ChatToolResult(text: "Provide a 'query' argument.", summary: "missing query")
@@ -497,16 +460,12 @@ final class MeetingChatTools: ChatToolRunner {
             ? Set(meetings.map(\.id)) : nil
         var keyword = searchIndex.search(query, limit: 8, meetingIDs: allowedIDs)
         if keyword.isEmpty {
-            // A natural-language question ANDs every stop word against the index and
-            // misses; retry on content keywords with OR semantics (ranked by FTS)
-            // before reporting nothing.
             keyword = searchIndex.search(
                 query, limit: 8, matchAll: false, dropStopWords: true,
                 meetingIDs: allowedIDs)
         }
         var semantic: [EmbeddingIndex.Hit] = []
         if settingsProvider().semanticSearchEnabled, embeddingIndex.hasEmbeddings {
-            // Drop semantic chunks already surfaced by keyword search.
             let seen = Set(keyword.map { "\($0.meetingID)-\(Int($0.start))" })
             semantic = await embeddingIndex.search(query, limit: 5, meetingIDs: allowedIDs)
                 .filter {
@@ -636,8 +595,6 @@ final class MeetingChatTools: ChatToolRunner {
         let vector = settingsProvider().semanticSearchEnabled
             ? await embeddingIndex.queryVector(query, priority: .agent) : nil
         let hits = await files.search(query, queryVector: vector, interval: interval, limit: 8)
-        // Recordings and video are transcribed on demand: only the first two
-        // moments, to keep an answer quick.
         var found: [(hit: FileSearchHit, passage: String?)] = []
         var moments = 0
         for hit in hits {
@@ -689,14 +646,10 @@ final class MeetingChatTools: ChatToolRunner {
         var hits = activityStore.searchOCR(query, limit: 40, filter: filter)
         let matchedAll = !hits.isEmpty
         if hits.isEmpty {
-            // Same rescue as meeting search: a natural-language question ANDs
-            // stop words and misses; retry on OR'd content keywords.
             hits = activityStore.searchOCR(
                 query, limit: 40, matchAll: false, dropStopWords: true,
                 filter: filter)
         }
-        // With search by meaning, the screen's text and picture vectors rank
-        // with the keyword hits, as in Ask (`ScreenSearch`).
         if settingsProvider().semanticSearchEnabled {
             let meanings = await embeddingIndex.screenMeanings(query, filter: filter, priority: .agent)
             if !meanings.isEmpty {
@@ -716,8 +669,6 @@ final class MeetingChatTools: ChatToolRunner {
             evidence: ChatEvidence(screenIDs: Set(hits.prefix(12).map(\.snapshotID))))
     }
 
-    /// An attached screen stays citable only while it still exists and falls
-    /// inside the question's dates.
     func attachedScreenEvidence(ids: Set<Int64>, dayScopeKey: String?) -> ChatEvidence {
         let scope = dayScopeKey.flatMap { AskDateScope(storageKey: $0) }
         guard dayScopeKey == nil || scope != nil else { return ChatEvidence() }
@@ -733,8 +684,6 @@ final class MeetingChatTools: ChatToolRunner {
         guard let scope, var interval = scope.interval() else {
             return ChatToolResult(text: "Could not understand day or date scope '\(argument)'.", summary: "bad day argument")
         }
-        // An asker whose history starts at a date (a paired phone) reads no
-        // activity from before it, whichever day the model asks for.
         if let seconds = call.string("_lokalbot_not_before").flatMap({ Double($0) }) {
             let floor = Date(timeIntervalSince1970: seconds)
             guard interval.end > floor else {
@@ -773,7 +722,6 @@ final class MeetingChatTools: ChatToolRunner {
         return meetings.filter { scope.contains($0.startedAt) }
     }
 
-    /// 'today' / 'yesterday' / ISO date (YYYY-MM-DD) → a Date inside that day.
     static func parseDay(_ argument: String, now: Date = Date()) -> Date? {
         switch argument.lowercased() {
         case "today", "": return now
@@ -786,9 +734,6 @@ final class MeetingChatTools: ChatToolRunner {
         }
     }
 
-    /// Resolve by short id / full uuid / 'latest' (via `SessionLookup`, pinned to
-    /// the in-memory list we pass it so it never touches the hard-coded library
-    /// path), then fall back to a title substring match.
     private func resolve(_ idArgument: String, in meetings: [Meeting]) -> Meeting? {
         if let found = (try? SessionLookup.find(id: idArgument, in: meetings)) ?? nil {
             return found

@@ -1,7 +1,5 @@
 import Foundation
 
-/// Read-only transcript loading and native Pi branching. No model, process,
-/// tool execution, or permission grant is needed to open a saved conversation.
 enum AgentConversationArchive {
     static let maximumBytes = 32 * 1_024 * 1_024
 
@@ -23,8 +21,6 @@ enum AgentConversationArchive {
         }
     }
 
-    /// Pi files contain a tree. Only the most recent leaf's ancestor chain is
-    /// visible; abandoned branches must not leak into previews or a new fork.
     static func activeBranch(_ records: [[String: Any]]) -> [[String: Any]] {
         let entries = records.filter { $0["type"] as? String != "session" }
         guard let leaf = entries.last?["id"] as? String else { return entries }
@@ -103,8 +99,6 @@ enum AgentConversationArchive {
             throw ArchiveError.unsavedMessage
         }
         var lastIndex = matches[matches.count - 1 - matchingOccurrenceFromEnd]
-        // A textual assistant message can also contain tool calls. Include its
-        // already-recorded results so the fork never has dangling tool calls.
         let message = branch[lastIndex]["message"] as? [String: Any]
         var pendingCalls = Set((message?["content"] as? [[String: Any]] ?? []).compactMap {
             $0["type"] as? String == "toolCall" ? $0["id"] as? String : nil

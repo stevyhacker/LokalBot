@@ -1,7 +1,3 @@
-// Pure, zero-import SVG card renderer shared by Node (`card.mjs`) and the
-// self-contained browser share page. Keeps CLI rendering and live browser
-// toggles byte-for-byte consistent with zero external dependencies.
-
 const CARD_HOUR = 60 * 60 * 1000;
 const CARD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -105,7 +101,6 @@ function resolveRange(data, windowOption) {
   }
   let start = Math.max(0, first - 3);
   let end = Math.min(totalDays - 1, last + 3);
-  // Keep at least 6 weeks so zoomed GitHub grids stay visually balanced.
   while (end - start + 1 < Math.min(42, totalDays)) {
     if (start > 0) start -= 1;
     else if (end < totalDays - 1) end += 1;
@@ -250,14 +245,12 @@ function dailyActivity(data) {
   return totals;
 }
 
-/** GitHub-profile-style 7-row weekly calendar heatmap with rounded squares and legend. */
 function drawContributionGraph(data, range, pal, { x, y, width, height, compact = false } = {}) {
   const { stats, months, earlierDays } = data;
   const busiest = stats.busiestDay;
   const byDay = dailyActivity(data);
   const parts = [];
 
-  // Container card
   parts.push(`<rect x="${x}" y="${y}" width="${width}" height="${height}" rx="16" fill="${pal.well}" stroke="${pal.border}" stroke-width="1.4"/>`);
 
   const padX = compact ? 22 : 28;
@@ -266,12 +259,11 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
   const gridX = x + padX + labelW;
   const maxGridW = width - padX * 2 - labelW;
 
-  const jan1Dow = new Date(Date.UTC(data.year, 0, 1)).getUTCDay(); // 0=Sun..6=Sat
+  const jan1Dow = new Date(Date.UTC(data.year, 0, 1)).getUTCDay();
   const startWeek = Math.floor((jan1Dow + range.start) / 7);
   const endWeek = Math.floor((jan1Dow + range.end) / 7);
   const weeks = Math.max(1, endWeek - startWeek + 1);
 
-  // Compute crisp rounded-square sizing (capped so zoomed ranges don't turn giant)
   const rawStep = maxGridW / weeks;
   const maxStepByH = (height - padTop - (compact ? 74 : 84)) / 7;
   const maxStep = Math.min(compact ? 24 : 28, maxStepByH);
@@ -283,7 +275,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
   const offsetX = gridX + (weeks < 30 ? Math.round((maxGridW - actualGridW) / 2) : 0);
   const gridY = y + padTop + 22;
 
-  // Robust 88th-percentile intensity scale so normal heavy days shine cleanly
   const nonZero = [];
   for (let day = range.start; day <= range.end; day += 1) {
     if (byDay[day] > 0) nonZero.push(byDay[day]);
@@ -300,7 +291,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
     return 3;
   };
 
-  // Month labels cleanly across the top (GitHub style)
   let lastMonth = -1;
   let lastMonthX = -1000;
   for (let day = range.start; day <= range.end; day += 1) {
@@ -319,7 +309,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
     }));
   }
 
-  // Weekday labels on the left (Mon / Wed / Fri)
   for (const [dow, name] of [[1, 'Mon'], [3, 'Wed'], [5, 'Fri']]) {
     const ly = svgRound(gridY + dow * step + cell * 0.76);
     parts.push(svgText(offsetX - 12, ly, name, {
@@ -331,7 +320,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
     }));
   }
 
-  // Draw cells (rounded squares, exact GitHub look)
   const cellR = svgRound(radius);
   const cellS = svgRound(cell);
   for (let day = range.start; day <= range.end; day += 1) {
@@ -352,7 +340,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
     parts.push(`<rect x="${cx}" y="${cy}" width="${cellS}" height="${cellS}" rx="${cellR}" fill="${fill}"/>`);
   }
 
-  // Subtle amber marker triangle above the peak week column
   if (busiest && busiest.day >= range.start && busiest.day <= range.end) {
     const peakWk = Math.floor((jan1Dow + busiest.day) / 7) - startWeek;
     const centre = svgRound(offsetX + peakWk * step + cell / 2);
@@ -360,7 +347,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
     parts.push(`<path d="M${centre - 5} ${ty}h10l-5 7z" fill="${pal.amber}"/>`);
   }
 
-  // Bottom bar inside well: Peak callout (left) + Less [][][][][] More legend (right)
   const footerY = y + height - (compact ? 20 : 22);
   const legSize = compact ? 12 : 14;
   const legGap = 4;
@@ -406,7 +392,6 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
   return parts;
 }
 
-/** Compact 24-hour rhythm bar chart (used on Portrait 4:5 below the GitHub calendar). */
 function drawDailyRhythm(data, pal, { x, y, width, height }) {
   const { grid } = data;
   const byHour = new Float64Array(24);
@@ -456,7 +441,6 @@ function drawDailyRhythm(data, pal, { x, y, width, height }) {
   for (let h = 0; h < 24; h += 1) {
     const ratio = maxMs > 0 ? byHour[h] / maxMs : 0;
     const bx = svgRound(barAreaX + h * slot + (slot - barW) / 2);
-    // Subtle full-height track
     parts.push(`<rect x="${bx}" y="${barTop}" width="${barW}" height="${barMaxH}" rx="4" fill="${pal.barTrack}"/>`);
     if (ratio > 0) {
       const bh = svgRound(Math.max(5, ratio * barMaxH));
@@ -487,7 +471,6 @@ function formatHourLabel(hour) {
   return `${h - 12}p`;
 }
 
-/** Ranked Top 5 Models card with proportional token bars (Portrait 4:5). */
 function drawTopModelsPortrait(models, pal, { x, y, width, height }) {
   const list = models.slice(0, 5);
   const maxTokens = Math.max(1, list[0]?.total ?? 1);
@@ -553,7 +536,6 @@ function drawTopModelsPortrait(models, pal, { x, y, width, height }) {
   return parts;
 }
 
-/** Compact horizontal Top 5 Models strip (Wide 16:9). */
 function drawTopModelsWide(models, pal, { x, y, width, height }) {
   const list = models.slice(0, 5);
   const maxTokens = Math.max(1, list[0]?.total ?? 1);
@@ -631,7 +613,6 @@ function headerAgentLine(agents) {
   return `${agents.slice(0, 4).map((agent) => agent.name).join(' · ')} · +${agents.length - 4}`;
 }
 
-/** Multi-segment pill bar for 2+ agents, with inline colored-dot legend for 3+. */
 function drawAgentSplitBar(timed, totalMs, pal, { x, y, width, maxNamed = 4, fontSize = 16 } = {}) {
   if (timed.length < 2 || totalMs <= 0) return [];
   const parts = [];

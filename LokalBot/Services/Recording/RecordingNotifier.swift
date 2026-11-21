@@ -48,15 +48,6 @@ struct RecordingPromptRegistry {
     }
 }
 
-/// Local notifications that announce recording start/stop, so the user knows a
-/// meeting is being captured without keeping the window open. This is the
-/// "push" half of the menu-bar-only experience; the always-visible menu bar
-/// timer is the "pull" half.
-///
-/// Authorization is requested lazily the first time a recording actually
-/// starts — a new user is never hit with a notification prompt before they've
-/// done anything, and if they decline, the menu bar timer still covers the
-/// "is it recording?" question.
 @MainActor
 final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
     static let shared = RecordingNotifier()
@@ -67,8 +58,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     private var pendingDetections = RecordingPromptRegistry()
 
-    /// Install the foreground-presentation delegate. Called once at launch from
-    /// the interactive (non-headless, non-UI-test) path.
     func bootstrap() {
         let center = UNUserNotificationCenter.current()
         center.delegate = self
@@ -89,7 +78,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     private static let healthReportPathKey = "lokalbot.health-report-path"
 
-    /// Posted only when a health check fails; clicking opens the report.
     func healthCheckFailed(summary: String, reportURL: URL) {
         post(title: "LokalBot health check failed", body: summary,
              userInfo: [Self.healthReportPathKey: reportURL.path])
@@ -97,9 +85,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     private static let settingsApprovalKey = "lokalbot.settings-approval"
 
-    /// A terminal request waiting for the person. Clicking the notification
-    /// opens the approval window; with notifications off, the window opens
-    /// right away, because only the person can answer.
     func settingsApprovalRequested(_ request: SettingsApprovals.Request) {
         post(title: "Approve a settings change?",
              body: "\(request.caller) asks: \(request.headline). Review it in LokalBot.",
@@ -118,10 +103,8 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
 
     private static let agentHandoffKey = "lokalbot.agent-handoff"
 
-    /// Opens Agent Mode when the person clicks a handoff notification.
     var onOpenAgent: (@MainActor () -> Void)?
 
-    /// Posted when a meeting's actions were handed to Agent Mode on their own.
     func actionsHandedOff(count: Int, meetingTitle: String, started: Bool) {
         let title = switch (started, count) {
         case (true, 1): "An agent is working on your action"
@@ -152,9 +135,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
         post(title: headline ?? "Recording saved", body: body)
     }
 
-    /// Posts a real, actionable prompt for `.ask` recording mode. The action
-    /// expires so clicking an old notification cannot begin capturing an
-    /// unrelated meeting hours later.
     func meetingDetected(title: String,
                          expiresAfter: TimeInterval = 2 * 60,
                          onUnavailable: @escaping @MainActor () -> Void = {},
@@ -180,7 +160,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
                       categoryIdentifier: String? = nil,
                       userInfo: [String: String] = [:],
                       undelivered: (@MainActor () -> Void)? = nil) {
-        // System notifications stay off in every UI test, background mode included.
         guard !UITestRuntime.isEnabled else { return }
         let content = UNMutableNotificationContent()
         content.title = title
@@ -189,8 +168,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
         if let categoryIdentifier {
             content.categoryIdentifier = categoryIdentifier
         }
-        // `trigger: nil` delivers immediately. A fresh identifier each time so a
-        // start and a stop don't coalesce into one another.
         let request = UNNotificationRequest(
             identifier: identifier, content: content, trigger: nil)
         let center = UNUserNotificationCenter.current()
@@ -219,9 +196,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
                 undelivered?()
                 return
             }
-            // `add` suspends. A meeting can end while the notification center
-            // is accepting the request, after invalidation already tried to
-            // remove it. Clean up the newly added request on resume as well.
             if categoryIdentifier == Self.detectionCategory,
                !pendingDetections.contains(identifier) {
                 removeNotifications(withIdentifiers: [identifier])
@@ -244,8 +218,6 @@ final class RecordingNotifier: NSObject, UNUserNotificationCenterDelegate {
         center.removeDeliveredNotifications(withIdentifiers: identifiers)
     }
 
-    // Show the banner even when LokalBot happens to be the active app (e.g. the
-    // window is open), instead of silently dropping it.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
         willPresent notification: UNNotification

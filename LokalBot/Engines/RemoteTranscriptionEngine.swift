@@ -1,25 +1,15 @@
 import Foundation
 import os
 
-/// A speech-to-text server the user configures, speaking OpenAI's
-/// `/audio/transcriptions` API: a cloud provider (OpenAI, Groq, OpenRouter)
-/// or a whisper.cpp-style server on another device. Audio leaves the Mac only
-/// for an origin approved for transcription; loopback needs no approval, and
-/// plain HTTP is accepted only on the user's own network or tailnet.
 struct RemoteTranscriptionConfiguration: Hashable, Sendable {
     var baseURL: String
     var model: String
-    /// `AppSettings.approvedRemoteTranscriptionOrigins`. Separate from the
-    /// Think approvals: approving a Think server never sends it audio.
     var approvedOrigins: [String]
 
     var trimmedModel: String { model.trimmingCharacters(in: .whitespacesAndNewlines) }
 
     var isConfigured: Bool { !baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
 
-    /// The request URL. A base such as `https://api.openai.com/v1` gets
-    /// `/audio/transcriptions` appended; a URL that already names that
-    /// endpoint, or whisper.cpp's default `/inference`, is used as is.
     var endpoint: URL? {
         let raw = baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !raw.isEmpty, var components = URLComponents(string: raw),
@@ -37,30 +27,19 @@ struct RemoteTranscriptionConfiguration: Hashable, Sendable {
 
     var origin: String? { endpoint.flatMap(InferenceEndpointPolicy.origin(for:)) }
 
-    /// Models checked to return word times for `response_format=verbose_json`
-    /// with `timestamp_granularities[]=word`, by origin. Other servers keep
-    /// plain `json`: several reject those fields (OpenAI's gpt-4o-transcribe
-    /// models accept only `json` and `text`). On OpenRouter, 2026-10-19, these
-    /// placed every speaker turn within 0.25 s of its onset in 30 s windows,
-    /// whichever provider served them. whisper-large-v3 is left out: one of its
-    /// providers stretched a word across the pause before the next speaker.
     static let wordTimingModels: [String: Set<String>] = [
         "https://openrouter.ai": [
             "microsoft/mai-transcribe-2", "google/gemini-3.5-transcribe", "openai/whisper-large-v3-turbo",
         ],
     ]
 
-    /// The server times words itself, so speaker attribution needs no local
-    /// forced aligner.
     var requestsWordTimings: Bool {
         guard let origin else { return false }
         return Self.wordTimingModels[origin]?.contains(trimmedModel.lowercased()) == true
     }
 
-    /// Remembers a rejection of the word-timing fields per server and model.
     var wordTimingKey: String { "\(origin ?? baseURL)|\(trimmedModel.lowercased())" }
 
-    /// The endpoint audio may be sent to now, or why not.
     func validatedEndpoint() throws -> URL {
         guard isConfigured else { throw RemoteTranscriptionError.notConfigured }
         guard let endpoint else { throw RemoteTranscriptionError.invalidURL }
@@ -77,11 +56,8 @@ struct RemoteTranscriptionConfiguration: Hashable, Sendable {
         return endpoint
     }
 
-    /// Configured and allowed to receive audio. Readiness gates (automatic
-    /// processing, the Models page) treat this as the model being "on disk".
     var isReady: Bool { (try? validatedEndpoint()) != nil }
 
-    /// Where audio goes, for disclosures. Loopback reads as this Mac.
     var presentation: InferencePresentation {
         do {
             let endpoint = try validatedEndpoint()
@@ -97,22 +73,14 @@ struct RemoteTranscriptionConfiguration: Hashable, Sendable {
         return trimmedModel.isEmpty ? "Transcription server · \(host)" : "\(trimmedModel) · \(host)"
     }
 
-    /// Recorded in `transcript.json` and the crash-resume checkpoint. Never
-    /// includes credentials.
     var transcriptEngine: String {
         let model = trimmedModel.isEmpty ? "server default" : trimmedModel
         return "\(model) (remote \(origin ?? "server"))"
     }
 }
 
-/// What the person allows the transcription server right now. An engine is
-/// built from a settings snapshot, and one meeting keeps it for hundreds of
-/// uploads, so each upload asks here instead of trusting that snapshot.
-/// `SettingsStore` is the one place it enters the process, as with
-/// `ModelDownloadRouting.source`.
 enum RemoteTranscriptionConsent {
     struct State: Equatable, Sendable {
-        /// The transcription server is the selected Transcribe model.
         var serverSelected: Bool
         var approvedOrigins: [String]
 
@@ -127,17 +95,12 @@ enum RemoteTranscriptionConsent {
         }
     }
 
-    /// Nil until a `SettingsStore` exists; the engine's own snapshot, checked
-    /// when its transcription starts, then stands.
     static var current: State? {
         get { state.withLock { $0 } }
         set { state.withLock { $0 = newValue } }
     }
     private static let state = OSAllocatedUnfairLock<State?>(initialState: nil)
 
-    /// Throws when audio may no longer go to `endpoint`. A server on this Mac
-    /// needs no approval and receives nothing that leaves the Mac, so it is
-    /// never interrupted.
     static func check(_ endpoint: URL, against state: State? = current) throws {
         guard let state, !InferenceEndpointPolicy.isLoopback(endpoint) else { return }
         guard state.serverSelected else { throw RemoteTranscriptionError.noLongerSelected }
@@ -156,11 +119,8 @@ enum RemoteTranscriptionError: LocalizedError, Equatable {
     case invalidURL
     case insecure(String)
     case approvalRequired(String)
-    /// An on-device model was chosen while this server was still transcribing.
     case noLongerSelected
 
-    /// The person withdrew the server while it was in use; the audio not yet
-    /// sent stays on this Mac.
     var isConsentWithdrawn: Bool {
         switch self {
         case .approvalRequired, .noLongerSelected: true
@@ -204,48 +164,25 @@ enum RemoteTranscriptionError: LocalizedError, Equatable {
     }
 }
 
-/// Transcribes through a `RemoteTranscriptionConfiguration`. Neighbouring
-/// speech is packed into windows (`lineWindows`, or `attributionWindows`
-/// before word attribution), and each window is uploaded as a 16 kHz WAV of at
-/// most about 1 MB, so long meetings stay far below provider upload limits
-/// (25 MB) and per-request timeouts (60 s upstream at OpenRouter). Speaker
-/// turns are attributed after transcription word by word, as for Qwen3-ASR:
-/// cutting the audio at every turn sent each turn as its own request, one
-/// after another, without the context around it. Servers in
-/// `wordTimingModels` return the word times; for the rest, the local forced
-/// aligner finds them.
 struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
-    /// How neighbouring VAD spans are packed into one request.
     struct Windowing: Equatable, Sendable {
         var maxSeconds: TimeInterval
         var maxGapSeconds: TimeInterval
     }
 
-    /// Plain transcription (no speaker turns, or the speaker-region fallback):
-    /// one request and one transcript line per window, short enough for the
-    /// speaker-bleed filter to compare (`SpeakerBleedFilter`).
     static let lineWindows = Windowing(maxSeconds: 15, maxGapSeconds: 2)
-    /// Before word attribution: longer windows give the model more context
-    /// and need fewer requests; word times split them at turns and pauses.
     static let attributionWindows = Windowing(maxSeconds: 30, maxGapSeconds: 3)
-    /// OpenAI rejects audio shorter than 0.1 s, and such slivers hold no words.
     static let minimumSpanSamples = SpeechActivity.spanSampleRate / 10
     static let maximumConcurrentRequests = 3
     static let maximumAttempts = 3
-    /// Idle time without a response byte. A slow CPU server can spend well
-    /// over a minute on one 30-second span before it answers.
     static let requestTimeout: TimeInterval = 180
     static let sharedSession = InferenceURLSession.make(requestTimeout: requestTimeout, resourceTimeout: 600)
 
     let configuration: RemoteTranscriptionConfiguration
-    /// Read once per transcription, off the main actor (Keychain).
     let apiKey: @Sendable () -> String
     var session: URLSession = RemoteTranscriptionEngine.sharedSession
     var sleep: @Sendable (TimeInterval) async throws -> Void = { try await Task.sleep(for: .seconds($0)) }
     var wordTimingRejections: WordTimingRejections = .shared
-    /// Asked before every upload, retries included: revoking the server or
-    /// choosing an on-device model stops the audio that has not been sent
-    /// yet. `AppSettings.transcriptionEngine` wires it to the live settings.
     var stillAllowed: @Sendable (URL) throws -> Void = { _ in }
 
     var displayName: String { configuration.displayName }
@@ -258,8 +195,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         "remote:\(configuration.endpoint?.absoluteString ?? configuration.baseURL)|\(configuration.trimmedModel)"
     }
 
-    /// Nothing to download: ready means configured and approved. The model
-    /// check sends the spoken sample to prove the server answers.
     func prepare(progress: ModelPreparationProgressHandler?) async throws {
         _ = try configuration.validatedEndpoint()
         guard let progress else { return }
@@ -280,8 +215,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
                              windowing: Self.attributionWindows, wordTimings: providesWordTimings)
     }
 
-    /// VAD spans packed into request windows. A pause longer than the gap,
-    /// or a window that would outgrow the limit, starts a new window.
     static func windows(in spans: [SpeechSpan], _ windowing: Windowing) -> [SpeechSpan] {
         QwenASREngine.merged(spans, maxGap: windowing.maxGapSeconds, maxLength: windowing.maxSeconds)
     }
@@ -312,9 +245,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         return WordTimedTranscript(segments: segments, engine: configuration.transcriptEngine)
     }
 
-    /// Reads one span at a time, keeps at most `maximumConcurrent` uploads in
-    /// flight, and stamps each returned text with its span's real start/end.
-    /// Word times, relative to the uploaded clip, move onto the track timeline.
     static func segments(
         in url: URL,
         spans: [SpeechSpan],
@@ -359,13 +289,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         }
     }
 
-    // MARK: - Request
-
-    /// One span, retried on rate limits, server errors, and dropped
-    /// connections. A server that answers the word-timing fields with HTTP
-    /// 400 is asked again with plain `json`; when that succeeds, its origin
-    /// and model stop asking for word times until the app quits. Internal so
-    /// tests can drive it with a stub session.
     func upload(_ wav: Data, endpoint: URL, apiKey: String, model: String,
                 language: String?, prompt: String?, wordTimings: Bool = false) async throws -> WindowTranscription {
         var attempt = 0
@@ -392,8 +315,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
                     return reply
                 }
                 if wordTimings, http.statusCode == 400 {
-                    // Remembered only once plain json works, so a clip the
-                    // server refuses for another reason changes nothing.
                     lokalbotLog("remote-asr word timings refused (HTTP 400), asking for text only: "
                         + Self.errorDetail(from: data))
                     wordTimings = false
@@ -419,10 +340,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         }
     }
 
-    /// Multipart form in OpenAI's shape. `response_format=json` is the one
-    /// every provider and whisper.cpp accept; `wordTimings` asks for
-    /// `verbose_json` with word timestamps instead. `model` is omitted when
-    /// empty because single-model servers need none.
     static func makeRequest(endpoint: URL, apiKey: String, model: String, boundary: String,
                             wav: Data, language: String?, prompt: String?,
                             wordTimings: Bool = false) -> URLRequest {
@@ -462,8 +379,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         return request
     }
 
-    /// One window's reply. `words` are relative to the start of the uploaded
-    /// clip; nil when the server returned no usable word times.
     struct WindowTranscription: Equatable, Sendable {
         var text: String
         var words: [AlignedWordTiming]?
@@ -480,11 +395,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         let words: [Word]?
     }
 
-    /// `{"text": …}` from OpenAI-style servers, plus `verbose_json`'s
-    /// `words: [{word, start, end}]`; a few self-hosted servers answer plain
-    /// text instead. Tokens without letters or digits are dropped; one word
-    /// without valid times drops them all, and the forced aligner times that
-    /// window instead.
     static func transcription(from data: Data, response: HTTPURLResponse) throws -> WindowTranscription {
         if let payload = try? JSONDecoder().decode(ResponseBody.self, from: data),
            let text = payload.text {
@@ -509,8 +419,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
         return timed.isEmpty ? nil : timed
     }
 
-    /// The server's own message (`{"error": {"message": …}}`,
-    /// `{"error": "…"}`, or a short plain body), bounded for display.
     static func errorDetail(from data: Data) -> String {
         let message: String
         if let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
@@ -538,9 +446,6 @@ struct RemoteTranscriptionEngine: TranscriptionEngine, Sendable {
     }
 }
 
-/// Servers and models that refused the word-timing fields during this run,
-/// shared by every engine built from settings. Kept in memory only: a server
-/// that adds support is asked again after the next launch.
 final class WordTimingRejections: Sendable {
     static let shared = WordTimingRejections()
 

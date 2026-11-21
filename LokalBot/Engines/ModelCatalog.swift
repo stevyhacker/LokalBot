@@ -1,13 +1,5 @@
 import Foundation
 
-/// Built-in LLM backend, part 1 of 3: the model catalog + on-disk validation.
-/// A bundled llama.cpp `llama-server` (Metal) speaks the OpenAI-compatible API
-/// on localhost. Users choose and download GGUF models on demand into
-/// Application Support. No Ollama / LM Studio required.
-///
-/// Runtime split (mirrors the lifecycle/prompt/lifecycle separation): catalog
-/// here, download orchestration in `ModelDownloadManager.swift`, the server
-/// subprocess in `LlamaServer.swift`.
 struct ModelCatalog {
 
     struct Entry: Codable, Identifiable, Hashable {
@@ -19,9 +11,6 @@ struct ModelCatalog {
         let sizeBytes: Int64?
         let sizeGB: Double
         let blurb: String
-        /// Legacy persisted hint from the pre-high-reasoning runtime. Retained
-        /// so existing custom-model settings keep decoding; the Main LLM now
-        /// applies one explicit reasoning policy at the server/request layer.
         let disablesThinking: Bool
 
         init(id: String, displayName: String, fileName: String, url: String,
@@ -39,8 +28,6 @@ struct ModelCatalog {
             self.disablesThinking = disablesThinking
         }
 
-        /// Built-ins store the digest directly. Older custom entries carried it
-        /// in the URL fragment, so preserve that migration path as well.
         var expectedSHA256: String? {
             if let digest = Self.normalizedSHA256(sha256) { return digest }
             guard let fragment = URLComponents(string: url)?.fragment,
@@ -48,9 +35,6 @@ struct ModelCatalog {
             return Self.normalizedSHA256(String(fragment.dropFirst("sha256=".count)))
         }
 
-        /// New entries persist the exact byte count. Entries saved by the
-        /// previous build can recover it from the round-trippable decimal GB
-        /// value that was originally derived from Hugging Face's byte count.
         var expectedSizeBytes: Int64? {
             if let sizeBytes, sizeBytes > 0 { return sizeBytes }
             guard expectedSHA256 != nil, sizeGB > 0, sizeGB.isFinite else { return nil }
@@ -69,27 +53,15 @@ struct ModelCatalog {
 
     static let compactFallbackID = "qwen3.5-0.8b"
     static let recommendedSummarizationID = "qwen3.6-35b-a3b"
-    /// Default autocomplete model qualified on the shared next-word corpus.
     static let qualityCotypingID = "gemma4-e2b-base-q6"
     static let recommendedCotypingID = qualityCotypingID
     static let lightweightCotypingID = "lfm2.5-1.2b-instruct"
     static let recommendedCotypingLicenseURL = URL(
         string: "https://ai.google.dev/gemma/apache_2")!
-    /// Main LLM preselected for every fresh install. Larger models remain
-    /// available in Settings → Models for users who prefer maximum quality.
     static let defaultSummarizationID = "qwen3.5-4b"
 
-    /// Ceiling for models offered in the cotyping pickers. Cotyping runs at
-    /// keystroke latency; the heavyweight summarization models above this
-    /// size are counterproductive there (and still selectable for the Main
-    /// LLM, where they belong).
     static let keystrokeScaleMaxGB = 7.0
 
-    /// Models hidden from new cotyping picks. A deny-set rather than an
-    /// `Entry` field: `Entry` is Codable and persisted in
-    /// `AppSettings.customBuiltInModels`, so its stored shape must not churn.
-    /// The 2.6B LFM is an always-reasoning Main LLM candidate, not a
-    /// keystroke-latency completion model.
     private static let excludedCotypingIDs: Set<String> = [
         "gemma4-e4b",
         "granite-4.1-3b",
@@ -97,8 +69,6 @@ struct ModelCatalog {
         "ministral-3-3b-instruct-2512",
     ]
 
-    /// Local GGUF catalog, roughly ordered from tiny fallbacks to higher-quality
-    /// meeting-summary and cotyping options.
     static let entries: [Entry] = [
         Entry(id: compactFallbackID, displayName: "Qwen3.5 0.8B",
               fileName: "Qwen3.5-0.8B-Q4_K_M.gguf",
@@ -213,9 +183,6 @@ struct ModelCatalog {
         selectableEntries(custom: custom).filter { $0.id != qualityCotypingID }
     }
 
-    /// The cotyping pickers' catalog: keystroke-scale built-ins plus every
-    /// custom entry, always keeping the currently selected model visible so
-    /// an existing choice never silently disappears from its own picker.
     static func keystrokeScaleEntries(custom: [Entry],
                                       keeping selectedID: String? = nil) -> [Entry] {
         let customIDs = Set(custom.map(\.id))
@@ -231,7 +198,6 @@ struct ModelCatalog {
         selectableEntries(custom: custom).first { $0.id == id }
     }
 
-    /// Downloads live in <storage>/models/.
     static func localURL(for entry: Entry, storage: StorageManager) -> URL? {
         let downloaded = storage.rootURL.appendingPathComponent("models/\(entry.fileName)")
         if ModelFileValidator.looksLikeGGUF(downloaded) { return downloaded }

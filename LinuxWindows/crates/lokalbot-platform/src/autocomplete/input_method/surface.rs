@@ -1,11 +1,3 @@
-//! Who owns the active field, asked for on a thread of its own so a slow app
-//! or compositor never holds up the keyboard: the compositor names the window
-//! in front, and accessibility adds what it knows about the field. Also looks
-//! out for other input methods, since a desktop runs one at a time.
-//!
-//! The owner is judged before the field's text is used. An app that cannot be
-//! named is ruled out.
-
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
@@ -17,12 +9,9 @@ use super::{Command, Handle, Refusal, Surface};
 use crate::activity::{AppResolver, FrontWindow, FrontWindows};
 use crate::session::Desktop;
 
-/// How often to look for another input method.
 const SCAN_EVERY: Duration = Duration::from_secs(5);
 const CALL_TIMEOUT: Duration = Duration::from_millis(500);
 
-/// Session bus names of input methods. Their daemons own these for as long as
-/// they run, and looking here stays within this desktop session.
 const OTHER_INPUT_METHODS: [(&str, &str); 3] = [
     ("org.fcitx.Fcitx5", "Fcitx 5"),
     ("org.fcitx.Fcitx", "Fcitx"),
@@ -35,8 +24,6 @@ pub(super) enum Request {
     Stop,
 }
 
-/// Answers questions until told to stop. With `scan`, it also keeps looking for
-/// other input methods, for a route where only one can run.
 pub(super) fn run(requests: Receiver<Request>, back: Handle, scan: bool) {
     let mut reader = Reader::new();
     let far_future = Duration::from_secs(60 * 60 * 24);
@@ -56,7 +43,6 @@ pub(super) fn run(requests: Receiver<Request>, back: Handle, scan: bool) {
                 next_scan = Instant::now() + if scan { SCAN_EVERY } else { far_future };
             }
             Ok(mut request) => {
-                // Only the newest question matters.
                 while let Ok(newer) = requests.try_recv() {
                     request = newer;
                 }
@@ -72,7 +58,6 @@ pub(super) fn run(requests: Receiver<Request>, back: Handle, scan: bool) {
     }
 }
 
-/// The name of an input method running in this session.
 fn other_input_method(bus: &zbus::blocking::Connection) -> Option<String> {
     OTHER_INPUT_METHODS.iter().find_map(|(bus_name, name)| {
         let reply = bus
@@ -96,7 +81,6 @@ struct Reader {
     front: Option<FrontWindows>,
     apps: AppResolver,
     own_pid: u32,
-    /// Text above the field, read once per field and page.
     visible: HashMap<(u64, Option<String>, String), Option<String>>,
 }
 
@@ -119,8 +103,6 @@ impl Reader {
             return window;
         }
         self.front = None;
-        // GNOME names the window in front only through an extension. Apps that
-        // publish accessibility can still say for themselves.
         if crate::session::desktop() != Desktop::Gnome {
             return None;
         }
@@ -144,7 +126,6 @@ impl Reader {
             focused::surroundings,
         );
         let mut surface = judged.inner;
-        // A later activation means this field is gone, and its text with it.
         self.visible.retain(|(seen, _, _), _| *seen == activation);
         if judged.refusal.is_none()
             && let Some(key) = judged.accessible_key
@@ -172,15 +153,12 @@ impl Reader {
     }
 }
 
-/// A surface and the accessibility key its visible text can be read through.
 struct Judged {
     inner: Surface,
     accessible_key: Option<String>,
     refusal: Option<Refusal>,
 }
 
-/// Decides what the owner and accessibility say about a field, in the order
-/// the X11 watcher does: identity first, then the field's kind.
 fn judge(
     activation: u64,
     policy: &ReadPolicy,
@@ -215,7 +193,6 @@ fn judge(
         ..Surface::default()
     };
     if pid == own_pid {
-        // The practice editor feeds the engine itself.
         inner.app_name = "LokalBot".into();
         inner.app_id = crate::privacy::SELF_APP_ID.into();
         return refused(inner, Refusal::Unsupported("Off in LokalBot."));
@@ -316,7 +293,6 @@ mod tests {
             });
             assert_eq!(judged.refusal, Some(Refusal::Unsupported(reason)));
         }
-        // LokalBot's own windows, by pid.
         let judged = judge(1, &policy(), 7, Some(&window("LokalBot", "x")), |_| {
             panic!("accessibility must not be asked about LokalBot")
         });

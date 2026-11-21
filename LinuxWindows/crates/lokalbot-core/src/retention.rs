@@ -1,16 +1,3 @@
-//! Screen and activity retention (`ScreenshotService.performRetentionPrune`,
-//! `ActivityStore.retentionReview`, `clearRetainedText`), and the reviews a
-//! person sees before anything is deleted (`RetentionReview.swift`,
-//! `CaptureDeletionReview.swift`).
-//!
-//! Older than the cutoff and not saved: pixels are deleted; unless text is
-//! kept forever, screen text, vectors, window titles, URLs, document names
-//! and coding-agent sessions are removed. Activity window titles are always
-//! cleared; app names and durations stay. Meetings are never touched.
-//!
-//! A pass deletes only what its own review listed, so a broad cutoff can never
-//! remove evidence nobody looked at.
-
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Context as _, Result, bail};
@@ -24,7 +11,6 @@ use crate::settings::Settings;
 use crate::time::{from_epoch, to_epoch};
 use crate::timeline::table_exists;
 
-/// What one retention pass removed.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RetentionReport {
     pub pixels_removed: usize,
@@ -32,16 +18,12 @@ pub struct RetentionReport {
     pub activity_titles_cleared: usize,
     pub agent_sessions_removed: usize,
     pub orphans_removed: usize,
-    /// One date per evidence day the pass touched.
     pub days: Vec<DateTime<Utc>>,
-    /// What could not be cleaned up; it stays listed and is retried.
     pub failures: Vec<String>,
 }
 
-/// Marker file with the time of the last pass.
 pub const LAST_PASS_FILE: &str = ".screen-retention-last-pass";
 
-/// A capture a review would change.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RetentionCandidate {
     pub id: i64,
@@ -52,8 +34,6 @@ pub struct RetentionCandidate {
     pub remove_metadata: bool,
 }
 
-/// An activity block whose window title a review would clear. Its times are
-/// the stored values, so clearing it matches exactly the row that was reviewed.
 #[derive(Clone, Debug)]
 pub struct RetentionActivityTitle {
     pub id: i64,
@@ -83,7 +63,6 @@ impl std::hash::Hash for RetentionActivityTitle {
 }
 
 impl RetentionActivityTitle {
-    /// The block's edges and each local midnight it crosses.
     fn evidence_dates(&self) -> Vec<DateTime<Utc>> {
         let (start, end) = (from_epoch(self.start), from_epoch(self.end));
         let mut dates = vec![start, end];
@@ -100,8 +79,6 @@ impl RetentionActivityTitle {
     }
 }
 
-/// The counts behind "Review expired context…": exactly what applying it
-/// removes. Building one changes nothing.
 #[derive(Clone, Debug, PartialEq)]
 pub struct RetentionReview {
     pub days: u32,
@@ -111,7 +88,6 @@ pub struct RetentionReview {
     pub saved_count: usize,
     pub bytes: u64,
     pub activity_titles: Vec<RetentionActivityTitle>,
-    /// Agent requests and reports are text, so they expire with screen text.
     pub coding_agent_bursts: Vec<(String, DateTime<Utc>)>,
 }
 
@@ -168,9 +144,6 @@ impl RetentionReview {
         self.evidence_dates().into_iter().max()
     }
 
-    /// Evidence dates reduced to one per distinct pair of local day and UTC
-    /// day, sorted. Consumers key only on those days; a pass after a long gap
-    /// would otherwise hand them a date per row.
     pub fn distinct_evidence_days(&self, extra: &[DateTime<Utc>]) -> Vec<DateTime<Utc>> {
         let mut seen = HashSet::new();
         let mut dates: Vec<DateTime<Utc>> = self
@@ -185,8 +158,6 @@ impl RetentionReview {
         dates
     }
 
-    /// A disappearing file or newly saved moment may shrink a review safely.
-    /// Additional data, changed paths or new text require a fresh review.
     pub fn covers(&self, current: &RetentionReview) -> bool {
         let approved: HashMap<i64, &RetentionCandidate> =
             self.candidates.iter().map(|c| (c.id, c)).collect();
@@ -211,7 +182,6 @@ impl RetentionReview {
     }
 }
 
-/// One moment in a reviewed time range.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReviewedCapture {
     pub id: i64,
@@ -221,7 +191,6 @@ pub struct ReviewedCapture {
     pub is_saved: bool,
 }
 
-/// Exactly what deleting a time range removes (`CaptureDeletionReview`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct CaptureDeletionReview {
     pub start: DateTime<Utc>,
@@ -257,9 +226,6 @@ impl CaptureDeletionReview {
     }
 }
 
-/// Text and vectors whose capture row is gone. Their own timestamps establish
-/// the evidence day, and exact row identities mean a pass never needs a broad
-/// cutoff (`ActivityStore.OrphanedScreenEvidence`).
 #[derive(Clone, Debug, Default)]
 struct OrphanedEvidence {
     text: Vec<(i64, i64, f64)>,
@@ -281,8 +247,6 @@ impl OrphanedEvidence {
 }
 
 impl Library {
-    /// The dry run: what a retention window of `days` removes as of `now`.
-    /// `measuring_bytes` stats every candidate file for "space recovered".
     pub fn retention_review(
         &self,
         days: u32,
@@ -293,7 +257,6 @@ impl Library {
         let cutoff = to_epoch(now) - f64::from(days.max(1)) * 86_400.0;
         let root = self.paths().root().to_path_buf();
         self.with_db(|db| {
-            // A read-only library may predate these tables.
             for table in ["screenshots", "ocr_metadata", "screen_bookmarks", "activity_blocks"] {
                 if !table_exists(db, table)? {
                     return Ok(RetentionReview {
@@ -339,8 +302,6 @@ impl Library {
                     })
                 })
                 .collect::<rusqlite::Result<_>>()?;
-            // App names and durations remain useful aggregate history. Window
-            // titles are content and expire even with the text exception.
             let mut statement = db.prepare(
                 "SELECT id, start, end, title FROM activity_blocks \
                  WHERE end < ?1 AND title != '' ORDER BY start",
@@ -371,7 +332,6 @@ impl Library {
             } else {
                 0
             };
-            // Agent requests and reports are text: they follow the text rule.
             let coding_agent_bursts = if keep_text_forever
                 || !table_exists(db, "coding_agent_bursts")?
             {
@@ -399,11 +359,6 @@ impl Library {
         })
     }
 
-    /// Runs a reviewed cleanup (`ScreenshotService.applyRetentionReview`). It
-    /// counts as the person deleting the source: dependent overnight memory and
-    /// unedited generated journals go first. A review that no longer covers
-    /// what is there fails with [`RetentionReviewError::ScopeChanged`] and
-    /// nothing is deleted. The caller sets the new policy once this returns.
     pub fn apply_retention_review(
         &self,
         review: &RetentionReview,
@@ -428,10 +383,6 @@ impl Library {
         Ok(report)
     }
 
-    /// Applies the retention window of `settings` as of `now`. Scheduled
-    /// retention expires evidence on its own clock; nobody deleted or
-    /// corrected it, so day digests and overnight memory stay
-    /// (`AppState.withScheduledRetention`).
     pub fn apply_retention(
         &self,
         settings: &Settings,
@@ -439,8 +390,6 @@ impl Library {
     ) -> Result<RetentionReport> {
         let days = settings.retention_days.max(1);
         let keep_text = settings.keep_ocr_text_forever;
-        // Establish the exact sources before removing anything. A failed read
-        // must never look empty.
         let review = self.retention_review(days, keep_text, now, false)?;
         let orphaned = if keep_text {
             OrphanedEvidence::default()
@@ -459,9 +408,6 @@ impl Library {
         Ok(report)
     }
 
-    /// Removes exactly what `review` lists, re-reading saved moments right
-    /// before the irreversible file steps. A file that can't be removed keeps
-    /// its reference, so the cleanup can be retried.
     fn execute_retention(
         &self,
         review: &RetentionReview,
@@ -531,7 +477,6 @@ impl Library {
         }
     }
 
-    /// When retention last ran, from its marker file.
     pub fn last_retention_pass(&self) -> Option<DateTime<Utc>> {
         let stamp = std::fs::read_to_string(self.paths().root().join(LAST_PASS_FILE)).ok()?;
         crate::time::parse_iso(&stamp)
@@ -545,9 +490,6 @@ impl Library {
         })
     }
 
-    /// Bookmark-aware at execution time (`ActivityStore.clearRetainedText`).
-    /// FTS5 can't index its unindexed `snapshot_id`, so the exact rowids come
-    /// through the metadata index, in bounded chunks.
     fn clear_retained_text(&self, ids: &[i64]) -> Result<()> {
         let mut snapshots: Vec<i64> = ids.iter().copied().filter(|id| *id > 0).collect();
         snapshots.sort_unstable();
@@ -654,8 +596,6 @@ impl Library {
         })
     }
 
-    /// New screenshots and bookmarks can make a reviewed orphan live again, so
-    /// each is checked once more before it goes.
     fn clear_orphaned_evidence(&self, orphaned: &OrphanedEvidence) -> Result<usize> {
         if orphaned.is_empty() {
             return Ok(0);
@@ -689,9 +629,6 @@ impl Library {
         })
     }
 
-    /// The dry run for "Delete Captures in a Time Range…": every moment in
-    /// `[start, end)`, saved ones left out unless they were chosen. A failed
-    /// read is an error, never an empty scope.
     pub fn capture_deletion_review(
         &self,
         start: DateTime<Utc>,
@@ -734,10 +671,6 @@ impl Library {
         })
     }
 
-    /// Deletes a reviewed range one moment at a time, so successful deletions
-    /// stay consistent even if another fails, and returns what failed
-    /// (`ScreenshotService.applyCaptureDeletionReview`). A moment saved since
-    /// the review stays unless saved moments were chosen.
     pub fn apply_capture_deletion_review(
         &self,
         review: &CaptureDeletionReview,
@@ -778,9 +711,6 @@ impl Library {
     }
 }
 
-/// Removes the file, then every reference to it. Each picture vector goes
-/// before its path: it was made from these pixels and must not outlive them
-/// (`ActivityStore.clearScreenshotPath`).
 fn clear_pixels(
     library: &Library,
     root: &std::path::Path,
@@ -893,7 +823,6 @@ mod tests {
         );
     }
 
-    /// The table a Mac creates for picture vectors (`ScreenImageEmbeddings`).
     fn mac_image_vectors(library: &Library) {
         library
             .with_db(|db| {
@@ -977,7 +906,6 @@ mod tests {
                 .join("activity/2026-01-01/shots/b.heic.enc")
                 .exists()
         );
-        // Only the saved moment still has pixels, and only it keeps a vector.
         assert_eq!(image_vector_count(&library), 1);
     }
 
@@ -1005,7 +933,6 @@ mod tests {
         assert_eq!(review.activity_titles.len(), 1);
         assert_eq!(review.saved_count, 1);
         assert_eq!(review.bytes, 6);
-        // The dry run removed nothing.
         assert!(
             library
                 .screen_moment(expired)
@@ -1024,7 +951,6 @@ mod tests {
         assert_eq!(keep.metadata_count(), 0);
         assert_eq!(keep.pixel_count(), 1);
 
-        // Nothing within the longer window is listed.
         let none = library.retention_review(30, false, now, false).unwrap();
         assert!(none.is_empty());
     }
@@ -1037,7 +963,6 @@ mod tests {
         let old = now - chrono::Duration::days(20);
         let first = sealed_moment(&library, dir.path(), old, "a.heic.enc");
         let review = library.retention_review(7, false, now, false).unwrap();
-        // More data than was reviewed: nothing is deleted.
         let second = sealed_moment(&library, dir.path(), old, "b.heic.enc");
         let error = library.apply_retention_review(&review, now).unwrap_err();
         assert!(error.downcast_ref::<RetentionReviewError>().is_some());
@@ -1049,7 +974,6 @@ mod tests {
                 .text
                 .is_some()
         );
-        // Newly saved moments may shrink it.
         library.save_moment(second, "keep").unwrap();
         let report = library.apply_retention_review(&review, now).unwrap();
         assert_eq!(report.pixels_removed, 1);
@@ -1080,7 +1004,6 @@ mod tests {
         library.save_digest(day, "the digest", &meta).unwrap();
         sealed_moment(&library, dir.path(), old, "a.heic.enc");
 
-        // Retention expires evidence; the digest and overnight memory stay.
         library.apply_retention(&Settings::default(), now).unwrap();
         assert!(library.journal_path(day).exists());
         assert_eq!(evidence::read_state(dir.path()).unwrap().revision, 0);
@@ -1114,7 +1037,6 @@ mod tests {
         assert_eq!(review.pixel_count(), 1);
         assert_eq!(review.saved_excluded, 1);
         assert_eq!(review.saved_included(), 0);
-        // Nothing went yet.
         assert!(library.screen_moment(first).unwrap().is_some());
 
         assert!(

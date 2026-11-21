@@ -2,8 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Phase 1 of the personal world model: "Remember …" parsing, the edit rules,
-/// the encrypted store, the per-question selection, and how Ask uses them.
 final class RememberIntentTests: XCTestCase {
     func testMatchesRequestsToRemember() {
         let cases: [(String, String)] = [
@@ -53,7 +51,6 @@ final class RememberIntentTests: XCTestCase {
         XCTAssertEqual(PersonalClaim.Kind.suggested(for: "My goal is 1,000 weekly users"), .goal)
         XCTAssertEqual(PersonalClaim.Kind.suggested(for: "I want to ship 1.0 this year"), .goal)
         XCTAssertEqual(PersonalClaim.Kind.suggested(for: "Maya is my manager"), .fact)
-        // Principles are the person's call, never guessed.
         XCTAssertEqual(PersonalClaim.Kind.suggested(for: "I never work weekends"), .fact)
     }
 }
@@ -94,7 +91,6 @@ final class PersonalModelEditTests: XCTestCase {
         }
         XCTAssertEqual(model.add("One more", kind: .fact, origin: .added, now: now).failure, .full)
         XCTAssertEqual(model.claims.count, PersonalModel.maxClaims)
-        // A duplicate still refreshes when full.
         XCTAssertNoThrow(try model.add("Fact number 3", kind: .fact, origin: .added, now: now).get())
     }
 
@@ -219,10 +215,6 @@ final class PersonalModelStoreTests: XCTestCase {
         XCTAssertTrue(PersonalModelController(store: store).currentClaims().isEmpty)
     }
 
-    /// A question limited to some sources or days gets only what the person
-    /// stated. An item learned from an Ask question or a dictation and kept
-    /// in review has no meeting behind it, and went out with those questions
-    /// as if it were a statement.
     func testScopedQuestionsGetStatedItemsNotOnesLearnedFromAskOrDictation() throws {
         let store = makeStore()
         var model = PersonalModel()
@@ -241,7 +233,6 @@ final class PersonalModelStoreTests: XCTestCase {
         XCTAssertEqual(controller.usableClaims().count, 2, "an unscoped question gets both")
         XCTAssertEqual(controller.usableClaims(includeEvidenceBacked: false).map(\.text), ["Maya is my manager"])
 
-        // Kept as the person's own statement, it is one.
         XCTAssertNoThrow(try controller.keepAsStatement(learned.id).get())
         XCTAssertEqual(controller.usableClaims(includeEvidenceBacked: false).count, 2)
     }

@@ -1,23 +1,9 @@
 import Foundation
 
-/// Finds a speaker's own undertaking in transcribed speech: "I'll ping Alex",
-/// "the extraction PR is something I I have to update", "My side, I'll." /
-/// "Try to." / "update the tickets".
-///
-/// Transcripts are not sentences. A commitment can sit anywhere in a run-on
-/// clause, repeat or stumble over words, and be cut across rows by the
-/// diarizer. Recognition therefore reads one speaker's consecutive rows as a
-/// stream of words and looks for a first-person subject bound to an
-/// undertaking verb, wherever it appears. It refuses only what contradicts an
-/// undertaking: negation, a question, reported or habitual speech, and work
-/// handed to someone else. A condition ("if approved, I'll ship it") changes
-/// when the task happens, never whose it is.
 enum SpokenUndertaking {
     struct Word: Equatable {
-        /// Lowercased, straight apostrophes, no surrounding punctuation.
         var text: String
         var row: Int
-        /// Position in the row's own text, for quoting the source verbatim.
         var range: Range<String.Index>
         var endsSentence = false
         var endsQuestion = false
@@ -30,30 +16,20 @@ enum SpokenUndertaking {
         enum Refusal: Equatable {
             case negated, question, reported, conditionalClause, delegated, conversation, unfulfilled
         }
-        /// The subject and its undertaking verb ("i", "have", "to").
         var words: Range<Int>
         var grade: Grade
         var refusal: Refusal?
-        /// "I can do that", "I'll send it tomorrow", "Will do": the task is
-        /// whatever was asked just before.
         var namesNoTask = false
         var isAccepted: Bool { refusal == nil }
     }
 
-    /// Another party's task in the same speech: "you will send it", "Alice
-    /// will review", "could you check".
     struct Actor: Equatable {
         var start: Int
         var label: String
     }
 
-    // MARK: - Words
-
     private static let fillers: Set<String> = ["um", "uh", "uhm", "erm", "er", "eh", "hmm", "mm", "mhm"]
 
-    /// Words of one speaker's consecutive rows. Fillers and immediately
-    /// repeated words are dropped, so "I I have to" reads as "I have to" and a
-    /// tidied quote still matches what was said.
     static func words(_ rows: [String]) -> [Word] {
         var result: [Word] = []
         for (row, text) in rows.enumerated() {
@@ -65,7 +41,6 @@ enum SpokenUndertaking {
                 index = end
                 guard let first = chunk.firstIndex(where: isWordCharacter),
                       let last = chunk.lastIndex(where: isWordCharacter) else {
-                    // Free-standing punctuation still closes the sentence before it.
                     if chunk.contains(where: { ".!?;".contains($0) }), !result.isEmpty, result[result.count - 1].row == row {
                         result[result.count - 1].endsSentence = true
                         if chunk.contains("?") { result[result.count - 1].endsQuestion = true }
@@ -80,15 +55,11 @@ enum SpokenUndertaking {
                 word.endsQuestion = trailing.contains("?")
                 word.followedByComma = trailing.contains(",")
                 word.isCapitalized = core.first?.isUppercase == true
-                // "but I'll." / "I'll share it": the cut after a dangling
-                // word is not a sentence end, so the repeat is one stumble.
-                // The later copy stays; it is the one the sentence goes on from.
                 if let previous = result.last, previous.text == word.text, !previous.endsSentence || dangling.contains(word.text) {
                     result[result.count - 1] = word
                     continue
                 }
                 if fillers.contains(word.text) {
-                    // Keep the boundary a dropped word carried.
                     if !result.isEmpty, word.endsSentence || word.followedByComma {
                         result[result.count - 1].endsSentence = result[result.count - 1].endsSentence || word.endsSentence
                         result[result.count - 1].endsQuestion = result[result.count - 1].endsQuestion || word.endsQuestion
@@ -106,8 +77,6 @@ enum SpokenUndertaking {
         character.isLetter || character.isNumber
     }
 
-    // MARK: - Cues
-
     private static let adverb = #"(?:(?:also|still|just|really|probably|definitely|actually|then|now|first|certainly|"#
         + #"already|only|even|basically|obviously|honestly|personally|totally|mostly|simply|maybe|do|kind of|sort of) )"#
     private static let cuePatterns: [(NSRegularExpression, Cue.Grade)] = {
@@ -120,7 +89,6 @@ enum SpokenUndertaking {
             #"\bi've "# + adverb + #"{0,2}got to(?= |$)"#,
             #"(?<=\band )i (?:are|'re) "# + adverb + #"{0,2}(?:going to|gonna|planning to)(?= |$)"#,
             #"\bmy next step is(?= |$)"#,
-            // Other languages keep the forms recognized before this policy.
             #"\bja (?:ću|cu)(?= |$)"#, #"\bje vais(?= |$)"#, #"\bich werde(?= |$)"#, #"\bvoy a(?= |$)"#, "我会|我會",
         ]
         let offer = [
@@ -128,8 +96,6 @@ enum SpokenUndertaking {
                 + #"am "# + adverb + #"{0,2}happy to)(?= |$)"#,
             #"\bi'm "# + adverb + #"{0,2}happy to(?= |$)"#,
             #"\bi'd "# + adverb + #"{0,2}(?:like to|love to)(?= |$)"#,
-            // "I have some comments from you to resolve": an obligation, unlike
-            // "I have nothing to add" or "I have a question to ask".
             #"\bi "# + adverb + #"{0,2}(?:have|got) (?:a|an|some|a few|a couple of|two|three|four|five|several|one|many|more|"#
                 + #"another|lots of|a lot of|these|those|the|this|that|my) (?:[^ ]+ ){1,5}?to "#
                 + #"(?!(?:the|a|an|my|our|your|this|that|be|ask|say|add|me|you|him|her|them|us)(?: |$))[^ ]+"#,
@@ -156,8 +122,6 @@ enum SpokenUndertaking {
         "already", "only", "even", "basically", "obviously", "honestly", "personally", "totally", "mostly", "simply", "maybe",
     ]
     private static let tagEndings: Set<String> = ["okay", "ok", "right", "yeah", "yes", "alright", "fine", "cool", "good"]
-    /// Words a sentence does not end on: "I'll.", "Try to." and "update the."
-    /// are cuts made at a pause, not sentence ends.
     private static let dangling: Set<String> = [
         "i", "i'll", "i'm", "i've", "i'd", "we'll", "we're", "you'll", "they'll", "he'll", "she'll",
         "to", "the", "a", "an", "and", "or", "but", "so", "because", "than", "as", "if", "when",
@@ -168,7 +132,6 @@ enum SpokenUndertaking {
 
     static func isDangling(_ word: String) -> Bool { dangling.contains(word) }
 
-    /// Every first-person undertaking in `words`, refused or not.
     static func cues(in words: [Word]) -> [Cue] {
         guard !words.isEmpty else { return [] }
         var offsets: [Int] = []
@@ -195,8 +158,6 @@ enum SpokenUndertaking {
                 found.append(Cue(words: start..<end, grade: grade))
             }
         }
-        // A dropped subject at the start of a sentence: "Still have to go
-        // through your app", "Will do".
         for start in words.indices where start == 0 || words[start - 1].endsSentence {
             var index = start
             while index < words.count, index - start < 3, sentencePreamble.contains(words[index].text) { index += 1 }
@@ -219,14 +180,11 @@ enum SpokenUndertaking {
     private static func judged(_ cue: Cue, in words: [Word]) -> Cue {
         var cue = cue
         let phrase = words[cue.words].map(\.text)
-        // Words that follow, across a cut the cue itself cannot end on.
         var following: [Word] = []
         var index = cue.words.upperBound
         var open = !words[cue.words.upperBound - 1].endsSentence || dangling.contains(phrase.last ?? "")
         while open, index < words.count, following.count < 8 {
             following.append(words[index])
-            // "I will mostly." / "Keeping up the PRs": an adverb or a dangling
-            // word closes a cut, not the undertaking.
             open = !words[index].endsSentence
                 || (following.count < 3 && (dangling.contains(words[index].text) || adverbs.contains(words[index].text)))
             index += 1
@@ -260,8 +218,6 @@ enum SpokenUndertaking {
         return cue
     }
 
-    /// "…do that", "…take it, but after lunch". "…handle that migration"
-    /// names its own task.
     private static func pointsAtAnEarlierTask(_ tail: [Word]) -> Bool {
         guard tail.count >= 2, ["that", "it", "this", "those", "them"].contains(tail[1].text) else { return false }
         if tail.count == 2 || tail[1].endsSentence || tail[1].followedByComma { return true }
@@ -272,7 +228,6 @@ enum SpokenUndertaking {
     private static func endsInQuestion(_ cue: Cue, words: [Word]) -> Bool {
         guard let end = words[(cue.words.upperBound - 1)...].firstIndex(where: \.endsSentence),
               words[end].endsQuestion else { return false }
-        // "I'll send it tomorrow, okay?" still commits.
         return !(tagEndings.contains(words[end].text) && end >= cue.words.upperBound)
     }
 
@@ -285,8 +240,6 @@ enum SpokenUndertaking {
         return words.count >= 2 && ["told", "tell"].contains(words[words.count - 2])
     }
 
-    /// "I'll need you to send it" hands the work to someone else. "I'll need
-    /// some time to think" does not.
     private static func isDelegation(_ tail: [Word]) -> Bool {
         guard tail.count >= 3, ["need", "want", "like", "expect", "require"].contains(tail[0].text) else { return false }
         let object = tail[1]
@@ -305,12 +258,8 @@ enum SpokenUndertaking {
         return text.range(of: "^" + conversationRemark, options: .regularExpression) != nil
     }
 
-    /// What a speaker says about the conversation itself, after "I'll" or
-    /// "I'm going to": never a follow-up task.
     static let conversationRemark = #"(?:be (?:a little (?:bit )?|completely |totally |very |really |quite |perfectly |brutally )?"#
         + #"(?:more specific|more clear|clearer|brief|honest|frank|candid|upfront|blunt)\b|share (?:my|the) screen\b|say\b|admit\b|confess\b)"#
-
-    // MARK: - Other actors
 
     private static let otherSubjects: Set<String> = [
         "you", "he", "she", "they", "we", "someone", "somebody", "everyone", "everybody", "anyone", "anybody",
@@ -324,8 +273,6 @@ enum SpokenUndertaking {
 
     private static let determiners: Set<String> = ["the", "a", "an", "my", "our", "your", "their", "his", "her"]
 
-    /// Length of an obligation or plan at `index` ("will", "needs to", "is
-    /// going to"), or nil. A passive ("can be simplified") names no actor.
     private static func modalLength(_ words: [Word], at index: Int) -> Int? {
         var index = index
         var skipped = 0
@@ -348,7 +295,6 @@ enum SpokenUndertaking {
         return words[index + length].text == "be" ? nil : length + skipped
     }
 
-    /// Tasks stated for someone other than the speaker.
     static func otherActors(in words: [Word]) -> [Actor] {
         var actors: [Actor] = []
         for index in words.indices {
@@ -357,7 +303,6 @@ enum SpokenUndertaking {
             let startsSentence = index == 0 || words[index - 1].endsSentence
             let startsClause = startsSentence || words[index - 1].followedByComma || ["and", "but", "while"].contains(previous)
             let next = index + 1 < words.count ? words[index + 1].text : ""
-            // "Could you send it", "I'd like you to own it", "make sure you file it".
             if ["can", "could", "would", "will"].contains(word.text), next == "you", previous != "i" {
                 actors.append(.init(start: index, label: "you")); continue
             }
@@ -369,8 +314,6 @@ enum SpokenUndertaking {
                 actors.append(.init(start: index, label: "you")); continue
             }
             if otherSubjects.contains(word.text) {
-                // "so you can introduce us" states a purpose and "what do we
-                // need to change" asks a question; neither hands out a task.
                 if !["so", "do", "did", "does", "what", "how", "why", "where", "whether"].contains(previous),
                    modalLength(words, at: index + 1) != nil { actors.append(.init(start: index, label: word.text)) }
                 continue
@@ -380,14 +323,12 @@ enum SpokenUndertaking {
                 actors.append(.init(start: index, label: subject)); continue
             }
             guard word.text.contains(where: \.isLetter) else { continue }
-            // A name anywhere.
             if word.isCapitalized, !notActors.contains(word.text), !adverbs.contains(word.text) {
                 var end = index + 1
                 if end < words.count, words[end].isCapitalized, !notActors.contains(words[end].text),
                    modalLength(words, at: end) == nil { end += 1 }
                 if modalLength(words, at: end) != nil { actors.append(.init(start: index, label: word.text)); continue }
             }
-            // Any other subject where a clause begins: "the team will handle it".
             guard startsClause, determiners.contains(word.text) || !notActors.contains(word.text) else { continue }
             for length in 1...3 where index + length < words.count {
                 let subject = words[index..<(index + length)].map(\.text)
@@ -402,8 +343,6 @@ enum SpokenUndertaking {
         return actors.filter { seen.insert($0.start).inserted }
     }
 
-    // MARK: - Task alignment
-
     private static let stopwords: Set<String> = [
         "the", "a", "an", "to", "of", "in", "on", "for", "with", "and", "or", "but", "if", "is", "are", "be", "it", "that",
         "this", "i", "you", "we", "they", "he", "she", "will", "can", "should", "have", "has", "need", "going", "get", "got",
@@ -412,11 +351,8 @@ enum SpokenUndertaking {
     ]
 
     struct Alignment: Equatable {
-        /// Distinct task words the clause shares.
         var matches = 0
-        /// The clause carries the task's leading verb ("Ping …").
         var leads = false
-        /// More than one stray word in common.
         var isAboutTask: Bool { leads || matches >= 2 }
     }
 
@@ -439,10 +375,6 @@ enum SpokenUndertaking {
         return lhs.commonPrefix(with: rhs).count >= 5
     }
 
-    // MARK: - Quotes
-
-    /// Where a model's quote occurs in `words`, tolerating tidied stumbles,
-    /// casing and punctuation.
     static func occurrences(of quote: String, in words: [Word]) -> [Range<Int>] {
         let wanted = SpokenUndertaking.words([quote]).map(\.text)
         guard !wanted.isEmpty, wanted.count <= words.count else { return [] }

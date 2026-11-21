@@ -1,18 +1,9 @@
 import Foundation
 
-/// Diarization partitions AUDIO before ASR. Text is never divided proportionally
-/// across speaker turns, and overlapping voices never inherit a majority label.
 enum AttributedTrackTranscriber {
-    /// A region shorter than this whose transcription fails is skipped rather
-    /// than failing the track. Longer regions keep normal error handling, so a
-    /// broken engine still surfaces.
     static let rejectableRegionSeconds: TimeInterval = 1
-    /// A region with less detected speech than this is not decoded. Detection
-    /// pads speech by a fraction of a second, so the pause after a turn holds
-    /// a sliver of it; a missed one-word reply still holds more.
     static let minimumRegionSpeech: TimeInterval = 0.3
 
-    /// Seconds of `speech` inside `window`.
     static func speechSeconds(in window: ClosedRange<TimeInterval>, speech: [ClosedRange<TimeInterval>]) -> TimeInterval {
         speech.reduce(0) { total, range in
             total + max(0, min(window.upperBound, range.upperBound) - max(window.lowerBound, range.lowerBound))
@@ -45,8 +36,6 @@ enum AttributedTrackTranscriber {
             let overlapping = speakers.count > 1
             let label = speakers.count == 1 ? labels[speakers.first!]! : overlapping ? "\(prefix) unclear" : prefix
             let method: SpeakerAttribution.Method = overlapping ? .overlappingSpeech : speakers.isEmpty ? .track : .diarization
-            // Preserve unclassified audio as well. Microphone speech follows
-            // the “My microphone is me” default; overlapping voices remain unresolved.
             let attribution = SpeakerAttribution(source: source,
                 identity: source == .system && !overlapping ? .other : .unresolved, method: method).applyingMicrophoneDefault
             if let last = regions.last, last.speaker == label, last.attribution == attribution {
@@ -62,13 +51,9 @@ enum AttributedTrackTranscriber {
         }
     }
 
-    /// Fetches the forced aligner before it times words. Tests replace it to
-    /// see whether the aligner is needed at all.
     typealias AlignerPreparation = @MainActor () async throws -> Void
     static let downloadAligner: AlignerPreparation = { try await QwenWordAligner.shared.downloadIfNeeded() }
 
-    /// `speech` is where voice activity detection heard speech on the track;
-    /// speaker regions without any are not decoded. Nil decodes every region.
     @MainActor
     static func transcribe(url: URL, duration: Double, diarization: [DiarizedSegment],
                            source: SpeakerAttribution.Source, engine: TranscriptionEngine,
@@ -78,9 +63,6 @@ enum AttributedTrackTranscriber {
         var transcript = try await attributedTranscript(url: url, duration: duration, diarization: diarization,
             source: source, engine: engine, language: language, prompt: prompt, contentRange: contentRange,
             speech: speech, prepareAligner: prepareAligner)
-        // A prompt-capable model answers a near-silent span with its
-        // vocabulary hint, and forced alignment then packs those words into a
-        // sub-second row of their own. Nothing downstream should see one.
         if let echo = TranscriptionPromptEcho(prompt: prompt) {
             let kept = echo.removing(from: transcript.segments)
             if kept.count < transcript.segments.count {
@@ -115,8 +97,6 @@ enum AttributedTrackTranscriber {
             clipped.end = min(region.end, contentRange.end)
             return clipped.end > clipped.start ? clipped : nil
         }
-        // The microphone default also applies without speaker separation or
-        // remembered voice profiles, using the optimized whole-file VAD path.
         if diarization.isEmpty && contentRange == nil {
             var transcript = try await engine.transcribe(audio: url, language: language, prompt: prompt)
             for index in transcript.segments.indices {
@@ -139,9 +119,6 @@ enum AttributedTrackTranscriber {
         }
         for (index, region) in regions.enumerated() {
             try Task.checkCancellation()
-            // Regions also cover the pauses between turns, so unattributed
-            // speech is kept. Given silence instead, Whisper writes a stock
-            // phrase such as "Thank you.", and decoding it is wasted time.
             if let speech, Self.speechSeconds(in: region.start...region.end, speech: speech)
                 < Self.minimumRegionSpeech {
                 silentRegions += 1
@@ -167,14 +144,8 @@ enum AttributedTrackTranscriber {
                 value = try await engine.transcribe(audio: audio, language: regionLanguage, prompt: prompt)
 #endif
             } catch let error where !(error is CancellationError)
-                        // A withdrawn transcription server is not a sliver
-                        // the engine rejected: skipping it would finish the
-                        // track without the rest of its audio.
                         && (error as? RemoteTranscriptionError)?.isConsentWithdrawn != true
                         && region.end - region.start < Self.rejectableRegionSeconds {
-                // Turn boundaries leave slivers shorter than some engines accept
-                // (Parakeet rejects audio under 0.3 s). Losing one sliver is far
-                // better than failing the track, and with it the whole meeting.
                 lokalbotLog("speaker-asr: skipped a \(String(format: "%.2f", region.end - region.start)) s region "
                     + "the engine rejected: \(error.localizedDescription)")
                 try? FileManager.default.removeItem(at: audio)
@@ -196,40 +167,21 @@ enum AttributedTrackTranscriber {
         return Transcript(segments: segments, engine: engineName)
     }
 
-    // MARK: - Transcribe first, attribute after
-
-    /// One engine segment with its timed words (the engine's own, or forced-
-    /// aligned) on the track timeline.
     struct AlignedSegment: Sendable {
         var segment: Transcript.Segment
         var words: [AlignedWordTiming]
     }
 
-    /// Words this close to a speaker turn take that speaker. Diarizer turn
-    /// edges and aligner word edges disagree by a few hundred milliseconds;
-    /// on AMI a 1 s tolerance gave 34.5% cpWER against 51.1% for a strict
-    /// midpoint rule (Benchmarks/transcribe/QwenSpanLength).
     static let wordGapTolerance: TimeInterval = 1.0
 
-    /// A pause this long between aligned words starts a new segment (FluidAudio
-    /// VAD's own split), and no segment grows past `maxSegmentSeconds`. Long
-    /// decode windows then keep the segment granularity of short ones.
     static let wordPauseSplit: TimeInterval = 0.75
     static let maxSegmentSeconds: TimeInterval = 15
 
-    /// What the transcribe-then-attribute path produced.
     private enum WordAttributionOutcome {
         case attributed(Transcript)
-        /// Attribute by speaker regions instead, decoding each in `language`
-        /// (nil: auto-detect).
         case regions(language: String?)
     }
 
-    /// Transcribes the whole track, then attributes timed words, so speaker
-    /// turns never cut the audio the model hears. Words come from the engine
-    /// when it times them (`providesWordTimings`), otherwise from the forced
-    /// aligner. `.regions` means "use regions": an unsupported language or an
-    /// unavailable aligner with no engine word times to fall back on.
     @MainActor
     private static func alignedWordTranscript(url: URL, duration: Double, diarization: [DiarizedSegment],
                                               source: SpeakerAttribution.Source, engine: TranscriptionEngine,
@@ -257,15 +209,12 @@ enum AttributedTrackTranscriber {
                 lokalbotLog("word attribution: the engine timed \(segments.count - untimed) of \(segments.count) "
                     + "segment(s); aligning the rest")
             }
-            // Without engine word times the aligner was fetched before transcribing.
             let alignerReady = engineTimesWords ? try await alignerAvailable(for: language, prepare: prepareAligner) : true
             if alignerReady {
                 alignLanguage = language ?? QwenWordAligner.detectedLanguage(of: segments.map(\.segment.text))
             }
             if alignLanguage == nil {
                 guard untimed < segments.count else {
-                    // Decoding a few seconds at a time, auto-detection drifts
-                    // into other languages and scripts: keep the track's own.
                     let regionLanguage = language ?? transcript.trackLanguage
                     lokalbotLog("word attribution skipped: detected language unsupported, using speaker regions "
                         + "language=\(regionLanguage ?? "auto")")
@@ -289,16 +238,12 @@ enum AttributedTrackTranscriber {
         return .attributed(Transcript(segments: attributed, engine: transcript.engine))
     }
 
-    /// The engine's own word times when `attribute` can cut the segment's
-    /// text at them; otherwise the forced aligner times the segment.
     static func engineWords(of segment: WordTimedTranscript.Segment) -> [AlignedWordTiming]? {
         guard let words = segment.words, !words.isEmpty,
               wordStarts(words.map(\.text), in: segment.segment.text) != nil else { return nil }
         return words
     }
 
-    /// Whether the forced aligner can time words in `language` (nil: decided
-    /// after transcription), downloading it first if needed.
     @MainActor
     private static func alignerAvailable(for language: String?, prepare: AlignerPreparation) async throws -> Bool {
         if let language, !QwenWordAligner.supports(language) { return false }
@@ -328,7 +273,6 @@ enum AttributedTrackTranscriber {
                 } catch is CancellationError {
                     throw CancellationError()
                 } catch {
-                    // The segment keeps one speaker, chosen at its midpoint.
                     lokalbotLog("word alignment failed for one segment: \(error.localizedDescription)")
                 }
             }
@@ -338,13 +282,6 @@ enum AttributedTrackTranscriber {
         return aligned
     }
 
-    /// Splits each engine segment where its aligned words change speaker,
-    /// pause for `wordPauseSplit`, or would outgrow `maxSegmentSeconds`.
-    /// Labels and attributions follow `regions`: one active turn names the
-    /// speaker, overlapping turns are unclear, and words away from every turn
-    /// keep the track label. Text is cut from the segment, never divided
-    /// proportionally. Speaker pieces then widen to the edges of their own
-    /// turns, without crossing a neighbour, so acoustic turns stay supported.
     static func attribute(_ aligned: [AlignedSegment], duration: Double, turns: [DiarizedSegment],
                           source: SpeakerAttribution.Source, contentRange: Meeting.ContentRange?,
                           gapTolerance: TimeInterval = wordGapTolerance) -> [Transcript.Segment] {
@@ -464,10 +401,6 @@ enum AttributedTrackTranscriber {
         }
     }
 
-    /// Where each aligned word begins in `text`, matched in order on its
-    /// letters and digits (the aligner keeps adjacent punctuation on its
-    /// surface form). Nil when a word cannot be found, so the caller keeps
-    /// the segment whole rather than guessing a cut.
     static func wordStarts(_ surfaces: [String], in text: String) -> [String.Index]? {
         var cursor = text.startIndex
         var starts: [String.Index] = []
@@ -481,8 +414,6 @@ enum AttributedTrackTranscriber {
         return starts
     }
 
-    /// Recomputed embeddings (including crash resumes) map through retained
-    /// audio intervals, never through a diarizer's ordinal speaker names.
     static func turns(_ turns: [DiarizedSegment], transcript: Transcript,
                       source: SpeakerAttribution.Source) -> [SpeakerAudioTurn] {
         turns.compactMap { turn in
@@ -497,8 +428,6 @@ enum AttributedTrackTranscriber {
     static func samples(_ samples: [SpeakerVoiceSample], transcript: Transcript,
                         source: SpeakerAttribution.Source) -> [SpeakerVoiceSample] {
         samples.compactMap { sample in
-            // Call speech pauses between sentences; the voice model weighs only
-            // the speaker's own frames, so a pause is not another person.
             guard sample.source == nil || sample.source == source,
                   let label = supportedSpeaker(in: sample.range, transcript: transcript, source: source,
                                                coverage: source == .system ? 0.6 : 0.95) else { return nil }

@@ -283,8 +283,6 @@ final class FileLibraryToolProviderTests: XCTestCase {
             XCTAssertTrue(hidden.isError)
         }
 
-        // Read-only CLI/MCP projection also works before the app repairs an
-        // interrupted undo on its next launch.
         try storage.deleteMeeting(merged.meeting)
         for source in sources {
             let restored = await provider.call(name: "get_meeting", arguments: ["id": .string(source.id.uuidString)])
@@ -341,7 +339,6 @@ final class FileLibraryToolProviderTests: XCTestCase {
         XCTAssertTrue(badSince.isError)
         XCTAssertTrue(badSince.text.hasPrefix("[invalid_arguments]"))
 
-        // As `list --until`: an earlier period can be asked for on its own.
         let byUntil = await provider.call(
             name: "list_meetings",
             arguments: ["until": "2026-03-31"])
@@ -370,8 +367,6 @@ final class FileLibraryToolProviderTests: XCTestCase {
         }
     }
 
-    /// `list --include summary` / `list_meetings` `include`: several
-    /// meetings' summaries in one call, sharing one character budget.
     func testListMeetingsIncludesSummariesWithinOneBudget() async throws {
         let withSummaries = await provider.call(name: "list_meetings", arguments: ["include": "summary"])
         XCTAssertFalse(withSummaries.isError, withSummaries.text)
@@ -398,7 +393,6 @@ final class FileLibraryToolProviderTests: XCTestCase {
         XCTAssertFalse(SessionFormatter.listTable(meetings).contains("TL;DR"))
     }
 
-    /// The same numbers as the Rust CLI's `list_summaries_share_one_budget`.
     func testListSummariesShareOneBudget() throws {
         XCTAssertEqual(SessionFormatter.summaryShares([100, 9_000, 30_000], budget: 10_000, cap: 5_000),
                        [100, 4_950, 4_950])
@@ -440,8 +434,6 @@ final class FileLibraryToolProviderTests: XCTestCase {
         }
     }
 
-    /// A misspelt part came back as the meeting without that section, as if
-    /// it had none. The message is the Windows and Linux server's.
     func testGetMeetingRefusesIncludeValuesItDoesNotKnow() async {
         let refused = await provider.call(
             name: "get_meeting",

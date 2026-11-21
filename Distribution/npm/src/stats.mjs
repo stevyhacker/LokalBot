@@ -1,10 +1,3 @@
-// Turns what the readers gathered into the year's figures.
-//
-// "Agent hours" uses the same definition as LokalBot's timeline
-// (CodingAgentBurstBuilder): a run of work ends after ten minutes with no
-// activity, and a pause longer than five minutes inside a run counts as
-// five. Two agents working at once count twice.
-
 import { AGENTS } from './collector.mjs';
 import { sessionApiUsd } from './pricing.mjs';
 import { projectName } from './text.mjs';
@@ -12,30 +5,14 @@ import { projectName } from './text.mjs';
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-/** A longer silence ends a run of work. */
 export const INACTIVITY_GAP = 10 * MINUTE;
-/** Longer pauses inside a run count as waiting, not work. */
 export const ACTIVE_GAP_CAP = 5 * MINUTE;
-/** Shorter runs are not "an agent working" for the at-once count. */
 const PARALLEL_MINIMUM = MINUTE;
 
-/** The year's first instant and the next year's, in this computer's time zone. */
 export function yearWindow(year) {
   return { start: new Date(year, 0, 1).getTime(), end: new Date(year + 1, 0, 1).getTime() };
 }
 
-/**
- * Returns `{ stats, grid, calendar, earlierDays }`. `stats` is plain data,
- * safe to print as JSON. `grid` holds agent milliseconds for every hour of
- * every day, for drawing.
- *
- * `summaryDays` maps a date to the counts Claude Code kept for a day whose
- * logs it has since deleted. Those counts have no hours, so they stay out of
- * every figure taken from the logs; they are reported on their own under
- * `coverage`, extend the streak, and come back in `earlierDays` (tool calls
- * per day of the year) for drawing. A day another agent's logs cover still
- * gets Claude Code's count: only Claude Code's own logs replace it.
- */
 export function computeStats(collector, { year, userName = '', generatedAt = new Date(), summaryDays = new Map() } = {}) {
   const calendar = newCalendar(year);
   const grid = new Float64Array(calendar.days * 24);
@@ -58,7 +35,6 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
 
   for (const session of collector.sessions.values()) {
     const agent = agents.get(session.agent) ?? agents.set(session.agent, newAgent(session.agent)).get(session.agent);
-    // Every thread's tokens, tool calls and recorded actions count.
     for (const key of ['input', 'cached', 'output']) {
       agent.tokens[key] += session.tokens[key];
       totals.tokens[key] += session.tokens[key];
@@ -146,7 +122,6 @@ export function computeStats(collector, { year, userName = '', generatedAt = new
     if (claudeDays[day] || earlierDays[day] > 0 || counts.sessions + counts.toolCalls === 0) continue;
     if (!anyDay[day]) countedOnly += 1;
     anyDay[day] = 1;
-    // A day with sessions but no tool calls still gets a mark.
     earlierDays[day] = Math.max(1, counts.toolCalls);
     earlier.days += 1;
     earlier.sessions += counts.sessions;
@@ -225,21 +200,13 @@ export function normalizeModelName(raw) {
   if (typeof raw !== 'string') return '';
   let name = raw.trim();
   if (!name || name === '<synthetic>' || name.toLowerCase() === 'default') return '';
-  // Strip provider/router prefixes such as `anthropic/`, `openai-codex/`, `openrouter/moonshotai/`.
   if (name.includes('/')) name = name.split('/').at(-1);
-  // Strip AWS Bedrock region/vendor prefixes such as `us.anthropic.` or `global.anthropic.`.
   name = name.replace(/^(?:us|eu|ap|global)\.[a-z0-9-]+\./i, '');
-  // Strip Bedrock `-v1:0` and OpenRouter `:free` / `:nitro` routing tags.
   name = name.replace(/-v\d+(?::\d+)?$/i, '').replace(/:[a-z0-9-]+$/i, '');
-  // Collapse dated snapshot suffixes like `-20250929` so one model doesn't split across rows.
   name = name.replace(/-20\d{6}$/, '');
   return name.trim();
 }
 
-/**
- * Day and hour lookups for one year in local time, tolerant of the days
- * that are 23 or 25 hours long.
- */
 export function newCalendar(year) {
   const { start } = yearWindow(year);
   const days = Math.round((Date.UTC(year + 1, 0, 1) - Date.UTC(year, 0, 1)) / DAY);
@@ -250,7 +217,6 @@ export function newCalendar(year) {
     dayStarts[day] = date.getTime();
     if (day < days) months[day] = date.getMonth();
   }
-  // Monday is 0, as the week is drawn.
   const firstWeekday = (new Date(year, 0, 1).getDay() + 6) % 7;
   const dayOf = (at) => {
     let day = Math.floor((at - start) / DAY);
@@ -272,7 +238,6 @@ export function newCalendar(year) {
     },
     weekday: (day) => (firstWeekday + day) % 7,
     month: (day) => months[day],
-    /** `2026-10-14` */
     date(day) {
       const date = new Date(year, 0, 1 + day);
       const pad = (value) => String(value).padStart(2, '0');
@@ -281,7 +246,6 @@ export function newCalendar(year) {
   };
 }
 
-/** Adds one session's work to the grid and its runs to `runs`. Returns its agent milliseconds. */
 function addSessionTime(session, { calendar, grid, dayTouched, agentDays, sessionsOnDay, runs }) {
   if (session.times.length === 0) return 0;
   const times = Float64Array.from(session.times).sort();
@@ -320,7 +284,6 @@ function addSessionTime(session, { calendar, grid, dayTouched, agentDays, sessio
   return total;
 }
 
-/** Splits a session's time among the folders its records ran in. */
 function creditProjects(session, sessionMs, projects, userName) {
   if (sessionMs <= 0) return;
   let records = 0;
@@ -343,7 +306,6 @@ function roundMs(totals) {
   return { ...totals, agentMs: Math.round(totals.agentMs), wallClockMs: Math.round(totals.wallClockMs) };
 }
 
-/** Time with at least one agent working. */
 function unionMs(runs) {
   const ordered = runs.filter((run) => run.end > run.start).sort((a, b) => a.start - b.start);
   let total = 0;
@@ -390,7 +352,6 @@ function longestRun(runs, calendar) {
   return { ms: Math.round(best.end - best.start), date: calendar.date(calendar.dayOf(best.start)), agent: best.agent };
 }
 
-/** The most runs of work under way at the same moment. */
 function mostAtOnce(runs, calendar) {
   const edges = [];
   for (const run of runs) {
@@ -407,7 +368,6 @@ function mostAtOnce(runs, calendar) {
   return best;
 }
 
-/** How the year's agent hours split by time of day and week. */
 function shares(grid, calendar, agentMs) {
   let night = 0;
   let early = 0;
@@ -428,13 +388,6 @@ function shares(grid, calendar, agentMs) {
   return { night: share(night), early: share(early), weekend: share(weekend), office: share(office) };
 }
 
-// MARK: - Persona
-
-/**
- * The one trait that stands out most. Each candidate has a bar to clear;
- * the one that clears its bar by the widest margin wins, so the title says
- * something true of this year in particular.
- */
 export function persona(stats) {
   const { totals, shares: share, agents } = stats;
   const hours = totals.agentMs / HOUR;

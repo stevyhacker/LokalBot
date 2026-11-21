@@ -1,17 +1,11 @@
 import SwiftUI
 
-/// The menu bar's way back to a dictation the clipboard lost: a dictation that
-/// finished after focus moved is left on the clipboard, where the next copy
-/// replaces it. One row copies the newest and shows its start; earlier ones
-/// are in the row's context menu and on the Dictation page.
 struct LastDictationMenuRow: View {
-    /// Newest first.
     let entries: [DictationHistoryEntry]
     let localized: (String) -> String
     let copy: (DictationHistoryEntry.ID) -> Bool
     @State private var copied = false
 
-    /// How long the row reads "Copied" after a click.
     static let confirmationTime: Duration = .seconds(1.5)
 
     var body: some View {
@@ -43,7 +37,6 @@ struct LastDictationMenuRow: View {
     }
 }
 
-/// Earlier dictations on the Dictation page, each with a Copy button.
 struct RecentDictationsSection: View {
     let entries: [DictationHistoryEntry]
     let localized: (String) -> String
@@ -80,7 +73,6 @@ struct RecentDictationsSection: View {
     }
 }
 
-/// Copy, then "Copied" for a moment.
 struct DictationCopyButton: View {
     let copy: () -> Bool
     @State private var copied = false

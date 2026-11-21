@@ -1,14 +1,3 @@
-//! Routes pinned Hugging Face file downloads through the source chosen in
-//! Settings → Models (`ModelDownloadSource`, `ModelDownloadRouting`).
-//!
-//! huggingface.co is blocked in mainland China, so two opt-in sources serve the
-//! same files there. Only `https://huggingface.co/<owner>/<repo>/resolve/<revision>/<path>`
-//! URLs are rerouted; GitHub archives, the Hugging Face API and every other host
-//! are untouched, and catalogs keep their Hugging Face URLs, so the pinning
-//! policy still applies to them. The chosen mirror is tried first and each later
-//! source is a fallback. Every file is checked against its pinned size and
-//! SHA-256, so a source can make a download fail but cannot change a model.
-
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -27,7 +16,6 @@ const HUGGING_FACE_PREFIX: &str = "https://huggingface.co/";
 
 static SOURCE: AtomicU8 = AtomicU8::new(0);
 
-/// The source chosen in settings; the engine passes every change here.
 pub fn set_source(source: ModelDownloadSource) {
     SOURCE.store(
         match source {
@@ -47,8 +35,6 @@ pub(crate) fn current() -> ModelDownloadSource {
     }
 }
 
-/// A Hugging Face `resolve` URL split into its parts. `path` stays
-/// percent-encoded, as it appears in the URL.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct ResolvedFile {
     repository: String,
@@ -101,7 +87,6 @@ impl Candidate {
     }
 }
 
-/// The sources to try for `url`, in order.
 pub(crate) fn candidates(url: &str, source: ModelDownloadSource) -> Vec<Candidate> {
     let original = Candidate::Original(url.to_string());
     if source == ModelDownloadSource::HuggingFace {
@@ -111,8 +96,6 @@ pub(crate) fn candidates(url: &str, source: ModelDownloadSource) -> Vec<Candidat
         return vec![original];
     };
     let mut result = Vec::new();
-    // ModelScope follows branches, not Hugging Face revisions; the listing
-    // check in `model_scope_serves` keeps it to files that match the pin.
     if source == ModelDownloadSource::ModelScope {
         result.push(Candidate::ModelScope(
             format!(
@@ -130,7 +113,6 @@ pub(crate) fn candidates(url: &str, source: ModelDownloadSource) -> Vec<Candidat
     result
 }
 
-/// One file in a ModelScope repository listing.
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq)]
 pub(crate) struct ModelScopeFile {
     #[serde(rename = "Path")]
@@ -163,8 +145,6 @@ fn percent_decoded(path: &str) -> String {
     String::from_utf8(out).unwrap_or_else(|_| path.to_string())
 }
 
-/// Whether ModelScope serves exactly the pinned file: its listing has the same
-/// path with the pinned SHA-256 (and size, when known).
 fn model_scope_serves(file: &ResolvedFile, sha256: &str, size: u64, listing: &Listing) -> bool {
     let Some(entry) = listing.get(&percent_decoded(&file.path)) else {
         return false;
@@ -178,8 +158,6 @@ fn model_scope_serves(file: &ResolvedFile, sha256: &str, size: u64, listing: &Li
         .is_some_and(|listed| listed.eq_ignore_ascii_case(sha256))
 }
 
-/// Tries each source in turn. `attempt` downloads one URL and checks it against
-/// the pin, so a file that fails moves on to the next source. Cancelling stops.
 pub(crate) fn try_candidates(
     url: &str,
     sha256: &str,
@@ -235,8 +213,6 @@ struct ListingData {
     files: Vec<ModelScopeFile>,
 }
 
-/// A ModelScope repository's files by path, fetched once per repository per
-/// launch. A failed fetch isn't cached, so a later download can try again.
 pub(crate) fn model_scope_listing(repository: &str) -> Option<Listing> {
     static CACHE: OnceLock<Mutex<HashMap<String, Listing>>> = OnceLock::new();
     let cache = CACHE.get_or_init(Default::default);
@@ -382,7 +358,6 @@ mod tests {
             7,
             ModelDownloadSource::ModelScope,
             &cancel,
-            // No listing, so ModelScope is skipped without a request.
             &mut |_| None,
             &mut |url| {
                 tried.push(url.to_string());

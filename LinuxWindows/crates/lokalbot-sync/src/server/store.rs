@@ -1,7 +1,3 @@
-//! The Mac's companion database: published records, the change counter and
-//! paired devices. Derived data plus device keys; deleting it means
-//! re-pairing and a full re-sync.
-
 use std::path::Path;
 
 use rusqlite::{Connection, OptionalExtension as _, params};
@@ -50,7 +46,6 @@ CREATE TABLE IF NOT EXISTS received_uploads (
 );
 ";
 
-/// A paired device as the session code needs it.
 #[derive(Clone, Debug)]
 pub(crate) struct DeviceRow {
     pub device_id: String,
@@ -93,8 +88,6 @@ impl HostStore {
         Ok(seq)
     }
 
-    /// Stores a new version unless the canonical body is unchanged. Returns
-    /// the new seq, or `None` for a no-op.
     pub fn publish(
         &mut self,
         kind: &str,
@@ -132,8 +125,6 @@ impl HostStore {
         Ok(Some(seq))
     }
 
-    /// `sortKey` (records.md): a meeting's `startedAt`, a day's date, a
-    /// transcript its meeting's `startedAt`, everything else the publish time.
     fn sort_key(&self, kind: &str, key: &str, body: &Value, now: &str) -> Result<String> {
         let derived = match kind {
             MEETING => str_field(body, "startedAt").map(str::to_owned),
@@ -157,8 +148,6 @@ impl HostStore {
         Ok(derived.unwrap_or_else(|| now.to_owned()))
     }
 
-    /// Replaces a live record with a tombstone. Returns the new seq, or
-    /// `None` when there was nothing to remove.
     pub fn remove(&mut self, kind: &str, key: &str) -> Result<Option<u64>> {
         let version: Option<i64> = self
             .db
@@ -207,8 +196,6 @@ impl HostStore {
             .map(|envelope| envelope.body))
     }
 
-    /// Records with `after < seq <= upto`, newest first by `sortKey`; a
-    /// meeting before its transcript on equal keys.
     pub fn changed_keys(&self, after: u64, upto: u64) -> Result<Vec<(String, String)>> {
         let mut statement = self
             .db
@@ -303,8 +290,6 @@ impl HostStore {
             .is_some())
     }
 
-    /// Stores a newly paired device. A device that pairs again replaces its
-    /// old entry, and its key is no longer revoked.
     pub fn add_device(
         &mut self,
         device_id: &str,
@@ -330,8 +315,6 @@ impl HostStore {
         Ok(())
     }
 
-    /// Forgets a device and remembers its key as revoked, so a later session
-    /// from it is told to erase its copy. Returns whether it existed.
     pub fn remove_device(&mut self, device_id: &str, now: &str) -> Result<bool> {
         let key: Option<Vec<u8>> = self
             .db
@@ -354,9 +337,6 @@ impl HostStore {
         Ok(true)
     }
 
-    /// Whether this recording already arrived, and the meeting it became.
-    /// Answers a device that never saw the confirmation, even after the
-    /// person deleted the meeting.
     pub fn received_upload(&self, upload_id: &str) -> Result<Option<Option<String>>> {
         Ok(self
             .db

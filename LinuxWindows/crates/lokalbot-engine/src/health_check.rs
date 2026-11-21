@@ -1,8 +1,3 @@
-//! Runs the library health check (`AppState.runHealthCheckNow`,
-//! `LibraryHealthScheduler`). Released builds check only on request; development
-//! builds check the previous day each morning and catch up at launch when the
-//! last run is over a day old.
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -18,7 +13,6 @@ use crate::Shared;
 const DEFAULT_HOUR: u32 = 9;
 const CATCH_UP_SECONDS: i64 = 24 * 60 * 60;
 
-/// The report for `day` without writing anything.
 pub fn report(
     library: &Library,
     settings: &Settings,
@@ -37,14 +31,12 @@ pub fn report(
     ))
 }
 
-/// Checks the previous day and writes the report; returns its Markdown path.
 pub fn run_now(library: &Library, settings: &Settings) -> Result<PathBuf> {
     let now = Utc::now();
     let yesterday = local_day(now) - chrono::Duration::days(1);
     library.write_health_report(&report(library, settings, yesterday, now)?)
 }
 
-/// `LibraryHealthScheduler.shouldRun`.
 pub fn should_run(at: DateTime<Utc>, last_run: Option<DateTime<Utc>>, hour: u32) -> bool {
     let Some(last_run) = last_run else {
         return true;
@@ -60,7 +52,6 @@ pub fn should_run(at: DateTime<Utc>, last_run: Option<DateTime<Utc>>, hour: u32)
     target.is_some_and(|target| at >= target && last_run < target)
 }
 
-/// Development builds only: PRIVACY.md promises released builds check on request.
 pub(crate) fn start(shared: Arc<Shared>) {
     if !cfg!(debug_assertions) {
         return;

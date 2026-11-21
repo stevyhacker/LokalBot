@@ -1,11 +1,5 @@
-//! pi RPC records (`PiRPCMessages.swift`): commands written to stdin and the
-//! events read from stdout. Only the fields Agent Mode displays are decoded;
-//! everything else becomes [`PiEvent::Unknown`] so protocol additions never
-//! break the client.
-
 use serde_json::{Map, Value, json};
 
-/// Commands sent to pi, one JSON object per line.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PiCommand {
     Prompt {
@@ -42,8 +36,6 @@ pub enum PiCommand {
 }
 
 impl PiCommand {
-    /// The correlation id we put into the command, if pi answers it.
-    /// UI responses correlate to pi's request id and get no response.
     pub fn id(&self) -> Option<&str> {
         match self {
             PiCommand::Prompt { id, .. }
@@ -57,7 +49,6 @@ impl PiCommand {
         }
     }
 
-    /// One line of JSON with sorted keys and no trailing newline.
     pub fn json_line(&self) -> String {
         let value = match self {
             PiCommand::Prompt {
@@ -93,14 +84,12 @@ impl PiCommand {
     }
 }
 
-/// `{"type":"response", …}`.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PiResponse {
     pub id: Option<String>,
     pub command: String,
     pub success: bool,
     pub error: Option<String>,
-    /// `data`, re-encoded with sorted keys.
     pub data_json: Option<String>,
 }
 
@@ -110,7 +99,6 @@ impl PiResponse {
     }
 }
 
-/// An `extension_ui_request` (dialogs answered with `extension_ui_response`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PiUiRequest {
     pub id: String,
@@ -125,7 +113,6 @@ pub enum AssistantDelta {
     Other(String),
 }
 
-/// One decoded stdout record.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PiEvent {
     Response(PiResponse),
@@ -166,7 +153,6 @@ pub enum PiEvent {
 }
 
 impl PiEvent {
-    /// Decodes one JSONL record; `None` when it is not a JSON object with a type.
     pub fn decode(line: &str) -> Option<PiEvent> {
         let value: Value = serde_json::from_str(line).ok()?;
         let object = value.as_object()?;
@@ -262,13 +248,11 @@ impl PiEvent {
         })
     }
 
-    /// Text deltas are the only events that may be dropped under pressure.
     pub fn is_lossy_text_delta(&self) -> bool {
         matches!(self, PiEvent::MessageUpdate(AssistantDelta::TextDelta(_)))
     }
 }
 
-/// What a stopped assistant turn reports, or `None` when it finished normally.
 pub fn terminal_failure(stop_reason: Option<&str>, error_message: Option<&str>) -> Option<String> {
     if stop_reason != Some("error") && stop_reason != Some("aborted") {
         return None;
@@ -291,7 +275,6 @@ fn role(message: Option<&Value>) -> String {
         .to_string()
 }
 
-/// Joins the `text` blocks of a `content` array (or returns a string content).
 pub fn content_text(content: Option<&Value>, separator: &str) -> String {
     match content {
         Some(Value::String(text)) => text.clone(),
@@ -312,9 +295,6 @@ fn result_text(result: Option<&Value>) -> String {
     }
 }
 
-/// Compact JSON with recursively sorted keys and unescaped slashes, so
-/// displayed arguments and stored data are stable whatever serde_json's map
-/// ordering is.
 pub fn canonical_json(value: &Value) -> String {
     fn sorted(value: &Value) -> Value {
         match value {
@@ -331,8 +311,6 @@ pub fn canonical_json(value: &Value) -> String {
             other => other.clone(),
         }
     }
-    // With serde_json's `preserve_order` the map keeps insertion order, which
-    // `sorted` made alphabetical; without it the map sorts anyway.
     serde_json::to_string(&sorted(value)).unwrap_or_else(|_| "{}".into())
 }
 

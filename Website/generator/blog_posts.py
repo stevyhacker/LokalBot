@@ -13,7 +13,6 @@ a post or changing its title, run `python3 Website/generator/render_social_image
 --only <slug>` before render_web.py.
 """
 
-# Head and structured-data copy for Website/public/blog.html.
 BLOG_INDEX = {
     "title": "LokalBot Blog — Releases, Benchmarks, and Build Notes",
     "description": "News from the LokalBot project: releases, local model benchmarks, and notes on how the app is built. Subscribe with the Atom feed.",

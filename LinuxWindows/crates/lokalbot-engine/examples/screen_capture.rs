@@ -1,22 +1,3 @@
-//! Captures the window in front the way screen context does, reads its text
-//! through accessibility and OCR, and saves the pixels for inspection.
-//!
-//! ```text
-//! cargo run -p lokalbot-engine --example screen_capture -- \
-//!     [--library <dir>] [--download-ocr] [--notepad "text to show"] [--delay <seconds>] [--save <file.jpg>]
-//! ```
-//!
-//! - `--library`: where the OCR models are kept (`<dir>/models/ocrs`); default
-//!   `lokalbot-screen-check` in the temporary folder.
-//! - `--download-ocr`: download the pinned OCR models first (about 12 MB).
-//! - `--notepad`: Windows only; opens Notepad with this text, brings it to
-//!   the front and captures it.
-//! - `--delay`: seconds to wait before capturing (default 3), time to bring
-//!   another window to the front.
-//! - `--save`: where the captured pixels go (default `<library>/screen-capture.jpg`).
-//!
-//! Nothing is written to a LokalBot library's database.
-
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::time::{Duration, Instant};
@@ -139,7 +120,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Notepad showing `text`, closed when dropped.
 struct Notepad(std::process::Child);
 
 impl Drop for Notepad {
@@ -159,8 +139,6 @@ fn open_notepad(paths: &LibraryPaths, text: &str) -> Result<Notepad> {
         .arg(&file)
         .spawn()
         .context("starting Notepad")?;
-    // A process started from a background session may not get the
-    // foreground; ask the shell to activate the window by its title.
     std::thread::sleep(Duration::from_secs(2));
     let activated = std::process::Command::new("powershell.exe")
         .args([

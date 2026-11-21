@@ -1,10 +1,6 @@
 import Darwin
 import Foundation
 
-/// Shared on-disk identity and bearer contract for the private llama-server.
-/// The marker is mode 0600, the token rotates on every subprocess start, and
-/// CLI callers validate that its PID is alive, is the recorded executable,
-/// and owns the expected listening port before trusting localhost.
 struct LocalLlamaServerMarker: Codable {
     var pid: pid_t
     var port: Int
@@ -71,14 +67,12 @@ enum LocalLlamaServerAuthentication {
     }
 }
 
-/// Minimal local llama-server chat surface so tests can substitute a mock.
 protocol LlamaChatClient {
     func healthy() async -> Bool
     func complete(messages: [[String: String]]) async throws -> String
 }
 
 struct URLSessionLlamaChatClient: LlamaChatClient {
-    /// The enclosing app's Main LLM server: 127.0.0.1:17872 for the release app.
     static var mainServerBaseURL: URL {
         URL(string: "http://127.0.0.1:\(LlamaServerRole.main.port)")!
     }
@@ -108,9 +102,6 @@ struct URLSessionLlamaChatClient: LlamaChatClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         LocalLlamaServerAuthentication.apply(to: &request, token: token)
         request.timeoutInterval = 300
-        // The main server runs with reasoning on. A short grounded answer must
-        // not spend its whole 1,024-token allowance thinking, so disable the
-        // thinking turn as the app's own zero-budget requests do.
         request.httpBody = try JSONSerialization.data(withJSONObject: [
             "messages": messages,
             "temperature": 0.2,
@@ -130,15 +121,11 @@ struct URLSessionLlamaChatClient: LlamaChatClient {
     }
 }
 
-/// What one `AskLibraryEngine` request produced.
 enum AskLibraryOutcome: Equatable {
-    /// The model's text and the meetings its context came from.
     case answered(String, citations: [AskLibraryContext.Citation])
-    /// A friendly non-error result: the library is empty or nothing matched.
     case notFound(String)
     case failed(ToolErrorCode, String)
 
-    /// The MCP `ask_library` form: the answer with a Sources list appended.
     var toolResult: ToolResult {
         switch self {
         case .answered(let text, let citations):
@@ -155,9 +142,6 @@ enum AskLibraryOutcome: Equatable {
     }
 }
 
-/// Question in, local model reads the library, synthesized answer and
-/// citations out. Owns the health probe, app wake, and error taxonomy.
-/// The same path drafts a reply to a message from what the meetings say.
 struct AskLibraryEngine {
     var gate: AgentAccessGate
     var client: LlamaChatClient = URLSessionLlamaChatClient()
@@ -166,7 +150,6 @@ struct AskLibraryEngine {
         try? await Task.sleep(nanoseconds: 1_000_000_000)
     }
     var maxPollAttempts = 60
-    /// Whether a LokalBot app holds this library. Nil reads the instance lock.
     var appIsRunning: (() -> Bool)?
 
     private static let appNotRunningMessage =
@@ -176,9 +159,7 @@ struct AskLibraryEngine {
         await answer(question).toolResult
     }
 
-    /// Answers `question` from the meeting library.
     func answer(_ question: String) async -> AskLibraryOutcome {
-        // Access comes first: a disabled library says so before anything else.
         guard gate.authorizationID() != nil else {
             return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
         }
@@ -201,10 +182,6 @@ struct AskLibraryEngine {
         }
     }
 
-    /// Drafts the user's reply to `message` from what their meetings say.
-    /// Meetings are retrieved by the message's own words (and the
-    /// instruction's); a message nothing matches gets no draft, since the
-    /// point is to add what the user's meetings know.
     func draftReply(to message: String, instruction: String? = nil) async -> AskLibraryOutcome {
         guard gate.authorizationID() != nil else {
             return .failed(.accessDisabled, FileLibraryToolProvider.accessDisabledMessage)
@@ -240,8 +217,6 @@ struct AskLibraryEngine {
         }
         if await !client.healthy() {
             if let failure = authorizationFailure(authorization) { return failure }
-            // Only a running app answers a wake, so a closed one is reported
-            // now instead of after a minute of polling.
             guard appIsRunning?() ?? AppControlClient(root: gate.root).isAppRunning else {
                 return .failed(.appNotRunning, Self.appNotRunningMessage)
             }

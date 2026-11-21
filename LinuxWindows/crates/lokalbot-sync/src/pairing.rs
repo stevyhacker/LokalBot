@@ -1,5 +1,3 @@
-//! The QR code payload (protocol.md, Pairing).
-
 use serde::{Deserialize, Serialize};
 
 use crate::error::{Result, SyncError};
@@ -9,18 +7,15 @@ use crate::wire::PAIRING_ID_LEN;
 
 const PAYLOAD_PREFIX: &str = "lokalbot://pair?";
 
-/// What the phone may show about a scanned code. The secret stays in Rust.
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct PairingInfo {
     pub mac_name: String,
     pub mac_key_b64: String,
     pub addresses: Vec<String>,
     pub port: u16,
-    /// ISO 8601 UTC.
     pub expires_at: String,
 }
 
-/// The JSON inside the code, keys in the order protocol.md shows.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct PayloadJson {
@@ -34,7 +29,6 @@ pub(crate) struct PayloadJson {
     pub exp: i64,
 }
 
-/// A decoded, validated payload.
 #[derive(Clone, Debug)]
 pub(crate) struct Payload {
     pub mac_name: String,

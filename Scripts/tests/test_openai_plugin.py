@@ -10,7 +10,6 @@ ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "Distribution" / "openai-plugin"
 CANONICAL_SKILL = ROOT / ".agents" / "skills" / "lokalbot-cli" / "SKILL.md"
 SCHEMA = "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json"
-# Top-level keys the Agent Plugins 1.0.0 schema allows (additionalProperties: false).
 ALLOWED_KEYS = {"$schema", "name", "version", "description", "author", "homepage",
                 "repository", "license", "keywords", "extensions"}
 
@@ -49,8 +48,6 @@ class OpenAIPluginTests(unittest.TestCase):
         self.assertLessEqual(set(self.manifest["author"]), {"name", "email", "url"})
 
     def test_skills_only_and_desktop_only(self):
-        # Local MCP needs OpenAI's partner allowlist, and hooks or app references
-        # can't be submitted as a ZIP, so the package is skills only.
         self.assertIs(self.openai.get("requires_local_executor"), True)
         for absent in ("mcp.json", ".mcp.json", ".app.json", "hooks", ".codex-plugin"):
             self.assertFalse((PLUGIN / absent).exists(), absent)
@@ -115,13 +112,10 @@ class OpenAIPluginTests(unittest.TestCase):
                 for claude_only in ("$ARGUMENTS", "disable-model-invocation", "argument-hint",
                                     "/lokalbot:", "/reload-plugins"):
                     self.assertNotIn(claude_only, text)
-                # Shell variables read as credentials to directory scanners.
                 self.assertNotRegex(text, r"\$[A-Za-z_({]")
                 self.assertNotRegex(text, r"\]\(\.\./")
 
     def test_skills_need_no_instructions_from_outside_the_package(self):
-        # OpenAI's submission rules: keep supporting files and their references
-        # inside the plugin. Download pages are fine; repository docs are not.
         for skill in sorted(PLUGIN.glob("skills/*/SKILL.md")):
             text = skill.read_text(encoding="utf-8")
             with self.subTest(skill=skill.parent.name):
@@ -130,7 +124,6 @@ class OpenAIPluginTests(unittest.TestCase):
                 self.assertNotIn("AGENT_SETUP", text)
 
     def test_listing_does_not_promise_nothing_leaves_the_computer(self):
-        # Remote model servers the user approves do receive library content.
         manifest = json.loads((PLUGIN / "plugin.json").read_text(encoding="utf-8"))
         listing = manifest["extensions"]["com.openai"]["interface"]["longDescription"]
         self.assertNotIn("uploads nothing", listing)

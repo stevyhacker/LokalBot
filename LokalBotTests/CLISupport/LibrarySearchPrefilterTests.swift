@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// `LibrarySearch.hits` skips transcripts and texts its byte-level prefilter
-/// rules out, and folds sentences without rebuilding them. These tests hold
-/// it to the search it replaced, kept below as `ReferenceLibrarySearch`:
-/// the same hits in the same order, with the same snippets and timestamps.
 final class LibrarySearchPrefilterTests: XCTestCase {
     private var root: URL!
 
@@ -24,24 +20,17 @@ final class LibrarySearchPrefilterTests: XCTestCase {
     func testMatchesTheOriginalSearchAcrossTrickyText() throws {
         try writeTrickyLibrary()
         let queries = [
-            // Accents and case.
             "izvestaj", "IZVEŠTAJ budzetu", "cafe", "CAFÉ", "café", "izmir", "strasse", "STRASSE", "finance",
             "kelvin", "οδος", "ΟΔΟΣ", "извештај", "буџету", "ǆemal", "nation",
-            // Short words match whole words only; longer ones match inside words.
             "api", "API limit", "ana", "q3", "rapid", "ban", "anan", "nan", "xpor", "ports", "50", "k",
-            // Quoted phrases.
             "\"pricing decision\"", "\"decision twice\"", "pricing decision", "\"decision on pricing\"",
             "\"path/to/file\"", "path to file", "\"tabs here\"", "\"double spaces\"", "newlines double",
             "\"e-mail\"", "e-mail", "2.0.1", "\"2.0.1\"", "\"...\"", "\"a\"", "\"ab\"",
-            // Characters JSON escapes.
             "\"said \"hi\"\"", "\"said \\\"hi\\\"\"", "users", "c:\\users", "\"c:\\users\"", "bell", "\"bell\u{7}char\"", "said hi",
             "line two", "\"one\ntwo\"",
-            // CJK, kana and Hangul.
             "对比度", "设置", "深色模式", "logo", "比如logo", "회의록", "공유", "かっこう", "がっこう", "日本語",
-            // Transcripts the prefilter cannot read, and none at all.
             "escaped", "izvestaj escaped", "utf16", "corrupt", "telescope checksum", "\"telescope checksum\"",
             "ιabc", "\u{345}abc", "abc",
-            // Everything else.
             "the", "we", "roadmap item", "don't send", "?!", "a", "zzzzznotthere", "  spaced   out  ",
         ]
         var withHits = 0
@@ -164,10 +153,6 @@ final class LibrarySearchPrefilterTests: XCTestCase {
         }
     }
 
-    // MARK: - Fixtures
-
-    /// Compares both searches with the CLI's, the MCP's and Ask's arguments.
-    /// Returns whether the CLI search found anything.
     @discardableResult
     private func assertMatchesReference(_ query: String, file: StaticString = #filePath, line: UInt = #line) throws -> Bool {
         let calls: [(limit: Int, perMeeting: Int?, requireAll: Bool)] = [
@@ -221,8 +206,6 @@ final class LibrarySearchPrefilterTests: XCTestCase {
                   transcriptLines: ["The telescope checksum failed.", "\u{345}abc", "ιabc"]),
         ], under: root)
 
-        // Transcripts the prefilter must hand to the decoder: escaped
-        // characters, UTF-16, a broken file.
         let escapedID = UUID()
         let utf16ID = UUID()
         let corruptID = UUID()
@@ -264,7 +247,6 @@ final class LibrarySearchPrefilterTests: XCTestCase {
     }
 }
 
-/// Splitmix64, so each run draws the same text.
 private struct SeededRandom: RandomNumberGenerator {
     var state: UInt64
 
@@ -279,11 +261,6 @@ private struct SeededRandom: RandomNumberGenerator {
     }
 }
 
-/// Text from an alphabet built to trip folding: both cases, accents as one
-/// character and as combining marks, Greek with final sigma and U+0345,
-/// Cyrillic, CJK, kana with voiced marks, Hangul syllables and jamo,
-/// ligatures, ß and other case expansions, every kind of whitespace, JSON
-/// escapes, joiners, emoji and Devanagari.
 private enum RandomText {
     static let pieces: [String] = {
         var pieces = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".map(String.init)
@@ -313,8 +290,6 @@ private enum RandomText {
     }
 }
 
-/// `LibrarySearch.hits` and `folded` as they were before the prefilter,
-/// kept to compare against.
 private enum ReferenceLibrarySearch {
     private struct Candidate {
         var hit: SessionFormatter.SearchHit

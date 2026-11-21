@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Records every prompt and answers with a fixed reply.
 private final class RecordingEngine: TextEngine {
     var reply: String
     var error: Error?
@@ -121,7 +120,6 @@ final class SelectionActionsControllerTests: XCTestCase {
             report: { [unowned self] message in self.reports.append(message) }))
     }
 
-    /// Waits up to about a second for `condition`.
     private func waitFor(_ controller: SelectionActionsController,
                          _ condition: @MainActor (SelectionActionsController) -> Bool) async {
         var attempts = 0

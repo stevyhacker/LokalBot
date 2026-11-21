@@ -3,33 +3,16 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! How much of the text before the caret a request reads
-//! (`CotypingPrefixWindow`), and the word the caret sits in
-//! (`CotypingMidWord`).
-
 use super::text::{grapheme_count, is_word_char};
 
-/// Generate only when there is something besides whitespace before the caret,
-/// and not while it is numbers without a single letter: a verification code,
-/// a phone number or an amount has no prose to continue. A word brings
-/// suggestions back.
 pub fn should_generate(before: &str) -> bool {
     !before.trim().is_empty() && !is_numbers_only(before)
 }
 
-/// Digits with no letters, such as `482 913`, `+382 67 123 456` or `12.50`
-/// (`CotypingPrefixWindow.isNumbersOnly`).
 pub fn is_numbers_only(text: &str) -> bool {
     text.chars().any(char::is_numeric) && !text.chars().any(char::is_alphabetic)
 }
 
-/// The latest text, bounded by characters and words, without rewriting
-/// paragraph breaks, list indentation or the whitespace at the caret.
-///
-/// A window cut from longer text starts at a sentence or line boundary near
-/// its front: the server keeps what it has read of an unchanged prompt
-/// start, and a window that moved by one character per keystroke would make
-/// it read the whole window again every time.
 pub fn truncated_prefix(before: &str, max_characters: usize, max_words: usize) -> String {
     if max_characters == 0 || max_words == 0 {
         return String::new();
@@ -54,7 +37,6 @@ pub fn truncated_prefix(before: &str, max_characters: usize, max_words: usize) -
     window[stable_start(window)..].to_string()
 }
 
-/// Byte offsets where whitespace-separated words start.
 fn word_start_offsets(text: &str) -> Vec<usize> {
     let mut starts = Vec::new();
     let mut in_word = false;
@@ -69,8 +51,6 @@ fn word_start_offsets(text: &str) -> Vec<usize> {
     starts
 }
 
-/// Just after the first line break or sentence end in the front quarter of
-/// `window`, or 0 when there is none.
 fn stable_start(window: &str) -> usize {
     let chars: Vec<(usize, char)> = window.char_indices().collect();
     let front = chars.len() / 4;
@@ -80,7 +60,6 @@ fn stable_start(window: &str) -> usize {
         if c == '\n' {
             return next.map_or(window.len(), |(i, _)| *i);
         }
-        // A full stop after a letter ends a sentence; "1. " numbers a list.
         if ".?!".contains(c)
             && next.is_some_and(|(_, n)| *n == ' ')
             && index > 0
@@ -92,16 +71,11 @@ fn stable_start(window: &str) -> usize {
     0
 }
 
-/// True only when the caret is strictly inside a word, with a letter or
-/// digit on both sides. At a word end, ordinary next-word prediction (which
-/// wants a leading space) is left alone, as in Cotabby.
 pub fn should_force_continuation(before: &str, after: &str) -> bool {
     before.chars().next_back().is_some_and(is_word_char)
         && after.chars().next().is_some_and(is_word_char)
 }
 
-/// The run of word characters the caret sits at the end of ("" at a word
-/// boundary).
 pub fn current_partial_word(before: &str) -> &str {
     let start = before
         .char_indices()
@@ -120,11 +94,6 @@ pub fn leading_word_run(text: &str) -> &str {
     &text[..end]
 }
 
-/// How many characters to the right of the caret a forced mid-word accept
-/// replaces. Only an overlap that completes the accepted word fragment or
-/// the word fragment on the right counts, so a weak shared first letter
-/// ("operate" against "ord") is left alone. Counted in user-perceived
-/// characters.
 pub fn accepted_trailing_overlap(accepted: &str, after: &str) -> usize {
     let accepted_word: Vec<char> = leading_word_run(accepted).chars().collect();
     let trailing = leading_word_run(after);
@@ -190,7 +159,6 @@ mod tests {
         assert_eq!(truncated_prefix(text, 2500, 3), "1. Review\n  2. ");
     }
 
-    /// Typing on at the end of a long draft keeps the window's start in place.
     #[test]
     fn a_long_drafts_window_start_stays_put_while_typing() {
         let sentence = "We reviewed the onboarding funnel again this week. ";

@@ -1,42 +1,16 @@
 import Foundation
 
-/// Reads what a person can take out of Fathom, which keeps calls in its cloud
-/// and has no export file:
-///
-/// - the transcript a call page's "Copy Transcript" button copies, pasted into
-///   a `.txt` or `.md` file: a "Title - Month Day" line, a "VIEW RECORDING"
-///   line with the call's share link, `---`, then turns such as
-///   "1:02:03 - Ana Petrović (Acme)" with indented speech, and BOOKMARK,
-///   HIGHLIGHT, and ACTION ITEM marks inside them;
-/// - the summary "Copy Summary" copies, plain or Markdown, with or without
-///   links, under the same header;
-/// - the MP4 "Download Video" saves, named after the meeting title;
-/// - meeting JSON in the shape Fathom's API and webhooks return
-///   (`recording_id`, `share_url`, `transcript`, `default_summary`,
-///   `action_items`), alone, in a list response's `items`, or in an array.
-///
-/// Files of one call are joined by the share link they carry, and a video by
-/// its file name. Nothing is written and nothing is fetched.
 enum FathomMeetingReader: ExternalMeetingReader {
     static let source = ExternalMeetingSource.fathom
     static let exportHint = "In Fathom, open a call, click Copy Transcript and Copy Summary and paste each into a text file, and choose Download Video from the call's three-dot menu for the recording. Put them in one folder and choose it; meeting JSON saved from Fathom's API works too."
-    /// Fathom keeps calls in its cloud, not on this Mac.
     static let defaultLocations: [String] = []
 
-    /// "Download Video" saves MP4; Fathom's help lists MP3 as coming.
     private static let recordingExtensions: Set<String> = ["mp4", "mp3"]
     private static let textExtensions: Set<String> = ["txt", "text", "md", "markdown"]
-    /// The sections of Fathom's default summary, and the API's "Summary".
     private static let sectionNames: Set<String> = ["meeting purpose", "key takeaways", "topics", "next steps",
                                                     "action items", "summary"]
-    /// " - WATCH: <link>" or " - WATCH (5 secs): <link>" after a mark or a
-    /// summary line, pointing back into the recording.
     private static let watchPattern = #"\s*-?\s*WATCH(\s*\([^)]*\))?:\s*\S+"#
-    /// A Markdown link into Fathom; its text is kept and the link dropped,
-    /// since it stops working once the account is gone.
     private static let fathomLinkPattern = #"\[([^\]]*)\]\(\s*https?://[^)\s]*fathom\.video[^)\s]*(\s+"[^"]*")?\s*\)"#
-
-    // MARK: - Recognizing
 
     static func recognizes(_ url: URL) -> Bool {
         let fileExtension = url.pathExtension.lowercased()
@@ -48,7 +22,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return false
     }
 
-    /// The first bytes of a file as text, for a cheap look at its header.
     private static func head(of url: URL, bytes: Int = 65_536) -> String? {
         guard let handle = try? FileHandle(forReadingFrom: url) else { return nil }
         defer { try? handle.close() }
@@ -66,7 +39,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         let markers = ["\"recording_id\"", "\"share_url\"", "\"default_summary\"", "\"recording_start_time\"",
                        "\"matched_calendar_invitee_email\"", "fathom.video/"]
         if markers.contains(where: head.contains) { return true }
-        // What the transcript and summary endpoints return on their own.
         return (head.contains("\"transcript\"") && head.contains("\"display_name\"") && head.contains("\"timestamp\""))
             || (head.contains("\"summary\"") && head.contains("\"markdown_formatted\""))
     }
@@ -75,7 +47,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         let rows = head.components(separatedBy: "\n")
         let opening = rows.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }.prefix(6)
         if opening.contains(where: { $0.localizedCaseInsensitiveContains("VIEW RECORDING") }) { return true }
-        // Without the header: Fathom's turn lines, each followed by indented speech.
         var turns = 0
         for (index, row) in rows.enumerated() where turn(in: row) != nil {
             let next = rows[(index + 1)...].first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
@@ -83,8 +54,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         }
         return turns >= 2
     }
-
-    // MARK: - Reading
 
     static func read(_ url: URL) throws -> ExternalImportScan {
         var isDirectory: ObjCBool = false
@@ -120,7 +89,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return ExternalImportScan(meetings: assemble(found, recordings: recordings), problems: problems)
     }
 
-    /// Why a file couldn't be read, said without quoting it.
     private enum Failure: Error {
         case unopenable, notJSON, noMeeting, noContent
 
@@ -134,21 +102,14 @@ enum FathomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    /// What one file says about one call, before files of the same call are
-    /// joined.
     private struct Part {
-        /// Lower ranks win when files of one call disagree: the API's JSON has
-        /// exact times and owners, a copied transcript beats a summary.
         enum Kind: Int {
             case json, transcript, summary
         }
 
         var kind: Kind
         var meeting: ExternalMeeting
-        /// Names a downloaded video of this call may carry, normalized.
         var names: Set<String>
-        /// The source listed its action items, done ones included, so other
-        /// files' guesses don't add to them.
         var actionsListed = false
     }
 
@@ -171,9 +132,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return [part]
     }
 
-    /// Joins the files of each call, in the order they were found, then gives
-    /// each video to the one call its name points to. A video no call claims,
-    /// or more than one could, is a meeting of its own.
     private static func assemble(_ parts: [Part], recordings: [URL]) -> [ExternalMeeting] {
         var seen = Set<String>()
         let order = parts.map(\.meeting.sourceID).filter { seen.insert($0).inserted }
@@ -236,7 +194,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return items
     }
 
-    /// A downloaded video or audio file no copied text or JSON claims.
     private static func recordingMeeting(_ url: URL) -> ExternalMeeting {
         let size = (try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize ?? 0
         return ExternalMeeting(
@@ -244,8 +201,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
             title: ExternalImportText.title(fromFileName: url), audioURL: url, origin: url)
     }
 
-    /// A video's name as a call would know it: no extension, no " (1)" a
-    /// browser adds to a second download of the same name.
     private static func recordingName(_ url: URL) -> String {
         let stem = url.deletingPathExtension().lastPathComponent
             .replacingOccurrences(of: #"\s*\(\d+\)$"#, with: "", options: .regularExpression)
@@ -266,16 +221,12 @@ enum FathomMeetingReader: ExternalMeetingReader {
         }
     }
 
-    // MARK: - Copied transcript and summary
-
     private struct Turn {
         var start: TimeInterval
         var speaker: String
         var text: [String] = []
     }
 
-    /// A transcript or summary copied from a call page, or both pasted into
-    /// one file. Nil when it holds neither.
     private static func copiedText(_ text: String, file: URL) -> Part? {
         let rows = text.components(separatedBy: "\n")
         let opening = rows.indices.filter { !rows[$0].trimmingCharacters(in: .whitespaces).isEmpty }.prefix(6)
@@ -309,8 +260,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
                 inTranscript = true
                 continue
             }
-            // Speech is indented, so a section heading at the margin starts a
-            // summary pasted after the transcript.
             if inTranscript, row.first?.isWhitespace == false, isSectionHeading(trimmed) { inTranscript = false }
             if let mark = annotation(trimmed) {
                 if let action = mark.action { actions.append(.init(text: action)) }
@@ -358,9 +307,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
             names: names)
     }
 
-    /// "1:02:03 - Ana Petrović (Acme)" as a start and a name without the
-    /// company or email Fathom puts in parentheses. Turn lines start at the
-    /// margin; speech under them is indented.
     private static func turn(in row: String) -> (start: TimeInterval, speaker: String)? {
         guard let first = row.first, !first.isWhitespace else { return nil }
         var body = Substring(row.trimmingCharacters(in: .whitespaces))
@@ -374,9 +320,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return (start, bare.isEmpty ? name : bare)
     }
 
-    /// A mark Fathom puts in a turn: "ACTION ITEM: …", "BOOKMARK: … - WATCH:
-    /// <link>  speech", "HIGHLIGHT: …", or the " - WATCH: <link>  speech" line
-    /// that can follow an action item. Speech after the link is kept.
     private static func annotation(_ trimmed: String) -> (action: String?, speech: String?)? {
         if trimmed.hasPrefix("- WATCH") || trimmed.hasPrefix("-WATCH") || trimmed.hasPrefix("WATCH") {
             let speech = splitWatch(trimmed).after
@@ -399,15 +342,12 @@ enum FathomMeetingReader: ExternalMeetingReader {
                 text[range.upperBound...].trimmingCharacters(in: .whitespaces))
     }
 
-    /// A header line without Markdown: "# **Title - May 19**" → "Title - May 19".
     private static func cleanHeader(_ row: String) -> String {
         var text = row.trimmingCharacters(in: .whitespaces)
         while text.hasPrefix("#") { text.removeFirst() }
         return text.replacingOccurrences(of: "**", with: "").trimmingCharacters(in: .whitespaces)
     }
 
-    /// "Weekly sync - Q3 - May 19" → ("Weekly sync - Q3", "May 19"). The date
-    /// is nil when the last part isn't one.
     private static func splitTitle(_ header: String) -> (title: String, date: String?) {
         guard let dash = header.range(of: " - ", options: .backwards) else { return (header, nil) }
         let date = header[dash.upperBound...].trimmingCharacters(in: .whitespaces)
@@ -415,7 +355,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return (header[..<dash.lowerBound].trimmingCharacters(in: .whitespaces), date)
     }
 
-    /// "May 19" or "May 19, 2025", as Fathom's header writes the call's day.
     private static func monthDay(_ value: String) -> DateComponents? {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -431,8 +370,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return nil
     }
 
-    /// The day's local midnight. The header has no year, so it is the latest
-    /// one that doesn't put the call after the file was saved.
     private static func startOfDay(_ day: DateComponents, onOrBefore reference: Date) -> Date? {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
@@ -445,15 +382,12 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return calendar.date(from: parts)
     }
 
-    /// "VIEW RECORDING - 48 mins (No highlights): …" → 48.
     private static func minutes(in row: String) -> Int? {
         guard let range = row.range(of: #"VIEW RECORDING\s*-\s*\d+\s*min"#,
                                     options: [.regularExpression, .caseInsensitive]) else { return nil }
         return Int(row[range].filter(\.isNumber))
     }
 
-    /// Fathom's id for a call: the token of its share link, else the id in a
-    /// calls link.
     private static func fathomID(in text: String) -> String? {
         for (marker, prefix) in [("fathom.video/share/", ""), ("fathom.video/calls/", "call-")] {
             guard let range = text.range(of: marker) else { continue }
@@ -475,16 +409,11 @@ enum FathomMeetingReader: ExternalMeetingReader {
         trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") || trimmed.hasPrefix("• ")
     }
 
-    /// Drops links into Fathom and the WATCH links after lines, keeping text.
     private static func withoutFathomLinks(_ text: String) -> String {
         text.replacingOccurrences(of: fathomLinkPattern, with: "$1", options: .regularExpression)
             .replacingOccurrences(of: watchPattern, with: "", options: .regularExpression)
     }
 
-    /// A copied summary as Markdown, and the action items it lists: its
-    /// "Action Items" section, else its "Next Steps" with their owners. Plain
-    /// copies get headings back: Fathom's section names, and a short line
-    /// followed by bullets (a topic under "Topics").
     private static func summaryNotes(_ rows: [String]) -> (markdown: String?, actions: [ExternalMeeting.ActionItem]) {
         let cleaned = rows.map(withoutFathomLinks)
         let isMarkdown = cleaned.contains { $0.trimmingCharacters(in: .whitespaces).hasPrefix("#") }
@@ -564,12 +493,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return items
     }
 
-    // MARK: - API and webhook JSON
-
-    /// Meetings in a JSON file: one meeting object, a list response's
-    /// `items`, or an array of them. The transcript and summary endpoints'
-    /// `{"transcript": […]}` and `{"summary": {…}}` count too, titled from the
-    /// file name.
     private static func jsonMeetings(in object: Any, file: URL) -> [Part] {
         var objects: [[String: Any]] = []
         if let array = object as? [Any] {
@@ -618,8 +541,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         if let summary { sections.append(withoutFathomLinks(summary).trimmingCharacters(in: .whitespacesAndNewlines)) }
         if !highlights.isEmpty { sections.append("## Highlights\n\n" + highlights.joined(separator: "\n")) }
         if actions.contains(where: \.done) {
-            // The writer lists only open items, so a list with done ones is
-            // written here, marked as Fathom has them.
             sections.append("## Action items\n\n" + actions.map { action in
                 let owner = action.item.owner.map { " (\($0))" } ?? ""
                 return "- [\(action.done ? "x" : " ")] \(action.item.text)\(owner)"
@@ -641,7 +562,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
             names: names, actionsListed: !actions.isEmpty)
     }
 
-    /// `{"speaker": {"display_name": …}, "text": …, "timestamp": "00:05:32"}`.
     private static func jsonLine(_ value: Any) -> ExternalMeeting.Line? {
         guard let item = value as? [String: Any], let text = string(item["text"]) else { return nil }
         let speaker = string((item["speaker"] as? [String: Any])?["display_name"]) ?? string(item["speaker"])
@@ -649,7 +569,6 @@ enum FathomMeetingReader: ExternalMeetingReader {
         return ExternalMeeting.Line(start: start, speaker: speaker, text: text)
     }
 
-    /// "- **Objection** at 0:16: Pushed back on price — “They pushed back hard”".
     private static func highlightRow(_ value: Any) -> String? {
         guard let highlight = value as? [String: Any] else { return nil }
         let label = string(highlight["type"])

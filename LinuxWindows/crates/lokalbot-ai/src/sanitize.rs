@@ -1,9 +1,5 @@
-//! `PromptContextSanitizer`: prompt-ready text without control bytes,
-//! ragged spacing or stacked blank lines. Punctuation is kept.
-
 pub use lokalbot_core::text::{is_iban, is_payment_card_number, redact, redaction, sanitize};
 
-/// `sanitize` with every whitespace run (newlines included) as one space.
 pub fn single_line(text: &str, max_characters: usize) -> String {
     sanitize(text, Some(max_characters))
         .split_whitespace()
@@ -11,12 +7,10 @@ pub fn single_line(text: &str, max_characters: usize) -> String {
         .join(" ")
 }
 
-/// Whitespace runs collapsed and trimmed.
 pub fn collapse(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// The first `n` characters (not bytes).
 pub fn prefix(text: &str, n: usize) -> String {
     text.chars().take(n).collect()
 }
@@ -76,7 +70,6 @@ mod tests {
         let (text, count) = redaction("token: abcdef123456 and ghp_abcdefghijklmnopqrstuvwxyz");
         assert_eq!(text, "token: [REDACTED] and [REDACTED_TOKEN]");
         assert_eq!(count, 2);
-        // Already redacted values are not redacted again.
         assert_eq!(redact("password=[REDACTED]"), "password=[REDACTED]");
     }
 }

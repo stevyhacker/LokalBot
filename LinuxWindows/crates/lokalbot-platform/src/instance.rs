@@ -1,13 +1,3 @@
-//! One LokalBot per library, and the local socket other processes use to
-//! reach it.
-//!
-//! `lokalbot quick-recall`, `lokalbot selection-actions`,
-//! `lokalbot toggle-recording` and `lokalbot dictate --toggle` forward to the running app through [`send`];
-//! that is also how Wayland users bind compositor shortcuts. The socket is a
-//! Unix socket in the user's runtime directory (mode 0700) or a named pipe on
-//! Windows, named after a hash of the library root so test libraries never
-//! collide.
-
 use std::fs::{File, OpenOptions, TryLockError};
 use std::io::{BufRead, BufReader, Read as _, Write};
 use std::path::{Path, PathBuf};
@@ -23,22 +13,16 @@ use interprocess::local_socket::{
 };
 use lokalbot_core::LibraryPaths;
 
-/// A request from another process (the CLI or a compositor shortcut).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum IpcCommand {
-    /// Bring the main window forward.
     Show,
-    /// Open the Ask panel (`quick-recall` window).
     QuickRecall,
-    /// Read the selection in the app in front and open the actions panel.
     SelectionActions,
     ToggleRecording,
     StartDictation,
     StopDictation,
     ToggleDictation,
-    /// Show a meeting by id.
     OpenMeeting(String),
-    /// `lokalbot install-update`: install the offered update and relaunch.
     InstallUpdate,
 }
 
@@ -77,8 +61,6 @@ impl IpcCommand {
     }
 }
 
-/// Every line starts with this, so an incompatible future protocol is refused
-/// instead of misread.
 const PROTOCOL: &str = "LOKALBOT/1";
 const MAX_LINE: usize = 4096;
 const IO_TIMEOUT: Duration = Duration::from_secs(2);
@@ -93,7 +75,6 @@ pub enum InstanceError {
 
 #[derive(Debug, thiserror::Error)]
 pub enum IpcError {
-    /// No LokalBot is listening for this library.
     #[error("LokalBot is not running")]
     NotRunning,
     #[error("LokalBot refused the request: {0}")]
@@ -102,9 +83,6 @@ pub enum IpcError {
     Io(#[from] std::io::Error),
 }
 
-/// Holds the library's instance lock (`<root>/.instance.lock`) until dropped.
-/// The OS releases it if the process dies, so a crash never leaves a stale
-/// lock behind.
 #[derive(Debug)]
 pub struct InstanceGuard {
     _file: File,
@@ -117,9 +95,6 @@ impl InstanceGuard {
     }
 }
 
-/// Takes the instance lock for the library at `root`, creating the folder if
-/// needed. [`InstanceError::AlreadyRunning`] means another LokalBot holds it:
-/// [`send`] the request there and exit.
 pub fn acquire_instance(root: &Path) -> Result<InstanceGuard, InstanceError> {
     std::fs::create_dir_all(root)?;
     let path = LibraryPaths::new(root).instance_lock();
@@ -132,7 +107,6 @@ pub fn acquire_instance(root: &Path) -> Result<InstanceGuard, InstanceError> {
     match file.try_lock() {
         Ok(()) => {
             let mut file = file;
-            // Diagnostics only; the lock itself is what counts.
             let _ = file.set_len(0);
             let _ = writeln!(file, "{}", std::process::id());
             Ok(InstanceGuard { _file: file, path })
@@ -142,8 +116,6 @@ pub fn acquire_instance(root: &Path) -> Result<InstanceGuard, InstanceError> {
     }
 }
 
-/// Accepts requests until dropped. Commands are delivered on a background
-/// thread, one connection at a time.
 pub struct IpcServer {
     stop: Arc<AtomicBool>,
     endpoint: PathBuf,
@@ -151,7 +123,6 @@ pub struct IpcServer {
 }
 
 impl IpcServer {
-    /// The socket path (Unix) or pipe path (Windows) this server listens on.
     pub fn endpoint(&self) -> &Path {
         &self.endpoint
     }
@@ -160,10 +131,6 @@ impl IpcServer {
 impl Drop for IpcServer {
     fn drop(&mut self) {
         self.stop.store(true, Ordering::SeqCst);
-        // Wake the blocking accept with a connection of our own, held open until
-        // the thread has gone: a Windows pipe listener skips a client that has
-        // already left, so closing this one first could leave accept waiting and
-        // the join below waiting on it, for good.
         let waker = connect(&self.endpoint);
         if let Some(thread) = self.thread.take()
             && waker.is_ok()
@@ -173,9 +140,6 @@ impl Drop for IpcServer {
     }
 }
 
-/// Listens for [`IpcCommand`]s for the library at `root`. Call after
-/// [`acquire_instance`] succeeded; a leftover socket from a crashed instance
-/// is replaced. `on_command` runs on the server's thread.
 pub fn listen(
     root: &Path,
     on_command: impl Fn(IpcCommand) + Send + 'static,
@@ -203,7 +167,6 @@ fn serve(
     stop: Arc<AtomicBool>,
     on_command: impl Fn(IpcCommand) + Send + 'static,
 ) {
-    // Only `Send` is required of the callback, so requests take turns.
     let on_command = Arc::new(parking_lot::Mutex::new(on_command));
     loop {
         let accepted = listener.accept();
@@ -212,8 +175,6 @@ fn serve(
         }
         match accepted {
             Ok(stream) => {
-                // Named pipes have no I/O timeouts, so a stalled client gets
-                // its own thread instead of blocking the next request.
                 let on_command = on_command.clone();
                 let spawned = std::thread::Builder::new()
                     .name("lokalbot-ipc-request".into())
@@ -235,7 +196,6 @@ fn serve(
     }
 }
 
-/// Sets I/O timeouts where the platform supports them (Unix sockets).
 fn set_timeouts(stream: &Stream) -> std::io::Result<()> {
     for result in [
         stream.set_recv_timeout(Some(IO_TIMEOUT)),
@@ -271,8 +231,6 @@ fn handle(stream: Stream, on_command: &dyn Fn(IpcCommand)) -> std::io::Result<()
     (&stream).flush()
 }
 
-/// Delivers `command` to the LokalBot running for the library at `root` and
-/// waits (at most a few seconds) for it to acknowledge.
 pub fn send(root: &Path, command: IpcCommand) -> Result<(), IpcError> {
     let endpoint = endpoint_path(root)?;
     let stream = connect(&endpoint).map_err(|err| match err.kind() {
@@ -282,8 +240,6 @@ pub fn send(root: &Path, command: IpcCommand) -> Result<(), IpcError> {
         _ => IpcError::Io(err),
     })?;
     let (tx, rx) = crossbeam_channel::bounded(1);
-    // The exchange runs on a helper thread so a stuck app cannot hang the
-    // caller, even where the pipe has no timeouts.
     std::thread::Builder::new()
         .name("lokalbot-ipc-send".into())
         .spawn(move || {
@@ -336,7 +292,6 @@ fn socket_name(endpoint: &Path) -> std::io::Result<Name<'static>> {
 
 pub(crate) use lokalbot_core::control::socket::endpoint_key;
 
-/// Where the socket for `root` lives.
 pub fn endpoint_path(root: &Path) -> std::io::Result<PathBuf> {
     let key = endpoint_key(root);
     #[cfg(windows)]
@@ -402,7 +357,6 @@ mod tests {
     fn stopping_right_after_listening_returns() {
         let dir = tempfile::tempdir().unwrap();
         let _guard = acquire_instance(dir.path()).unwrap();
-        // Often enough that a stop lands before the accept has started waiting.
         for _ in 0..20 {
             drop(listen(dir.path(), |_| {}).unwrap());
         }
@@ -447,7 +401,6 @@ mod tests {
     fn a_stale_socket_is_replaced() {
         let dir = tempfile::tempdir().unwrap();
         let endpoint = endpoint_path(dir.path()).unwrap();
-        // A crashed instance leaves its socket file behind.
         drop(std::os::unix::net::UnixListener::bind(&endpoint).unwrap());
         assert!(endpoint.exists());
         assert!(matches!(

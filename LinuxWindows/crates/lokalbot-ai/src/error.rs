@@ -1,10 +1,7 @@
 use std::time::Duration;
 
-/// Failures callers branch on. Wording follows the macOS `TextEngineError`,
-/// `LlamaServer.ServerError` and `ModelDownloadManager` messages.
 #[derive(Debug, thiserror::Error)]
 pub enum AiError {
-    /// The server is remote and its origin is not approved (or not HTTPS).
     #[error("{0}")]
     ConsentRequired(String),
     #[error("Can't reach {0}. Verify that the configured LLM server is available.")]
@@ -17,7 +14,6 @@ pub enum AiError {
     },
     #[error("LLM server error: {0}")]
     BadResponse(String),
-    /// The reply hit `max_tokens`; `partial` holds the visible text so far.
     #[error("LLM server error: response was truncated at the model output limit")]
     Truncated { partial: String },
     #[error("No Think model is selected. Pick one in Settings → Models.")]
@@ -26,13 +22,10 @@ pub enum AiError {
     ModelMissing(String),
     #[error("Local LLM server failed to start: {0}")]
     ServerStart(String),
-    /// An open task keeps `held` loaded, so the server can't change models
-    /// (or backends) until that task is closed.
     #[error(
         "An open Agent Mode task is keeping {held} loaded, so the built-in model can't be changed. Close that task, then try again."
     )]
     ModelHeld { held: String },
-    /// Messages contain "cancelled" so callers can recognize them in text.
     #[error("The operation was cancelled.")]
     Cancelled,
     #[error("{0}")]
@@ -40,7 +33,6 @@ pub enum AiError {
 }
 
 impl AiError {
-    /// 408/409/425/429/5xx and transport failures (`TextEngineError.isRetryable`).
     pub fn is_retryable(&self) -> bool {
         match self {
             AiError::ServerUnreachable(_) => true,
@@ -51,7 +43,6 @@ impl AiError {
         }
     }
 
-    /// The server, or a provider behind a router, is rate limiting this key.
     pub fn is_rate_limit(&self) -> bool {
         matches!(self, AiError::HttpStatus { code: 429, .. })
     }
@@ -64,7 +55,6 @@ impl AiError {
     }
 }
 
-/// The [`AiError`] inside an `anyhow::Error`, if any.
 pub fn ai_error(err: &anyhow::Error) -> Option<&AiError> {
     err.downcast_ref::<AiError>()
 }
@@ -73,7 +63,6 @@ pub(crate) fn is_cancelled(err: &anyhow::Error) -> bool {
     matches!(ai_error(err), Some(AiError::Cancelled))
 }
 
-/// Shared cancellation check for setup, downloads and inference jobs.
 pub(crate) fn check_cancelled(cancel: &std::sync::atomic::AtomicBool) -> anyhow::Result<()> {
     if cancel.load(std::sync::atomic::Ordering::Relaxed) {
         Err(AiError::Cancelled.into())

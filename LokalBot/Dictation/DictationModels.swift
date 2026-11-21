@@ -15,8 +15,6 @@ enum DictationIntent: String, Codable, CaseIterable, Identifiable {
 enum DictationTriggerMode: String, Codable, CaseIterable, Identifiable {
     case pushToTalk = "Push to talk"
     case toggle = "Toggle"
-    /// A quick tap starts and a second tap finishes; holding past the tap
-    /// threshold works like push to talk.
     case tapOrHold = "Tap or hold"
 
     var id: String { rawValue }
@@ -94,15 +92,10 @@ struct DictationLiveTranscript: Equatable, Sendable {
     }
 }
 
-/// The app/field that owned focus when dictation began. Final transcription
-/// may take long enough for focus to move; insertion is allowed only when the
-/// same destination still owns focus, otherwise the text is copied safely.
 struct DictationDeliveryTarget: Equatable, Sendable {
     let processID: pid_t
     let bundleID: String?
     let focusIdentityKey: String?
-    /// Text the person selected before dictating. Pasting replaces exactly that
-    /// selection, the way typing would; any other selection blocks the paste.
     var selection: DictationTextSelection?
 
     init(processID: pid_t, bundleID: String?, focusIdentityKey: String?,
@@ -124,9 +117,6 @@ struct DictationDeliveryTarget: Equatable, Sendable {
         return true
     }
 
-    /// A blocked snapshot always wins over the app-only fallback. In
-    /// particular, a target captured before AX exposed a field must never
-    /// become permission to paste into a same-app password field later.
     func check(_ snapshot: DictationFocusSnapshot) -> DictationDeliveryCheck {
         guard !snapshot.isSecureOrBlocked else { return .secureField }
         guard matches(
@@ -151,14 +141,11 @@ struct DictationDeliveryTarget: Equatable, Sendable {
     }
 }
 
-/// Why a finished dictation may or may not be pasted where it began.
 enum DictationDeliveryCheck: Equatable, Sendable {
     case deliverable
     case focusMoved
     case selectionChanged
     case secureField
-    /// The field could not be read: Accessibility access is missing, or the
-    /// app did not answer in time.
     case fieldUnreadable
 
     var clipboardMessage: String? {
@@ -177,7 +164,6 @@ enum DictationDeliveryCheck: Equatable, Sendable {
     }
 }
 
-/// A non-empty text selection, as UTF-16 offsets reported by Accessibility.
 struct DictationTextSelection: Equatable, Sendable {
     let location: Int
     let length: Int
@@ -189,15 +175,11 @@ struct DictationTextSelection: Equatable, Sendable {
     }
 }
 
-/// The minimum Accessibility state needed to bind and later validate a
-/// dictation destination. It intentionally carries no field text or geometry.
 struct DictationFocusSnapshot: Equatable, Sendable {
     let processID: pid_t
     let bundleID: String?
     let focusIdentityKey: String?
-    /// A secure (password) field.
     let isSecureOrBlocked: Bool
-    /// The field's non-empty selection, if any.
     var selection: DictationTextSelection?
 
     init(processID: pid_t, bundleID: String?, focusIdentityKey: String?,
@@ -209,8 +191,6 @@ struct DictationFocusSnapshot: Equatable, Sendable {
         self.selection = selection
     }
 
-    /// Screen and nearby-text context are never read from a secure field or
-    /// while text is selected.
     var blocksContextCapture: Bool { isSecureOrBlocked || selection != nil }
 }
 
@@ -221,9 +201,6 @@ struct DictationFocusCaptureResult: Equatable, Sendable {
     static let timeout = Self(snapshot: nil, timedOut: true)
 }
 
-/// Serializes lightweight dictation focus reads on a background queue and
-/// gives every caller one wall-clock deadline. A wedged target app therefore
-/// fails closed without blocking the main actor or accumulating AX workers.
 final class DictationFocusSnapshotExecutor: @unchecked Sendable {
     typealias Resolver = @Sendable () -> DictationFocusSnapshot?
 
@@ -258,8 +235,6 @@ final class DictationFocusSnapshotExecutor: @unchecked Sendable {
         self.resolver = resolver
     }
 
-    /// `deadlineMilliseconds` lengthens the wait for callers that are not on
-    /// the shortcut's critical path, such as the check before pasting.
     func capture(deadlineMilliseconds deadlineOverride: Int? = nil) async -> DictationFocusCaptureResult {
         let deadline = max(1, deadlineOverride ?? deadlineMilliseconds)
         return await withCheckedContinuation { continuation in
@@ -339,10 +314,6 @@ struct DictationPreviewAudioRange: Equatable, Sendable {
     let end: TimeInterval
 }
 
-/// Pure planning for the rolling dictation preview. Each pass starts slightly
-/// before the last completed pass so the ASR model hears enough context to
-/// finish a word that crossed the boundary, without decoding the whole growing
-/// recording again.
 enum DictationPreviewWindowPlanner {
     static let defaultOverlapSeconds: TimeInterval = 2.5
     static let defaultMaximumNewAudioSeconds: TimeInterval = 6
@@ -386,10 +357,6 @@ enum DictationPreviewWindowPlanner {
     }
 }
 
-/// Deterministically joins overlapping ASR windows. The newest window replaces
-/// the matched suffix so revised capitalization or punctuation at the boundary
-/// wins, while a window with no trustworthy two-word overlap is appended rather
-/// than risking the loss of already-visible speech.
 enum DictationPreviewTextStitcher {
     private static let maximumOverlapGraphemes = 64
     private static let minimumOverlapGraphemes = 4
@@ -421,10 +388,6 @@ enum DictationPreviewTextStitcher {
             }
         }
 
-        // Keep the character fallback for unsegmented scripts. Applying it to
-        // ordinary text can mistake an English word suffix for the beginning
-        // of an unrelated word (for example, broadcast/cast iron), even when
-        // only one side contains whitespace.
         if oldWords.count == 1 || newWords.count == 1,
            containsUnsegmentedScript(in: oldText),
            containsUnsegmentedScript(in: newText),
@@ -435,11 +398,6 @@ enum DictationPreviewTextStitcher {
         return oldText + " " + newText
     }
 
-    /// Languages such as Chinese and Japanese generally do not put spaces
-    /// between words, so whitespace tokenization turns an entire ASR window
-    /// into one token. Fall back to a conservative grapheme match, retaining
-    /// the incoming window's latest punctuation and capitalization just as the
-    /// word-based path does.
     private static func stitchByGrapheme(previous: String, incoming: String) -> String? {
         let oldGraphemes = semanticGraphemes(in: previous)
         let newGraphemes = semanticGraphemes(in: incoming)
@@ -475,9 +433,6 @@ enum DictationPreviewTextStitcher {
         let isUnsegmentedScript: Bool
     }
 
-    /// Ignore punctuation and spacing while matching, but retain each
-    /// grapheme's original index so the stitched output preserves the newest
-    /// window verbatim from the overlap onward.
     private static func semanticGraphemes(in text: String) -> [SemanticGrapheme] {
         text.indices.compactMap { index in
             let key = wordKey(String(text[index]))
@@ -493,25 +448,22 @@ enum DictationPreviewTextStitcher {
         text.contains(where: isUnsegmentedScript)
     }
 
-    /// Scripts whose orthography commonly omits spaces between words. Keep
-    /// this deliberately narrower than "non-Latin" because Arabic, Cyrillic,
-    /// Devanagari, and many other scripts still use word separators.
     private static func isUnsegmentedScript(_ character: Character) -> Bool {
         character.unicodeScalars.contains { scalar in
             switch scalar.value {
-            case 0x0E00...0x0EFF, // Thai and Lao
-                 0x1000...0x109F, // Myanmar
-                 0x1780...0x17FF, // Khmer
-                 0x3040...0x30FF, // Hiragana and Katakana
-                 0x31F0...0x31FF, // Katakana phonetic extensions
-                 0x3400...0x4DBF, // CJK extension A
-                 0x4E00...0x9FFF, // CJK unified ideographs
-                 0xA9E0...0xA9FF, // Myanmar extended-B
-                 0xAA60...0xAA7F, // Myanmar extended-A
-                 0xF900...0xFAFF, // CJK compatibility ideographs
-                 0xFF66...0xFF9F, // Halfwidth Katakana
-                 0x20000...0x2FA1F, // CJK extensions and compatibility supplement
-                 0x30000...0x323AF: // CJK extensions G through I
+            case 0x0E00...0x0EFF,
+                 0x1000...0x109F,
+                 0x1780...0x17FF,
+                 0x3040...0x30FF,
+                 0x31F0...0x31FF,
+                 0x3400...0x4DBF,
+                 0x4E00...0x9FFF,
+                 0xA9E0...0xA9FF,
+                 0xAA60...0xAA7F,
+                 0xF900...0xFAFF,
+                 0xFF66...0xFF9F,
+                 0x20000...0x2FA1F,
+                 0x30000...0x323AF:
                 true
             default:
                 false
@@ -528,13 +480,7 @@ enum DictationPreviewTextStitcher {
     }
 }
 
-/// The global dictation shortcut: a key plus modifiers, or modifiers alone
-/// (⌃⌥, the way Wispr Flow and similar apps are often set up). The event tap
-/// consumes a key shortcut system-wide, so it must not be something people
-/// type; a modifier-only shortcut is observed without consuming anything.
-/// The Quick Recall shortcut uses the same type, but always with a key.
 struct DictationShortcut: Equatable, Sendable {
-    /// Nil for a modifier-only shortcut.
     var keyCode: CGKeyCode?
     var modifiers: CGEventFlags
 
@@ -544,12 +490,8 @@ struct DictationShortcut: Equatable, Sendable {
     }
 
     static let handyDefault = DictationShortcut(keyCode: 49, modifiers: .maskAlternate)
-    /// ⌃⇧ Space opens Ask.
     static let quickRecallDefault = DictationShortcut(keyCode: 49, modifiers: [.maskControl, .maskShift])
-    /// ⌃⇧ W ("write") opens selection actions.
     static let selectionActionsDefault = DictationShortcut(keyCode: 13, modifiers: [.maskControl, .maskShift])
-    /// ⌃⇧ H ("hand off") hands off the focused window. Not ⌃⌥, which
-    /// VoiceOver uses for its own commands.
     static let windowHandoffDefault = DictationShortcut(keyCode: 4, modifiers: [.maskControl, .maskShift])
 
     var isModifierOnly: Bool { keyCode == nil }
@@ -563,7 +505,6 @@ struct DictationShortcut: Equatable, Sendable {
         return CGKeyCode(event.getIntegerValueField(.keyboardEventKeycode)) == keyCode
     }
 
-    /// "⌥ Space", "⌃⇧ D", "F5", "⌃⌥".
     var displayLabel: String {
         let symbols = Self.modifierSymbols(modifiers)
         guard let keyCode else { return symbols }
@@ -612,10 +553,8 @@ struct DictationShortcut: Equatable, Sendable {
         }
     }
 
-    /// Why this combination cannot be the global shortcut, or nil.
     var problem: Problem? {
         guard let keyCode else {
-            // One modifier alone fires whenever it is used for anything else.
             return Self.modifierCount(modifiers) >= 2 ? nil : .needsTwoModifiers
         }
         if keyCode == DictationShortcutKeyNames.escape { return .reservedForCancel }
@@ -628,9 +567,6 @@ struct DictationShortcut: Equatable, Sendable {
         return nil
     }
 
-    /// Why this combination cannot be the Quick Recall or selection actions
-    /// shortcut, or nil. Both register a Carbon hot key, which needs a key and
-    /// never observes modifiers alone.
     var quickRecallProblem: Problem? {
         isModifierOnly ? .needsKey : problem
     }

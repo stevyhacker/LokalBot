@@ -1,9 +1,5 @@
 import Foundation
 
-/// Applies checked plan items to `AppSettings` through the real decoder, so a
-/// value the app would reject or adjust is reported instead of silently stored
-/// as something else, then applies the couplings Settings enforces
-/// (`AppState.coupledSettings`).
 enum SettingsChangeApplier {
     static func apply(
         _ items: [SettingsChangePlan.Item],
@@ -13,7 +9,6 @@ enum SettingsChangeApplier {
     ) throws -> AppSettings {
         var object = AppControlHandler.encoded(settings)
         for item in items {
-            // Assigning nil removes an optional key, which restores its default.
             object[item.spec.key] = item.stored
         }
         let decoded: AppSettings

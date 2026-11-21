@@ -14,7 +14,6 @@ import sys
 
 UI_PATTERNS = [
     "LokalBot/**", "LokalBotUITests/**", "project.yml", "Scripts/test/ui-tests.sh",
-    # Dependency bumps change compiled code without touching LokalBot/.
     "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
     "Scripts/ci/**", "Scripts/build/fetch-llama.sh", "Scripts/build/fetch-sherpa.sh",
     ".github/workflows/ui-tests.yml",

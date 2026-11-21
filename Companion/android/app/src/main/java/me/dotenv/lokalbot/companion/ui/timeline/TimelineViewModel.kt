@@ -19,7 +19,6 @@ data class TimelineState(
     val day: LocalDate,
     val record: DayRecord? = null,
     val meetings: List<Meeting> = emptyList(),
-    /** Days the Mac shared a record for, newest first. */
     val recordedDays: Set<String> = emptySet(),
     val earliest: LocalDate = today.minusDays(30),
     val loaded: Boolean = false,
@@ -33,7 +32,6 @@ class TimelineViewModel(repository: CompanionRepository) : LibraryViewModel(repo
         .mapLatest { day ->
             val today = repository.today()
             val key = day.toString()
-            // Every recorded day: the earliest one is as far back as the day strip goes.
             val days = repository.days(limit = Int.MAX_VALUE)
             val earliestRecorded = days.lastOrNull()?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
             TimelineState(

@@ -37,7 +37,6 @@ class SyncCrateNoticeTests(unittest.TestCase):
                          [("core-foundation-sys", "0.8.7"), ("serde_derive", "1.0.228")])
         hand_written = "| core-foundation-sys 0.8.7 | macOS | MIT |\n| serde_derive 1.0.228 | all | MIT |"
         self.assertEqual(notices.unnamed(crates, GENERATED, hand_written), [])
-        # A notice for another version of the crate does not cover this one.
         self.assertEqual(notices.unnamed(crates, GENERATED, hand_written.replace("0.8.7", "0.8.6")),
                          [("core-foundation-sys", "0.8.7")])
 

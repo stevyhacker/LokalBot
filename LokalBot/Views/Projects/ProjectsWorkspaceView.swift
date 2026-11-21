@@ -1,13 +1,5 @@
 import SwiftUI
 
-/// Projects the person tracks, plus suggestions: names that recur across
-/// meetings and overnight review projects nobody tracks yet. The list shows
-/// tracked projects by last activity, then suggestions with where each came
-/// from. The page beside it leads with "Where it stands", the one block a
-/// model wrote, and lists the facts that name the project under it: actions,
-/// decisions, meetings, and, in a side column, window time, people and names.
-/// Tracked projects, their names, and hidden suggestions live in
-/// `ProjectStore`.
 struct ProjectsWorkspaceView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var connections: WorkMemoryConnections
@@ -44,14 +36,11 @@ struct ProjectsWorkspaceView: View {
                 .splitPaneAccessibilityLabel("Project details")
         }
         .detailSplitMinimumWidth([LBTokens.Metric.contentColumnMinWidth, LBTokens.Metric.contentDetailMinWidth])
-        // The selected project is the window's title; the toolbar draws it
-        // with its monogram and when it was last active.
         .navigationTitle(selected.map { Text(verbatim: $0.name) } ?? Text("Projects"))
         .toolbar(removing: .title)
         .toolbar { toolbar(selected, commands: commands) }
         .onGeometryChange(for: Bool.self) { $0.size.width < 720 } action: { compactToolbar = $0 }
         .task {
-            // Review notes come from Dream memory, which other sections load lazily.
             app.refreshDreamMemory()
             app.refreshConnections()
         }
@@ -75,8 +64,6 @@ struct ProjectsWorkspaceView: View {
 
     static func trackedSelectionID(_ id: UUID) -> String { "tracked:" + id.uuidString }
 
-    /// With nothing chosen, the page opens on the first row: the most
-    /// recently active tracked project, else the first suggestion.
     private func selectedProject(_ content: ProjectsListContent, in projects: [ProjectProfile]) -> ProjectProfile? {
         guard let id = app.selectedProjectID else {
             return content.projectIDs.first.flatMap { first in projects.first { $0.id == first } }
@@ -84,9 +71,6 @@ struct ProjectsWorkspaceView: View {
         return projects.first { $0.id == id }
     }
 
-    /// A suggestion that was just tracked stays on screen, already marked as
-    /// tracked, until the next refresh delivers its tracked profile. Nothing is
-    /// written from this copy: its evidence is about to be replaced.
     static func settlingProfile(selection: String?, curation: ProjectCuration,
                                 projects: [ProjectProfile]) -> ProjectProfile? {
         guard let selection, !projects.contains(where: { $0.id == selection }),
@@ -97,17 +81,12 @@ struct ProjectsWorkspaceView: View {
         return suggestion.tracked(as: tracked.id, selectionID: selection)
     }
 
-    /// The projects the list and the page draw: while a just-tracked
-    /// suggestion settles, its tracked copy stands in for the suggestion, so
-    /// the row moves under Tracked at once and stays selected.
     static func listProjects(_ projects: [ProjectProfile], settling: ProjectProfile?) -> [ProjectProfile] {
         guard let settling else { return projects }
         let name = PeopleDirectory.normalized(settling.name)
         return [settling] + projects.filter { $0.isTracked || PeopleDirectory.normalized($0.name) != name }
     }
 
-    /// Tracking, adding a name, hiding, merging and stopping, as the list's
-    /// context menus, the page and the toolbar menu all run them.
     private func commands(content: ProjectsListContent, selectedID: String?) -> ProjectCommands {
         ProjectCommands(
             track: { project in
@@ -121,8 +100,6 @@ struct ProjectsWorkspaceView: View {
             },
             hide: { project in
                 store.hideSuggestion(named: project.name)
-                // The open suggestion makes way for the next one; hiding
-                // another row from its menu leaves the page where it is.
                 if selectedID == project.id { app.selectedProjectID = content.selection(afterRemoving: project.id) }
             },
             editNames: { editingNames = $0 },
@@ -136,8 +113,6 @@ struct ProjectsWorkspaceView: View {
             })
     }
 
-    // MARK: - Page
-
     @ViewBuilder private func detail(_ project: ProjectProfile?, isSettling: Bool, projects: [ProjectProfile],
                                      commands: ProjectCommands) -> some View {
         if let project {
@@ -146,7 +121,6 @@ struct ProjectsWorkspaceView: View {
                               commands: commands)
                 .id(project.id)
         } else if !connections.hasLoaded || app.selectedProjectID?.hasPrefix("tracked:") == true {
-            // A project tracked a moment ago appears after the next refresh.
             LoadingStateLabel(app.settings.appLanguage.localized("Loading projects…"), font: AppFont.scaled(.body))
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
@@ -155,8 +129,6 @@ struct ProjectsWorkspaceView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
-
-    // MARK: - Toolbar
 
     @ToolbarContentBuilder private func toolbar(_ project: ProjectProfile?,
                                                 commands: ProjectCommands) -> some ToolbarContent {
@@ -186,10 +158,7 @@ struct ProjectsWorkspaceView: View {
         }
         if let project {
             ToolbarItemGroup(placement: .primaryAction) {
-                // A project nothing names yet has nothing to ask about.
                 if !ProjectPagePresentation.isEmpty(project) {
-                    // Words and the icon while the toolbar has room, the icon
-                    // alone when it does not.
                     if compactToolbar {
                         askButton(project).labelStyle(.iconOnly)
                     } else {
@@ -216,7 +185,6 @@ struct ProjectsWorkspaceView: View {
         .accessibilityIdentifier("project.ask")
     }
 
-    /// Edit names, merge into another tracked project, stop tracking.
     private func menuItems(_ project: ProjectProfile, trackedID: UUID,
                            commands: ProjectCommands) -> [WorkspaceMenu.Item] {
         let language = app.settings.appLanguage
@@ -241,24 +209,15 @@ struct ProjectsWorkspaceView: View {
     }
 }
 
-/// What can be done to a project, run the same way from a row's menu, the
-/// page and the toolbar.
 struct ProjectCommands {
-    /// Starts tracking a suggestion and opens it.
     var track: (ProjectProfile) -> Void
-    /// Adds a suggestion's name to a tracked project and opens that project.
     var add: (ProjectProfile, UUID) -> Void
-    /// "Not a project": the name is no longer suggested.
     var hide: (ProjectProfile) -> Void
     var editNames: (ProjectProfile) -> Void
-    /// Folds the first tracked project into the second.
     var merge: (UUID, UUID) -> Void
     var stopTracking: (UUID) -> Void
 }
 
-/// The list column: a search field and the add button as its header, then
-/// tracked projects and suggestions. Hidden suggestions are shown again from
-/// its foot.
 struct ProjectsListColumn: View {
     @EnvironmentObject var app: AppState
     let content: ProjectsListContent
@@ -267,7 +226,6 @@ struct ProjectsListColumn: View {
     @ObservedObject var store: ProjectStore
     @Binding var query: String
     let selection: Binding<String?>
-    /// The project the page shows, which is the first row before any choice.
     let selectedID: String?
     let commands: ProjectCommands
     let onAdd: () -> Void
@@ -319,8 +277,6 @@ struct ProjectsListColumn: View {
                 .listStyle(.inset)
                 .tint(Brand.tealFill)
                 .accessibilityIdentifier("projects.list")
-                // A project opened from Actions, People or Timeline may sit
-                // below the fold.
                 .onChange(of: selectedID) { _, id in
                     if let id { proxy.scrollTo(id) }
                 }
@@ -349,8 +305,6 @@ struct ProjectsListColumn: View {
         }
     }
 
-    /// A heading row, as in the People and Meetings lists: it scrolls with
-    /// its projects and arrow keys pass over it.
     private func heading(_ title: LocalizedStringKey, identifier: String) -> some View {
         SectionHeader(text: title)
             .padding(.top, 6)
@@ -375,12 +329,8 @@ struct ProjectsListColumn: View {
     }
 }
 
-/// One project in the list: its monogram and name, when it was last active
-/// or where the suggestion came from, and the user's open actions.
 private struct ProjectRow: View {
     let row: ProjectsListContent.Row
-    /// From the list's selection, like the meeting and people rows: the
-    /// supporting grey does not read on the highlight.
     var isSelected = false
     let localize: (String) -> String
 
@@ -418,8 +368,6 @@ private struct ProjectRow: View {
     }
 }
 
-/// The project's first letter on a tint chosen from its name. A suggestion,
-/// which nobody tracks yet, is a dashed outline.
 struct ProjectMonogram: View {
     let name: String
     var size: CGFloat = 28
@@ -446,8 +394,6 @@ struct ProjectMonogram: View {
     }
 }
 
-/// A row's context menu: names, merge and stop for a tracked project; the
-/// three answers for a suggestion. The page and the toolbar offer the same.
 private struct ProjectMenuItems: View {
     let project: ProjectProfile
     @ObservedObject var store: ProjectStore
@@ -489,14 +435,12 @@ private struct ProjectMenuItems: View {
     }
 }
 
-/// Names a tracked project: its main name and other names for the same work.
 private struct ProjectNameSheet: View {
     private enum Field { case name, otherNames }
 
     @Environment(\.dismiss) private var dismiss
     let title: Text
     let actionTitle: LocalizedStringKey
-    /// Opened to add another name, so typing starts there.
     let startsOnOtherNames: Bool
     @State private var name: String
     @State private var otherNamesText: String

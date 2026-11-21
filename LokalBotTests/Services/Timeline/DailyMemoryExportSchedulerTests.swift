@@ -83,7 +83,6 @@ final class DailyMemoryExportSchedulerTests: XCTestCase {
         let refreshed = expectation(description: "fresh export completed")
 
         scheduler.configure(.init(enabled: true, hour: 18, destinationID: "notes")) { _, pass in
-            // Missed past days are checked first; this test is about today's note.
             guard pass == .refresh else { return }
             let call = await counter.next()
             if call == 1 {
@@ -130,7 +129,6 @@ final class DailyMemoryExportSchedulerTests: XCTestCase {
         let reopened = next(evening, reopened: [week[6]])
         XCTAssertEqual(reopened?.day, week[6])
         XCTAssertEqual(reopened?.pass, .refresh)
-        // Older than the digest's catch-up window.
         XCTAssertNil(next(morning, caughtUp: Set(week), reopened: [try date("2026-07-01T00:00:00Z")]))
     }
 
@@ -203,7 +201,6 @@ final class DailyMemoryExportSchedulerTests: XCTestCase {
         }
         await fulfillment(of: [failed], timeout: 2)
 
-        // The usual retry wait applies before the next export.
         clock.now = clock.now.addingTimeInterval(16 * 60)
         scheduler.tick()
         await fulfillment(of: [today], timeout: 2)

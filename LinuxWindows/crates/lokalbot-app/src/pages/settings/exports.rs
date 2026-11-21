@@ -1,7 +1,3 @@
-//! Meeting note export and daily note export, each writing Markdown to a folder
-//! the person picks (`SettingsView.meetingNoteExportSection`,
-//! `dailyNoteExportSection`).
-
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
 use gpui_kit::{App, Context, Entity, SharedString};
@@ -12,8 +8,6 @@ use super::{Section, SettingsPage, hour_label};
 use crate::state::AppData;
 use crate::ui::settings_row;
 
-/// Asks for a folder and saves it with `set`. Backing out of the first choice
-/// leaves the feature off through `cancelled`, as on the Mac.
 pub(super) fn choose_folder(
     data: Entity<AppData>,
     prompt: &'static str,
@@ -63,7 +57,6 @@ pub(super) fn choose_folder(
     .detach();
 }
 
-/// A button that shows the folder's name and changes it.
 pub(super) fn folder_button(
     id: &'static str,
     folder: &str,

@@ -16,7 +16,6 @@ final class FunASRNanoRuntimeTests: XCTestCase {
             _ = try await run(root, count: 2)
             XCTFail("Partial results must not become a successful Fun-ASR transcript")
         } catch OnnxTranscriptionEngine.EngineError.incompleteResults {
-            // Expected: the caller retains the recording for a retry.
         }
     }
 
@@ -35,9 +34,6 @@ final class FunASRNanoRuntimeTests: XCTestCase {
     }
 
     func testRepeatedRunsAllReturn() async throws {
-        // Each await in runBatch may resume on another thread. While the exit
-        // wait depended on the launching thread's run loop, a few dozen runs
-        // were enough to strand one forever.
         let root = try helper(stdout: "{\"text\":\"你好\"}\n{\"text\":\"\"}\n")
         defer { try? FileManager.default.removeItem(at: root) }
         for _ in 0..<40 {
@@ -46,8 +42,6 @@ final class FunASRNanoRuntimeTests: XCTestCase {
         }
     }
 
-    /// A stuck runtime fails the test within `timeout` instead of stalling CI
-    /// until the job's time limit.
     private func run(_ root: URL, count: Int, timeout: TimeInterval = 30) async throws -> [String] {
         let returned = XCTestExpectation(description: "Fun-ASR runtime returned")
         let batch = Task {

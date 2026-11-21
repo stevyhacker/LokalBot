@@ -1,11 +1,5 @@
 import Foundation
 
-/// A selection synthesized from WebKit/Chromium AX text markers.
-///
-/// `text` is already windowed around the caret, and `selection` indexes into
-/// that same text. Keeping those two values in the same coordinate space lets
-/// the normal cotyping context split run without knowing whether the host used
-/// native ranges or opaque text markers.
 struct CotypingMarkerSelection: Equatable, Sendable {
     let text: String
     let selection: NSRange
@@ -52,21 +46,10 @@ enum CotypingMarkerSelectionSynthesizer {
     }
 }
 
-/// Moves a caret counted without paragraph breaks into a value that has them.
-///
-/// Chromium counts a rich-text field's selection, and the text it returns for
-/// `AXStringForRange`, over the field's text without the line breaks it puts
-/// between paragraphs, while the field's `AXValue` has them. Split at the
-/// reported offset, the value put the caret one character early for every
-/// paragraph above it: in a Reddit post on 2026-10-21, a suggestion after
-/// "elabor" began "rate", and the "r" left after the caret made it look
-/// mid-line, so the suggestion showed in a popup over the text.
 enum CotypingParagraphBreakAlignment {
     private static let lineFeed: UInt16 = 0x0A
     private static let objectReplacement: UInt16 = 0xFFFC
 
-    /// Where the caret is in `value`, given the text before it in the count
-    /// the selection uses, or nil when the two do not line up that way.
     static func caretLocation(in value: String, textBeforeCaret: String) -> Int? {
         let value = Array(value.utf16)
         var location = 0

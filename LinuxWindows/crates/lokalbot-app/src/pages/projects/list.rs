@@ -1,7 +1,3 @@
-//! The list column (`ProjectsListColumn`): the search field and the add
-//! button as its header, then tracked projects and suggestions. Hidden
-//! suggestions are shown again from its foot.
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::Input;
 use gpui_kit::component::menu::ContextMenuExt as _;
@@ -35,8 +31,6 @@ impl ProjectsPage {
             if group.is_empty() {
                 continue;
             }
-            // A heading row, as in the People and Meetings lists: it scrolls
-            // with its projects.
             rows.push(
                 div()
                     .px(px(18.))
@@ -150,9 +144,6 @@ impl ProjectsPage {
             )
     }
 
-    /// One project in the list (`ProjectRow`): its monogram and name, when it
-    /// was last active or where the suggestion came from, and the user's
-    /// open actions. A project quiet for weeks is drawn fainter.
     fn render_row(
         &self,
         row: &Row,
@@ -229,7 +220,6 @@ impl ProjectsPage {
     }
 }
 
-/// A quiet line over the list where projects would be.
 fn overlay(text: &str, cx: &Context<ProjectsPage>) -> AnyElement {
     div()
         .w_full()

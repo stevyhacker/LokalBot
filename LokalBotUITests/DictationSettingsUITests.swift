@@ -1,8 +1,5 @@
 import XCTest
 
-/// Covers the newer compose-by-default Dictation surface and its independent
-/// composition-model selector. Tests stop before recording, so no microphone,
-/// model download, focused-app insertion, or other real side effect occurs.
 final class DictationSettingsUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -13,8 +10,6 @@ final class DictationSettingsUITests: XCTestCase {
         fixture = try SyntheticFixture.plant()
         let models = fixture.root.appendingPathComponent("models", isDirectory: true)
         try FileManager.default.createDirectory(at: models, withIntermediateDirectories: true)
-        // Exercise the real preparation and digest checks without loading a
-        // model or downloading weights. This fixture is only used for selection.
         try Data("GGUF".utf8).write(to: models.appendingPathComponent("ui-dictation.gguf"))
         let launch = try UITestHarness.launch(
             storageRoot: fixture.root,
@@ -37,8 +32,6 @@ final class DictationSettingsUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    /// The page holds the settings: the mode, with Compose's sources under
-    /// it, and who writes the text. Trying it out is the header's sheet.
     func testComposeByDefaultControlsRenderWithoutStartingRecording() {
         XCTAssertFalse(app.buttons["dictation.try.action"].exists, "The try-out opens over the page")
         XCTAssertFalse(app.buttons["Dictation settings…"].exists)
@@ -66,10 +59,6 @@ final class DictationSettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { !action.exists }, "Done closes the try-out")
     }
 
-    /// The page header says where Dictation stands: "Off" while the switch
-    /// is off, and once it is on, one line for each thing it still needs,
-    /// with the button that asks for it. The page has no permission list
-    /// of its own any more; Privacy & permissions is the one home for those.
     func testEnablingGlobalShortcutRevealsPermissionRepairRows() {
         let toggle = UITestHarness.toggle("Enable dictation shortcut", in: app)
         UITestHarness.scrollTo(toggle, in: app, within: app.scrollViews["settings.form"])
@@ -142,7 +131,6 @@ final class DictationSettingsUITests: XCTestCase {
         UITestHarness.staticText(containing: fragment, in: app)
     }
 
-    /// Dictation's Compose model is one of the "Other models" on Models.
     private func openModels() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("Models", in: app)

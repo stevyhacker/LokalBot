@@ -1,9 +1,5 @@
 import Foundation
 
-/// Chooses the prediction debounce from the last generation's latency.
-/// In-process inference can use Cotabby-style short tiers because cancellation
-/// stops local work directly. Model-server requests retain the conservative
-/// latency backoff: cancelling the client does not guarantee the server stops.
 enum CotypingDebouncePolicy {
     enum RuntimeProfile: Equatable, Sendable {
         case inProcess
@@ -11,7 +7,6 @@ enum CotypingDebouncePolicy {
     }
 
     static let minimumMilliseconds = 20
-    /// Largest model-server backoff regardless of how slow the request is.
     static let maxBackoffMilliseconds = 600
 
     static func milliseconds(

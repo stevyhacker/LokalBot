@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// The task list: search and New on top, tasks grouped by day with their
-/// status, and Archived at the bottom. Refresh, the runtime check and
-/// clearing history are in the … menu here and in the app's Agent menu.
 struct AgentTaskSidebar: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var sessions: AgentSessionTabs
@@ -145,8 +142,6 @@ struct AgentTaskSidebar: View {
             }
     }
 
-    /// A day group already names the day, so its rows show the time. A pinned
-    /// task from another day shows the date.
     private func time(of task: AgentSessionTabs.Tab, in section: AgentTaskListSection) -> String? {
         let date = task.record.modifiedAt
         guard date != .distantPast else { return nil }
@@ -173,7 +168,6 @@ private struct AgentTaskRow: View {
         controller.status(hasSavedConversation: task.saved != nil)
     }
 
-    /// The status, or for a task that is doing nothing, where it works.
     private var line: String {
         if task.record.isArchived && status.tone == .quiet { return language.localized("Archived") }
         return status.line(localize: language.catalog) ?? controller.workspaceDisplayName
@@ -183,7 +177,6 @@ private struct AgentTaskRow: View {
         task.record.title ?? controller.sessionTitle ?? task.saved?.title ?? language.localized("New task")
     }
 
-    /// On a selected row in a focused list the row's own colours read on the accent fill.
     private func tint(_ color: Color) -> AnyShapeStyle {
         prominence == .increased ? AnyShapeStyle(.primary) : AnyShapeStyle(color)
     }

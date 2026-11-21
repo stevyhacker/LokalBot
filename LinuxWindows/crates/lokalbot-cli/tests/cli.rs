@@ -1,5 +1,3 @@
-//! The real binary against a seeded demo library and the macOS fixture.
-
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Output, Stdio};
@@ -28,7 +26,6 @@ fn stdout(output: &Output) -> String {
     String::from_utf8_lossy(&output.stdout).into_owned()
 }
 
-/// Every file under `meetings/` with its size and modification time.
 fn snapshot(root: &Path) -> Vec<(PathBuf, u64, std::time::SystemTime)> {
     let mut out = Vec::new();
     let mut stack = vec![root.join("meetings")];
@@ -53,8 +50,6 @@ fn commands_honor_the_access_gate() {
     let output = cli(&root, &["list", "--table"]);
     assert_eq!(output.status.code(), Some(1));
     assert!(String::from_utf8_lossy(&output.stderr).contains("External agent access is off"));
-    // Each source that is off answers with the code the skill tells agents
-    // to look for, as its MCP tool does.
     for (command, code) in [
         (&["list"][..], "access_disabled"),
         (&["search-files", "invoice"][..], "files_access_disabled"),
@@ -217,8 +212,6 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
         "list_meetings with include \"summary\" for several meetings' summaries at once"
     ));
 
-    // The same briefing apart from the names: the meetings, screen, agent
-    // notes and closing lines differ, nothing else.
     let brief_lines: Vec<&str> = brief.trim_end().lines().collect();
     let tool_lines: Vec<&str> = tools.lines().collect();
     assert_eq!(brief_lines.len(), tool_lines.len());
@@ -235,7 +228,6 @@ fn brief_names_cli_commands_where_get_briefing_names_tools() {
     assert!(differing[3].starts_with("For more"));
 }
 
-/// Two saved coding-agent notes, as the app's reader would leave them.
 fn save_notes(paths: &LibraryPaths) {
     use lokalbot_core::agent_notes::{AgentNote, NoteScan, store};
     use lokalbot_core::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
@@ -268,13 +260,10 @@ fn save_notes(paths: &LibraryPaths) {
     store::apply(paths.root(), &scan, &[ClaudeCode, Codex]).unwrap();
 }
 
-/// `search-notes` answers only under its own grant, and only while notes are
-/// saved; the saved copy is never created or changed by a search.
 #[test]
 fn search_notes_needs_its_own_grant_then_saved_notes() {
     let (_dir, root) = seeded();
     let paths = LibraryPaths::new(&root);
-    // Every other read grant is on.
     access::set_meetings_access(&paths, true).unwrap();
     access::set_screen_access(&paths, Some(access::ScreenScope::RetainedHistory)).unwrap();
     lokalbot_core::files::access::set_enabled(&paths, true).unwrap();
@@ -364,7 +353,6 @@ fn search_notes_needs_its_own_grant_then_saved_notes() {
         serde_json::json!([])
     );
 
-    // Bad arguments are usage errors, with or without the grant.
     for arguments in [
         &["search-notes", "release", "--agent", "cursor"][..],
         &["search-notes", "release", "--limit", "31"][..],
@@ -380,7 +368,6 @@ fn search_notes_needs_its_own_grant_then_saved_notes() {
     );
 }
 
-/// The MCP tool is refused without its grant whatever else is granted.
 #[test]
 fn mcp_search_agent_notes_is_refused_without_its_grant() {
     let (_dir, root) = seeded();
@@ -442,7 +429,6 @@ fn mcp_search_agent_notes_is_refused_without_its_grant() {
         assert_eq!(invalid.text, message);
     }
 
-    // Read coding agent notes turned off: the saved copy is gone.
     assert!(lokalbot_core::agent_notes::store::delete_all(&root));
     let unavailable = search(serde_json::json!({"query": "release"}));
     assert!(
@@ -452,8 +438,6 @@ fn mcp_search_agent_notes_is_refused_without_its_grant() {
     );
 }
 
-/// `has_summary` and `has_transcript` come from the files being there, not
-/// from reading them, and say the same with and without `--include summary`.
 #[test]
 fn list_flags_say_which_files_a_meeting_has() {
     let (_dir, root) = seeded();
@@ -513,7 +497,6 @@ fn list_includes_summaries_within_one_budget() {
     assert_eq!(first["id"], "55555555");
     assert!(first["summary"].as_str().unwrap().contains("## TL;DR"));
     assert!(first.get("summary_truncated").is_none());
-    // Uncut, it is the summary `get` prints.
     let one: serde_json::Value = serde_json::from_str(&stdout(&cli(
         &root,
         &[
@@ -573,8 +556,6 @@ fn list_includes_summaries_within_one_budget() {
     assert!(cli(&root, &["list", "--limit", "51"]).status.success());
 }
 
-/// `get_meeting {"include": "summary,transcripts"}` used to come back as the
-/// summary alone, with nothing saying the transcript was not included.
 #[test]
 fn mcp_get_meeting_refuses_include_values_it_does_not_know() {
     let (_dir, root) = seeded();
@@ -678,7 +659,6 @@ fn mcp_round_trip() {
         lines[7]["result"]["content"][0]["text"],
         "[invalid_arguments] list_meetings doesn't include transcripts. Read one meeting's with get_meeting."
     );
-    // `until` keeps meetings on or before that local day.
     let text = |line: &serde_json::Value| line["result"]["content"][0]["text"].clone();
     let before_any: serde_json::Value =
         serde_json::from_str(text(&lines[8]).as_str().unwrap()).unwrap();
@@ -693,7 +673,6 @@ fn mcp_round_trip() {
     assert!(String::from_utf8_lossy(&output.stderr).contains("lokalbot-cli mcp: serving on stdio"));
 }
 
-/// The source of this app's Settings pages.
 fn settings_source() -> String {
     let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../lokalbot-app/src/pages/settings");
     let mut source = String::new();
@@ -703,8 +682,6 @@ fn settings_source() -> String {
     source
 }
 
-/// Days in detail, older weeks as a line, but only with both grants, and a line
-/// whose reviews changed is never shown (`Briefing.timeline`).
 #[test]
 fn the_briefing_shows_a_timeline_of_reviews_under_both_grants() {
     use lokalbot_core::dream::{DreamReport, day_key, rollup};
@@ -762,14 +739,11 @@ fn the_briefing_shows_a_timeline_of_reviews_under_both_grants() {
         "{brief}"
     );
 
-    // A regenerated review makes the week's line stale at once.
     report.generated_at = chrono::Utc::now() + chrono::Duration::hours(1);
     store.save_report(&report).unwrap();
     assert!(!stdout(&cli(&root, &["brief"])).contains("Shipped the beta"));
 }
 
-/// Agents relay these hints to the user, so every `Settings → <page> →
-/// "<toggle>"` must exist in this app.
 #[test]
 fn agent_text_names_only_settings_this_app_has() {
     let (_dir, root) = seeded();
@@ -794,7 +768,6 @@ fn agent_text_names_only_settings_this_app_has() {
             .iter()
             .map(|tool| tool["description"].as_str().unwrap().to_string()),
     );
-    // Sharing is on, but no items have been written yet.
     let control = LibraryPaths::new(&root).control_dir();
     std::fs::create_dir_all(&control).unwrap();
     std::fs::write(control.join(access::PERSONAL_MARKER), b"").unwrap();
@@ -873,8 +846,6 @@ fn copy_dir(from: &Path, to: &Path) {
     }
 }
 
-/// A stand-in for the app's control socket: answers each request in turn and
-/// hands back what it was sent.
 #[cfg(unix)]
 struct FakeApp {
     requests: std::sync::mpsc::Receiver<Value>,
@@ -931,7 +902,6 @@ fn needs_approval() -> Value {
     }})
 }
 
-/// Exit 3 waiting, 0 approved, 4 declined and 5 expired, so a script can tell them apart.
 #[cfg(unix)]
 #[test]
 fn requests_that_need_the_person_exit_by_their_state() {
@@ -961,7 +931,6 @@ fn requests_that_need_the_person_exit_by_their_state() {
     }
 }
 
-/// A key comes from standard input, one line, and never appears in any output.
 #[cfg(unix)]
 #[test]
 fn api_keys_come_from_standard_input_and_never_print() {
@@ -989,7 +958,6 @@ fn api_keys_come_from_standard_input_and_never_print() {
     assert!(!stdout(&output).contains("sk-a-very-secret-key"));
     assert!(!String::from_utf8_lossy(&output.stderr).contains("sk-a-very-secret-key"));
 
-    // Two lines aren't a key, and nothing reaches the app.
     let app = fake_app(vec![]);
     let mut child = Command::new(env!("CARGO_BIN_EXE_lokalbot-cli"))
         .args(["secret", "set", "openai-compatible"])
@@ -1009,7 +977,6 @@ fn api_keys_come_from_standard_input_and_never_print() {
     assert_eq!(output.status.code(), Some(64), "{output:?}");
 }
 
-/// Stable errors print as `[code] message`, and no grant means no connection.
 #[cfg(unix)]
 #[test]
 fn errors_from_the_app_print_their_code() {
@@ -1032,7 +999,6 @@ fn errors_from_the_app_print_their_code() {
     );
 }
 
-/// `--files` asks for Files like the other read access, and asking grants nothing.
 #[cfg(unix)]
 #[test]
 fn setup_start_can_ask_to_search_files() {
@@ -1051,7 +1017,6 @@ fn setup_start_can_ask_to_search_files() {
     assert!(!lokalbot_core::files::access::is_enabled(&paths));
     assert!(!access::settings_control_enabled(&paths));
 
-    // Already on: nothing to ask for that box, and so nothing to ask at all.
     access::set_settings_control(&paths, true).unwrap();
     lokalbot_core::files::access::set_enabled(&paths, true).unwrap();
     std::fs::remove_file(setup::request_path(&control)).unwrap();
@@ -1062,7 +1027,6 @@ fn setup_start_can_ask_to_search_files() {
     assert!(!setup::request_path(&control).exists());
 }
 
-/// `setup start` leaves a request the app shows, and asking grants nothing.
 #[cfg(unix)]
 #[test]
 fn setup_start_waits_for_the_answer_in_the_control_folder() {
@@ -1070,7 +1034,6 @@ fn setup_start_waits_for_the_answer_in_the_control_folder() {
     let root = dir.path().join("library");
     let paths = LibraryPaths::new(&root);
     let control = paths.control_dir();
-    // A running copy finds the request itself, so nothing is launched here.
     std::fs::create_dir_all(&root).unwrap();
     let lock = std::fs::File::create(paths.instance_lock()).unwrap();
     lock.lock().unwrap();
@@ -1089,7 +1052,6 @@ fn setup_start_waits_for_the_answer_in_the_control_folder() {
             lokalbot_core::control::setup::Grant::ScreenMemory
         ]
     );
-    // Nothing was granted by asking.
     assert!(!access::settings_control_enabled(&paths));
     assert!(access::screen_access_scope(&paths).is_none());
 }

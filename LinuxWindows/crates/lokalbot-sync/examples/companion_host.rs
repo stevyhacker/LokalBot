@@ -1,16 +1,3 @@
-//! A stand-in Mac for developing the companion apps: serves the sample
-//! library, prints a pairing code, applies action status changes and answers
-//! questions with a canned reply.
-//!
-//! ```text
-//! cargo run -p lokalbot-sync --example companion_host -- [--port 17890] [--dir PATH]
-//!     [--name "Dev Mac"] [--auto-approve] [--loopback]
-//! ```
-//!
-//! While it runs, type `pair` for a new code, `devices`, `remove <device id>`,
-//! `publish` to bump today's day record, or `quit`. Answer a pairing request
-//! with `y` or `n`.
-
 use std::collections::HashMap;
 use std::io::BufRead as _;
 use std::path::PathBuf;
@@ -62,8 +49,6 @@ fn options() -> Options {
     options
 }
 
-/// The host's static key, kept next to its database so pairings survive
-/// restarts.
 fn static_key(dir: &std::path::Path) -> Vec<u8> {
     let path = dir.join("host.key");
     if let Ok(text) = std::fs::read_to_string(&path)
@@ -78,9 +63,7 @@ fn static_key(dir: &std::path::Path) -> Vec<u8> {
 
 struct DevMac {
     auto_approve: bool,
-    /// Where the next `y`/`n` on stdin goes.
     pending_approval: Mutex<Option<Sender<bool>>>,
-    /// Meeting bodies by id, edited by status ops.
     meetings: Mutex<HashMap<String, Value>>,
     server: OnceLock<Weak<SyncServer>>,
 }
@@ -235,8 +218,6 @@ impl ServerDelegate for Delegate {
         true
     }
 
-    /// Keeps the audio beside the database and reports it; the stand-in has
-    /// no pipeline to send it through.
     fn receive_recording(&self, recording_json: String, file_path: String) -> UploadOutcome {
         println!("recording: {recording_json}");
         let recording: Value = serde_json::from_str(&recording_json).unwrap_or_default();
@@ -334,8 +315,6 @@ fn main() {
             changed += 1;
         }
     }
-    // Each run starts from the sample library again; status changes from an
-    // earlier run are published back as new versions.
     println!(
         "Published the sample library: {} records, {changed} changed, seq {}.",
         envelopes.len(),

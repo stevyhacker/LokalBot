@@ -1,8 +1,5 @@
 import Foundation
 
-/// The same candidates as repeated argmax with each winner removed, in one
-/// vocabulary pass. Token healing needs at most 64 candidates; rescanning a
-/// large vocabulary for each rejected token adds work before any ghost text.
 enum CotypingTokenCandidates {
     private struct Candidate {
         let token: Int32
@@ -20,13 +17,10 @@ enum CotypingTokenCandidates {
     ) -> [Int32] {
         guard let logits, vocabularySize > 0, limit > 0 else { return [] }
         let capacity = min(limit, Int(vocabularySize))
-        // A bounded heap with the WORST retained candidate at the root. Most
-        // vocabulary entries need only one comparison after the heap fills.
         var heap: [Candidate] = []
         heap.reserveCapacity(capacity)
         for index in 0..<Int(vocabularySize) {
             let score = logits[index]
-            // Matches argmax: skip NaN and -infinity, but retain +infinity.
             guard score > -Float.infinity else { continue }
             let candidate = Candidate(token: Int32(index), score: score)
             if heap.count < capacity {
@@ -52,7 +46,6 @@ enum CotypingTokenCandidates {
                 }
             }
         }
-        // Equal logits retain the original argmax's lower-token-ID tie break.
         return heap.sorted { $0.precedes($1) }.map(\.token)
     }
 }

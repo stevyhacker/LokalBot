@@ -1,7 +1,5 @@
 import Foundation
 
-/// One outstanding pair of reads even when a writer stalls or recording changes.
-/// Views consume the last sample and never touch an audio writer queue.
 @MainActor
 final class RecordingHealthSampler {
     struct Sample: Sendable {
@@ -38,7 +36,5 @@ final class RecordingHealthSampler {
         generation = UUID()
         latest = nil
         pending?.cancel()
-        // Keep the slot occupied until the queued reads finish. Cancellation
-        // cannot remove a read already waiting behind filesystem I/O.
     }
 }

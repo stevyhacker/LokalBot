@@ -1,8 +1,3 @@
-//! Voice memory beside the pipeline (`AppState.learnSpeakerVoices`,
-//! `MeetingSpeakerIdentityService.maintainRetention`): one [`VoiceMemory`] per
-//! library, evidence expiry every hour, and a background pass that learns the
-//! names people already gave.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::atomic::Ordering;
@@ -22,10 +17,6 @@ use lokalbot_core::{Library, Meeting, Transcript};
 use crate::Shared;
 use crate::pipeline::Pipeline;
 
-/// Whether a strong voice match names a speaker without asking, as on the Mac.
-/// Off until TitaNet has been measured on real calls (see
-/// `lokalbot_core::voice::matcher`): a wrong name attributes words to the wrong
-/// person, and until then a person confirms each one with Apply Names.
 pub const NAME_SPEAKERS_AUTOMATICALLY: bool = false;
 
 const FIRST_LEARNING_DELAY: Duration = Duration::from_secs(60);
@@ -37,8 +28,6 @@ const RECENT_MEETINGS_DAYS: i64 = 14;
 static MEMORIES: LazyLock<Mutex<HashMap<PathBuf, Arc<VoiceMemory>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
 
-/// The library's voice memory. Nothing opens the credential store until a
-/// sealed file is actually needed.
 pub fn memory(library: &Library) -> Arc<VoiceMemory> {
     let root = library.paths().root().to_path_buf();
     MEMORIES
@@ -56,7 +45,6 @@ pub fn memory(library: &Library) -> Arc<VoiceMemory> {
         .clone()
 }
 
-/// The microphone checks, reading the call track only if a sample needs it.
 pub(crate) fn microphone_evidence(
     library: &Library,
     meeting: &Meeting,
@@ -85,7 +73,6 @@ pub(crate) fn microphone_evidence(
     )
 }
 
-/// The running worker; [`Self::learn_soon`] asks for a pass.
 pub(crate) struct VoiceWorker {
     requests: Sender<()>,
 }
@@ -125,7 +112,6 @@ fn run(shared: Arc<Shared>, pipeline: Pipeline, requests: Receiver<()>) {
     }
 }
 
-/// Expires evidence by the retention window, with screen capture on or off.
 fn maintain(shared: &Shared) {
     let library = &shared.library;
     let meetings = match library.list_all_meetings() {
@@ -183,7 +169,6 @@ impl SavedMeetingAccess for SavedMeetings {
         let Some(track) = library.audio(meeting).system else {
             return Ok(Vec::new());
         };
-        // Unavailable is not "no voices": the meeting is revisited later.
         let [_, voice_model] = lokalbot_speech::models::diarization_models() else {
             return Err(anyhow!("no voice model"));
         };
@@ -227,10 +212,6 @@ impl SavedMeetingAccess for SavedMeetings {
     }
 }
 
-/// Applies a person's choice and saves the transcript (`saveSpeakerAlias`,
-/// `AppState.saveTranscript`). A name still counts when voices can't be
-/// remembered here, say with no credential store or a library whose sealed
-/// files came from another computer: it goes on the transcript alone.
 pub fn save_choice(
     library: &Library,
     choice: &Choice,
@@ -276,7 +257,6 @@ fn save_choice_with(
     Ok(updated)
 }
 
-/// Applies every recognized name as if the user named each speaker.
 pub fn apply_recognized_names(
     library: &Library,
     meeting: &Meeting,
@@ -297,7 +277,6 @@ pub fn apply_recognized_names(
     Ok(current)
 }
 
-/// Repairs a transcript when a name was recorded but the save was interrupted.
 pub fn recover_saved_names(library: &Library, meeting: &Meeting) -> Result<bool> {
     let Some(transcript) = library.transcript(meeting)? else {
         return Ok(false);
@@ -315,10 +294,6 @@ pub fn recover_saved_names(library: &Library, meeting: &Meeting) -> Result<bool>
     Ok(true)
 }
 
-/// Deletes a meeting and takes it and its merged sources out of remembered
-/// voices first. The delete goes ahead when voices can't be opened: it is what
-/// the person asked for, the upkeep pass finishes the cleanup once they can,
-/// and the returned text says so rather than claiming it happened.
 pub fn delete_meeting(library: &Library, meeting: &Meeting) -> Result<Option<String>> {
     let memory = memory(library);
     let mut pending = None;
@@ -437,7 +412,6 @@ mod tests {
         );
         let folder = library.meeting_dir(&meeting);
         assert!(!folder.join(lokalbot_core::voice::EVIDENCE_FOLDER).exists());
-        // Resetting works the same way.
         let reset = save_choice_with(
             &memory,
             &library,
@@ -452,7 +426,6 @@ mod tests {
     #[test]
     fn another_computers_sealed_files_survive_a_rename_untouched() {
         let (dir, library, meeting, transcript) = fixture();
-        // Files a Mac sealed with its own key.
         let mac = sealed(&library, [9; 32]);
         let named = mac
             .choose(
@@ -489,7 +462,6 @@ mod tests {
                 std::fs::read(&profiles).unwrap()
             )
         );
-        // Processing and expiry leave them alone too.
         assert!(here.state(&meeting).is_err());
         here.expire(
             std::slice::from_ref(&meeting),
@@ -512,7 +484,6 @@ mod tests {
             &transcript,
         )
         .unwrap();
-        // Transcript-only sources were added after the journal was written.
         let mut changed = named.clone();
         changed.segments[0].end = 9.0;
         let saved = save_choice_with(

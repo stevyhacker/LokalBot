@@ -1,11 +1,3 @@
-//! End-to-end check on a scripted meeting: per-track word error rate,
-//! attribution, speaker labels, timing, and the dictation path.
-//!
-//! `cargo run -p lokalbot-speech --release --example evaluate -- --root <library> --model qwen3-asr-0.6b --fixture <dir> [--diarize] [--mic mic.wav] [--prompt] [--threads 8]`
-//!
-//! `<dir>` holds `mic.wav`, `system.wav`, `scenario.json` (`{"turns": [{"track", "voice", "start", "end", "text"}]}`)
-//! and optionally `dictation.wav` + `dictation.json` (`{"text"}`).
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -141,7 +133,6 @@ fn main() -> Result<()> {
             hypothesis.len()
         );
     }
-    // Speaker labels on the system track: majority voice per label, then word accuracy.
     let mut votes: HashMap<(String, String), usize> = HashMap::new();
     let mut labelled = Vec::new();
     for segment in transcript
@@ -240,7 +231,6 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-/// Logs `info` and above to stderr when `RUST_LOG` is set, without a logger dependency.
 fn env_logger_lite() {
     struct Stderr;
     impl log::Log for Stderr {

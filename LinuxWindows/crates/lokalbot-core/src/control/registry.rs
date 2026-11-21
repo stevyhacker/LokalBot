@@ -1,13 +1,8 @@
-//! Every setting the terminal can see (`SettingRegistry.swift`): its stored key,
-//! where it lives, its type and how a change to it is authorized.
-
 use std::collections::HashMap;
 use std::sync::LazyLock;
 
 use serde_json::{Map, Value, json};
 
-/// Where a setting lives in Settings, with the Mac's tokens so agents read the
-/// same names everywhere.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SettingCategory {
     General,
@@ -59,17 +54,10 @@ impl SettingCategory {
     }
 }
 
-/// How a terminal change to a setting is authorized once the person allows
-/// external agents to change settings.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SettingTier {
-    /// Changes nothing about what is captured, read, recorded, or sent.
     Preference,
-    /// Widening it (turning it on, raising it, removing an exclusion,
-    /// approving an origin) needs the person's approval in the app.
-    /// Narrowing it is a preference.
     Consent,
-    /// Shown, never changed from the terminal.
     ReadOnly,
 }
 
@@ -83,7 +71,6 @@ impl SettingTier {
     }
 }
 
-/// What a text setting holds, for `config describe` and the schema.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TextFormat {
     Plain,
@@ -109,7 +96,6 @@ impl TextFormat {
     }
 }
 
-/// The value `Settings` stores for a choice.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Stored {
     Text(&'static str),
@@ -125,8 +111,6 @@ impl Stored {
     }
 }
 
-/// One allowed value: the stable token agents read and write, and the value
-/// `Settings` stores for it (some enums store display strings or key codes).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SettingChoice {
     pub token: &'static str,
@@ -142,7 +126,6 @@ pub enum SettingKind {
     TextList,
     Choice(&'static [SettingChoice]),
     ChoiceList(&'static [SettingChoice]),
-    /// A nested JSON object or array reported as stored.
     Structured,
 }
 
@@ -168,8 +151,6 @@ impl SettingKind {
     }
 }
 
-/// One persisted `Settings` key as the terminal sees it. The key is the stored
-/// JSON key, which Settings search also uses as `settings.<key>`.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SettingSpec {
     pub key: &'static str,
@@ -182,8 +163,6 @@ pub struct SettingSpec {
 }
 
 impl SettingSpec {
-    /// The stored value presented to agents: choice values become tokens. A
-    /// stored value that matches no known choice is returned unchanged.
     pub fn presented(&self, stored: &Value) -> Value {
         match self.kind {
             SettingKind::Choice(choices) => choice_token(choices, stored),
@@ -197,7 +176,6 @@ impl SettingSpec {
         }
     }
 
-    /// What `config describe` prints.
     pub fn description_json(&self) -> Value {
         let mut object = Map::new();
         object.insert("key".into(), json!(self.key));
@@ -227,7 +205,6 @@ impl SettingSpec {
         Value::Object(object)
     }
 
-    /// The JSON Schema property for this key.
     pub fn schema_property(&self) -> Value {
         let mut object = Map::new();
         object.insert("title".into(), json!(self.title));
@@ -310,9 +287,6 @@ fn choice_token(choices: &[SettingChoice], stored: &Value) -> Value {
         .unwrap_or_else(|| stored.clone())
 }
 
-/// Stored keys that are bookkeeping or that only the app's own screens change:
-/// never listed or changed from the terminal. `launchAtLogin` has its own
-/// method, and `codingAgentEvidenceConfirmed` records the person's own choice.
 pub const INTERNAL_KEYS: [&str; 11] = [
     "onboardingCompleted",
     "gettingStartedDismissed",
@@ -327,7 +301,6 @@ pub const INTERNAL_KEYS: [&str; 11] = [
     "settingsPage",
 ];
 
-/// Stored only so a library from a Mac round-trips; nothing reads it here.
 pub const UNUSED_HERE_KEYS: [&str; 1] = ["diarizationModel"];
 
 static ALL: LazyLock<Vec<SettingSpec>> = LazyLock::new(super::registry_table::table);
@@ -343,8 +316,6 @@ pub fn spec(key: &str) -> Option<&'static SettingSpec> {
     BY_KEY.get(key)
 }
 
-/// Settings matching every word of the query in the key, title, aliases,
-/// summary, or category, best matches first.
 pub fn search(query: &str) -> Vec<&'static SettingSpec> {
     let normalized = query.trim().to_lowercase();
     let mut found: Vec<&'static SettingSpec> = all()
@@ -461,8 +432,6 @@ mod tests {
 
     #[test]
     fn choices_decode_into_the_real_settings() {
-        // Each stored choice has to be something `Settings` accepts, and it
-        // comes back the same. This keeps the table in step with the enums.
         let base = serde_json::to_value(Settings::default()).unwrap();
         for spec in all() {
             let Some(choices) = spec.kind.choices() else {
@@ -496,7 +465,6 @@ mod tests {
         let defaults = serde_json::to_value(Settings::default()).unwrap();
         for spec in all() {
             let Some(value) = defaults.get(spec.key) else {
-                // Only an optional setting may be absent by default.
                 assert_eq!(spec.key, "agentReasoningLevel");
                 continue;
             };

@@ -11,7 +11,6 @@ import me.dotenv.lokalbot.companion.TestLibrary
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Runs on Robolectric for Android's locale-aware date patterns. */
 @RunWith(AndroidJUnit4::class)
 class FormatsTest {
     private val zone = ZoneOffset.ofHours(1)

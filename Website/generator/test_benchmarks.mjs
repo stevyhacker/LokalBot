@@ -52,7 +52,6 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
       assert.ok(suite.columns.length >= 3);
       assert.ok(suite.rows.length >= 2);
 
-      // Verify every reportUrl and harnessUrl resolves to a tracked repo file/dir
       const reportPrefix = "https://github.com/stevyhacker/LokalBot/blob/master/";
       assert.ok(suite.reportUrl.startsWith(reportPrefix), `unexpected reportUrl: ${suite.reportUrl}`);
       const relReport = suite.reportUrl.slice(reportPrefix.length);
@@ -63,7 +62,6 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
       const relHarness = suite.harnessUrl.slice(harnessPrefix.length);
       assert.ok(trackedDirs.has(relHarness), `harnessUrl not tracked in git: ${relHarness}`);
 
-      // Verify every row populates all declared columns
       for (const row of suite.rows) {
         rowCount++;
         assert.ok(row.id && row.model && (row.kind === "local" || row.kind === "cloud"));
@@ -80,7 +78,6 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
   assert.equal(suiteCount, 17);
   assert.ok(rowCount >= 50, `expected >= 50 rows, got ${rowCount}`);
 
-  // Every reference stack card points to a real category + suite
   for (const item of data.referenceStack) {
     const resolved = lb.findCategoryAndSuite(data, item.suiteId);
     assert.equal(resolved.category.id, item.categoryId);
@@ -89,18 +86,15 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
 });
 
 test("benchmarks.js hash lookup, filtering, sorting, bars, scatter, and Markdown export", () => {
-  // Hash resolution (category ID, suite ID, fallback)
   assert.equal(lb.findCategoryAndSuite(data, "#memory").suite.id, "memory-english");
   assert.equal(lb.findCategoryAndSuite(data, "#stt-llamacpp-vs-mlx").category.id, "stt");
   assert.equal(lb.findCategoryAndSuite(data, "#nonexistent").suite.id, "stt-ami-cloud");
 
-  // Filtering cloud vs local on AMI STT
   const ami = lb.findCategoryAndSuite(data, "#stt-ami-cloud").suite;
   const localOnly = lb.filterRows(ami.rows, "local");
   assert.equal(localOnly.length, 2);
   assert.ok(localOnly.every((r) => r.kind === "local"));
 
-  // Sorting asc/desc with missing values sinking to the bottom
   const diar = lb.findCategoryAndSuite(data, "#diarization-ami").suite;
   const bySpeedDesc = lb.sortRows(diar.rows, "speed", "desc");
   assert.equal(bySpeedDesc[0].id, "diar-nemotron-offline");
@@ -109,12 +103,10 @@ test("benchmarks.js hash lookup, filtering, sorting, bars, scatter, and Markdown
   assert.equal(bySpeedAsc[0].id, "diar-pyannote");
   assert.equal(bySpeedAsc[bySpeedAsc.length - 1].id, "diar-muse-cloud");
 
-  // Proportional bar clamping
   assert.equal(lb.computeBarPercent(17.6, { max: 25 }), 70.4);
   assert.equal(lb.computeBarPercent(null, { max: 25 }), 0);
   assert.equal(lb.computeBarPercent(50, { max: 25 }), 100);
 
-  // Memory Pareto scatter SVG renders all 5 English models
   const mem = lb.findCategoryAndSuite(data, "#memory-english").suite;
   const svg = lb.renderScatterSvg(mem, mem.rows);
   assert.ok(svg.includes("<svg"));
@@ -122,7 +114,6 @@ test("benchmarks.js hash lookup, filtering, sorting, bars, scatter, and Markdown
     assert.ok(svg.includes(row.model), `scatter missing ${row.model}`);
   }
 
-  // Markdown table export includes headers, default bolding, and canonical anchor
   const md = lb.toMarkdownTable(ami, ami.rows);
   assert.ok(md.includes("| Model | Type / Runtime | AMI WER ↓"));
   assert.ok(md.includes("**Qwen3-ASR 1.7B**"));
@@ -137,7 +128,6 @@ test("benchmarks.html SEO, JSON-LD, OG image, and CSS fallback invariants", () =
   assert.ok(html.includes("@supports not ((-webkit-backdrop-filter: blur(1px))"));
   assert.ok(!/href="(?!https?:\/\/)[^"]+\.html"/.test(html), "benchmarks.html should use extensionless internal links");
 
-  // Validate embedded JSON-LD parses cleanly
   const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   assert.ok(ldMatch, "missing JSON-LD script");
   const ld = JSON.parse(ldMatch[1]);

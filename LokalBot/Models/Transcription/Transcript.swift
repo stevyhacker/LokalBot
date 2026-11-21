@@ -1,22 +1,11 @@
 import CryptoKit
 import Foundation
 
-/// Speaker-attributed transcript of a meeting. Persisted as `transcript.json`
-/// next to the audio; rendered to `transcript.md` for human reading.
-///
-/// Lives in `Models/` (not `Engines/`) because the embedded `lokalbot-cli`
-/// reads it without linking WhisperKit / FluidAudio. The transcription engines
-/// fill it in, but it's just a data shape — no engine dependency.
 struct Transcript: Codable {
     struct Segment: Codable, Equatable {
         enum TimingPrecision: String, Codable, Sendable {
-            /// The text covers a fallback window or whole track; its words are
-            /// not localized closely enough to support destructive filtering.
             case coarse
-            /// The text was transcribed from a VAD/ASR speech span with real
-            /// start and end boundaries.
             case span
-            /// The boundaries were derived from timestamped ASR tokens.
             case token
 
             var isBleedFilterSafe: Bool { self == .span || self == .token }
@@ -24,11 +13,9 @@ struct Transcript: Codable {
 
         var start: TimeInterval
         var end: TimeInterval
-        var speaker: String      // "me" | "them" | diarized label
+        var speaker: String
         var text: String
         var confidence: Double?
-        /// Optional keeps older persisted transcripts source-compatible. A
-        /// missing value is unknown and therefore never used for deletion.
         var timingPrecision: TimingPrecision?
         var attribution: SpeakerAttribution?
 
@@ -37,9 +24,6 @@ struct Transcript: Codable {
         }
     }
 
-    /// A bounded piece of one source segment used only for model prompts.
-    /// Keeping its source boundary visible lets the model copy a quote and
-    /// the exact ID that resolves that quote back to the transcript.
     struct PromptTurn: Equatable, Sendable {
         var start: TimeInterval
         var end: TimeInterval
@@ -49,9 +33,6 @@ struct Transcript: Codable {
         var citationID: String
     }
 
-    /// Immutable, UI-ready segment data. Building this value performs the
-    /// control-token/whitespace normalization once when a transcript changes,
-    /// instead of once per row on every playback timer tick.
     struct DisplaySegment: Equatable, Identifiable {
         let id: Int
         let segment: Segment
@@ -62,10 +43,6 @@ struct Transcript: Codable {
         let beginsSpeakerTurn: Bool
     }
 
-    /// Cached transcript presentation plus a chronological interval index for
-    /// playback highlighting. `segments` deliberately remains in source order;
-    /// only the private lookup is sorted, so malformed/legacy files do not
-    /// silently reorder what the user sees.
     struct DisplayIndex {
         let segments: [DisplaySegment]
 
@@ -76,8 +53,6 @@ struct Transcript: Codable {
         }
 
         private let intervals: [Interval]
-        /// Maximum effective end among `intervals[0...index]`. This lets an
-        /// active-segment query stop as soon as no earlier interval can overlap.
         private let prefixMaximumEnds: [TimeInterval]
 
         init(transcript: Transcript? = nil) {
@@ -123,10 +98,6 @@ struct Transcript: Codable {
             }
         }
 
-        /// IDs of all visible segments containing `time`. A binary search skips
-        /// future segments, and the prefix maxima bound the backwards overlap
-        /// scan. Returning every overlap preserves simultaneous-speaker
-        /// highlighting from the previous per-row comparison.
         func activeSegmentIDs(at time: TimeInterval) -> Set<Int> {
             var lowerBound = 0
             var upperBound = intervals.count
@@ -154,11 +125,7 @@ struct Transcript: Codable {
 
     var segments: [Segment]
     var engine: String
-    /// Per-meeting display-name overrides keyed by the stable speaker label
-    /// stored on each segment, e.g. "them 2" -> "Ana".
     var speakerAliases: [String: String]
-    /// Opaque calendar-participant IDs selected for speaker aliases. Email
-    /// addresses remain in meeting metadata and never enter the transcript.
     var speakerCalendarIdentityIDs: [String: String]
     var echoReport: TranscriptEchoReport?
 
@@ -209,13 +176,11 @@ struct Transcript: Codable {
         }
     }
 
-    /// Renders `transcript.md` — "[00:14:32] **Me:** …"
     var markdown: String {
         let roster = speakerRoster
         return segments.compactMap { markdownLine($0, roster: roster) }.joined(separator: "\n\n")
     }
 
-    /// One `markdown` entry; nil for a segment with no text.
     func markdownLine(_ segment: Segment, roster: [String: SpeakerDescriptor]) -> String? {
         let text = segment.displayText
         guard !text.isEmpty else { return nil }
@@ -223,10 +188,6 @@ struct Transcript: Codable {
         return "**[\(Self.stamp(segment.start))] \(name):** \(text)"
     }
 
-    /// Stable source IDs used by outcome extraction and evidence links. The ID
-    /// is derived from immutable source order and timing, so re-opening the same
-    /// transcript resolves citations without adding migration-only fields to
-    /// every legacy segment.
     func segmentID(at index: Int) -> String {
         guard segments.indices.contains(index) else { return "segment-invalid" }
         let segment = segments[index]
@@ -248,18 +209,12 @@ struct Transcript: Codable {
         Dictionary(uniqueKeysWithValues: segments.indices.map { (segmentID(at: $0), segments[$0]) })
     }
 
-    /// Short prompt references avoid asking a model to reproduce long timing
-    /// IDs. Resolution always uses this exact transcript snapshot; persisted
-    /// claims and audio links retain the original stable segment IDs.
     func summaryCitationID(at index: Int) -> String { "s\(index + 1)" }
 
     var summaryCitationSources: [String: String] {
         Dictionary(uniqueKeysWithValues: segments.indices.map { (summaryCitationID(at: $0), segmentID(at: $0)) })
     }
 
-    /// Source-ready transcript for grounded extraction. IDs appear in the
-    /// exact notation required by the schema so the model can only cite known
-    /// segments that LokalBot can resolve back to audio.
     var evidenceMarkdown: String {
         let roster = speakerRoster
         return segments.enumerated().compactMap { index, segment in
@@ -270,9 +225,6 @@ struct Transcript: Codable {
         }.joined(separator: "\n\n")
     }
 
-    /// Plain spoken text used for language detection and similar NLP passes.
-    /// Keep timestamps, speaker labels, and Markdown out of the sample: Apple's
-    /// language recognizer can over-weight that short formatting noise.
     var languageDetectionText: String {
         segments.compactMap { seg in
             let text = seg.displayText
@@ -280,9 +232,6 @@ struct Transcript: Codable {
         }.joined(separator: " ")
     }
 
-    /// Preserve each source boundary even for consecutive same-speaker spans.
-    /// A pathological/legacy span is split at word boundaries, retaining its
-    /// source ID so downstream token-aware chunking has safe split points.
     func summaryPromptTurns(
         maxCharacters: Int = 1_200
     ) -> [PromptTurn] {
@@ -318,7 +267,6 @@ struct Transcript: Codable {
         "[\(turn.citationID)] **[\(Self.stamp(turn.start))] \(promptSpeaker(for: turn.speaker, roster: roster)):** \(turn.text)"
     }
 
-    /// Merge per-track transcripts (mic = "me", system = "them") by timestamp.
     static func merged(_ tracks: [Transcript]) -> Transcript {
         Transcript(
             segments: tracks.flatMap(\.segments).compactMap { segment in
@@ -344,9 +292,6 @@ struct Transcript: Codable {
         }
     }
 
-    /// Mixed voices and suspected echo are not the labelled speaker's own
-    /// voice, so they cannot outvote that speaker's identity. They remain
-    /// unresolved individually and cannot prove ownership.
     static func speakerIdentity(of group: [Segment]) -> SpeakerAttribution.Identity {
         let identities = Set(group.map(\.resolvedAttribution)
             .filter { ![.overlappingSpeech, .suspectedEcho].contains($0.method) }
@@ -373,8 +318,6 @@ struct Transcript: Codable {
         let key = Self.canonicalSpeakerKey(speaker)
         for index in segments.indices where Self.canonicalSpeakerKey(segments[index].speaker) == key {
             var value = segments[index].resolvedAttribution
-            // The microphone default is correctable even without diarization.
-            // Mixed voices and suspected echo still cannot name one person.
             guard value.canConfirmIdentity else { continue }
             value.identity = isUser.map { $0 ? .user : .other } ?? .unresolved
             value.method = isUser == nil ? .diarization : .confirmation
@@ -532,8 +475,6 @@ struct Transcript: Codable {
         return String(format: "%02d:%02d:%02d", s / 3600, (s % 3600) / 60, s % 60)
     }
 
-    /// Whisper-family models can emit control/timestamp tokens as plain text.
-    /// Persist and render only the human transcript text.
     static func normalizedText(_ raw: String) -> String {
         let withoutControlTokens = raw.replacingOccurrences(
             of: #"<\|[^>]*\|>"#,

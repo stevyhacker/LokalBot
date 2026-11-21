@@ -2,8 +2,6 @@ import XCTest
 @testable import LokalBot
 
 final class QwenLlamaASRTests: XCTestCase {
-    /// The prompt must match speech-swift's Qwen3ASRModel token for token, or
-    /// the language hint and vocabulary stop working as benchmarked.
     func testPromptMatchesSpeechSwiftLayout() {
         XCTAssertEqual(
             QwenLlamaASR.prompt(language: "sr", context: "Mila Novak, Orion"),
@@ -71,8 +69,6 @@ final class QwenLlamaASRTests: XCTestCase {
         XCTAssertTrue(QwenLlamaASR.serverArguments.contains("--cache-ram"))
     }
 
-    /// Each tier has its own server: dictation and meetings can use different
-    /// tiers at the same time.
     func testQwenServersHaveTheirOwnPortsAndTranscribeRows() {
         XCTAssertEqual(LlamaServerRole.qwenASR.releasePort, 17_877)
         XCTAssertEqual(LlamaServerRole.qwenASRCompact.releasePort, 17_878)
@@ -85,11 +81,6 @@ final class QwenLlamaASRTests: XCTestCase {
         }
     }
 
-    /// Opt-in end to end: the app's `qwen-asr` llama-server with the pinned
-    /// GGUFs transcribes real speech through `QwenASREngine.transcribeWindow`.
-    /// A request fails if the server ignores LLAMA_MEDIA_MARKER, since the
-    /// prompt then lacks its randomized marker. Needs a folder with both GGUFs
-    /// and a public speech clip (FLEURS or AMI); only the first 15 s is sent.
     func testCachedModelsTranscribeAWindowOnTheAppServer() async throws {
         let environment = ProcessInfo.processInfo.environment
         guard let modelPath = environment["LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR"],
@@ -97,7 +88,6 @@ final class QwenLlamaASRTests: XCTestCase {
             throw XCTSkip("Set LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR (both GGUFs) and LOKALBOT_QWEN_LLAMA_TEST_AUDIO")
         }
         let models = URL(fileURLWithPath: modelPath, isDirectory: true)
-        // LOKALBOT_QWEN_LLAMA_TEST_TIER=0.6b runs the compact tier's pair.
         let weights = environment["LOKALBOT_QWEN_LLAMA_TEST_TIER"] == "0.6b" ? QwenLlamaASR.compact : QwenLlamaASR.accuracy
         let server = weights.makeServer(
             projector: models.appendingPathComponent(weights.projector.name))

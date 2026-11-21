@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Answers arrive a few tokens at a time, so the text on screen often stops
-/// inside an emphasis or code span. Closing the span lets it render as it
-/// will once complete, instead of showing its raw markers until it does.
 enum StreamingMarkdown {
     static func displayable(_ text: String) -> String {
         var lines = text.components(separatedBy: "\n")
@@ -18,7 +15,6 @@ enum StreamingMarkdown {
 
     private static func closingOpenSpans(_ line: String) -> String {
         var line = line
-        // Markers still arriving, with nothing yet inside them to style.
         while let marker = line.last, marker == "*" || marker == "`" {
             let run = line.reversed().prefix { $0 == marker }.count
             let before = line.dropLast(run).last
@@ -35,7 +31,6 @@ enum StreamingMarkdown {
         return line + closing
     }
 
-    /// Asterisks that touch text. "2 * 3" and a "* item" bullet open nothing.
     private static func openingAsterisks(in line: String) -> Int {
         let characters = Array(line)
         return characters.indices.filter { index in
@@ -47,13 +42,6 @@ enum StreamingMarkdown {
     }
 }
 
-/// A selectable Markdown renderer backed by one SwiftUI `Text`. Keeping the
-/// whole document in one attributed string gives macOS one continuous
-/// selection range, so users can drag across lines and copy only the portion
-/// they need. It supports headings, lists, quotes, fenced code, and GitHub
-/// tables while preserving inline formatting. Editorial mode preserves Ask's
-/// compact type hierarchy and citation treatment without splitting the answer
-/// into selection islands.
 struct SelectableDigestText: View {
     enum Style: Hashable {
         case standard
@@ -66,8 +54,6 @@ struct SelectableDigestText: View {
     var searchQuery: String = ""
     var activeMatchIndex: Int?
     var style: Style = .standard
-    /// Extra space between lines for larger reading text, in place of the
-    /// style's own.
     var readingLineSpacing: CGFloat?
 
     @Environment(\.appTextScale) private var textScale
@@ -139,7 +125,6 @@ struct SelectableDigestText: View {
             activeMatchIndex: activeMatchIndex)
     }
 
-    /// Both native Agent text and SwiftUI summaries share exactly one parser.
     struct RenderedLine {
         let content: AttributedString
         let kind: LineKind
@@ -697,8 +682,6 @@ struct SelectableDigestText: View {
     }
 }
 
-/// Plain transcript text with the same find highlighting used by summary
-/// Markdown. Attributes preserve text selection and accessibility value.
 struct SearchHighlightedText: View {
     let text: String
     let query: String
@@ -721,8 +704,6 @@ struct SearchHighlightedText: View {
         }
     }
 
-    /// Interface copy as a `Text`, for a place that takes one (a panel's
-    /// title): the catalog's wording until a search needs its matches marked.
     static func interfaceText(_ key: String, query: String, activeMatchIndex: Int? = nil) -> Text {
         guard !query.isEmpty else { return Text(LocalizedStringKey(key)) }
         return Text(MeetingSearchHighlighting.apply(
@@ -753,9 +734,6 @@ private enum MeetingSearchHighlighting {
     }
 }
 
-/// Compatibility wrapper for older call sites. All Markdown now goes through
-/// the same continuous AttributedString renderer so selection and supported
-/// syntax do not drift between surfaces.
 struct MarkdownText: View {
     enum Style {
         case standard

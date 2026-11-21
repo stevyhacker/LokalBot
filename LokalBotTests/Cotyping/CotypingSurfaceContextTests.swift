@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - App/window (surface) context
-
 final class CotypingSurfaceContextTests: XCTestCase {
     func testClassifier() {
         XCTAssertEqual(CotypingSurfaceClassifier.classify(bundleID: "com.tinyspeck.slackmacgap"), .chat)
@@ -223,10 +221,6 @@ final class CotypingSurfaceContextTests: XCTestCase {
         XCTAssertEqual(withURL.urlString, "https://mail.google.com/mail/u/0/#inbox")
     }
 
-    /// Chat apps keep one composer across conversations. The window title the
-    /// prompt and the saved-fact lookup use must follow the conversation, not
-    /// stay as long as the field keeps focus; one suggestion's reads still
-    /// share a capture.
     func testAComposerReusedAcrossConversationsReadsTheNewTitle() {
         let store = CotypingSurfaceCaptureSingleFlight()
         var now: TimeInterval = 100

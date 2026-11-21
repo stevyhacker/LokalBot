@@ -1,20 +1,12 @@
 import AVFoundation
 import Foundation
 
-/// Builds a new meeting from completed source meetings without deleting any
-/// source folder. The merged timeline is the selected source ranges laid
-/// end-to-end; transcript speakers are namespaced by source so a label such as
-/// "Me" in one recording can never silently claim a voice in another recording.
-/// Source records are marked as folded into the new meeting so the normal
-/// library view shows one merged row instead of duplicates.
 enum MeetingMergeService {
 
     struct Result: Sendable {
         let meeting: Meeting
         let sourceMeetings: [Meeting]
         let transcriptSegmentCount: Int
-        /// False when any selected source range contributed no transcript
-        /// segment. A requested summary must first transcribe the merged audio.
         let transcriptCoverageComplete: Bool
     }
 
@@ -68,8 +60,6 @@ enum MeetingMergeService {
             let title: String
             let startedAt: Date
             let duration: TimeInterval
-            /// Version-2 fields. Optional decoding keeps older manifests
-            /// readable without claiming coverage they never recorded.
             let hasAudio: Bool?
             let hasTranscript: Bool?
         }
@@ -78,8 +68,6 @@ enum MeetingMergeService {
         let sources: [Source]
     }
 
-    /// Merge source records in chronological order. A caller can pass a
-    /// custom title; otherwise the first meeting's title is retained.
     static func merge(
         meetings: [Meeting],
         title: String,
@@ -104,8 +92,6 @@ enum MeetingMergeService {
             merged.endedAt = merged.startedAt.addingTimeInterval(totalDuration)
             merged.recordedDuration = totalDuration
             merged.mergedSourceMeetingIDs = sources.map { $0.meeting.id }
-            // Screen context reads this marker. An imported source's span
-            // shows unrelated screen activity, so the merge stays imported.
             let importedFileNames = sources.flatMap { $0.meeting.importedFileNames ?? [] }
             merged.importedFileNames = importedFileNames.isEmpty ? nil : importedFileNames
 
@@ -260,9 +246,6 @@ enum MeetingMergeService {
                 mergedSegment.end = offset + segment.end - source.rangeStart
                 segments.append(mergedSegment)
 
-                // Every visible speaker receives a source-scoped display name.
-                // This preserves a confirmed source alias while making the
-                // provenance obvious in a merged transcript.
                 let sourceLabel = transcript.displaySpeaker(for: originalKey)
                 aliases[namespacedKey] = "\(sourceLabel) · source \(sourceIndex + 1)"
                 if let identityID = transcript.speakerCalendarIdentityIDs[originalKey] {
@@ -348,9 +331,6 @@ enum MeetingMergeService {
                         let timeRange = CMTimeRange(
                             start: CMTime(seconds: start, preferredTimescale: 600),
                             duration: CMTime(seconds: end - start, preferredTimescale: 600))
-                        // Preserve silence at the beginning of a selected range
-                        // when a source track starts late. Transcript offsets are
-                        // relative to `rangeStart`, so audio must share that base.
                         let destination = CMTimeAdd(
                             cursor,
                             CMTime(
@@ -362,8 +342,6 @@ enum MeetingMergeService {
                     }
                 }
             }
-            // Advance over the source's complete selected range even when one
-            // track is missing, keeping mic/system/transcript time aligned.
             cursor = CMTimeAdd(
                 cursor,
                 CMTime(seconds: source.duration, preferredTimescale: 600))
@@ -443,9 +421,6 @@ enum MeetingMergeService {
             to: folder.appendingPathComponent("merge-manifest.json"), options: .atomic)
     }
 
-    /// Full-ASR retry covers every source that contributed audio. Preserve the
-    /// already merged transcript in source intervals that had text but no
-    /// audio; otherwise silence in the concatenated asset erases that source.
     static func preservingTranscriptOnlySources(
         from previous: Transcript?,
         in folder: URL,

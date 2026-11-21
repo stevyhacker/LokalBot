@@ -6,8 +6,6 @@ struct RetentionSettingsControls: View {
     @State private var error: String?
     @State private var completion: String?
 
-    /// Separate Form rows: how long screen context lasts, the text exception,
-    /// and the reviewed cleanup that any shortening goes through.
     var body: some View {
         Group {
             Stepper(value: Binding(

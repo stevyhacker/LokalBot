@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Mid-word continuation (complete the word being typed)
-
 final class CotypingMidWordTests: XCTestCase {
     private func request(prefix: String, trailing: String, force: Bool) -> CotypingRequest {
         CotypingRequest(
@@ -29,7 +27,6 @@ final class CotypingMidWordTests: XCTestCase {
     }
 
     func testStripsRetypedPartialWordSoItCompletes() {
-        // Typed "rec"; the model echoed the whole word — keep only the new tail.
         let result = CotypingTextNormalizer.normalize(
             "receive the package", for: request(prefix: "I want to rec", trailing: "", force: false))
         XCTAssertEqual(result, "eive the package")
@@ -66,7 +63,6 @@ final class CotypingMidWordTests: XCTestCase {
     }
 
     func testNoForceKeepsModelSpacingAtWordEnd() {
-        // Not strictly inside a word: the model's "this word is done" call stands.
         let result = CotypingTextNormalizer.normalize(
             " document", for: request(prefix: "rec", trailing: "", force: false))
         XCTAssertEqual(result, " document")

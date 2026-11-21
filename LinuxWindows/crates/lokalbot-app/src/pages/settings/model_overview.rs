@@ -1,18 +1,3 @@
-//! Settings › Models' first page (`ModelStackOverviewView`,
-//! `ModelsPagePresentation`): what each of the three models does, which one
-//! it is, where it runs, what it weighs and whether it is ready, under the
-//! Model set; then rows that open the downloaded models, the online services
-//! and the other models; then Advanced, folded. The header carries "Download
-//! all" (`header::start_downloads`).
-//!
-//! Port-only parts and where they went: the llama.cpp backend (Automatic,
-//! Vulkan, CUDA, CPU) and its runtime download sit under Advanced; download
-//! mirrors are Advanced's "Download models from"; Ollama, OpenAI-compatible
-//! servers and the ChatGPT and Claude plan sign-ins are Online services;
-//! Hugging Face models are under Think's "Change…"; the transcription server
-//! and language are under Transcribe's "Change…"; screen text recognition
-//! files and the runtime's libraries are listed in Downloaded models.
-
 use std::collections::HashMap;
 
 use crate::i18n::h_flex;
@@ -40,11 +25,8 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 use lokalbot_i18n::{directional, fill};
 
-/// What a row, or the button at its end, does when chosen.
 type RowAction = std::rc::Rc<dyn Fn(&mut Window, &mut App)>;
 
-/// The settings that are rows under Advanced: search and links that land on
-/// one open it (`ModelStackOverviewView.advancedSettings`).
 pub const ADVANCED_SETTINGS: [&str; 5] = [
     "settings.thinkReasoningLevel",
     "settings.generationBudgetPreset",
@@ -53,28 +35,20 @@ pub const ADVANCED_SETTINGS: [&str; 5] = [
     "settings.modelStorage",
 ];
 
-// ------------------------------------------------------------ presentation
-
-/// Where a role's model runs (`ModelRoleRow.Place`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Place {
     ThisPc,
-    /// A server or plan that receives what the model reads.
     Online(String),
-    /// A server or plan that is chosen and not usable yet.
     NotSetUp,
 }
 
-/// The state beside a role's model (`ModelRoleRow.Chip`).
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Chip {
     Ready,
     NotDownloaded,
-    /// `None` while the download has not said how far it is.
     Downloading(Option<f32>),
     Checking,
     CheckFailed,
-    /// A download stopped.
     Stopped,
     NotSetUp,
 }
@@ -116,21 +90,14 @@ impl Chip {
     }
 }
 
-/// One row under "What each model does" (`ModelRoleRow`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct RoleRow {
     pub role: Role,
-    /// The selected model's own name.
     pub name: String,
     pub place: Place,
-    /// What the model weighs, while it runs here and downloads.
     pub bytes: Option<u64>,
     pub chip: Chip,
-    /// False for Autocomplete's model while Autocomplete is off: nothing
-    /// waits for it, so its missing download is not a warning.
     pub needed: bool,
-    /// Why a download stopped or a check failed, in the downloader's or the
-    /// check's own words.
     pub problem: Option<String>,
 }
 
@@ -143,7 +110,6 @@ impl RoleRow {
         }
     }
 
-    /// What the model does, in plain words.
     pub fn job(&self) -> &'static str {
         match self.role {
             Role::Transcribe => lokalbot_i18n::tr("Turns meeting audio and dictation into text"),
@@ -168,8 +134,6 @@ impl RoleRow {
         }
     }
 
-    /// "On this PC · 2.7 GB" or "Online · example.com". A choice that is not
-    /// set up yet is an online one; its chip says the rest.
     pub fn place_text(&self) -> String {
         match &self.place {
             Place::Online(host) => format!("{} · {host}", lokalbot_i18n::tr("Online")),
@@ -186,7 +150,6 @@ impl RoleRow {
     }
 }
 
-/// The engine's name for a role, for its checks.
 pub fn engine_role(role: Role) -> ModelRole {
     match role {
         Role::Transcribe => ModelRole::Transcribe,
@@ -195,8 +158,6 @@ pub fn engine_role(role: Role) -> ModelRole {
     }
 }
 
-/// Where a role's model runs. A server on this computer's own address counts
-/// as this computer: nothing leaves it.
 pub fn place(role: Role, settings: &Settings) -> Place {
     use lokalbot_core::access::{host_of, is_loopback_url};
     match role {
@@ -249,7 +210,6 @@ pub fn place(role: Role, settings: &Settings) -> Place {
     }
 }
 
-/// The role's model by its own name, a server's model with its host.
 pub fn role_name(role: Role, settings: &Settings) -> String {
     match role {
         Role::Transcribe => super::model_options::transcription_name(settings),
@@ -258,9 +218,6 @@ pub fn role_name(role: Role, settings: &Settings) -> String {
     }
 }
 
-/// What the role's model weighs when it downloads to this computer, from
-/// the sizes the header's download line uses: Transcribe with the files that
-/// find speech, Think with the runtime that runs it.
 fn role_bytes(role: Role, settings: &Settings) -> Option<u64> {
     let (ids, downloads) = status::role_ids(role, settings);
     if !downloads {
@@ -274,8 +231,6 @@ fn role_bytes(role: Role, settings: &Settings) -> Option<u64> {
     (bytes > 0).then_some(bytes)
 }
 
-/// The three rows, from the status the header uses, the downloads and the
-/// last checks (`ModelsPagePresentation.init`).
 pub fn role_rows(
     settings: &Settings,
     models: &[ModelInfo],
@@ -326,16 +281,12 @@ pub fn role_rows(
         .collect()
 }
 
-/// The preset the choices match, if any (`ModelStackPreset.matching`).
 pub fn model_set(settings: &Settings) -> Option<Preset> {
     Preset::ALL
         .into_iter()
         .find(|preset| preset.matches(settings))
 }
 
-/// What a set's three models weigh together with it applied. `None` when
-/// one of them does not download here: Autocomplete on a server
-/// (`ModelsPagePresentation.bytes(of:)`).
 pub fn preset_bytes(preset: Preset, settings: &Settings) -> Option<u64> {
     if settings.cotyping_backend != lokalbot_core::settings::CotypingBackend::OnDevice {
         return None;
@@ -349,8 +300,6 @@ pub fn preset_bytes(preset: Preset, settings: &Settings) -> Option<u64> {
     (!sizes.contains(&0)).then(|| sizes.iter().sum())
 }
 
-/// The line under "Model set": what the set is for and what it weighs, or
-/// that the models were picked by hand.
 pub fn model_set_help(settings: &Settings) -> String {
     match model_set(settings) {
         Some(preset) => match preset_bytes(preset, settings) {
@@ -367,7 +316,6 @@ pub fn model_set_help(settings: &Settings) -> String {
     }
 }
 
-/// "Balanced local · 9.8 GB", or the title alone when a size is unknown.
 pub fn preset_menu_title(preset: Preset, settings: &Settings) -> String {
     let title = lokalbot_i18n::tr(preset.title());
     match preset_bytes(preset, settings) {
@@ -376,7 +324,6 @@ pub fn preset_menu_title(preset: Preset, settings: &Settings) -> String {
     }
 }
 
-/// How many models Downloaded lists, or "None yet".
 pub fn downloaded_summary(installed: &[String]) -> String {
     let count = installed
         .iter()
@@ -389,8 +336,6 @@ pub fn downloaded_summary(installed: &[String]) -> String {
     }
 }
 
-/// The services approved to receive something, each named once, or that
-/// none is.
 pub fn online_summary(settings: &Settings) -> String {
     let mut names: Vec<String> = Vec::new();
     for origin in settings
@@ -398,7 +343,6 @@ pub fn online_summary(settings: &Settings) -> String {
         .iter()
         .chain(&settings.approved_remote_transcription_origins)
     {
-        // A server by its host, a plan by its name.
         let name = match lokalbot_core::settings::SubscriptionPlan::for_consent_key(origin) {
             Some(plan) => lokalbot_i18n::tr(plan.title()).to_string(),
             None => lokalbot_core::access::host_of(origin).unwrap_or_else(|| origin.clone()),
@@ -414,10 +358,7 @@ pub fn online_summary(settings: &Settings) -> String {
     }
 }
 
-// --------------------------------------------------------------- drawing
-
 impl SettingsPage {
-    /// The first page of Models.
     pub(super) fn models_overview(
         &mut self,
         window: &mut Window,
@@ -435,7 +376,6 @@ impl SettingsPage {
         };
         let infos = status::models(&settings, &status, &downloads);
         let rows = role_rows(&settings, &infos, &downloads, &checks);
-        // Below this the row stacks its model under its name (`ViewThatFits`).
         let compact = window.viewport_size().width < px(960.);
 
         let mut sections = Vec::new();
@@ -505,9 +445,6 @@ impl SettingsPage {
         sections
     }
 
-    /// The set the three models belong to, as a menu. Choosing one opens its
-    /// review, which lists the changes and the download before anything is
-    /// applied (`modelSetRow`).
     fn model_set_row(&self, settings: &Settings, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let current = model_set(settings);
@@ -518,7 +455,6 @@ impl SettingsPage {
             .into_iter()
             .map(|preset| {
                 let (speech, think) = preset.models();
-                // What applying it would download now.
                 let download: u64 = [speech, think]
                     .iter()
                     .filter(|id| !installed.iter().any(|have| have == *id))
@@ -579,7 +515,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// One role: its job, its model and where it runs, the chip, Change…
     fn role_row(
         &self,
         row: &RoleRow,
@@ -720,7 +655,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// The chip, with when the model last answered its check as its tooltip.
     fn chip(&self, row: &RoleRow, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let (color, fill_color): (Hsla, Hsla) = match row.chip_tone() {
@@ -764,8 +698,6 @@ impl SettingsPage {
             .into_any_element()
     }
 
-    /// Each server is set up where it is chosen: Think's on Online services,
-    /// Transcribe's on its server page, Autocomplete's on its own page.
     fn review_connection(&mut self, role: Role, window: &mut Window, cx: &mut Context<Self>) {
         match role {
             Role::Transcribe => {
@@ -780,8 +712,6 @@ impl SettingsPage {
         }
     }
 
-    /// Advanced, folded until opened or until search lands on one of its
-    /// settings.
     fn models_advanced(
         &mut self,
         settings: &Settings,
@@ -798,7 +728,6 @@ impl SettingsPage {
         let flip: RowAction = std::rc::Rc::new(move |_, cx| {
             page.update(cx, |page, cx| {
                 page.models.advanced_open = !expanded;
-                // Folding drops the highlight that kept it open.
                 if expanded {
                     page.focused = None;
                 }
@@ -955,8 +884,6 @@ impl SettingsPage {
         vec![section]
     }
 
-    /// The llama.cpp runtime that runs Think, Autocomplete and search here:
-    /// its backend and its download (port-only).
     fn llama_row(
         &self,
         settings: &Settings,
@@ -985,7 +912,6 @@ impl SettingsPage {
             ),
             None => match &status.runtime_backend {
                 Some(backend) => format!("{} · {backend}", lokalbot_i18n::tr("Ready")),
-                // Downloaded, but the setup GPU check failed: no download is left.
                 None if status.runtime_needs_check => {
                     format!("{} · CUDA", lokalbot_i18n::tr("Not ready"))
                 }
@@ -1037,8 +963,6 @@ impl SettingsPage {
                                 .label(if runtime_downloading {
                                     lokalbot_i18n::tr("Cancel")
                                 } else if cuda_selected && (installed || needs_check) {
-                                    // Setup repeats the GPU check and repairs
-                                    // missing libraries without a full download.
                                     lokalbot_i18n::tr("Check again")
                                 } else {
                                     lokalbot_i18n::tr("Download")
@@ -1064,7 +988,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Where the model files are and what is loaded now (`ModelStorageRow`).
     fn storage_row(
         &self,
         status: &crate::state::ModelStatus,
@@ -1140,10 +1063,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Downloaded models (`ModelDownloadsView`): every model file here with
-    /// what it is for and its size, the downloads under way, the runtime's
-    /// libraries and Read aloud's voice. A model the settings don't use can be
-    /// removed; one in use stays (the port never deletes a model in use).
     pub(super) fn downloaded_models_page(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let lb = cx.lb().clone();
         let (settings, status, downloads) = {
@@ -1376,8 +1295,6 @@ impl SettingsPage {
         sections
     }
 
-    /// Other models (`ModelOtherModelsView`): Dictation's Compose, Read aloud
-    /// and search by meaning, each where it is set.
     pub(super) fn other_models_page(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         let lb = cx.lb().clone();
         let settings = self.data.read(cx).settings.clone();
@@ -1395,7 +1312,6 @@ impl SettingsPage {
             },
             cx,
         ));
-        // Compose writes with Think unless a built-in model is chosen for it.
         let composition = lokalbot_ai::dictation::composition_settings(&settings);
         let (_, hosts) = crate::state::inference_presentation(&composition);
         let compose_value = if settings.dictation_composition_built_in_model_id.is_empty() {
@@ -1485,8 +1401,6 @@ impl SettingsPage {
     }
 }
 
-/// A row that opens another page: its name, an optional line under it, an
-/// optional value and a chevron (`SettingsDrillRow`, `moreRow`).
 pub(super) fn drill_row(
     id: &'static str,
     title: impl Into<SharedString>,
@@ -1526,8 +1440,6 @@ pub(super) fn drill_row(
         .into_any_element()
 }
 
-/// One row of Other models: its icon, its name, where it runs, and a way to
-/// where it is set.
 #[allow(clippy::too_many_arguments)]
 fn other_row(
     id: &'static str,
@@ -1576,8 +1488,6 @@ fn other_row(
         .into_any_element()
 }
 
-/// The chevron at a row's end, as a button: the row takes the pointer, and
-/// this is where Tab and Return reach it.
 fn opener_button(id: &'static str, title: SharedString, on_click: RowAction) -> Button {
     let chevron = if lokalbot_i18n::current().rtl {
         Ico::ChevronLeft
@@ -1590,7 +1500,6 @@ fn opener_button(id: &'static str, title: SharedString, on_click: RowAction) -> 
         .icon(gpui_kit::component::Icon::new(chevron))
         .tooltip(title)
         .on_click(move |_, window, cx| {
-            // The row under it would run it again.
             cx.stop_propagation();
             on_click(window, cx)
         })
@@ -1636,7 +1545,6 @@ mod tests {
         assert_eq!(rows[1].chip, Chip::Ready);
         assert!(rows[1].bytes.is_some());
         assert!(rows[1].place_text().starts_with("On this PC · "));
-        // Autocomplete is off: its missing model is no warning.
         assert!(!rows[2].needed);
         assert_eq!(rows[2].chip_tone(), ChipTone::Quiet);
         assert_eq!(rows[0].job(), "Turns meeting audio and dictation into text");
@@ -1665,10 +1573,8 @@ mod tests {
         )[0];
         assert_eq!(row.place_text(), "Online · ai.example.com");
         assert_eq!(row.bytes, None);
-        // A server on this computer's own address keeps everything here.
         settings.openai_base_url = "http://127.0.0.1:8080/v1".into();
         assert_eq!(place(Role::Think, &settings), Place::ThisPc);
-        // Blocked: the chip says so, whatever the engine reports.
         settings.openai_base_url = "http://ai.example.com/v1".into();
         let row = &role_rows(
             &settings,
@@ -1696,7 +1602,6 @@ mod tests {
             place(Role::Autocomplete, &settings),
             Place::Online("complete.example.net".into())
         );
-        // A set's size needs Autocomplete's model here.
         assert_eq!(preset_bytes(Preset::Balanced, &settings), None);
     }
 

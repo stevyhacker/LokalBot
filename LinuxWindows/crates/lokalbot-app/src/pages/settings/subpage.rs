@@ -1,8 +1,3 @@
-//! The pages a row of Autocomplete or Dictation opens in place of the page
-//! (`SettingsSubpage`, `SettingsSubpageBar`): the writing profile, the apps
-//! and sites to skip, the usage numbers and the recent dictations. A page
-//! opened this way starts with the way back instead of the header.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::Button;
 use gpui_kit::component::{Icon, Sizable as _};
@@ -20,9 +15,6 @@ pub enum Subpage {
     AutocompleteProfile,
     AutocompleteExclusions,
     AutocompleteUsage,
-    /// Where autocomplete runs: on this computer or on a server, with the
-    /// server's setup and approval. On the Mac this is the model picker's
-    /// sheet; the port sets servers up here.
     AutocompleteServer,
     DictationProfile,
     DictationRecent,
@@ -38,7 +30,6 @@ impl Subpage {
         Subpage::DictationRecent,
     ];
 
-    /// The Settings page the row is on.
     pub fn page(self) -> SettingsCategory {
         match self {
             Subpage::AutocompleteProfile
@@ -49,7 +40,6 @@ impl Subpage {
         }
     }
 
-    /// The page's name (a catalog key).
     pub fn title(self) -> &'static str {
         match self {
             Subpage::AutocompleteProfile | Subpage::DictationProfile => "Writing profile",
@@ -60,8 +50,6 @@ impl Subpage {
         }
     }
 
-    /// The settings edited on this page, so search and links open it and
-    /// land on them.
     pub fn setting_ids(self) -> &'static [&'static str] {
         match self {
             Subpage::AutocompleteProfile => &[
@@ -80,14 +68,11 @@ impl Subpage {
             ],
             Subpage::AutocompleteUsage => &["settings.autocompleteStatistics"],
             Subpage::AutocompleteServer => &["settings.cotypingBackend"],
-            // The row that opens it: search lands on the page itself.
             Subpage::DictationProfile => &["settings.dictationWritingProfile"],
             Subpage::DictationRecent => &[],
         }
     }
 
-    /// The page that holds a setting, when it is not on its Settings page
-    /// itself (`SettingsSubpage.containing`).
     pub fn containing(id: &str, page: SettingsCategory) -> Option<Subpage> {
         Self::ALL
             .into_iter()
@@ -95,8 +80,6 @@ impl Subpage {
     }
 }
 
-/// The way back from a page a row opened, and that page's name
-/// (`SettingsSubpageBar`): "‹ Autocomplete  Writing profile".
 pub fn bar(
     id: &'static str,
     back: impl Into<SharedString>,
@@ -105,7 +88,6 @@ pub fn bar(
     cx: &App,
 ) -> AnyElement {
     let lb = cx.lb();
-    // Back points the way the interface reads.
     let chevron = if lokalbot_i18n::current().rtl {
         Ico::ChevronRight
     } else {
@@ -156,7 +138,6 @@ mod tests {
             Subpage::containing("settings.cotypingBackend", SettingsCategory::Writing),
             Some(Subpage::AutocompleteServer)
         );
-        // On the page itself, and on another page, nothing opens.
         assert_eq!(
             Subpage::containing("settings.cotypingMaxWords", SettingsCategory::Writing),
             None

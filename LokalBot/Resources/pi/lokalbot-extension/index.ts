@@ -1,15 +1,3 @@
-// LokalBot pi extension: registers the app-configured model as a provider,
-// gates every tool except workspace reads behind the host UI, and adds the
-// per-run facts that LokalBot's system prompt refers to.
-//
-// Runs inside pi (RPC mode) under Bun. The env contract comes from
-// PiLaunchPlanner; the confirm() below surfaces in LokalBot as an
-// extension_ui_request on stdout, answered over stdin.
-//
-// Paths are resolved exactly as pi 1.5.2's file tools resolve them (a leading
-// "@", "~", file URLs, Unicode spaces, look-alike names, the session folder),
-// so the boundary check and the approval card name the file pi will open.
-
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 import { openAICompletionsApi, openAIResponsesApi } from "@earendil-works/pi-ai/compat";
 import { existsSync, lstatSync, readFileSync, realpathSync } from "node:fs";
@@ -17,39 +5,25 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
 
-// Tools whose approval card shows a dedicated preview. Any other tool is
-// reviewed from its exact arguments, which must fit in full.
 const PREVIEWED_TOOLS = new Set(["read", "write", "edit", "bash"]);
 const UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 const REASONING_DIALECTS = ["llama-server", "openai", "openrouter", "ollama", "generic"] as const;
 type ReasoningDialect = typeof REASONING_DIALECTS[number];
-/// Chat completions for local and OpenAI-compatible servers; the Responses
-/// API for LokalBot's ChatGPT plan relay.
 const PROVIDER_APIS = ["openai-completions", "openai-responses"] as const;
 type ProviderAPI = typeof PROVIDER_APIS[number];
-/// pi-ai sends a reasoning model's instructions as a developer message (the
-/// plan route rejects system messages) and replays its encrypted reasoning.
-/// The route also rejects output caps.
 const RESPONSES_MODEL_TRAITS = { reasoning: true, compat: { supportsMaxOutputTokens: false } } as const;
 const REASONING_LEVELS = ["automatic", "off", "minimal", "low", "medium", "high", "xhigh", "max"] as const;
 type ReasoningLevel = typeof REASONING_LEVELS[number];
-/// ThinkReasoningLevel.budgetTokens, so a level means the same thinking
-/// allowance in Agent Mode as in summaries.
 const THINKING_BUDGETS: Record<Exclude<ReasoningLevel, "automatic">, number> = {
   off: 0, minimal: 256, low: 512, medium: 4096, high: 8192, xhigh: 16384, max: 24576,
 };
 const MAX_APPROVAL_TEXT = 64 * 1024;
 const API_KEY = Symbol.for("lokalbot.llmApiKey");
 
-/// The provider key stays inside this process. pi gives every shell command
-/// a copy of its environment, so a command or a script it starts could
-/// otherwise read the key. pi evaluates this module again for a new session,
-/// so the key is kept on globalThis rather than read from the environment.
 export function takeProviderAPIKey(): string {
   const store = globalThis as unknown as Record<symbol, string | undefined>;
   store[API_KEY] ??= process.env.LOKALBOT_LLM_API_KEY;
   delete process.env.LOKALBOT_LLM_API_KEY;
-  // llama.cpp ignores the key; Ollama/LM Studio may want one.
   return store[API_KEY] ?? "lokalbot";
 }
 
@@ -88,10 +62,6 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
   pi.registerProvider("lokalbot", {
     baseUrl,
     api,
-    // Pi has its own HTTP client: the host's URLSession redirect policy does
-    // not cover it. Inject only this provider's supported transport hook.
-    // LokalBot writes the Agent reasoning level (already limited to what the
-    // model accepts) to a file it may change mid-task; read it per request.
     streamSimple: (selectedModel, context, options) => streams.streamSimple(
       selectedModel, context, {
         ...options,
@@ -110,10 +80,6 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
       {
         id: model,
         contextWindow,
-        // Required: pi's registerProvider path does NOT default `input`
-        // (unlike its models.json path), and pi-ai's openai-completions
-        // dereferences model.input unguarded — omitting this crashes every
-        // completion with "undefined is not an object".
         input: ["text"],
         cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
         ...(api === "openai-responses" ? RESPONSES_MODEL_TRAITS : {}),
@@ -122,8 +88,6 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
   });
 
   pi.on("tool_call", async (event, ctx) => {
-    // The exact shell command must fit in the approval payload. Never ask for
-    // approval of a prefix and then execute the unchanged, longer request.
     if (event.toolName === "bash") {
       const command = (event.input as Record<string, unknown> | undefined)?.command;
       if (typeof command !== "string" || command.length > MAX_APPROVAL_TEXT) {
@@ -136,13 +100,9 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         return { block: true, reason: `The ${event.toolName} request cannot be reviewed in full. Keep its arguments within 65,536 characters; this request was not run.` };
       }
     }
-    // pi's tools resolve relative paths against the session folder: the
-    // folder a resumed session was saved with, not necessarily this process's.
     const toolCwd = ctx.cwd || process.cwd();
     if (!requiresApproval(event.toolName, event.input, protectedRoots, toolCwd)) return undefined;
 
-    // Machine-parseable payload: the host renders exact commands and file
-    // changes, rather than relying on a model-authored summary.
     const approved = await ctx.ui.confirm(
       "lokalbot_tool_approval",
       JSON.stringify(approvalPayload(event.toolName, event.input, toolCwd)),
@@ -163,11 +123,6 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
   });
 }
 
-/// The facts LokalBot's system prompt points to: today's date, what the
-/// working folder is, and which model answers. It is the last prompt section,
-/// and pi folds a changed section into the leading system message for this
-/// provider, so the date only changes the cached prompt once a day.
-/// `servedBy` names a plan's provider when a local relay forwards to it.
 export function environmentSection(
   now: Date,
   workspaceKind: string | undefined,
@@ -191,9 +146,6 @@ export function environmentSection(
   return lines.join("\n");
 }
 
-/// A launched Agent task has approval for one origin. Reject redirects before
-/// the HTTP client can replay context or credentials, including same-origin
-/// redirects: configure the final inference endpoint instead.
 export function inferenceFetchForOrigin(endpoint: URL, implementation = globalThis.fetch) {
   if (!["http:", "https:"].includes(endpoint.protocol) || endpoint.username || endpoint.password) {
     throw new Error("Agent inference requires an HTTP(S) endpoint without URL credentials");
@@ -224,8 +176,6 @@ export function reasoningDialect(value: string | undefined): ReasoningDialect {
   return value as ReasoningDialect;
 }
 
-/// `{"level": "<ThinkReasoningLevel>"}`. Missing or unreadable: Automatic,
-/// which leaves every request exactly as pi built it.
 export function readReasoningLevel(path: string | undefined): ReasoningLevel {
   if (!path) return "automatic";
   try {
@@ -236,9 +186,6 @@ export function readReasoningLevel(path: string | undefined): ReasoningLevel {
   }
 }
 
-/// Mirrors OpenAICompatibleEngine.applyGenerationOptions for a level the host
-/// already limited to the model's (ReasoningSupport). Automatic leaves every
-/// request exactly as pi built it.
 export function applyReasoningLevel(
   payload: Record<string, unknown>,
   level: ReasoningLevel,
@@ -255,7 +202,6 @@ export function applyReasoningLevel(
         : THINKING_BUDGETS[level];
       const shaped: Record<string, unknown> = { ...payload, thinking_budget_tokens: budget };
       if (budget === 0) {
-        // A zero budget alone still opens Qwen's thinking turn.
         const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
         shaped.chat_template_kwargs = { ...kwargs, enable_thinking: false };
       }
@@ -266,16 +212,12 @@ export function applyReasoningLevel(
     case "openrouter":
       return { ...payload, reasoning: { effort } };
     case "ollama":
-      // Only gpt-oss takes a graded level; other thinking models can only be
-      // switched off, which the host limits the level to.
       return level === "off" || /gpt-oss/i.test(model) ? { ...payload, reasoning_effort: effort } : payload;
     case "generic":
       return { ...payload, reasoning_effort: effort };
   }
 }
 
-/// The Responses API takes a level as `reasoning.effort`, as
-/// ChatGPTPlanEngine sends it. Automatic leaves pi's request as built.
 export function applyResponsesReasoningLevel(
   payload: Record<string, unknown>,
   level: ReasoningLevel,
@@ -285,10 +227,6 @@ export function applyResponsesReasoningLevel(
   return { ...payload, reasoning: { ...reasoning, effort: level === "off" ? "none" : level } };
 }
 
-/// A chosen level can be one the selected model does not accept. When the
-/// server names reasoning in a 400/422, retry once: `none` becomes `low` for
-/// models that always reason; any other level falls back to the server's
-/// default. Mirrors OpenAICompatibleEngine.shouldRetryRejectedReasoningLevel.
 export function retryRejectedReasoning(implementation: typeof globalThis.fetch) {
   return async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const response = await implementation(input, init);
@@ -324,8 +262,6 @@ function isIPv4Loopback(hostname: string): boolean {
     && Number(octets[0]) === 127;
 }
 
-/// pi 1.5.2 `normalizePath` (utils/paths.js). `forTool` adds the options its
-/// file tools pass. pi's Windows drive-path conversions never apply on macOS.
 function normalizeToolPath(input: string, forTool: boolean): string {
   let normalized = input;
   if (forTool) {
@@ -339,7 +275,6 @@ function normalizeToolPath(input: string, forTool: boolean): string {
   return normalized;
 }
 
-/// pi 1.5.2 `resolveToCwd`, which its write and edit tools use.
 export function resolveToCwd(path: string, cwd: string): string {
   const normalized = normalizeToolPath(path, true);
   return isAbsolute(normalized)
@@ -347,8 +282,6 @@ export function resolveToCwd(path: string, cwd: string): string {
     : resolve(normalizeToolPath(cwd, false), normalized);
 }
 
-/// pi 1.5.2 `resolveReadPath`: a missing file is opened through a look-alike
-/// name when one exists, so a read is checked against the file pi will open.
 export function resolveReadPath(path: string, cwd: string): string {
   const resolved = resolveToCwd(path, cwd);
   if (existsSync(resolved)) return resolved;
@@ -363,7 +296,6 @@ export function resolveReadPath(path: string, cwd: string): string {
   return resolved;
 }
 
-/// The file pi's tool will open, or undefined when that is not certain.
 function requestedPath(value: unknown, toolName: string, cwd: string): string | undefined {
   if (typeof value !== "string" || !value || value.includes("\0")) return undefined;
   try {
@@ -391,9 +323,6 @@ function canonicalize(requested: string): string | undefined {
   try {
     return realpathSync(requested);
   } catch {
-    // Canonicalize the nearest existing ancestor so a path through a symlink
-    // cannot escape merely because its final component does not exist yet.
-    // A dangling link stops the walk and fails closed.
     let ancestor = requested;
     const suffix: string[] = [];
     while (!entryExists(ancestor)) {
@@ -427,21 +356,14 @@ function privateRoots(): string[] {
   });
 }
 
-/// Allowlist: a read inside the selected workspace and outside the private
-/// library is the only call that runs without asking. Every other tool asks,
-/// including MCP tools, codemode, and tools that later Pi releases add.
 function requiresApproval(toolName: string, input: unknown, protectedRoots: string[], cwd: string): boolean {
   if (toolName !== "read") return true;
   const args = (input ?? {}) as Record<string, unknown>;
   const path = canonicalPath(args.path ?? args.file_path, "read", cwd);
-  // Missing/unresolvable paths are never silently treated as in-workspace.
-  // Choosing Home or another ancestor as a workspace does not silently make
-  // the private library, server credentials, or Agent history normal files.
   return !path || protectedRoots.some((root) => isInside(path, root))
     || !isInside(path, realpathSync(process.cwd()));
 }
 
-/// The exact arguments a tool without a dedicated preview will run with.
 function argumentsText(input: unknown): string | undefined {
   try {
     return JSON.stringify(input ?? {}, null, 2);
@@ -505,7 +427,6 @@ function approvalPayload(toolName: string, input: unknown, cwd: string): Record<
       break;
     }
     default:
-      // Checked against MAX_APPROVAL_TEXT before approval is requested.
       payload.arguments = argumentsText(input);
   }
   return payload;

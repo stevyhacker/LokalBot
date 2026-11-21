@@ -16,7 +16,6 @@ final class LibraryHealthTests: XCTestCase {
         ActivityBlock(app: app, title: "", start: start, end: end)
     }
 
-    /// A healthy weekday: evaluated day Sep 29, "now" Sep 30 09:00.
     private func input(_ change: (inout LibraryHealthInput) -> Void = { _ in }) -> LibraryHealthInput {
         var value = LibraryHealthInput(
             day: DateInterval(start: date(29, 0), end: date(30, 0)),
@@ -63,8 +62,6 @@ final class LibraryHealthTests: XCTestCase {
         XCTAssertEqual(report.finding(.captureRate)?.status, .pass)
     }
 
-    /// Capture never records LokalBot itself or the lock screen, so time
-    /// there must not read as an app capture has gone silent for.
     func testCaptureRateIgnoresLokalBotsOwnWindowsAndTheLockScreen() {
         let report = evaluate(input {
             $0.blocks.append(self.block("LokalBot", date(29, 13), date(29, 14)))
@@ -74,8 +71,6 @@ final class LibraryHealthTests: XCTestCase {
         XCTAssertEqual(report.finding(.captureRate)?.status, .pass)
     }
 
-    /// With automatic transcription off, the app never repairs a missing
-    /// transcript on its own, so that is the user's choice, not a failure.
     func testFinishedRecordingsPassWhenAutomaticTranscriptionIsOff() {
         let report = evaluate(input {
             $0.automaticTranscription = false

@@ -1,7 +1,3 @@
-//! The task list (`AgentSessionTabs.swift`): a persistent catalog of tasks
-//! with lazily loaded transcripts. The four-process limit applies to running
-//! agents, never to browsing tasks or saved history.
-
 use std::path::Path;
 use std::sync::Arc;
 
@@ -55,7 +51,6 @@ pub struct TaskList {
     store: TaskStore,
     next_number: usize,
     can_persist: bool,
-    /// Something task metadata depends on changed; the owner saves soon.
     pub needs_persist: bool,
 }
 
@@ -137,8 +132,6 @@ impl TaskList {
         id
     }
 
-    // ------------------------------------------------------------ queries
-
     pub fn selected(&self) -> Option<&Tab> {
         self.tab(self.selected_id)
     }
@@ -155,7 +148,6 @@ impl TaskList {
         self.tab_mut(id).map(|t| &mut t.session)
     }
 
-    /// Pinned first, then most recently modified.
     pub fn ordered(&self) -> Vec<&Tab> {
         let mut tabs: Vec<&Tab> = self.tabs.iter().collect();
         tabs.sort_by(|a, b| {
@@ -200,8 +192,6 @@ impl TaskList {
         })
     }
 
-    // -------------------------------------------------------------- edits
-
     pub fn add_session(&mut self) -> Uuid {
         let id = self.push_new_tab();
         self.selected_id = id;
@@ -209,7 +199,6 @@ impl TaskList {
         id
     }
 
-    /// Selects a task and loads its saved transcript for browsing.
     pub fn select(&mut self, id: Uuid) {
         if self.tab(id).is_none() {
             return;
@@ -298,15 +287,10 @@ impl TaskList {
         self.persist();
     }
 
-    /// Archives (closing a task keeps its draft).
     pub fn close(&mut self, id: Uuid) {
         self.set_archived(id, true);
     }
 
-    // -------------------------------------------------------------- history
-
-    /// Saved sessions read off the UI thread are matched to tasks; sessions
-    /// without one get a task, so every saved conversation can be browsed.
     pub fn apply_history(&mut self, saved: Vec<SavedSession>) {
         for session in saved {
             if let Some(tab) = self.tabs.iter_mut().find(|t| {
@@ -345,11 +329,6 @@ impl TaskList {
         &self.store.directory
     }
 
-    // ------------------------------------------------------------- running
-
-    /// Makes room and checks a task before its runtime starts: idle runtimes
-    /// beyond the limit are parked, and a missing saved file never silently
-    /// becomes a fresh conversation.
     fn prepare_start(&mut self, id: Uuid) -> bool {
         let Some(tab) = self.tab(id) else {
             return false;
@@ -410,7 +389,6 @@ impl TaskList {
         tab.session.prepare_workspace()
     }
 
-    /// Starts a task's runtime (Reconnect).
     pub fn start(&mut self, id: Uuid) -> bool {
         if !self.prepare_start(id) {
             return false;
@@ -421,7 +399,6 @@ impl TaskList {
         true
     }
 
-    /// Sends the composer's draft, starting the task first when needed.
     pub fn submit(&mut self, id: Uuid, steer: bool) {
         let Some(tab) = self.tab(id) else { return };
         let live = tab.session.has_live_runtime();
@@ -434,7 +411,6 @@ impl TaskList {
         self.needs_persist = true;
     }
 
-    /// "Send next" on the queue, starting the task when needed.
     pub fn send_next_queued(&mut self, id: Uuid) {
         let Some(tab) = self.tab(id) else { return };
         if !tab.session.has_live_runtime() && !self.prepare_start(id) {
@@ -446,7 +422,6 @@ impl TaskList {
         self.needs_persist = true;
     }
 
-    /// "Send now" on one queued message, starting the task when needed.
     pub fn send_queued_now(&mut self, id: Uuid, prompt: Uuid) {
         let Some(tab) = self.tab(id) else { return };
         if !tab.session.has_live_runtime() && !self.prepare_start(id) {
@@ -458,7 +433,6 @@ impl TaskList {
         self.needs_persist = true;
     }
 
-    /// Opens one saved session, in the selected blank task when there is one.
     pub fn open_saved_session(&mut self, session: &SavedSession) -> Result<(), String> {
         let Some(refreshed) = history::validated(session, &self.store.directory) else {
             return Err(UNAVAILABLE.into());
@@ -491,7 +465,6 @@ impl TaskList {
         Ok(())
     }
 
-    /// An independent task through `item_id`. Existing files are unchanged.
     pub fn fork(&mut self, id: Uuid, item_id: &str) {
         let directory = self.store.directory.clone();
         let Some(tab) = self.tab(id) else { return };
@@ -538,8 +511,6 @@ impl TaskList {
         }
     }
 
-    /// App quit: every pi is asked to stop at once, then whatever is left
-    /// after `grace` is killed.
     pub fn shutdown_all(&mut self, grace: std::time::Duration) {
         self.persist();
         let processes: Vec<_> = self
@@ -556,7 +527,6 @@ impl TaskList {
         }
     }
 
-    /// Stops every task and removes saved conversations and task metadata.
     pub fn clear_saved_history(&mut self) -> anyhow::Result<()> {
         for tab in &mut self.tabs {
             tab.session.shutdown();
@@ -572,7 +542,6 @@ impl TaskList {
         Ok(())
     }
 
-    /// Routes one completion to its task.
     pub fn handle(&mut self, input: TaskInput) -> bool {
         let Some(tab) = self.tab_mut(input.task) else {
             return false;
@@ -594,7 +563,6 @@ impl TaskList {
         changed
     }
 
-    /// Writes `tasks.json` from every task's current state.
     pub fn persist(&mut self) {
         self.needs_persist = false;
         if !self.can_persist {
@@ -667,7 +635,6 @@ mod tests {
         launcher: Arc<Instant>,
         rx: async_channel::Receiver<TaskInput>,
         tx: Inbox,
-        /// Dropped last: Windows can't remove the library while it is open.
         _dir: tempfile::TempDir,
     }
 
@@ -748,11 +715,9 @@ mod tests {
             pump(&mut list, &f.rx);
         }
         assert_eq!(list.live_count(), 4);
-        // An idle, empty runtime is parked to make room.
         assert!(list.start(ids[4]));
         pump(&mut list, &f.rx);
         assert_eq!(list.live_count(), 4);
-        // With every runtime busy, a new one is refused but tasks still open.
         for id in &ids {
             if let Some(session) = list.session_mut(*id)
                 && session.has_live_runtime()

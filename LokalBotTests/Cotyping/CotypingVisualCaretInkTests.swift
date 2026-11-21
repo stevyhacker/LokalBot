@@ -2,7 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-/// A recognized line measured from its pixels.
 final class CotypingVisualCaretInkTests: XCTestCase {
     private typealias Ink = CotypingVisualCaretInk
 
@@ -11,8 +10,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
     private let baseline: CGFloat = 14
     private let font = NSFont.systemFont(ofSize: 14)
 
-    /// `text` drawn at `scale` pixels per point, with a caret bar after it and
-    /// other ink where asked. Boxes as recognition gives them: normalized, y up.
     private func sample(
         _ text: String, scale: CGFloat = 2, caretX: CGFloat? = nil, background: CGColor = .white,
         extraInk: CGRect? = nil
@@ -35,7 +32,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
         if let extraInk { context.fill(extraInk) }
         let bitmap = try XCTUnwrap(Ink.Bitmap(try XCTUnwrap(context.makeImage())))
         let width = CotypingInlineGhostLayout.width(of: text, font: font)
-        // A box as loose as accurate recognition's: a few points past the text.
         let box = CGRect(x: (inset - 1) / size.width, y: (baseline + font.descender - 1) / size.height,
                          width: (width + 5) / size.width, height: (font.ascender - font.descender + 2) / size.height)
         return (bitmap, box, box)
@@ -68,7 +64,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
         XCTAssertEqual(CGFloat(found.columns.upperBound) / 2, wordEnd, accuracy: 1)
     }
 
-    /// A caret right after the letter is the same run of ink as the letter.
     func testACaretTouchingTheLastLetterIsToldFromIt() throws {
         let word = "Сегодня вечером"
         let caretX = inset + CotypingInlineGhostLayout.width(of: word, font: font) - 0.5
@@ -78,7 +73,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
         XCTAssertLessThanOrEqual(found.columns.upperBound, caret.lowerBound)
     }
 
-    /// Thin letters, and letters that reach below the baseline, are text.
     func testLettersAtTheEndAreNotTakenForACaret() throws {
         for text in ["Иди на рај", "Hello ball", "Купи кафу и ф", "Видео сам р", "Откуда 1", "Они су и", "Такође у", "Ћао, кућа ћ"] {
             let found = try XCTUnwrap(measure(try sample(text), lastTyped: text.last), text)
@@ -95,7 +89,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
         }
     }
 
-    /// As tall as a caret and reaching as low, but not a straight bar.
     func testABracketOrASlashAtTheEndIsNotACaret() throws {
         for text in ["Видимо се (сутра)", "Видимо се [сутра]", "Видимо се и/или/"] {
             let found = try XCTUnwrap(measure(try sample(text), lastTyped: text.last), text)
@@ -103,7 +96,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
         }
     }
 
-    /// Past the word's box and not shaped like a caret: an icon, not the text.
     func testInkPastTheLastWordIsNotText() throws {
         let text = "Сегодня"
         let end = inset + CotypingInlineGhostLayout.width(of: text, font: font)
@@ -120,7 +112,6 @@ final class CotypingVisualCaretInkTests: XCTestCase {
         XCTAssertNil(found.caretColumns)
     }
 
-    /// Without a flat background, what is ink cannot be told from what is behind it.
     func testALineOverAPictureIsNotMeasured() throws {
         let width = 800, height = 80
         var pixels = [UInt8](repeating: 0, count: width * height)

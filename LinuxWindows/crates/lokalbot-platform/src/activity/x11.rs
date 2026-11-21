@@ -1,7 +1,3 @@
-//! X11 through EWMH: `_NET_ACTIVE_WINDOW`, `_NET_WM_NAME`/`WM_NAME`,
-//! `WM_CLASS` and `_NET_WM_PID` (or the X-Resource extension), and idle time
-//! from MIT-SCREEN-SAVER.
-
 use anyhow::Context as _;
 use x11rb::connection::{Connection, RequestConnection as _};
 use x11rb::errors::{ConnectionError, ReplyError};
@@ -12,7 +8,6 @@ use x11rb::rust_connection::RustConnection;
 
 use super::linux::{FocusedWindow, IdleProbe, WindowProbe};
 
-/// Longest property read, in 32-bit units (titles are cut at 8 KiB).
 const MAX_PROPERTY_WORDS: u32 = 2048;
 
 struct Atoms {
@@ -61,7 +56,6 @@ impl Session {
         })
     }
 
-    /// A property, or `None` when it is missing or the window has gone.
     fn property(
         &self,
         window: Window,
@@ -98,7 +92,6 @@ impl Session {
                 if reply.type_ == self.atoms.utf8_string {
                     String::from_utf8_lossy(&reply.value).into_owned()
                 } else {
-                    // STRING is Latin-1; COMPOUND_TEXT is Latin-1 with escapes.
                     decode_compound_text(&reply.value)
                 }
             })
@@ -126,7 +119,6 @@ impl Session {
         if from_property.is_some() || !self.has_res {
             return Ok(from_property);
         }
-        // Apps that do not set _NET_WM_PID: ask the server who owns the window.
         let spec = ClientIdSpec {
             client: window,
             mask: ClientIdMask::LOCAL_CLIENT_PID,
@@ -161,7 +153,6 @@ impl Session {
         }))
     }
 
-    /// Class (or instance) and title of every managed window.
     fn client_titles(&self) -> Result<Vec<(String, String)>, ConnectionError> {
         let windows: Vec<Window> = self
             .property(self.root, self.atoms.net_client_list, AtomEnum::WINDOW)?
@@ -190,9 +181,6 @@ impl Session {
     }
 }
 
-/// Decodes ICCCM `COMPOUND_TEXT` (and plain `STRING`): Latin-1 by default,
-/// with UTF-8 segments between `ESC % G` and `ESC % @`, as Xlib writes them.
-/// Other character sets become U+FFFD.
 fn decode_compound_text(bytes: &[u8]) -> String {
     const ESC: u8 = 0x1b;
     let mut out = String::with_capacity(bytes.len());
@@ -202,7 +190,6 @@ fn decode_compound_text(bytes: &[u8]) -> String {
     let mut i = 0;
     while i < bytes.len() {
         if bytes[i] == ESC {
-            // ESC, intermediate bytes 0x20–0x2F, one final byte 0x30–0x7E.
             let mut end = i + 1;
             while end < bytes.len() && (0x20..=0x2f).contains(&bytes[end]) {
                 end += 1;
@@ -213,7 +200,6 @@ fn decode_compound_text(bytes: &[u8]) -> String {
                 utf8.clear();
             }
             in_utf8 = sequence == b"%G";
-            // ASCII or Latin-1 designations keep the default decoding.
             foreign = !(in_utf8 || sequence == b"%@" || sequence == b"(B" || sequence == b"-A");
             i = end + 1;
             continue;
@@ -234,7 +220,6 @@ fn decode_compound_text(bytes: &[u8]) -> String {
     out
 }
 
-/// Reconnects after the X server goes away (for example a restarted session).
 pub(super) struct X11Probe {
     session: Option<Session>,
 }
@@ -269,7 +254,6 @@ impl WindowProbe for X11Probe {
     }
 }
 
-/// Every window's title, for meeting detection.
 pub(super) struct ClientList {
     session: Option<Session>,
 }

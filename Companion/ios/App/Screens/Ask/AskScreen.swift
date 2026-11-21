@@ -1,8 +1,6 @@
 import LokalBotCompanionKit
 import SwiftUI
 
-/// Conversations beside the open one where there is room; on iPhone the
-/// conversation opens directly and Back lists the others.
 struct AskSplit: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppNavigator.self) private var navigator
@@ -22,7 +20,6 @@ struct AskSplit: View {
             }
         }
         .task(id: session.revision) { await model.load(session) }
-        // Back from the lock screen or another app: pick up an answer the Mac kept writing.
         .onChange(of: scenePhase) { _, phase in
             if phase == .active { Task { await model.resumeWaiting(session) } }
         }
@@ -30,7 +27,6 @@ struct AskSplit: View {
         .onChange(of: navigator.newQuestionRequest) { consumeRequests() }
     }
 
-    /// "Ask About…" buttons and ⌘N start a new question, scoped and drafted.
     private func consumeRequests() {
         if navigator.newQuestionRequest != handledRequest {
             handledRequest = navigator.newQuestionRequest
@@ -109,8 +105,6 @@ struct ConversationList: View {
     }
 }
 
-/// The Mac's editorial reading layout: no bubbles, the question in semibold,
-/// the answer with numbered teal sources, and the composer docked below.
 struct AskConversationView: View {
     @Environment(CompanionSession.self) private var session
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -209,7 +203,6 @@ struct AskEmptyState: View {
     }
 }
 
-/// The composer, docked: Liquid Glass on iOS 26, a material before it.
 struct AskComposer: View {
     @Environment(CompanionSession.self) private var session
     let model: AskModel
@@ -249,7 +242,6 @@ struct AskComposer: View {
         .padding(.bottom, 8)
         .frame(maxWidth: LBTokens.Spacing.readingMaxWidth)
         .frame(maxWidth: .infinity)
-        // Answers fade out under the dock, so the status line stays readable.
         .background {
             LinearGradient(stops: [.init(color: Color(uiColor: .systemBackground).opacity(0), location: 0),
                                    .init(color: Color(uiColor: .systemBackground).opacity(0.92), location: 0.45)],

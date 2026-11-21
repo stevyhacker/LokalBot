@@ -3,14 +3,6 @@ import AVFoundation
 import SQLite3
 import CryptoKit
 
-/// Plants a self-contained LokalBot storage root on disk for one UI test run.
-/// Mirrors `StorageManager`'s on-disk layout
-/// (`meetings/YYYY/MM/dd-slug/{meta.json, transcript.json, transcript.md, summary.md}`)
-/// without `@testable`-importing the app — the UI test bundle runs out-of-process,
-/// so it stays decoupled and only the file shape matters.
-///
-/// Every meeting is deterministic: stable UUIDs, stable text, and dates anchored
-/// to local midday so the grouping headers always read "TODAY" / "YESTERDAY".
 enum SyntheticFixture {
 
     static let todayDigestMarker = "Current-day digest marker"
@@ -41,8 +33,6 @@ enum SyntheticFixture {
 
     static func makeNotesPartial(for meeting: Meeting, in library: Library) throws {
         let folder = library.folder(for: meeting)
-        // These synthetic transcripts contain only engine and plain segments,
-        // so their canonical encoding is the sorted persisted JSON object.
         let transcript = try JSONSerialization.jsonObject(with: Data(contentsOf: folder.appendingPathComponent("transcript.json")))
         let canonical = try JSONSerialization.data(withJSONObject: transcript, options: [.sortedKeys])
         let revision = SHA256.hash(data: canonical).map { String(format: "%02x", $0) }.joined()
@@ -59,33 +49,23 @@ enum SyntheticFixture {
         for name in ["summary.md", "outcomes.json"] { try FileManager.default.removeItem(at: folder.appendingPathComponent(name)) }
     }
 
-    /// Static handle on one planted fixture: the tmp `root` to point
-    /// `LOKALBOT_STORAGE_ROOT` at, plus the three meetings the tests assert on.
     struct Library {
         let root: URL
         let designReview: Meeting
         let standup: Meeting
         let planning: Meeting
 
-        /// The full meeting set, in display order (newest first).
         var meetings: [Meeting] { [designReview, standup, planning] }
 
-        /// On-disk folder for a planted meeting, mirroring
-        /// `Meeting.folderURL(in:)` (`root/relativePath`). Lets a test assert
-        /// that a delete actually reached the filesystem, not just the list.
         func folder(for meeting: Meeting) -> URL {
             root.appendingPathComponent(meeting.relativePath, isDirectory: true)
         }
 
-        /// Remove every byte we planted — call from `tearDown` so a leftover
-        /// fixture never pollutes the next run's storage root.
         func cleanUp() {
             try? FileManager.default.removeItem(at: root)
         }
     }
 
-    /// Lightweight meeting descriptor — the UI tests assert against these
-    /// fields, so all the strings that show up on screen live in one place.
     struct Meeting {
         let id: UUID
         let title: String
@@ -107,13 +87,11 @@ enum SyntheticFixture {
         struct Segment {
             let start: TimeInterval
             let end: TimeInterval
-            let speaker: String   // "me" | "them"
+            let speaker: String
             let text: String
         }
     }
 
-    /// Build a fresh tmp library and write every fixture file to disk.
-    /// Caller passes the resulting `root` to the app as `LOKALBOT_STORAGE_ROOT`.
     static func plant(includeActivity: Bool = true) throws -> Library {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("LokalBotUITests-\(UUID().uuidString)", isDirectory: true)
@@ -131,8 +109,8 @@ enum SyntheticFixture {
             id: UUID(uuidString: "11111111-1111-4111-8111-111111111111")!,
             title: "Design review meeting",
             appName: "Zoom",
-            startedAt: todayAnchor.addingTimeInterval(-3_600),          // 11:00 local
-            endedAt: todayAnchor.addingTimeInterval(-3_600 + 25 * 60),  // 25-min meeting
+            startedAt: todayAnchor.addingTimeInterval(-3_600),
+            endedAt: todayAnchor.addingTimeInterval(-3_600 + 25 * 60),
             relativePath: relativePath(for: todayAnchor.addingTimeInterval(-3_600),
                                        slug: "design-review-meeting"),
             hasSystemTrack: true,
@@ -168,8 +146,8 @@ enum SyntheticFixture {
             id: UUID(uuidString: "22222222-2222-4222-8222-222222222222")!,
             title: "Engineering standup",
             appName: "Slack",
-            startedAt: todayAnchor.addingTimeInterval(-7_200),          // 10:00 local
-            endedAt: todayAnchor.addingTimeInterval(-7_200 + 15 * 60),  // 15-min standup
+            startedAt: todayAnchor.addingTimeInterval(-7_200),
+            endedAt: todayAnchor.addingTimeInterval(-7_200 + 15 * 60),
             relativePath: relativePath(for: todayAnchor.addingTimeInterval(-7_200),
                                        slug: "engineering-standup"),
             hasSystemTrack: false,
@@ -192,7 +170,7 @@ enum SyntheticFixture {
             title: "Q3 roadmap planning",
             appName: "Manual",
             startedAt: yesterday,
-            endedAt: yesterday.addingTimeInterval(35 * 60),     // 35-min planning
+            endedAt: yesterday.addingTimeInterval(35 * 60),
             relativePath: relativePath(for: yesterday, slug: "q3-roadmap-planning"),
             hasSystemTrack: false,
             transcript: [
@@ -220,12 +198,6 @@ enum SyntheticFixture {
                        standup: standup, planning: planning)
     }
 
-    /// Seed a few `activity_blocks` for *today* straight into the shared
-    /// SQLite db so the Timeline screen has real data to render. The app
-    /// creates this table `IF NOT EXISTS` at launch, so a pre-created one is
-    /// compatible. Uses the SQLite C API directly — the bundle stays
-    /// decoupled from the app target, mirroring how the rest of the fixture
-    /// writes raw on-disk shape.
     private static func seedActivity(under root: URL, today: Date) {
         let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
         let dbPath = root.appendingPathComponent("lokalbotv3.sqlite").path
@@ -239,7 +211,6 @@ enum SyntheticFixture {
                 start REAL NOT NULL, end REAL NOT NULL);
             """, nil, nil, nil)
         let dayStart = Calendar.current.startOfDay(for: today).timeIntervalSince1970
-        // (app, title, startMinuteOfDay, endMinuteOfDay) — anchored to today.
         let rows: [(String, String, Double, Double)] = [
             ("Xcode", "TimelineView.swift", 9 * 60, 10 * 60 + 30),
             ("Safari", "Pull request #42", 10 * 60 + 30, 11 * 60 + 15),
@@ -259,9 +230,6 @@ enum SyntheticFixture {
         }
     }
 
-    /// Give adjacent Timeline days unmistakably different persisted digests.
-    /// The date-change UI test can then prove that the detail column refreshed
-    /// the journal document, not merely the track or its date picker.
     private static func seedDayDigests(under root: URL, today: Date,
                                        previousDay: Date) throws {
         let journal = root.appendingPathComponent("journal", isDirectory: true)
@@ -307,8 +275,6 @@ enum SyntheticFixture {
                       parts.year ?? 0, parts.month ?? 0, parts.day ?? 0)
     }
 
-    // MARK: - Helpers
-
     private static let isoFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime]
@@ -327,7 +293,6 @@ enum SyntheticFixture {
         let folder = root.appendingPathComponent(meeting.relativePath, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
 
-        // meta.json — must round-trip through StorageManager.loadMeetings()
         let participantNames = meeting.calendarParticipants
             .map { jsonString($0.name) }
             .joined(separator: ", ")
@@ -361,7 +326,6 @@ enum SyntheticFixture {
         try meta.write(to: folder.appendingPathComponent("meta.json"),
                        atomically: true, encoding: .utf8)
 
-        // transcript.json — consumed by SearchIndex.reindex and the meeting workspace.
         let segments = meeting.transcript.map { segment -> String in
             """
               {
@@ -383,24 +347,18 @@ enum SyntheticFixture {
         try transcriptJSON.write(to: folder.appendingPathComponent("transcript.json"),
                                  atomically: true, encoding: .utf8)
 
-        // Human-readable transcript.md (mirrors ProcessingPipeline.write).
         let markdown = meeting.transcript.map { segment in
             "**[\(stamp(segment.start))] \(segment.speaker.capitalized):** \(segment.text)"
         }.joined(separator: "\n\n")
         try markdown.write(to: folder.appendingPathComponent("transcript.md"),
                            atomically: true, encoding: .utf8)
 
-        // summary.md — rendered by MarkdownText in the Summary tab.
         try meeting.summaryMarkdown.write(to: folder.appendingPathComponent("summary.md"),
                                           atomically: true, encoding: .utf8)
 
-        // A short readable recovery track makes the real meeting player part
-        // of the UI fixture without reaching for microphone or system audio.
         try writeAudioFixture(to: folder.appendingPathComponent("mic.live.caf"))
         if meeting.hasSystemTrack { try writeAudioFixture(to: folder.appendingPathComponent("system.live.caf")) }
 
-        // Grounded outcome fixtures drive the redesigned Today, Timeline,
-        // and full Meetings follow-through workspace.
         try outcomeJSON(for: meeting).write(
             to: folder.appendingPathComponent("outcomes.json"),
             atomically: true,
@@ -527,7 +485,6 @@ enum SyntheticFixture {
         """
     }
 
-    /// Minimal JSON-string escaper for the few control characters we ever emit.
     private static func jsonString(_ raw: String) -> String {
         var escaped = ""
         escaped.reserveCapacity(raw.count + 2)

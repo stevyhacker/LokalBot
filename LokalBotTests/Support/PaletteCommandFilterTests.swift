@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Quick Recall lists the commands the ⌘K palette ran, and matches typed
-/// words at least as loosely as the palette did.
 final class PaletteCommandFilterTests: XCTestCase {
     private let commands = [
         PaletteCommand(id: "record", icon: "record.circle", title: "Record now", subtitle: "Recording",
@@ -39,15 +37,11 @@ final class PaletteCommandFilterTests: XCTestCase {
         XCTAssertEqual(ids("failover", .wordPrefix), [])
     }
 
-    /// Quick Recall finds every command the palette found. Commands whose
-    /// words start with what was typed come first, so Return runs the
-    /// likeliest one.
     func testQuickRecallRanksWordStartsBeforeOtherMatches() {
         func ranked(_ query: String) -> [String] {
             PaletteCommandFilter.ranked(commands, query: query).map(\.id)
         }
         XCTAssertEqual(ranked("ion"), ["dictation"], "as forgiving as the palette")
-        // Quick Recall lists the two parts apart: only word-start matches lead.
         let split = PaletteCommandFilter.split(commands, query: "ion")
         XCTAssertEqual(split.leading.map(\.id), [])
         XCTAssertEqual(split.loose.map(\.id), ["dictation"])

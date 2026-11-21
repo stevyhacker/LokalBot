@@ -1,8 +1,5 @@
 import Foundation
 
-/// A screen result explicitly attached to the next Ask question. Keeping the
-/// OCR excerpt with the stable snapshot id avoids a second text query and lets
-/// the local text model reason over the selected pixels' captured text.
 struct ScreenAskContext: Equatable, Identifiable {
     let snapshotID: Int64
     let timestamp: Date
@@ -28,8 +25,6 @@ struct ScreenAskContext: Equatable, Identifiable {
         snippet = ocrText
     }
 
-    /// Adds primary-evidence context for the model while the UI can still show
-    /// only the user's concise question in the transcript.
     static func withinDay(_ contexts: [Self], day: Date?, calendar: Calendar = .current) -> [Self] {
         guard let day else { return contexts }
         return contexts.filter { calendar.isDate($0.timestamp, inSameDayAs: day) }

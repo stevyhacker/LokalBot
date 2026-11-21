@@ -24,23 +24,16 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 
-/** A Mac advertising `_lokalbot._tcp` on the current network. */
 data class DiscoveredMac(val serviceName: String, val host: String, val port: Int, val fingerprint: String?) {
     val address: String get() = if (':' in host) "[$host]:$port" else "$host:$port"
 }
 
-/**
- * Finds paired Macs on the local network with NSD (Bonjour). The Rust core
- * takes the resolved "host:port" strings; the Mac's key, not its address,
- * proves it is the right Mac.
- */
 class MacDiscovery(context: Context) {
     private val nsd = context.getSystemService(NsdManager::class.java)
     private val wifi = context.applicationContext.getSystemService(WifiManager::class.java)
     private val executor = Executors.newSingleThreadExecutor()
     private val legacyResolve = Mutex()
 
-    /** Browses for [timeout] and returns the addresses to try, best first. */
     suspend fun addresses(fingerprint: String?, timeout: Duration = 2500.milliseconds): List<String> {
         val found = mutableListOf<DiscoveredMac>()
         withTimeoutOrNull(timeout) { services().collect { found += it } }
@@ -111,7 +104,6 @@ class MacDiscovery(context: Context) {
     }
 
     private fun toMac(info: NsdServiceInfo, hosts: List<InetAddress>): DiscoveredMac? {
-        // Prefer IPv4; link-local IPv6 needs a scope the Rust core can't use.
         val host = hosts.sortedBy { if (it is Inet6Address) 1 else 0 }
             .firstOrNull { !(it is Inet6Address && it.isLinkLocalAddress) }
             ?.hostAddress ?: return null
@@ -122,7 +114,6 @@ class MacDiscovery(context: Context) {
     companion object {
         const val SERVICE_TYPE = "_lokalbot._tcp"
 
-        /** The paired Mac first; Macs advertising a different key are left out. */
         fun orderedAddresses(found: List<DiscoveredMac>, fingerprint: String?): List<String> {
             val usable = found.filter { fingerprint == null || it.fingerprint == null || it.fingerprint.equals(fingerprint, ignoreCase = true) }
             return usable.sortedBy { if (fingerprint != null && it.fingerprint.equals(fingerprint, ignoreCase = true)) 0 else 1 }

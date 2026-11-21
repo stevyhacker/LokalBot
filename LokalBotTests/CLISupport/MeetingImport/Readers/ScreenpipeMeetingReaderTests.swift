@@ -12,7 +12,6 @@ final class ScreenpipeMeetingReaderTests: XCTestCase {
         return url
     }
 
-    /// A Screenpipe data folder holding today's database as `db.sqlite`.
     private func currentDataFolder() throws -> (folder: URL, database: URL) {
         let folder = try temporaryDirectory("Screenpipe Data").appendingPathComponent(".screenpipe", isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -250,8 +249,6 @@ final class ScreenpipeMeetingReaderTests: XCTestCase {
     }
 }
 
-/// Synthetic Screenpipe databases with the columns Screenpipe's migrations
-/// create (crates/screenpipe-db/src/migrations). Nothing here is real data.
 private enum ScreenpipeFixtures {
     struct Failure: Error, CustomStringConvertible {
         var description: String
@@ -265,7 +262,6 @@ private enum ScreenpipeFixtures {
         INSERT INTO _sqlx_migrations VALUES (20260225000000, 'create meetings', '2026-02-25 09:00:00', 1, x'00', 1);
         """
 
-    /// Today's schema; `archived` adds the columns compressed storage adds.
     static func schema(archived: Bool = false) -> String {
         let archive = archived
             ? ", _archive_file INTEGER, _archive_mask INTEGER NOT NULL DEFAULT 1, _archive_generation INTEGER NOT NULL DEFAULT 1"
@@ -310,8 +306,6 @@ private enum ScreenpipeFixtures {
         - Keep the Team plan
         """
 
-    /// A current database: four meetings (one still open, one empty), live
-    /// captions, background lines, and audio from before meetings existed.
     static func writeCurrent(to url: URL) throws {
         let mic = "MacBook Pro Microphone"
         let system = "System Audio"
@@ -358,9 +352,6 @@ private enum ScreenpipeFixtures {
             """)
     }
 
-    /// A 2024 database: no meetings, speakers, or segment times; the device
-    /// columns hold their defaults, so only chunk names tell the devices
-    /// apart. One timestamp is unix seconds.
     static func writeOld(to url: URL) throws {
         try execute(url, """
             CREATE TABLE audio_chunks (id INTEGER PRIMARY KEY AUTOINCREMENT, file_path TEXT NOT NULL, timestamp TIMESTAMP);
@@ -379,9 +370,6 @@ private enum ScreenpipeFixtures {
 
     static let generation = "9f1c2d3e-4b5a-4c6d-8e7f-0a1b2c3d4e5f"
 
-    /// A data folder after Screenpipe upgraded its storage: `storage.json`,
-    /// the index (one meeting's text compressed away, one resident, one
-    /// compressed and nowhere else), and the original `db.sqlite` it kept.
     static func writeUpgradedFolder(to folder: URL) throws {
         let storage = folder.appendingPathComponent("storage/\(generation)", isDirectory: true)
         try FileManager.default.createDirectory(at: storage, withIntermediateDirectories: true)
@@ -416,17 +404,14 @@ private enum ScreenpipeFixtures {
             """)
     }
 
-    /// Not a Screenpipe database: SQLite without its tables.
     static func writeOtherApp(to url: URL) throws {
         try execute(url, "CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT); INSERT INTO notes (body) VALUES ('hello');")
     }
 
-    /// A SQLite header followed by nothing SQLite can use.
     static func writeBroken(to url: URL) throws {
         try (Data("SQLite format 3\u{0}".utf8) + Data(repeating: 0, count: 200)).write(to: url)
     }
 
-    /// What Screenpipe's vault leaves when it locks a database.
     static func writeLocked(to url: URL) throws {
         try (Data("SPVAULT1".utf8) + Data(repeating: 7, count: 64)).write(to: url)
     }

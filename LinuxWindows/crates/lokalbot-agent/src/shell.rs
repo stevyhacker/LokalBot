@@ -1,37 +1,17 @@
-//! Which shell the agent's command tool uses.
-//!
-//! On Linux pi runs `/bin/bash -c` (then `bash` on PATH, then `sh`).
-//!
-//! On Windows pi 1.5.2 looks for Bash in this order: the `shellPath`
-//! setting, Git Bash under `%ProgramFiles%` and `%ProgramFiles(x86)%`, then
-//! any `bash.exe` on PATH; without one, every command fails. The first
-//! `bash.exe` on PATH is often WSL's launcher in `System32`, which would run
-//! commands inside a Linux distribution with different files and tools. So
-//! LokalBot resolves the shell itself: Git Bash (or another Bash such as
-//! MSYS2 or Cygwin on PATH, never a WSL launcher) is pinned with `shellPath`
-//! in LokalBot's private pi settings; with no Bash at all the agent gets
-//! pi's PowerShell tool instead, and the approval card shows each PowerShell
-//! command exactly as it does a Bash command.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ShellChoice {
-    /// pi's own default (Linux).
     Default,
-    /// This Bash, pinned through `shellPath`.
     Bash(PathBuf),
-    /// pi's `powershell` tool in place of `bash`.
     PowerShell,
 }
 
-/// The tools pi gets when commands run in PowerShell.
 pub const POWERSHELL_TOOLS: [&str; 4] = ["read", "powershell", "edit", "write"];
 
 impl ShellChoice {
-    /// What this computer's agent uses.
     pub fn detect() -> ShellChoice {
         #[cfg(windows)]
         {
@@ -43,7 +23,6 @@ impl ShellChoice {
         }
     }
 
-    /// `--tools` for the launch, when the default set must change.
     pub fn tools(&self) -> Option<&'static [&'static str]> {
         match self {
             ShellChoice::PowerShell => Some(&POWERSHELL_TOOLS),
@@ -51,7 +30,6 @@ impl ShellChoice {
         }
     }
 
-    /// One sentence for the setup card and the task's access details.
     pub fn description(&self) -> String {
         match self {
             ShellChoice::Default => "Commands run in Bash.".into(),
@@ -60,8 +38,6 @@ impl ShellChoice {
         }
     }
 
-    /// Writes (or clears) `shellPath` in pi's settings in `pi_config`,
-    /// keeping any other keys.
     pub fn apply(&self, pi_config: &Path) -> Result<()> {
         let file = pi_config.join("settings.json");
         let mut settings: serde_json::Map<String, serde_json::Value> = std::fs::read(&file)
@@ -92,7 +68,6 @@ impl ShellChoice {
     }
 }
 
-/// Git Bash, then a non-WSL `bash.exe` on PATH.
 #[cfg(windows)]
 fn windows_bash() -> Option<PathBuf> {
     let program_files = ["ProgramFiles", "ProgramFiles(x86)"]
@@ -110,7 +85,6 @@ fn windows_bash() -> Option<PathBuf> {
         .find(|candidate| candidate.is_file())
 }
 
-/// `System32\bash.exe` and the Store's `WindowsApps\bash.exe` start WSL.
 #[cfg_attr(not(windows), allow(dead_code))]
 fn is_wsl_launcher(candidate: &Path) -> bool {
     let lower = candidate
@@ -164,7 +138,6 @@ mod tests {
         let written: serde_json::Value =
             serde_json::from_slice(&std::fs::read(&file).unwrap()).unwrap();
         assert!(written.get("shellPath").is_none());
-        // Linux writes nothing when there is nothing to change.
         let empty = tempfile::tempdir().unwrap();
         ShellChoice::Default.apply(empty.path()).unwrap();
         assert!(!empty.path().join("settings.json").exists());

@@ -1,8 +1,3 @@
-//! Action items across meetings: the user's corrections layered over the
-//! extracted outcomes (`MeetingOutcomeProjection.swift`), threads of the same
-//! commitment (`ActionThreads.swift`), Today's attention order and the
-//! correction workflow (`OutcomeIndex.swift`).
-
 use std::collections::{HashMap, HashSet};
 
 use anyhow::{Result, bail};
@@ -12,16 +7,9 @@ use uuid::Uuid;
 use crate::library::Library;
 use crate::model::*;
 
-/// Clustering never joins mentions more than 30 days apart.
 pub const THREAD_MAXIMUM_SPAN_DAYS: i64 = 30;
-/// "Due soon" in the attention order.
 pub const DUE_SOON_WINDOW_DAYS: u64 = 7;
 
-/// A user correction of one extracted action.
-///
-/// `None` leaves a field as it is. `text: Some("")` reverts to the extracted
-/// text. `owner`/`due`: `Some(None)` (or a blank string) clears the value
-/// explicitly ("no owner", "no due date"), `Some(Some(value))` overrides it.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ActionCorrection {
     pub text: Option<String>,
@@ -29,17 +17,14 @@ pub struct ActionCorrection {
     pub due: Option<Option<String>>,
 }
 
-/// One meeting's outcomes with the user's saved state.
 #[derive(Clone, Debug, PartialEq)]
 pub struct OutcomeProjection {
     pub meeting: Meeting,
-    /// Prioritized (`prioritizingActionItems`).
     pub outcomes: MeetingOutcomes,
     pub state: OutcomeState,
 }
 
 impl OutcomeProjection {
-    /// Every action with corrections applied, in display order.
     pub fn action_references(&self) -> Vec<ActionReference> {
         self.outcomes
             .action_items
@@ -48,7 +33,6 @@ impl OutcomeProjection {
             .collect()
     }
 
-    /// Outcomes with every action's corrections applied.
     pub fn corrected_outcomes(&self) -> MeetingOutcomes {
         let mut result = self.outcomes.clone();
         result.action_items = self
@@ -129,10 +113,6 @@ fn reference(
     reference
 }
 
-/// What the Windows/Linux correction sheet saved for "You" in v0.11.0–v0.11.5:
-/// the interface word for "Me", which nothing reads as the user. Each word
-/// counts only in the language that wrote it; elsewhere "Mimi", "Saya" or
-/// "Moi" is more likely somebody's name.
 const TRANSLATED_ME_OWNERS: &[(&str, &str)] = &[
     ("zh-Hans", "我"),
     ("zh-Hant", "我"),
@@ -158,8 +138,6 @@ const TRANSLATED_ME_OWNERS: &[(&str, &str)] = &[
     ("sr-Latn", "ja"),
 ];
 
-/// A saved owner override, with v0.11's translated "Me" read back as `Me`
-/// under the interface language that wrote it. The file keeps the word.
 fn saved_owner_override(owner: &str, language: &str) -> String {
     if TRANSLATED_ME_OWNERS.contains(&(language, owner.trim())) {
         "Me".into()
@@ -167,8 +145,6 @@ fn saved_owner_override(owner: &str, language: &str) -> String {
         owner.to_string()
     }
 }
-
-// ------------------------------------------------------------------ threads
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 struct SourceKey {
@@ -189,8 +165,6 @@ fn newest_first(a: &ActionReference, b: &ActionReference) -> std::cmp::Ordering 
         .then_with(|| a.id.cmp(&b.id))
 }
 
-/// Joins equal canonical commitments across meetings (`ActionThreadClusterer`).
-/// Unclusterable references (excluded, generic, ownerless) become threads of one.
 pub fn cluster_threads(references: Vec<ActionReference>) -> Vec<ActionThread> {
     let mut sorted = references;
     sorted.sort_by(newest_first);
@@ -204,7 +178,6 @@ pub fn cluster_threads(references: Vec<ActionReference>) -> Vec<ActionThread> {
             .as_ref()
             .and_then(|k| candidates.get(k).cloned())
             .unwrap_or_default();
-        // Newest first, so an expired group never becomes a candidate again.
         matching.retain(|&index| groups[index].latest - reference.meeting_started_at <= span);
         match matching
             .iter()
@@ -242,7 +215,6 @@ pub fn cluster_threads(references: Vec<ActionReference>) -> Vec<ActionThread> {
     threads
 }
 
-/// The first element with the greatest key (Swift's `max(by:)`).
 fn first_max_by_key<T, K: Ord>(
     items: impl IntoIterator<Item = T>,
     key: impl Fn(&T) -> K,
@@ -303,7 +275,6 @@ fn source_key(reference: &ActionReference) -> Option<SourceKey> {
         return None;
     }
     let text = canonical_source_text(&reference.action.display_text());
-    // Short generic commitments recur naturally and are unsafe to merge.
     if significant_tokens(&text).len() < 3 {
         return None;
     }
@@ -325,7 +296,6 @@ fn source_key(reference: &ActionReference) -> Option<SourceKey> {
     })
 }
 
-/// Folded text without harmless leading phrases ("I will", "please").
 pub fn canonical_source_text(text: &str) -> String {
     let folded = crate::ids::fold(&text.replace('’', "'"));
     let trimmed = folded.trim_matches(|c: char| c.is_whitespace() || matches!(c, '.' | '!' | '?'));
@@ -339,7 +309,6 @@ pub fn canonical_source_text(text: &str) -> String {
     words.join(" ")
 }
 
-/// Folded alphanumeric words joined by spaces (`OutcomeTextSimilarity.normalized`).
 pub fn normalized_words(text: &str) -> String {
     crate::ids::fold(text)
         .split(|c: char| !c.is_alphanumeric())
@@ -360,8 +329,6 @@ fn significant_tokens(text: &str) -> HashSet<String> {
         .collect()
 }
 
-/// Overdue work first, then work due within a week (each by due day), then
-/// the rest in their existing order (`ActionAttentionOrder`).
 pub fn attention_sorted(mut threads: Vec<ActionThread>, today: NaiveDate) -> Vec<ActionThread> {
     let soon = today
         .checked_add_days(Days::new(DUE_SOON_WINDOW_DAYS))
@@ -390,10 +357,7 @@ fn today() -> NaiveDate {
     Local::now().date_naive()
 }
 
-// ------------------------------------------------------------------ library
-
 impl Library {
-    /// Outcomes plus saved state for one meeting, or `None` without outcomes.
     pub fn outcome_projection(&self, meeting: &Meeting) -> Result<Option<OutcomeProjection>> {
         let Some(outcomes) = self.outcomes(meeting)? else {
             return Ok(None);
@@ -412,7 +376,6 @@ impl Library {
         }))
     }
 
-    /// One meeting's actions with corrections applied, in display order.
     pub fn meeting_actions(&self, meeting: &Meeting) -> Result<Vec<ActionReference>> {
         Ok(self
             .outcome_projection(meeting)?
@@ -420,8 +383,6 @@ impl Library {
             .unwrap_or_default())
     }
 
-    /// Every action from meetings started in the last `days` days (all when
-    /// `None`). The sample meeting's actions stay on its own page.
     pub fn action_references(&self, days: Option<u32>) -> Result<Vec<ActionReference>> {
         let cutoff = days.map(|d| Utc::now() - chrono::Duration::days(i64::from(d.max(1))));
         let mut out = Vec::new();
@@ -437,14 +398,10 @@ impl Library {
         Ok(out)
     }
 
-    /// Action threads over meetings from the last `days` days, newest first.
     pub fn action_threads(&self, days: Option<u32>) -> Result<Vec<ActionThread>> {
         Ok(cluster_threads(self.action_references(days)?))
     }
 
-    /// The user's open threads. `None`: Today's list in attention order
-    /// (overdue, due within 7 days, the rest). `Some(day)`: threads mentioned
-    /// in a meeting on that local day, newest first (Timeline's day view).
     pub fn needs_attention(
         &self,
         day: Option<NaiveDate>,
@@ -470,12 +427,6 @@ impl Library {
         Ok(threads)
     }
 
-    /// Saves a correction to `outcome-state.json` and refreshes the action
-    /// list in `summary.md` (`OutcomeIndex.correctAction`).
-    ///
-    /// Unlike macOS, a summary without `summary-claims.json` is not archived
-    /// for regeneration after an owner or text change; its action list is
-    /// rewritten like any other.
     pub fn correct_action(
         &self,
         meeting: &Meeting,
@@ -511,7 +462,6 @@ impl Library {
         })
     }
 
-    /// Keeps an action out of (or back in) cross-meeting threads.
     pub fn set_thread_excluded(
         &self,
         meeting: &Meeting,
@@ -523,7 +473,6 @@ impl Library {
         })
     }
 
-    /// Sets every member of a thread to `status` (`OutcomeIndex.setStatus(_:thread:)`).
     pub fn set_thread_status(&self, thread: &ActionThread, status: ActionStatus) -> Result<()> {
         let meetings = self.list_all_meetings()?;
         for reference in thread.references.iter().filter(|r| r.status != status) {
@@ -596,24 +545,16 @@ fn non_blank(value: Option<String>) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
-// ------------------------------------------------------- summary.md section
-
-/// `summary.md` with its `## Action items` section rendered from `outcomes`
-/// (`MeetingSummaryOutcomeSynchronizer`): `### Me`, `### Others` and, when
-/// needed, `### Owner unclear`.
 pub fn replace_action_items(summary: &str, outcomes: &MeetingOutcomes) -> String {
     replace_sections(summary, &[("## Action items", action_section(outcomes))])
 }
 
-/// Replaces `## Action items` with lines an export rendered itself, such as
-/// status-marked items (`MeetingSummaryOutcomeSynchronizer.replacingActionItems`).
 pub fn replace_action_lines(summary: &str, lines: &[String]) -> String {
     let mut section = vec!["## Action items".to_string(), String::new()];
     section.extend_from_slice(lines);
     replace_sections(summary, &[("## Action items", section)])
 }
 
-/// Replaces `## Decisions` (meeting template) and `## Action items`.
 pub fn synchronize_summary(
     summary: &str,
     outcomes: &MeetingOutcomes,
@@ -711,8 +652,6 @@ fn single_line(text: &str) -> String {
     text.split_whitespace().collect::<Vec<_>>().join(" ")
 }
 
-/// Puts the rendered sections where the first controlled section was,
-/// dropping the summary's own copies; missing sections are appended.
 fn replace_sections(summary: &str, rendered: &[(&str, Vec<String>)]) -> String {
     let normalized = summary.replace("\r\n", "\n");
     let mut blocks: Vec<(Option<String>, Vec<String>)> = Vec::new();

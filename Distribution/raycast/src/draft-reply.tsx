@@ -9,13 +9,11 @@ interface Message {
   source: "Selection" | "Clipboard";
 }
 
-/** The selected text in the frontmost app, or else the clipboard. */
 async function readMessage(): Promise<Message | null> {
   try {
     const selected = await getSelectedText();
     if (selected.trim()) return { text: selected, source: "Selection" };
   } catch {
-    // Nothing selected, or the app does not share its selection.
   }
   const copied = await Clipboard.readText();
   return copied?.trim() ? { text: copied, source: "Clipboard" } : null;

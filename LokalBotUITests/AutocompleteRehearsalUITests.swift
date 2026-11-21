@@ -1,9 +1,5 @@
 import XCTest
 
-/// Hosted regression checks for the Autocomplete rehearsal, which is the
-/// page header's "Try it…" sheet: it must accept, keep, and discard a
-/// suggestion the way autocomplete does in another app. The host's demo
-/// mode supplies fixed suggestions, so no model is involved.
 final class AutocompleteRehearsalUITests: XCTestCase {
     private static let draft = "Hi Sarah, thanks for the update. I wanted to follow"
     private static let opening = " up on the migration timeline we scoped yesterday."
@@ -24,7 +20,6 @@ final class AutocompleteRehearsalUITests: XCTestCase {
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
     }
 
-    /// With "One word" selected, one Tab used to insert the whole suggestion.
     func testTabTakesOneWordAndKeepsTheRest() throws {
         let editor = try openRehearsal()
         XCTAssertTrue(UITestHarness.staticText(containing: "Tab accepts the next word", in: app).exists)
@@ -44,7 +39,6 @@ final class AutocompleteRehearsalUITests: XCTestCase {
         editor.typeText("`")
         XCTAssertTrue(wait(editor, holds: Self.draft + Self.opening),
                       "the full-accept key must insert the rest, not a backtick")
-        // A finished suggestion is followed by the next one.
         XCTAssertTrue(waitForGhost(Self.following))
         app.buttons["Insert suggestion"].click()
         XCTAssertTrue(wait(editor, holds: Self.draft + Self.opening + Self.following))
@@ -80,9 +74,6 @@ final class AutocompleteRehearsalUITests: XCTestCase {
         _ = try openRehearsal()
         let conversation = app.descendants(matching: .any)["autocomplete.rehearsal.conversation"]
         XCTAssertTrue(conversation.waitForExistence(timeout: 5))
-        // Every optional source is off, and the rehearsal says so. Visible text
-        // is on for new installs only; these saved settings predate the key,
-        // like an existing install's, so it stays off.
         for source in ["visible", "meetings", "screen"] {
             let row = app.descendants(matching: .any)["autocomplete.rehearsal.context.\(source)"]
             XCTAssertTrue(row.exists, "missing context row: \(source)")
@@ -90,8 +81,6 @@ final class AutocompleteRehearsalUITests: XCTestCase {
             XCTAssertTrue(text.hasSuffix(": Off"), "\(source) should read as off, not '\(text)'")
         }
     }
-
-    // MARK: - Helpers
 
     private func openRehearsal(granularity: String = "word") throws -> XCUIElement {
         let settings = """
@@ -128,8 +117,6 @@ final class AutocompleteRehearsalUITests: XCTestCase {
         return editor
     }
 
-    /// The suggestion is painted, not typed, so it is read from the control
-    /// that would insert it.
     private func waitForGhost(_ expected: String) -> Bool {
         UITestHarness.waitUntil {
             (self.app.buttons["Insert suggestion"].value as? String ?? "") == expected

@@ -109,12 +109,10 @@ def render(page: str, out: Path) -> None:
         shot = Path(tmp) / "shot.png"
         source.write_text(page, encoding="utf-8")
         chrome = subprocess.Popen(
-            # A throwaway profile keeps this away from a Chrome you have open.
             [CHROME, "--headless=new", f"--user-data-dir={Path(tmp) / 'profile'}", "--hide-scrollbars", "--force-device-scale-factor=2",
              "--window-size=1200,630", "--allow-file-access-from-files", f"--screenshot={shot}", source.as_uri()],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        # Headless Chrome doesn't always exit after writing the screenshot.
         for _ in range(60):
             if shot.exists() and shot.stat().st_size > 0:
                 time.sleep(0.5)

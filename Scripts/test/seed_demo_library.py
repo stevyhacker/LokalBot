@@ -34,14 +34,10 @@ from datetime import date, datetime, timezone, timedelta
 ENGINE = "on-device demo"
 OWNERSHIP_MARKER = ".lokalbot-demo-library"
 
-# Stable ids so chat citations and capture scripts can reference meetings.
 DESIGN_REVIEW = "11111111-1111-4111-8111-111111111111"
 STANDUP = "22222222-2222-4222-8222-222222222222"
 ROADMAP = "33333333-3333-4333-8333-333333333333"
 NORTHWIND = "44444444-4444-4444-8444-444444444444"
-# The studio profile's featured meetings, the ones with playable audio: the
-# holiday shoot (website and README hero) and the podcast trailer review
-# (README meeting section).
 STUDIO_SHOOT = "55555555-5555-4555-8555-555555555555"
 STUDIO_PODCAST = "66666666-6666-4666-8666-666666666666"
 
@@ -79,7 +75,6 @@ def build(now):
         return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
     return [
-        # ---- Today ----
         m(DESIGN_REVIEW, "Design review", "Zoom", now - timedelta(minutes=70), 25, True,
           [
               seg(0, 12, "me", "Let's lock the caching layer. I propose Redis for the pub-sub support."),
@@ -102,7 +97,6 @@ def build(now):
           ],
           "## TL;DR\nPostgres migration kicked off; the index rebuild is blocked on data-team review.\n\n## Action items\n- [ ] Unblock the index rebuild with the data team — Me\n- [ ] Run the Redis failover benchmark Thursday morning — Me"),
 
-        # ---- Yesterday ----
         m(ROADMAP, "Q3 roadmap planning", "Google Meet", ago(1, 9, 57), 30, False,
           [
               seg(0, 20, "me", "We need to lock the Q3 roadmap. Onboarding is the top priority for new accounts."),
@@ -111,7 +105,6 @@ def build(now):
           ],
           "## TL;DR\nQ3 priorities are onboarding (top) and reliability (alerting backlog).\n\n## Decisions\n- Onboarding ranks above reliability for Q3.\n\n## Action items\n- [ ] Scope the onboarding revamp epic — Me"),
 
-        # ---- Earlier this week ----
         m(NORTHWIND, "Customer call - Northwind", "Microsoft Teams", ago(2, 9, 47), 40, True,
           [
               seg(0, 15, "them", "Our team loves the export feature, but we need SSO before we roll out company-wide."),
@@ -153,7 +146,6 @@ def build(now):
           ],
           "## TL;DR\nBoth interviewers are a hire on the iOS candidate; references this week.\n\n## Action items\n- [ ] Request references — Them"),
 
-        # ---- Last week ----
         m(mid(10), "Acme integration kickoff", "Microsoft Teams", ago(7, 10, 0), 45, True,
           [
               seg(0, 20, "them", "We want the meeting summaries flowing into our CRM within the quarter."),
@@ -186,7 +178,6 @@ def build(now):
           ],
           "## TL;DR\nIndex rebuild plan ready; data-team review to be booked early next week.\n\n## Action items\n- [ ] Book the data-team review — Me"),
 
-        # ---- Two-three weeks back ----
         m(mid(15), "SSO security review", "Microsoft Teams", ago(14, 11, 0), 40, True,
           [
               seg(0, 20, "me", "Scope for Q3 SSO: SAML and OIDC, SCIM provisioning explicitly out."),
@@ -513,7 +504,6 @@ def write_demo_png(path, accent, variant):
                     start = px * 3
                     pixels[py][start:start + 3] = bytes(color)
 
-    # Native-Mac window chrome and a distinct but non-branded work surface.
     rect(0, 0, width, 54, (27, 34, 46))
     dot(25, 27, 7, (255, 95, 87))
     dot(48, 27, 7, (255, 189, 46))
@@ -526,13 +516,13 @@ def write_demo_png(path, accent, variant):
     rect(220, 78, 706, 44, (25, 33, 45))
     rect(242, 94, 250 + variant * 34, 11, (110, 126, 148))
 
-    if variant % 3 == 0:  # editor-like panes
+    if variant % 3 == 0:
         rect(220, 140, 150, 430, (18, 25, 35))
         for index in range(11):
             shade = accent if index in (2, 7) else (65, 77, 96)
             rect(398, 154 + index * 32, 410 - (index % 4) * 54, 11, shade)
             rect(378, 154 + index * 32, 8, 11, (44, 55, 71))
-    elif variant % 3 == 1:  # browser / document cards
+    elif variant % 3 == 1:
         rect(242, 148, 660, 90, (27, 36, 49))
         rect(268, 172, 360, 18, accent)
         rect(268, 204, 520, 10, (83, 97, 116))
@@ -540,7 +530,7 @@ def write_demo_png(path, accent, variant):
             rect(242, 262 + index * 96, 660, 72, (24, 32, 44))
             rect(266, 281 + index * 96, 132, 12, accent if index == 1 else (93, 107, 127))
             rect(266, 305 + index * 96, 490 - index * 55, 9, (68, 81, 100))
-    else:  # chat / collaboration rows
+    else:
         for index in range(5):
             dot(270, 174 + index * 76, 18, accent if index % 2 == 0 else (91, 104, 123))
             rect(308, 158 + index * 76, 180, 12, (111, 126, 146))
@@ -671,7 +661,7 @@ def seed_activity(root):
     con.close()
 
 
-FULL_DAY_BLOCKS = [  # (app, title, start minute, end minute) on the seeded day
+FULL_DAY_BLOCKS = [
     ("Xcode", "EvictionPolicy.swift", 8 * 60 + 30, 10 * 60 + 40),
     ("Google Chrome", "Pull request #42 - caching layer", 10 * 60 + 40, 11 * 60),
     ("Microsoft Teams", "Design review", 11 * 60, 11 * 60 + 6),
@@ -692,9 +682,6 @@ FULL_DAY_TEXT = {
     "Terminal": "failover p95 1.8s to 0.9s after connection pool change; benchmark complete",
 }
 
-# (start seconds, speaker, text). The lines are SyntheticModelPrompts'
-# standupTranscript() lines; the start times match the golden transcripts in
-# LokalBotTests/Fixtures/day-in-the-life/golden-transcripts.
 DESIGN_REVIEW_LINES = [
     (0, "me", "Let's lock the caching layer. I propose Redis for the pub-sub support."),
     (7, "them", "Agreed on Redis. Open question: do we need cluster mode from day one?"),
@@ -703,7 +690,6 @@ DESIGN_REVIEW_LINES = [
     (30, "me", "Fair. I'll borrow the load harness from the search team for that."),
 ]
 
-# Sprint planning merges two 2-minute sources; one line falls in each.
 SPRINT_LINES = [
     (0, "them", "Sprint goal is the search index rebuild."),
     (121, "me", "I'll pair on the tombstone cleanup tomorrow."),
@@ -787,7 +773,6 @@ def seed_full_day(root, day):
     for slug, title, hour, minutes, lines, merged in [
             ("design-review", "Design review", 11, 6, DESIGN_REVIEW_LINES, False),
             ("sprint-planning", "Sprint planning", 15, 4, SPRINT_LINES, True)]:
-        # Local wall-clock time, like the activity blocks.
         started = datetime(day.year, day.month, day.day, hour, 0).astimezone(timezone.utc)
         rel = relpath(started, slug)
         folder = os.path.join(root, rel)
@@ -854,7 +839,6 @@ def build_studio(now):
         return base.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
     return [
-        # ---- Today ----
         m(STUDIO_SHOOT, "Holiday shoot planning", "FaceTime", now - timedelta(minutes=60), 25, True,
           [
               seg(0, 12, "me", "Let's lock the holiday shoot. Everything gets shot on iPhone this year."),
@@ -903,7 +887,6 @@ def build_studio(now):
           "## TL;DR\nThe Northwind holiday cut wraps today; slow exports on the old laptops are the blocker.\n\n"
           "## Action items\n- [ ] Finish the Northwind holiday cut — Me\n- [ ] Price two laptop configs for the edit suite — Me"),
 
-        # ---- Yesterday ----
         m(STUDIO_PODCAST, "Podcast trailer review", "Google Meet", ago(1, 9, 57), 30, True,
           [
               seg(0, 12, "me", "The podcast trailer is two weeks late. Let's fix the cut today."),
@@ -924,7 +907,6 @@ def build_studio(now):
           "- [ ] Publish the trailer with Monday's episode — Them\n\n"
           "## Open questions\n- Lead with the guest or the host?"),
 
-        # ---- Earlier this week ----
         m(mid(24), "Client call - Northwind", "Microsoft Teams", ago(2, 9, 47), 40, True,
           [
               seg(0, 15, "them", "We love the first cut, but legal needs captions before it goes on our site."),
@@ -975,7 +957,6 @@ def build_studio(now):
           "## TL;DR\nBoth interviewers are a hire on the editor candidate; references this week.\n\n"
           "## Action items\n- [ ] Request references — Them"),
 
-        # ---- Last week ----
         m(mid(30), "Acme podcast kickoff", "Microsoft Teams", ago(7, 10, 0), 45, True,
           [
               seg(0, 20, "them", "We want episode clips on Apple Podcasts and YouTube every week."),
@@ -1012,7 +993,6 @@ def build_studio(now):
           "## TL;DR\nThe holiday shot list is ready in Freeform; review before Monday.\n\n"
           "## Action items\n- [ ] Review the shot list — Me"),
 
-        # ---- Two-three weeks back ----
         m(mid(35), "Accessibility review", "Microsoft Teams", ago(14, 11, 0), 40, True,
           [
               seg(0, 20, "me", "Every client video ships with captions and audio descriptions from now on."),
@@ -1071,7 +1051,7 @@ def write_light_window_png(path, kind, accent):
     dot(71, 27, 7, (40, 201, 64))
     rect(0, 54, width, 1, line)
 
-    if kind == "sheet":  # Numbers: a table with a tinted header row
+    if kind == "sheet":
         rect(40, 92, 260, 18, text)
         rect(40, 140, 880, 44, accent)
         for index in range(8):
@@ -1084,7 +1064,7 @@ def write_light_window_png(path, kind, accent):
             rect(720, y + 17, 120, 11, text if strong else faint)
         for x in (340, 480, 680):
             rect(x, 140, 1, 412, line)
-    elif kind == "web":  # Safari: address bar and two comparison cards
+    elif kind == "web":
         rect(330, 15, 300, 24, (226, 226, 230))
         rect(300, 92, 360, 26, text)
         rect(360, 130, 240, 12, faint)
@@ -1096,7 +1076,7 @@ def write_light_window_png(path, kind, accent):
             for index in range(4):
                 rect(x + 70, 410 + index * 30, 230 - index * 20, 10, faint)
             rect(x + 140, 528, 90, 14, accent)
-    elif kind == "slide":  # Keynote: slide navigator and canvas
+    elif kind == "slide":
         rect(0, 55, 170, height - 55, sidebar)
         for index in range(4):
             rect(28, 80 + index * 112, 114, 72, accent if index == 1 else (225, 227, 232))
@@ -1106,7 +1086,7 @@ def write_light_window_png(path, kind, accent):
         rect(560, 250, 310, 230, accent)
         for index in range(3):
             rect(260, 270 + index * 34, 230, 11, text)
-    elif kind == "doc":  # Pages: one page with a heading and a checklist
+    elif kind == "doc":
         rect(0, 55, width, height - 55, (240, 240, 243))
         rect(250, 80, 460, 520, (255, 255, 255))
         rect(290, 120, 250, 22, (40, 44, 52))
@@ -1115,7 +1095,7 @@ def write_light_window_png(path, kind, accent):
             y = 210 + index * 50
             rect(290, y, 18, 18, accent if index < 3 else line)
             rect(326, y + 4, 300 - (index % 3) * 40, 11, text if index < 3 else faint)
-    elif kind == "mail":  # Mail: mailbox list, messages, body
+    elif kind == "mail":
         rect(0, 55, 190, height - 55, sidebar)
         for index in range(6):
             rect(24, 90 + index * 34, 120 - (index % 3) * 20, 11, faint)
@@ -1132,7 +1112,7 @@ def write_light_window_png(path, kind, accent):
         rect(550, 92, 280, 18, text)
         for index in range(8):
             rect(550, 140 + index * 30, 340 - (index % 3) * 50, 10, faint)
-    else:  # photos: a library grid
+    else:
         rect(0, 55, 170, height - 55, sidebar)
         palette = [accent, (120, 170, 220), (230, 190, 120), (150, 200, 160), (210, 140, 150), (180, 170, 230)]
         for row in range(4):
@@ -1147,8 +1127,6 @@ def seed_studio_activity(root):
     cur = con.cursor()
     ensure_activity_tables(cur)
     now = time.time()
-    # Today's blocks and moments are minutes before now, so a capture never
-    # shows the future and the screen moments line up with today's meetings.
     today = [("Keynote", "Northwind pitch deck", 250, 190),
              ("FaceTime", "Studio check-in", 182, 167),
              ("Safari", "Compare Mac models", 167, 128),
@@ -1189,9 +1167,6 @@ def seed_studio_activity(root):
 
     yesterday = time.mktime((datetime.now() - timedelta(days=1))
                             .replace(hour=0, minute=0, second=0, microsecond=0).timetuple())
-    # (app, window title, time, screen text, thumbnail, accent, bookmark note).
-    # Yesterday's demo presentation moments stay outside the podcast call, so
-    # its meeting window has no "On Screen During the Meeting" section.
     shots = [
         ("Keynote", "Northwind pitch deck", now - 236 * 60,
          "Northwind holiday campaign: three hero shots, one story, all shot on iPhone.",
@@ -1317,8 +1292,6 @@ def seed_studio(root):
             continue
         write_demo_audio(folder)
         write_demo_audio(folder, track="system", tone=247, beat=2.7, level=1_400)
-        # A named speaker keeps the "speaker needs a name" prompt out of the
-        # featured meetings' summaries.
         path = os.path.join(folder, "transcript.json")
         with open(path) as f:
             transcript = json.load(f)

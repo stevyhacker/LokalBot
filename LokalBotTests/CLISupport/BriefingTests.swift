@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// `get_briefing` / `lokalbot-cli brief`: every section appears only under
-/// the permission that already covers its data, inside the screen window.
 @MainActor
 final class BriefingTests: XCTestCase {
     private var root: URL!
@@ -24,7 +22,6 @@ final class BriefingTests: XCTestCase {
             .init(agent: "Claude Code", project: "LokalBot", title: "Add the agent briefing",
                   start: try date("2026-10-14T15:00:00Z"), sessionID: "a", pullRequests: [pullRequest],
                   actionCount: 2),
-            // Two bursts of one session, naming the same pull request.
             .init(agent: "Claude Code", project: "LokalBot", title: "Fix the stdio read",
                   start: try date("2026-10-13T09:00:00Z"), sessionID: "b", pullRequests: [pullRequest],
                   actionCount: 0),
@@ -39,8 +36,6 @@ final class BriefingTests: XCTestCase {
     override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: root)
     }
-
-    // MARK: - Gating
 
     func testWithNoGrantsItListsOnlyWhichPermissionsAreOff() throws {
         let text = render()
@@ -59,11 +54,9 @@ final class BriefingTests: XCTestCase {
         try AgentAccessGate(root: root).enable()
         let text = render()
         XCTAssertTrue(text.contains("Meetings: on. 1 recorded, newest \"Cache planning\""), text)
-        // The due date resolves in the Mac's own time zone, so check only that it is shown.
         XCTAssertTrue(text.contains("Draft the synthetic caching memo (due 2026-10-"), text)
         XCTAssertFalse(text.contains("Benchmark the synthetic cluster"), "someone else's item:\n\(text)")
         XCTAssertTrue(text.contains("Meeting project: waiting on review"), text)
-        // Screen and digest evidence need the screen grant; unattributed items never show.
         XCTAssertFalse(text.contains("Screen project"), text)
         XCTAssertFalse(text.contains("Digest goal"), text)
         XCTAssertFalse(text.contains("Unattributed project"), text)
@@ -84,14 +77,12 @@ final class BriefingTests: XCTestCase {
         XCTAssertFalse(text.contains("<wake"), text)
         XCTAssertTrue(text.contains("website (Codex, 1 session, latest Thu Oct 15): Update the privacy page"), text)
 
-        // Two sentences for yesterday, one for older days, then weeks, then months.
         XCTAssertTrue(text.contains("Wed Oct 14: Merged the MCP stdio fix. Reviewed the briefing design."), text)
         XCTAssertFalse(text.contains("Third sentence"), text)
         XCTAssertTrue(text.contains("Sat Oct 10: Planned the rollup prompt."), text)
         XCTAssertFalse(text.contains("Second sentence"), text)
         XCTAssertTrue(text.contains("Week of Sep 28: Shipped phase two of the personal model."), text)
         XCTAssertTrue(text.contains("August 2026: Built the autocomplete launch film."), text)
-        // A line whose reviews changed is stale; a month the shown weeks cover is skipped.
         XCTAssertFalse(text.contains("STALE LINE"), text)
         XCTAssertFalse(text.contains("September line"), text)
         let days = try XCTUnwrap(text.range(of: "Wed Oct 14"))
@@ -109,7 +100,6 @@ final class BriefingTests: XCTestCase {
         XCTAssertFalse(text.contains("Merged the MCP stdio fix"), text)
         XCTAssertFalse(text.contains("Week of"), text)
         XCTAssertEqual(reader.requestedStart, calendar.startOfDay(for: now))
-        // Screen evidence last seen yesterday is outside the window; meeting-only work is not.
         XCTAssertFalse(text.contains("Screen project"), text)
         XCTAssertTrue(text.contains("Meeting project"), text)
     }
@@ -125,8 +115,6 @@ final class BriefingTests: XCTestCase {
         XCTAssertTrue(text.contains("Draft the synthetic caching memo"), text)
     }
 
-    /// `lokalbot-cli brief` runs in a shell, so it names commands, not MCP
-    /// tools; everything else matches `get_briefing`.
     func testBriefNamesCLICommandsWhereGetBriefingNamesTools() throws {
         try enableAll(scope: .retainedHistory)
         let tools = render()
@@ -190,8 +178,6 @@ final class BriefingTests: XCTestCase {
             start: try date("2026-10-14T09:00:00Z"), sessionID: "new",
             pullRequests: ["https://github.com/example/repo/pull/1"], actionCount: 0)])
     }
-
-    // MARK: - Fixtures
 
     private func render(vocabulary: Briefing.Vocabulary = .mcp) -> String {
         Briefing.render(Briefing.Context(
@@ -281,7 +267,6 @@ final class BriefingTests: XCTestCase {
     }
 }
 
-/// Nightly week and month lines: which periods are due, stamps, staleness.
 final class DreamRollupServiceTests: XCTestCase {
     private var root: URL!
     private var calendar: Calendar!
@@ -344,7 +329,6 @@ final class DreamRollupServiceTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(
             atPath: DreamRollupFormat.rollupURL(root: root, key: "2026-W41").path))
 
-        // The same night writes nothing more; the next night rebuilds it.
         let sameNight = try await DreamRollupService.run(root: root, now: now.addingTimeInterval(3_600),
                                                          calendar: calendar) { engine }
         XCTAssertTrue(sameNight.written.isEmpty)

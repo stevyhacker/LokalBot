@@ -1,9 +1,3 @@
-//! The pane beside the list (`ActionDetailsPane`, `ActionEvidencePassages`).
-//! One selected action shows what the app knows about it: its status, its due
-//! date with what was said about it, the people and project it belongs to,
-//! and each meeting's quotes, which play in place. Several selected actions
-//! show the changes that apply to all of them.
-
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
@@ -63,8 +57,6 @@ impl ActionsPage {
             .child(body)
             .into_any_element()
     }
-
-    // ------------------------------------------------------------ one action
 
     fn render_thread(
         &mut self,
@@ -143,9 +135,6 @@ impl ActionsPage {
             .into_any_element()
     }
 
-    /// "Looks done? Mail showed “Message sent” on Mon 5:48 PM, after this
-    /// was said." with Mark Done, Show the screen and Not Yet. A suggestion
-    /// only; nothing changes until Mark Done.
     fn render_hint(
         &self,
         thread: &ActionThread,
@@ -236,8 +225,6 @@ impl ActionsPage {
         )
     }
 
-    /// Status, Due with what was said, With and Project, labels in a column
-    /// as wide as the widest of them.
     fn render_properties(
         &mut self,
         thread: &ActionThread,
@@ -332,7 +319,6 @@ impl ActionsPage {
                 })
         };
 
-        // What was said about the date, led by "Overdue." while it is.
         let today = Local::now().date_naive();
         let said = model::due_note(thread);
         let late = thread.is_overdue(today);
@@ -377,7 +363,6 @@ impl ActionsPage {
             })
     }
 
-    /// People or projects as links that open their page.
     fn link_column(
         &self,
         items: Vec<model::Link>,
@@ -412,8 +397,6 @@ impl ActionsPage {
             .into_any_element()
     }
 
-    /// The Due control: the day, which opens a calendar with No date, Cancel
-    /// and Save. The day is saved on the newest mention as a correction.
     fn due_control(
         &self,
         thread: &ActionThread,
@@ -544,7 +527,6 @@ impl ActionsPage {
         cx.notify();
     }
 
-    /// Saves the chosen day, or no day, on the selected action.
     fn save_due(&mut self, day: Option<NaiveDate>, cx: &mut Context<Self>) {
         let Some(picker) = self.due_picker.take() else {
             return;
@@ -556,9 +538,6 @@ impl ActionsPage {
         cx.notify();
     }
 
-    /// One meeting's mention: the meeting and its day, then what was said.
-    /// The meeting name opens the meeting at the quote; a time plays the
-    /// quote here.
     fn render_passages(
         &self,
         ix: usize,
@@ -637,7 +616,6 @@ impl ActionsPage {
                     })
             }))
             .when(reference.text_was_corrected, |this| {
-                // A correction never replaces what was extracted.
                 this.child(
                     v_flex()
                         .pt(px(2.))
@@ -654,7 +632,6 @@ impl ActionsPage {
             })
     }
 
-    /// "▶ 0:24": plays the quote here, or pauses it.
     fn play_button(
         &self,
         ix: usize,
@@ -709,8 +686,6 @@ impl ActionsPage {
             .when(!enabled, |this| this.opacity(0.5))
             .into_any_element()
     }
-
-    // ------------------------------------------------------------ several
 
     fn render_batch(
         &mut self,
@@ -834,8 +809,6 @@ impl ActionsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------- audio
-
     pub(super) fn stop_passage(&mut self) {
         if let Some(passages) = self.passages.take() {
             for player in passages.players.values().flatten() {
@@ -844,8 +817,6 @@ impl ActionsPage {
         }
     }
 
-    /// Opens the audio of each meeting the selected action was said in, off
-    /// the UI thread, when the details show a different action.
     pub(super) fn sync_passages(&mut self, thread: Option<&ActionThread>, cx: &mut Context<Self>) {
         if self.passages.as_ref().map(|p| p.thread_id.as_str()) == thread.map(|t| t.id.as_str()) {
             return;
@@ -896,7 +867,6 @@ impl ActionsPage {
         }
     }
 
-    /// Plays one quote, or pauses it (`player.playExcerpt`).
     fn toggle_passage(
         &mut self,
         reference_id: &str,
@@ -919,7 +889,6 @@ impl ActionsPage {
             cx.notify();
             return;
         }
-        // One quote at a time, whichever meeting it is from.
         for other in passages.players.values().flatten() {
             other.pause();
         }

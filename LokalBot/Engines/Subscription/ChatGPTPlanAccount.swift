@@ -1,14 +1,11 @@
 import Foundation
 
-/// This Mac's registration with OpenAI. It survives sign-out so the next
-/// sign-in reuses the issued client id instead of registering again.
 struct ChatGPTPlanRegistration: Codable, Equatable, Sendable {
     var clientID: String
     var subject: String
     var email: String?
 }
 
-/// One signed-in session. Stored in the Keychain only.
 struct ChatGPTPlanCredentials: Codable, Equatable, Sendable {
     var clientID: String
     var subject: String
@@ -30,14 +27,11 @@ protocol ChatGPTPlanStore: Sendable {
     func setCredentials(_ credentials: ChatGPTPlanCredentials?)
 }
 
-/// Keychain items under the app's own service, like the API key.
 struct KeychainChatGPTPlanStore: ChatGPTPlanStore {
     static let hostAccount = "chatgpt-plan-host-id"
     static let registrationAccount = "chatgpt-plan-registration"
     static let credentialsAccount = "chatgpt-plan-credentials"
 
-    /// An opaque per-Mac id OpenAI uses to tell this host's sessions apart.
-    /// Random, never derived from the account.
     func hostID() -> String {
         if let existing = KeychainSecrets.string(account: Self.hostAccount), !existing.isEmpty {
             return existing
@@ -97,8 +91,6 @@ struct ChatGPTPlanModel: Equatable, Identifiable, Sendable {
     let displayName: String
     var id: String { slug }
 
-    /// The token-sharing model list (`models` with `slug`, `display_name`
-    /// and `visibility`), or the classic `data` list of ids.
     static func parseList(_ data: Data) -> [ChatGPTPlanModel] {
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return [] }
         if let models = json["models"] as? [[String: Any]] {
@@ -115,16 +107,12 @@ struct ChatGPTPlanModel: Equatable, Identifiable, Sendable {
     }
 }
 
-/// Signs in with ChatGPT, keeps the session's tokens fresh, and signs out.
-/// One shared instance serializes refreshes, so two requests never race a
-/// rotating refresh token.
 actor ChatGPTPlanAccount {
     typealias Transport = @Sendable (URLRequest) async throws -> (Data, URLResponse)
     typealias BrowserOpener = @Sendable (URL) async -> Bool
 
     static let shared = ChatGPTPlanAccount()
 
-    /// Refresh this long before the access token expires.
     static let refreshMargin: TimeInterval = 120
     static let signInTimeout: Duration = .seconds(300)
 
@@ -134,7 +122,6 @@ actor ChatGPTPlanAccount {
     private var refreshTask: Task<ChatGPTPlanCredentials, Error>?
     private var signInListener: LoopbackRedirectListener?
     private var cachedModels: (subject: String, models: [ChatGPTPlanModel], fetchedAt: Date)?
-    /// The model list changes rarely; settings views share one fetch.
     static let modelListLifetime: TimeInterval = 600
 
     init(store: ChatGPTPlanStore = KeychainChatGPTPlanStore(),
@@ -145,7 +132,6 @@ actor ChatGPTPlanAccount {
         self.now = now
     }
 
-    /// Account endpoints are fixed OpenAI hosts; never follow a redirect away.
     static func liveTransport(_ request: URLRequest) async throws -> (Data, URLResponse) {
         do {
             return try await accountSession.data(for: request)
@@ -167,11 +153,6 @@ actor ChatGPTPlanAccount {
         return .signedOut(previousEmail: store.registration()?.email)
     }
 
-    // MARK: Sign-in
-
-    /// Opens OpenAI's sign-in page and completes the authorization code
-    /// exchange when the browser returns to the loopback listener.
-    /// `newRegistration` registers again, for signing in to another account.
     func signIn(newRegistration: Bool = false, openBrowser: BrowserOpener) async throws -> ChatGPTPlanStatus {
         signInListener?.stop()
         let listener = try await LoopbackRedirectListener.start(
@@ -206,8 +187,6 @@ actor ChatGPTPlanAccount {
         guard let clientID = registration?.clientID ?? returnedClientID else {
             throw ChatGPTPlanError.signInFailed("ChatGPT didn't return this app's registration. Try again.")
         }
-        // The registration is recorded before the exchange, so a failed
-        // exchange never strands a client OpenAI already issued.
         if registration == nil, let returnedClientID {
             store.setRegistration(ChatGPTPlanRegistration(clientID: returnedClientID, subject: "", email: nil))
         }
@@ -252,9 +231,6 @@ actor ChatGPTPlanAccount {
         signInListener = nil
     }
 
-    /// Stops using the session, asks OpenAI to revoke it, and clears its
-    /// tokens. The registration and host id stay for the next sign-in.
-    /// Returns false when revocation could not be confirmed.
     @discardableResult
     func signOut() async -> Bool {
         refreshTask?.cancel()
@@ -279,15 +255,11 @@ actor ChatGPTPlanAccount {
         return false
     }
 
-    /// Forgets this Mac's registration so the next sign-in registers anew.
     func forgetRegistration() async {
         await signOut()
         store.setRegistration(nil)
     }
 
-    // MARK: Tokens
-
-    /// A current access token that may draw on the ChatGPT plan.
     func accessToken() async throws -> String {
         guard let credentials = store.credentials() else { throw ChatGPTPlanError.signedOut }
         guard credentials.allowsPlanUsage else { throw ChatGPTPlanError.planUsageNotGranted }
@@ -297,8 +269,6 @@ actor ChatGPTPlanAccount {
         return try await refreshed(from: credentials).accessToken
     }
 
-    /// A token the API rejected may have been revoked or rotated early.
-    /// Refreshes once unless another caller already replaced it.
     func accessTokenAfterRejection(of rejected: String) async throws -> String {
         guard let credentials = store.credentials() else { throw ChatGPTPlanError.signedOut }
         if credentials.accessToken != rejected { return credentials.accessToken }
@@ -325,7 +295,6 @@ actor ChatGPTPlanAccount {
             let code = ChatGPTPlanOAuth.oauthErrorCode(data)
             if let code, ChatGPTPlanOAuth.terminalRefreshErrors.contains(code) {
                 lokalbotLog("chatgpt plan refresh rejected code=\(code)")
-                // The session is over; the registration stays for sign-in.
                 if store.credentials()?.refreshToken == refreshToken { store.setCredentials(nil) }
                 throw ChatGPTPlanError.signInRequired
             }
@@ -337,20 +306,15 @@ actor ChatGPTPlanAccount {
         let tokens = try ChatGPTPlanOAuth.TokenResponse(json: data)
         var next = credentials
         next.accessToken = tokens.accessToken
-        // A rotating refresh token is replaced together with the access token.
         if let refreshToken = tokens.refreshToken { next.refreshToken = refreshToken }
         if let idToken = tokens.idToken { next.idToken = idToken }
         if !tokens.scopes.isEmpty { next.scopes = tokens.scopes }
         next.expiresAt = now().addingTimeInterval(tokens.expiresIn)
-        // A sign-out during the refresh wins over its result.
         guard store.credentials()?.subject == credentials.subject else { throw ChatGPTPlanError.signedOut }
         store.setCredentials(next)
         return next
     }
 
-    // MARK: Models
-
-    /// The signed-in account's models, fetched at most every ten minutes.
     func models(refresh: Bool = false) async throws -> [ChatGPTPlanModel] {
         guard let subject = store.credentials()?.subject else { throw ChatGPTPlanError.signedOut }
         if !refresh, let cachedModels, cachedModels.subject == subject,
@@ -382,8 +346,6 @@ actor ChatGPTPlanAccount {
         throw ChatGPTPlanError.signInRequired
     }
 
-    // MARK: Discovery
-
     private struct Discovery: Sendable {
         var jwksURL: URL?
         var revocationEndpoint: URL?
@@ -398,7 +360,6 @@ actor ChatGPTPlanAccount {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw ChatGPTPlanError.signInFailed("Couldn't read OpenAI's sign-in configuration. Try again.")
         }
-        // Only OpenAI's own hosts may serve its keys or revoke its tokens.
         func openAIURL(_ key: String) -> URL? {
             guard let url = (json[key] as? String).flatMap(URL.init(string:)),
                   url.scheme == "https", let host = url.host?.lowercased(),

@@ -1,18 +1,11 @@
 import AppKit
 import AuthenticationServices
 
-/// Google's consent page in Apple's authentication sheet
-/// (`ASWebAuthenticationSession`), the way Google's own SDK signs macOS apps
-/// in. The sheet shares the browser's Google session, shows the page's real
-/// address, and hands back only a redirect in LokalBot's own client scheme,
-/// so no other app or web page can receive the authorization code.
 @MainActor
 final class GoogleSignInSheet: NSObject, ASWebAuthenticationPresentationContextProviding {
     private var session: ASWebAuthenticationSession?
     private var continuation: CheckedContinuation<URL, Error>?
 
-    /// Shows `url` and returns the redirect Google sends to `callbackScheme`.
-    /// Throws `CancellationError` when the person closes the sheet.
     nonisolated static func present(_ url: URL, callbackScheme: String) async throws -> URL {
         let sheet = await GoogleSignInSheet()
         return try await sheet.run(url, callbackScheme: callbackScheme)
@@ -27,7 +20,6 @@ final class GoogleSignInSheet: NSObject, ASWebAuthenticationPresentationContextP
                     Task { @MainActor in self?.complete(returned, error) }
                 }
                 session.presentationContextProvider = self
-                // Reuse the Google account already signed in to the browser.
                 session.prefersEphemeralWebBrowserSession = false
                 self.session = session
                 if !session.start() {

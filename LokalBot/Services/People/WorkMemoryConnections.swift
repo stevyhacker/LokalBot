@@ -1,18 +1,11 @@
 import Foundation
 
-/// Builds the People and Projects read models off the main actor from local
-/// meeting metadata, summaries, transcripts, outcomes, applied speaker names,
-/// tracked projects, People corrections, Dream projects, and activity
-/// titles. Nothing is persisted here; every refresh derives from the current
-/// library, so deletions and corrections are reflected immediately.
 @MainActor
 final class WorkMemoryConnections: ObservableObject {
     @Published private(set) var people: [PersonProfile] = []
     @Published private(set) var projects: [ProjectProfile] = []
     @Published private(set) var hasLoaded = false
 
-    /// Applied speaker names are read from transcripts; only meetings from
-    /// this window are opened, and results are cached by file date.
     nonisolated static let transcriptLookbackDays = 180
     nonisolated static let projectMeetingLookbackDays = 120
 
@@ -42,7 +35,6 @@ final class WorkMemoryConnections: ObservableObject {
         var transcripts: [UUID: CachedTranscript] = [:]
     }
 
-    /// Summaries are matched whole; this only guards against a runaway file.
     nonisolated static let maximumSummaryCharacters = 100_000
 
     private var task: Task<Void, Never>?
@@ -52,7 +44,6 @@ final class WorkMemoryConnections: ObservableObject {
         task?.cancel()
         let cache = caches
         task = Task { [weak self] in
-            // Coalesce bursts of outcome and library changes.
             try? await Task.sleep(for: .milliseconds(250))
             guard !Task.isCancelled else { return }
             let result = await Task.detached(priority: .utility) {
@@ -66,13 +57,10 @@ final class WorkMemoryConnections: ObservableObject {
         }
     }
 
-    /// The projects one refresh would publish, without caches.
     nonisolated static func projects(for input: Input) -> [ProjectProfile] {
         compute(input, cache: Caches()).projects
     }
 
-    /// The people and projects one refresh would publish, without caches,
-    /// for builders that run outside the app's views (phones and tablets).
     nonisolated static func profiles(for input: Input) -> (people: [PersonProfile], projects: [ProjectProfile]) {
         let result = compute(input, cache: Caches())
         return (result.people, result.projects)
@@ -111,8 +99,6 @@ final class WorkMemoryConnections: ObservableObject {
             if let text = try? String(contentsOf: folder.appendingPathComponent("summary.md"), encoding: .utf8) {
                 summaries[meeting.id] = String(text.prefix(maximumSummaryCharacters))
             }
-            // Project names said in the call count even when the summary
-            // leaves them out or the meeting has no summary.
             let transcriptURL = folder.appendingPathComponent("transcript.md")
             guard let modifiedAt = (try? FileManager.default.attributesOfItem(
                 atPath: transcriptURL.path))?[.modificationDate] as? Date else { continue }
@@ -139,8 +125,6 @@ final class WorkMemoryConnections: ObservableObject {
             activity: activity, people: people,
             excludedTopicWords: excludedTopicWords(people: people, activity: activity)), now: input.now)
 
-        // What the newest notes say about each person, and the projects
-        // named around them.
         var summaryLines: [UUID: [PersonNotes.SummaryLine]] = [:]
         for (id, summary) in summaries { summaryLines[id] = PersonNotes.lines(fromSummary: summary) }
         for index in people.indices {
@@ -152,8 +136,6 @@ final class WorkMemoryConnections: ObservableObject {
         return (people, projects, nextCache)
     }
 
-    /// People, the user, and apps are recurring capitalized words but never
-    /// projects of their own.
     nonisolated static func excludedTopicWords(
         people: [PersonProfile], activity: [ActivityBlock]
     ) -> Set<String> {
@@ -162,7 +144,6 @@ final class WorkMemoryConnections: ObservableObject {
         for name in names {
             for word in ProjectTopicDetector.tokens(name).map({ $0.lowercased() }) {
                 words.insert(word)
-                // Short forms people are called by ("Ben" for Benjamin).
                 if word.count >= 5 { words.formUnion([String(word.prefix(3)), String(word.prefix(4))]) }
             }
         }

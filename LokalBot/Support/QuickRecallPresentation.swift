@@ -17,7 +17,6 @@ enum QuickRecallApplicationIconResolver {
             cache.setObject(icon, forKey: key as NSString)
             return icon
         }
-        // Exclusion rules can name an app by bundle identifier.
         if key.contains("."), let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: key) {
             let icon = NSWorkspace.shared.icon(forFile: url.path)
             cache.setObject(icon, forKey: key as NSString)
@@ -44,9 +43,6 @@ enum QuickRecallApplicationIconResolver {
     }
 }
 
-/// When a row happened, short enough for the end of its first line:
-/// "Today 10:43 AM", "Yesterday 4:00 PM", "Wed 11:47 AM" within the week,
-/// then the day alone ("Sep 25", with the year once it is not this year).
 enum QuickRecallDateLabel {
     static func string(for date: Date, now: Date = Date(), calendar: Calendar = .current,
                        locale: Locale = .current, localize: (String) -> String = { $0 }) -> String {

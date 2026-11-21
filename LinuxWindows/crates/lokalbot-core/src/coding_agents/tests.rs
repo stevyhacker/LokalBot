@@ -29,9 +29,6 @@ fn burst(session: &str, start: DateTime<Utc>, end: DateTime<Utc>) -> CodingAgent
     }
 }
 
-/// `JSONEncoder` with `.sortedKeys` over the Swift `CodingAgentBurst`: dates as
-/// seconds since 2001, enums with associated values as `{"case":{...}}`, and a
-/// `nil` optional left out.
 fn mac_payload() -> serde_json::Value {
     json!({
         "actions": [
@@ -84,7 +81,6 @@ fn decodes_what_the_mac_writes() {
             CodingAgentAction::RanTests {},
         ]
     );
-    // 2001-01-01Z plus the stored seconds.
     assert_eq!(burst.start.timestamp(), 978_307_200 + 782_222_340);
     assert_eq!(burst.id(), "codex:019f-session:1760529540");
 }
@@ -93,7 +89,6 @@ fn decodes_what_the_mac_writes() {
 fn encodes_the_way_the_mac_encodes() {
     let burst: CodingAgentBurst = serde_json::from_value(mac_payload()).unwrap();
     let encoded = serde_json::to_string(&burst).unwrap();
-    // Sorted keys, as `.sortedKeys` writes them, with absent optionals gone.
     let keys: Vec<&str> = [
         "\"actions\"",
         "\"activeDuration\"",
@@ -125,7 +120,6 @@ fn encodes_the_way_the_mac_encodes() {
     assert!(encoded.contains(r#"{"pushed":{}}"#));
     assert!(encoded.contains(r#"{"ranTests":{}}"#));
     assert!(encoded.contains(r#"{"mergedPullRequest":{"number":42}}"#));
-    // Dates are Swift-reference seconds, not ISO text.
     let value: serde_json::Value = serde_json::from_str(&encoded).unwrap();
     assert_eq!(value["start"], json!(782_222_340.0));
     assert_eq!(value["end"], json!(782_222_460.5));
@@ -219,7 +213,6 @@ fn deleting_saved_sessions_withdraws_generated_journals_and_nothing_else() {
     assert!(library.coding_agent_bursts_on(day).unwrap().is_empty());
     assert!(!library.journal_path(day).exists());
     assert_eq!(crate::evidence::read_state(dir.path()).unwrap().revision, 1);
-    // Nothing left to do: no further revision.
     assert_eq!(library.delete_coding_agent_evidence().unwrap(), 0);
     assert_eq!(crate::evidence::read_state(dir.path()).unwrap().revision, 1);
 }
@@ -231,8 +224,6 @@ fn reading_needs_both_the_setting_and_a_choice_the_person_made() {
     assert!(!defaults.coding_agent_evidence_confirmed);
     assert!(defaults.enabled_coding_agents().is_empty());
 
-    // Existing installs here, and libraries moved from a Mac, carry the key
-    // as true without ever having been asked.
     let moved: Settings =
         serde_json::from_value(json!({"codingAgentEvidenceEnabled": true})).unwrap();
     assert!(moved.coding_agent_evidence_enabled);

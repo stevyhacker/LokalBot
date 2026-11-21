@@ -134,9 +134,6 @@ final class DictationGroundingTests: XCTestCase {
             "Hey, reply with the deadline.", routing: .referencedRelays), "commands need no pointer")
     }
 
-    /// Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window: the relay rule
-    /// that needs a pointer to context answered new requests without ever
-    /// routing a self-contained relay ("Tell him I am running late").
     func testProductionRoutingRequiresAPointerForRelays() {
         XCTAssertEqual(DictationRequestRouting.production, .referencedRelays)
         XCTAssertTrue(DictationGrounding.requestsContext("Tell him the time from the message above."))
@@ -145,9 +142,6 @@ final class DictationGroundingTests: XCTestCase {
         XCTAssertFalse(DictationGrounding.requestsContext("Tell me if 14:00 works for you."))
     }
 
-    /// Benchmarks/transcribe/Dictation/results/2026-10-08-cleanup: direct speech is sent as
-    /// data to a cleanup prompt, so "What is the status of the Birch invoice?"
-    /// is inserted instead of answered.
     func testDirectSpeechIsCleanedAsDataNotAsAnInstruction() async throws {
         XCTAssertEqual(DictationCleanupPrompt.production, .transcriptAsData)
         let engine = GroundingTestEngine()
@@ -278,8 +272,6 @@ final class DictationGroundingTests: XCTestCase {
         settings.dictationUseMeetingMemory = false
         XCTAssertFalse(permitted())
         settings.dictationUseMeetingMemory = true
-        // Turning Overnight review off stops new reviews; it does not withdraw
-        // a grant to read what is already saved.
         settings.dreamingEnabled = false
         XCTAssertTrue(permitted())
     }
@@ -293,11 +285,8 @@ final class DictationGroundingTests: XCTestCase {
             return CotypingMemoryContext.select(items: [item], for: field, includeTitle: false,
                                                 policy: policy, allowBodyMatch: allowBodyMatch).items.count
         }
-        // Two ordinary words name no topic, for typing or for dictation.
         XCTAssertEqual(selected("Reply with the workshop city.", allowBodyMatch: true), 0)
         XCTAssertEqual(selected("Reply with the workshop city.", allowBodyMatch: false), 0)
-        // A shared name lets typed text match a saved sentence; dictation
-        // still needs the source itself to be named.
         XCTAssertEqual(selected("Reply that the workshop is in Ulcinj.", allowBodyMatch: true), 1)
         XCTAssertEqual(selected("Reply that the workshop is in Ulcinj.", allowBodyMatch: false), 0)
         XCTAssertEqual(selected("Reply with the Rill workshop city.", allowBodyMatch: false), 1)

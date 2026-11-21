@@ -1,19 +1,9 @@
 import Foundation
 
-/// The request and the checks for one Live Radar pass. Pure, so the prompt,
-/// schema, and grounding rules are covered without a model or network.
-///
-/// A pass sends the lines that arrived since the previous pass, a little of
-/// the conversation before them, what is already on the radar, and passages
-/// from earlier meetings that local search found for the new lines. Whatever
-/// comes back must quote one of the new lines; a contradiction must also name
-/// a passage it was shown. Anything else is dropped, never shown.
 enum MeetingRadarAnalyzer {
     struct Line: Equatable, Sendable {
-        /// "L12": stable for the whole recording.
         let label: String
         let time: TimeInterval
-        /// The live track: "local" (this Mac's microphone) or "them".
         let speaker: String
         let text: String
 
@@ -21,7 +11,6 @@ enum MeetingRadarAnalyzer {
     }
 
     struct Excerpt: Equatable, Sendable {
-        /// "E1": numbered per pass.
         let label: String
         let evidence: RadarEvidence
     }
@@ -133,8 +122,6 @@ enum MeetingRadarAnalyzer {
         return sections.joined(separator: "\n\n")
     }
 
-    /// Parses a reply and keeps only grounded, new items. `nextID` numbers the
-    /// kept items r1, r2, … across the whole recording.
     static func apply(reply: String, to request: Request, nextID: inout Int,
                       model: String, now: Date = Date()) -> Outcome {
         guard let data = reply.data(using: .utf8),
@@ -180,10 +167,6 @@ enum MeetingRadarAnalyzer {
         return outcome
     }
 
-    // MARK: - Grounding
-
-    /// The line an item quotes: the one it names, when the quote is really
-    /// in it, else the only new line that contains the quote.
     static func sourceLine(label: String?, quote: String, in lines: [Line]) -> Line? {
         if let label, let named = lines.first(where: { $0.label == label }),
            quoteMatches(quote, line: named.text) {
@@ -193,9 +176,6 @@ enum MeetingRadarAnalyzer {
         return matches.count == 1 ? matches[0] : nil
     }
 
-    /// Exact after normalization, or at least 80% of the quote's words in the
-    /// line, so punctuation and a dropped filler word don't reject a real
-    /// quote. A quote under three words only counts when it is the whole line.
     static func quoteMatches(_ quote: String, line: String) -> Bool {
         let quoteText = normalized(quote)
         let lineText = normalized(line)
@@ -217,7 +197,6 @@ enum MeetingRadarAnalyzer {
                              speaker: line.speakerName, text: line.text, isCurrentMeeting: true)
     }
 
-    /// Same kind and the same quote, or mostly the same words.
     static func isDuplicate(_ item: RadarItem, of existing: [RadarItem]) -> Bool {
         let quote = normalized(item.quote)
         let words = Set(normalized(item.text).split(separator: " "))
@@ -235,8 +214,6 @@ enum MeetingRadarAnalyzer {
         let scalars = folded.unicodeScalars.map { CharacterSet.alphanumerics.contains($0) ? Character($0) : " " }
         return String(scalars).split(separator: " ").joined(separator: " ")
     }
-
-    // MARK: - Formatting
 
     static func render(_ line: Line) -> String {
         "[\(line.label) \(timestamp(line.time))] \(line.speakerName): \(line.text)"

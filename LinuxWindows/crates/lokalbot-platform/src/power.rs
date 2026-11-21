@@ -1,28 +1,15 @@
-//! Whether the computer is on battery, saving power or running hot, so power-aware
-//! features can wait (`PowerSourceMonitor`, `ProcessInfo.thermalState`).
-//!
-//! Linux reads sysfs; Windows asks `GetSystemPowerStatus`. Windows has no heat
-//! reading an ordinary program can make, so `is_hot` is always false there.
-
-/// One reading of the computer's power state.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PowerState {
-    /// It has an internal battery (a laptop).
     pub has_battery: bool,
-    /// The battery is what's running it.
     pub on_battery: bool,
-    /// The person chose to save power: battery saver, or the low-power profile.
     pub saving_power: bool,
-    /// Running hot enough to throttle.
     pub is_hot: bool,
 }
 
-/// The state now. Unknown counts as plugged in and cool: desktops report nothing.
 pub fn current() -> PowerState {
     imp::current()
 }
 
-/// Whether a battery is what's running the computer now.
 pub fn on_battery() -> bool {
     current().on_battery
 }
@@ -32,14 +19,11 @@ mod imp {
     use super::PowerState;
     use windows::Win32::System::Power::{GetSystemPowerStatus, SYSTEM_POWER_STATUS};
 
-    /// `BatteryFlag`: no system battery.
     const NO_BATTERY: u8 = 128;
-    /// `BatteryFlag`: the status could not be read.
     const UNKNOWN_BATTERY: u8 = 255;
 
     pub(super) fn current() -> PowerState {
         let mut status = SYSTEM_POWER_STATUS::default();
-        // SAFETY: the structure is plain data filled in by the call.
         if unsafe { GetSystemPowerStatus(&mut status) }.is_err() {
             return PowerState::default();
         }
@@ -73,9 +57,6 @@ mod imp {
         }
     }
 
-    /// `(has_battery, on_battery)`: peripherals' batteries (a mouse, headphones)
-    /// report `scope = Device` and don't count. A battery runs the computer only
-    /// when no mains or USB supply is online and it reads as discharging.
     pub(super) fn battery_state(folder: &Path) -> (bool, bool) {
         let Ok(entries) = std::fs::read_dir(folder) else {
             return (false, false);
@@ -103,12 +84,10 @@ mod imp {
         (has_battery, has_battery && discharging && !plugged_in)
     }
 
-    /// The firmware's power profile, which power-profiles-daemon sets too.
     pub(super) fn saving_power(profile: &Path) -> bool {
         read(profile).is_some_and(|value| matches!(value.as_str(), "low-power" | "quiet"))
     }
 
-    /// A CPU zone at its first throttling point, or past 90 °C when it names none.
     pub(super) fn is_hot(folder: &Path) -> bool {
         const FALLBACK_LIMIT: i64 = 90_000;
         let Ok(entries) = std::fs::read_dir(folder) else {
@@ -238,14 +217,12 @@ mod tests {
         supply(dir.path(), "thermal_zone0", &[("temp", "85000\n")]);
         assert!(is_hot(dir.path()));
         supply(dir.path(), "thermal_zone0", &[("temp", "60000\n")]);
-        // A zone that isn't the processor doesn't count, however warm.
         supply(
             dir.path(),
             "thermal_zone1",
             &[("type", "wifi\n"), ("temp", "95000\n")],
         );
         assert!(!is_hot(dir.path()));
-        // No throttling point: past 90 °C.
         supply(
             dir.path(),
             "thermal_zone2",

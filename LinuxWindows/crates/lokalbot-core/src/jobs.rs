@@ -1,25 +1,17 @@
-//! The durable post-meeting processing queue (`PipelineJobStore.swift`):
-//! a row per job, deleted on success; `attempts` counts starts so a meeting
-//! that crashes processing cannot loop forever on launch.
-
 use anyhow::Result;
 use rusqlite::params;
 use uuid::Uuid;
 
 use crate::library::Library;
 
-/// Launch auto-resume gives up after this many starts.
 pub const MAX_AUTO_RESUME_ATTEMPTS: u32 = 3;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PipelineJob {
     pub meeting_id: Uuid,
     pub transcribe: bool,
-    /// True only after this job committed its transcript.
     pub transcription_completed: bool,
     pub summarize: bool,
-    /// An automatic job: its summary runs only while automatic summaries are
-    /// on (`ProcessingPipeline.resumedWork`). False for an explicit request.
     pub summary_follows_setting: bool,
     pub attempts: u32,
     pub last_error: Option<String>,
@@ -44,10 +36,6 @@ fn job_from_row(row: &rusqlite::Row) -> rusqlite::Result<Option<PipelineJob>> {
     }))
 }
 
-/// Adds the columns older builds' `pipeline_jobs` lacked, with the Mac's
-/// defaults (`PipelineJobStore`): an old row has no provenance, so its
-/// summary follows the current setting, and it cannot prove it committed the
-/// transcript on disk, so transcription runs again.
 pub(crate) fn migrate(db: &rusqlite::Connection) -> Result<()> {
     let columns = crate::screen::column_names(db, "pipeline_jobs")?;
     for (column, definition) in [
@@ -66,10 +54,6 @@ pub(crate) fn migrate(db: &rusqlite::Connection) -> Result<()> {
 }
 
 impl Library {
-    /// Records a job. A user-initiated enqueue is a deliberate retry: it
-    /// resets `attempts` and the last error. An automatic one keeps the
-    /// attempt count of an existing row and lets the summary follow the
-    /// current setting when the job is restored.
     pub fn enqueue_job(
         &self,
         meeting_id: Uuid,
@@ -98,17 +82,14 @@ impl Library {
         })
     }
 
-    /// Jobs eligible for launch auto-resume, oldest first.
     pub fn pending_jobs(&self) -> Result<Vec<PipelineJob>> {
         self.query_jobs("attempts < ?1", MAX_AUTO_RESUME_ATTEMPTS)
     }
 
-    /// Jobs that used up their automatic attempts; shown as failed rows.
     pub fn parked_jobs(&self) -> Result<Vec<PipelineJob>> {
         self.query_jobs("attempts >= ?1", MAX_AUTO_RESUME_ATTEMPTS)
     }
 
-    /// One job regardless of its attempts.
     pub fn job(&self, meeting_id: Uuid) -> Result<Option<PipelineJob>> {
         let id = crate::ids::uuid_upper(&meeting_id);
         self.with_db(|db| {
@@ -141,7 +122,6 @@ impl Library {
         })
     }
 
-    /// Burns one attempt as processing starts.
     pub fn mark_job_started(&self, meeting_id: Uuid) -> Result<()> {
         self.update_job(
             "UPDATE pipeline_jobs SET attempts = attempts + 1 WHERE meeting_id = ?1",
@@ -156,7 +136,6 @@ impl Library {
         )
     }
 
-    /// Deletes the finished job.
     pub fn mark_job_completed(&self, meeting_id: Uuid) -> Result<()> {
         self.update_job(
             "DELETE FROM pipeline_jobs WHERE meeting_id = ?1",
@@ -175,7 +154,6 @@ impl Library {
         })
     }
 
-    /// Drops jobs whose meeting no longer exists.
     pub fn prune_jobs(&self, existing: &[Uuid]) -> Result<usize> {
         let keep: std::collections::HashSet<String> =
             existing.iter().map(crate::ids::uuid_upper).collect();
@@ -257,8 +235,6 @@ mod tests {
         let paths = crate::LibraryPaths::new(dir.path());
         let id = Uuid::new_v4();
         {
-            // The 0.6.2 table: no last_error, transcription_completed or
-            // summary_follows_setting.
             let db = rusqlite::Connection::open(paths.database()).unwrap();
             db.execute_batch(
                 "CREATE TABLE pipeline_jobs (meeting_id TEXT PRIMARY KEY, transcribe INTEGER NOT NULL, \
@@ -281,7 +257,6 @@ mod tests {
         library.mark_transcription_completed(id).unwrap();
         drop(library);
 
-        // Opening again must not try to add the columns a second time.
         let library = Library::open(paths).unwrap();
         let job = library.job(id).unwrap().unwrap();
         assert!(job.transcription_completed);

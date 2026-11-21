@@ -1,28 +1,18 @@
 import AppKit
 import SwiftUI
 
-/// The top of the menu bar panel: what LokalBot is doing, in one line and one
-/// colour, with its buttons always in the same place under it.
-/// `MenuBarStatus` picks the state; this draws it.
 struct MenuBarStatusBlock: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.openURL) private var openURL
     let status: MenuBarStatus
-    /// The timer and the sound levels read the recorder itself, not AppState.
     let recording: RecordingController
-    /// What makes a recording start, for the line under "Not recording".
     let habit: MenuBarRecordingHabit
     let autoRecordMode: AppSettings.AutoRecordMode
-    /// The recording's capture warnings, shown in the block while it leads.
     let captureWarnings: [String]
-    /// The call is a browser tab captured by process (`callObservationUnavailable`).
     let capturesBrowserProcess: Bool
-    /// The panel is on screen, so the sound levels may tick.
     let isOpen: Bool
     let now: Date
-    /// A recording is starting or dictation holds the microphone: Record waits.
     let recordWaits: Bool
-    /// The running dictation in words; nil when there is none.
     var dictation: MenuBarDictationWords?
 
     private var tone: MenuBarStatus.Tone { status.tone(hasCaptureWarnings: !captureWarnings.isEmpty) }
@@ -49,8 +39,6 @@ struct MenuBarStatusBlock: View {
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("menubar.status")
     }
-
-    // MARK: States
 
     @ViewBuilder private var content: some View {
         switch status.block {
@@ -131,8 +119,6 @@ struct MenuBarStatusBlock: View {
                         .primaryActionButton()
                         .accessibilityIdentifier("menubar.join")
                 }
-                // A solo event without a link may not be a call: it is recorded
-                // like any other manual start, without the event's context.
                 recordButton("Record", event: isCall ? event : nil)
             }
         case .paused:
@@ -158,8 +144,6 @@ struct MenuBarStatusBlock: View {
             buttons { recordButton("Record now") }
         }
     }
-
-    // MARK: Pieces
 
     private func heading(_ title: Text, lines: Int = 1) -> some View {
         heading(title, lines: lines) { EmptyView() }
@@ -195,8 +179,6 @@ struct MenuBarStatusBlock: View {
             .padding(.top, 9)
     }
 
-    /// Records the calendar event when one is given, otherwise whatever call
-    /// the detector sees, as Record now always has.
     private func recordButton(_ title: LocalizedStringKey, event: CalendarMeetingCandidate? = nil) -> some View {
         Button {
             let context = event.map { app.recordingContext(for: $0) }
@@ -240,10 +222,6 @@ struct MenuBarStatusBlock: View {
             .accessibilityHidden(true)
     }
 
-    // MARK: Words
-
-    /// "6:00 – 6:30 PM · Maya Chen +2": the panel is narrow, so one name
-    /// and a count stand for the people Today lists.
     static func schedule(_ event: CalendarMeetingCandidate) -> String {
         var people: String?
         if let first = event.participantNames.first {
@@ -255,8 +233,6 @@ struct MenuBarStatusBlock: View {
             .joined(separator: " · ")
     }
 
-    /// What makes a recording start. While day memory is paused the line
-    /// says meetings are not: pausing never touches recording.
     static func habitText(_ habit: MenuBarRecordingHabit, paused: Bool) -> Text {
         switch habit {
         case .appDetected(let name):
@@ -271,14 +247,11 @@ struct MenuBarStatusBlock: View {
         }
     }
 
-    // MARK: Actions
-
     private func open(_ meeting: Meeting) {
         app.openMeeting(meeting.id)
         WindowAccess.shared.open("main")
     }
 
-    /// The fix each attention item offers. They are the ones the menu had.
     private func resolve(_ item: MenuBarAttention) {
         switch item {
         case .microphoneRefused:
@@ -295,19 +268,15 @@ struct MenuBarStatusBlock: View {
 }
 
 private extension MenuBarStatus.Block {
-    /// The recording dot is drawn smaller than the other tiles' symbols.
     var usesSmallSymbol: Bool {
         if case .recording = self { return true }
         return false
     }
 }
 
-/// A running dictation as the status block says it: what it is doing, how
-/// to finish it, and the one button that stops or cancels it.
 struct MenuBarDictationWords {
     let title: LocalizedStringKey
     let progress: Text?
-    /// The elapsed time, while the dictation is being spoken.
     let timer: String?
     let action: LocalizedStringKey
     let actionIcon: String
@@ -347,12 +316,9 @@ struct MenuBarDictationWords {
     }
 }
 
-/// The words for one attention item: as the block's heading, and as a line
-/// under another block.
 struct MenuBarAttentionWords {
     let title: Text
     let detail: Text?
-    /// The one line under another block: an error is its own message.
     let strip: Text
     let action: LocalizedStringKey
     let icon: String
@@ -382,14 +348,11 @@ struct MenuBarAttentionWords {
             strip = title
             action = "Review"
             icon = "checkmark.shield"
-            // The name the row had before the status block took it in.
             identifier = "menuBar.settingsApproval"
         }
     }
 }
 
-/// An attention item that is not the block's heading: its words and its fix
-/// on one line.
 private struct MenuBarAttentionStrip: View {
     let item: MenuBarAttention
     let resolve: () -> Void
@@ -415,7 +378,6 @@ private struct MenuBarAttentionStrip: View {
     }
 }
 
-/// The block's fill and edge in its one colour.
 private struct MenuBarStatusSurface: ViewModifier {
     let tone: MenuBarStatus.Tone
 
@@ -429,9 +391,6 @@ private struct MenuBarStatusSurface: ViewModifier {
     }
 }
 
-/// Whether the microphone and the call are producing sound right now, from
-/// the health snapshot the recording strip reads, on one line. It ticks only
-/// while the panel is on screen: the menu extra stays mounted after it closes.
 private struct MenuBarRecordingLevels: View {
     let recording: RecordingController
     let ticks: Bool
@@ -447,8 +406,6 @@ private struct MenuBarRecordingLevels: View {
     }
 }
 
-/// One snapshot of the recording's sources: a dot and a name each, and the
-/// call's level when it was just measured.
 struct MenuBarAudioLineRow: View {
     let line: MenuBarAudioLine
 
@@ -473,8 +430,6 @@ struct MenuBarAudioLineRow: View {
         .accessibilityIdentifier("menubar.recording.health")
     }
 
-    /// A source with sound arriving is its name and a green dot; any other
-    /// state adds the recorder's own words for it.
     private func source(_ source: MenuBarAudioLine.Source, name: Text, detailed: Text) -> some View {
         HStack(spacing: 5) {
             Circle()

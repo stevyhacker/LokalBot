@@ -1,6 +1,3 @@
-//! The phone's end: `SyncClient` pairs with a Mac, keeps a local copy of
-//! its records, asks it questions and sends it recordings.
-
 mod queries;
 mod recordings;
 mod sample;
@@ -34,17 +31,13 @@ pub use self::search::SearchHit;
 pub(crate) use self::search::cjk as search_cjk;
 use self::store::{ClientStore, Pairing};
 
-/// A code this many seconds past its expiry on this device's clock is
-/// refused without trying; the Mac's clock decides the rest.
 const EXPIRY_GRACE_SECS: i64 = 120;
 
 #[derive(Clone, Debug, uniffi::Record)]
 pub struct ClientConfig {
     pub db_path: String,
-    /// A UUID the app keeps for this installation.
     pub device_id: String,
     pub device_name: String,
-    /// `ios`, `ipados` or `android`.
     pub platform: String,
     pub static_private_key: Vec<u8>,
 }
@@ -55,22 +48,16 @@ pub struct PairedMac {
     pub mac_key_b64: String,
     pub addresses: Vec<String>,
     pub port: u16,
-    /// ISO 8601 UTC.
     pub paired_at: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, uniffi::Record)]
 pub struct SyncReport {
-    /// Records added or updated.
     pub received: u32,
-    /// Tombstones applied.
     pub deleted: u32,
-    /// Ops the Mac applied.
     pub ops_applied: u32,
     pub cursor: u64,
-    /// The `ip:port` that answered.
     pub address: String,
-    /// ISO 8601 UTC.
     pub finished_at: String,
 }
 
@@ -84,13 +71,11 @@ pub struct SyncStatus {
     pub mac_name: Option<String>,
 }
 
-/// Receives an answer's text as the Mac writes it.
 #[uniffi::export(callback_interface)]
 pub trait AskListener: Send + Sync {
     fn on_delta(&self, text: String);
 }
 
-/// The phone's copy of a Mac's records and its connection to that Mac.
 #[derive(uniffi::Object)]
 pub struct SyncClient {
     device_id: String,
@@ -98,23 +83,15 @@ pub struct SyncClient {
     platform: String,
     private_key: [u8; KEY_LEN],
     store: Mutex<ClientStore>,
-    /// One pairing or sync at a time.
     sync_lock: Mutex<()>,
-    /// One upload pass at a time. Separate, so a long upload holds up neither
-    /// syncing nor Ask.
     upload_lock: Mutex<()>,
-    /// Where recordings live: `recordings/` beside the database.
     recordings_dir: PathBuf,
     tuning: Mutex<Tuning>,
 }
 
-/// How a pairing attempt on one address ended.
 enum PairAttempt {
-    /// No Noise handshake: not LokalBot, or the code is unknown or expired.
     NoHandshake,
-    /// The handshake reached a Mac whose key is not the one in the code.
     WrongMac,
-    /// The handshake completed; this is the outcome.
     Done(Result<String>),
 }
 
@@ -147,11 +124,6 @@ impl SyncClient {
         }))
     }
 
-    // Pairing and connection
-
-    /// Pairs with the Mac in a scanned code. Blocks until the person answers
-    /// on the Mac. Replaces any earlier pairing and local data, apart from
-    /// recordings that haven't reached a Mac yet.
     pub fn pair(&self, payload: String) -> Result<PairedMac> {
         let _sync = self.sync_lock.lock();
         let payload = Payload::parse(&payload)?;
@@ -197,8 +169,6 @@ impl SyncClient {
         }))
     }
 
-    /// Connects (`extra_addresses` first, e.g. Bonjour results, then the
-    /// stored ones), sends queued ops, catches up and closes.
     pub fn sync(&self, extra_addresses: Vec<String>) -> Result<SyncReport> {
         let _sync = self.sync_lock.lock();
         let tuning = self.tuning();
@@ -216,10 +186,6 @@ impl SyncClient {
         self.finish(result)
     }
 
-    /// Erases the local copy, recordings that haven't reached the Mac and the
-    /// pairing. The Mac is not told. With no pairing, as when closing the sample
-    /// library, it erases the copy alone: recordings kept after the Mac removed
-    /// this device stay until they are discarded one by one or sent.
     pub fn unpair(&self) -> Result<()> {
         let _sync = self.sync_lock.lock();
         let paired = self.store.lock().pairing()?.is_some();
@@ -246,10 +212,6 @@ impl SyncClient {
         })
     }
 
-    // Changes from the phone
-
-    /// Queues an `action.setStatus` op and shows the status at once, marked
-    /// pending. In the sample library the change is simply kept.
     pub fn set_action_status(
         &self,
         meeting_id: String,
@@ -293,15 +255,6 @@ impl SyncClient {
         store.queue_op(&meeting_id, &action_id, &status, &op, &now_iso())
     }
 
-    // Questions
-
-    /// Asks the Mac, or answers from the unpaired sample library, streaming
-    /// text to `listener`. Returns the result JSON and saves it to history.
-    ///
-    /// If the connection drops once the Mac has the question, the Mac keeps
-    /// answering: this queues the question and fails with `Interrupted`.
-    /// Asking the same request again picks the answer up, with the text so
-    /// far as the first delta.
     pub fn ask(
         &self,
         request_json: String,
@@ -317,7 +270,6 @@ impl SyncClient {
                     let now = now_iso();
                     let result = sample::answer(&store, &request_id, &request, &now)?;
                     store.save_answer(&request_id, &request, &result, &now)?;
-                    // A callback may call the client again, so don't hold the store lock.
                     drop(store);
                     if let Some(answer) = str_field(&result, "answer") {
                         listener.on_delta(answer.to_owned());
@@ -351,7 +303,6 @@ impl SyncClient {
         Ok(result.to_string())
     }
 
-    /// Keeps a question for the next time the Mac is reachable.
     pub fn queue_question(&self, request_json: String) -> Result<()> {
         let (request_id, request) = parse_request(&request_json)?;
         self.store
@@ -359,24 +310,18 @@ impl SyncClient {
             .queue_question(&request_id, &request, &now_iso())
     }
 
-    /// Queued questions (request JSON), oldest first. `ask` removes one once
-    /// it is answered.
     pub fn queued_questions(&self) -> Result<Vec<String>> {
         self.store.lock().queued_questions()
     }
 
-    /// `{ "request": …, "result": … }` JSON, newest first; 0 = all.
     pub fn ask_history(&self, limit: u32) -> Result<Vec<String>> {
         self.store.lock().ask_history(limit)
     }
-
-    // Reads
 
     pub fn manifest(&self) -> Result<Option<String>> {
         self.store.lock().manifest()
     }
 
-    /// Meetings newest first; merged meetings are hidden. 0 = no limit.
     pub fn meetings(
         &self,
         from_day: Option<String>,
@@ -396,7 +341,6 @@ impl SyncClient {
         self.store.lock().transcript(&meeting_id)
     }
 
-    /// Day keys that have a record, newest first. 0 = no limit.
     pub fn days(&self, limit: u32) -> Result<Vec<String>> {
         self.store.lock().days(limit)
     }
@@ -405,7 +349,6 @@ impl SyncClient {
         self.store.lock().day(&date)
     }
 
-    /// ActionRow JSON (ffi.md), overdue first by this device's date.
     pub fn actions(&self, filter: ActionFilter) -> Result<Vec<String>> {
         self.store.lock().actions(&filter, &local_today())
     }
@@ -426,7 +369,6 @@ impl SyncClient {
         self.store.lock().project(&id)
     }
 
-    /// Full-text search. 0 = the default of 50 hits.
     pub fn search(&self, query: String, limit: u32) -> Result<Vec<SearchHit>> {
         let limit = if limit == 0 {
             50
@@ -436,10 +378,6 @@ impl SyncClient {
         search::search(&self.store.lock().db, &query, limit)
     }
 
-    // Sample library
-
-    /// Imports an array of envelopes (e.g. fixtures/sample-library.json) and
-    /// marks the store as sample data. Returns how many records changed.
     pub fn import_records(&self, envelopes_json: String) -> Result<u32> {
         let envelopes: Vec<Envelope> = serde_json::from_str(&envelopes_json)
             .map_err(|e| SyncError::invalid(format!("Not an array of record envelopes: {e}")))?;
@@ -459,14 +397,12 @@ impl SyncClient {
     }
 }
 
-/// Controls for tests.
 #[cfg(test)]
 impl SyncClient {
     pub(crate) fn set_tuning(&self, tuning: Tuning) {
         *self.tuning.lock() = tuning;
     }
 
-    /// Points this phone at a computer without pairing, for hosts a test fakes.
     pub(crate) fn pair_with_key(&self, mac_key: &[u8; KEY_LEN], port: u16) -> Result<()> {
         self.store.lock().set_pairing(&Pairing {
             mac_name: "Old Mac".into(),
@@ -481,8 +417,6 @@ impl SyncClient {
         self.store.lock().actions(filter, today)
     }
 
-    /// Opens a sync session and returns it after the catch-up, without
-    /// closing, so tests can watch live pushes.
     pub(crate) fn open_live(&self) -> Result<(Arc<Channel>, Inbox)> {
         let tuning = self.tuning();
         let pairing = self
@@ -496,7 +430,6 @@ impl SyncClient {
         Ok((channel, inbox))
     }
 
-    /// A session right after the handshake; the test sends `hello` itself.
     pub(crate) fn connect_raw(&self) -> Result<(Arc<Channel>, Inbox)> {
         let tuning = self.tuning();
         let pairing = self
@@ -508,7 +441,6 @@ impl SyncClient {
         Ok((channel, inbox))
     }
 
-    /// A session after `hello` and `welcome`.
     pub(crate) fn open_session(&self, purpose: &str, cursor: u64) -> Result<(Arc<Channel>, Inbox)> {
         let (channel, mut inbox) = self.connect_raw()?;
         self.hello(&channel, &mut inbox, &self.tuning(), cursor, purpose)?;
@@ -531,9 +463,6 @@ impl SyncClient {
         self.tuning.lock().clone()
     }
 
-    /// Wipes the local copy when the Mac revoked this device. Recordings that
-    /// haven't reached it stay: they exist nowhere else, and removing a device is
-    /// often the first step of pairing it again.
     fn finish<T>(&self, result: Result<T>) -> Result<T> {
         if let Err(SyncError::Revoked(_)) = &result {
             self.store.lock().wipe_library()?;
@@ -550,20 +479,19 @@ impl SyncClient {
         let handshake = (|| -> Result<_> {
             conn.send_packet(&preface)?;
             let mut handshake = pairing_handshake(true, &self.private_key, &payload.psk)?;
-            conn.write_handshake(&mut handshake)?; // -> e
-            conn.read_handshake(&mut handshake)?; // <- e, ee, s, es
+            conn.write_handshake(&mut handshake)?;
+            conn.read_handshake(&mut handshake)?;
             Ok(handshake)
         })();
         let Ok(mut handshake) = handshake else {
             return PairAttempt::NoHandshake;
         };
-        // Check the Mac's key before revealing ours in the last message.
         match remote_static(&handshake) {
             Ok(key) if key == payload.mac_key => {}
             _ => return PairAttempt::WrongMac,
         }
         let transport = (|| -> Result<_> {
-            conn.write_handshake(&mut handshake)?; // -> s, se, psk
+            conn.write_handshake(&mut handshake)?;
             Ok(handshake.into_transport_mode()?)
         })();
         let Ok(transport) = transport else {
@@ -578,16 +506,12 @@ impl SyncClient {
         PairAttempt::Done(result)
     }
 
-    /// Sends the pairing request and waits for the person's answer.
     fn request_pairing(
         &self,
         channel: &Channel,
         inbox: &mut Inbox,
         tuning: &Tuning,
     ) -> Result<String> {
-        // The Mac answers every request it accepted, a refusal or timeout
-        // included; closing without an answer means it did not accept the
-        // code (a wrong secret, or an offer that is gone).
         let not_accepted = || {
             SyncError::PairingExpired(
                 "Your computer did not accept this code. It may have expired or been used; show a new one.".into(),
@@ -651,7 +575,6 @@ impl SyncClient {
         })
     }
 
-    /// The first address that completes a session handshake.
     fn connect(
         &self,
         pairing: &Pairing,
@@ -683,8 +606,8 @@ impl SyncClient {
         let mut conn = RawConn::new(stream, tuning)?;
         conn.send_packet(&[PREFACE_SESSION])?;
         let mut handshake = session_handshake(&self.private_key, Some(mac_key))?;
-        conn.write_handshake(&mut handshake)?; // -> e, es, s, ss
-        conn.read_handshake(&mut handshake)?; // <- e, ee, se
+        conn.write_handshake(&mut handshake)?;
+        conn.read_handshake(&mut handshake)?;
         conn.into_channel(handshake.into_transport_mode()?)
     }
 
@@ -758,8 +681,6 @@ impl SyncClient {
                     report.received += applied.received;
                     report.deleted += applied.deleted;
                     if done {
-                        // Only a finished batch moves the cursor, so an
-                        // interrupted catch-up repeats safely.
                         let cursor = store.cursor()?.max(last_seq).max(highest_seen);
                         store.set_cursor(cursor)?;
                         report.cursor = cursor;
@@ -828,7 +749,6 @@ fn run_ask(
         let message = inbox
             .recv(channel, tuning, Some(deadline))
             .map_err(|e| match e {
-                // A lock screen or a Wi-Fi change; the Mac answers anyway.
                 SyncError::Io(_) if asked => SyncError::Interrupted(
                     "The connection to your computer dropped while it was answering. \
                      It keeps working, and the answer arrives when this device reconnects."
@@ -874,8 +794,6 @@ fn run_ask(
     }
 }
 
-/// The request's id and body; the request must name `requestId` and
-/// `question`.
 fn parse_request(request_json: &str) -> Result<(String, Value)> {
     let request: Value = serde_json::from_str(request_json)
         .map_err(|e| SyncError::invalid(format!("The question is not JSON: {e}")))?;
@@ -889,8 +807,6 @@ fn parse_request(request_json: &str) -> Result<(String, Value)> {
     Ok((request_id, request))
 }
 
-/// TCP connections to `addresses` in order, each socket address tried once
-/// with the connect timeout. Names resolve lazily, one address at a time.
 fn connections<'a>(
     addresses: &'a [String],
     port: u16,

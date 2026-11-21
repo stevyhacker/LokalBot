@@ -1,6 +1,3 @@
-//! Meeting lookups and output shapes (`SessionLookup.swift`,
-//! `SessionFormatter.swift`). Read-only: nothing here writes to the library.
-
 use chrono::{DateTime, Local, NaiveDate, SecondsFormat, TimeZone as _, Utc};
 use lokalbot_core::{Library, LibraryPaths, Meeting, Transcript};
 use serde::Serialize;
@@ -8,7 +5,6 @@ use uuid::Uuid;
 
 use crate::json;
 
-/// The library the CLI reads, opened read-only.
 pub struct Session {
     pub paths: LibraryPaths,
     pub library: Library,
@@ -20,12 +16,10 @@ impl Session {
         Ok(Self { paths, library })
     }
 
-    /// Every visible meeting, newest first.
     pub fn meetings(&self) -> anyhow::Result<Vec<Meeting>> {
         self.library.list_meetings()
     }
 
-    /// `latest`, a full UUID, or a unique prefix of an 8-character short ID.
     pub fn find(&self, id: &str, meetings: &[Meeting]) -> Option<Meeting> {
         let needle = id.to_lowercase();
         if needle == "latest" {
@@ -43,7 +37,6 @@ impl Session {
         (matches.len() == 1).then(|| matches[0].clone())
     }
 
-    /// Short IDs of every meeting a prefix matches.
     pub fn prefix_matches(&self, id: &str, meetings: &[Meeting]) -> Vec<String> {
         let needle = id.to_lowercase();
         meetings
@@ -71,8 +64,6 @@ impl Session {
         self.library.transcript(meeting).ok().flatten()
     }
 
-    /// [`Self::transcript`], decoded only when `wanted` accepts the file's
-    /// bytes.
     pub fn transcript_if(
         &self,
         meeting: &Meeting,
@@ -97,19 +88,16 @@ pub fn short_uuid(id: &Uuid) -> String {
     id.simple().to_string()[..8].to_string()
 }
 
-/// ISO 8601 in UTC without fractions ("2026-10-18T09:57:00Z").
 pub fn iso8601(at: DateTime<Utc>) -> String {
     at.to_rfc3339_opts(SecondsFormat::Secs, true)
 }
 
-/// Wall-clock length, or `None` while recording.
 pub fn duration(meeting: &Meeting) -> Option<f64> {
     meeting
         .ended_at
         .map(|end| (end - meeting.started_at).num_milliseconds() as f64 / 1000.0)
 }
 
-/// "25 min", "1h 5m" or "in progress" (`Meeting.durationLabel`).
 pub fn duration_label(meeting: &Meeting) -> String {
     let Some(seconds) = meeting.recorded_duration.or_else(|| duration(meeting)) else {
         return "in progress".into();
@@ -122,7 +110,6 @@ pub fn duration_label(meeting: &Meeting) -> String {
     }
 }
 
-/// "October 18, 2026 at 9:57 AM".
 pub fn long_date(at: DateTime<Utc>) -> String {
     at.with_timezone(&Local)
         .format("%B %-d, %Y at %-I:%M %p")
@@ -135,7 +122,6 @@ fn short_date(at: DateTime<Utc>) -> String {
         .to_string()
 }
 
-/// Start of a real local day written `YYYY-MM-DD` (`LibraryInputPolicy.localDay`).
 pub fn local_day(value: &str) -> Option<NaiveDate> {
     let parts: Vec<&str> = value.split('-').collect();
     if parts.len() != 3 || parts[0].len() != 4 || parts[1].len() != 2 || parts[2].len() != 2 {
@@ -144,7 +130,6 @@ pub fn local_day(value: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(value, "%Y-%m-%d").ok()
 }
 
-/// `[start, end)` of a local day in UTC.
 pub fn day_bounds(day: NaiveDate) -> (DateTime<Utc>, DateTime<Utc>) {
     lokalbot_core::time::local_day_bounds(day)
 }
@@ -157,7 +142,6 @@ pub fn local_now_day() -> NaiveDate {
     Local::now().date_naive()
 }
 
-/// `YYYY-MM-DD` of an instant in the local zone.
 pub fn day_key(at: DateTime<Utc>) -> String {
     at.with_timezone(&Local).format("%Y-%m-%d").to_string()
 }
@@ -177,16 +161,10 @@ struct ListEntry {
     summary: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     summary_truncated: Option<bool>,
-    /// Only on LokalBot's sample meeting: made up, with synthetic voices.
     #[serde(skip_serializing_if = "Option::is_none")]
     sample: Option<bool>,
 }
 
-/// `list --include summary` (MCP: `list_meetings` with `include`): the listed
-/// summaries share one character budget, so ten hour-long meetings fit a
-/// small model's context. A short summary comes whole and leaves the rest of
-/// its share to longer ones; a cut one ends in "…" with `summary_truncated`,
-/// and `get` reads it whole.
 pub const LIST_SUMMARY_BUDGET: usize = 20_000;
 pub const LIST_SUMMARY_CAP: usize = 5_000;
 pub const DEFAULT_SUMMARY_LIST_COUNT: usize = 10;
@@ -198,9 +176,6 @@ pub enum ListIncludeError {
     Unknown(Vec<String>),
 }
 
-/// Whether `list --include` (MCP `include`) asks for summaries. Entries
-/// always carry metadata, so `metadata` changes nothing; transcripts are read
-/// one meeting at a time with `get`.
 pub fn list_includes_summary(include: &str) -> Result<bool, ListIncludeError> {
     let parts: std::collections::BTreeSet<String> = include
         .split(',')
@@ -221,8 +196,6 @@ pub fn list_includes_summary(include: &str) -> Result<bool, ListIncludeError> {
     Ok(parts.contains("summary"))
 }
 
-/// Each summary cut to its share of `LIST_SUMMARY_BUDGET`; `None` where a
-/// meeting has none.
 pub fn list_summaries(summaries: &[Option<String>]) -> Vec<Option<(String, bool)>> {
     let texts: Vec<Option<&str>> = summaries
         .iter()
@@ -243,8 +216,6 @@ pub fn list_summaries(summaries: &[Option<String>]) -> Vec<Option<(String, bool)
     result
 }
 
-/// Shortest first, each takes what it needs up to an equal split of what is
-/// left (and at most `cap`), so short summaries leave room for long ones.
 pub fn summary_shares(lengths: &[usize], budget: usize, cap: usize) -> Vec<usize> {
     let mut shares = vec![0; lengths.len()];
     let mut remaining = budget;
@@ -259,8 +230,6 @@ pub fn summary_shares(lengths: &[usize], budget: usize, cap: usize) -> Vec<usize
     shares
 }
 
-/// The text when it has at most `limit` characters; otherwise its start, cut
-/// at the last line break when that keeps at least half, and "…".
 pub fn shortened(text: &str, limit: usize) -> (String, bool) {
     if text.chars().count() <= limit {
         return (text.to_string(), false);
@@ -275,9 +244,6 @@ pub fn shortened(text: &str, limit: usize) -> (String, bool) {
 }
 
 pub fn list_json(session: &Session, meetings: &[Meeting], include_summary: bool) -> String {
-    // `has_summary` and `has_transcript` only say a file is there. Reading
-    // every summary and transcript for them made a plain `list` read the
-    // whole library, so summaries are read only when they are printed.
     let markdown: Vec<Option<String>> = if include_summary {
         meetings.iter().map(|m| session.summary(m)).collect()
     } else {
@@ -341,7 +307,6 @@ pub fn list_table(session: &Session, meetings: &[Meeting], include_summary: bool
     sections.join("\n\n")
 }
 
-/// Which parts `get` prints, and an optional transcript window (MCP).
 #[derive(Clone, Debug, PartialEq)]
 pub struct GetOptions {
     pub include_summary: bool,
@@ -448,8 +413,6 @@ pub fn get_markdown(session: &Session, meeting: &Meeting, options: &GetOptions) 
     lines.join("\n")
 }
 
-/// Whole entries from `start` on, up to `max_characters`; the first entry is
-/// always kept so paging makes progress.
 pub fn transcript_window(
     transcript: &Transcript,
     start: f64,
@@ -475,7 +438,6 @@ pub fn transcript_window(
     (kept.join("\n\n"), None)
 }
 
-/// Seconds for "HH:MM:SS", "MM:SS" or a plain number.
 pub fn seconds_from_stamp(stamp: &str) -> Option<f64> {
     let parts: Vec<&str> = stamp.trim().split(':').collect();
     if !(1..=3).contains(&parts.len()) {
@@ -492,7 +454,6 @@ pub fn seconds_from_stamp(stamp: &str) -> Option<f64> {
     Some(total)
 }
 
-/// One `search` hit (`SessionFormatter.SearchHit`).
 #[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct SearchHit {
     pub meeting_id: String,
@@ -528,7 +489,6 @@ pub fn search_table(hits: &[SearchHit]) -> String {
     render_table(&["ID", "Kind", "Stamp", "Title — snippet"], &rows)
 }
 
-/// Columns padded to width and joined by two spaces; a `─` rule under the header.
 pub fn render_table(header: &[&str], rows: &[Vec<String>]) -> String {
     let widths: Vec<usize> = (0..header.len())
         .map(|col| {
@@ -561,12 +521,10 @@ pub fn render_table(header: &[&str], rows: &[Vec<String>]) -> String {
     lines.join("\n")
 }
 
-/// A UTC instant from epoch seconds, for SQLite rows.
 pub fn epoch(seconds: f64) -> DateTime<Utc> {
     lokalbot_core::time::from_epoch(seconds)
 }
 
-/// Local midnight of today as UTC.
 pub fn today_start() -> DateTime<Utc> {
     let today = Local::now().date_naive();
     Local
@@ -594,7 +552,6 @@ mod tests {
 
     #[test]
     fn list_summaries_share_one_budget() {
-        // Short summaries take what they need and leave the rest to longer ones.
         assert_eq!(
             summary_shares(&[100, 9_000, 30_000], 10_000, 5_000),
             vec![100, 4_950, 4_950]
@@ -611,7 +568,6 @@ mod tests {
         let (cut, truncated) = shortened(text, 30);
         assert!(truncated);
         assert_eq!(cut, "## TL;DR\nWe chose Redis.\n…");
-        // One long line is cut mid-line rather than to almost nothing.
         let (cut, _) = shortened(&format!("a\n{}", "b".repeat(100)), 20);
         assert_eq!(cut, format!("a\n{}\n…", "b".repeat(16)));
         assert!(cut.chars().count() <= 20);

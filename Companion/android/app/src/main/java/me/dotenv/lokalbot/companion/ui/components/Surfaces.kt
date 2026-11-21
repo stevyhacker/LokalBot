@@ -37,10 +37,6 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTokens
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/**
- * The Mac's grouped surface (`lbGroupedSurface`): a quiet fill with a
- * hairline stroke, or a tinted status surface when [tint] is set.
- */
 fun Modifier.groupedSurface(
     tint: Color? = null,
     shape: Shape = RoundedCornerShape(LokalBotTokens.Radius.panel),
@@ -57,22 +53,18 @@ fun Modifier.groupedSurface(
         .border(if (contrast) 2.dp else 1.dp, stroke, shape)
 }
 
-/** Capsule chip chrome shared by metadata badges, stat pills and labels. */
 fun Modifier.chipChrome(compact: Boolean = false): Modifier = composed {
     this
         .background(LokalBotTheme.palette.chipFill, CircleShape)
         .padding(horizontal = if (compact) 8.dp else 10.dp, vertical = if (compact) 3.dp else 5.dp)
 }
 
-/** The selected-row wash used in lists beside a detail pane. */
 fun Modifier.rowSelection(selected: Boolean): Modifier = composed {
     if (selected) background(LokalBotTheme.palette.accentWash, RoundedCornerShape(LokalBotTokens.Radius.row)) else this
 }
 
-/** Holds prose to a comfortable reading line on wide screens. */
 fun Modifier.readingWidth(): Modifier = widthIn(max = LokalBotTokens.Spacing.readingMaxWidth)
 
-/** A titled group of rows on a grouped surface (`WorkspaceSection`). */
 @Composable
 fun WorkspaceSection(
     title: String,
@@ -94,7 +86,6 @@ fun WorkspaceSection(
     }
 }
 
-/** Caption header for list groupings such as meeting-list days (`SectionHeader`). */
 @Composable
 fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     Text(
@@ -105,7 +96,6 @@ fun SectionHeader(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** A small capsule chip: optional icon and text in the supporting colour (`BrandChip`). */
 @Composable
 fun BrandChip(text: String, modifier: Modifier = Modifier, icon: ImageVector? = null, compact: Boolean = false, color: Color = LokalBotTheme.supportingText) {
     Row(modifier.chipChrome(compact), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -114,13 +104,11 @@ fun BrandChip(text: String, modifier: Modifier = Modifier, icon: ImageVector? = 
     }
 }
 
-/** A small state-coloured dot (`StatusDot`). */
 @Composable
 fun StatusDot(color: Color, modifier: Modifier = Modifier, size: Dp = 8.dp) {
     Box(modifier.size(size).background(color, CircleShape))
 }
 
-/** Icon, value and label in a chip, with tabular digits (`StatTile`). */
 @Composable
 fun StatTile(icon: ImageVector, value: String, label: String, modifier: Modifier = Modifier) {
     Row(modifier.chipChrome(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -130,7 +118,6 @@ fun StatTile(icon: ImageVector, value: String, label: String, modifier: Modifier
     }
 }
 
-/** Page title with an optional subtitle and trailing actions, like the Mac's toolbar titles. */
 @Composable
 fun PageHeader(
     title: String,
@@ -149,7 +136,6 @@ fun PageHeader(
     }
 }
 
-/** A quiet empty state with an optional call to action. */
 @Composable
 fun EmptyState(
     title: String,
@@ -173,7 +159,6 @@ fun EmptyState(
     }
 }
 
-/** A compact spinner beside a quiet description (`LoadingStateLabel`). */
 @Composable
 fun LoadingStateLabel(text: String, modifier: Modifier = Modifier) {
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -182,7 +167,6 @@ fun LoadingStateLabel(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-/** A row on a grouped surface separated by hairlines. */
 @Composable
 fun RowDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(modifier, thickness = 1.dp, color = LokalBotTheme.palette.separator)

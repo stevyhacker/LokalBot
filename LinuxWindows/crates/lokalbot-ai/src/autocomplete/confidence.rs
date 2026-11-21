@@ -1,37 +1,14 @@
-//! The confidence gate (`CotypingFirstWordConfidence`,
-//! `CotypingConfidenceDecision`): stay quiet when the model is unsure of a
-//! suggestion's first word, as Cotypist does.
-//!
-//! The probability is the product of the emitted tokens' probabilities up to
-//! and including the token in which the first word ends (softmax at
-//! temperature 1, whatever the sampler's settings). macOS measured that a
-//! minimum of 0.1 halves wrong suggestions for about 1.5 points of
-//! keystrokes saved. Suggestions inside a word are not gated: their first
-//! token is forced to re-type the fragment.
-//!
-//! The app runs the "selective one-word hybrid": when the gate fails but the
-//! probability that the first word is complete (the mass of every token that
-//! starts a new word or ends the text) still clears 0.31, the suggestion is
-//! cut to that one word instead of being dropped. llama-server reports the
-//! top candidates of each step (`n_probs`), so that mass is summed over them
-//! rather than the whole vocabulary; a long tail makes it a little stricter.
-
 use std::sync::OnceLock;
 
 use super::normalize::{Normalized, Suppression};
 
-/// The gate's minimum for the first word.
 pub const MINIMUM_PROBABILITY: f32 = 0.1;
-/// The one-word fallback's minimum.
 pub const HYBRID_MINIMUM: f32 = 0.31;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum BoundaryMode {
-    /// Weigh the tokens of the first word, including the one that ends it.
     SelectedToken,
-    /// Like `SelectedToken`, but the token that starts the next word counts 1.
     WordOnly,
-    /// That token counts as the probability that any word boundary follows.
     BoundaryMass,
 }
 
@@ -41,7 +18,6 @@ pub struct FirstWordConfidence {
     pub mode: BoundaryMode,
     pub probability: f32,
     text: String,
-    /// The first word has ended, or the gate is off.
     pub settled: bool,
 }
 
@@ -67,8 +43,6 @@ impl FirstWordConfidence {
             .is_some_and(|first| ends_first_word(&format!("{}{first}", self.text)))
     }
 
-    /// Weighs the next emitted token. False once the first word is known to
-    /// fall below the minimum; the product only falls, so generation can stop.
     pub fn accept(&mut self, piece: &str, probability: f32, boundary: Option<f32>) -> bool {
         if self.settled {
             return true;
@@ -98,7 +72,6 @@ impl FirstWordConfidence {
     }
 }
 
-/// A word character followed by one that cannot continue the word.
 pub fn ends_first_word(text: &str) -> bool {
     let mut in_word = false;
     for c in text.trim_start().chars() {
@@ -111,9 +84,6 @@ pub fn ends_first_word(text: &str) -> bool {
     false
 }
 
-/// Whether a token's bytes start a new word: its first complete character is
-/// not a letter, digit, joiner or mark. A token that is only part of a
-/// character never does.
 pub fn token_starts_boundary(bytes: &[u8]) -> bool {
     let Some(&lead) = bytes.first() else {
         return false;
@@ -137,9 +107,6 @@ pub fn token_starts_boundary(bytes: &[u8]) -> bool {
     !(super::text::is_word_char(c) || c == '_' || "'’-".contains(c))
 }
 
-/// One token stream with a sticky decision for the gate and, under the
-/// hybrid, its one-word fallback. The fallback never revives a gate that
-/// failed nor changes one that passed.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ConfidenceDecision {
     pub primary: FirstWordConfidence,
@@ -160,8 +127,6 @@ impl ConfidenceDecision {
         }
     }
 
-    /// The app's gate: the selected-token minimum with the one-word hybrid.
-    /// Inside a word there is nothing to weigh.
     pub fn for_autocomplete(at_word_boundary: bool) -> Self {
         let minimum = if at_word_boundary {
             MINIMUM_PROBABILITY
@@ -206,7 +171,6 @@ impl ConfidenceDecision {
         boundary: Option<f32>,
         is_eog: bool,
     ) -> bool {
-        // The selected-token gate does not weigh the end of the text.
         if self.primary_passed && (!is_eog || self.primary.mode != BoundaryMode::SelectedToken) {
             self.primary_passed = self.primary.accept(piece, probability, boundary);
         }
@@ -220,8 +184,6 @@ impl ConfidenceDecision {
     }
 }
 
-/// The hybrid's cap: only the first word of a finished normalization, its
-/// suppression kept.
 pub fn one_word_fallback(normalized: Normalized) -> Normalized {
     if normalized.suppression.is_some() || normalized.text.is_empty() {
         return normalized;

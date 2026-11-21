@@ -1,13 +1,3 @@
-//! Spoken due phrases to local calendar days (`ActionDueResolver.swift`).
-//!
-//! Deterministic English and Serbian grammar resolved against the day the
-//! phrase was said. It never guesses: phrases outside the grammar stay
-//! unresolved. Ranges resolve to their last day ("next week" is the Friday
-//! of next week, "end of Q3" is September 30).
-//!
-//! Weeks start on Monday here (ISO), which only matters for "next <weekday>"
-//! said on a Sunday; macOS follows the user's locale.
-
 use std::sync::LazyLock;
 
 use chrono::{DateTime, Datelike as _, Days, Months, NaiveDate, Utc, Weekday};
@@ -52,7 +42,6 @@ const MONTH_NAMES: &[(u32, &[&str])] = &[
     (12, &["december", "dec", "decembar"]),
 ];
 
-/// Longest first, so "couple of" wins over shorter words.
 const NUMBER_WORDS: &[(&str, u32)] = &[
     ("couple of", 2),
     ("three", 3),
@@ -156,12 +145,10 @@ fn month_alternation() -> String {
         .join("|")
 }
 
-/// Resolves `phrase` said at `spoken_at` (interpreted in the local time zone).
 pub fn resolve_at(phrase: Option<&str>, spoken_at: DateTime<Utc>) -> Option<NaiveDate> {
     resolve(phrase, crate::time::local_day(spoken_at))
 }
 
-/// Resolves `phrase` said on the local day `spoken_on`.
 pub fn resolve(phrase: Option<&str>, spoken_on: NaiveDate) -> Option<NaiveDate> {
     let text = normalized(phrase?);
     if text.is_empty() || text.chars().count() > 80 {
@@ -197,7 +184,6 @@ pub fn resolve(phrase: Option<&str>, spoken_on: NaiveDate) -> Option<NaiveDate> 
         .or_else(|| month_day(&text, day))
 }
 
-/// "Due Fri, Oct 2 · said “Friday”", or the phrase with the day it was said.
 pub fn label(phrase: &str, spoken_at: DateTime<Utc>) -> String {
     let spoken_day = crate::time::local_day(spoken_at);
     let Some(date) = resolve(Some(phrase), spoken_day) else {
@@ -222,7 +208,6 @@ fn normalized(phrase: &str) -> String {
         .to_string()
 }
 
-/// Returns every capture group, with unmatched optional groups as "".
 fn captures(regex: &Regex, text: &str) -> Option<Vec<String>> {
     let caps = regex.captures(text)?;
     Some(
@@ -245,7 +230,6 @@ fn iso_date(text: &str) -> Option<NaiveDate> {
     )
 }
 
-/// Sunday = 1 … Saturday = 7, as in Foundation's Gregorian calendar.
 fn weekday_number(day: NaiveDate) -> u32 {
     day.weekday().number_from_sunday()
 }
@@ -259,14 +243,11 @@ fn weekday(text: &str, day: NaiveDate) -> Option<NaiveDate> {
     let current = weekday_number(day);
     let modifier = groups[0].trim();
     let mut offset = (target + 7 - current) % 7;
-    // "This Friday" said on a Friday is that day; a bare or "next" weekday
-    // said on the same weekday means the following week.
     if offset == 0 && modifier != "this" {
         offset = 7;
     }
     let mut date = day.checked_add_days(Days::new(u64::from(offset)))?;
     if matches!(modifier, "next" | "sledeci" | "sledeći") && date.iso_week() == day.iso_week() {
-        // "Next Friday" said on a Tuesday means Friday of the following week.
         date = date.checked_add_days(Days::new(7))?;
     }
     Some(date)
@@ -348,7 +329,6 @@ fn month_day(text: &str, day: NaiveDate) -> Option<NaiveDate> {
     }
     let mut year = explicit_year.unwrap_or(day.year());
     let mut date = NaiveDate::from_ymd_opt(year, month, day_of_month)?;
-    // Without a year, a date well before the meeting refers to next year.
     if explicit_year.is_none()
         && day
             .checked_sub_days(Days::new(31))
@@ -360,7 +340,6 @@ fn month_day(text: &str, day: NaiveDate) -> Option<NaiveDate> {
     Some(date)
 }
 
-/// Friday of the week containing `day`; a Saturday keeps the stated day.
 fn end_of_work_week(day: NaiveDate) -> NaiveDate {
     let offset = 6 - weekday_number(day) as i64;
     if offset >= 0 {
@@ -379,7 +358,6 @@ fn last_day_of_month(day: NaiveDate) -> Option<NaiveDate> {
 mod tests {
     use super::*;
 
-    /// Tuesday, 22 September 2026, as in `ActionDueResolverTests.swift`.
     fn tuesday() -> NaiveDate {
         NaiveDate::from_ymd_opt(2026, 9, 22).unwrap()
     }

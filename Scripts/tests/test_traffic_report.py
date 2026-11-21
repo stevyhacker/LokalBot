@@ -176,7 +176,6 @@ class DashboardHtmlAndCliTests(unittest.TestCase):
 
     def test_render_html_respects_embed_layout_and_theme_tokens(self):
         html = traffic_report.render_dashboard_html(sample_report())
-        # Never use vh units anywhere or height:100% on html/body (breaks embedded auto-height frames).
         self.assertIsNone(re.search(r"\b\d+vh\b", html))
         html_body_rule = re.search(r"html,\s*body\s*\{([^}]*)\}", html)
         self.assertIsNotNone(html_body_rule)

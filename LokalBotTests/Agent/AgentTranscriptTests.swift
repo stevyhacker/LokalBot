@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Folding rules: streaming deltas accumulate into one assistant bubble,
-/// message_end replaces it with the final text, tool events drive one card
-/// per toolCallId, and empty assistant bubbles (tool-call-only turns) are
-/// dropped.
 final class AgentTranscriptTests: XCTestCase {
     func testTerminalModelErrorPreservesPartialAnswerAndFailure() throws {
         var folder = AgentTranscriptFolder()
@@ -111,9 +107,6 @@ final class AgentTranscriptTests: XCTestCase {
         folder.addApproval(approvalRequest(id: "uuid-1", command: "ls"))
         folder.fold(.messageStart(role: "assistant"))
         folder.fold(.messageUpdate(.textDelta("Hello")))
-        // Removing the card shifts the array under the streaming bubble; the
-        // assistant is now the LAST item, so a stale raw index would be out
-        // of range on the next delta.
         folder.resolveApproval(requestID: "uuid-1")
         folder.fold(.messageUpdate(.textDelta(" world")))
         XCTAssertEqual(folder.items.count, 1)
@@ -140,7 +133,7 @@ final class AgentTranscriptTests: XCTestCase {
     func testAgentSettledFinishesStreamingBubble() {
         var folder = AgentTranscriptFolder()
         folder.fold(.messageUpdate(.textDelta("partial answer")))
-        folder.fold(.agentSettled)   // e.g. user aborted mid-stream: no message_end
+        folder.fold(.agentSettled)
         guard case .assistant(_, "partial answer", false) = folder.items[0] else {
             return XCTFail("expected settled assistant item, got \(folder.items)")
         }

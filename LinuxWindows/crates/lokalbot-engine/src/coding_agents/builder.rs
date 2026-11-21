@@ -1,5 +1,3 @@
-//! Transcript events into bursts (`CodingAgentBurstBuilder`).
-
 use chrono::{DateTime, Utc};
 use lokalbot_core::coding_agents::{
     ACTIVE_GAP_CAP_SECONDS, CodingAgentAction, CodingAgentBurst, CodingAgentKind,
@@ -7,8 +5,6 @@ use lokalbot_core::coding_agents::{
 };
 use lokalbot_core::time::local_day;
 
-/// One timestamped fact from a transcript. Tool output, file contents, reasoning
-/// and injected system or developer text never become events.
 #[derive(Clone, Debug, PartialEq)]
 pub enum EventKind {
     Prompt(String),
@@ -16,16 +12,10 @@ pub enum EventKind {
     ToolCall,
     FileChange(String),
     Action(CodingAgentAction),
-    /// A pull request the agent associated with the session. Claude Code emits
-    /// these links again every turn, so they annotate work but never start,
-    /// extend or keep alive a burst on their own.
     PullRequest(String),
-    /// Timestamp-only evidence that the agent was working, such as a tool
-    /// result whose content is deliberately not read.
     Activity,
 }
 
-/// An event's time and kind, as activity compaction reads them.
 pub trait TimedEvent {
     fn at(&self) -> DateTime<Utc>;
     fn kind(&self) -> &EventKind;
@@ -39,12 +29,7 @@ pub trait TimedEvent {
 pub struct Event {
     pub at: DateTime<Utc>,
     pub kind: EventKind,
-    /// The source record's hashed id, for dropping copies a fork or resumed
-    /// session carries. Hashes are per process and never persisted.
     pub record_key: Option<u64>,
-    /// The folder and branch the source record names, for readers whose records
-    /// carry them. A burst is labeled from its own records, so a session that
-    /// moves on never relabels work that already settled.
     pub working_directory: Option<String>,
     pub branch: Option<String>,
 }
@@ -71,18 +56,13 @@ impl TimedEvent for Event {
     }
 }
 
-/// One parsed session, with events already clipped to the requested days.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Transcript {
     pub agent: CodingAgentKind,
     pub session_id: String,
     pub title: Option<String>,
-    /// Session-wide labels, for bursts whose events carry none.
     pub working_directory: Option<String>,
     pub branch: Option<String>,
-    /// The session read LokalBot's own library through its CLI or MCP. Its
-    /// replies may restate library content, so they are withheld to keep the
-    /// digest from consuming its own output.
     pub consulted_lokalbot: bool,
     pub events: Vec<Event>,
 }
@@ -107,8 +87,6 @@ pub fn bursts(transcript: &Transcript) -> Vec<CodingAgentBurst> {
             _ => groups.push(vec![event]),
         }
     }
-    // Annotations join the burst that was active when they were written; a link
-    // written again while nothing else happened is dropped.
     for annotation in ordered.iter().copied().filter(|e| e.is_annotation()) {
         let group = groups.iter_mut().rev().find(|group| {
             let (Some(first), Some(last)) = (group.first(), group.last()) else {
@@ -190,11 +168,7 @@ fn burst(events: &[&Event], transcript: &Transcript, title: &str) -> Option<Codi
     let active = times
         .windows(2)
         .map(|pair| seconds(pair[0], pair[1]).min(ACTIVE_GAP_CAP_SECONDS))
-        // Not `sum`: an empty float sum is -0.0, which would reach the payload.
         .fold(0.0, |total, gap| total + gap);
-    // A scan reads a window of days, and a long session changes branch and
-    // folder within it. Labels from the session as a whole would relabel this
-    // burst on every such change and as the window slides.
     let working_directory = events
         .iter()
         .find_map(|event| event.working_directory.clone())
@@ -226,15 +200,6 @@ fn burst(events: &[&Event], transcript: &Transcript, title: &str) -> Option<Codi
     })
 }
 
-/// Drops timestamp-only events that change neither a burst boundary nor its
-/// active time. A ping is redundant when the events either side of it are
-/// within the active-gap cap of each other: the gaps it splits count in full
-/// either way. Busy sessions log thousands of tool results, so this keeps cached
-/// transcripts small without changing any burst.
-///
-/// Bursts are cut at midnight, so a ping is kept when its neighbours fall on
-/// different days: otherwise the next day's first event, or the scan window's
-/// start, would move the edge of a burst already saved.
 pub fn compacting_activity<E: TimedEvent + Clone>(events: &[E]) -> Vec<E> {
     let annotations: Vec<E> = events
         .iter()

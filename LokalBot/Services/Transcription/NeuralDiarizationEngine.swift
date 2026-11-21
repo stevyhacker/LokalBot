@@ -2,12 +2,6 @@ import FluidAudio
 import Foundation
 import CoreML
 
-/// Acoustic speaker clustering for microphone and system-audio tracks.
-/// Clusters identify distinct voices within a track; confirmation and identity
-/// evidence determine whether a voice belongs to the user or someone else.
-///
-/// Owns CoreML buffers off the main actor. Nemotron's mutable prediction buffers
-/// are used synchronously here and a fresh diarizer resets speaker state per track.
 actor NeuralDiarizationEngine {
     private static let communityRuntimeID = "diarization:pyannote-community-1"
     private static let nemotronRuntimeID = "diarization:nemotron-3"
@@ -20,10 +14,6 @@ actor NeuralDiarizationEngine {
     private let nemotronLoader: @Sendable () async throws -> Nemotron3Models
     private var activeUses = 0
     private let idleSeconds: TimeInterval
-    /// Like the transcription engines, release the models once processing
-    /// has been idle for a while; they used to stay resident until quit.
-    /// Recording-time prewarm does not start the timer, so a prewarmed model
-    /// waits for the meeting it was loaded for.
     private lazy var idle = IdleTimer(seconds: idleSeconds) { [weak self] in await self?.unload() }
 
     init(
@@ -43,8 +33,6 @@ actor NeuralDiarizationEngine {
 
     var hasLoadedModels: Bool { models != nil || nemotron != nil }
 
-    /// The Pyannote voice model is on disk, so background work can use it
-    /// without a download. Loading still verifies every byte.
     nonisolated static var voiceModelInstalled: Bool {
         guard let snapshot = try? PinnedModelSnapshot.catalog("community") else { return false }
         let directory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
@@ -58,8 +46,6 @@ actor NeuralDiarizationEngine {
     private static func loadPinnedCommunityModels() async throws -> OfflineDiarizerModels {
         let directory = TranscriptionModelStore.Environment.live.fluidAudioModelsRoot
             .appendingPathComponent(Repo.diarizer.folderName)
-        // Preserve FluidAudio's existing immutable revision, but verify all
-        // bytes before CoreML parses them and avoid its alternate cache paths.
         try await PinnedModelSnapshot.catalog("community").prepare(in: directory)
         let started = Date()
         func load(_ name: String, units: MLComputeUnits = .all) throws -> MLModel {
@@ -100,24 +86,19 @@ actor NeuralDiarizationEngine {
     }
 
     nonisolated private static func configuration(includeVoiceSamples: Bool) -> OfflineDiarizerConfig {
-        // Start from `community-1` defaults, override the knobs that matter
-        // for meeting recordings (short interjections, conservative cluster
-        // merging, never collapse to one speaker).
         var clustering = OfflineDiarizerConfig.Clustering.community
-        clustering.threshold = 0.70     // preserve the existing app tuning
-        clustering.warmStartFa = 0.07   // pyannote default; VBx precision
+        clustering.threshold = 0.70
+        clustering.warmStartFa = 0.07
 
         var embedding = OfflineDiarizerConfig.Embedding.community
-        embedding.minSegmentDurationSeconds = 0.3   // keep brief interjections
+        embedding.minSegmentDurationSeconds = 0.3
 
         var postProcessing = OfflineDiarizerConfig.PostProcessing.community
-        postProcessing.minGapDurationSeconds = 0.05 // tolerate close turns
-        // One speaker at a time, so each transcript word has one owner.
-        // FluidAudio 0.18.2 changed the community default to keep overlaps.
+        postProcessing.minGapDurationSeconds = 0.05
         postProcessing.exclusiveSegments = true
 
         var segmentation = OfflineDiarizerConfig.Segmentation.community
-        segmentation.stepRatio = 0.15   // finer windows (slower but better recall)
+        segmentation.stepRatio = 0.15
 
         var config = OfflineDiarizerConfig(
             segmentation: segmentation,
@@ -128,7 +109,6 @@ actor NeuralDiarizationEngine {
         return config
     }
 
-    /// Coalesce recording-time prewarm and processing; failed loads remain retryable.
     func prepareModels(model: DiarizationModel, includeVoiceSamples: Bool) async throws {
         try Task.checkCancellation()
         do {
@@ -191,7 +171,6 @@ actor NeuralDiarizationEngine {
         }
     }
 
-    /// Errors are surfaced to the retry UI, never saved as successful generic-speaker checkpoints.
     func diarizeDetailed(url: URL, model: DiarizationModel, includeVoiceSamples: Bool) async throws -> SpeakerDiarizationResult {
         activeUses += 1
         defer { finishUse() }
@@ -209,9 +188,6 @@ actor NeuralDiarizationEngine {
                 let output = try diarizer.processComplete(audio)
                 try Task.checkCancellation()
                 let segments = Self.nemotronSegments(probabilities: output.probabilities, frameCount: output.frameCount)
-                // Nemotron slots are anonymous, not identity embeddings. Preserve the
-                // existing 256-D voice space. AttributedTrackTranscriber maps these
-                // samples by clean temporal coverage, never by a cross-model slot ID.
                 let samples = includeVoiceSamples
                     ? try await communityResult(url: url, includeVoiceSamples: true).samples : []
                 result = SpeakerDiarizationResult(segments: segments, samples: samples)
@@ -239,8 +215,6 @@ actor NeuralDiarizationEngine {
         manager.initialize(models: models)
         let result: DiarizationResult
         do { result = try await manager.process(url) } catch OfflineDiarizationError.noSpeechDetected {
-            // A valid silent track is an empty observation, not a failed
-            // recording. Other model/file failures still surface for retry.
             return SpeakerDiarizationResult(segments: [], samples: [])
         }
         try Task.checkCancellation()
@@ -255,8 +229,6 @@ actor NeuralDiarizationEngine {
     }
 }
 
-/// FluidAudio's segment, distilled to what the pipeline actually uses (start,
-/// end, raw speaker id like `"S1"`). Optional voice samples remain private.
 struct DiarizedSegment: Sendable {
     let start: TimeInterval
     let end: TimeInterval
@@ -264,9 +236,6 @@ struct DiarizedSegment: Sendable {
 }
 
 extension Array where Element == DiarizedSegment {
-    /// Find the FluidAudio segment that overlaps `(start, end)` the most.
-    /// Used when relabeling a transcript segment: pick the speaker that
-    /// covered most of the spoken interval.
     func dominantSpeaker(coveringStart start: TimeInterval,
                          end: TimeInterval) -> String? {
         var best: (speaker: String, overlap: TimeInterval) = ("", 0)

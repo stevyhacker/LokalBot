@@ -1,13 +1,8 @@
 import SwiftUI
 
-/// Setup, step 2: only the permissions the choices need. Each row names the
-/// feature it serves and shows its real state.
 struct OnboardingAccessStep: View {
     let access: OnboardingAccess
-    /// Whether the workday keeps text, which changes what Accessibility reads.
     let readsScreenText: Bool
-    /// The permission to ask for, and the button's frame on screen, where the
-    /// System Settings helper flies out from.
     let allow: (AppPermission, CGRect) -> Void
     let restart: () -> Void
     @Environment(\.locale) private var locale
@@ -33,7 +28,6 @@ struct OnboardingAccessStep: View {
                     .transition(WorkspaceMotion.disclosureTransition(reduceMotion: reduceMotion))
             }
         }
-        // Grants arrive from polling while the user is in System Settings.
         .animation(WorkspaceMotion.animation(.milestone, reduceMotion: reduceMotion), value: access)
     }
 
@@ -64,7 +58,6 @@ private extension ListFormatter {
     }
 }
 
-/// One permission: what it is, the feature it serves, why, and where it stands.
 private struct OnboardingPermissionRow: View {
     let row: OnboardingAccess.Row
     let readsScreenText: Bool
@@ -139,7 +132,6 @@ private struct OnboardingPermissionRow: View {
 }
 
 private extension AppPermission {
-    /// Outline symbols, to sit in the row's tinted tile.
     var onboardingSymbol: String {
         switch self {
         case .microphone: "mic"
@@ -159,8 +151,6 @@ private extension AppPermission {
     }
 }
 
-/// What System Settings will ask for, shown before the person clicks: the
-/// LokalBot row in the list, and the box it can be dragged in from.
 private struct OnboardingSettingsGuide: View {
     var body: some View {
         HStack(alignment: .center, spacing: 16) {
@@ -179,8 +169,6 @@ private struct OnboardingSettingsGuide: View {
         .accessibilityIdentifier("onboarding.settingsGuide")
     }
 
-    /// A System Settings privacy list in miniature: another app switched
-    /// off, LokalBot switched on, and an arrow coming up from the drag box.
     private var picture: some View {
         VStack(spacing: 3) {
             VStack(alignment: .leading, spacing: 5) {

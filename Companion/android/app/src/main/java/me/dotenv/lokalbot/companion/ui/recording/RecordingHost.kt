@@ -37,22 +37,16 @@ import me.dotenv.lokalbot.companion.recording.RecorderState
 import me.dotenv.lokalbot.companion.recording.RecordingService
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 
-/** Starts a recording, or returns to the one going. Null when this library can't record. */
 val LocalRecordAction = staticCompositionLocalOf<(() -> Unit)?> { null }
 
 enum class MicrophonePrompt { Explain, OpenSettings }
 
-/**
- * What follows a denied microphone. Android stops offering its own prompt
- * after "don't ask again", which leaves only system settings.
- */
 fun promptAfterDenial(canAskAgain: Boolean): MicrophonePrompt =
     if (canAskAgain) MicrophonePrompt.Explain else MicrophonePrompt.OpenSettings
 
 private fun granted(context: Context, permission: String) =
     ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
-/** The microphone, plus the notification on recent Android. Recording goes ahead without the notification. */
 private fun permissionsToAsk(context: Context): Array<String> = buildList {
     add(Manifest.permission.RECORD_AUDIO)
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !granted(context, Manifest.permission.POST_NOTIFICATIONS)) {
@@ -60,11 +54,9 @@ private fun permissionsToAsk(context: Context): Array<String> = buildList {
     }
 }.toTypedArray()
 
-/** Shows the recording screen over [content], the whole app, while it's wanted. */
 @Composable
 fun RecordingHost(recorder: MeetingRecorder?, content: @Composable () -> Unit) {
     RecordingAccess(recorder) {
-        // Keeps the app's scroll and pane state while the screen covers it.
         val appState = rememberSaveableStateHolder()
         if (recorder != null && recordingScreenShown(recorder)) {
             RecordingScreen(recorder)
@@ -81,7 +73,6 @@ private fun recordingScreenShown(recorder: MeetingRecorder): Boolean {
     return state !is RecorderState.Idle && !hidden
 }
 
-/** Provides [LocalRecordAction] to [content], and walks the person through the microphone permission. */
 @Composable
 private fun RecordingAccess(recorder: MeetingRecorder?, content: @Composable () -> Unit) {
     if (recorder == null) {
